@@ -112,8 +112,9 @@ export const TEXTURES = ['auto', 'none', 'dots', 'grid', 'lines'];
 export const LABEL_SOURCES = ['series', 'brand', 'folio'];
 
 // The kinds of page a layout draws on (its "page"): grid (a brand's own layout, drawn with design/layout.css), or the built-in
-// templates' poster or editorial page (see the header and PAGES).
-export const PAGE_KINDS = ['grid', 'poster', 'editorial'];
+// templates' poster or editorial page, the full-bleed photo post's page (photo) or a social page's cover (cover; see the header
+// and PAGES).
+export const PAGE_KINDS = ['grid', 'poster', 'editorial', 'photo', 'cover'];
 const BUILT_PAGES = ['poster', 'editorial'];
 export const PAGE_CONDITIONS = ['single', 'first', 'later'];
 const WHEN_KEYS = ['present', 'absent', 'page', 'field', 'is', 'not'];
@@ -189,6 +190,12 @@ export const BLOCKS = {
   // -- screen group --
   // (end of screen group)
   // -- photo group --
+  // the photo post's page: the photograph under everything (full bleed, whatever its rectangle), the scrim and footer fade the
+  // renderer raises until the text reads, the thin lines it draws, and the footer (the logo in its pill, the website)
+  backdrop: { kinds: ['image'], field: 'image', options: {}, under: true, pages: ['photo'] },
+  scrim: { kinds: [], field: null, options: {}, chrome: true, pages: ['photo'] },
+  lines: { kinds: [], field: null, options: {}, chrome: true, pages: ['photo'] },
+  photoFooter: { kinds: [], field: null, options: {}, chrome: true, pages: ['photo'] },
   // (end of photo group)
 };
 
@@ -204,6 +211,8 @@ const ADDED_OPTIONS = [
   // -- screen group --
   // (end of screen group)
   // -- photo group --
+  // the photo post's headline box also holds the spec's eyebrow, over the headline
+  ['headline', 'eyebrow', on(['photo'], b(false))],
   // (end of photo group)
 ];
 for (const [type, name, o] of ADDED_OPTIONS) {
@@ -254,6 +263,27 @@ export const PAGES = {
     },
     decorations: ['panel', 'rule', 'glow', 'map'],
     fit: { pad: 62, top: 46 },
+  },
+  // The full-bleed photo post (lib/design/layout-photo.mjs). Its headline box is anchored at the top of its rectangle, or with
+  // "valign": "bottom" at its bottom edge, and holds the eyebrow (with "eyebrow": true), the headline and the subField's sub line,
+  // set in the page's own type sizes per size (type: px; subWidth, the sub line's max-width). The fit check holds text to the
+  // size's own margins (fit: null).
+  photo: {
+    draws: {
+      backdrop: [],
+      scrim: [],
+      lines: [],
+      headline: ['valign', 'eyebrow'],
+      photoFooter: [],
+    },
+    decorations: [],
+    fit: null,
+    type: {
+      feed: { headline: 112, sub: 38, eyebrow: 24, subWidth: 800 },
+      wide: { headline: 68, sub: 24, eyebrow: 17, subWidth: 560 },
+      story: { headline: 120, sub: 42, eyebrow: 26, subWidth: 800 },
+      square: { headline: 88, sub: 30, eyebrow: 20, subWidth: 800 },
+    },
   },
 };
 // Options a phase 2 group lets a built-in page honour on a block type it already draws: [page, type, option], in the group's own

@@ -188,6 +188,16 @@ the table (for example `closing`'s default text, `region`) is a shared change: a
   conditions. The first variant whose `when` holds is drawn; a spec that matches none falls back to the function.
 - **`ensureValid`.** The registry validates every built-in layout the first time one is used and throws a plain `Error` naming
   each problem; `test-design-builtin.mjs` checks the same with `builtinProblems()`.
+- **The photo page (photo group).** A block option is one value for every size, but the photo post sets its type per size
+  (headline 112/68/120/88, sub, eyebrow, the sub line's width 800 or 560 on wide): those live in the page's own table,
+  `PAGES.photo.type`, and only the text box's rectangle is the layout's (`px` per size). The eyebrow is drawn inside the
+  headline's box (as the sub line is, with `subField`), switched on with the headline's `eyebrow` flag; it is not a declared
+  field, since a block can bind only its own field and `subField`. `textAt` is read through `SPEC_CHOICES` for both the
+  headline blocks' conditions (`is: 'top'` and `not: 'top'`, so any value but top is the bottom, as in the function) and the
+  body's `data-textat`. The page has no ground, series, accent setting or texture (the photo is the page; `photo` with no
+  accent device is the body's `acc-none`), so it draws its blocks with its own loop rather than `drawBuiltPage`, which would
+  refuse an unknown series the function ignores. Blocks carry their own line breaks, so the markup matches when the blocks
+  keep the template's order: backdrop, scrim, lines, text, footer.
 
 ## Pre-existing issues seen in the baseline (not part of the conversion)
 

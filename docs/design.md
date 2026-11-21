@@ -440,7 +440,13 @@ for the demo brand and two style variants, before and after, and compares the pi
 
 - Screen (`lib/design/builtin/screen.mjs`): `screen` by its function.
 
-- Photo (`lib/design/builtin/photo.mjs`): `photo` and the page covers by their functions.
+- Photo (`lib/design/builtin/photo.mjs`): **`photo`** is drawn from its layout at every size, on its own kind of page
+  (`"page": "photo"`, `lib/design/layout-photo.mjs`): the photograph under everything (`backdrop`), the scrim and footer fade
+  the renderer raises until the text reads (`scrim`), the thin lines it draws (`lines`), one text box per `textAt` (two
+  headline blocks with exclusive conditions on `textAt`, the bottom one anchored at the foot of its rectangle with `"valign":
+  "bottom"`) holding the eyebrow (`"eyebrow": true`), the headline and its `subField` sub line, and the footer with the logo in
+  its pill (`photoFooter`). The type sizes per size are the page's own (`PAGES.photo.type`), the fit margins the size's.
+  The page covers are still drawn by their function.
 
 The format gained what the built-ins need; every new value is a name from a fixed list or a bounded whole number, checked by
 `validateLayout` like the rest:

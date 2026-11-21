@@ -3,12 +3,40 @@
 // the brand's display type, an optional eyebrow in its label type, the logo pill bottom-left, the website bottom-right (the
 // brand's style may swap the sides or leave the website out). Thin arcs and brackets are added by the renderer (automatic placement or
 // the "lines" you give). Words in *asterisks* turn brand gold.
+//
+// UNUSED: the photo post is drawn from its layout (lib/design/builtin/photo.mjs, drawn by lib/design/layout-photo.mjs with the
+// helpers exported here). The function stays until every template is converted (testlib/CONVERTING.md).
 import { contentBottom } from '../../lib/design/sizes.mjs';
 import { byName, esc, fmt, hs } from './common.mjs';
 import { accentOf, footerOf, logoPlace } from './style.mjs';
 
 // object-position is only ever "N% N%" with numbers; anything else falls back to the centre.
 const POSITION = /^(\d{1,3}(\.\d{1,2})?)% (\d{1,3}(\.\d{1,2})?)%$/;
+
+// The photograph, full bleed (brand.css .pcanvas>img.bg), at the spec's checked focal point.
+export const photoBackdrop = (spec, ctx) => `<img class="bg" data-user data-name="${esc(spec.image)}" data-fit="cover" src="${ctx.image(spec.image)}" alt="" style="object-position:${POSITION.test(spec.focalCss ?? '') ? spec.focalCss : '50% 50%'}">`;
+// The scrim and the footer fade (the renderer raises them until the text reads), and the thin lines (the renderer fills them in).
+export const photoScrim = () => '<div class="scrim" id="scrim"></div><div class="fade" id="fade"></div>';
+export const photoLines = (S) => `<svg class="lines" id="lines" viewBox="0 0 ${S.w} ${S.h}" aria-hidden="true"></svg>`;
+// The text box: the eyebrow, the headline and the sub line. pos: "top:Npx" or "bottom:Npx" (numbers the caller computed); maxw,
+// fs, sf, ef, subW: numbers from the caller's fixed tables.
+export function photoText(spec, { pos, maxw, fs, sf, ef, subW }) {
+  return `<div class="ptext" id="pt" style="${pos};max-width:${maxw}px">
+${spec.eyebrow ? `<div class="eyebrow" data-role="eyebrow" style="font-size:${ef}px;line-height:${ef * 1.3}px;margin-bottom:${ef * 0.9}px">${fmt(spec.eyebrow)}</div>` : ''}
+<div class="h" data-role="headline" style="font-size:${hs(fs)}">${fmt(spec.headline)}</div>
+${spec.sub ? `<div class="sub" data-role="sub" style="font-size:${sf}px;line-height:1.3;margin-top:${sf * 0.6}px;max-width:${subW}px">${fmt(spec.sub)}</div>` : ''}</div>`;
+}
+// The logo always sits in its light pill over a photo; the brand's style decides the side and whether the website shows.
+export function photoFooter(ctx) {
+  const url = footerOf(ctx.brand) === 'none' ? '' : `<div class="url" data-role="url">${esc(ctx.brand.website)}</div>`;
+  return `<div class="footer${logoPlace(ctx.brand, 'photo').right ? ' flip' : ''}"><div class="lpill"><img src="${ctx.brand.logoFullSrc}" alt=""></div>${url}</div>`;
+}
+// The page around it: its body class (*words* are the accent colour, unless the brand sets its headlines without an accent
+// device) and where the text sits.
+export function photoPage(ctx, body, atTop) {
+  const none = accentOf(ctx.brand, { spec: {}, fallback: 'colour' }) === 'none';
+  return { body: `<div class="pcanvas photo">${body}</div>`, bodyClass: `photo${none ? ' acc-none' : ''}`, bodyAttrs: `data-textat="${atTop ? 'top' : 'bottom'}"` };
+}
 
 export function photo(spec, ctx) {
   const S = ctx.size;
@@ -19,18 +47,10 @@ export function photo(spec, ctx) {
   const maxw = byName({ feed: 880, wide: 640, story: 900, square: 830 }, S);
   const topY = S.top + byName({ feed: 4, wide: 0, story: 20, square: 0 }, S);
   const pos = atTop ? `top:${topY}px` : `bottom:${S.h - contentBottom(S)}px`;
-  // The logo always sits in its light pill over a photo; the brand's style decides the side and whether the website shows.
-  const url = footerOf(ctx.brand) === 'none' ? '' : `<div class="url" data-role="url">${esc(ctx.brand.website)}</div>`;
-  const footer = `<div class="footer${logoPlace(ctx.brand, 'photo').right ? ' flip' : ''}"><div class="lpill"><img src="${ctx.brand.logoFullSrc}" alt=""></div>${url}</div>`;
-  const body = `<div class="pcanvas photo"><img class="bg" data-user data-name="${esc(spec.image)}" data-fit="cover" src="${ctx.image(spec.image)}" alt="" style="object-position:${POSITION.test(spec.focalCss ?? '') ? spec.focalCss : '50% 50%'}">
-<div class="scrim" id="scrim"></div><div class="fade" id="fade"></div>
-<svg class="lines" id="lines" viewBox="0 0 ${S.w} ${S.h}" aria-hidden="true"></svg>
-<div class="ptext" id="pt" style="${pos};max-width:${maxw}px">
-${spec.eyebrow ? `<div class="eyebrow" data-role="eyebrow" style="font-size:${ef}px;line-height:${ef * 1.3}px;margin-bottom:${ef * 0.9}px">${fmt(spec.eyebrow)}</div>` : ''}
-<div class="h" data-role="headline" style="font-size:${hs(fs)}">${fmt(spec.headline)}</div>
-${spec.sub ? `<div class="sub" data-role="sub" style="font-size:${sf}px;line-height:1.3;margin-top:${sf * 0.6}px;max-width:${S.name === 'wide' ? 560 : 800}px">${fmt(spec.sub)}</div>` : ''}</div>
-${footer}</div>`;
-  // *words* are the accent colour, unless the brand sets its headlines without an accent device.
-  const none = accentOf(ctx.brand, { spec: {}, fallback: 'colour' }) === 'none';
-  return { body, bodyClass: `photo${none ? ' acc-none' : ''}`, bodyAttrs: `data-textat="${atTop ? 'top' : 'bottom'}"` };
+  const body = `${photoBackdrop(spec, ctx)}
+${photoScrim()}
+${photoLines(S)}
+${photoText(spec, { pos, maxw, fs, sf, ef, subW: S.name === 'wide' ? 560 : 800 })}
+${photoFooter(ctx)}`;
+  return photoPage(ctx, body, atTop);
 }
