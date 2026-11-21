@@ -1,7 +1,7 @@
-// The main caption with a character counter for each network that is on, and the optional wording for one network.
+// The main caption and the optional wording for one network. The counters for each network sit beside the network switches.
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { TextAreaField } from '@/components/kit';
+import { Hint, TextAreaField } from '@/components/kit';
 import { networkLabel } from '../../../lib/labels';
 import { cn } from '@/lib/utils';
 import { CAPTION_LIMIT, NETWORKS, type Network } from '../labels';
@@ -30,15 +30,9 @@ export function CaptionFields({ caption, onCaption, caps, onCaps, on, error }: P
   const open = chosen || anyFilled;
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2">
-        <TextAreaField label="Main caption" rows={6} value={caption} error={error} onChange={(e) => onCaption(e.target.value)} hint="Used on every network that has no wording of its own." />
-        <div className="flex flex-wrap gap-x-4 gap-y-1">
-          {NETWORKS.filter((n) => on[n]).map((n) => (
-            <span key={n} className="text-sm">{networkLabel(n)} <Counter value={caps[n]?.trim() ? caps[n]! : caption} limit={CAPTION_LIMIT[n as Network]} /></span>
-          ))}
-        </div>
-      </div>
+      <TextAreaField label="Main caption" rows={6} value={caption} error={error} onChange={(e) => onCaption(e.target.value)} hint="Used on every network that has no wording of its own." />
       <div>
+        <div className="flex items-center gap-1">
         <button
           type="button"
           aria-expanded={open}
@@ -49,9 +43,10 @@ export function CaptionFields({ caption, onCaption, caps, onCaps, on, error }: P
           {open ? <ChevronDown className="size-4" aria-hidden="true" /> : <ChevronRight className="size-4" aria-hidden="true" />}
           Different wording for one network
         </button>
+        <Hint about="Different wording for one network">Leave a box empty to use the main caption.</Hint>
+        </div>
         {open && (
           <div id="network-captions" className="mt-2 flex flex-col gap-4">
-            <p className="text-sm text-muted-foreground">Leave a box empty to use the main caption.</p>
             {NETWORKS.map((n) => (
               <div key={n} className="flex flex-col gap-1.5">
                 <TextAreaField

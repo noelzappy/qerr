@@ -3,6 +3,7 @@
 import { SelectField, TextAreaField, TextField } from '@/components/kit';
 import { ArtefactEditor, LedgerFields, PassbookFields } from './ArtefactEditor';
 import { HeadlineField } from './HeadlineField';
+import { ImageOptions } from './ImageOptions';
 import { LayoutChooser } from './LayoutChooser';
 import { ListEditor } from './ListEditor';
 import { PicturePicker } from './PicturePicker';
@@ -108,6 +109,7 @@ export function PageFields({ design, onChange, brandLayouts, series, disabled, i
       {!frameOnly && ownLayout?.description && <p className="text-[13px] text-muted-foreground">{ownLayout.description}</p>}
       {!frameOnly && ownLayout && ownLayout.fields.map(brand)}
       {specs?.map(builtIn)}
+      {!frameOnly && <ImageOptions design={d} onChange={onChange} brandLayouts={brandLayouts} disabled={disabled} />}
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
         <SelectField
           label="Post type" optional value={text(d.series)} disabled={disabled} hint={typeHint}

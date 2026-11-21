@@ -2,7 +2,6 @@
 // with the runs that failed listed under it. When the work settles it asks the page to load the posts again.
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useActivity } from '@/hooks/use-activity';
 import { isActive, percent, recentFailures, type ActivityRun } from '@/lib/activity';
@@ -32,29 +31,29 @@ export function BatchActivityStrip({ batchId, onSettled }: { batchId: string; on
 
   const sendPct = send ? percent(send.progress) : null;
   return (
-    <Card className="mb-4 gap-3 p-4" aria-label="Background work on this batch">
+    <section className="mb-4 flex flex-col gap-3 border-b pb-4" aria-label="Background work on this batch">
       <div role="status" aria-live="polite" className="flex flex-col gap-3">
         {wave.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            <p><strong>Making images: {renderDone} of {wave.length}</strong> {wave.length === 1 ? 'post' : 'posts'}</p>
+            <p className="text-[13.5px]"><strong className="font-medium">Making images: {renderDone} of {wave.length}</strong> {wave.length === 1 ? 'post' : 'posts'}</p>
             <Progress value={Math.round((renderDone / wave.length) * 100)} aria-label={`Making images, ${renderDone} of ${wave.length}`} />
           </div>
         )}
         {send && (
           <div className="flex flex-col gap-1.5">
-            <p><strong>{send.progress && typeof send.progress.done === 'number' && typeof send.progress.total === 'number' ? `Sending ${send.progress.done} of ${send.progress.total}` : send.status === 'queued' ? 'Waiting to send' : send.progress?.step ?? 'Sending'}</strong></p>
+            <p className="text-[13.5px]"><strong className="font-medium">{send.progress && typeof send.progress.done === 'number' && typeof send.progress.total === 'number' ? `Sending ${send.progress.done} of ${send.progress.total}` : send.status === 'queued' ? 'Waiting to send' : send.progress?.step ?? 'Sending'}</strong></p>
             <Progress value={sendPct} aria-label={`Sending to Buffer: ${send.progress?.step ?? 'working'}`} />
           </div>
         )}
       </div>
       {failures.length > 0 && <FailureList runs={failures} />}
-    </Card>
+    </section>
   );
 }
 
 function FailureList({ runs }: { runs: ActivityRun[] }) {
   return (
-    <div role="alert" className="flex flex-col gap-1.5 text-sm">
+    <div role="alert" className="flex flex-col gap-1.5 text-[13px]">
       <p className="font-semibold text-destructive">{runs.length === 1 ? '1 job failed' : `${runs.length} jobs failed`}</p>
       <ul className="flex list-disc flex-col gap-1 pl-5 [overflow-wrap:anywhere]">
         {runs.map((r) => (

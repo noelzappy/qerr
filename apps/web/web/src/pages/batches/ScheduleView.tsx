@@ -9,8 +9,7 @@ import { formatDateTime } from '../../lib/format';
 import { networkLabel } from '../../lib/labels';
 import { useSession } from '../../session';
 import { toast } from 'sonner';
-import { BusyButton, ConfirmAction, DataList, EmptyBlock, ErrorBlock, Lines, Notice, RowsSkeleton, Spin, Sub, TextField, ToneBadge, type Column } from '@/components/kit';
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { BusyButton, ConfirmAction, DataList, EmptyBlock, ErrorBlock, Hint, Lines, MoreMenu, Notice, RowsSkeleton, Spin, Sub, TextField, ToneBadge, type Column } from '@/components/kit';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -217,8 +216,8 @@ export function ScheduleView({ batch, deliveries, mode: wanted, command, onComma
         const deletable = d.status === 'created' && (d.bufferStatus === 'draft' || d.bufferStatus === 'scheduled');
         return (
           <div className="flex flex-wrap items-center gap-2 @[720px]:justify-end">
-            {s.unknown && (isAdmin ? <BusyButton size="sm" variant="outline" onClick={() => setResolving(d)}>Resolve</BusyButton> : <span className="text-[13px] text-muted-foreground">An admin can resolve this once they have looked in Buffer.</span>)}
-            {deletable && canGoLive && <BusyButton size="sm" variant="destructive" onClick={() => setDeleting(d)}>Delete from Buffer</BusyButton>}
+            {s.unknown && (isAdmin ? <BusyButton size="sm" variant="outline" onClick={() => setResolving(d)}>Resolve</BusyButton> : <Hint about="Resolve">Only an admin can resolve this, once they have looked in Buffer.</Hint>)}
+            {deletable && canGoLive && <MoreMenu label={`More actions for ${d.title}, ${networkLabel(d.network)}`} items={[{ label: 'Delete from Buffer', tone: 'danger', onSelect: () => setDeleting(d) }]} />}
           </div>
         );
       },
@@ -226,82 +225,84 @@ export function ScheduleView({ batch, deliveries, mode: wanted, command, onComma
   ];
 
   const counts = deliveries.data?.counts ?? {};
-  const flush = '-mx-6 border-t';
+  const table = 'overflow-hidden rounded-md border';
+  const section = 'flex min-w-0 flex-col gap-4 border-t pt-6 first:border-t-0 first:pt-0';
+  const h2 = 'text-[14px] font-semibold';
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card role="region" aria-label="The plan" className="min-w-0">
-        <CardHeader>
-          <CardTitle className="text-lg">What would go to Buffer</CardTitle>
-          <CardDescription>Only approved posts are planned. Each post goes to Buffer first as a draft in Buffer. Once the draft is there, it can be scheduled live.</CardDescription>
-          <CardAction>
-            <Tabs value={mode} onValueChange={(v) => setMode(v === 'live' ? 'live' : 'draft')}>
-              <TabsList aria-label="Show the plan for">
-                <TabsTrigger value="draft" className="max-sm:min-h-11">Send as drafts</TabsTrigger>
-                <TabsTrigger value="live" className="max-sm:min-h-11">Go live</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="flex min-w-0 flex-col gap-4">
-          {staleNote && <Notice tone="warn">{staleNote}</Notice>}
-          {plans.loading && !plans.data ? <RowsSkeleton rows={5} shape="lines" />
-            : plans.error ? <ErrorBlock message={plans.error} onRetry={() => void plans.reload()} />
-            : planError ? (
-              <Notice tone="bad" title={planError.message}>
-                {detailLines(planError).length > 0 && <Lines items={detailLines(planError)} className="max-h-64 overflow-y-auto" />}
-                <div className="mt-2"><BusyButton size="sm" variant="outline" onClick={() => void plans.reload()}>Check again</BusyButton></div>
-              </Notice>
-            ) : plan && (
-              <>
-                {(plan.stale || plan.staleReason) && <Notice tone="warn">{plan.staleReason || 'An approval no longer matches the post as it is now. Approve the post again before it can be sent.'}</Notice>}
-                <p className="text-sm">
-                  <strong>{plan.willSend}</strong> of {plan.count} post and channel {plan.count === 1 ? 'pair' : 'pairs'} can be sent now.{' '}
-                  {plan.approvedPosts} {plan.approvedPosts === 1 ? 'post is' : 'posts are'} approved{plan.notApproved > 0 ? `, and ${plan.notApproved} ${plan.notApproved === 1 ? 'is' : 'are'} still being written and not planned` : ''}.
-                </p>
-                {plan.rows.length === 0
-                  ? <EmptyBlock title="Nothing is planned yet">Approve posts in step 2, Review. Approved posts appear here with the channel and time each one goes to.</EmptyBlock>
-                  : <div className={flush}><DataList fit="container" caption={`Plan for ${mode === 'draft' ? 'sending drafts' : 'going live'}, one row for each post and channel`} columns={planColumns} rows={plan.rows} rowKey={(r) => `${r.postKey}/${r.network}`} /></div>}
-              </>
-            )}
-        </CardContent>
-      </Card>
-
-      <Card role="region" aria-label="Send">
-        <CardHeader>
-          <CardTitle className="text-lg">Send to Buffer</CardTitle>
-          <CardDescription>You confirm the exact list before anything is sent.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex flex-wrap gap-2.5">
-            <BusyButton onClick={() => setConfirming('draft')} disabled={!!draftReason} aria-describedby="draft-reason" loading={running && run?.mode === 'draft'}>Send approved posts to Buffer as drafts</BusyButton>
-            <BusyButton variant="destructive" onClick={() => setConfirming('live')} disabled={!!liveReason} aria-describedby="live-reason" loading={running && run?.mode === 'live'}>Schedule live</BusyButton>
-          </div>
-          <div className="flex flex-col gap-1 text-[13px] text-muted-foreground">
-            <p id="draft-reason">{draftReason || 'Drafts are safe: nothing is published until a post is scheduled live.'}</p>
-            <p id="live-reason">{liveReason || 'Schedule live puts real posts on real accounts at their due times.'}</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card role="region" aria-label="In Buffer" className="min-w-0">
-        <CardHeader>
-          <CardTitle className="text-lg">In Buffer</CardTitle>
-          <CardDescription>What happened to each post and channel after it was sent.</CardDescription>
-          <CardAction><BusyButton variant="outline" onClick={() => void refreshStatus()} loading={refreshing || watchSince !== null}>Refresh status</BusyButton></CardAction>
-        </CardHeader>
-        <CardContent className="flex min-w-0 flex-col gap-4">
-          {run && <RunSummary run={run} />}
-          {Object.keys(counts).length > 0 && (
-            <div className="flex flex-wrap gap-1.5">{Object.entries(counts).map(([k, v]) => <ToneBadge key={k} tone={k === 'unknown' ? 'warn' : k === 'failed' ? 'bad' : 'quiet'}>{DELIVERY_COUNT_LABEL[k] ?? k}: {v}</ToneBadge>)}</div>
+    <div className="flex flex-col gap-6">
+      <section aria-label="The plan" className={section}>
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <h2 className={`${h2} inline-flex items-center gap-1.5`}>
+            What would go to Buffer
+            <Hint about="the plan">Only approved posts are planned. Each post goes to Buffer first as a draft in Buffer. Once the draft is there, it can be scheduled live.</Hint>
+          </h2>
+          <Tabs value={mode} onValueChange={(v) => setMode(v === 'live' ? 'live' : 'draft')}>
+            <TabsList aria-label="Show the plan for">
+              <TabsTrigger value="draft" className="max-sm:min-h-11">Send as drafts</TabsTrigger>
+              <TabsTrigger value="live" className="max-sm:min-h-11">Go live</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+        {staleNote && <Notice tone="warn">{staleNote}</Notice>}
+        {plans.loading && !plans.data ? <RowsSkeleton rows={5} shape="lines" />
+          : plans.error ? <ErrorBlock message={plans.error} onRetry={() => void plans.reload()} />
+          : planError ? (
+            <Notice tone="bad" title={planError.message}>
+              {detailLines(planError).length > 0 && <Lines items={detailLines(planError)} className="max-h-64 overflow-y-auto" />}
+              <div className="mt-2"><BusyButton size="sm" variant="outline" onClick={() => void plans.reload()}>Check again</BusyButton></div>
+            </Notice>
+          ) : plan && (
+            <>
+              {(plan.stale || plan.staleReason) && <Notice tone="warn">{plan.staleReason || 'An approval no longer matches the post as it is now. Approve the post again before it can be sent.'}</Notice>}
+              <p className="text-[13.5px]">
+                <strong>{plan.willSend}</strong> of {plan.count} post and channel {plan.count === 1 ? 'pair' : 'pairs'} can be sent now.{' '}
+                {plan.approvedPosts} {plan.approvedPosts === 1 ? 'post is' : 'posts are'} approved{plan.notApproved > 0 ? `, and ${plan.notApproved} ${plan.notApproved === 1 ? 'is' : 'are'} still being written and not planned` : ''}.
+              </p>
+              {plan.rows.length === 0
+                ? <EmptyBlock title="Nothing is planned yet">Approve posts in step 2, Review, and they appear here.</EmptyBlock>
+                : <div className={table}><DataList fit="container" caption={`Plan for ${mode === 'draft' ? 'sending drafts' : 'going live'}, one row for each post and channel`} columns={planColumns} rows={plan.rows} rowKey={(r) => `${r.postKey}/${r.network}`} /></div>}
+            </>
           )}
-          {deliveries.loading && !deliveries.data ? <RowsSkeleton rows={4} shape="lines" />
-            : deliveries.error ? <ErrorBlock message={deliveries.error} onRetry={() => void deliveries.reload()} />
-            : deliveries.data && deliveries.data.deliveries.length === 0
-              ? <EmptyBlock title="Nothing has been sent yet">When you send drafts, each post and channel appears here with its status in Buffer.</EmptyBlock>
-              : deliveries.data && <div className={flush}><DataList fit="container" caption="Deliveries to Buffer, one row for each post and channel" columns={delColumns} rows={deliveries.data.deliveries} rowKey={(d) => d.id} /></div>}
-        </CardContent>
-      </Card>
+      </section>
+
+      <section aria-label="Send" className={section}>
+        <h2 className={`${h2} inline-flex items-center gap-1.5`}>
+          Send to Buffer
+          <Hint about="sending">You confirm the exact list before anything is sent. Drafts are safe: nothing is published until a post is scheduled live.</Hint>
+        </h2>
+        <div className="flex flex-wrap gap-2.5">
+          <BusyButton onClick={() => setConfirming('draft')} disabled={!!draftReason} aria-describedby={draftReason ? 'draft-reason' : undefined} loading={running && run?.mode === 'draft'}>Send approved posts to Buffer as drafts</BusyButton>
+          <BusyButton variant="outline" className="text-destructive hover:text-destructive" onClick={() => setConfirming('live')} disabled={!!liveReason} aria-describedby="live-reason" loading={running && run?.mode === 'live'}>Schedule live</BusyButton>
+        </div>
+        <div className="flex flex-col gap-1 text-[13px] text-muted-foreground">
+          {draftReason && <p id="draft-reason">{draftReason}</p>}
+          <p id="live-reason">{liveReason || 'Schedule live puts real posts on real accounts at their due times.'}</p>
+        </div>
+      </section>
+
+      <section aria-label="In Buffer" className={section}>
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <h2 className={`${h2} inline-flex items-center gap-1.5`}>
+            In Buffer
+            <Hint about="In Buffer">What happened to each post and channel after it was sent.</Hint>
+          </h2>
+          <BusyButton variant="outline" onClick={() => void refreshStatus()} loading={refreshing || watchSince !== null}>Refresh status</BusyButton>
+        </div>
+        {run && <RunSummary run={run} />}
+        {Object.keys(counts).length > 0 && (
+          <p className="text-[13px] text-muted-foreground">
+            {Object.entries(counts).map(([k, v], i) => (
+              <span key={k}>{i > 0 && ' · '}<span className={k === 'failed' ? 'text-destructive' : k === 'unknown' ? 'text-warning-foreground' : undefined}>{DELIVERY_COUNT_LABEL[k] ?? k}: {v}</span></span>
+            ))}
+          </p>
+        )}
+        {deliveries.loading && !deliveries.data ? <RowsSkeleton rows={4} shape="lines" />
+          : deliveries.error ? <ErrorBlock message={deliveries.error} onRetry={() => void deliveries.reload()} />
+          : deliveries.data && deliveries.data.deliveries.length === 0
+            ? <EmptyBlock title="Nothing has been sent yet">Send drafts and each post and channel appears here.</EmptyBlock>
+            : deliveries.data && <div className={table}><DataList fit="container" caption="Deliveries to Buffer, one row for each post and channel" columns={delColumns} rows={deliveries.data.deliveries} rowKey={(d) => d.id} /></div>}
+      </section>
 
       <SendConfirm which={confirming} plan={confirming === 'draft' ? draftPlan : livePlan} timezone={batch.timezone} onCancel={() => setConfirming(null)} onConfirm={send} />
       <ResolveDialog delivery={resolving} onClose={() => setResolving(null)} onDone={() => { setResolving(null); toast.success('Status updated'); refreshAll(); }} />

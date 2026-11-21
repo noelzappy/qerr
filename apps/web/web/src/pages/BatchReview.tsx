@@ -7,9 +7,9 @@ import { useDocumentTitle, useLoad } from '../hooks';
 import { errorMessage } from '../lib/errors';
 import type { ChannelsOverview } from '../lib/overview';
 import { useSession } from '../session';
-import { ArrowLeft, Loader2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { BusyButton, ConfirmAction, EmptyBlock, ErrorBlock, Lines, Notice, PageHeader, SelectBox, SelectField, StatusBadge, ToneBadge, useSelection } from '@/components/kit';
+import { BusyButton, ConfirmAction, EmptyBlock, ErrorBlock, Lines, MoreMenu, Notice, PageHeader, SelectBox, SelectField, StatusBadge, useSelection } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,9 +19,7 @@ import { batchCountBadges, flowCounts, flowSteps, nextAction, postFlow, type Flo
 import { BATCH_STATUS, POST_FILTERS } from './batches/labels';
 import { PostBulkBar } from './batches/PostBulkBar';
 import { PostCard } from './batches/PostCard';
-import { PostEditSheet } from './batches/PostEditSheet';
 import { ScheduleView } from './batches/ScheduleView';
-import { useNetworkHintSeen } from './batches/network-hint';
 import type { AiDraftNotes, ApproveAllResult, BatchView, DeliveriesResponse, DeliveryRow, PostSummary } from './batches/types';
 import { periodLabel } from './batches/util';
 
@@ -58,7 +56,7 @@ export function BatchReview() {
   if (state.error || !state.data) {
     return (
       <>
-        <PageHeader title="Batch" actions={<Button asChild variant="outline"><Link to="/create"><ArrowLeft aria-hidden="true" />Back to Create</Link></Button>} />
+        <PageHeader crumbs={[{ label: 'Create', to: '/create' }, { label: 'Batch' }]} title="Batch" actions={<Button asChild variant="outline"><Link to="/create"><ArrowLeft aria-hidden="true" />Back to Create</Link></Button>} />
         <Card className="gap-0 p-0"><ErrorBlock message={state.error || 'This batch was not found.'} onRetry={() => void state.reload()} title="This batch could not be opened" /></Card>
       </>
     );
@@ -93,24 +91,22 @@ export function BatchReview() {
   return (
     <>
       <PageHeader
+        className="mb-3"
+        crumbs={[{ label: 'Create', to: '/create' }, { label: batch.title }]}
         title={batch.title}
         description={(
-          <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          <span className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12.5px] max-md:whitespace-normal">
             <StatusBadge status={batch.status} map={BATCH_STATUS} />
+            <span aria-hidden="true">·</span>
             <span>{periodLabel(batch.periodStart, batch.periodEnd)}</span>
+            <span aria-hidden="true">·</span>
             <span>{batch.timezone}, default {batch.defaultTime}</span>
-            <span>Owner: {batch.owner?.name || batch.owner?.email || 'unknown'}</span>
-            {batch.aiDrafted && <ToneBadge tone="info">Written by AI</ToneBadge>}
+            <span aria-hidden="true">·</span>
+            <span>{batch.owner?.name || batch.owner?.email || 'Unknown owner'}</span>
+            {batch.aiDrafted && <><span aria-hidden="true">·</span><span>Written by AI</span></>}
           </span>
         )}
-        actions={(
-          <>
-            <Button variant="outline" className="text-destructive hover:text-destructive max-sm:min-h-11" onClick={() => setDeleting(true)}>
-              <Trash2 aria-hidden="true" />Delete batch
-            </Button>
-            <Button asChild variant="outline" className="max-sm:min-h-11"><Link to="/create">All batches</Link></Button>
-          </>
-        )}
+        actions={<MoreMenu items={[{ label: 'Delete batch', tone: 'danger', onSelect: () => setDeleting(true) }]} />}
       />
       {/* The server refuses once any post has gone to Buffer; that reason then shows inside the dialog. */}
       <ConfirmAction
@@ -126,7 +122,7 @@ export function BatchReview() {
           navigate('/create');
         }}
       />
-      <BatchFlow steps={steps} viewed={viewed} onStep={openStep} action={action} onAct={act} blockedBy={blockedBy} />
+      <BatchFlow steps={steps} viewed={viewed} onStep={openStep} action={action} onAct={act} blockedBy={blockedBy} summary={batchCountBadges(batch.counts).map((b) => b.label).join(', ')} />
       {importWarnings.length > 0 && !onSchedule && (
         <div className="mb-4">
           <Notice tone="warn" title={`The import raised ${importWarnings.length} ${importWarnings.length === 1 ? 'warning' : 'warnings'}:`}>
@@ -157,11 +153,10 @@ function ReviewView({ data, reload, deliveriesByPost, focusPost, command, onComm
   const { batch, posts } = data;
   const [filter, setFilter] = useState('');
   const [version, setVersion] = useState(0);
-  const [adding, setAdding] = useState(false);
+  const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ApproveAllResult | null>(null);
   const [error, setError] = useState('');
-  const networkHintSeen = useNetworkHintSeen();
 
   const live = posts.filter((p) => p.status !== 'removed');
   const removed = posts.filter((p) => p.status === 'removed');
@@ -202,45 +197,46 @@ function ReviewView({ data, reload, deliveriesByPost, focusPost, command, onComm
 
   // The buttons at the top of the page can ask this view to act.
   useEffect(() => {
-    if (command === 'add-post') setAdding(true);
+    if (command === 'add-post') navigate(`/batches/${batch.id}/posts/new`);
     else if (command === 'approve-all') void approveAll();
     else return;
     onCommandDone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [command]);
 
+  const addPost = () => navigate(`/batches/${batch.id}/posts/new`);
+
   return (
     <div className="flex flex-col gap-4">
-      <Card role="region" aria-label="Filter and batch actions" className="gap-3 p-4 sm:p-5">
-        <div className="flex flex-wrap items-end justify-between gap-x-5 gap-y-3">
-          <div className="flex flex-wrap gap-1.5" aria-label="Posts in this batch">
-            {batchCountBadges(batch.counts).map((b) => <ToneBadge key={b.key} tone={b.tone}>{b.label}</ToneBadge>)}
+      <div role="region" aria-label="Filter and batch actions" className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+          <div className="flex items-end gap-2">
+            <SelectField className="w-44 sm:w-52" label="Show" value={filter} onValueChange={setFilter} options={POST_FILTERS.map((f) => ({ value: f.value, label: f.label }))} />
+            <BusyButton variant="outline" onClick={addPost}>Add a post</BusyButton>
+            {!primaryIsApproveAll && (
+              <MoreMenu label="More batch actions" items={[{ label: 'Approve all without warnings', onSelect: () => void approveAll(), disabled: busy || live.length === 0 }]} />
+            )}
           </div>
-          <div className="flex flex-wrap items-end gap-2.5 max-sm:w-full">
-            <SelectField className="w-full sm:w-56" label="Show" value={filter} onValueChange={setFilter} options={POST_FILTERS.map((f) => ({ value: f.value, label: f.label }))} />
-            <BusyButton variant="outline" onClick={() => setAdding(true)}>Add a post</BusyButton>
-            {!primaryIsApproveAll && <BusyButton variant="outline" onClick={() => void approveAll()} loading={busy} disabled={live.length === 0}>Approve all without warnings</BusyButton>}
-          </div>
+          {shown.length > 0 && (
+            <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+              <SelectBox checked={allShownTicked} label="Select all shown" onToggle={() => (allShownTicked ? selection.deselect(shownIds) : selection.selectMany(shownIds))} />
+              <span aria-hidden="true">Select all shown ({shown.length})</span>
+            </div>
+          )}
         </div>
         {error && <Notice tone="bad">{error}</Notice>}
-      </Card>
+      </div>
 
       {live.length === 0 ? (
-        <Card className="gap-0 p-0"><EmptyBlock title="This batch has no posts yet" action={<BusyButton variant="outline" onClick={() => setAdding(true)}>Add the first post</BusyButton>}>Add posts by hand, or import a batch file from the batch list to start with a full set.</EmptyBlock></Card>
+        <Card className="gap-0 p-0"><EmptyBlock title="This batch has no posts yet" action={<BusyButton variant="outline" onClick={addPost}>Add the first post</BusyButton>}>Add posts by hand, or import a batch file from the batch list to start with a full set.</EmptyBlock></Card>
       ) : shown.length === 0 ? (
         <Card className="gap-0 p-0"><EmptyBlock title="No posts match this filter" action={<BusyButton variant="outline" onClick={() => setFilter('')}>Show all posts</BusyButton>}>Choose another filter to see the rest.</EmptyBlock></Card>
       ) : (
         <>
-          <div className="flex items-center gap-3 text-sm">
-            <SelectBox checked={allShownTicked} label="Select all shown" onToggle={() => (allShownTicked ? selection.deselect(shownIds) : selection.selectMany(shownIds))} />
-            <span aria-hidden="true">Select all shown ({shown.length})</span>
-          </div>
-          {!networkHintSeen && <p className="-mb-2 text-[13px] text-muted-foreground">Changing networks takes approval off.</p>}
-          <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {shown.map((p) => (
               <PostCard key={p.id} summary={p} batch={batch} version={version} onChanged={changed}
                 deliveries={deliveriesByPost.get(p.id)} highlight={p.id === focusPost}
-                imageReason={batch.aiDraft?.imageReasons?.find((r) => r.postId === p.postKey)?.reason}
                 select={{ selected: selection.isSelected(p.id), onToggle: (range) => selection.toggle(p.id, range) }} />
             ))}
           </div>
@@ -248,9 +244,9 @@ function ReviewView({ data, reload, deliveriesByPost, focusPost, command, onComm
       )}
 
       {removed.length > 0 && (
-        <details className="rounded-lg border border-dashed bg-card">
-          <summary className="flex min-h-11 cursor-pointer items-center px-4 font-medium">Removed posts ({removed.length})</summary>
-          <ul className="px-4 pb-2">
+        <details className="border-t pt-2">
+          <summary className="flex min-h-9 cursor-pointer items-center text-[13px] font-medium text-muted-foreground max-sm:min-h-11">Removed posts ({removed.length})</summary>
+          <ul>
             {removed.map((p) => (
               <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 border-t py-2">
                 <SelectBox checked={selection.isSelected(p.id)} label={`Select ${p.title}`} onToggle={(range) => selection.toggle(p.id, range)} />
@@ -263,7 +259,6 @@ function ReviewView({ data, reload, deliveriesByPost, focusPost, command, onComm
       )}
 
       <PostBulkBar selection={selection} posts={posts} afterRun={afterBulk} />
-      <PostEditSheet open={adding} onClose={() => setAdding(false)} batch={batch} onSaved={() => { setVersion((v) => v + 1); changed(); }} />
       <Dialog open={!!result} onOpenChange={(o) => { if (!o) setResult(null); }}>
         <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>

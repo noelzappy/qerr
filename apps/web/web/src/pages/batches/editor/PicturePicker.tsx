@@ -1,6 +1,8 @@
-// The picture of a design: shows the current one, lets a person choose another from the Pictures in Facts, or remove it.
-// A picture from Facts is named in the design by a file path of a fixed shape plus the item's id; both are written together.
+// The picture of a design: shows the current one, lets a person choose another from the Pictures page, or remove it.
+// The Pictures page and Facts share one store (photo and screen items of /api/vault), so this list is the Pictures page's list.
+// A picture from that store is named in the design by a file path of a fixed shape plus the item's id; both are written together.
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ImageOff, Search } from 'lucide-react';
 import { TextField } from '@/components/kit';
 import { ErrorBlock } from '@/components/kit/states';
@@ -117,12 +119,12 @@ export function PicturePicker({ label = 'Picture', value, onChange, disabled, re
     preview = (
       <div className="flex items-center gap-3">
         <Thumb src={current.url} alt={current.item.title} />
-        <div className="min-w-0"><p className="truncate text-sm font-medium">{current.item.title}</p><p className="text-[13px] text-muted-foreground">Picture from Facts</p></div>
+        <div className="min-w-0"><p className="truncate text-sm font-medium">{current.item.title}</p><p className="text-[13px] text-muted-foreground">From the Pictures page</p></div>
       </div>
     );
   } else if (current.state === 'missing') {
     preview = (
-      <div className="flex items-center gap-3"><Thumb src={null} alt="" /><p className="text-sm text-destructive" role="alert">This picture is no longer in Facts</p></div>
+      <div className="flex items-center gap-3"><Thumb src={null} alt="" /><p className="text-sm text-destructive" role="alert">This picture is no longer on the Pictures page</p></div>
     );
   } else if (current.state === 'error') {
     preview = (
@@ -152,14 +154,14 @@ export function PicturePicker({ label = 'Picture', value, onChange, disabled, re
         <summary className="cursor-pointer rounded-sm text-sm font-medium outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-9">Advanced: type a file path or id</summary>
         <div className="mt-3 flex flex-col gap-3">
           <TextField mono label="Picture file" hint="A file under design/assets/, for example design/assets/photos/cocoa-pods.jpg" value={value.image ?? ''} onChange={(e) => setField('image', e.target.value)} />
-          <TextField mono label="Facts picture id" hint="The id of a picture in Facts; it is used instead of the file" value={value.vaultItemId ?? ''} onChange={(e) => setField('vaultItemId', e.target.value)} />
+          <TextField mono label="Picture id" hint="The id of a picture on the Pictures page; it is used instead of the file" value={value.vaultItemId ?? ''} onChange={(e) => setField('vaultItemId', e.target.value)} />
         </div>
       </details>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="flex max-h-[90dvh] w-[calc(100%-1rem)] flex-col gap-3 p-4 sm:max-w-3xl sm:p-6">
           <DialogHeader>
             <DialogTitle>Choose a picture</DialogTitle>
-            <DialogDescription>Pictures kept in Facts. The picture is used as it is, so check its rights first.</DialogDescription>
+            <DialogDescription>Photos and screens from the Pictures page. The picture is used as it is, so check its rights first.</DialogDescription>
           </DialogHeader>
           <PickerList selectedId={value.vaultItemId} onPick={choose} />
         </DialogContent>
@@ -242,7 +244,7 @@ function PickerList({ selectedId, onPick }: { selectedId?: string; onPick: (item
         ) : error ? (
           <ErrorBlock message={error} onRetry={() => void reload()} />
         ) : items.length === 0 ? (
-          <p className="px-4 py-10 text-center text-muted-foreground">No pictures match. Add pictures on the Pictures page.</p>
+          <p className="px-4 py-10 text-center text-muted-foreground">No pictures match. Add pictures on the <Link to="/library" className="font-medium text-primary underline-offset-4 hover:underline">Pictures page</Link>.</p>
         ) : (
           <>
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">

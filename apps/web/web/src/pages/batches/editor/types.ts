@@ -46,6 +46,7 @@ export const TEMPLATE_FIELDS: Record<string, FieldSpec[]> = {
   photo: [{ name: 'headline', kind: 'headline', required: true }, { name: 'sub', kind: 'text' }, { name: 'eyebrow', kind: 'short', max: 60 }, { name: 'image', kind: 'picture', required: true }],
 };
 
-// Design keys the form never shows for a built-in layout, so they stay in "Advanced: raw design JSON" only: focal, zoom, textAt,
-// scrim, scrimPeak, lines, align, photoTop, phoneTop, size, ground, accent, dots, headRight, sizes, networkSizes, name, device,
-// framed, title, tilt, region, glow, fade, beside, layout (poster/story variants), map, mark and notes of a ledger beyond the editor.
+// Design keys the form never shows for a built-in layout, so they stay in "Advanced" (the design as JSON) only: scrimPeak, lines, align,
+// photoTop, phoneTop, size, dots, headRight, sizes, networkSizes, name, tilt, region, beside, layout (poster/story variants), map,
+// mark and notes of a ledger beyond the editor, and any value set per size. focal, zoom, ground, accent, textAt, scrim, device,
+// framed, glow, fade and title are in "Image options" (ImageOptions.tsx) for the layouts that take them.

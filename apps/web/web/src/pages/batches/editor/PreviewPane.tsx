@@ -1,7 +1,7 @@
 // The picture of the post, as the design would draw it now. The parent decides where it sits and whether it sticks.
 import { useEffect, useState, type KeyboardEvent } from 'react';
 import { ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
-import { Lines, Notice, SelectField, Spin } from '@/components/kit';
+import { Hint, Lines, Notice, SelectField, Spin } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -89,8 +89,8 @@ export function PreviewPane({ design, preview }: { design: DesignBlock | null; p
       {warnings.length > 0 && (
         <Notice tone="warn" title="Worth a look"><Lines items={warnings} className="max-h-48 overflow-y-auto" /></Notice>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[13px] text-muted-foreground">This is a preview. The saved post gets its images when you save.</p>
+      <div className="flex items-center justify-end gap-1">
+        <Hint about="the preview">This is a preview. The saved post gets its images when you save.</Hint>
         <Button type="button" variant="ghost" size="sm" onClick={refresh} disabled={updating}>Update now</Button>
       </div>
     </div>

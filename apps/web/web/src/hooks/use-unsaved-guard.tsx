@@ -97,8 +97,9 @@ export function UnsavedGuardHost() {
           <AlertDialogDescription>{lastMessage()}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="max-sm:[&>*]:min-h-11">
-          <AlertDialogCancel>Stay</AlertDialogCancel>
-          <AlertDialogAction onClick={leave}>Leave</AlertDialogAction>
+          {/* Radix focuses the cancel button when the dialog opens, so Stay is the focused default: Enter keeps the work. */}
+          <AlertDialogCancel variant="default" autoFocus>Stay</AlertDialogCancel>
+          <AlertDialogAction variant="outline" className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={leave}>Leave</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
