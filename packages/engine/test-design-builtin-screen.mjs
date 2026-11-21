@@ -1,5 +1,5 @@
 // node --test   (the screen template as layouts, lib/design/builtin/screen.mjs: every variant, desktop, beside, fade and the phone
-// row, is drawn from its layout, and the page is exactly the one the template function drew, with every field filled, empty and
+// row, is drawn from its layout, and the page is exactly the one the template function drew (testlib/builtin-markup.json), with every field filled, empty and
 // hostile, every ground, accent, flag and option, on single posts and carousel pages, for pictures of any shape; and the screen
 // group's pieces of the editorial page (the screen block, halo, beside, footlogo, a headline's lists and row, specWindow) take
 // valid values only. No Chrome: the pixel comparison is testlib/template-baseline.mjs, run by hand.)
@@ -8,14 +8,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { brandFile } from './lib/core.mjs';
 import { loadBrand, normaliseBrand } from './lib/design/brand.mjs';
-import { builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
+import { TEMPLATE_FNS, builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
 import { LAYOUTS } from './lib/design/builtin/screen.mjs';
 import { DesignError } from './lib/design/errors.mjs';
 import { BLOCK_TYPES, layoutCatalogue, layoutUsesPhone, validateLayout } from './lib/design/layout.mjs';
 import { renderLayoutWith } from './lib/design/layout-render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
-import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
 import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
@@ -28,19 +27,14 @@ const brands = Object.fromEntries(Object.entries(STYLES).map(([k, style]) => [k,
 const DIMS = [{ w: 660, h: 1354 }, { w: 800, h: 600 }, { w: 2400, h: 1500 }, undefined];
 const ctxOf = (brand, counter, dims = DIMS[0]) => ({ size: SIZES.feed, brand, counter, image: () => PIXEL, imageSize: () => dims });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '' });
-// The pages are checked against the hashes recorded from the template functions (testlib/markup-fixture.mjs).
+// The pages are checked against the hashes recorded from the template functions the layouts replaced
+// (testlib/markup-fixture.mjs), and so are the refusals' words.
 const fx = markupFixture('screen');
-const drawTemplate = (t, spec, ctx) => {
-  const page = parts(TEMPLATE_FNS[t](spec, ctx));
-  assert.deepEqual(page, parts(LEGACY_FNS[t](spec, ctx)), `${t}: the layout's page is the function's`);
-  return page;
-};
+const drawTemplate = (t, spec, ctx) => parts(TEMPLATE_FNS[t](spec, ctx));
 const refusal = (t, spec, ctx) => {
-  let a, b;
+  let a;
   try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
-  try { LEGACY_FNS[t](spec, ctx); } catch (e) { b = e; }
-  assert.ok(a instanceof DesignError && b instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a} / ${b}`);
-  assert.equal(a.message, b.message);
+  assert.ok(a instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a}`);
   return `DesignError: ${a.message}`;
 };
 const has = (errs, frag) => errs.some((e) => e.includes(frag));

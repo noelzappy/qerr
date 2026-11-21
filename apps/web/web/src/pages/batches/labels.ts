@@ -37,7 +37,7 @@ export const POST_FILTERS = [
   { value: 'warnings', label: 'Has warnings' },
 ];
 
-// Every layout a post's design may use, as the design engine names them (packages/engine/design/templates/index.mjs, plus
+// Every layout a post's design may use, as the design engine names them (packages/engine/lib/design/builtin-layouts.mjs, plus
 // the carousel). The page cover is not here: it is made for a profile, never inside a batch.
 export const TEMPLATES: Array<{ value: string; label: string }> = [
   { value: 'object', label: 'Object: a photo under a big headline' },

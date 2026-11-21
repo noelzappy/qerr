@@ -1,9 +1,7 @@
-// The full-bleed photo post (every size) and the page covers as layouts (design/templates/photo.mjs, pagecover.mjs). One entry
-// per template: a list of { when?, layout }, the first whose condition holds drawing the page; a spec that matches none is
-// drawn by the template function.
-//
-// Converted: photo (every size; "page": "photo", drawn by lib/design/layout-photo.mjs) and pagecover (one layout per kind;
-// "page": "cover", drawn by lib/design/layout-cover.mjs).
+// The full-bleed photo post (every size; "page": "photo", drawn by lib/design/layout-photo.mjs) and the page covers (one layout per
+// kind; "page": "cover", drawn by lib/design/layout-cover.mjs) as layouts. One entry per template: a list of { when?, layout },
+// the first whose condition holds drawing the page; a spec that matches none (one validateDesign refuses) is refused. The pages
+// are held to the markup the template functions drew (testlib/builtin-markup.json).
 
 // The headline box per size: from the size's top margin (a few px lower on feed, 20 px lower on a story) down to the top of the
 // footer's free space (sizes.mjs contentBottom), as wide as the template's text measure, from the size's own left margin

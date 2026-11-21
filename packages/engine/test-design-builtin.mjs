@@ -1,20 +1,20 @@
-// node --test   (the built-in templates as layouts, lib/design/builtin-layouts.mjs: every built-in layout is valid, a design that
-// names a converted template is drawn from its layout, and the page is exactly the one the template function drew, for the demo
-// brand and the style variants, on single posts and carousel pages, with hostile text too. No Chrome: the pixel comparison is
+// node --test   (the built-in templates as layouts, lib/design/builtin-layouts.mjs: every built-in layout is valid, every valid
+// design of a built-in template is drawn from one of them, and the page is exactly the one the template function drew (the
+// hashes recorded in testlib/builtin-markup.json), for the demo brand and the style variants, on single posts and carousel
+// pages, with hostile text too, and for every page of the template baseline harness. No Chrome: the pixel comparison is
 // testlib/template-baseline.mjs, run by hand, see testlib/CONVERTING.md.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { brandFile } from './lib/core.mjs';
 import { loadBrand, normaliseBrand } from './lib/design/brand.mjs';
-import { BUILTIN, builtinLayoutFor, builtinProblems } from './lib/design/builtin-layouts.mjs';
+import { BUILTIN, TEMPLATE_FNS, builtinLayoutFor, builtinProblems } from './lib/design/builtin-layouts.mjs';
 import { DesignError } from './lib/design/errors.mjs';
 import { validateLayout } from './lib/design/layout.mjs';
 import { layoutFit } from './lib/design/layout-render.mjs';
 import { preparePage } from './lib/design/render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
-import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
-import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
+import { TEMPLATES, forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
 import { markupFixture } from './testlib/markup-fixture.mjs';
 import { CASES, STYLES, currentMarkup } from './testlib/template-baseline.mjs';
 
@@ -22,32 +22,24 @@ const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const demo = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
 const brands = Object.fromEntries(Object.entries(STYLES).map(([k, style]) => [k, style ? { ...demo, ...normaliseBrand({ ...RAW, style }) } : demo]));
-// The templates with layouts registered (lib/design/builtin/*.mjs): a group that converts one needs no change here.
-const CONVERTED = Object.keys(BUILTIN);
 const ctxOf = (brand, counter, dims = { w: 1800, h: 1800 }) => ({ size: SIZES.feed, brand, counter, image: () => PIXEL, imageSize: () => dims });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '' });
-// The pages are checked against the hashes recorded from the template functions (testlib/markup-fixture.mjs).
+// The pages are checked against the hashes recorded from the template functions the layouts replaced
+// (testlib/markup-fixture.mjs), and so are the refusals' words.
 const fx = markupFixture('builtin');
 const harness = markupFixture('harness');
-const draw = (t, spec, ctx) => {
-  const page = parts(TEMPLATE_FNS[t](spec, ctx));
-  assert.deepEqual(page, parts(LEGACY_FNS[t](spec, ctx)), `${t}: the layout's page is the function's`);
-  return page;
-};
+const draw = (t, spec, ctx) => parts(TEMPLATE_FNS[t](spec, ctx));
 const refusal = (t, spec, ctx) => {
-  let a, b;
+  let a;
   try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
-  try { LEGACY_FNS[t](spec, ctx); } catch (e) { b = e; }
-  assert.ok(a instanceof DesignError && b instanceof DesignError, JSON.stringify(spec).slice(0, 120));
-  assert.equal(a.message, b.message);
+  assert.ok(a instanceof DesignError, JSON.stringify(spec).slice(0, 120));
   return `DesignError: ${a.message}`;
 };
 
-// Every page of the harness's cases that one of the converted templates draws, as the spec the renderer sees.
+// Every page of the harness's cases, as the spec the renderer sees (the page covers are drawn at their own sizes, below).
 const pages = CASES.flatMap((c) => {
   const spec = normaliseDesign(c.design);
-  return (spec.template === 'carousel' ? spec.pages.map((p, i) => ({ id: `${c.id}-${i + 1}`, spec: p, counter: { n: i + 1, total: spec.pages.length } })) : [{ id: c.id, spec }])
-    .filter((p) => CONVERTED.includes(p.spec.template));
+  return (spec.template === 'carousel' ? spec.pages.map((p, i) => ({ id: `${c.id}-${i + 1}`, spec: p, counter: { n: i + 1, total: spec.pages.length } })) : [{ id: c.id, spec }]);
 });
 
 test('every built-in layout is a valid layout, registered under a real template, its variants reachable', () => {
@@ -55,13 +47,18 @@ test('every built-in layout is a valid layout, registered under a real template,
   for (const [t, list] of Object.entries(BUILTIN)) for (const v of list) assert.deepEqual(validateLayout(v.layout), [], t);
   assert.equal(builtinLayoutFor({ template: 'number', big: '1' }).id, 'number');
   assert.equal(builtinLayoutFor({ template: 'text', headline: 'h' }).id, 'text');
-  // the templates not converted yet are still drawn by their functions; so is anything that is not a template
-  for (const t of [...Object.keys(LEGACY_FNS).filter((x) => !CONVERTED.includes(x)), 'layout', 'carousel', 'constructor', '__proto__', 'toString']) assert.equal(builtinLayoutFor({ template: t }), null, t);
+  // every template has its layouts, and the template names are the engine's (lib/design/spec.mjs) less the carousel
+  assert.deepEqual(Object.keys(BUILTIN).sort(), TEMPLATES.filter((t) => t !== 'carousel').sort());
+  assert.deepEqual(Object.keys(TEMPLATE_FNS).sort(), Object.keys(BUILTIN).sort());
+  // anything that is not a template has none
+  for (const t of ['layout', 'carousel', 'constructor', '__proto__', 'toString']) assert.equal(builtinLayoutFor({ template: t }), null, t);
   assert.equal(builtinLayoutFor(null), null);
+  // a design no layout takes (one validateDesign refuses) is refused, never drawn some other way
+  assert.throws(() => TEMPLATE_FNS['photo-story']({ template: 'photo-story', layout: 'side', headline: 'h', image: 'a.jpg' }, ctxOf(demo)), (e) => e instanceof DesignError && /photo-story template has no layout for this design/.test(e.message));
 });
 
-test('a converted template draws exactly the page its function drew, for every case, style and carousel page', () => {
-  assert.ok(pages.length >= 10, `${pages.length} pages`);
+test('every page of the harness\'s cases is the one its template function drew, for every style and carousel page', () => {
+  assert.ok(pages.length >= 100, `${pages.length} pages`);
   for (const [style, brand] of Object.entries(brands)) {
     for (const p of pages) {
       const spec = forSize(p.spec, 'feed');
@@ -95,7 +92,7 @@ test('the same page with every field filled, empty, hostile, and every ground an
   }
 });
 
-test('a converted template refuses what its function refused, with the same words', () => {
+test('a built-in template refuses what its function refused, with the same words', () => {
   const same = (s) => fx.check({ refused: s }, refusal(s.template, forSize(normaliseDesign(s), 'feed'), ctxOf(demo)), JSON.stringify(s));
   same({ template: 'number', big: '1', ground: 'photo' }); // a photo ground with no photo
   same({ template: 'number', big: '1', series: 'nope' });
@@ -104,14 +101,14 @@ test('a converted template refuses what its function refused, with the same word
   same({ template: 'text', headline: 'h', ground: 'photo' });
 });
 
-test('the renderer draws a converted template from its layout, with the templates\' fit margins', () => {
+test('the renderer draws a built-in template from its layout, with the templates\' fit margins', () => {
   const brand = { ...demo, root: demo.root };
   const p = preparePage(brand, { spec: normaliseDesign({ template: 'text', headline: 'h' }), sizeName: 'feed' });
   assert.equal(p.layout.id, 'text');
   assert.deepEqual({ pad: layoutFit(p.layout, 'feed').pad, top: layoutFit(p.layout, 'feed').top }, { pad: 62, top: 46 });
   assert.equal(preparePage(brand, { spec: normaliseDesign({ template: 'number', big: '1' }), sizeName: 'feed' }).layout.id, 'number');
-  // a template that is not converted has no layout (the closing page, while it is drawn by its function)
-  if (!CONVERTED.includes('closing')) assert.equal(preparePage(brand, { spec: normaliseDesign({ template: 'closing' }), sizeName: 'feed' }).layout, null);
+  assert.equal(preparePage(brand, { spec: normaliseDesign({ template: 'closing' }), sizeName: 'feed' }).layout.id, 'closing');
+  assert.throws(() => preparePage(brand, { spec: { template: 'nope' }, sizeName: 'feed' }), (e) => e instanceof DesignError && /template must be one of/.test(e.message));
 });
 
 // Every design the templates' validator accepts, over every choice the registry's variants are chosen by, is drawn from a

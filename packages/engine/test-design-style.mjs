@@ -13,8 +13,9 @@ import { renderImage } from './lib/design/render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
 import { GROUND_ALIASES, GROUND_NAMES, STYLE_DEFAULTS, groundName, isDarkColour } from './lib/design/tokens.mjs';
-import { TEMPLATE_FNS } from './design/templates/index.mjs';
-import { bar, words } from './design/templates/poster.mjs';
+import { TEMPLATE_FNS } from './lib/design/builtin-layouts.mjs';
+import { hs } from './design/templates/common.mjs';
+import { bar } from './design/templates/poster.mjs';
 import { pngBytes } from './testlib/png.mjs';
 
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
@@ -355,7 +356,7 @@ test('real render: the poster logo is measured, so a wordmark on a surface it wa
   fs.rmSync(dir, { recursive: true, force: true });
   // A page made for this test: the real bar (white wordmark, drawn for the dark ground) over a pale box, or on the ground itself.
   TEMPLATE_FNS['test-logo-surface'] = (spec, ctx) => ({
-    body: `<div class="cv poster" style="--bg:var(--g-deep)">${spec.pale ? '<div class="abs" style="left:0;top:0;width:1080px;height:220px;background:var(--g-warm)"></div>' : ''}${bar(ctx, true, { right: '' })}${words({ headline: 'Save together.', size: 104, y: 400 })}</div>`,
+    body: `<div class="cv poster" style="--bg:var(--g-deep)">${spec.pale ? '<div class="abs" style="left:0;top:0;width:1080px;height:220px;background:var(--g-warm)"></div>' : ''}${bar(ctx, true, { right: '' })}<div class="abs" id="txt" style="left:80px;top:400px;width:920px;text-align:left"><div class="ps-h" data-role="headline" style="font-size:${hs(104)}">Save together.</div></div></div>`,
     bodyClass: 'acc-colour dark', bodyAttrs: 'data-editorial="1"',
   });
   const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });

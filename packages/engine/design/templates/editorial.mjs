@@ -1,31 +1,13 @@
-// The editorial toolkit: the page frame (ground, running head, footer), headline and body text, the panel, cards, photo windows,
-// the pre-framed phone and the desktop window. All geometry is in page pixels (1080 x 1350, 70 px margins) and comes from numbers,
-// never from spec text.
+// The editorial page's drawing helpers (lib/design/layout-editorial.mjs and the grid page, layout-render.mjs, draw with them):
+// labels, the running head and the footer, the pills and the check list, the glow, cards, photo windows, the pre-framed phone and
+// the desktop window. All geometry is in page pixels and comes from numbers, never from spec text.
 import { dropShadowCss, rgbaOf, shadowCss } from '../../lib/design/brand.mjs';
-import { DesignError } from '../../lib/design/errors.mjs';
 import { WEB_ADDRESS } from '../../lib/design/lint.mjs';
-import { GROUND_NAMES, groundName, isDarkColour } from '../../lib/design/tokens.mjs';
-import { esc, fmtE, fmtSub, hs, px } from './common.mjs';
-import { accentOf, decorationOf, footerOf, isDark, logoPlace, surfaceOf } from './style.mjs';
+import { esc, px } from './common.mjs';
+import { footerOf, logoPlace, surfaceOf } from './style.mjs';
 
-export const PAGE = { w: 1080, h: 1350, m: 70, headTop: 154, subGap: 28 };
-export const HEADLINE_SIZES = [70, 84, 112];
 const pad2 = (v) => String(v).padStart(2, '0');
 const POSITION = /^(\d{1,3}(\.\d{1,2})?)% (\d{1,3}(\.\d{1,2})?)%$/;
-
-// Which series, ground and accent style a page uses: the series from the brand file (by key), a label of its own, and any
-// per-page override of ground and accent from the fixed lists.
-// Ground names are read as their neutral names (an older name such as "white" or "ink" is the same ground).
-export function styleOf(spec, brand) {
-  let s = { name: brand.name, ground: 'light' };
-  if (spec.series !== undefined) {
-    s = brand.series[spec.series];
-    if (!s) throw new DesignError(`series "${spec.series}" is not in brand.json (known: ${Object.keys(brand.series).join(', ')})`);
-  }
-  const ground = groundName(spec.ground ?? s.ground);
-  if (!ground) throw new DesignError(`ground must be one of ${GROUND_NAMES.join(', ')}`);
-  return { label: spec.label ?? s.name, ground, accent: accentOf(brand, { spec, series: spec.series !== undefined ? s : null, fallback: 'muted' }) };
-}
 
 // Mono labels are upper case by default; camel-cased names (a brand such as "YouTube") and web addresses keep their case.
 const CAMEL = /\b[A-Za-z][a-z]+[A-Z][A-Za-z]*\b|\b[a-z]+[A-Z][A-Za-z]*\b/;
@@ -37,10 +19,10 @@ export const runhead = (left, right, rule = true) => `<div class="rh">${left ? l
 
 // Footer: the logo bottom-left (or right, as the brand's style says; in a light pill with footer "pill"), a label on the other
 // side ("Swipe →" on page 1 of a carousel, else the website; nothing with footer "none"). The full colour logo on a light
-// surface; on a dark one (the page's ground, or the panel when the footer sits on it) the mark with the wordmark in white.
-export function footer(ctx, { label, inverse, spec, onPanel = false } = {}) {
+// surface; on a dark one (`inverse`: the page's ground, or the panel when the footer sits on it) the mark with the wordmark in
+// white.
+export function footer(ctx, { label, inverse = false } = {}) {
   const B = ctx.brand, style = footerOf(B), swipe = ctx.counter?.n === 1;
-  if (inverse === undefined) inverse = onPanel ? isDarkColour(B.surfaces.panel) : spec ? isDark(B, styleOf(spec, B).ground) : false;
   let right = label;
   if (right === undefined) right = swipe ? 'Swipe →' : style === 'none' ? '' : B.website;
   const [fw, fh] = B.logos.fullSize, k = 32 / fh;
@@ -49,16 +31,6 @@ export function footer(ctx, { label, inverse, spec, onPanel = false } = {}) {
       ? `<span class="logo-inv"><img src="${B.logoMarkSrc}" alt="" style="height:32px"><i role="img" aria-label="${esc(B.name)}" style="--lw:${px((fw - B.logos.wordmarkFrom) * k)}px;--lx:-${px(B.logos.wordmarkFrom * k)}px;--lm:${px(B.logos.markGap * k)}px"></i></span>`
       : `<img class="logo" src="${B.logoFullSrc}" alt="${esc(B.name)}">`;
   return `<div class="ft footer${logoPlace(B, 'editorial').right ? ' flip' : ''}"><div>${logo}</div>${right ? lbl(right, '', 'foot') : ''}</div>`;
-}
-
-// The headline and its sub line, from (70, y), or in the flow of its parent with `flow`. Sizes 70 / 84 / 112 (the fit loop may
-// shrink the headline).
-export function textBlock({ y = PAGE.headTop, w = 940, size = 84, headline, sub, subW = 820, subCls = '', id = 'txt', flow = false, pills, checks }) {
-  const h = `<div class="h s${size}" data-role="headline" style="font-size:${hs(size)};max-width:${w}px">${fmtE(headline)}</div>`;
-  const s = sub ? `<div class="sub${subCls ? ` ${subCls}` : ''}" data-role="sub" data-min="30" style="margin-top:${PAGE.subGap}px;max-width:${subW}px">${fmtSub(sub)}</div>` : '';
-  const extra = pillRow(pills) + checkList(checks);
-  if (flow) return `<div id="${id}" style="width:${w}px">${h}${s}${extra}</div>`;
-  return `<div class="abs" id="${id}" style="left:${PAGE.m}px;top:${px(y)}px;width:${w}px">${h}${s}${extra}</div>`;
 }
 
 // The website's outlined pills ("Read-only by design") and its check list ("Two-person approval"), under the sub line. Each item
@@ -75,9 +47,6 @@ export function glow(ctx, { x, y, w, h }) {
   const g = ctx.brand.glow.inset * ctx.brand.scale;
   return `<div class="glow" aria-hidden="true" style="left:${px(x - g)}px;top:${px(y - g)}px;width:${px(w + 2 * g)}px;height:${px(h + 2 * g)}px"></div>`;
 }
-
-// The tint panel that fills the page from `top` down; cards and screens below the text sit on it.
-export const panel = (top) => `<div class="panel" id="panel" style="top:${px(top)}px"></div>`;
 
 // A short mono note at a fixed place, on the panel (a ledger's notes).
 export const note = (x, y, t, { w } = {}) => `<div class="abs" style="left:${px(x)}px;top:${px(y)}px${w ? `;width:${px(w)}px` : ''}">${lbl(t, 'n', 'label', ' data-onpanel')}</div>`;
@@ -99,6 +68,9 @@ export function photoWindow(ctx, spec, { x, y, w, h, cls = 'ph', avoid = false }
 // A phone: a pre-framed capture (a transparent PNG or WebP with a real phone drawn around the screen by the capture tool), shown as
 // it is, `w` pixels wide, with the website's drop shadow scaled to that width. The tool never draws a phone; the renderer refuses a
 // capture that is not transparent around the phone. `at` places it absolutely; without it the phone flows in its parent.
+// A capture's height over its width (its own size, else the website's phones, 660 x 1354).
+export const ratioOf = (ctx, spec) => { const d = ctx.imageSize?.(spec.image); return d && d.w > 0 ? d.h / d.w : 1354 / 660; };
+
 export function phone(ctx, spec, { w, at, cut }) {
   const B = ctx.brand, k = w / B.phone.refWidth;
   const pos = at ? `left:${px(at.x)}px;top:${px(at.y)}px;` : 'position:relative;';
@@ -133,23 +105,3 @@ export function desktopWindow(ctx, spec, { w, framed = false, title, tilt = fals
   const pic = size && r >= 0.4 && r < 1 ? `<div class="crop" style="height:${px((w * size.h) / size.w)}px">${img(` style="width:${px(100 / r)}%"`)}</div>` : img();
   return `<div class="win obj" data-obj data-avoid style="width:${px(w)}px;border-radius:${px(B.radius.device * k)}px;box-shadow:${shadow}${lean}">${bar}${pic}</div>`;
 }
-
-// The page: ground, accent style, the body. `flex` marks pages whose objects flow (so shrinking the headline helps).
-// A dark ground (by its colour) gets light type and the brand's decoration (by default a faint dot grid) unless the spec says
-// `dots: false`.
-export function page(ctx, spec, { body, dark = false, flex = false, ground, accent }) {
-  const st = styleOf(spec, ctx.brand);
-  const g = dark ? 'dark' : (groundName(ground) ?? st.ground), isDarkPage = isDark(ctx.brand, g);
-  const cls = [`acc-${accent ?? st.accent}`, isDarkPage ? 'dark' : ''].filter(Boolean).join(' ');
-  const deco = decorationOf(ctx.brand, { dark: isDarkPage, off: spec.dots === false });
-  return { body: `<div class="cv${deco ? ` ${deco}` : ''}" style="--bg:var(--g-${g})">${body}</div>`, bodyClass: cls, bodyAttrs: `data-editorial="1"${flex ? ' data-flex="1"' : ''}` };
-}
-export const head = (ctx, spec, { right, rule = true } = {}) => {
-  const st = styleOf(spec, ctx.brand);
-  return runhead(st.label, right ?? folio(ctx) ?? spec.headRight ?? ctx.brand.name, rule);
-};
-
-// Where the panel starts under the text: the reference spacing for a headline of 70 / 84 / 112 px with or without a sub line
-// (two headline lines and up to three sub lines; longer text is shrunk by the fit loop or refused).
-// The headline's line height is the website's 1.2, so two lines of 70 / 84 / 112 px take 168 / 202 / 269 px.
-export const panelTopFor = (size, hasSub) => ({ 70: hasSub ? 500 : 350, 84: hasSub ? 540 : 420, 112: hasSub ? 600 : 450 }[size] ?? 540);

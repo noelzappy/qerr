@@ -1,13 +1,10 @@
-// photo: a full-bleed photograph. The photo is untouched except behind the text, where a neutral black gradient eases out
-// (strength is set by the renderer, which measures contrast), and the brand's photo treatment if it has one. A light headline in
-// the brand's display type, an optional eyebrow in its label type, the logo pill bottom-left, the website bottom-right (the
-// brand's style may swap the sides or leave the website out). Thin arcs and brackets are added by the renderer (automatic placement or
-// the "lines" you give). Words in *asterisks* turn brand gold.
-//
-// UNUSED: the photo post is drawn from its layout (lib/design/builtin/photo.mjs, drawn by lib/design/layout-photo.mjs with the
-// helpers exported here). The function stays until every template is converted (testlib/CONVERTING.md).
-import { contentBottom } from '../../lib/design/sizes.mjs';
-import { byName, esc, fmt, hs } from './common.mjs';
+// The photo post's drawing helpers (lib/design/layout-photo.mjs draws the page with them, from lib/design/builtin/photo.mjs): a
+// full-bleed photograph, untouched except behind the text, where a neutral black gradient eases out (strength is set by the
+// renderer, which measures contrast), and the brand's photo treatment if it has one. A light headline in the brand's display type,
+// an optional eyebrow in its label type, the logo pill bottom-left, the website bottom-right (the brand's style may swap the sides
+// or leave the website out). Thin arcs and brackets are added by the renderer (automatic placement or the "lines" you give). Words
+// in *asterisks* turn brand gold.
+import { esc, fmt, hs } from './common.mjs';
 import { accentOf, footerOf, logoPlace } from './style.mjs';
 
 // object-position is only ever "N% N%" with numbers; anything else falls back to the centre.
@@ -36,21 +33,4 @@ export function photoFooter(ctx) {
 export function photoPage(ctx, body, atTop) {
   const none = accentOf(ctx.brand, { spec: {}, fallback: 'colour' }) === 'none';
   return { body: `<div class="pcanvas photo">${body}</div>`, bodyClass: `photo${none ? ' acc-none' : ''}`, bodyAttrs: `data-textat="${atTop ? 'top' : 'bottom'}"` };
-}
-
-export function photo(spec, ctx) {
-  const S = ctx.size;
-  const atTop = (spec.textAtResolved ?? 'top') === 'top';
-  const fs = byName({ feed: 112, wide: 68, story: 120, square: 88 }, S);
-  const sf = byName({ feed: 38, wide: 24, story: 42, square: 30 }, S);
-  const ef = byName({ feed: 24, wide: 17, story: 26, square: 20 }, S);
-  const maxw = byName({ feed: 880, wide: 640, story: 900, square: 830 }, S);
-  const topY = S.top + byName({ feed: 4, wide: 0, story: 20, square: 0 }, S);
-  const pos = atTop ? `top:${topY}px` : `bottom:${S.h - contentBottom(S)}px`;
-  const body = `${photoBackdrop(spec, ctx)}
-${photoScrim()}
-${photoLines(S)}
-${photoText(spec, { pos, maxw, fs, sf, ef, subW: S.name === 'wide' ? 560 : 800 })}
-${photoFooter(ctx)}`;
-  return photoPage(ctx, body, atTop);
 }

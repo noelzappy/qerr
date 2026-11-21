@@ -1,12 +1,9 @@
-// The editorial templates with a photo or figures, and the plain text page, as layouts (a "page": "editorial" each; see
-// lib/design/layout-editorial.mjs for how the blocks are drawn and design/templates/*.mjs for the functions they replace). One
-// entry per template: a list of { when?, layout }, the first whose condition holds drawing the page; a spec that matches none is
-// drawn by the template function (not converted yet).
-//
-// Converted: text without an artefact, cover, stats, photo-story (panel and print). Their functions stay in design/templates/,
-// unused, until every template is converted. A text page with an artefact belongs to the artefact group (builtin/artefacts.mjs).
-// A photo-story whose layout is neither panel, print nor unset (validateDesign refuses it) matches no variant and goes to the
-// function.
+// The editorial templates with a photo or figures, and the plain text page, as layouts: text without an artefact, cover, stats,
+// photo-story (panel and print), a "page": "editorial" each (see lib/design/layout-editorial.mjs for how the blocks are drawn).
+// One entry per template: a list of { when?, layout }, the first whose condition holds drawing the page. A text page with an
+// artefact belongs to the artefact group (builtin/artefacts.mjs). A photo-story whose layout is neither panel, print nor unset
+// (validateDesign refuses it) matches no variant and is refused. The pages are held to the markup the template functions drew
+// (testlib/builtin-markup.json).
 
 // text: the typographic pause page. A big headline (112 px, or the spec's size: 70, 84 or 112) from y 154, the tint panel from
 // y 990 with the sub line on it at y 1036, the running head and the footer on the panel.

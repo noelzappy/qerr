@@ -1,5 +1,5 @@
 // node --test   (the photo group of the built-in templates as layouts, lib/design/builtin/photo.mjs: the full-bleed photo post
-// at every size is drawn from its layout, by lib/design/layout-photo.mjs, and the page is exactly the one its function drew,
+// at every size is drawn from its layout, by lib/design/layout-photo.mjs, and the page is exactly the one its function drew (testlib/builtin-markup.json),
 // for fields filled, empty and hostile, text at the top, the bottom or per size, every style variant and every size; and the
 // photo page's block types and options are checked like the rest of the format. The page covers likewise: one layout per kind,
 // drawn by lib/design/layout-cover.mjs at the cover sizes, the same page as their function's. No Chrome: the pixel comparison is
@@ -9,13 +9,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { brandFile } from './lib/core.mjs';
 import { loadBrand, normaliseBrand } from './lib/design/brand.mjs';
-import { builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
+import { TEMPLATE_FNS, builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
+import { DesignError } from './lib/design/errors.mjs';
 import { BLOCK_TYPES, exclusive, layoutCatalogue, validateLayout, whenHolds, whenProblems } from './lib/design/layout.mjs';
 import { layoutFit, renderLayoutWith } from './lib/design/layout-render.mjs';
 import { preparePage } from './lib/design/render.mjs';
 import { COVER_SIZES, SIZES, SIZE_NAMES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
-import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
 import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
@@ -28,19 +28,14 @@ brands.right = { ...demo, ...normaliseBrand({ ...RAW, style: { logo: 'bottom-rig
 brands.noaccent = { ...demo, ...normaliseBrand({ ...RAW, style: { type: { accent: 'none' } } }) };
 const ctxOf = (brand, size, counter) => ({ size: SIZES[size], brand, counter, image: () => PIXEL, imageSize: () => ({ w: 1800, h: 1200 }) });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '', warnings: o.warnings ?? [] });
-// The pages are checked against the hashes recorded from the template functions (testlib/markup-fixture.mjs).
+// The pages are checked against the hashes recorded from the template functions the layouts replaced
+// (testlib/markup-fixture.mjs), and so are the refusals' words.
 const fx = markupFixture('photo');
-const draw = (t, spec, ctx) => {
-  const page = parts(TEMPLATE_FNS[t](spec, ctx));
-  assert.deepEqual(page, parts(LEGACY_FNS[t](spec, ctx)), `${t}: the layout's page is the function's`);
-  return page;
-};
+const draw = (t, spec, ctx) => parts(TEMPLATE_FNS[t](spec, ctx));
 const refusal = (t, spec, ctx) => {
-  let a, b;
+  let a;
   try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
-  try { LEGACY_FNS[t](spec, ctx); } catch (e) { b = e; }
-  assert.ok(a instanceof DesignError && b instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a} / ${b}`);
-  assert.equal(a.message, b.message);
+  assert.ok(a instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a}`);
   return `DesignError: ${a.message}`;
 };
 const has = (errs, frag) => errs.some((e) => e.includes(frag));
@@ -181,8 +176,11 @@ test('each page cover is drawn from its own layout, exactly as its function drew
       assert.ok(!/<script|<img src=x|<\/style>/.test(TEMPLATE_FNS.pagecover(spec, coverCtx(brand, kind)).body), kind);
     }
   });
-  // a kind that slipped past the validator matches no layout, and the function draws it (an empty page), as before
-  for (const kind of ['feed', '__proto__', undefined]) assert.equal(builtinLayoutFor({ template: 'pagecover', kind }), null, String(kind));
+  // a kind that slipped past the validator matches no layout, and is refused (the function drew an empty page)
+  for (const kind of ['feed', '__proto__', undefined]) {
+    assert.equal(builtinLayoutFor({ template: 'pagecover', kind }), null, String(kind));
+    assert.throws(() => TEMPLATE_FNS.pagecover({ template: 'pagecover', kind }, coverCtx(demo, 'x')), DesignError, String(kind));
+  }
 });
 
 const coverLayout = (blk = {}, more = {}) => ({

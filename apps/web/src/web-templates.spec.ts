@@ -5,7 +5,7 @@ import { engineImport } from './server/engine/root.js';
 
 describe('the layout list', () => {
   it('names every template the engine accepts in a batch, and nothing else', async () => {
-    const { TEMPLATE_FNS } = await import('../../../packages/engine/design/templates/index.mjs' as string) as { TEMPLATE_FNS: Record<string, unknown> };
+    const { TEMPLATE_FNS } = await import('../../../packages/engine/lib/design/builtin-layouts.mjs' as string) as { TEMPLATE_FNS: Record<string, unknown> };
     const engine = [...Object.keys(TEMPLATE_FNS).filter((t) => t !== 'pagecover'), 'carousel'].sort();
     expect(TEMPLATES.map((t) => t.value).sort()).toEqual(engine);
     const { designBlockProblems } = await engineImport<{ designBlockProblems(d: unknown): string[] }>('design-render');

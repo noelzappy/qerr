@@ -7,8 +7,21 @@ import { CHOICE_NAMES, FIELD_NAMES, SPEC_CHOICES, exclusive, validateLayout, whe
 import { renderLayoutWith } from './lib/design/layout-render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign } from './lib/design/spec.mjs';
-import { textBlock } from './design/templates/editorial.mjs';
-import { words } from './design/templates/poster.mjs';
+import { fmtE, fmtSub, hs, px } from './design/templates/common.mjs';
+
+// The markup the templates' own helpers wrote for a headline and its sub line (editorial.mjs textBlock at y 154, poster.mjs
+// words at the poster's 80, 170), kept here as the reference the layout drawings must match now that the templates are gone.
+function textBlock({ w = 940, size = 84, headline, sub, subW = 820 }) {
+  const h = `<div class="h s${size}" data-role="headline" style="font-size:${hs(size)};max-width:${w}px">${fmtE(headline)}</div>`;
+  const s = sub ? `<div class="sub" data-role="sub" data-min="30" style="margin-top:28px;max-width:${subW}px">${fmtSub(sub)}</div>` : '';
+  return `<div class="abs" id="txt" style="left:70px;top:154px;width:${w}px">${h}${s}</div>`;
+}
+function words({ headline, sub, size, subW = 820, align = 'left' }) {
+  const center = align === 'center';
+  const h = `<div class="ps-h" data-role="headline" style="font-size:${hs(size)}">${fmtE(headline)}</div>`;
+  const s = sub ? `<div class="sub ps-sub" data-role="sub" data-min="30" style="margin-top:28px;max-width:${subW}px${center ? ';margin-left:auto;margin-right:auto' : ''}">${fmtSub(sub)}</div>` : '';
+  return `<div class="abs" id="txt" style="left:${px(80)}px;top:${px(170)}px;width:${px(920)}px;text-align:${center ? 'center' : 'left'}">${h}${s}</div>`;
+}
 
 const brand = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
@@ -56,7 +69,7 @@ test('a headline with its sub line flowing under it: valid on the built-in pages
   assert.ok(has(validateLayout(grid), 'subWidth is used on poster and editorial pages only'));
 });
 
-test('the flowing sub line is drawn exactly as the templates\' textBlock and words draw it', () => {
+test('the flowing sub line is drawn exactly as the templates\' textBlock and words drew it', () => {
   const H = '"><script>window.__pwn=1</script> *x*', S = 'A *bold* sub\\nline </style>';
   for (const [size, subW, head] of [[84, 900, 'Every saving, *on record.*'], [70, 820, H], [112, 940, 'Short']]) {
     const l = editorial({ size, subWidth: subW, px: { x: 70, y: 154, w: 940, h: 800 } });

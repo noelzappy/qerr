@@ -1,6 +1,7 @@
 // node --test   (the editorial group of the built-in templates as layouts: cover, stats and photo-story, lib/design/builtin/
-// editorial.mjs. Each is drawn from its layout and makes exactly the page its function made, with every field filled, empty and
-// hostile, every ground, accent and option, on single posts and carousel pages; it refuses what the function refused, with the
+// editorial.mjs. Each is drawn from its layout and makes exactly the page its function made (testlib/builtin-markup.json), with
+// every field filled, empty and hostile, every ground, accent and option, on single posts and carousel pages; it refuses what the
+// function refused, with the
 // same words; and the block types and options the group added to the editorial page take only values from their fixed lists.
 // No Chrome: the pixel comparison is testlib/template-baseline.mjs, run by hand, see testlib/CONVERTING.md.)
 import test from 'node:test';
@@ -8,14 +9,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { brandFile } from './lib/core.mjs';
 import { loadBrand, normaliseBrand } from './lib/design/brand.mjs';
-import { builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
+import { TEMPLATE_FNS, builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
 import { LAYOUTS } from './lib/design/builtin/editorial.mjs';
 import { DesignError } from './lib/design/errors.mjs';
 import { BLOCK_TYPES, PAGES, layoutCatalogue, validateLayout } from './lib/design/layout.mjs';
 import { renderLayoutWith } from './lib/design/layout-render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
-import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
 import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
@@ -25,19 +25,14 @@ const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
 const brands = Object.fromEntries(Object.entries(STYLES).map(([k, style]) => [k, style ? { ...demo, ...normaliseBrand({ ...RAW, style }) } : demo]));
 const ctxOf = (brand, counter) => ({ size: SIZES.feed, brand, counter, image: () => PIXEL, imageSize: () => ({ w: 1800, h: 1200 }) });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '', warnings: o.warnings ?? [] });
-// The pages are checked against the hashes recorded from the template functions (testlib/markup-fixture.mjs).
+// The pages are checked against the hashes recorded from the template functions the layouts replaced
+// (testlib/markup-fixture.mjs), and so are the refusals' words.
 const fx = markupFixture('editorial');
-const draw = (t, spec, ctx) => {
-  const page = parts(TEMPLATE_FNS[t](spec, ctx));
-  assert.deepEqual(page, parts(LEGACY_FNS[t](spec, ctx)), `${t}: the layout's page is the function's`);
-  return page;
-};
+const draw = (t, spec, ctx) => parts(TEMPLATE_FNS[t](spec, ctx));
 const refusal = (t, spec, ctx) => {
-  let a, b;
+  let a;
   try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
-  try { LEGACY_FNS[t](spec, ctx); } catch (e) { b = e; }
-  assert.ok(a instanceof DesignError && b instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a} / ${b}`);
-  assert.equal(a.message, b.message);
+  assert.ok(a instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a}`);
   return `DesignError: ${a.message}`;
 };
 const has = (errs, frag) => errs.some((e) => e.includes(frag));
@@ -46,7 +41,7 @@ const GROUNDS = ['light', 'soft', 'cool', 'warm', 'dark', 'deep', 'white', 'tint
 const ACCENTS = [undefined, 'muted', 'colour', 'weight', 'none'];
 const COUNTERS = [undefined, { n: 1, total: 2 }, { n: 2, total: 2 }, { n: 7, total: 10 }];
 
-// The same page from the layout and from the function, for every brand style and counter. The legacy function returns no
+// The same page from the layout as from the function (the fixture), for every brand style and counter. The function returned no
 // warnings; the layout's must be none either.
 function same(s, msg = JSON.stringify(s).slice(0, 140)) {
   const spec = forSize(normaliseDesign(s), 'feed');
@@ -62,9 +57,10 @@ test('cover, stats and photo-story are drawn from their layouts, each variant fr
   assert.equal(builtinLayoutFor({ template: 'photo-story', headline: 'h', image: 'a.jpg' }).id, 'photo-story');
   assert.equal(builtinLayoutFor({ template: 'photo-story', layout: 'panel', headline: 'h', image: 'a.jpg' }).id, 'photo-story');
   assert.equal(builtinLayoutFor({ template: 'photo-story', layout: 'print', headline: 'h', image: 'a.jpg' }).id, 'photo-story-print');
-  // a layout photo-story does not take (validateDesign refuses it) matches no variant and goes to the function, as before
+  // a layout photo-story does not take (validateDesign refuses it) matches no variant, and is refused
   for (const layout of ['center', 'side']) {
     assert.equal(builtinLayoutFor({ template: 'photo-story', layout, headline: 'h', image: 'a.jpg' }), null, layout);
+    assert.throws(() => TEMPLATE_FNS['photo-story']({ template: 'photo-story', layout, headline: 'h', image: 'a.jpg' }, ctxOf(demo)), DesignError, layout);
     assert.ok(validateDesign({ template: 'photo-story', layout, headline: 'h', image: 'a.jpg' }).length, layout);
   }
 });

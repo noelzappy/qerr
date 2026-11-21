@@ -1,9 +1,8 @@
 // The editorial page of the built-in templates (cover, text, ledger, passbook, stats, screen, photo-story), as a layout's
 // "page": "editorial" draws it: the series' ground, the running head, the tint panel that text and cards sit on, and the footer
-// with the logo. Each block is drawn with exactly the markup of design/templates/editorial.mjs and the templates that use it, so
-// a template expressed as a layout (lib/design/builtin-layouts.mjs) makes the same image. What each block honours is listed in
-// PAGES.editorial (lib/design/layout.mjs). Phase 2 of the conversion adds drawings here, each as its own function and one line
-// in DRAW (see testlib/CONVERTING.md).
+// with the logo. Each block is drawn with exactly the markup the editorial template functions wrote
+// (testlib/builtin-markup.json holds it), with the helpers of design/templates/editorial.mjs. What each block honours is listed in
+// PAGES.editorial (lib/design/layout.mjs). A new drawing is its own function and one line in DRAW.
 import { HEADLINE_PX } from './layout.mjs';
 import { decorationHtml, drawBuiltPage, opt, place } from './layout-parts.mjs';
 import { isDarkColour } from './tokens.mjs';
@@ -121,12 +120,11 @@ function labelRow(blk, spec, ctx, r, state) {
 }
 // (end of editorial group)
 // -- screen group: drawings of new block types go here --
-// The screen template's page (design/templates/screen.mjs): a pre-framed phone in a row with the text, faded out under the text
+// The screen template's page: a pre-framed phone in a row with the text, faded out under the text
 // or beside a passbook card, or a desktop window on the panel. Its imports are here (imports are hoisted), as namespaces with
 // names of their own, so that the groups' changes to this file stay apart and never declare a name twice.
 import * as screenArt from '../../design/templates/artefacts.mjs';
 import * as screenKit from '../../design/templates/editorial.mjs';
-import * as screenTpl from '../../design/templates/screen.mjs';
 import * as screenErr from './errors.mjs';
 
 // The layout's phone (its screen block, shown, device phone), and whether a headline draws it in its row (a headline with `row`
@@ -160,7 +158,7 @@ function screenBlock(blk, spec, ctx, r, state) {
 function halo(blk, spec, ctx, r, state) {
   const p = phoneOf(state);
   if (!p) return '';
-  const { x, y, w, h } = p.r, ph = w * screenTpl.ratioOf(ctx, spec);
+  const { x, y, w, h } = p.r, ph = w * screenKit.ratioOf(ctx, spec);
   if (rowOf(state, spec)) return screenKit.glow(ctx, { x: x + ctx.brand.glow.inset * ctx.brand.scale, y: y + (h - ph) / 2, w, h: ph });
   return screenKit.glow(ctx, { x, y, w, h: opt(p.blk, 'fit') === 'crop' ? Math.min(h, ph) : ph });
 }
