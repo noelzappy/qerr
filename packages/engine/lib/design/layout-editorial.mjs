@@ -7,7 +7,7 @@ import { HEADLINE_PX } from './layout.mjs';
 import { decorationHtml, drawBuiltPage, opt, place } from './layout-parts.mjs';
 import { isDarkColour } from './tokens.mjs';
 import { fmtE, fmtSub, hs, px } from '../../design/templates/common.mjs';
-import { folio, footer, runhead } from '../../design/templates/editorial.mjs';
+import { folio, footer, runhead, toneOf, withTone } from '../../design/templates/editorial.mjs';
 
 const fontSize = (blk, n) => (opt(blk, 'shrink') ? hs(n) : `${px(n)}px`);
 const lead = (state) => { if (state.txt) return ''; state.txt = true; return ' id="txt"'; };
@@ -16,6 +16,17 @@ const isPanel = (blk) => blk.type === 'decoration' && opt(blk, 'kind') === 'pane
 // The panel drawn on this page (the tint band from its top to the bottom edge), if any.
 const panelOf = (state) => state.shown.find((s) => isPanel(s.blk))?.r ?? null;
 const within = (r, p) => !!p && r.x >= p.x && r.y >= p.y && r.x + r.w <= p.x + p.w && r.y + r.h <= p.y + p.h;
+// What text sits on: the panel or the page's ground. Text is coloured for that surface: on a surface of the other tone than the
+// ground (the light panel on a dark ground) it carries the tone class (editorial.mjs toneOf), and brand.css colours it as a page
+// of that tone, so it is held to the contrast targets on what is really behind it. toneIn: a block whose rectangle lies on the
+// panel; onPanelAt: chrome from y down (the panel runs from its top to the bottom edge, the full width).
+const surfaceDark = (ctx, state, onPanel) => (onPanel ? isDarkColour(ctx.brand.surfaces.panel) : state.frame.dark);
+const onPanelAt = (state, y) => { const p = panelOf(state); return !!p && p.y <= y; };
+const toneIn = (ctx, state, r) => toneOf(state.frame.dark, surfaceDark(ctx, state, within(r, panelOf(state))));
+
+// The page's chrome (the feed page's, in page pixels): the running head's labels from y 56; the footer, 34 px tall, 56 px above
+// the bottom edge.
+const CHROME = { top: 56, foot: 1260 };
 
 // The headline in its box (editorial.mjs textBlock): the size from the block, or the spec's own validated "size" (70, 84 or 112)
 // when the block takes it, with its class for the optical overhang. A subField's sub line flows 28 px under it in the same box,
@@ -33,27 +44,35 @@ function headline(blk, spec, ctx, r, state) {
   const flow = typeof s === 'string' && s ? `<div class="sub" data-role="sub" data-min="30" style="margin-top:28px;max-width:${px(opt(blk, 'subWidth'))}px">${fmtSub(s)}</div>` : '';
   const lists = opt(blk, 'lists') ? screenKit.pillRow(spec.pills) + screenKit.checkList(spec.checks) : '';
   const inner = `<div class="${cls}" data-role="headline" style="font-size:${fontSize(blk, size)};max-width:${px(r.w)}px">${fmtE(v)}</div>${flow}${lists}`;
-  if (opt(blk, 'row')) return phoneRow(blk, spec, ctx, r, state, `<div${lead(state)} style="width:${px(r.w)}px${alignOf(blk)}">${inner}</div>`);
-  return `<div class="abs"${lead(state)} style="${place(r)}${alignOf(blk)}">${inner}</div>`;
+  const tone = toneIn(ctx, state, r);
+  if (opt(blk, 'row')) return phoneRow(blk, spec, ctx, r, state, `<div${lead(state)}${tone ? ` class="${tone}"` : ''} style="width:${px(r.w)}px${alignOf(blk)}">${inner}</div>`);
+  return `<div class="${withTone('abs', tone)}"${lead(state)} style="${place(r)}${alignOf(blk)}">${inner}</div>`;
 }
 
 // A sub line on its own; on the panel when its rectangle lies on it (the fit check then does not count the panel's edge).
 function sub(blk, spec, ctx, r, state) {
   const v = spec[blk.field ?? 'sub'];
   if (typeof v !== 'string' || !v) return '';
-  return `<div class="abs sub" data-role="sub" data-min="30"${within(r, panelOf(state)) ? ' data-onpanel' : ''} style="${place(r)}${alignOf(blk)}">${fmtSub(v)}</div>`;
+  return `<div class="${withTone('abs sub', toneIn(ctx, state, r))}" data-role="sub" data-min="30"${within(r, panelOf(state)) ? ' data-onpanel' : ''} style="${place(r)}${alignOf(blk)}">${fmtSub(v)}</div>`;
 }
 
 // The tint panel from the top of its rectangle to the bottom edge (editorial.mjs panel); the other decorations as on any page.
 const decoration = (blk, spec, ctx, r, state) => (isPanel(blk) ? `<div class="panel" id="panel" style="top:${px(r.y)}px"></div>` : decorationHtml(blk, ctx, r, state.warnings));
 
 // The running head: the series' name (or the spec's label) on the left; the folio on a carousel page, else the spec's own
-// right-hand head, else the brand's name, on the right.
-const head = (blk, spec, ctx, r, state) => runhead(state.frame.label, folio(ctx) ?? spec.headRight ?? ctx.brand.name, opt(blk, 'rule'));
+// right-hand head, else the brand's name, on the right; coloured for what it sits on.
+function head(blk, spec, ctx, r, state) {
+  const tone = toneOf(state.frame.dark, surfaceDark(ctx, state, onPanelAt(state, CHROME.top)));
+  return runhead(state.frame.label, folio(ctx) ?? spec.headRight ?? ctx.brand.name, opt(blk, 'rule'), { tone });
+}
 
-// The footer: the logo, and the website ("Swipe →" on page 1 of a carousel), as the brand's style places them. Its logo is drawn
-// for what it sits on: the panel when the page has one, else the ground.
-const foot = (blk, spec, ctx, r, state) => footer(ctx, { inverse: panelOf(state) ? isDarkColour(ctx.brand.surfaces.panel) : state.frame.dark });
+// The footer: the logo, and the website ("Swipe →" on page 1 of a carousel), as the brand's style places them. Its logo and label
+// are drawn for what they sit on: the panel when the footer lies on it, else the ground.
+function chromeFoot(ctx, state, spec, label) {
+  const dark = surfaceDark(ctx, state, onPanelAt(state, CHROME.foot));
+  return footer(ctx, { label, inverse: dark, tone: toneOf(state.frame.dark, dark) });
+}
+const foot = (blk, spec, ctx, r, state) => chromeFoot(ctx, state, spec);
 
 // -- artefacts group: drawings of new block types go here --
 // The artefact as crisp white cards (artefacts.mjs artefactCards): a ledger with its notes or a register card at the rectangle's
@@ -72,7 +91,7 @@ const ARTEFACT_FROM = {
 function artefact(blk, spec, ctx, r, state) {
   const a = ARTEFACT_FROM[opt(blk, 'from')](blk, spec);
   if (!a || typeof a !== 'object' || Array.isArray(a)) return '';
-  return artefactCards(a, r, { onPanel: within(r, panelOf(state)) });
+  return artefactCards(a, r, { onPanel: within(r, panelOf(state)), tone: toneIn(ctx, state, r) });
 }
 // (end of artefacts group)
 // -- editorial group: drawings of new block types go here --
@@ -92,31 +111,32 @@ function editorialPhoto(blk, spec, ctx, r) {
 
 // The big figure (stats.mjs): the box is the figure itself, its line height its size. It is not the page's #txt (the stats page
 // has none).
-function editorialFigure(blk, spec, ctx, r) {
+function editorialFigure(blk, spec, ctx, r, state) {
   const v = spec[blk.field ?? 'big'];
   if (typeof v !== 'string' || !v) return '';
   const size = fontSize(blk, opt(blk, 'size'));
-  return `<div class="abs h big" data-role="stat" style="${place(r)};font-size:${size};line-height:${size}">${fmtE(v)}</div>`;
+  return `<div class="${withTone('abs h big', toneIn(ctx, state, r))}" data-role="stat" style="${place(r)};font-size:${size};line-height:${size}">${fmtE(v)}</div>`;
 }
 
 // Up to three figures (stats.mjs). "row": side by side across the rectangle, 50 px apart, each its number in bold over its label,
 // in the sub style (the stats page over a photo; `size` is not used). "column": rows a third of the rectangle's height apart, each
 // number in the headline type at `size` over its label, with a hairline above every row but the first when `rules` is on.
-function editorialStats(blk, spec, ctx, r) {
+function editorialStats(blk, spec, ctx, r, state) {
   const list = Array.isArray(spec[blk.field ?? 'stats']) ? spec[blk.field ?? 'stats'] : [];
+  const tone = toneIn(ctx, state, r);
   if (opt(blk, 'direction') === 'row') {
     const gap = 50, step = (r.w + gap) / Math.max(1, list.length);
-    return list.map((s, i) => `<div class="abs sub" data-role="statlabel" data-min="30" style="left:${px(r.x + i * step)}px;top:${px(r.y)}px;width:${px(step - gap)}px"><b>${fmtSub(s[0])}</b><br>${fmtSub(s[1])}</div>`).join('');
+    return list.map((s, i) => `<div class="${withTone('abs sub', tone)}" data-role="statlabel" data-min="30" style="left:${px(r.x + i * step)}px;top:${px(r.y)}px;width:${px(step - gap)}px"><b>${fmtSub(s[0])}</b><br>${fmtSub(s[1])}</div>`).join('');
   }
   const pitch = r.h / EDITORIAL_MAX_STATS, size = opt(blk, 'size'), rules = opt(blk, 'rules');
-  return list.map((s, i) => `<div class="abs" style="${place({ x: r.x, y: r.y + i * pitch, w: r.w })};${rules && i ? 'border-top:1px solid var(--hair);padding-top:24px' : ''}"><div class="h s${size}" data-role="stat" style="font-size:${fontSize(blk, size)}">${fmtSub(s[0])}</div><div class="sub" data-role="statlabel" data-min="30" style="margin-top:8px">${fmtSub(s[1])}</div></div>`).join('');
+  return list.map((s, i) => `<div class="${withTone('abs', tone)}" style="${place({ x: r.x, y: r.y + i * pitch, w: r.w })};${rules && i ? 'border-top:1px solid var(--hair);padding-top:24px' : ''}"><div class="h s${size}" data-role="stat" style="font-size:${fontSize(blk, size)}">${fmtSub(s[0])}</div><div class="sub" data-role="statlabel" data-min="30" style="margin-top:8px">${fmtSub(s[1])}</div></div>`).join('');
 }
 
 // The label row (photo-story's panel page): the series' name (or the spec's label) at the left end of the rectangle and, on a
 // carousel page, the folio at the right end.
 function labelRow(blk, spec, ctx, r, state) {
   const f = folio(ctx);
-  return `<div class="abs" style="left:${px(r.x)}px;right:${px(ctx.size.w - r.x - r.w)}px;top:${px(r.y)}px;display:flex;justify-content:space-between">${editorialKit.lbl(state.frame.label)}${f ? editorialKit.lbl(f) : ''}</div>`;
+  return `<div class="${withTone('abs', toneIn(ctx, state, r))}" style="left:${px(r.x)}px;right:${px(ctx.size.w - r.x - r.w)}px;top:${px(r.y)}px;display:flex;justify-content:space-between">${editorialKit.lbl(state.frame.label)}${f ? editorialKit.lbl(f) : ''}</div>`;
 }
 // (end of editorial group)
 // -- screen group: drawings of new block types go here --
@@ -172,8 +192,8 @@ function besideCard(blk, spec, ctx, r) {
   return screenKit.obj(r.x, r.y, r.w, r.h, 'card', screenArt.svgBox(pad, pad, w, h, screenArt.passbookSvg(w, h, { days: b.days ?? 31, ticked: b.ticked ?? 0, today: b.today ?? 0, tick: b.tick ?? 'ink' })));
 }
 
-// The footer with the logo alone (no website, no "Swipe →"), drawn for the panel when the page has one, else for the ground.
-const footlogo = (blk, spec, ctx, r, state) => footer(ctx, { label: '', inverse: panelOf(state) ? isDarkColour(ctx.brand.surfaces.panel) : state.frame.dark });
+// The footer with the logo alone (no website, no "Swipe →"), placed and drawn as the footer is (chromeFoot).
+const footlogo = (blk, spec, ctx, r, state) => chromeFoot(ctx, state, spec, '');
 // (end of screen group)
 
 export const DRAW = {

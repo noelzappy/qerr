@@ -70,9 +70,10 @@ export function passbookSvg(w, h, { days = 31, ticked = 0, today = 0, tick = 'in
 // The artefact as the editorial pages set it on the panel, as crisp white cards in the rectangle r (page pixels, from validated
 // numbers): a ledger card (its drawn size, its notes under it) or a register card at r's top-left; a passbook page filling r;
 // or, with a register card, the passbook page 410 px wide and r's height at r's top-left and the register card at r's top-right.
-// onPanel: the notes sit on the tint panel (the fit check then does not count the panel's edge for them).
-export function artefactCards(art, r, { onPanel = true } = {}) {
-  const at = (x, y, t) => (onPanel ? note(x, y, t) : `<div class="abs" style="left:${n(x)}px;top:${n(y)}px">${lbl(t, 'n', 'label')}</div>`);
+// onPanel: the notes sit on the tint panel (the fit check then does not count the panel's edge for them); tone: their tone class
+// there (editorial.mjs toneOf: the panel's tone against the page's ground).
+export function artefactCards(art, r, { onPanel = true, tone = '' } = {}) {
+  const at = (x, y, t) => (onPanel ? note(x, y, t, { tone }) : `<div class="abs" style="left:${n(x)}px;top:${n(y)}px">${lbl(t, 'n', 'label')}</div>`);
   if (art.type === 'ledger') {
     const f = ledgerSvg(art), pad = 40, w = f.w + 2 * pad, h = f.h + 2 * pad;
     return obj(r.x, r.y, w, h, 'card', svgBox(pad, pad, f.w, f.h, f.svg)) + (art.notes ?? []).map((t, i) => at(r.x, r.y + h + 44 + i * 42, t)).join('');

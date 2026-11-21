@@ -39,7 +39,6 @@ body{font-family:var(--font),sans-serif;color:var(--ink);-webkit-font-smoothing:
 .ft .lbl{line-height:22px}
 .ft.flip,.pbar.flip,.pcanvas .footer.flip{flex-direction:row-reverse}
 .ft .lpill{--logo-h:32px;border-radius:14px;padding:10px 16px;margin-bottom:-10px}
-
 /* photographs: a window onto the picture */
 .ph{position:absolute;overflow:hidden;background:var(--g-soft)}
 .ph img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
@@ -150,6 +149,23 @@ svg.fig text{font-family:var(--mono),monospace}
 .dark.acc-colour .h em{color:var(--gold)}
 .dark .lbl,.dark .sub{color:var(--inv-body)}
 .dark .rh-rule{background:var(--inv-body);opacity:.25}
+/* text on a surface of the other tone than the page's ground (editorial.mjs toneOf) is coloured for that surface: on the light
+   panel of a dark page (on-light) as on a light page, on a dark panel of a light page (on-dark) as on a dark page */
+.dark .on-light .h,.dark .h.on-light{color:var(--ink)}
+.dark.acc-muted .on-light .h em,.dark.acc-muted .h.on-light em{color:var(--muted)}
+.dark.acc-colour .on-light .h em,.dark.acc-colour .h.on-light em{color:var(--primary)}
+.dark .on-light .lbl,.dark .lbl.on-light{color:var(--muted)}
+.dark .on-light .sub,.dark .sub.on-light,.dark .on-light .checks li{color:var(--body)}
+.dark .rh-rule.on-light{background:var(--hair);opacity:1}
+.dark .on-light .checks .ck{background:color-mix(in srgb,var(--primary) 10%,transparent)}
+.dark .on-light .checks .ck svg{stroke:var(--primary)}
+.on-dark .h,.h.on-dark{color:var(--inv)}
+.acc-muted .on-dark .h em,.acc-muted .h.on-dark em{color:var(--muted-inv)}
+.acc-colour .on-dark .h em,.acc-colour .h.on-dark em{color:var(--gold)}
+.on-dark .lbl,.lbl.on-dark,.on-dark .sub,.sub.on-dark,.on-dark .checks li{color:var(--inv-body)}
+.rh-rule.on-dark{background:var(--inv-body);opacity:.25}
+.on-dark .checks .ck{background:color-mix(in srgb,var(--gr-3) 15%,transparent)}
+.on-dark .checks .ck svg{stroke:var(--gr-3)}
 /* the wordmark is the full logo cut and filtered to white (or black, logo-ink); its color says the same, for the contrast check */
 .logo-inv{display:flex;align-items:center;height:32px}
 .logo-inv i{display:block;height:32px;background-repeat:no-repeat;width:var(--lw);margin-left:var(--lm);background-size:auto 32px;background-position:var(--lx) 0;background-image:var(--logo-full);filter:brightness(0) invert(1);color:#fff}

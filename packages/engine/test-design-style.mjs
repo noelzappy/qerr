@@ -82,7 +82,7 @@ test('which grounds are dark is worked out from their colours, so any ground can
   // on a light one; the logo pill is light even when the light ground is not
   assert.match(page(neon, { template: 'stats', big: '1' }), /<div class="ft footer"><div><span class="logo-inv">/);
   assert.match(page(brand, { template: 'stats', big: '1', ground: 'dark' }), /<div class="ft footer"><div><span class="logo-inv">/);
-  assert.match(page(brand, { template: 'text', headline: 'h', ground: 'dark' }), /<div class="ft footer"><div><img class="logo"/, 'on the light panel');
+  assert.match(page(brand, { template: 'text', headline: 'h', ground: 'dark' }), /<div class="ft footer on-light"><div><img class="logo"/, 'on the light panel');
   assert.match(page(brand, { template: 'stats', big: '1' }), /<div class="ft footer"><div><img class="logo"/);
   assert.ok(brandCssVars(neon).includes('--pill:#FFFFFF') && brandCssVars(brand).includes('--pill:#FFFFFF'));
   assert.ok(brandCssVars(withStyle(undefined, { grounds: { ...RAW.grounds, light: '#FBF6EE' } })).includes('--pill:#FBF6EE'));
@@ -269,7 +269,7 @@ test('logo and footer: the poster bar at the top or the bottom, the logo on eith
   // myth-fact moves its series mark to the top when the bar is at the bottom
   assert.match(page(br, { template: 'myth-fact', myth: 'm', factLead: 'f' }), /<div class="pmark" style="right:80px;top:63px">/);
   assert.match(page(withStyle({ logo: 'top-right' }), obj), /<div class="pbar flip" style="left:80px;right:80px;top:60px">/);
-  // editorial pages and photo posts keep their footer at the bottom and follow the side
+  // with the logo at the bottom, editorial pages and photo posts keep their footer there and follow the side
   assert.match(page(br, { template: 'text', headline: 'h' }), /<div class="ft footer flip">/);
   assert.match(page(br, { template: 'photo', headline: 'h', image: 'a.jpg' }), /<div class="footer flip">/);
   const pill = withStyle({ footer: 'pill' });
@@ -303,6 +303,28 @@ test('a bottom logo bar goes to the top on poster pages whose photo or phone tak
   // pages with nothing at the bottom keep the brand's bar
   assert.match(page(bl, { template: 'myth-fact', myth: 'm', factLead: 'f' }), bottom());
   assert.match(page(bl, { template: 'closing' }), bottom());
+});
+
+const LEDGER = { columns: [{ label: 'Day' }, { label: 'Paid in', align: 'end' }], rows: [['01', '10.00'], ['02', '12.50']], notes: ['n1'] };
+
+test('editorial text is coloured for the surface it sits on: the light panel of a dark page, a dark panel of a light one', () => {
+  // a dark page: the sub line, the footer and a ledger's notes sit on the light panel; the running head on the dark ground
+  const dark = bodyOf(page(brand, { template: 'text', headline: 'h', sub: 's', ground: 'dark' }));
+  assert.match(dark, /<div class="abs sub on-light" data-role="sub" data-min="30" data-onpanel /);
+  assert.match(dark, /<div class="ft footer on-light"><div><img class="logo"/);
+  assert.match(dark, /<div class="rh"><span class="lbl" data-role="label">/);
+  assert.match(bodyOf(page(brand, { template: 'ledger', headline: 'h', ground: 'dark', ...LEDGER })), /<span class="lbl n on-light" data-role="label" data-onpanel>n1<\/span>/);
+  // the footer's logo alone needs no tone class (its logo is drawn for the panel already)
+  assert.match(bodyOf(page(brand, { template: 'screen', device: 'desktop', headline: 'h', image: 'd.png', ground: 'dark' })), /<div class="ft footer"><div><img class="logo"/);
+  // a light page with the light panel: nothing changes
+  assert.doesNotMatch(bodyOf(page(brand, { template: 'text', headline: 'h', sub: 's' })), /on-light|on-dark/);
+  // a dark panel on a light page: the text on it takes the dark surface's colours, the footer the light logo
+  const deep = withStyle(undefined, { surfaces: { ...RAW.surfaces, panel: RAW.grounds.dark ?? RAW.grounds.ink } });
+  const onDark = bodyOf(page(deep, { template: 'text', headline: 'h', sub: 's' }));
+  assert.match(onDark, /<div class="abs sub on-dark"/);
+  assert.match(onDark, /<div class="ft footer on-dark"><div><span class="logo-inv">/);
+  // and the stylesheet colours them as a page of that tone
+  for (const rule of ['.dark .on-light .lbl,.dark .lbl.on-light{color:var(--muted)}', '.dark .on-light .sub,.dark .sub.on-light,.dark .on-light .checks li{color:var(--body)}', '.on-dark .lbl,.lbl.on-dark,.on-dark .sub,.sub.on-dark,.on-dark .checks li{color:var(--inv-body)}']) assert.ok(brand.css.includes(rule), rule);
 });
 
 test('style values never reach the page as they are: unchecked hostile values map to nothing', () => {
@@ -371,6 +393,27 @@ test('real render: the poster logo is measured, so a wordmark on a surface it wa
     assert.ok(ground.ratios.label >= brand.contrast.label, JSON.stringify(ground.ratios));
   } finally {
     delete TEMPLATE_FNS['test-logo-surface'];
+    browser.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('real render: text on the light panel of a dark editorial page passes every check', { skip: chrome ? false : 'Google Chrome not found' }, async () => {
+  const dir = path.join(ROOT, 'out', 'test-style-surface');
+  fs.rmSync(dir, { recursive: true, force: true });
+  const scene = 'packages/engine/design/assets/demo/scene-market.jpg';
+  const dark = [
+    { template: 'text', headline: 'Every deposit, *on record.*', sub: 'One place for the group\'s savings.', ground: 'dark' },
+    { template: 'ledger', headline: 'The week, *on one page.*', sub: 'Every deposit in a row.', ground: 'dark', ...LEDGER },
+    { template: 'photo-story', layout: 'print', headline: 'Market day, *together.*', image: scene, ground: 'dark' },
+  ];
+  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });
+  try {
+    let i = 0;
+    const run = (b, d, sizeName = 'feed') => renderImage(browser, b, { spec: normaliseDesign(d), sizeName, outFile: path.join(dir, `${i++}.png`) }, { tmpDir: path.join(dir, 'tmp') });
+    // the sub line, the website and a ledger's notes on the light panel meet their contrast targets
+    for (const d of dark) assert.deepEqual((await run(brand, d)).warnings, [], d.template);
+  } finally {
     browser.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }

@@ -188,9 +188,10 @@ test('contrast on the new grounds: body, labels and accents on white and tint, l
   assert.ok(ratio(t.inverse, brand.grounds.dark) >= C.headline);
   assert.ok(ratio(t.invBody, brand.grounds.dark) >= C.sub);
   assert.ok(ratio(a.gold, brand.grounds.dark) >= C.accent);
-  // the stylesheet never colours text gold except on the dark page and photo posts
+  // the stylesheet never colours text gold except on the dark page, a dark panel (.on-dark) and photo posts
   const css = brand.css;
-  assert.ok(!/(^|\n)\.acc-colour[^{]*\{[^}]*--gold/.test(css) && /\.dark\.acc-colour \.h em\{color:var\(--gold\)/.test(css));
+  assert.ok(!/(^|\n)\.acc-colour(?![^{]*\.on-dark)[^{]*\{[^}]*--gold/.test(css) && /\.dark\.acc-colour \.h em\{color:var\(--gold\)/.test(css));
+  assert.ok(/\n\.acc-colour \.on-dark \.h em,\.acc-colour \.h\.on-dark em\{color:var\(--gold\)\}/.test(css));
   // the two-tone headline: the continuation in muted grey (light grounds) or the muted light grey (ink) reaches the accent target
   for (const ground of [brand.grounds.light, brand.grounds.soft]) assert.ok(ratio(t.muted, ground) >= C.accent, `muted continuation on ${ground}`);
   assert.ok(ratio(t.mutedInv, brand.grounds.dark) >= C.accent, 'muted light grey on the dark ground');

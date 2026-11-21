@@ -114,6 +114,9 @@ templates, `photo` and `page-cover`) follows one system:
   are **white cards** (`surfaces.card`) on it with the card shadow (`shadows.card`; the demo: `0 13px 27px -5px` and
   `0 8px 16px -8px` in ink at 18% and 22%), a 1 px line (`surfaces.line`) and the card radius (`radius.card`, the demo 8 px).
   Nothing is rotated, textured or lit like paper. The myth card is flat (line, no shadow) so the fact card stands above it.
+  Text takes its colour from the surface it sits on, not from the page's ground: on an ink page the sub line, the footer (its
+  logo and website), a ledger's notes and a running head on the light panel are set as on a light page (and text on a dark
+  panel of a light page as on a dark one), so they meet the contrast targets on what is really behind them.
   Photos: scenes with people are full-bleed panels; an inset photo has the card radius and a line; a news photo is a raised
   card on the panel.
 - **Scale.** The tokens are in the brand's website pixels. A post is drawn at `scale` post pixels per website pixel (the
@@ -518,8 +521,8 @@ The format gained what the built-ins need; every new value is a name from a fixe
   ground, else `cool`; a plain photo background then replaces it in the browser, as on the poster templates.
 - **Chrome blocks** with no slot, placed by the page and the brand's style (logo placement, footer style, "Swipe →" on page 1
   of a carousel): `bar` (the poster's logo and website), `runhead` (the editorial running head: the series or the spec's
-  `label`, and the folio, the spec's `headRight` or the brand's name; `rule`) and `footer` (the editorial footer, its logo drawn
-  for the panel when the page has one).
+  `label`, and the folio, the spec's `headRight` or the brand's name; `rule`) and `footer` (the editorial footer, its logo and
+  label drawn for what they sit on: the panel when it lies on it, else the ground).
 - **Options**: `shrink` (headline, figure, stats; default true: the block shrinks with every other such block in the fit loop;
   false keeps its size), `specSize` (a headline takes the spec's own validated `size`), `photoTop` (a poster photo's top edge
   moves to the spec's validated `photoTop`), and a headline's `subField` with `subWidth` (100 to 1080 px, default 820): that
