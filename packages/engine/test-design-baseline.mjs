@@ -14,9 +14,11 @@ test('the PNG decoder reads back what the encoder wrote, and the comparison coun
   assert.deepEqual([...a.data.slice((5 * 37 + 9) * 4, (5 * 37 + 9) * 4 + 4)], [...rgb(9, 5), 255]);
   const rgba = decodePng(pngBytes(3, 2, (x, y) => [x, y, 9, x * 100], { alpha: true }));
   assert.deepEqual([...rgba.data.slice(4 * 5, 4 * 6)], [2, 1, 9, 200]);
-  assert.deepEqual(comparePixels(a, a), { sameSize: true, differing: 0, maxDelta: 0, box: null });
+  assert.deepEqual(comparePixels(a, a), { sameSize: true, differing: 0, maxDelta: 0, box: null, noise: 0 });
   const b = decodePng(pngBytes(37, 21, (x, y) => (x === 3 && y === 4 ? [0, 0, 0] : x === 30 && y === 10 ? [rgb(x, y)[0] + 2, rgb(x, y)[1], rgb(x, y)[2]] : rgb(x, y))));
-  assert.deepEqual(comparePixels(a, b), { sameSize: true, differing: 2, maxDelta: 44, box: { x0: 3, y0: 4, x1: 30, y1: 10 } });
+  assert.deepEqual(comparePixels(a, b), { sameSize: true, differing: 2, maxDelta: 44, box: { x0: 3, y0: 4, x1: 30, y1: 10 }, noise: 0 });
+  // a pixel off by no more than the tolerance is noise, not a difference
+  assert.deepEqual(comparePixels(a, b, { tolerance: 2 }), { sameSize: true, differing: 1, maxDelta: 44, box: { x0: 3, y0: 4, x1: 3, y1: 4 }, noise: 1 });
   assert.equal(comparePixels(a, decodePng(pngBytes(2, 2, rgb))).sameSize, false);
   assert.throws(() => decodePng(Buffer.from('not a png at all, not even close to one')), /not a PNG/);
 });

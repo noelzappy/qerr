@@ -5,7 +5,7 @@
 // current code's page markup with a run's, without Chrome. See testlib/CONVERTING.md for how it is used.
 //
 //   node packages/engine/testlib/template-baseline.mjs render <run> [--only number,text] [--styles demo,outline] [--cases id,id]
-//   node packages/engine/testlib/template-baseline.mjs compare <base> <run> [--only ...] [--max 20] [--diff]
+//   node packages/engine/testlib/template-baseline.mjs compare <base> <run> [--only ...] [--max 20] [--tolerance 0] [--diff]
 //   node packages/engine/testlib/template-baseline.mjs markup <base> [--only ...]       (no Chrome)
 //   node packages/engine/testlib/template-baseline.mjs sheet <run> [--only ...]        (contact sheets, to look at a run)
 //   node packages/engine/testlib/template-baseline.mjs list [--only ...]
@@ -281,7 +281,8 @@ const idsOf = ({ only, cases }) => [...selectCases({ only, cases }).map((c) => c
 // ---- compare two runs ----
 // -> { images: [{ style, file, differing, maxDelta, box, sameSize, missing? }], results: [{ style, id, what, base, run }], failed }
 // An image fails when more than `max` pixels differ; a case fails when its result (ok, error, warnings, notes) differs.
-export function compareRuns(base, run, { root = ROOT, only, styles = STYLE_NAMES, cases, max = 20, diff = false } = {}) {
+// tolerance: a pixel that differs by no more than this in every channel is noise, not a difference (see comparePixels).
+export function compareRuns(base, run, { root = ROOT, only, styles = STYLE_NAMES, cases, max = 20, tolerance = 0, diff = false } = {}) {
   const A = runDir(root, base), B = runDir(root, run);
   const ma = JSON.parse(fs.readFileSync(path.join(A, 'manifest.json'), 'utf8')), mb = JSON.parse(fs.readFileSync(path.join(B, 'manifest.json'), 'utf8'));
   const ids = idsOf({ only, cases }), images = [], results = [];
@@ -293,7 +294,7 @@ export function compareRuns(base, run, { root = ROOT, only, styles = STYLE_NAMES
       for (const file of a.files) {
         const fa = path.join(A, style, file), fb = path.join(B, style, file);
         if (!fs.existsSync(fb)) { images.push({ style, file, missing: true, differing: Infinity, maxDelta: 255 }); continue; }
-        const pa = decodePng(fs.readFileSync(fa)), pb = decodePng(fs.readFileSync(fb)), c = comparePixels(pa, pb);
+        const pa = decodePng(fs.readFileSync(fa)), pb = decodePng(fs.readFileSync(fb)), c = comparePixels(pa, pb, { tolerance });
         if (diff && c.differing && c.sameSize) { fs.mkdirSync(path.join(B, 'diff', style), { recursive: true }); fs.writeFileSync(path.join(B, 'diff', style, file), diffImage(pa, pb)); }
         images.push({ style, file, ...c });
       }
@@ -362,7 +363,7 @@ function args(argv) {
     else o._.push(a);
   }
   const list = (v) => (v ? v.split(',').map((s) => s.trim()).filter(Boolean) : undefined);
-  return { cmd: o._[0], names: o._.slice(1), only: list(o.only), styles: list(o.styles) ?? STYLE_NAMES, cases: list(o.cases), max: o.max === undefined ? 20 : Number(o.max), diff: !!o.diff };
+  return { cmd: o._[0], names: o._.slice(1), only: list(o.only), styles: list(o.styles) ?? STYLE_NAMES, cases: list(o.cases), max: o.max === undefined ? 20 : Number(o.max), tolerance: o.tolerance === undefined ? 0 : Number(o.tolerance), diff: !!o.diff };
 }
 
 async function main(argv) {
@@ -379,10 +380,10 @@ async function main(argv) {
   }
   if (a.cmd === 'compare' && a.names.length === 2) {
     const r = compareRuns(a.names[0], a.names[1], a);
-    for (const i of r.images) console.log(`${i.differing > a.max ? 'DIFF' : i.differing ? 'aa  ' : 'same'}  ${i.style}/${i.file}  ${i.missing ? 'missing in the run' : !i.sameSize ? 'different size' : `${i.differing} px differ, max channel delta ${i.maxDelta}${i.box ? ` in x ${i.box.x0}-${i.box.x1}, y ${i.box.y0}-${i.box.y1}` : ''}`}`);
+    for (const i of r.images) console.log(`${i.differing > a.max ? 'DIFF' : i.differing ? 'aa  ' : 'same'}  ${i.style}/${i.file}  ${i.missing ? 'missing in the run' : !i.sameSize ? 'different size' : `${i.differing} px differ, max channel delta ${i.maxDelta}${i.box ? ` in x ${i.box.x0}-${i.box.x1}, y ${i.box.y0}-${i.box.y1}` : ''}${i.noise ? ` (${i.noise} px within the tolerance of ${a.tolerance})` : ''}`}`);
     for (const x of r.results) console.log(`RESULT ${x.style} ${x.id} ${x.what}:\n  base: ${JSON.stringify(x.base)}\n  run:  ${JSON.stringify(x.run)}`);
     const n = r.images.length, same = r.images.filter((i) => i.differing === 0).length, aa = r.images.filter((i) => i.differing > 0 && i.differing <= a.max).length;
-    console.log(`\n${n} images: ${same} identical, ${aa} within ${a.max} px, ${n - same - aa} different; ${r.results.length} result difference(s)${a.diff ? ` (diff pictures in ${BASE_DIR}/${a.names[1]}/diff/)` : ''}`);
+    console.log(`\n${n} images: ${same} identical${a.tolerance ? ` (up to the tolerance of ${a.tolerance})` : ''}, ${aa} within ${a.max} px, ${n - same - aa} different; ${r.results.length} result difference(s)${a.diff ? ` (diff pictures in ${BASE_DIR}/${a.names[1]}/diff/)` : ''}`);
     return r.failed ? 1 : 0;
   }
   if (a.cmd === 'sheet' && a.names.length === 1) {
@@ -395,7 +396,7 @@ async function main(argv) {
     console.log(`\n${rows.length} pages: ${rows.filter((x) => x.same).length} with the same markup, ${rows.filter((x) => !x.same).length} different`);
     return rows.every((x) => x.same) ? 0 : 1;
   }
-  console.log('usage: template-baseline.mjs render <run> | compare <base> <run> [--max 20] [--diff] | markup <base> | sheet <run> | list   [--only t1,t2] [--styles demo,outline,flat] [--cases id1,id2]');
+  console.log('usage: template-baseline.mjs render <run> | compare <base> <run> [--max 20] [--tolerance 0] [--diff] | markup <base> | sheet <run> | list   [--only t1,t2] [--styles demo,outline,flat] [--cases id1,id2]');
   return 2;
 }
 

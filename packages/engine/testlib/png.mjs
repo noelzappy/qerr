@@ -57,21 +57,23 @@ export function decodePng(buf) {
   return { w, h, data: out };
 }
 
-// Two decoded images, pixel by pixel: how many pixels differ in any channel, the largest difference of one channel, and the box
-// that holds every difference. Images of different sizes are reported as such.
-export function comparePixels(a, b) {
-  if (a.w !== b.w || a.h !== b.h) return { sameSize: false, differing: Math.max(a.w * a.h, b.w * b.h), maxDelta: 255, box: null };
-  let differing = 0, maxDelta = 0, x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
+// Two decoded images, pixel by pixel: how many pixels differ in any channel by more than `tolerance`, the largest difference of
+// one channel, and the box that holds every such difference; `noise` counts the pixels that differ by `tolerance` or less (a
+// blurred text shadow is not drawn bit for bit the same twice). Images of different sizes are reported as such.
+export function comparePixels(a, b, { tolerance = 0 } = {}) {
+  if (a.w !== b.w || a.h !== b.h) return { sameSize: false, differing: Math.max(a.w * a.h, b.w * b.h), maxDelta: 255, box: null, noise: 0 };
+  let differing = 0, maxDelta = 0, noise = 0, x0 = Infinity, y0 = Infinity, x1 = -1, y1 = -1;
   const A = a.data, B = b.data;
   for (let k = 0, p = 0; k < A.length; k += 4, p++) {
     const d = Math.max(Math.abs(A[k] - B[k]), Math.abs(A[k + 1] - B[k + 1]), Math.abs(A[k + 2] - B[k + 2]), Math.abs(A[k + 3] - B[k + 3]));
     if (!d) continue;
-    differing++;
     if (d > maxDelta) maxDelta = d;
+    if (d <= tolerance) { noise++; continue; }
+    differing++;
     const x = p % a.w, y = (p - x) / a.w;
     x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
   }
-  return { sameSize: true, differing, maxDelta, box: differing ? { x0, y0, x1, y1 } : null };
+  return { sameSize: true, differing, maxDelta, box: differing ? { x0, y0, x1, y1 } : null, noise };
 }
 
 // A picture of where two images of the same size differ: the first image faded, with every differing pixel in solid red.
