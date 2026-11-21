@@ -8,6 +8,7 @@ import { Home } from './pages/Home';
 import { Publish } from './pages/Publish';
 import { BrandSettingsPage } from './pages/settings/Brand';
 import { ReferencesPage } from './pages/settings/References';
+import { LayoutsPage } from './pages/settings/Layouts';
 import { PreferencesPage } from './pages/settings/Preferences';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
@@ -59,6 +60,7 @@ export function App() {
             <Route element={<SettingsShell admin />}>
               <Route path="/settings/brand" element={<BrandSettingsPage />} />
               <Route path="/settings/references" element={<ReferencesPage />} />
+              <Route path="/settings/layouts" element={<LayoutsPage />} />
               <Route path="/settings/team" element={<Users />} />
               <Route path="/settings/accounts" element={<BufferAccounts />} />
               <Route path="/settings/channels" element={<Routing />} />
