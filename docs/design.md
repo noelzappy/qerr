@@ -289,7 +289,9 @@ The closing page is a poster page now (the dark textured ground, the tagline lar
 ### `carousel`: pages with a PDF
 
 `{ "template": "carousel", "series": "explainers", "pages": [ ... ] }`: 2 to 10 `pages`, each any of `cover`, `text`, `ledger`,
-`passbook`, `myth-fact`, `stats`, `screen`, `photo-story`, `closing` (a page may override the carousel's `series` or `label`).
+`passbook`, `myth-fact`, `stats`, `screen`, `photo-story`, `closing` (a page may override the carousel's `series` or `label`),
+or one of the brand's own layouts (`{ "template": "layout", "layout": "<id>", ...that layout's fields }`, see "Your own layouts";
+built-in pages and layout pages mix freely).
 Each page gets the series label and the folio ("01 / 07") in its running head; page 1 says "Swipe ->" in the footer, the others the
 website. File names: `<name>-1.jpg`, `<name>-2.jpg` ... and **`<name>.pdf`**, a PDF of the pages for LinkedIn documents, one page per
 image, each exactly 1080 x 1350 CSS px (810 x 1012.5 pt), no margins, written only when every page was made. Chrome snaps a printed
@@ -346,7 +348,16 @@ Content-Security-Policy. Admins make them in **Settings, Layouts**; the enabled 
 A post uses one with `{ "template": "layout", "layout": "<id>", ...fields }`. The block is checked against the fields that
 layout declares, with their lengths, exactly as a built-in template checks its own, plus the frame keys `sizes`, `name`,
 `networkSizes`, `series`, `label`, `ground`, `accent`, and `focal` and `zoom` when it shows a picture. Anything else is
-refused with the field named. A layout page is a single image (not a carousel page).
+refused with the field named.
+
+A carousel page may be drawn from a layout too: `{ "template": "carousel", "pages": [{ "template": "layout", "layout": "<id>",
+...fields }, ...] }`. The page is checked exactly as a single post made with that layout (`layoutPageProblems`, then
+`layoutDesignProblems`), except that `sizes`, `name` and `networkSizes` belong to the carousel and are refused on a page, and the
+layout needs a `feed` canvas (a carousel is drawn at the feed size). `postDesignProblems` and `normalisePostDesign` (in
+`layout.mjs`) check and normalise any post's design this way; the batch validator, the render job and the AI's checks use them.
+Each page is drawn with its place in the carousel (`{ n, total }`), so its `page` conditions hold: `first` on page 1, `later` on
+every other page, `single` never; the ground cases follow the same conditions, and a label with `"source": "folio"` reads
+"02 / 05". A post made with a layout alone is a single post.
 
 ```json
 {
@@ -588,7 +599,8 @@ kind of page, so it offers nothing the validator refuses and leaves out nothing 
   `subWidth`); what it shows (a field, which is declared when picked; a label's field, fixed words or source; a window title; a
   headline's flowing sub line); and the blocks inside a slab, added, reordered and removed.
 - **Show this block**: always, or only when every clause holds: a field is filled, a field is empty, on page 1 of a carousel, a
-  later page or a single post (a post made with a layout is one image, so it is always a single post), or a choice is (or is not)
+  later page or a single post (a post made with a layout alone is a single post; a carousel page made with it is page 1 or a
+  later page), or a choice is (or is not)
   one of chosen values: the artefact's type once the layout declares an artefact, and on a poster or editorial page its register
   card. The block list says when each block is drawn ("Sub line, when sub is filled").
 - **Fields**: declared, required, and their limits (characters, or the least and most entries) within the catalogue's bounds,

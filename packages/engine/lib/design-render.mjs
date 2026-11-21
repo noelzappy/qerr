@@ -10,16 +10,15 @@ import { Browser, NO_CHROME, findChrome } from './design/chrome.mjs';
 import { detectConverter } from './design/convert.mjs';
 import { lintText, textFieldsOf } from './design/lint.mjs';
 import { DesignError, renderImage, renderPdf } from './design/render.mjs';
-import { normaliseDesign, outputFiles, pdfFile, validateDesign } from './design/spec.mjs';
-import { layoutDesignProblems, loadLayouts, normaliseLayoutDesign } from './design/layout.mjs';
+import { outputFiles, pdfFile } from './design/spec.mjs';
+import { loadLayouts, normalisePostDesign, postDesignProblems, usesLayouts } from './design/layout.mjs';
 
 // Every problem with a design block, as the batch validator would list them. No Chrome needed.
-// A { template: "layout" } block is checked against the layout it names: one of `layouts` when given (a preview of layouts that
-// are not saved yet), else one of the brand's (brand.json "layouts").
+// A { template: "layout" } block, or a carousel page of that kind, is checked against the layout it names: one of `layouts` when
+// given (a preview of layouts that are not saved yet), else one of the brand's (brand.json "layouts").
 export function designBlockProblems(design, { root = ROOT, layouts } = {}) {
   const series = loadSeries({ root });
-  if (design?.template === 'layout') return layoutDesignProblems(design, 'design', { series, layouts: layouts ?? loadLayouts({ root }) });
-  const errors = validateDesign(design, 'design', { series });
+  const errors = postDesignProblems(design, 'design', { series, layouts: usesLayouts(design) ? layouts ?? loadLayouts({ root }) : [] });
   if (design?.template === 'pagecover') errors.push('design: page-cover makes profile and cover images, not post images, so it cannot be used in a batch');
   return errors;
 }
@@ -28,10 +27,11 @@ const brandWarnings = (spec, brand) => [...new Set(spec.sizes.flatMap((s) => lin
 
 // -> { ok, files: [{ size, slide, file, abs, w, h }], warnings, notes, pdf?, error? }
 // `only` limits the sizes rendered (a list of size names). `outDir` is resolved against root; `stem` overrides the file name stem.
-// `layouts` replaces the brand's layouts for this render (the layout editor's preview).
+// `layouts` replaces the brand's layouts for this render (the layout editor's preview). `slides` limits a carousel's pages
+// rendered (a list of page indexes, from 0: the layout editor's preview of one page of a carousel).
 // `png` (tests only: the template baseline harness, testlib/template-baseline.mjs) writes lossless PNG files instead of JPEGs,
 // so that a pixel comparison sees real differences and not the JPEG encoder's noise. Posts are always JPEGs.
-export async function renderDesignBlock({ root = ROOT, design, postId, outDir, stem, only, layouts, png = false, log = () => {} } = {}) {
+export async function renderDesignBlock({ root = ROOT, design, postId, outDir, stem, only, slides, layouts, png = false, log = () => {} } = {}) {
   const fail = (error, extra = {}) => ({ ok: false, files: [], warnings: [], notes: [], error, ...extra });
   let spec, brand;
   try {
@@ -40,7 +40,7 @@ export async function renderDesignBlock({ root = ROOT, design, postId, outDir, s
     if (!outDir) return fail('outDir is required');
     brand = loadBrand({ root });
     if (layouts) brand = { ...brand, layouts };
-    spec = design.template === 'layout' ? normaliseLayoutDesign(design, brand.layouts) : normaliseDesign(design);
+    spec = normalisePostDesign(design, brand.layouts);
   } catch (e) {
     if (e instanceof DesignError) return fail(e.message);
     throw e;
@@ -52,6 +52,10 @@ export async function renderDesignBlock({ root = ROOT, design, postId, outDir, s
   if (only?.length) {
     files = files.filter((f) => only.includes(f.size));
     if (!files.length) return fail(`none of the sizes ${only.join(', ')} is in this design (it makes ${spec.sizes.join(', ')})`);
+  }
+  if (slides?.length) {
+    files = files.filter((f) => f.slide !== null && slides.includes(f.slide));
+    if (!files.length) return fail(`none of the pages ${slides.map((i) => i + 1).join(', ')} is in this design`);
   }
   const warnings = brandWarnings(spec, brand);
   // A brand without a dot map (the usual case for a brand set up in the web app) still gets its closing page: the map is left
