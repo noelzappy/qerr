@@ -7,7 +7,7 @@ import type { Deps } from '../deps.js';
 import { HttpError } from '../http.js';
 import { pipelineEngine } from '../engine/pipeline.js';
 import { enqueueTracked } from './activity.js';
-import { designProblems } from './design-images.js';
+import { designProblems, withoutVaultIds } from './design-images.js';
 import { joinNetworks, POST_KEY_RE, rawBatchForEngine, slugify, type NetworkOverride } from './post-model.js';
 
 export const NETWORK_NAMES = ['instagram', 'linkedin', 'facebook', 'x'] as const;
@@ -97,9 +97,11 @@ export async function problemsOf(header: Pick<Batch, 'timezone' | 'defaultTime' 
   for (const s of staged) if (!POST_KEY_RE.test(s.postKey)) errors.push(`post ${s.postKey}: id may only use letters, digits, . _ - (up to 60 characters) and cannot be only dots`);
   if (errors.length) return errors;
   if (!staged.length) return [];
+  // The engine's batch validator sees each design without the app's own vaultItemId fields (designProblems checks those), as the
+  // render job's copy has none: a brand layout's design, or a carousel page made with one, refuses any key the layout does not take.
   const raw = rawBatchForEngine(
     header,
-    staged.map((s, i) => ({ ...s, id: `staged-${i}`, batchId: '', position: i, media: [], renderStatus: 'none', renderError: null, status: 'draft', approvedById: null, approvedAt: null, removedAt: null, updatedAt: new Date() }) as unknown as Post),
+    staged.map((s, i) => ({ ...s, design: s.design ? withoutVaultIds(s.design) : s.design, id: `staged-${i}`, batchId: '', position: i, media: [], renderStatus: 'none', renderError: null, status: 'draft', approvedById: null, approvedAt: null, removedAt: null, updatedAt: new Date() }) as unknown as Post),
     { mediaRoot: 'media/none', withDesign: true, withMedia: false, networks: engine.networks },
   );
   const { errors: engineErrors } = engine.validateBatch(raw, { fallbackName: header.name, root: engine.root });
@@ -231,7 +233,11 @@ export async function importEngineBatch(deps: Deps, actor: AuditActor & { id: st
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw unprocessable('The batch is not valid', ['the batch must be a JSON object']);
   const input = raw as Record<string, unknown>;
   // The app keeps media in its own bucket, so the engine's mediaRoot folder means nothing here; the validator only wants it present.
-  const forValidation = { ...input, mediaRoot: typeof input.mediaRoot === 'string' && input.mediaRoot ? input.mediaRoot : 'media/imported' };
+  const forValidation = {
+    ...input, mediaRoot: typeof input.mediaRoot === 'string' && input.mediaRoot ? input.mediaRoot : 'media/imported',
+    // (each design without the app's vaultItemId fields, which designProblems checks below)
+    ...(Array.isArray(input.posts) ? { posts: input.posts.map((p) => (p && typeof p === 'object' && !Array.isArray(p) && 'design' in p ? { ...p, design: withoutVaultIds((p as Record<string, unknown>).design) } : p)) } : {}),
+  };
   const { errors, batch: valid } = engine.validateBatch(forValidation, { fallbackName: 'imported', root: engine.root });
   const posts = Array.isArray(input.posts) ? input.posts.map(asRecord) : [];
   const allErrors = [...errors];
