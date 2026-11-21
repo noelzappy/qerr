@@ -81,12 +81,22 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   uses it. The batch list's import tab is "Import a batch file", marked Advanced.
 - **A post** is Writing, Approved, Draft in Buffer, Scheduled or Sent. Problems are flags on top of that, never a step of
   their own: Image could not be made, Has warnings, Needs a look, Failed to send, Deleted from Buffer, Removed.
-- **The post editor** has two panes with a live preview, a picture picker and structured editors for figures, lists, carousel
-  pages, tables and cards; the raw design JSON is under "Advanced". The preview calls `POST /api/posts/preview-design`
+- **The post page** replaces the old side sheet: a post is added at `/batches/:id/posts/new` and edited at
+  `/batches/:id/posts/:postId`, a page with breadcrumbs, the form on the left and a live preview on the right. Network choices
+  and captions are edited there and saved with the post. It has a picture picker and structured editors for figures, lists, carousel
+  pages, tables and cards; the raw design JSON is under "Advanced". The post card on the batch page shows the image, title, date,
+  one status chip (plus a problem chip when there is one), the network icons, Edit, Approve and a More menu. The preview calls `POST /api/posts/preview-design`
   (`src/server/routes/design-preview.ts`, roles admin and editor): the body is `{ design, size? }`, and the answer is
   `{ ok, image, images, size, warnings, notes }` (`ok: false` with an `error` when the design was fine but could not be
   drawn). A design that saving would refuse is a 422 `{ error, details }`, in the same words as saving; a brand without its
   logos is a 409. Nothing is stored, and the drawing runs under the render lock, one at a time.
+- **Facts and Pictures.** A fact has its own page, `/vault/:id` (`/vault/new` adds one). A picture has `/library/:id`; uploading
+  is the page `/library/upload` (`/library?upload=1` redirects there). List filters live in the URL.
+- **Dialogs.** New batch and Draft with AI open as centred dialogs (`/batches/new`, `/batches/ai-draft` still open them). The Team,
+  Buffer accounts and AI provider forms are dialogs too, and Channels is one table with a row per network.
+- **Conventions.** Field help is behind an info icon (kit `Hint`, `hintMode`); pages use `PageHeader` with `crumbs`; small forms
+  use `FormPanel variant="dialog"`; secondary and destructive actions sit in `MoreMenu`; on a desktop only the content area and the
+  sidebar scroll. See `web/README-ui.md`.
 - **Layouts** open their own page, not a side sheet: `/settings/layouts/new` (optionally `?from=<starter>`,
   `?duplicate=<layout id>` or `?copy=<built-in id>`) and `/settings/layouts/:id`. See "Settings, Layouts" below.
 
