@@ -4,6 +4,8 @@ import { Monitor, Moon, Sun } from 'lucide-react';
 import { useDocumentTitle } from '../../hooks';
 import { useSession } from '../../session';
 import { setTheme, themeChoice, type ThemeChoice } from '../../lib/theme';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Section, SettingsPage } from './section';
 
@@ -27,20 +29,18 @@ export function PreferencesPage() {
         </dl>
       </Section>
       <Section title="Theme">
-        <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Theme">
+        <RadioGroup value={choice} onValueChange={(v) => { setTheme(v as ThemeChoice); setChoice(v as ThemeChoice); }} aria-label="Theme" className="grid gap-3 sm:grid-cols-3">
           {OPTIONS.map(({ value, label, Icon }) => (
-            <button
+            <Label
               key={value}
-              type="button"
-              role="radio"
-              aria-checked={choice === value}
-              onClick={() => { setTheme(value); setChoice(value); }}
-              className={cn('flex items-center gap-2.5 rounded-lg border p-3 text-left text-[13.5px] outline-none transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50', choice === value && 'border-primary ring-1 ring-primary')}
+              htmlFor={`theme-${value}`}
+              className={cn('flex cursor-pointer items-center gap-2.5 rounded-lg border p-3 text-[13.5px] font-normal transition-colors hover:bg-muted has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50 max-sm:min-h-11', choice === value && 'border-primary ring-1 ring-primary')}
             >
+              <RadioGroupItem id={`theme-${value}`} value={value} />
               <Icon className="size-4" aria-hidden="true" /> {label}
-            </button>
+            </Label>
           ))}
-        </div>
+        </RadioGroup>
       </Section>
     </SettingsPage>
   );

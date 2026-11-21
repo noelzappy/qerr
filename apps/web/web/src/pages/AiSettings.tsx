@@ -7,13 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BusyButton, CheckField, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FormPanel, Notice, PageHeader, SelectField, TagChips, TextField, type Column } from '@/components/kit';
+import { BusyButton, CheckField, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FormPanel, Notice, SelectField, TagChips, TextField, type Column } from '@/components/kit';
 import { RunProgress, RunStatusBadge, runSummary } from '@/components/activity-parts';
 import { useActivity } from '@/hooks/use-activity';
 import { useNow } from '@/hooks/use-now';
 import { isActive } from '@/lib/activity';
 import { useDocumentTitle, useLoad } from '../hooks';
 import { errorMessage, fieldErrors, formProblem } from '../lib/errors';
+import { confirmDiscard, useUnsavedGuard } from '@/hooks/use-unsaved-guard';
+import { SettingsPage } from './settings/section';
 import { PROVIDER_KIND_LABEL, SEARCH_KIND_LABEL, TASK_LABEL } from '../lib/labels';
 
 interface Provider { id: string; name: string; kind: 'anthropic' | 'openai-compatible'; baseUrl: string; model: string; keyLast4: string; tasks: string[]; enabled: boolean; inputPricePerMTok: number | null; outputPricePerMTok: number | null }
@@ -44,8 +46,7 @@ export function AiSettings() {
   const data = state.data;
 
   return (
-    <>
-      <PageHeader title="AI and search" description="Which AI services write and check posts, how much they may spend, and what the weekly research looks for. Keys are stored encrypted and cannot be read back." />
+    <SettingsPage title="AI and search" description="Which AI services write and check posts, how much they may spend, and what the weekly research looks for. Keys are stored encrypted and cannot be read back.">
       {state.loading && !data ? <SettingsSkeleton />
         : state.error ? <Card className="gap-0 p-0"><ErrorBlock message={state.error} onRetry={() => void state.reload()} /></Card>
         : data && (
@@ -56,8 +57,13 @@ export function AiSettings() {
             <TopicsCard topics={data.topics} ready={data.providers.some((p) => p.enabled && p.tasks.includes('research')) && !!data.search} onChanged={() => void state.reload()} />
           </div>
         )}
-    </>
+    </SettingsPage>
   );
+}
+
+// Shown beside a card's title while it has changes that are not saved yet.
+function NotSaved({ show }: { show: boolean }) {
+  return show ? <Badge variant="warning" role="status">Not saved</Badge> : null;
 }
 
 function Providers({ providers, onChanged }: { providers: Provider[]; onChanged: () => void }) {
@@ -124,6 +130,13 @@ function ProviderSheet({ provider, onClose, onSaved }: { provider: Provider | nu
   const [error, setError] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
 
+  const priceText = (v: number | null | undefined) => (v == null ? '' : String(v));
+  const dirty = name !== (provider?.name ?? '') || kind !== (provider?.kind ?? 'anthropic') || baseUrl !== (provider?.baseUrl ?? '') || model !== (provider?.model ?? '')
+    || apiKey !== '' || enabled !== (provider?.enabled ?? true) || inputPrice !== priceText(provider?.inputPricePerMTok) || outputPrice !== priceText(provider?.outputPricePerMTok)
+    || [...tasks].sort().join() !== [...(provider?.tasks ?? ['draft', 'rewrite'])].sort().join();
+  useUnsavedGuard(dirty);
+  const requestClose = () => confirmDiscard(dirty && !busy, onClose);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
@@ -155,20 +168,26 @@ function ProviderSheet({ provider, onClose, onSaved }: { provider: Provider | nu
   }
 
   return (
-    <FormPanel open onClose={onClose} busy={busy} title={provider ? `Edit ${provider.name}` : 'Add an AI provider'}
-      footer={<><Button variant="outline" className={sm} onClick={onClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="provider-form" loading={busy}>{provider ? 'Save changes' : 'Add provider'}</BusyButton></>}>
+    <FormPanel open onClose={requestClose} busy={busy} title={provider ? `Edit ${provider.name}` : 'Add an AI provider'}
+      footer={<><Button variant="outline" className={sm} onClick={requestClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="provider-form" loading={busy}>{provider ? 'Save changes' : 'Add provider'}</BusyButton></>}>
       <form id="provider-form" className="flex flex-col gap-4" onSubmit={(e) => void submit(e)} noValidate>
         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} error={fields.name} required autoFocus hint="Only for you, such as Claude main." />
         <SelectField label="Kind" value={kind} onValueChange={(v) => setKind(v as Provider['kind'])} options={KIND_OPTIONS} error={fields.kind} />
-        <TextField label="Service address" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} error={fields.baseUrl} mono optional={kind === 'anthropic'}
-          placeholder={kind === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.example.com/v1'} hint={kind === 'anthropic' ? 'Leave blank to use Anthropic directly.' : 'Must start with https://.'} />
-        <TextField label="Model" value={model} onChange={(e) => setModel(e.target.value)} error={fields.model} mono required />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <TextField label="Input price" optional type="number" inputMode="decimal" min={0} step="any" value={inputPrice} onChange={(e) => setInputPrice(e.target.value)} error={fields.inputPricePerMTok} hint="US dollars per million tokens, from the vendor's price list." />
-          <TextField label="Output price" optional type="number" inputMode="decimal" min={0} step="any" value={outputPrice} onChange={(e) => setOutputPrice(e.target.value)} hint="Without both prices the cost of a call is unknown and the budget cannot count it." />
-        </div>
         <TextField label={provider ? 'New key' : 'Key'} type="password" autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)} error={fields.apiKey} mono optional={!!provider}
           placeholder={provider ? `Leave blank to keep the key ending ${provider.keyLast4}` : ''} hint="Stored encrypted. It cannot be shown again." />
+        <FieldGroup legend="Connection details" hint="Most providers need only a model name. Your provider's documentation lists the rest.">
+          <TextField label="Service address" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} error={fields.baseUrl} mono optional={kind === 'anthropic'}
+            placeholder={kind === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.example.com/v1'}
+            hint={kind === 'anthropic' ? 'Leave blank to use Anthropic directly.' : 'The web address your provider gave you for its API. It must start with https://.'} />
+          <TextField label="Model" value={model} onChange={(e) => setModel(e.target.value)} error={fields.model} mono required placeholder="For example claude-sonnet-5-5"
+            hint="The name of the model this provider should use, exactly as the provider spells it." />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <TextField label="Input price" optional type="number" inputMode="decimal" min={0} step="any" placeholder="For example 3" value={inputPrice} onChange={(e) => setInputPrice(e.target.value)} error={fields.inputPricePerMTok}
+              hint="US dollars for each million tokens sent to the model. It is on the provider's price page." />
+            <TextField label="Output price" optional type="number" inputMode="decimal" min={0} step="any" placeholder="For example 15" value={outputPrice} onChange={(e) => setOutputPrice(e.target.value)}
+              hint="US dollars for each million tokens the model writes back. Without both prices the cost of a call is unknown and the budget cannot count it." />
+          </div>
+        </FieldGroup>
         <FieldGroup legend="Use this provider for" error={fields.tasks}>
           {TASKS.map((t) => (
             <CheckField key={t} label={TASK_LABEL[t]} checked={tasks.includes(t)} onCheckedChange={(on) => setTasks(on ? [...tasks, t] : tasks.filter((x) => x !== t))} />
@@ -187,6 +206,8 @@ function SearchCard({ search, onChanged }: { search: Settings['search']; onChang
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
+  const dirty = kind !== (search?.kind ?? 'brave') || apiKey !== '';
+  useUnsavedGuard(dirty);
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -208,7 +229,7 @@ function SearchCard({ search, onChanged }: { search: Settings['search']; onChang
   return (
     <Card className="gap-4 p-5 max-sm:p-4" aria-label="Search service">
       <CardHeader className="gap-0.5 p-0">
-        <CardTitle className="text-lg">Search service</CardTitle>
+        <CardTitle className="flex flex-wrap items-center gap-2 text-lg">Search service <NotSaved show={dirty} /></CardTitle>
         <CardDescription>Research looks things up on the web through this service, so it does not depend on one AI vendor.</CardDescription>
       </CardHeader>
       <CardContent className="p-0">
@@ -217,7 +238,7 @@ function SearchCard({ search, onChanged }: { search: Settings['search']; onChang
           <TextField label={search ? 'New key' : 'Key'} type="password" autoComplete="off" mono value={apiKey} onChange={(e) => setApiKey(e.target.value)} error={fields.apiKey} optional={!!search}
             placeholder={search ? `Leave blank to keep the key ending ${search.keyLast4}` : ''} hint="Stored encrypted. It cannot be shown again." />
           {error && <Notice tone="bad">{error}</Notice>}
-          <div><BusyButton type="submit" loading={busy}>Save search service</BusyButton></div>
+          <div><BusyButton type="submit" loading={busy} disabled={!dirty}>Save search service</BusyButton></div>
         </form>
       </CardContent>
     </Card>
@@ -228,6 +249,8 @@ function BudgetCard({ budget, onChanged }: { budget: Settings['budget']; onChang
   const [value, setValue] = useState(budget.monthlyBudgetUsd === null ? '' : String(budget.monthlyBudgetUsd));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const dirty = value.trim() === '' ? budget.monthlyBudgetUsd !== null : Number(value) !== budget.monthlyBudgetUsd;
+  useUnsavedGuard(dirty);
   const pct = budget.monthlyBudgetUsd ? Math.min(100, Math.round((budget.spentUsd / budget.monthlyBudgetUsd) * 100)) : null;
 
   async function save(e: FormEvent) {
@@ -249,8 +272,8 @@ function BudgetCard({ budget, onChanged }: { budget: Settings['budget']; onChang
   return (
     <Card className="gap-4 p-5 max-sm:p-4" aria-label="Monthly budget">
       <CardHeader className="gap-0.5 p-0">
-        <CardTitle className="text-lg">Monthly budget</CardTitle>
-        <CardDescription>AI work stops for the month when this is reached.</CardDescription>
+        <CardTitle className="flex flex-wrap items-center gap-2 text-lg">Monthly budget <NotSaved show={dirty} /></CardTitle>
+        <CardDescription>AI work stops for the month when this is reached. The AI does not run at all until a budget above zero is set.</CardDescription>
       </CardHeader>
       <CardContent className="p-0">
         <form className="flex max-w-[520px] flex-col gap-4" onSubmit={(e) => void save(e)} noValidate>
@@ -261,7 +284,7 @@ function BudgetCard({ budget, onChanged }: { budget: Settings['budget']; onChang
             {budget.monthlyBudgetUsd === null && <>. No budget is set yet, so the AI will not run until you set one.</>}
             {budget.unpricedCalls > 0 && <>. {budget.unpricedCalls} {budget.unpricedCalls === 1 ? 'call' : 'calls'} this month had no price, so {budget.unpricedCalls === 1 ? 'it is' : 'they are'} not counted. Add the provider's prices above.</>}
           </p>
-          <div><BusyButton type="submit" loading={busy}>Save budget</BusyButton></div>
+          <div><BusyButton type="submit" loading={busy} disabled={!dirty}>Save budget</BusyButton></div>
         </form>
       </CardContent>
     </Card>
@@ -275,6 +298,7 @@ function TopicsCard({ topics, ready, onChanged }: { topics: string[]; ready: boo
   const [running, setRunning] = useState(false);
   const [error, setError] = useState('');
   const dirty = JSON.stringify(list) !== JSON.stringify(topics);
+  useUnsavedGuard(dirty);
   // The newest research run: shown while it works, and as the last result after.
   const runs = useActivity({ kind: 'research-run', pageSize: 1, withResult: true });
   const last = runs.items[0] ?? null;
@@ -290,6 +314,14 @@ function TopicsCard({ topics, ready, onChanged }: { topics: string[]; ready: boo
     setError('');
     setList([...list, t]);
     setDraft('');
+  }
+  function removeTopic(t: string) {
+    const at = list.indexOf(t);
+    setList((cur) => cur.filter((x) => x !== t));
+    toast(`Removed "${t}"`, {
+      duration: 8000,
+      action: { label: 'Undo', onClick: () => setList((cur) => (cur.includes(t) ? cur : [...cur.slice(0, at), t, ...cur.slice(at)])) },
+    });
   }
   async function save() {
     setBusy(true); setError('');
@@ -307,7 +339,7 @@ function TopicsCard({ topics, ready, onChanged }: { topics: string[]; ready: boo
     setRunning(true); setError('');
     try {
       const r = await api.post<{ queued: boolean; alreadyQueued: boolean }>('/api/settings/research/run');
-      if (r.queued) toast.success('Research run started. New items appear in the vault as unconfirmed');
+      if (r.queued) toast.success('Research run started. New items appear in Facts as unconfirmed');
       else toast.success('A research run is already waiting, so no second one was started');
       await runs.reload();
     } catch (err) {
@@ -320,8 +352,8 @@ function TopicsCard({ topics, ready, onChanged }: { topics: string[]; ready: boo
     <Card className="gap-4 p-5 max-sm:p-4" aria-label="Research topics">
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 p-0">
         <div className="min-w-0 flex-1 basis-72">
-          <CardTitle className="text-lg">Research topics</CardTitle>
-          <CardDescription className="mt-0.5">What the weekly research looks for. Everything it finds goes into the vault as unconfirmed, for a person to check.</CardDescription>
+          <CardTitle className="flex flex-wrap items-center gap-2 text-lg">Research topics <NotSaved show={dirty} /></CardTitle>
+          <CardDescription className="mt-0.5">What the weekly research looks for. Everything it finds goes into Facts as unconfirmed, for a person to check.</CardDescription>
         </div>
         <BusyButton variant="outline" loading={running || working} disabled={dirty} title={dirty ? 'Save your changes first' : undefined} onClick={() => void runNow()}>Run research now</BusyButton>
       </CardHeader>
@@ -329,7 +361,7 @@ function TopicsCard({ topics, ready, onChanged }: { topics: string[]; ready: boo
         {!ready && <Notice tone="info" title="Research is not ready yet.">It needs an enabled AI provider ticked for research, and a search service with a key.</Notice>}
         {list.length === 0
           ? <p className="text-muted-foreground">No topics yet. Add the subjects to watch, for example news about your market or changes to the rules in your field.</p>
-          : <TagChips tags={list} label="Topics" removeLabel={(t) => `Remove ${t}`} onRemove={(t) => setList(list.filter((x) => x !== t))} />}
+          : <TagChips tags={list} label="Topics" removeLabel={(t) => `Remove ${t}`} onRemove={removeTopic} />}
         <form className="flex items-end gap-2.5" onSubmit={(e) => { e.preventDefault(); add(); }}>
           <TextField className="flex-1" label="Add a topic" value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={200} />
           <Button type="submit" variant="outline" className="max-sm:h-11">Add</Button>

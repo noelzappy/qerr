@@ -9,6 +9,7 @@ import { Publish } from './pages/Publish';
 import { BrandSettingsPage } from './pages/settings/Brand';
 import { ReferencesPage } from './pages/settings/References';
 import { LayoutsPage } from './pages/settings/Layouts';
+import { LayoutEditorRoute } from './pages/settings/layouts/EditorRoute';
 import { PreferencesPage } from './pages/settings/Preferences';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
@@ -26,6 +27,7 @@ import { Users } from './pages/Users';
 import { Library } from './pages/Library';
 import { Vault } from './pages/Vault';
 import { ErrorBoundary } from './shell/ErrorBoundary';
+import { UnsavedGuardHost } from '@/hooks/use-unsaved-guard';
 
 export function App() {
   return (
@@ -33,6 +35,7 @@ export function App() {
       <AppInfoProvider>
       <SessionProvider>
         <TooltipProvider delayDuration={200}>
+          <UnsavedGuardHost />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/accept-invite" element={<AcceptInvite />} />
@@ -58,9 +61,11 @@ export function App() {
               <Route path="/settings/preferences" element={<PreferencesPage />} />
             </Route>
             <Route element={<SettingsShell admin />}>
-              <Route path="/settings/brand" element={<BrandSettingsPage />} />
+              <Route path="/settings/brand/:section?" element={<BrandSettingsPage />} />
               <Route path="/settings/references" element={<ReferencesPage />} />
               <Route path="/settings/layouts" element={<LayoutsPage />} />
+              <Route path="/settings/layouts/new" element={<LayoutEditorRoute mode="new" />} />
+              <Route path="/settings/layouts/:id" element={<LayoutEditorRoute mode="edit" />} />
               <Route path="/settings/team" element={<Users />} />
               <Route path="/settings/accounts" element={<BufferAccounts />} />
               <Route path="/settings/channels" element={<Routing />} />

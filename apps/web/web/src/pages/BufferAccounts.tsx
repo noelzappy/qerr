@@ -6,11 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { BusyButton, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FormPanel, Notice, PageHeader, RowsSkeleton, TextField, type Column } from '@/components/kit';
+import { BusyButton, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FormPanel, Notice, RowsSkeleton, TextField, type Column } from '@/components/kit';
 import { useDocumentTitle, useLoad } from '../hooks';
 import { fieldErrors, formProblem } from '../lib/errors';
 import { dateInputValue, formatDate } from '../lib/format';
 import { networkLabel } from '../lib/labels';
+import { confirmDiscard, useUnsavedGuard } from '@/hooks/use-unsaved-guard';
+import { SettingsPage } from './settings/section';
 
 export interface BufferAccount {
   id: string; name: string; keyLast4: string; keyExpiresAt: string | null; daysLeft: number | null; expired: boolean; expiryWarning: boolean;
@@ -63,8 +65,8 @@ export function BufferAccounts() {
 
   return (
     <>
-      <PageHeader title="Buffer accounts" description="Each account is one Buffer key. Keys are stored encrypted and cannot be read back: only the last four characters are shown."
-        actions={<Button className={sm} onClick={() => setEditing('new')}><Plus aria-hidden="true" />Add an account</Button>} />
+      <SettingsPage title="Buffer accounts" description="Each account is one Buffer key. Keys are stored encrypted and cannot be read back: only the last four characters are shown."
+        actions={<Button className={sm} onClick={() => setEditing('new')}><Plus aria-hidden="true" />Add an account</Button>}>
       <div className="flex flex-col gap-4">
         {expired.length > 0 && (
           <Notice tone="bad" title="A Buffer key has expired.">
@@ -79,10 +81,11 @@ export function BufferAccounts() {
         <Card className="gap-0 overflow-hidden p-0" aria-label="Buffer accounts">
           {list.loading && !list.data ? <RowsSkeleton rows={4} />
             : list.error ? <ErrorBlock message={list.error} onRetry={() => void list.reload()} />
-            : accounts.length === 0 ? <EmptyBlock title="No Buffer accounts yet" action={<Button className={sm} onClick={() => setEditing('new')}>Add an account</Button>}>Add the account that holds your channels, then choose its channels under Channel routing.</EmptyBlock>
+            : accounts.length === 0 ? <EmptyBlock title="No Buffer accounts yet" action={<Button className={sm} onClick={() => setEditing('new')}>Add an account</Button>}>Add the account that holds your channels, then choose its channels under Channels.</EmptyBlock>
             : <DataList caption="Buffer accounts" columns={columns} rows={accounts} rowKey={(a) => a.id} />}
         </Card>
       </div>
+      </SettingsPage>
 
       {editing && <AccountSheet key={editing === 'new' ? 'new' : editing.id} account={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={(created) => { setEditing(null); toast.success(created ? 'Buffer account added' : 'Buffer account saved'); void list.reload(); }} />}
       {checking && <CheckDialog account={checking} onClose={() => setChecking(null)} />}
@@ -115,6 +118,11 @@ function AccountSheet({ account, onClose, onSaved }: { account: BufferAccount | 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
+
+  const initialLimits = (n: string) => (account?.captionLimits[n] ? String(account.captionLimits[n]) : '');
+  const dirty = name !== (account?.name ?? '') || apiKey !== '' || expires !== dateInputValue(account?.keyExpiresAt) || org !== (account?.organizationId ?? '') || NETWORKS.some((n) => limits[n] !== initialLimits(n));
+  useUnsavedGuard(dirty);
+  const requestClose = () => confirmDiscard(dirty && !busy, onClose);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -154,9 +162,9 @@ function AccountSheet({ account, onClose, onSaved }: { account: BufferAccount | 
   }
 
   return (
-    <FormPanel open onClose={onClose} busy={busy} title={account ? `Edit ${account.name}` : 'Add a Buffer account'}
+    <FormPanel open onClose={requestClose} busy={busy} title={account ? `Edit ${account.name}` : 'Add a Buffer account'}
       description="The key is write-only: once saved it cannot be shown again."
-      footer={<><Button variant="outline" className={sm} onClick={onClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="account-form" loading={busy}>{account ? 'Save changes' : 'Add account'}</BusyButton></>}>
+      footer={<><Button variant="outline" className={sm} onClick={requestClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="account-form" loading={busy}>{account ? 'Save changes' : 'Add account'}</BusyButton></>}>
       <form id="account-form" className="flex flex-col gap-4" onSubmit={(e) => void submit(e)} noValidate>
         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} error={fields.name} hint="A short name you will recognise, such as main. It cannot change once posts have been sent through it." mono required autoFocus />
         <TextField

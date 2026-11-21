@@ -1,8 +1,8 @@
 // The signed-in frame, laid out like the reference dashboards: a quiet sidebar (the New button, the main pages, the channels,
 // setup progress and the account menu) and the page on a rounded panel beside it. On a phone the sidebar slides in from a
 // top bar. Settings pages use their own sidebar (SettingsShell).
-import { useEffect, useState, type ReactNode } from 'react';
-import { ChevronsUpDown, LogOut, Menu, PenLine, Plus, Settings, Sparkles, Upload } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { BookOpen, ChevronsUpDown, ImagePlus, LogOut, Menu, PenLine, Plus, Search, Settings, Sparkles, Upload } from 'lucide-react';
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -17,6 +17,7 @@ import type { ChannelsOverview, HomeOverview } from '../lib/overview';
 import { useSession } from '../session';
 import { EmptyBlock, LoadingBlock, PageHeader } from '@/components/kit';
 import { ActivityMenu, ActivityProvider } from './activity';
+import { PaletteProvider, shortcutLabel, usePalette } from './CommandPalette';
 import { ErrorBoundary } from './ErrorBoundary';
 import { MAIN } from './nav';
 import { VeskLogo } from './VeskLogo';
@@ -42,6 +43,18 @@ function useSidebarData(isAdmin: boolean) {
   return { channels, setup };
 }
 
+// The sidebar's Search button; it opens the command palette and shows the shortcut.
+export function SearchButton() {
+  const palette = usePalette();
+  return (
+    <Button variant="outline" className="h-9 w-full justify-start gap-2 bg-background/60 px-2.5 text-[13px] font-normal text-muted-foreground max-md:h-11" onClick={() => palette?.open()}>
+      <Search className="size-4" aria-hidden="true" />
+      <span className="flex-1 text-left">Search</span>
+      <kbd className="rounded border bg-muted px-1.5 py-0.5 font-sans text-[11px] text-muted-foreground max-md:hidden" aria-hidden="true">{shortcutLabel()}</kbd>
+    </Button>
+  );
+}
+
 function NewMenu({ isAdmin }: { isAdmin: boolean }) {
   const navigate = useNavigate();
   return (
@@ -52,6 +65,8 @@ function NewMenu({ isAdmin }: { isAdmin: boolean }) {
       <DropdownMenuContent align="start" className="w-60">
         <DropdownMenuItem onSelect={() => navigate('/batches/ai-draft')}><Sparkles aria-hidden="true" /> Draft posts with AI</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate('/batches/new')}><PenLine aria-hidden="true" /> New batch by hand</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate('/vault/new')}><BookOpen aria-hidden="true" /> Add a fact</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate('/library?upload=1')}><ImagePlus aria-hidden="true" /> Upload pictures</DropdownMenuItem>
         {isAdmin && <DropdownMenuItem onSelect={() => navigate('/settings/references')}><Upload aria-hidden="true" /> Add a design reference</DropdownMenuItem>}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -108,13 +123,14 @@ function Channels({ data, isAdmin }: { data: ChannelsOverview | null; isAdmin: b
 function SetupCard({ steps }: { steps: HomeOverview['setup'] }) {
   const done = steps.filter((s) => s.done).length;
   if (!steps.length || done === steps.length) return null;
+  const next = steps.find((s) => !s.done);
   return (
     <Link to="/home" className="block rounded-lg border bg-background/60 p-3 outline-none transition-colors hover:bg-background focus-visible:ring-[3px] focus-visible:ring-ring/50">
       <div className="text-[12.5px] font-medium">{done}/{steps.length} setup steps done</div>
       <div className="mt-2 flex gap-1" aria-hidden="true">
         {steps.map((s) => <span key={s.key} className={cn('h-1 flex-1 rounded-full', s.done ? 'bg-primary' : 'bg-border')} />)}
       </div>
-      <div className="mt-2 text-[12px] text-muted-foreground">Continue setting up</div>
+      <div className="mt-2 text-[12px] text-muted-foreground">Next: {next?.title ?? 'continue setting up'}</div>
     </Link>
   );
 }
@@ -160,6 +176,7 @@ function SidebarBody({ isAdmin }: { isAdmin: boolean }) {
   return (
     <>
       <NewMenu isAdmin={isAdmin} />
+      <SearchButton />
       <nav aria-label="Main" className="flex flex-col gap-0.5">
         {MAIN.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} className={navClass}>
@@ -188,12 +205,37 @@ export function AdminsOnly() {
   );
 }
 
+// The page a path belongs to: its first segment, and for settings the second too (each settings page is its own screen).
+const pageKey = (pathname: string) => { const [a, b] = pathname.split('/').filter(Boolean); return a === 'settings' ? `settings/${b ?? ''}` : (a ?? ''); };
+
+// After a change of page, keyboard and screen-reader users start at the page's heading. Opening a sheet over the same page
+// (/vault to /vault/:id) does not count, and a dialog or sheet that is open keeps its own focus.
+function useMoveFocusOnPageChange(pathname: string) {
+  const last = useRef(pageKey(pathname));
+  useEffect(() => {
+    const key = pageKey(pathname);
+    if (key === last.current) return;
+    last.current = key;
+    const t = window.setTimeout(() => {
+      if (document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]')) return;
+      const main = document.getElementById('main');
+      const target = main?.querySelector<HTMLElement>('h1') ?? main;
+      if (!target) return;
+      if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+      target.focus({ preventScroll: true });
+    }, 60);
+    return () => window.clearTimeout(t);
+  }, [pathname]);
+}
+
 // The rounded panel the page sits on, and the phone's top bar.
 export function Frame({ sidebar, mobileTitle, children }: { sidebar: ReactNode; mobileTitle: ReactNode; children: ReactNode }) {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => { setMenuOpen(false); }, [location.pathname, location.search]);
+  useMoveFocusOnPageChange(location.pathname);
   return (
+    <PaletteProvider>
     <div className="min-h-dvh bg-frame md:grid md:h-dvh md:grid-cols-[15.5rem_minmax(0,1fr)]">
       <a className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:rounded-md focus:bg-foreground focus:px-3.5 focus:py-2.5 focus:text-background" href="#main">Skip to the content</a>
       <aside className="hidden h-dvh flex-col gap-5 overflow-y-auto bg-sidebar px-3 pb-3 pt-4 text-sidebar-foreground md:flex">{sidebar}</aside>
@@ -219,6 +261,7 @@ export function Frame({ sidebar, mobileTitle, children }: { sidebar: ReactNode; 
         </main>
       </div>
     </div>
+    </PaletteProvider>
   );
 }
 

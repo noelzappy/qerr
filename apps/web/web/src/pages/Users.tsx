@@ -1,17 +1,20 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { UserPlus } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '../api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { BusyButton, CheckField, ConfirmAction, CopyBox, DataList, EmptyBlock, ErrorBlock, FormPanel, Notice, PageHeader, RowsSkeleton, SelectField, TextField, type Column } from '@/components/kit';
+import { BusyButton, CheckField, ConfirmAction, CopyBox, DataList, EmptyBlock, ErrorBlock, FormPanel, Notice, RowsSkeleton, SelectField, TextField, type Column } from '@/components/kit';
 import { useLoad, useDocumentTitle } from '../hooks';
 import { fieldErrors, formProblem } from '../lib/errors';
 import { formatDate } from '../lib/format';
 import { ROLE_LABEL } from '../lib/labels';
+import { confirmDiscard, useUnsavedGuard } from '@/hooks/use-unsaved-guard';
 import { useSession } from '../session';
+import { Section, SettingsPage } from './settings/section';
 
 interface UserRow { id: string; email: string; name: string; role: 'admin' | 'editor'; disabled: boolean; createdAt: string }
 interface InviteRow { id: string; email: string; role: 'admin' | 'editor'; state: 'open' | 'accepted' | 'revoked' | 'expired'; expiresAt: string; createdAt: string }
@@ -22,12 +25,17 @@ const ROLE_OPTIONS = [{ value: 'editor', label: 'Editor' }, { value: 'admin', la
 const sm = 'max-sm:min-h-11';
 
 export function Users() {
-  useDocumentTitle('Users');
+  useDocumentTitle('Team');
   const { me } = useSession();
   const users = useLoad(() => api.get<{ users: UserRow[] }>('/api/users').then((r) => r.users), []);
   const invites = useLoad(() => api.get<{ invites: InviteRow[] }>('/api/users/invites').then((r) => r.invites.filter((i) => i.state === 'open' || i.state === 'expired')), []);
 
-  const [inviting, setInviting] = useState(false);
+  // /settings/team?invite=1 opens the invitation sheet (the search box uses it).
+  const [params, setParams] = useSearchParams();
+  const [inviting, setInviting] = useState(params.get('invite') === '1');
+  useEffect(() => {
+    if (params.get('invite') === '1') { setInviting(true); setParams({}, { replace: true }); }
+  }, [params, setParams]);
   const [roleFor, setRoleFor] = useState<UserRow | null>(null);
   const [toggleFor, setToggleFor] = useState<UserRow | null>(null);
   const [resetFor, setResetFor] = useState<UserRow | null>(null);
@@ -61,32 +69,26 @@ export function Users() {
 
   return (
     <>
-      <PageHeader title="Users" description="Everyone who can sign in. People join by invitation only, and admins can change what each person can do."
-        actions={<Button className={sm} onClick={() => setInviting(true)}><UserPlus aria-hidden="true" />Invite someone</Button>} />
-      <div className="flex flex-col gap-6">
-        <section aria-labelledby="people-heading" className="flex flex-col gap-2">
-          <h2 id="people-heading" className="text-lg font-semibold tracking-tight">People</h2>
+      <SettingsPage title="Team" description="Everyone who can sign in. People join by invitation only, and admins can change what each person can do."
+        actions={<Button className={sm} onClick={() => setInviting(true)}><UserPlus aria-hidden="true" />Invite someone</Button>}>
+        <Section title="People">
           <Card className="gap-0 overflow-hidden p-0">
             {users.loading && !users.data ? <RowsSkeleton rows={4} />
               : users.error ? <ErrorBlock message={users.error} onRetry={() => void users.reload()} />
               : users.data && users.data.length === 0 ? <EmptyBlock title="No one yet">Invite the first person to get started.</EmptyBlock>
               : users.data && <DataList caption="People who can sign in" columns={userColumns} rows={users.data} rowKey={(u) => u.id} />}
           </Card>
-        </section>
+        </Section>
 
-        <section aria-labelledby="invites-heading" className="flex flex-col gap-2">
-          <div>
-            <h2 id="invites-heading" className="text-lg font-semibold tracking-tight">Invitations not yet used</h2>
-            <p className="text-sm text-muted-foreground">A link works for seven days. Withdraw one to stop it being used.</p>
-          </div>
+        <Section title="Invitations not yet used" description="A link works for seven days. Withdraw one to stop it being used.">
           <Card className="gap-0 overflow-hidden p-0">
             {invites.loading && !invites.data ? <RowsSkeleton rows={2} />
               : invites.error ? <ErrorBlock message={invites.error} onRetry={() => void invites.reload()} />
               : invites.data && invites.data.length === 0 ? <EmptyBlock title="No open invitations">Invitations appear here until the person sets a password.</EmptyBlock>
               : invites.data && <DataList caption="Invitations not yet used" columns={inviteColumns} rows={invites.data} rowKey={(i) => i.id} />}
           </Card>
-        </section>
-      </div>
+        </Section>
+      </SettingsPage>
 
       <InviteSheet open={inviting} onClose={() => setInviting(false)} onDone={() => void invites.reload()} />
 
@@ -147,6 +149,9 @@ function InviteSheet({ open, onClose, onDone }: { open: boolean; onClose: () => 
   const [result, setResult] = useState<InviteResult | null>(null);
 
   const close = () => { setEmail(''); setRole('editor'); setError(''); setFields({}); setResult(null); onClose(); };
+  const dirty = open && !result && email.trim() !== '';
+  useUnsavedGuard(dirty);
+  const requestClose = () => confirmDiscard(dirty && !busy, close);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -168,13 +173,13 @@ function InviteSheet({ open, onClose, onDone }: { open: boolean; onClose: () => 
     <FormPanel
       open={open}
       size="sm"
-      onClose={close}
+      onClose={requestClose}
       title={result ? 'Invitation made' : 'Invite someone'}
       description={result ? undefined : 'They get a link to choose a password. The link works for seven days and only once.'}
       busy={busy}
       footer={result
         ? <Button className={sm} onClick={close}>Done</Button>
-        : <><Button variant="outline" className={sm} onClick={close} disabled={busy}>Cancel</Button><BusyButton type="submit" form="invite-form" loading={busy}>Make invitation</BusyButton></>}
+        : <><Button variant="outline" className={sm} onClick={requestClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="invite-form" loading={busy}>Make invitation</BusyButton></>}
     >
       {result ? (
         <div className="flex flex-col gap-4">
@@ -189,7 +194,7 @@ function InviteSheet({ open, onClose, onDone }: { open: boolean; onClose: () => 
         <form id="invite-form" className="flex flex-col gap-4" onSubmit={(e) => void submit(e)} noValidate>
           <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} error={fields.email} required autoComplete="off" autoFocus />
           <SelectField label="Role" value={role} onValueChange={(v) => setRole(v as 'editor' | 'admin')} options={ROLE_OPTIONS} error={fields.role}
-            hint={role === 'admin' ? 'Admins also manage users, Buffer accounts, routing, AI settings and the audit log.' : 'Editors work on the vault and on batches.'} />
+            hint={role === 'admin' ? 'Admins also manage users, Buffer accounts, routing, AI settings and the audit log.' : 'Editors work on facts, pictures and batches.'} />
           {error && <Notice tone="bad">{error}</Notice>}
         </form>
       )}
@@ -201,6 +206,8 @@ function RoleSheet({ user, onClose, onDone }: { user: UserRow; onClose: () => vo
   const [role, setRole] = useState<'editor' | 'admin'>(user.role);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  useUnsavedGuard(role !== user.role);
+  const requestClose = () => confirmDiscard(role !== user.role && !busy, onClose);
   async function save() {
     setBusy(true); setError('');
     try {
@@ -213,8 +220,8 @@ function RoleSheet({ user, onClose, onDone }: { user: UserRow; onClose: () => vo
     }
   }
   return (
-    <FormPanel open size="sm" title="Change role" description={user.email} onClose={onClose} busy={busy}
-      footer={<><Button variant="outline" className={sm} onClick={onClose} disabled={busy}>Cancel</Button><BusyButton loading={busy} disabled={role === user.role} onClick={() => void save()}>Save role</BusyButton></>}>
+    <FormPanel open size="sm" title="Change role" description={user.email} onClose={requestClose} busy={busy}
+      footer={<><Button variant="outline" className={sm} onClick={requestClose} disabled={busy}>Cancel</Button><BusyButton loading={busy} disabled={role === user.role} onClick={() => void save()}>Save role</BusyButton></>}>
       <div className="flex flex-col gap-4">
         <SelectField label="Role" value={role} onValueChange={(v) => setRole(v as 'editor' | 'admin')} options={ROLE_OPTIONS} />
         {error && <Notice tone="bad">{error}</Notice>}

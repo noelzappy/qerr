@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { BookOpen, Plus } from 'lucide-react';
 import { api } from '../api';
 import { Badge } from '@/components/ui/badge';
 import { DataList, EmptyBlock, ErrorBlock, Pager, RowsSkeleton, SelectField, TextField, useSelection, type Column } from '@/components/kit';
@@ -33,7 +33,7 @@ function Thumb({ item }: { item: VaultItem }) {
 }
 
 export function Vault() {
-  useDocumentTitle('Vault');
+  useDocumentTitle('Facts');
   const navigate = useNavigate();
   // /vault/new and /vault/:id are the same page with the item panel open over the list.
   const { id } = useParams();
@@ -93,12 +93,14 @@ export function Vault() {
   return (
     <>
       <CreateHeader
-        description="The vault holds everything the AI may use: facts, figures, news, events, photos and screens. Only a person can mark an item confirmed."
-        actions={<Button size="sm" className="max-sm:min-h-11" onClick={add}><Plus aria-hidden="true" />Add an item</Button>}
+        title="Facts"
+        icon={BookOpen}
+        description="Facts holds everything the AI may use: facts, figures, news, events, photos and screens. Only a person can mark an item confirmed."
+        actions={<Button size="sm" className="max-sm:min-h-11" onClick={add}><Plus aria-hidden="true" />Add a fact</Button>}
       />
       <div className="flex flex-col gap-4">
         <Card className="p-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" role="search" aria-label="Filter the vault">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" role="search" aria-label="Filter your facts">
             <TextField label="Search" type="search" placeholder="Words in the title or text" value={q} onChange={(e) => onFilter(setQ)(e.target.value)} className="sm:col-span-2 lg:col-span-2" />
             <SelectField label="Kind" value={kind} onValueChange={onFilter(setKind)} options={KIND_OPTIONS} />
             <SelectField label="Status" value={status} onValueChange={onFilter(setStatus)} options={STATUS_OPTIONS} />
@@ -107,28 +109,28 @@ export function Vault() {
             {filtered && <div className="flex items-end"><Button variant="outline" className="max-sm:min-h-11" onClick={reset}>Clear filters</Button></div>}
           </div>
         </Card>
-        <Card className="gap-0 overflow-hidden p-0" aria-label="Vault items">
+        <Card className="gap-0 overflow-hidden p-0" aria-label="Facts">
           {list.loading && !data ? <RowsSkeleton rows={6} />
             : list.error ? <ErrorBlock message={list.error} onRetry={() => void list.reload()} />
             : data && data.items.length === 0
               ? (
                 <EmptyBlock
-                  title={filtered ? 'Nothing matches these filters' : 'The vault is empty'}
-                  action={filtered ? <Button variant="outline" className="max-sm:min-h-11" onClick={reset}>Clear filters</Button> : <Button className="max-sm:min-h-11" onClick={add}>Add the first item</Button>}
+                  title={filtered ? 'Nothing matches these filters' : 'No facts yet'}
+                  action={filtered ? <Button variant="outline" className="max-sm:min-h-11" onClick={reset}>Clear filters</Button> : <Button className="max-sm:min-h-11" onClick={add}>Add the first fact</Button>}
                 >
-                  {filtered ? 'Try fewer filters or different words.' : 'Add facts, figures and photos here. Posts are written only from what is in the vault.'}
+                  {filtered ? 'Try fewer filters or different words.' : 'Add facts, figures and photos here. Posts are written only from what is saved here.'}
                 </EmptyBlock>
               )
             : data && (
               <div aria-busy={list.loading}>
-                <DataList caption="Vault items, most recently changed first" columns={columns} rows={data.items} rowKey={(i) => i.id}
+                <DataList caption="Facts, most recently changed first" columns={columns} rows={data.items} rowKey={(i) => i.id}
                   select={{ isSelected: (i) => selection.isSelected(i.id), onToggle: (i, range) => selection.toggle(i.id, range), allSelected: selection.allSelected, onToggleAll: selection.toggleAll, label: (i) => i.title }} />
                 <Pager page={data.page} pageSize={data.pageSize} total={data.total} onPage={setPage} />
               </div>
             )}
         </Card>
       </div>
-      <VaultBulkBar selection={selection} items={data?.items ?? []} noun="item" reload={list.reload} />
+      <VaultBulkBar selection={selection} items={data?.items ?? []} noun="fact" reload={list.reload} />
       {id && <VaultItemPanel id={id} onClose={() => navigate('/vault')} onChanged={() => void list.reload()} />}
     </>
   );

@@ -8,7 +8,7 @@ import { DataList, EmptyBlock, ErrorBlock, FormPanel, Notice, PageHeader, Pager,
 import { RunProgress, RunResult, RunStatusBadge, runSummary } from '@/components/activity-parts';
 import { useActivity, useActivityRun } from '@/hooks/use-activity';
 import { useNow } from '@/hooks/use-now';
-import { batchLink, elapsedMs, formatElapsed, isActive, KIND_LABEL, runKindLabel, type ActivityRun } from '@/lib/activity';
+import { batchLink, elapsedMs, formatElapsed, isActive, KIND_LABEL, runKindLabel, runTitle, type ActivityRun } from '@/lib/activity';
 import { useDocumentTitle } from '../hooks';
 import { formatDateTime } from '../lib/format';
 
@@ -33,7 +33,7 @@ export function Activity() {
   const columns: Column<ActivityRun>[] = [
     { key: 'title', header: 'What', primary: true, cell: (r) => (
       <div className="min-w-0 md:min-w-[8rem]">
-        <Link to={`/activity/${r.id}`} className="rounded-sm font-medium outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50">{r.title}</Link>
+        <Link to={`/activity/${r.id}`} className="rounded-sm font-medium outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50">{runTitle(r.title)}</Link>
         <span className="block text-[13px] font-normal text-muted-foreground">{runKindLabel(r.kind)}</span>
       </div>
     ) },
@@ -42,7 +42,7 @@ export function Activity() {
       ? <RunProgress run={r} now={now} className="min-w-[7rem]" />
       : <span className={r.status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}>{runSummary(r) || '-'}</span>) },
     { key: 'when', header: 'Started', cell: (r) => <span className="whitespace-nowrap">{formatDateTime(r.createdAt)}{!isActive(r) && <span className="block text-[13px] text-muted-foreground">Took {formatElapsed(elapsedMs(r, now))}</span>}</span> },
-    { key: 'open', header: 'Open', actions: true, cell: (r) => <Button asChild variant="outline" size="sm" className="max-sm:min-h-11"><Link to={`/activity/${r.id}`}>Details<span className="sr-only"> of {r.title}</span></Link></Button> },
+    { key: 'open', header: 'Open', actions: true, cell: (r) => <Button asChild variant="outline" size="sm" className="max-sm:min-h-11"><Link to={`/activity/${r.id}`}>Details<span className="sr-only"> of {runTitle(r.title)}</span></Link></Button> },
   ];
 
   return (
@@ -64,7 +64,7 @@ export function Activity() {
                 title={filtered ? 'Nothing matches these filters' : 'No background work yet'}
                 action={filtered ? <Button variant="outline" className="max-sm:min-h-11" onClick={() => { setStatus('all'); setKind(''); setShowSystem(false); setPage(1); }}>Clear filters</Button> : undefined}
               >
-                {filtered ? 'Clear the filters to see everything.' : 'Drafts, research, renders and sends will appear here while they run, and stay after.'}
+                {filtered ? 'Clear the filters to see everything.' : 'Drafts, research, images and sends will appear here while they run, and stay after.'}
               </EmptyBlock>
             ) : (
               <div aria-busy={list.loading}>
@@ -99,7 +99,7 @@ function RunPanel({ id, onClose }: { id: string; onClose: () => void }) {
       open
       onClose={onClose}
       size="lg"
-      title={run?.title ?? 'Activity'}
+      title={run ? runTitle(run.title) : 'Activity'}
       description={run ? runKindLabel(run.kind) : 'Details of one piece of background work'}
       footer={(
         <>

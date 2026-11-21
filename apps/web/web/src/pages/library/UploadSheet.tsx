@@ -1,4 +1,4 @@
-// Adds pictures to the library: drop or choose files, describe each one, then create the vault items and upload the
+// Adds pictures: drop or choose files, describe each one, then create the vault items and upload the
 // files. A picture that fails stays in the list with its reason so it can be retried; those that worked are removed.
 import { useEffect, useRef, useState } from 'react';
 import { CircleCheck, Loader2, UploadCloud, X } from 'lucide-react';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { BusyButton, FieldGroup, FormPanel, Notice, parseTags, SelectField, SwitchField, TextAreaField, TextField } from '@/components/kit';
 import { formProblem } from '@/lib/errors';
 import { cn } from '@/lib/utils';
+import { confirmDiscard, useUnsavedGuard } from '@/hooks/use-unsaved-guard';
 import type { VaultItem } from '../vault-types';
 import { ACCEPT, fileProblem, guessKind, humaniseFileName, isHttpUrl, type Licence, type PictureKind } from './util';
 
@@ -132,15 +133,18 @@ export function UploadSheet({ onClose, onUploaded }: { onClose: () => void; onUp
     if (!failures) onClose();
   }
 
+  const dirty = rows.length > 0;
+  useUnsavedGuard(dirty, { message: 'The pictures you chose have not been uploaded yet.' });
+  const requestClose = () => confirmDiscard(dirty && !busy, onClose);
   const failed = rows.filter((r) => r.phase === 'error').length;
   return (
-    <FormPanel open onClose={onClose} busy={busy} size="xl" title="Upload images"
+    <FormPanel open onClose={requestClose} busy={busy} size="xl" title="Upload pictures"
       description="Add pictures the AI may use in posts. Describe each one: the AI reads the description to choose a picture."
       footer={(
         <>
-          <Button variant="outline" className="max-sm:min-h-11" disabled={busy} onClick={onClose}>{rows.length ? 'Cancel' : 'Close'}</Button>
+          <Button variant="outline" className="max-sm:min-h-11" disabled={busy} onClick={requestClose}>{rows.length ? 'Cancel' : 'Close'}</Button>
           <BusyButton loading={busy} disabled={rows.length === 0} onClick={() => void uploadAll()}>
-            {rows.length === 0 ? 'Upload images' : `${failed ? 'Retry and upload' : 'Upload'} ${rows.length} ${rows.length === 1 ? 'image' : 'images'}`}
+            {rows.length === 0 ? 'Upload pictures' : `${failed ? 'Retry and upload' : 'Upload'} ${rows.length} ${rows.length === 1 ? 'picture' : 'pictures'}`}
           </BusyButton>
         </>
       )}>
@@ -153,9 +157,9 @@ export function UploadSheet({ onClose, onUploaded }: { onClose: () => void; onUp
         >
           <UploadCloud className="size-8 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm">Drag pictures here, or</p>
-          <Button variant="outline" className="max-sm:min-h-11" disabled={busy} onClick={() => picker.current?.click()}>Choose images</Button>
+          <Button variant="outline" className="max-sm:min-h-11" disabled={busy} onClick={() => picker.current?.click()}>Choose pictures</Button>
           <p className="text-[13px] text-muted-foreground">JPG, PNG, WebP or GIF, up to 15 MB each.</p>
-          <input ref={picker} hidden type="file" multiple accept={ACCEPT} aria-label="Choose images to upload" onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
+          <input ref={picker} hidden type="file" multiple accept={ACCEPT} aria-label="Choose pictures to upload" onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ''; }} />
         </div>
 
         {rejected.length > 0 && (

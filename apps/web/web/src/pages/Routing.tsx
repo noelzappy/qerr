@@ -6,11 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BusyButton, ConfirmAction, ErrorBlock, Notice, PageHeader, SelectField } from '@/components/kit';
+import { BusyButton, ConfirmAction, ErrorBlock, Notice, SelectField } from '@/components/kit';
 import { useDocumentTitle, useLoad } from '../hooks';
 import { formProblem } from '../lib/errors';
 import { formatDateTime } from '../lib/format';
 import { networkLabel } from '../lib/labels';
+import { useUnsavedGuard } from '@/hooks/use-unsaved-guard';
+import { SettingsPage } from './settings/section';
 
 interface Route {
   accountId: string; accountName: string; channelId: string; channelName: string | null; updatedAt: string;
@@ -33,7 +35,7 @@ function CardsSkeleton() {
 }
 
 export function Routing() {
-  useDocumentTitle('Channel routing');
+  useDocumentTitle('Channels');
   const routing = useLoad(() => api.get<{ routing: RoutingRow[] }>('/api/routing').then((r) => r.routing), []);
   const [refreshing, setRefreshing] = useState(false);
   const channels = useLoad(() => api.get<{ accounts: AccountChannels[] }>('/api/routing/channels').then((r) => r.accounts), []);
@@ -53,12 +55,11 @@ export function Routing() {
 
   const loading = (routing.loading && !routing.data) || (channels.loading && !channels.data);
   return (
-    <>
-      <PageHeader
-        title="Channel routing"
-        description="For each network, choose the Buffer account and the channel its posts go to. A batch cannot be sent to a network that has no route."
-        actions={<BusyButton variant="outline" loading={refreshing || channels.loading} onClick={() => void refreshAll()}><RefreshCw aria-hidden="true" />Refresh from Buffer</BusyButton>}
-      />
+    <SettingsPage
+      title="Channels"
+      description="For each network, choose the Buffer account and the channel its posts go to. A batch cannot be sent to a network that has no route."
+      actions={<BusyButton variant="outline" loading={refreshing || channels.loading} onClick={() => void refreshAll()}><RefreshCw aria-hidden="true" />Refresh from Buffer</BusyButton>}
+    >
       {loading ? <CardsSkeleton />
         : routing.error ? <Card className="gap-0 p-0"><ErrorBlock message={routing.error} onRetry={() => void routing.reload()} /></Card>
         : channels.error ? <Card className="gap-0 p-0"><ErrorBlock message={channels.error} onRetry={() => void channels.reload()} /></Card>
@@ -75,7 +76,7 @@ export function Routing() {
             </div>
           </div>
         )}
-    </>
+    </SettingsPage>
   );
 }
 
@@ -86,6 +87,7 @@ function NetworkCard({ row, accounts, onChanged }: { row: RoutingRow; accounts: 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [clearing, setClearing] = useState(false);
+  useUnsavedGuard(accountId !== (route?.accountId ?? '') || channelId !== (route?.channelId ?? ''));
 
   const account = accounts.find((a) => a.accountId === accountId);
   const matching = (account?.channels ?? []).filter((c) => c.network === network);

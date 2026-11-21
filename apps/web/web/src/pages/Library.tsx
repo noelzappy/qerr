@@ -1,7 +1,8 @@
 // The image library: photos and screens in the vault, as a grid. The owner uploads pictures and describes them; the AI
 // reads the description (and the licence and people flags) when it chooses pictures for posts.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { CheckSquare, ImagePlus, Loader2 } from 'lucide-react';
+import { CheckSquare, ImagePlus, Images, Loader2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '../api';
 import { EmptyBlock, ErrorBlock, SelectField, TextField, useSelection } from '@/components/kit';
@@ -27,7 +28,7 @@ const GRID = 'm-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3 md:grid-co
 
 function GridSkeleton() {
   return (
-    <ul className={GRID} role="status" aria-label="Loading the library">
+    <ul className={GRID} role="status" aria-label="Loading your pictures">
       {Array.from({ length: 12 }, (_, i) => (
         <li key={i} className="flex flex-col gap-2"><Skeleton className="aspect-square w-full rounded-lg" /><Skeleton className="h-4 w-2/3" /></li>
       ))}
@@ -36,8 +37,10 @@ function GridSkeleton() {
 }
 
 export function Library() {
-  useDocumentTitle('Library');
-  const [q, setQ] = useState('');
+  useDocumentTitle('Pictures');
+  // /library?upload=1 opens the upload sheet and /library?q=words starts with a search (the New menu and the search box use them).
+  const [params, setParams] = useSearchParams();
+  const [q, setQ] = useState(params.get('q') ?? '');
   const [kind, setKind] = useState('');
   const [status, setStatus] = useState('');
   const [tag, setTag] = useState('');
@@ -50,10 +53,17 @@ export function Library() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [moreError, setMoreError] = useState('');
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState(params.get('upload') === '1');
   const [open, setOpen] = useState<VaultItem | null>(null);
   const [selecting, setSelecting] = useState(false);
   const selection = useSelection(items.map((i) => i.id));
+  useEffect(() => {
+    if (!params.has('upload') && !params.has('q')) return;
+    if (params.get('upload') === '1') setUploading(true);
+    const qp = params.get('q');
+    if (qp !== null) setQ(qp);
+    setParams({}, { replace: true });
+  }, [params, setParams]);
   const seq = useRef(0);
   const pagesLoaded = useRef(1);
 
@@ -127,13 +137,13 @@ export function Library() {
       <CheckSquare aria-hidden="true" />{selecting ? 'Done selecting' : 'Select'}
     </Button>
   );
-  const upload = <Button className="max-sm:min-h-11" onClick={() => setUploading(true)}><ImagePlus aria-hidden="true" />Upload images</Button>;
+  const upload = <Button className="max-sm:min-h-11" onClick={() => setUploading(true)}><ImagePlus aria-hidden="true" />Upload pictures</Button>;
   return (
     <>
-      <CreateHeader description="The library holds the pictures the AI may choose for posts. Describe each one: the AI reads the description when it chooses." actions={<>{items.length > 0 && selectButton}{upload}</>} />
+      <CreateHeader title="Pictures" icon={Images} description="Pictures holds the photos and screens the AI may choose for posts. Describe each one: the AI reads the description when it chooses." actions={<>{items.length > 0 && selectButton}{upload}</>} />
       <div className="flex flex-col gap-4">
         <Card className="p-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_auto]" role="search" aria-label="Filter the library">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_auto]" role="search" aria-label="Filter your pictures">
             <TextField label="Search" type="search" placeholder="Words in the title or description" value={q} onChange={(e) => setQ(e.target.value)} />
             <SelectField label="Kind" value={kind} onValueChange={setKind} options={KIND_OPTIONS} />
             <SelectField label="Status" value={status} onValueChange={setStatus} options={STATUS_OPTIONS} />
@@ -147,9 +157,9 @@ export function Library() {
           : items.length === 0
             ? (
               <Card className="gap-0 p-0">
-                <EmptyBlock title={filtered ? 'No pictures match these filters' : 'The library is empty'}
+                <EmptyBlock title={filtered ? 'No pictures match these filters' : 'No pictures yet'}
                   action={filtered ? <Button variant="outline" className="max-sm:min-h-11" onClick={reset}>Clear filters</Button> : upload}>
-                  {filtered ? 'Try fewer filters or different words.' : 'The library holds the pictures and screenshots the AI can use in posts. Upload an image and say what it shows, the mood, and what posts it suits. The AI reads that description to choose pictures.'}
+                  {filtered ? 'Try fewer filters or different words.' : 'Pictures holds the photos and screenshots the AI can use in posts. Upload an image and say what it shows, the mood, and what posts it suits. The AI reads that description to choose pictures.'}
                 </EmptyBlock>
               </Card>
             )
@@ -179,7 +189,7 @@ export function Library() {
       </div>
 
       {selecting && <VaultBulkBar selection={selection} items={items} noun="picture" reload={reload} />}
-      {uploading && <UploadSheet onClose={() => setUploading(false)} onUploaded={(n) => { toast.success(`${n} ${n === 1 ? 'image' : 'images'} added`); void reload(); }} />}
+      {uploading && <UploadSheet onClose={() => setUploading(false)} onUploaded={(n) => { toast.success(`${n} ${n === 1 ? 'picture' : 'pictures'} added`); void reload(); }} />}
       {open && <ItemSheet key={open.id} item={open} onClose={() => setOpen(null)} onChanged={changed} onRemoved={removed} />}
     </>
   );

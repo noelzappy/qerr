@@ -6,12 +6,13 @@ import { api } from '../api';
 import { useDocumentTitle, useLoad } from '../hooks';
 import { useSession } from '../session';
 import { useActivity } from '@/hooks/use-activity';
+import { runTitle } from '@/lib/activity';
 import { RunStatusBadge } from '@/components/activity-parts';
 import { PostRow } from '@/components/post-row';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import type { HomeOverview } from '../lib/overview';
+import type { ChannelsOverview, HomeOverview, SetupStep } from '../lib/overview';
 import { ErrorBlock } from '@/components/kit';
 
 function greeting(hour: number) {
@@ -33,37 +34,59 @@ function Stat({ value, label, detail, tone = 'neutral', to }: { value: string | 
   );
 }
 
-function FirstSteps({ steps }: { steps: HomeOverview['setup'] }) {
-  const open = steps.filter((s) => !s.done);
-  if (!steps.length || !open.length) return null;
-  const shown = [...open.slice(0, 3)];
+
+// What to say under a step: usually the server's line, but the AI step says which half is still open.
+function stepDetail(s: SetupStep): string {
+  if (s.key === 'ai' && s.missing === 'budget') return 'Provider added. Now set a monthly budget: the AI does not run without one.';
+  return s.detail;
+}
+const stepTitle = (s: SetupStep) => (s.key === 'ai' && s.missing === 'budget' ? 'Set a monthly budget' : s.title);
+
+// One checklist for the whole setup, in order: finished steps are ticked, the next one is open with its button, the rest
+// are one line each.
+function FirstSteps({ steps }: { steps: SetupStep[] }) {
+  const next = steps.find((s) => !s.done);
+  if (!steps.length || !next) return null;
+  const doneCount = steps.filter((s) => s.done).length;
   return (
     <section aria-labelledby="first-steps" className="flex flex-col gap-2.5">
-      <h2 id="first-steps" className="text-[13px] font-medium text-muted-foreground">First steps · {steps.length - open.length} of {steps.length} done</h2>
-      <ol className="grid gap-3 md:grid-cols-3">
-        {shown.map((s) => (
-          <li key={s.key} className="flex flex-col gap-1 rounded-lg border bg-card p-3.5">
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-[13.5px] font-semibold">{steps.indexOf(s) + 1}. {s.title}</span>
-              <span className="mt-0.5 size-4 shrink-0 rounded-full border" aria-hidden="true" />
-            </div>
-            <p className="text-[12.5px] text-muted-foreground">{s.detail}</p>
-            <Button asChild variant="outline" size="sm" className="mt-2 w-fit"><Link to={s.to}>{s.title}</Link></Button>
-          </li>
-        ))}
-      </ol>
-      <details className="text-[12.5px] text-muted-foreground">
-        <summary className="w-fit cursor-pointer select-none hover:text-foreground">All setup steps</summary>
-        <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
-          {steps.map((s) => (
-            <li key={s.key} className="flex items-center gap-2">
-              {s.done ? <Check className="size-4 text-primary" aria-label="Done" /> : <span className="size-4 rounded-full border" aria-label="To do" />}
-              <Link to={s.to} className={cn('hover:underline', s.done && 'line-through')}>{s.title}</Link>
+      <h2 id="first-steps" className="text-[13px] font-medium text-muted-foreground">Setup · {doneCount} of {steps.length} done</h2>
+      <ol className="divide-y rounded-lg border bg-card">
+        {steps.map((s, i) => {
+          const state = s.done ? 'done' : s === next ? 'next' : 'later';
+          return (
+            <li key={s.key} className={cn('flex gap-3 px-4 py-3', state === 'next' && 'bg-muted/40')} aria-current={state === 'next' ? 'step' : undefined}>
+              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center" aria-hidden="true">
+                {state === 'done' ? <Check className="size-4 text-primary" />
+                  : <span className={cn('flex size-5 items-center justify-center rounded-full border text-[11px] tabular-nums', state === 'next' ? 'border-primary text-primary' : 'text-muted-foreground')}>{i + 1}</span>}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className={cn('text-[13.5px]', state === 'next' ? 'font-semibold' : 'font-medium', state === 'done' && 'text-muted-foreground')}>
+                  {state === 'done' ? <><span className="sr-only">Done: </span><Link to={s.to} className="hover:underline">{stepTitle(s)}</Link></>
+                    : state === 'later' ? <><span className="sr-only">Later: </span><Link to={s.to} className="hover:underline">{stepTitle(s)}</Link></>
+                    : <><span className="sr-only">Next: </span>{stepTitle(s)}</>}
+                </div>
+                {state === 'next' && (
+                  <div className="mt-1 flex flex-col items-start gap-2">
+                    <p className="text-[12.5px] text-muted-foreground">{stepDetail(s)}</p>
+                    <Button asChild size="sm"><Link to={s.to}>{stepTitle(s)}</Link></Button>
+                  </div>
+                )}
+              </div>
             </li>
-          ))}
-        </ul>
-      </details>
+          );
+        })}
+      </ol>
     </section>
+  );
+}
+
+// Editors see no setup list. They do see, in one line, when nothing can be posted yet.
+function EditorNote() {
+  const channels = useLoad(() => api.get<ChannelsOverview>('/api/overview/channels'), []);
+  if (!channels.data || channels.data.channels.some((c) => c.connected)) return null;
+  return (
+    <p className="rounded-lg border border-dashed px-4 py-3 text-[13.5px] text-muted-foreground">An admin still has to connect Buffer before anything can be posted.</p>
   );
 }
 
@@ -75,13 +98,13 @@ function RecentActivity() {
       <div className="flex min-h-48 flex-col rounded-lg border bg-card">
         {loading && !items.length ? <div className="flex flex-col gap-3 p-4">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-4 w-full" />)}</div>
           : error ? <p className="p-4 text-[13px] text-muted-foreground">{error}</p>
-          : items.length === 0 ? <p className="m-auto p-6 text-center text-[13px] text-muted-foreground">Nothing has run yet. Drafts, renders and sends show up here.</p>
+          : items.length === 0 ? <p className="m-auto p-6 text-center text-[13px] text-muted-foreground">Nothing has run yet. Drafts, images and sends show up here.</p>
           : (
             <ul className="divide-y">
               {items.map((r) => (
                 <li key={r.id}>
                   <Link to={`/activity/${r.id}`} className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-[13px] hover:bg-muted">
-                    <span className="min-w-0 truncate">{r.title}</span>
+                    <span className="min-w-0 truncate">{runTitle(r.title)}</span>
                     <RunStatusBadge run={r} />
                   </Link>
                 </li>
@@ -133,6 +156,7 @@ export function Home() {
           )}
 
           {h && <FirstSteps steps={h.setup} />}
+          {h && me?.role === 'editor' && <EditorNote />}
 
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
             <section aria-labelledby="up-next" className="flex min-w-0 flex-col gap-2.5">

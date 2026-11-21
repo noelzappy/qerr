@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BusyButton, ConfirmAction, FieldGroup, FormPanel, Notice, SelectField, SwitchField, TagField, TextAreaField, TextField } from '@/components/kit';
 import { useLoad } from '@/hooks';
+import { confirmDiscard, useUnsavedGuard } from '@/hooks/use-unsaved-guard';
 import { errorMessage, fieldErrors, formProblem } from '@/lib/errors';
 import { formatDate, formatDateTime } from '@/lib/format';
 import type { VaultItem } from '../vault-types';
@@ -62,6 +63,8 @@ export function ItemSheet({ item, onClose, onChanged, onRemoved }: {
   useEffect(() => { setBroken(false); }, [image.data]);
 
   const dirty = JSON.stringify(form) !== JSON.stringify(initial);
+  useUnsavedGuard(dirty);
+  const requestClose = () => confirmDiscard(dirty, onClose);
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
   const anyBusy = busy || acting || replacing;
 
@@ -119,11 +122,11 @@ export function ItemSheet({ item, onClose, onChanged, onRemoved }: {
   const rights = needsRights(item);
   return (
     <>
-      <FormPanel open onClose={onClose} busy={anyBusy} size="lg" title={item.title} description={`${item.kind === 'screen' ? 'Screen' : 'Photo'}. Added ${formatDate(item.createdAt)}, last changed ${formatDateTime(item.updatedAt)}.`}
+      <FormPanel open onClose={requestClose} busy={anyBusy} size="lg" title={item.title} description={`${item.kind === 'screen' ? 'Screen' : 'Photo'}. Added ${formatDate(item.createdAt)}, last changed ${formatDateTime(item.updatedAt)}.`}
         footer={(
           <>
             <Button variant="outline" className="md:mr-auto" disabled={anyBusy} onClick={() => setDeleting(true)}><Trash2 aria-hidden="true" />Delete</Button>
-            <Button variant="outline" className="max-sm:min-h-11" disabled={anyBusy} onClick={onClose}>Close</Button>
+            <Button variant="outline" className="max-sm:min-h-11" disabled={anyBusy} onClick={requestClose}>Close</Button>
             <BusyButton type="submit" form="library-item-form" loading={busy} disabled={!dirty || acting || replacing}>Save changes</BusyButton>
           </>
         )}>
@@ -192,7 +195,7 @@ export function ItemSheet({ item, onClose, onChanged, onRemoved }: {
       <ConfirmAction
         open={deleting}
         title="Delete this picture?"
-        message={<>"{item.title}" will be removed from the library and from the vault. Posts already using it keep working. You can undo this for a short while from the message that follows.</>}
+        message={<>"{item.title}" will be removed from your pictures and from your facts. Posts already using it keep working. You can undo this for a short while from the message that follows.</>}
         confirmLabel="Delete picture"
         danger
         onCancel={() => setDeleting(false)}

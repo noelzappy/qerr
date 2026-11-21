@@ -1,4 +1,4 @@
-// The bulk actions for vault items, shared by the Library grid and the Vault list: Confirm, Unconfirm, Add tag, Delete.
+// The bulk actions for vault items, shared by the Pictures grid and the Facts list: Confirm, Unconfirm, Add tag, Delete.
 // Each one calls the same endpoint as the single-item action, once per item.
 import { useState } from 'react';
 import { CheckCheck, RotateCcw, Trash2 } from 'lucide-react';
@@ -67,7 +67,7 @@ export function VaultBulkBar({ selection, items, noun, reload }: {
         open={deleting !== null}
         danger
         title={`Delete ${plural(deleting?.length ?? 0)}?`}
-        message={<>{deleting?.length === 1 ? 'This item' : 'These items'} will leave the vault and stop being used for posts. Posts that rely on {deleting?.length === 1 ? 'it' : 'them'} lose their approval. You can undo this right after.</>}
+        message={<>{deleting?.length === 1 ? 'This item' : 'These items'} will leave your saved facts and pictures and stop being used for posts. Posts that rely on {deleting?.length === 1 ? 'it' : 'them'} lose their approval. You can undo this right after.</>}
         confirmLabel={`Delete ${plural(deleting?.length ?? 0)}`}
         onConfirm={remove}
         onCancel={() => setDeleting(null)}

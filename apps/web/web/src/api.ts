@@ -18,7 +18,10 @@ export const UNAUTHORISED_EVENT = 'vesk:unauthorised';
 // Requests where a 401 is an ordinary answer (wrong password, no session yet) and not a lost session.
 const QUIET_401 = ['/api/me', '/api/auth/'];
 
-async function send<T>(method: string, url: string, body: BodyInit | undefined, headers: Record<string, string>): Promise<T> {
+// True for the error a request raises when its AbortSignal fires: a request someone cancelled, not a failure to show.
+export const isAbort = (err: unknown) => err instanceof DOMException && err.name === 'AbortError';
+
+async function send<T>(method: string, url: string, body: BodyInit | undefined, headers: Record<string, string>, signal?: AbortSignal): Promise<T> {
   let res: Response;
   try {
     res = await fetch(url, {
@@ -27,11 +30,13 @@ async function send<T>(method: string, url: string, body: BodyInit | undefined, 
       // The server checks Origin on every write; this header also stops a plain cross-site form post.
       headers: { accept: 'application/json', 'x-requested-with': 'vesk', ...headers },
       body,
+      signal,
     });
-  } catch {
+  } catch (err) {
+    if (isAbort(err)) throw err;
     throw new ApiError(0, 'The server could not be reached. Check your connection and try again.');
   }
-  const text = await res.text();
+  const text = await res.text();  // an abort while reading the body also rejects with an AbortError
   let data: unknown = null;
   try { data = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
   if (!res.ok) {
@@ -49,12 +54,13 @@ async function send<T>(method: string, url: string, body: BodyInit | undefined, 
   return data as T;
 }
 
-const json = <T>(method: string, url: string, body?: unknown) =>
-  send<T>(method, url, body !== undefined ? JSON.stringify(body) : undefined, body !== undefined ? { 'content-type': 'application/json' } : {});
+const json = <T>(method: string, url: string, body?: unknown, signal?: AbortSignal) =>
+  send<T>(method, url, body !== undefined ? JSON.stringify(body) : undefined, body !== undefined ? { 'content-type': 'application/json' } : {}, signal);
 
 export const api = {
   get: <T>(url: string) => json<T>('GET', url),
-  post: <T>(url: string, body?: unknown) => json<T>('POST', url, body ?? {}),
+  // `signal` lets a caller cancel the request; a cancelled request rejects with an AbortError (see isAbort), never an ApiError.
+  post: <T>(url: string, body?: unknown, signal?: AbortSignal) => json<T>('POST', url, body ?? {}, signal),
   put: <T>(url: string, body?: unknown) => json<T>('PUT', url, body ?? {}),
   patch: <T>(url: string, body?: unknown) => json<T>('PATCH', url, body ?? {}),
   delete: <T>(url: string) => json<T>('DELETE', url),

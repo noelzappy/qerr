@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BusyButton, CheckField, ConfirmAction, ErrorBlock, FieldGroup, FormPanel, Notice, SelectField, TagField, TextAreaField, TextField } from '@/components/kit';
 import { useLoad } from '@/hooks';
+import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsaved-guard';
 import { errorMessage, fieldErrors, formProblem } from '@/lib/errors';
 import { dateInputValue, formatDateTime } from '@/lib/format';
 import { KIND_LABEL, LICENCE_LABEL, VAULT_KINDS, type VaultKind } from '@/lib/labels';
@@ -104,12 +105,8 @@ export function VaultItemPanel({ id, onClose, onChanged }: {
 
   const initial = useMemo(() => toForm(item), [item]);
   const dirty = !!file || JSON.stringify(form) !== JSON.stringify(initial);
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [dirty]);
+  useUnsavedGuard(dirty);
+  const requestClose = () => confirmDiscard(dirty, onClose);
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
   const fileKind = isFileKind(form.kind);
@@ -138,14 +135,14 @@ export function VaultItemPanel({ id, onClose, onChanged }: {
         } catch (err) {
           toast.error(`The item was saved but the file was not uploaded: ${errorMessage(err)}`);
           onChanged();
-          if (!item) navigate(`/vault/${saved.id}`, { replace: true });
+          if (!item) { const to = `/vault/${saved.id}`; withoutGuard(() => navigate(to, { replace: true })); }
           else await state.reload();
           return;
         }
       }
       if (item?.status === 'confirmed' && saved?.status === 'unconfirmed') toast.success('Saved. The item is unconfirmed again: a person needs to check it and confirm it');
-      else toast.success(item ? 'Vault item saved' : 'Vault item added');
-      if (!item && saved) { onChanged(); navigate(`/vault/${saved.id}`, { replace: true }); }
+      else toast.success(item ? 'Saved' : 'Added to your facts');
+      if (!item && saved) { const to = `/vault/${saved.id}`; onChanged(); withoutGuard(() => navigate(to, { replace: true })); }
       else await reload();
     } catch (err) {
       setFields(fieldErrors(err));
@@ -170,7 +167,7 @@ export function VaultItemPanel({ id, onClose, onChanged }: {
   }
 
   const anyBusy = busy || acting;
-  const title = item ? item.title : isNew ? 'Add a vault item' : 'Vault item';
+  const title = item ? item.title : isNew ? 'Add a fact' : 'Fact';
   const description = item
     ? `${KIND_LABEL[item.kind]}. Last changed ${formatDateTime(item.updatedAt)}.`
     : isNew ? 'New items start unconfirmed. After saving you can confirm the item yourself once you have checked it.' : undefined;
@@ -178,7 +175,7 @@ export function VaultItemPanel({ id, onClose, onChanged }: {
     <>
       <FormPanel
         open
-        onClose={onClose}
+        onClose={requestClose}
         busy={anyBusy}
         size="lg"
         title={title}
@@ -186,10 +183,10 @@ export function VaultItemPanel({ id, onClose, onChanged }: {
         footer={ready ? (
           <>
             {item && <Button variant="outline" className="md:mr-auto" disabled={anyBusy} onClick={() => setDeleting(true)}><Trash2 aria-hidden="true" />Delete</Button>}
-            <Button variant="outline" disabled={anyBusy} onClick={onClose}>{item ? 'Close' : 'Cancel'}</Button>
-            <BusyButton type="submit" form="vault-item-form" loading={busy} disabled={acting || (!!item && !dirty)}>{item ? 'Save changes' : 'Add to the vault'}</BusyButton>
+            <Button variant="outline" disabled={anyBusy} onClick={requestClose}>{item ? 'Close' : 'Cancel'}</Button>
+            <BusyButton type="submit" form="vault-item-form" loading={busy} disabled={acting || (!!item && !dirty)}>{item ? 'Save changes' : 'Add to your facts'}</BusyButton>
           </>
-        ) : <Button variant="outline" onClick={onClose}>Close</Button>}
+        ) : <Button variant="outline" onClick={requestClose}>Close</Button>}
       >
         {loading ? <ItemSkeleton />
           : state.error ? <ErrorBlock message={state.error} onRetry={() => void state.reload()} title="This item could not be opened" />
@@ -266,7 +263,7 @@ export function VaultItemPanel({ id, onClose, onChanged }: {
       <ConfirmAction
         open={deleting}
         title="Delete this item?"
-        message={<>"{item?.title}" will be removed from the vault and from the lists. Posts already using it keep working. You can undo this for a short while from the message that follows.</>}
+        message={<>"{item?.title}" will be removed from your facts and from the lists. Posts already using it keep working. You can undo this for a short while from the message that follows.</>}
         confirmLabel="Delete item"
         danger
         onCancel={() => setDeleting(false)}
@@ -282,7 +279,7 @@ export function VaultItemPanel({ id, onClose, onChanged }: {
             },
           });
           onChanged();
-          onClose();
+          withoutGuard(onClose);
         }}
       />
     </>
