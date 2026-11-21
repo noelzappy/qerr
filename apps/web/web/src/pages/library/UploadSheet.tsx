@@ -4,14 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import { CircleCheck, Loader2, UploadCloud, X } from 'lucide-react';
 import { api } from '@/api';
 import { Button } from '@/components/ui/button';
-import { Notice } from '@/components/notice';
-import { TextField } from '@/components/text-field';
+import { BusyButton, FieldGroup, FormPanel, Notice, parseTags, SelectField, SwitchField, TextAreaField, TextField } from '@/components/kit';
 import { errorMessage, formProblem } from '@/lib/errors';
 import { cn } from '@/lib/utils';
-import { FieldGroup, SelectField, SwitchField, TextAreaField } from '../kit/fields';
-import { FormPanel } from '@/components/form-panel';
-import { BusyButton } from '../kit/states';
-import { parseTags } from '../kit/tags';
 import type { VaultItem } from '../vault-types';
 import { ACCEPT, fileProblem, guessKind, humaniseFileName, isHttpUrl, type Licence, type PictureKind } from './util';
 
@@ -144,7 +139,7 @@ export function UploadSheet({ onClose, onUploaded }: { onClose: () => void; onUp
       footer={(
         <>
           <Button variant="outline" className="max-sm:min-h-11" disabled={busy} onClick={onClose}>{rows.length ? 'Cancel' : 'Close'}</Button>
-          <BusyButton busy={busy} disabled={rows.length === 0} onClick={() => void uploadAll()}>
+          <BusyButton loading={busy} disabled={rows.length === 0} onClick={() => void uploadAll()}>
             {rows.length === 0 ? 'Upload images' : `${failed ? 'Retry and upload' : 'Upload'} ${rows.length} ${rows.length === 1 ? 'image' : 'images'}`}
           </BusyButton>
         </>

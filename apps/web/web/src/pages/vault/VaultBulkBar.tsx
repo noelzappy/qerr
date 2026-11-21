@@ -4,15 +4,11 @@ import { useState } from 'react';
 import { CheckCheck, RotateCcw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../api';
-import { BulkBar } from '@/components/bulk-bar';
-import { useBulkRun } from '@/components/use-bulk-run';
-import type { Selection } from '@/components/use-selection';
+import { BulkBar, BulkTagPopover, ConfirmAction, useBulkRun, type Selection } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { mergeTags, runBulk, succeededIds } from '@/lib/bulk';
 import { errorMessage } from '@/lib/errors';
 import type { VaultItem } from '../vault-types';
-import { BulkTagPopover } from './bulk-tag-popover';
-import { ConfirmAction } from './confirm-action';
 
 export function VaultBulkBar({ selection, items, noun, reload }: {
   selection: Selection;
@@ -69,7 +65,7 @@ export function VaultBulkBar({ selection, items, noun, reload }: {
       </BulkBar>
       <ConfirmAction
         open={deleting !== null}
-        destructive
+        danger
         title={`Delete ${plural(deleting?.length ?? 0)}?`}
         message={<>{deleting?.length === 1 ? 'This item' : 'These items'} will leave the vault and stop being used for posts. Posts that rely on {deleting?.length === 1 ? 'it' : 'them'} lose their approval. You can undo this right after.</>}
         confirmLabel={`Delete ${plural(deleting?.length ?? 0)}`}

@@ -7,16 +7,10 @@ import { api } from '@/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Notice } from '@/components/notice';
-import { TextField } from '@/components/text-field';
+import { BusyButton, ConfirmAction, FieldGroup, FormPanel, Notice, SelectField, SwitchField, TagField, TextAreaField, TextField } from '@/components/kit';
 import { useLoad } from '@/hooks';
 import { errorMessage, fieldErrors, formProblem } from '@/lib/errors';
 import { formatDate, formatDateTime } from '@/lib/format';
-import { ConfirmAction } from '../kit/confirm-action';
-import { FieldGroup, SelectField, SwitchField, TextAreaField } from '../kit/fields';
-import { FormPanel } from '@/components/form-panel';
-import { BusyButton } from '../kit/states';
-import { TagField } from '../kit/tags';
 import type { VaultItem } from '../vault-types';
 import { KIND_OPTIONS, LICENCE_OPTIONS } from './UploadSheet';
 import { ACCEPT, fileProblem, isHttpUrl, needsRights, type Licence, type PictureKind } from './util';
@@ -130,7 +124,7 @@ export function ItemSheet({ item, onClose, onChanged, onRemoved }: {
           <>
             <Button variant="outline" className="md:mr-auto" disabled={anyBusy} onClick={() => setDeleting(true)}><Trash2 aria-hidden="true" />Delete</Button>
             <Button variant="outline" className="max-sm:min-h-11" disabled={anyBusy} onClick={onClose}>Close</Button>
-            <BusyButton type="submit" form="library-item-form" busy={busy} disabled={!dirty || acting || replacing}>Save changes</BusyButton>
+            <BusyButton type="submit" form="library-item-form" loading={busy} disabled={!dirty || acting || replacing}>Save changes</BusyButton>
           </>
         )}>
         <div className="flex flex-col gap-5">
@@ -169,8 +163,8 @@ export function ItemSheet({ item, onClose, onChanged, onRemoved }: {
             {actionError && <Notice tone="bad">{actionError}</Notice>}
             <div>
               {item.status === 'confirmed'
-                ? <BusyButton variant="outline" busy={acting} disabled={busy || replacing} onClick={() => void act('unconfirm')}>Take confirmation off</BusyButton>
-                : <BusyButton busy={acting} disabled={dirty || busy || replacing} onClick={() => void act('confirm')}>Confirm this picture</BusyButton>}
+                ? <BusyButton variant="outline" loading={acting} disabled={busy || replacing} onClick={() => void act('unconfirm')}>Take confirmation off</BusyButton>
+                : <BusyButton loading={acting} disabled={dirty || busy || replacing} onClick={() => void act('confirm')}>Confirm this picture</BusyButton>}
             </div>
           </section>
 
@@ -200,7 +194,7 @@ export function ItemSheet({ item, onClose, onChanged, onRemoved }: {
         title="Delete this picture?"
         message={<>"{item.title}" will be removed from the library and from the vault. Posts already using it keep working. You can undo this for a short while from the message that follows.</>}
         confirmLabel="Delete picture"
-        destructive
+        danger
         onCancel={() => setDeleting(false)}
         onConfirm={async () => {
           await api.delete(`/api/vault/${item.id}`);

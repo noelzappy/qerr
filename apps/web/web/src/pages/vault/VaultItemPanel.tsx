@@ -10,17 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FormPanel } from '@/components/form-panel';
-import { Notice } from '@/components/notice';
-import { TextField } from '@/components/text-field';
+import { BusyButton, CheckField, ConfirmAction, ErrorBlock, FieldGroup, FormPanel, Notice, SelectField, TagField, TextAreaField, TextField } from '@/components/kit';
 import { useLoad } from '@/hooks';
 import { errorMessage, fieldErrors, formProblem } from '@/lib/errors';
 import { dateInputValue, formatDateTime } from '@/lib/format';
 import { KIND_LABEL, LICENCE_LABEL, VAULT_KINDS, type VaultKind } from '@/lib/labels';
-import { ConfirmAction } from '../kit/confirm-action';
-import { CheckField, FieldGroup, SelectField, TextAreaField } from '../kit/fields';
-import { BusyButton, ErrorBlock } from '../kit/states';
-import { TagField } from '../kit/tags';
 import { isFileKind, type VaultItem } from '../vault-types';
 
 const MAX_FILE = 15 * 1024 * 1024;
@@ -193,7 +187,7 @@ export function VaultItemPanel({ id, onClose, onChanged }: {
           <>
             {item && <Button variant="outline" className="md:mr-auto" disabled={anyBusy} onClick={() => setDeleting(true)}><Trash2 aria-hidden="true" />Delete</Button>}
             <Button variant="outline" disabled={anyBusy} onClick={onClose}>{item ? 'Close' : 'Cancel'}</Button>
-            <BusyButton type="submit" form="vault-item-form" busy={busy} disabled={acting || (!!item && !dirty)}>{item ? 'Save changes' : 'Add to the vault'}</BusyButton>
+            <BusyButton type="submit" form="vault-item-form" loading={busy} disabled={acting || (!!item && !dirty)}>{item ? 'Save changes' : 'Add to the vault'}</BusyButton>
           </>
         ) : <Button variant="outline" onClick={onClose}>Close</Button>}
       >
@@ -213,8 +207,8 @@ export function VaultItemPanel({ id, onClose, onChanged }: {
                     {actionError && <Notice tone="bad">{actionError}</Notice>}
                     <div>
                       {item.status === 'confirmed'
-                        ? <BusyButton variant="outline" busy={acting} disabled={busy} onClick={() => void act('unconfirm')}>Take confirmation off</BusyButton>
-                        : <BusyButton busy={acting} disabled={dirty || busy} onClick={() => void act('confirm')}>Confirm this item</BusyButton>}
+                        ? <BusyButton variant="outline" loading={acting} disabled={busy} onClick={() => void act('unconfirm')}>Take confirmation off</BusyButton>
+                        : <BusyButton loading={acting} disabled={dirty || busy} onClick={() => void act('confirm')}>Confirm this item</BusyButton>}
                     </div>
                   </section>
                   <ProblemsPanel item={item} />
@@ -274,7 +268,7 @@ export function VaultItemPanel({ id, onClose, onChanged }: {
         title="Delete this item?"
         message={<>"{item?.title}" will be removed from the vault and from the lists. Posts already using it keep working. You can undo this for a short while from the message that follows.</>}
         confirmLabel="Delete item"
-        destructive
+        danger
         onCancel={() => setDeleting(false)}
         onConfirm={async () => {
           const gone = item!;

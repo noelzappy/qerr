@@ -5,14 +5,10 @@ import { useState } from 'react';
 import { Check, RotateCcw, Trash2, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../api';
-import { BulkBar } from '@/components/bulk-bar';
-import { Notice } from '@/components/notice';
-import { useBulkRun } from '@/components/use-bulk-run';
-import type { Selection } from '@/components/use-selection';
+import { BulkBar, ConfirmAction, Lines, Notice, useBulkRun, type Selection } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { failedResults, type BulkResult } from '@/lib/bulk';
-import { ConfirmAction, Lines } from './parts';
 import type { PostSummary } from './types';
 
 interface Refusal { postKey: string; title: string; reasons: string[] }

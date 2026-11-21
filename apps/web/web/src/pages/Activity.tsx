@@ -4,18 +4,13 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { FormPanel } from '@/components/form-panel';
-import { Notice } from '@/components/notice';
+import { DataList, EmptyBlock, ErrorBlock, FormPanel, Notice, PageHeader, Pager, RowsSkeleton, SelectField, SwitchField, type Column } from '@/components/kit';
 import { RunProgress, RunResult, RunStatusBadge, runSummary } from '@/components/activity-parts';
 import { useActivity, useActivityRun } from '@/hooks/use-activity';
 import { useNow } from '@/hooks/use-now';
 import { batchLink, elapsedMs, formatElapsed, isActive, KIND_LABEL, runKindLabel, type ActivityRun } from '@/lib/activity';
 import { useDocumentTitle } from '../hooks';
 import { formatDateTime } from '../lib/format';
-import { DataList, type Col } from './kit/data-list';
-import { SelectField, SwitchField } from './kit/fields';
-import { PageHeader } from './kit/page-header';
-import { EmptyBlock, ErrorBlock, Pager, RowsSkeleton } from './kit/states';
 
 const PAGE_SIZE = 25;
 const STATUS_OPTIONS = [
@@ -35,7 +30,7 @@ export function Activity() {
   const now = useNow(list.active.length > 0);
   const filtered = status !== 'all' || !!kind || showSystem;
 
-  const columns: Col<ActivityRun>[] = [
+  const columns: Column<ActivityRun>[] = [
     { key: 'title', header: 'What', primary: true, cell: (r) => (
       <div className="min-w-0 md:min-w-[8rem]">
         <Link to={`/activity/${r.id}`} className="rounded-sm font-medium outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50">{r.title}</Link>

@@ -1,7 +1,7 @@
 // Removable chips, and a text field that turns typed words into chips (Enter, comma or leaving the field adds them).
 import { useState, type KeyboardEvent } from 'react';
 import { X } from 'lucide-react';
-import { TextField } from '@/components/text-field';
+import { TextField } from './fields';
 import { cn } from '@/lib/utils';
 
 export function TagChips({ tags, onRemove, label, removeLabel = (t) => `Remove the tag ${t}`, className }: { tags: string[]; onRemove: (t: string) => void; label: string; removeLabel?: (t: string) => string; className?: string }) {

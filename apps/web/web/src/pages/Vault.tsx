@@ -3,18 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { api } from '../api';
 import { Badge } from '@/components/ui/badge';
-import { useSelection } from '@/components/use-selection';
+import { DataList, EmptyBlock, ErrorBlock, Pager, RowsSkeleton, SelectField, TextField, useSelection, type Column } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { TextField } from '@/components/text-field';
 import { useDebounced, useDocumentTitle, useLoad } from '../hooks';
 import { formatDate } from '../lib/format';
 import { kindLabel, KIND_LABEL, VAULT_KINDS } from '../lib/labels';
-import { DataList, type Col } from './kit/data-list';
-import { SelectField } from './kit/fields';
-import { CreateHeader } from './kit/create-tabs';
-import { EmptyBlock, ErrorBlock, Pager, RowsSkeleton } from './kit/states';
-import { VaultBulkBar } from './kit/vault-bulk';
+import { CreateHeader } from '../shell/CreateHeader';
+import { VaultBulkBar } from './vault/VaultBulkBar';
 import { VaultItemPanel } from './vault/VaultItemPanel';
 import { isFileKind, type VaultItem } from './vault-types';
 
@@ -65,7 +61,7 @@ export function Vault() {
   const reset = () => { setQ(''); setKind(''); setStatus(''); setTag(''); setStale(''); setPage(1); };
   const onFilter = (set: (v: string) => void) => (v: string) => { set(v); setPage(1); };
 
-  const columns: Col<VaultItem>[] = [
+  const columns: Column<VaultItem>[] = [
     {
       key: 'title', header: 'Item', primary: true,
       cell: (i) => (

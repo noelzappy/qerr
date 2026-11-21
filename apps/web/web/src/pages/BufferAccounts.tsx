@@ -6,18 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Notice } from '@/components/notice';
-import { TextField } from '@/components/text-field';
+import { BusyButton, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FormPanel, Notice, PageHeader, RowsSkeleton, TextField, type Column } from '@/components/kit';
 import { useDocumentTitle, useLoad } from '../hooks';
 import { fieldErrors, formProblem } from '../lib/errors';
 import { dateInputValue, formatDate } from '../lib/format';
 import { networkLabel } from '../lib/labels';
-import { ConfirmAction } from './kit/confirm-action';
-import { DataList, type Col } from './kit/data-list';
-import { FieldGroup } from './kit/fields';
-import { FormPanel } from '@/components/form-panel';
-import { PageHeader } from './kit/page-header';
-import { BusyButton, EmptyBlock, ErrorBlock, RowsSkeleton } from './kit/states';
 
 export interface BufferAccount {
   id: string; name: string; keyLast4: string; keyExpiresAt: string | null; daysLeft: number | null; expired: boolean; expiryWarning: boolean;
@@ -51,7 +44,7 @@ export function BufferAccounts() {
   const expired = accounts.filter((a) => a.expired);
   const soon = accounts.filter((a) => !a.expired && a.expiryWarning);
 
-  const columns: Col<BufferAccount>[] = [
+  const columns: Column<BufferAccount>[] = [
     { key: 'name', header: 'Name', primary: true, cell: (a) => <span className="font-mono">{a.name}</span> },
     { key: 'key', header: 'Key', cell: (a) => <span className="whitespace-nowrap font-mono">{`•••• ${a.keyLast4}`}</span> },
     { key: 'expiry', header: 'Key expiry', cell: (a) => <ExpiryBadge account={a} /> },
@@ -99,7 +92,7 @@ export function BufferAccounts() {
         title="Delete this Buffer account?"
         message={<>The account <strong>{deleting?.name}</strong> and its stored key will be deleted. This cannot be undone. It is refused while the account is used for routing or has deliveries on record.</>}
         confirmLabel="Delete account"
-        destructive
+        danger
         onCancel={() => setDeleting(null)}
         onConfirm={async () => {
           const a = deleting!;
@@ -163,7 +156,7 @@ function AccountSheet({ account, onClose, onSaved }: { account: BufferAccount | 
   return (
     <FormPanel open onClose={onClose} busy={busy} title={account ? `Edit ${account.name}` : 'Add a Buffer account'}
       description="The key is write-only: once saved it cannot be shown again."
-      footer={<><Button variant="outline" className={sm} onClick={onClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="account-form" busy={busy}>{account ? 'Save changes' : 'Add account'}</BusyButton></>}>
+      footer={<><Button variant="outline" className={sm} onClick={onClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="account-form" loading={busy}>{account ? 'Save changes' : 'Add account'}</BusyButton></>}>
       <form id="account-form" className="flex flex-col gap-4" onSubmit={(e) => void submit(e)} noValidate>
         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} error={fields.name} hint="A short name you will recognise, such as main. It cannot change once posts have been sent through it." mono required autoFocus />
         <TextField
@@ -190,7 +183,7 @@ function AccountSheet({ account, onClose, onSaved }: { account: BufferAccount | 
 function CheckDialog({ account, onClose }: { account: BufferAccount; onClose: () => void }) {
   const state = useLoad(() => api.post<CheckResult>(`/api/buffer-accounts/${account.id}/check`), [account.id]);
   const r = state.data;
-  const channelColumns: Col<CheckResult['channels'][number]>[] = [
+  const channelColumns: Column<CheckResult['channels'][number]>[] = [
     { key: 'name', header: 'Channel', primary: true, cell: (c) => <>{c.displayName || c.name}{c.displayName && c.displayName !== c.name && <span className="block text-[13px] font-normal text-muted-foreground">{c.name}</span>}</> },
     { key: 'net', header: 'Network', cell: (c) => (c.network ? networkLabel(c.network) : <span className="text-muted-foreground">{c.service || 'Unknown'}</span>) },
     { key: 'org', header: 'Organisation', cell: (c) => <span className="font-mono [overflow-wrap:anywhere]">{c.organizationId}</span> },

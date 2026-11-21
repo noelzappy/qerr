@@ -1,7 +1,7 @@
 // "Add tag" for a bulk action: a small popover with one field. The tags are added to what each item already has.
 import { useState, type FormEvent } from 'react';
 import { Loader2, Tag } from 'lucide-react';
-import { TextField } from '@/components/text-field';
+import { TextField } from './fields';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { parseTags } from './tags';

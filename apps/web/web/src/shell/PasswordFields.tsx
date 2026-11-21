@@ -1,7 +1,7 @@
 // New-password input with a live checklist, used by accepting an invite and by resetting a password.
 import type { ReactNode } from 'react';
 import { Check, Dot } from 'lucide-react';
-import { TextField } from '@/components/text-field';
+import { TextField } from '@/components/kit';
 
 export const MIN_PASSWORD = 10;
 export const MAX_PASSWORD = 128;

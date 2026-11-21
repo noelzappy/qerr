@@ -9,9 +9,7 @@ import { PasswordFields, passwordProblems } from '../shell/PasswordFields';
 import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Notice } from '@/components/notice';
-import { TextField } from '@/components/text-field';
-import { LoadingBlock } from './kit/states';
+import { LoadingBlock, Notice, TextField } from '@/components/kit';
 import { useAppInfo } from '../app-info';
 
 // The link in an invitation email is /accept-invite?token=..., and /accept-invite/<token> works too.

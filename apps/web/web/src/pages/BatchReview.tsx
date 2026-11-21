@@ -6,16 +6,13 @@ import { useDocumentTitle, useLoad } from '../hooks';
 import { errorMessage } from '../lib/errors';
 import { ArrowLeft, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { SelectBox } from '@/components/bulk-bar';
-import { Notice } from '@/components/notice';
-import { useSelection } from '@/components/use-selection';
+import { BusyButton, ConfirmAction, EmptyBlock, ErrorBlock, Lines, Notice, PageHeader, SelectBox, SelectField, StatusBadge, ToneBadge, useSelection } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BatchActivityStrip } from './batches/ActivityStrip';
 import { BATCH_STATUS, POST_FILTERS } from './batches/labels';
-import { BusyButton, ConfirmAction, EmptyState, ErrorState, Lines, PageHeader, SelectField, StatusBadge, ToneBadge } from './batches/parts';
 import { PostBulkBar } from './batches/PostBulkBar';
 import { PostCard } from './batches/PostCard';
 import { PostEditSheet } from './batches/PostEditSheet';
@@ -46,7 +43,7 @@ export function BatchReview() {
     return (
       <>
         <PageHeader title="Batch" actions={<Button asChild variant="outline"><Link to="/create"><ArrowLeft aria-hidden="true" />Back to Create</Link></Button>} />
-        <Card className="gap-0 p-0"><ErrorState message={state.error || 'This batch was not found.'} onRetry={() => void state.reload()} title="This batch could not be opened" /></Card>
+        <Card className="gap-0 p-0"><ErrorBlock message={state.error || 'This batch was not found.'} onRetry={() => void state.reload()} title="This batch could not be opened" /></Card>
       </>
     );
   }
@@ -187,9 +184,9 @@ function ReviewView({ data, reload }: { data: BatchData; reload: () => Promise<v
       </Card>
 
       {live.length === 0 ? (
-        <Card className="gap-0 p-0"><EmptyState title="This batch has no posts yet" action={<BusyButton onClick={() => setAdding(true)}>Add the first post</BusyButton>}>Add posts by hand, or import a batch file from the batch list to start with a full set.</EmptyState></Card>
+        <Card className="gap-0 p-0"><EmptyBlock title="This batch has no posts yet" action={<BusyButton onClick={() => setAdding(true)}>Add the first post</BusyButton>}>Add posts by hand, or import a batch file from the batch list to start with a full set.</EmptyBlock></Card>
       ) : shown.length === 0 ? (
-        <Card className="gap-0 p-0"><EmptyState title="No posts match this filter" action={<BusyButton variant="outline" onClick={() => setFilter('')}>Show all posts</BusyButton>}>Choose another filter to see the rest.</EmptyState></Card>
+        <Card className="gap-0 p-0"><EmptyBlock title="No posts match this filter" action={<BusyButton variant="outline" onClick={() => setFilter('')}>Show all posts</BusyButton>}>Choose another filter to see the rest.</EmptyBlock></Card>
       ) : (
         <>
           <div className="flex items-center gap-3 text-sm">

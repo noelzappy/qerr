@@ -2,14 +2,10 @@ import { useState } from 'react';
 import { api } from '../api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { TextField } from '@/components/text-field';
+import { DataList, EmptyBlock, ErrorBlock, PageHeader, Pager, RowsSkeleton, SelectField, TextField, type Column } from '@/components/kit';
 import { useDebounced, useDocumentTitle, useLoad } from '../hooks';
 import { formatDateTime } from '../lib/format';
 import { actionLabel, AUDIT_GROUPS, entityLabel } from '../lib/labels';
-import { DataList, type Col } from './kit/data-list';
-import { SelectField } from './kit/fields';
-import { PageHeader } from './kit/page-header';
-import { EmptyBlock, ErrorBlock, Pager, RowsSkeleton } from './kit/states';
 
 interface AuditItem { id: string; at: string; actorId: string | null; actorEmail: string | null; action: string; entity: string | null; entityId: string | null; detail: Record<string, unknown> | null }
 interface Page { items: AuditItem[]; page: number; pageSize: number; total: number }
@@ -40,7 +36,7 @@ export function Audit() {
     return api.get<Page>(`/api/audit?${q.toString()}`);
   }, [page, action, actorQuery]);
 
-  const columns: Col<AuditItem>[] = [
+  const columns: Column<AuditItem>[] = [
     { key: 'at', header: 'When', primary: true, cell: (i) => <span className="whitespace-nowrap">{formatDateTime(i.at)}</span> },
     { key: 'who', header: 'Who', cell: (i) => (i.actorEmail ? <span className="[overflow-wrap:anywhere]">{i.actorEmail}</span> : <span className="text-muted-foreground">The system</span>) },
     {
