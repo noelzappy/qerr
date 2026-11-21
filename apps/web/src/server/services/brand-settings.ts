@@ -394,14 +394,40 @@ export function paletteChanges(s: BrandSettings, b: Json): Array<{ colour: 'prim
 
 // ---- the uploaded files of the style layer ----
 
-const assetFont = z.object({ key: z.string().min(1), family: z.string().regex(/^[A-Za-z0-9 _-]{1,40}$/) }).strict();
+// A font of a type role. An uploaded font is one file (`key`) for every character; a font from Google Fonts is its latin file
+// (`key`, also files[0]) and, when Google has one, its latin-ext file, each with the unicode-range Google gave it, and `source`
+// says which family and weight it is (services/google-fonts.ts).
+const FONT_RANGE = /^U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?(, ?U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?)*$/;
+const assetFont = z.object({
+  key: z.string().min(1),
+  family: z.string().regex(/^[A-Za-z0-9 _-]{1,40}$/),
+  files: z.array(z.object({ key: z.string().min(1), range: z.string().max(2000).regex(FONT_RANGE) }).strict()).min(1).max(2).optional(),
+  source: z.object({ kind: z.literal('google'), family: z.string().regex(/^[A-Za-z0-9 ]{1,40}$/), weight: z.number().int().min(100).max(900) }).strict().optional(),
+}).strict();
+export type AssetFont = z.infer<typeof assetFont>;
 export const assetsSchema = z.object({
+  // The body font's files and source when it came from Google Fonts; the profile's fontKey and fontFamily still name it (fontKey
+  // is the latin file), and this is used only while its key is that fontKey.
+  body: assetFont.optional(),
   display: assetFont.optional(),
   label: assetFont.optional(),
   artwork: z.object({ key: z.string().min(1), type: z.enum(['image/png', 'image/jpeg', 'image/webp']) }).strict().optional(),
 }).strict();
 export type BrandAssets = z.infer<typeof assetsSchema>;
 export const assetsOf = (v: unknown): BrandAssets => { const p = assetsSchema.safeParse(v ?? {}); return p.success ? p.data : {}; };
+// Every stored file of a role's font, for removing them all when it is replaced.
+export const fontFileKeys = (a: AssetFont | undefined | null): string[] => (a ? [...new Set([a.key, ...(a.files ?? []).map((x) => x.key)])] : []);
+// The files of a role's font in the pack: `stem`.woff2 for one file, `stem`-latin.woff2 and `stem`-latin-ext.woff2 for two.
+const packFonts = (stem: string, a: Pick<AssetFont, 'key' | 'files'>): Array<{ name: string; key: string; range: string }> => {
+  if (!a.files?.length) return [{ name: `fonts/${stem}.woff2`, key: a.key, range: 'U+0000-FFFF' }];
+  return a.files.map((x, i) => ({ name: `fonts/${stem}-${i === 0 ? 'latin' : 'latin-ext'}.woff2`, key: x.key, range: x.range }));
+};
+// The body font as stored: the Google files and source when assets.body describes the profile's fontKey, else one uploaded file.
+export const bodyFont = (p: AssetProfile): AssetFont | null => {
+  if (!p.fontKey || !p.fontFamily) return null;
+  const b = assetsOf(p.assets).body;
+  return b && b.key === p.fontKey ? { ...b, family: p.fontFamily } : { key: p.fontKey, family: p.fontFamily };
+};
 const ARTWORK_EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 const PACK = `${STATE_BRAND_DIR}/__PACK__`;
 
@@ -414,17 +440,22 @@ export function applyAssets(b: Json, s: BrandSettings, p: AssetProfile): Array<{
   const files: Array<{ name: string; key: string }> = [];
   const font = b.font as Json;
   const list = () => (Array.isArray(font.files) ? font.files as Json[] : []);
-  if (p.fontKey && p.fontFamily) {
-    files.push({ name: 'fonts/brand.woff2', key: p.fontKey });
-    font.family = p.fontFamily;
-    font.files = [{ role: 'sans', weight: '100 900', file: `${PACK}/fonts/brand.woff2`, range: 'U+0000-FFFF' }, ...list().filter((f) => f.role === 'mono')];
+  // Each file is used for every weight of its role ("100 900"): an uploaded font may be variable, and a Google font is the one
+  // weight the admin picked, so the browser never draws a synthetic bold or a fallback instead.
+  const body = bodyFont(p);
+  if (body) {
+    const own = packFonts('brand', body);
+    for (const x of own) files.push({ name: x.name, key: x.key });
+    font.family = body.family;
+    font.files = [...own.map((x) => ({ role: 'sans', weight: '100 900', file: `${PACK}/${x.name}`, range: x.range })), ...list().filter((f) => f.role === 'mono')];
   }
   const A = assetsOf(p.assets);
   const own = (role: 'display' | 'label') => {
     const a = A[role];
     if (!a) return null;
-    files.push({ name: `fonts/${role}.woff2`, key: a.key });
-    font.files = [...list(), { role, weight: '100 900', file: `${PACK}/fonts/${role}.woff2`, range: 'U+0000-FFFF' }];
+    const mine = packFonts(role, a);
+    for (const x of mine) files.push({ name: x.name, key: x.key });
+    font.files = [...list(), ...mine.map((x) => ({ role, weight: '100 900', file: `${PACK}/${x.name}`, range: x.range }))];
     return a.family;
   };
   const t = s.style.type;

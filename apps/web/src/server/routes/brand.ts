@@ -9,6 +9,10 @@
 //   POST   /font?role=            a woff2 font with its family name: body (default: text, and headlines unless they have their
 //                                 own), display (headlines) or label (labels and footers)
 //   DELETE /font?role=            back to the built-in font for that role
+//   GET    /font/:role            the stored font of a role (its latin file), for the page's preview; :role is body | display | label
+//   GET    /google-fonts          the curated Google Fonts the type roles can use (family, category, weights, licence, note)
+//   POST   /google-font           { role, family, weight }: download that family and weight from Google Fonts once and store it as
+//                                 the role's font, like an upload (services/google-fonts.ts)
 //   POST   /artwork               brand artwork for the decoration (PNG, JPEG or WebP; never SVG)
 //   GET    /artwork               the uploaded file
 //   DELETE /artwork
@@ -29,9 +33,10 @@ import { badRequest, HttpError, notFound, readJson } from '../http.js';
 import { requireRole, requireUser } from '../middleware.js';
 import { enqueueTracked } from '../services/activity.js';
 import {
-  advancedSchema, applyProposal, assetsOf, baseBrand, brandFromProfile, proposalOf, brandProblems, brandSettingsSchema, contrastChecks, explicitRoles, paletteChanges, currentSettings, mapProblems, splitPackBrand, syncBrand,
-  type BrandAssets,
+  advancedSchema, applyProposal, assetsOf, baseBrand, bodyFont, brandFromProfile, fontFileKeys, proposalOf, brandProblems, brandSettingsSchema, contrastChecks, explicitRoles, paletteChanges, currentSettings, mapProblems, splitPackBrand, syncBrand,
+  type AssetFont, type BrandAssets,
 } from '../services/brand-settings.js';
+import { fetchGoogleFont, findGoogleFont, GOOGLE_FONT_CATEGORIES, GOOGLE_FONTS, GoogleFontError } from '../services/google-fonts.js';
 import { privateKey } from '../storage/types.js';
 import { sniffImage } from './vault.js';
 
@@ -56,6 +61,17 @@ export function pngSize(buf: Buffer): { width: number; height: number } | null {
 const isWoff2 = (buf: Buffer) => buf.length > 48 && buf.toString('latin1', 0, 4) === 'wOF2';
 
 const fontFamily = z.string().trim().regex(/^[A-Za-z0-9 _-]{1,40}$/, 'Use letters, digits, spaces, _ and - (up to 40)');
+// Only a family of the curated list, at a weight it offers: no address is ever made from what the browser sent.
+const googleFontBody = z.object({
+  role: z.enum(FONT_ROLES),
+  family: z.string().max(60).refine((f) => !!findGoogleFont(f), 'Choose a family from the list'),
+  weight: z.number().int(),
+}).strict().superRefine((b, ctx) => {
+  const g = findGoogleFont(b.family);
+  if (g && !g.weights.includes(b.weight)) ctx.addIssue({ code: 'custom', path: ['weight'], message: `${g.family} comes in ${g.weights.join(', ')}` });
+});
+// What a role's font is called on the page when its own name is taken (by the built-in fonts or another role's font).
+const ROLE_SUFFIX = { body: 'Body', display: 'Headline', label: 'Label' } as const;
 const referencePatch = z.object({
   note: z.string().trim().max(500).optional(),
   brief: z.string().trim().min(1).max(2000).optional(),
@@ -109,6 +125,11 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     advanced: p?.advanced ?? {}, logoFullWidth: p?.logoFullWidth ?? null, logoFullHeight: p?.logoFullHeight ?? null, fontFamily: p?.fontFamily ?? null, fontKey: p?.fontKey ?? null, assets: p?.assets ?? {},
   });
 
+  const fontSource = (role: (typeof FONT_ROLES)[number], a: AssetFont | null | undefined) => (a ? {
+    family: a.family, source: a.source ? 'google' as const : 'upload' as const, ...(a.source ? { google: { family: a.source.family, weight: a.source.weight } } : {}),
+    file: `/api/settings/brand/font/${role}`,
+  } : null);
+
   async function view() {
     const p = await profile();
     const settings = currentSettings(p);
@@ -126,6 +147,8 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
       font: p?.fontKey ? { family: p.fontFamily } : null,
       // The style layer's uploads: a display font, a label font, the artwork.
       fonts: { body: p?.fontKey ? p.fontFamily : null, display: assets.display?.family ?? null, label: assets.label?.family ?? null },
+      // Where each role's font came from, and the address of its file for the page's preview.
+      fontSources: Object.fromEntries(FONT_ROLES.map((r) => [r, fontSource(r, r === 'body' ? (p ? bodyFont(p) : null) : assets[r])])),
       artwork: assets.artwork ? '/api/settings/brand/artwork' : null,
       advanced: p?.advanced ?? {},
       map: p?.map ?? null,
@@ -245,10 +268,14 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     if (others.some((f) => f.toLowerCase() === family.data.toLowerCase())) throw badRequest('The request is not valid', [{ path: 'family', message: `"${family.data}" is already the name of another font; give this one its own name` }]);
     const key = privateKey('brand', `${role}.woff2`);
     await deps.storage.putObject(key, bytes, 'font/woff2');
-    const old = role === 'body' ? p.fontKey : assets[role]?.key;
-    if (role === 'body') await deps.prisma.brandProfile.update({ where: { id: 'brand' }, data: { fontKey: key, fontFamily: family.data, updatedById: actor.id } });
-    else await saveAssets({ ...assets, [role]: { key, family: family.data } }, actor.id);
-    if (old) await deps.storage.deleteObject(old).catch(() => undefined);
+    // Every file of the font it replaces (a Google font has two).
+    const old = fontFileKeys(role === 'body' ? bodyFont(p) : assets[role]);
+    if (role === 'body') {
+      const next = { ...assets };
+      delete next.body;
+      await deps.prisma.brandProfile.update({ where: { id: 'brand' }, data: { fontKey: key, fontFamily: family.data, assets: next as Prisma.InputJsonValue, updatedById: actor.id } });
+    } else await saveAssets({ ...assets, [role]: { key, family: family.data } }, actor.id);
+    for (const k of old) await deps.storage.deleteObject(k).catch(() => undefined);
     await audit(deps, actor, 'brand.font.upload', 'brand', 'brand', { role, family: family.data, bytes: bytes.length });
     return c.json(await view());
   });
@@ -258,13 +285,75 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     const role = fontRole(c.req.query('role'));
     const p = await profile();
     const assets = assetsOf(p?.assets);
-    const old = role === 'body' ? p?.fontKey : assets[role]?.key;
-    if (p && old) {
-      if (role === 'body') await deps.prisma.brandProfile.update({ where: { id: 'brand' }, data: { fontKey: null, fontFamily: null, updatedById: actor.id } });
-      else { const next = { ...assets }; delete next[role]; await saveAssets(next, actor.id); }
-      await deps.storage.deleteObject(old).catch(() => undefined);
+    const old = fontFileKeys(role === 'body' ? (p ? bodyFont(p) : null) : assets[role]);
+    if (p && old.length) {
+      const next = { ...assets };
+      delete next[role];
+      if (role === 'body') await deps.prisma.brandProfile.update({ where: { id: 'brand' }, data: { fontKey: null, fontFamily: null, assets: next as Prisma.InputJsonValue, updatedById: actor.id } });
+      else await saveAssets(next, actor.id);
+      for (const k of old) await deps.storage.deleteObject(k).catch(() => undefined);
       await audit(deps, actor, 'brand.font.remove', 'brand', 'brand', { role });
     }
+    return c.json(await view());
+  });
+
+  // The stored font of a role, so the page can show its name in its own face (the app's CSP allows fonts from itself only).
+  // The latin file only.
+  app.get('/font/:role', async (c) => {
+    const role = c.req.param('role');
+    if (!(FONT_ROLES as readonly string[]).includes(role)) throw notFound();
+    const p = await profile();
+    const a = role === 'body' ? (p ? bodyFont(p) : null) : assetsOf(p?.assets)[role as 'display' | 'label'];
+    if (!a) throw notFound();
+    const body = await deps.storage.getObject(a.key);
+    return c.body(new Uint8Array(body), 200, { 'content-type': 'font/woff2', 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' });
+  });
+
+  app.get('/google-fonts', (c) => c.json({ categories: GOOGLE_FONT_CATEGORIES, fonts: GOOGLE_FONTS }));
+
+  // A family of the curated list at one of its weights, downloaded from Google Fonts once (services/google-fonts.ts) and stored
+  // like an uploaded font: the latin file and, when Google has one, the latin-ext file, each with its unicode-range. A headline or
+  // label font is switched on for its role ("own"); the rest of the saved settings stay as they are. Nothing is stored unless
+  // every file arrived and the brand with it passes the engine's checks.
+  app.post('/google-font', async (c) => {
+    const actor = c.get('user');
+    const body = await readJson(c, googleFontBody);
+    const g = findGoogleFont(body.family)!;
+    const role = body.role;
+    let files: Awaited<ReturnType<typeof fetchGoogleFont>>;
+    try {
+      files = await fetchGoogleFont(deps.fetchImpl, g, body.weight);
+    } catch (e) {
+      if (e instanceof GoogleFontError) throw new HttpError(e.status, e.message);
+      throw e;
+    }
+    const p = await ensureProfile(actor.id);
+    const assets = assetsOf(p.assets);
+    // The family name on the page: Google's, unless the built-in fonts or another role's font already use it.
+    const taken = [
+      ...(role === 'body' ? [] : BUILT_IN_FAMILIES), ...(role !== 'body' && p.fontKey && p.fontFamily ? [p.fontFamily] : []),
+      ...(['display', 'label'] as const).filter((r) => r !== role).map((r) => assets[r]?.family).filter((f): f is string => !!f),
+    ].map((f) => f.toLowerCase());
+    const family = taken.includes(g.family.toLowerCase()) ? `${g.family} ${ROLE_SUFFIX[role]}` : g.family;
+    const stored = files.map((x) => ({ key: privateKey('brand', `${role}-${x.subset}.woff2`), range: x.range, bytes: x.bytes }));
+    const entry: AssetFont = { key: stored[0]!.key, family, files: stored.map((x) => ({ key: x.key, range: x.range })), source: { kind: 'google', family: g.family, weight: body.weight } };
+    const nextAssets: BrandAssets = { ...assets, [role]: entry };
+    const settings = currentSettings(p);
+    const nextSettings = role === 'body' ? settings : { ...settings, style: { ...settings.style, type: { ...settings.style.type, [role]: { ...settings.style.type[role], font: 'own' } } } };
+    const fontFields = role === 'body' ? { fontKey: entry.key, fontFamily: family } : { fontKey: p.fontKey, fontFamily: p.fontFamily };
+    const candidate = brandFromProfile({ ...p, ...fontFields, settings: nextSettings as unknown as Prisma.JsonValue, assets: nextAssets as Prisma.JsonValue }, nextSettings);
+    const problems = brandProblems(candidate);
+    if (problems.length) throw badRequest('The brand is not valid with this font', problems);
+    const old = fontFileKeys(role === 'body' ? bodyFont(p) : assets[role]);
+    for (const x of stored) await deps.storage.putObject(x.key, x.bytes, 'font/woff2');
+    await deps.prisma.brandProfile.update({
+      where: { id: 'brand' },
+      data: { ...fontFields, assets: nextAssets as Prisma.InputJsonValue, settings: nextSettings as unknown as Prisma.InputJsonValue, updatedById: actor.id },
+    });
+    for (const k of old) await deps.storage.deleteObject(k).catch(() => undefined);
+    await audit(deps, actor, 'brand.font.google', 'brand', 'brand', {
+      role, family: g.family, weight: body.weight, licence: g.licence, source: 'fonts.googleapis.com', subsets: files.map((x) => x.subset), bytes: files.reduce((n, x) => n + x.bytes.length, 0),
+    });
     return c.json(await view());
   });
 
@@ -363,6 +452,7 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     const after = brandProblems(candidate);
     if (after.length) throw badRequest('The brand is not valid after the import', after);
     const before = await profile();
+    const { body: bodyAsset, ...restAssets } = assetsOf(before?.assets);
     const fullKey = privateKey('brand', 'logo-full.png'), markKey = privateKey('brand', 'logo-mark.png');
     await deps.storage.putObject(fullKey, fullBytes, 'image/png');
     await deps.storage.putObject(markKey, markBytes, 'image/png');
@@ -372,9 +462,11 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
       settings: settings as unknown as Prisma.InputJsonValue, advanced: split.advanced as Prisma.InputJsonValue, map: (map ?? null) as unknown as Prisma.InputJsonValue,
       logoFullKey: fullKey, logoFullWidth: fullSize.width, logoFullHeight: fullSize.height, logoMarkKey: markKey, updatedById: actor.id,
       fontKey, fontFamily: fontKey ? family : null,
+      // A Google body font's files and source go with the font they described.
+      ...(bodyAsset ? { assets: restAssets as Prisma.InputJsonValue } : {}),
     };
     await deps.prisma.brandProfile.upsert({ where: { id: 'brand' }, create: data, update: data });
-    for (const old of [before?.logoFullKey, before?.logoMarkKey, before?.fontKey]) if (old) await deps.storage.deleteObject(old).catch(() => undefined);
+    for (const old of [before?.logoFullKey, before?.logoMarkKey, ...fontFileKeys(before ? bodyFont(before) : null)]) if (old) await deps.storage.deleteObject(old).catch(() => undefined);
     await audit(deps, actor, 'brand.import', 'brand', 'brand', { name: settings.name, series: settings.series.length, map: map !== null, font: !!fontKey, advancedKeys: Object.keys(split.advanced).length });
     return c.json({ ...(await view()), notes });
   });
