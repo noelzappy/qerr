@@ -8,6 +8,6 @@ export function text(spec, ctx) {
   if (spec.artefact) return artefactPage(spec, ctx, spec.artefact);
   const size = spec.size ?? 112, top = 990;
   const sub = spec.sub ? `<div class="abs sub" data-role="sub" data-min="30" data-onpanel style="left:70px;top:1036px;width:620px">${fmtSub(spec.sub)}</div>` : '';
-  const body = panel(top) + head(ctx, spec) + textBlock({ headline: spec.headline, size, w: 940 }) + sub + footer(ctx);
+  const body = panel(top) + head(ctx, spec) + textBlock({ headline: spec.headline, size, w: 940 }) + sub + footer(ctx, { spec, onPanel: true });
   return page(ctx, spec, { body });
 }

@@ -6,6 +6,6 @@ export function cover(spec, ctx) {
   const ph = 714;
   const print = obj(70, 126, 940, ph, 'photo', photoWindow(ctx, spec, { x: 0, y: 0, w: 940, h: ph }));
   const w = 940;
-  const body = head(ctx, spec, { rule: false }) + print + textBlock({ y: 126 + ph + 56, size: 84, headline: spec.headline, sub: spec.sub, w, subW: 900 }) + footer(ctx);
+  const body = head(ctx, spec, { rule: false }) + print + textBlock({ y: 126 + ph + 56, size: 84, headline: spec.headline, sub: spec.sub, w, subW: 900 }) + footer(ctx, { spec });
   return page(ctx, spec, { body });
 }

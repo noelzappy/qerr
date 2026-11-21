@@ -16,5 +16,5 @@ export function stats(spec, ctx) {
   } else {
     rest = list.map((s, i) => `<div class="abs" style="left:70px;top:${448 + i * 150}px;width:940px;${i ? 'border-top:1px solid var(--hair);padding-top:24px' : ''}"><div class="h s70" data-role="stat" style="font-size:${hs(70)}">${fmtSub(s[0])}</div><div class="sub" data-role="statlabel" data-min="30" style="margin-top:8px">${fmtSub(s[1])}</div></div>`).join('');
   }
-  return page(ctx, spec, { body: head(ctx, spec) + big + line + (list.length ? rule : '') + rest + footer(ctx) });
+  return page(ctx, spec, { body: head(ctx, spec) + big + line + (list.length ? rule : '') + rest + footer(ctx, { spec }) });
 }

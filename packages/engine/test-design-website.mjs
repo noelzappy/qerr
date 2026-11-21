@@ -83,7 +83,12 @@ test('the dot grid: on every ink page unless dots is false; never on a light pag
   assert.ok(has(v({ template: 'closing', dots: 'on' }), 'dots must be true or false'));
   // the website's .dot-grid: 1 px white dots at 8% on a 24 px grid, at the brand scale
   assert.deepEqual(brand.dots, { size: 1, spacing: 24, alpha: 0.08 });
-  assert.ok(/\.cv\.dots\{background-image:radial-gradient\(var\(--dot\) var\(--dot-r\),transparent var\(--dot-r\)\)/.test(brand.css));
+  // the dots take the page's dot colour (--dc): the light dots (--dot) on a dark page, ink dots on a light one
+  assert.ok(/\.cv\.dots\{background-image:radial-gradient\(var\(--dc\) var\(--dot-r\),transparent var\(--dot-r\)\)/.test(brand.css));
+  assert.ok(/\.dark \.cv\{--dc:var\(--dot\);/.test(brand.css));
+  // the older name of the dark ground is the same page
+  const bodyOf = (h) => h.split('<body')[1].split('<script')[0];
+  assert.equal(bodyOf(html({ template: 'text', headline: 'h', ground: 'ink' })), bodyOf(html({ template: 'text', headline: 'h', ground: 'dark' })));
 });
 
 test('the silk ribbon and figure captions are gone: refused on every template, with the reason', () => {

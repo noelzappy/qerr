@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ENGINE_DIR, ROOT, brandFile } from './lib/core.mjs';
-import { loadBrand, validateBrand } from './lib/design/brand.mjs';
+import { loadBrand, normaliseBrand, validateBrand } from './lib/design/brand.mjs';
 import { readBrandAsset, readImage } from './lib/design/assets.mjs';
 import { cleanShape, linesToSvg, shapeProblems } from './lib/design/checks.mjs';
 import { buildPage } from './lib/design/page.mjs';
@@ -171,10 +171,19 @@ const hostileSpecs = (h) => ({
   photo: { template: 'photo', image: h, headline: h, sub: h, eyebrow: h, focalCss: `50% 50%;background:url(${h})`, textAtResolved: h },
 });
 
-test('generated pages: hostile text in every field of every template stays inert', () => {
+// The same brand with every style choice that changes the markup: outlined surfaces, artwork, a photo treatment, the logo bar at
+// the bottom right in a pill, capitals and no accent device.
+const raw = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
+const styled = {
+  ...brand,
+  ...normaliseBrand({ ...raw, style: { type: { display: { case: 'upper', weight: 700 }, label: { case: 'as-typed' }, accent: 'none' }, surface: 'outline', decoration: { kind: 'artwork', artwork: 'x.png', on: 'all', fit: 'corner' }, photo: { treatment: 'duotone' }, logo: 'bottom-right', footer: 'pill' } }),
+  artworkSrc: PIXEL,
+};
+
+for (const [which, b] of [['the demo brand', brand], ['a fully styled brand', styled]]) test(`generated pages: hostile text in every field of every template stays inert (${which})`, () => {
   for (const [name, spec] of Object.entries(hostileSpecs('X'))) {
     const S = SIZES.feed;
-    const run = (s) => { const t = TEMPLATE_FNS[s.template](s, { size: S, brand, counter: { n: 2, total: 5 }, image: () => PIXEL, imageSize: () => ({ w: 1640, h: 1025 }) }); return buildPage({ brand, size: S, ...t }); };
+    const run = (s) => { const t = TEMPLATE_FNS[s.template](s, { size: S, brand: b, counter: { n: 2, total: 5 }, image: () => PIXEL, imageSize: () => ({ w: 1640, h: 1025 }) }); return buildPage({ brand: b, size: S, ...t }); };
     const base = run(spec);
     for (const h of HOSTILE) {
       const html = run(hostileSpecs(h)[name]);

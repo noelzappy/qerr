@@ -73,8 +73,27 @@ which are sent to Anthropic as base64 image blocks and to OpenAI-compatible serv
 It returns `{ analysis, brief, notes }`:
 
 - `analysis` is checked against a schema: `summary`, `palette` (up to 8 `{ hex, role }`), `typography`, `layout`,
-  `imagery`, `mood` and `avoid`.
-- `brief` is the same as one paragraph of at most 2,000 characters, ready for `brand.json` `references`.
+  `imagery`, `mood`, `avoid`, and (from the prompt `reference-2`) an optional `proposal` of concrete style settings.
+- `brief` is the same as one paragraph of at most 2,000 characters, ready for `brand.json` `references`. The brief is text
+  for the drafting model only.
+
+The `proposal` (`PROPOSAL_SCHEMA` in `src/reference.mjs`) is what the reference changes in the pixels, once an admin accepts
+it. Every value is a `#rrggbb` colour, a number in range or a name from the engine's own lists
+(`packages/engine/lib/design/tokens.mjs`), which the schema given to the model carries:
+
+- `colours`: any of the grounds `light`, `soft`, `cool`, `warm`, `dark`, `deep`, the text colours `ink`, `body`, `muted`,
+  `inverse`, and the accents `primary` (on light pages) and `accent` (on dark pages).
+- `display` and `label`: `case` (`as-typed`, `upper`), optional `tracking` (em, -0.1 to 0.3); headlines an optional
+  `weight` (100 to 900), labels an optional `font` (`mono` or `body`).
+- `accent` (`colour`, `muted`, `weight`, `none`), `surface` (`shadow`, `outline`, `flat`), `decoration` (`kind`: `none`,
+  `dots`, `grid`, `lines`, `auto`; optional `on`: `dark`, `all`; never `artwork`, which is a picture the team uploads) and
+  `photo` (`treatment`: `none`, `tint`, `duotone`, `overlay`; optional `strength` 0 to 1).
+
+An answer whose proposal falls outside these is refused like any invalid output; an answer without one keeps its brief. The
+web app checks the proposal again with the settings' own schema before it stores it, shows it in Settings, Design
+references ("Apply this look": the brand as it is and with the proposal, sketched side by side with what changes and the
+colour checks) or applies it (`POST /api/settings/brand/references/:id/apply`, admins only, the engine's `validateBrand`
+like any save). Applying sets the proposed colours as roles and replaces the proposed style choices; nothing else changes.
 
 The prompt tells the model to describe the style and not the content: no copied words, claims, logos or names. Text inside
 the picture is data and is never followed.

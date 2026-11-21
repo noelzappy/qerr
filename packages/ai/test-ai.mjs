@@ -440,7 +440,7 @@ test('draftBatch: a good post passes, the vault photo is resolved by id, the bat
   assert.deepEqual(p.warnings, []);
   assert.deepEqual(batch.defaultNetworks, ['instagram', 'linkedin', 'facebook', 'x']);
   assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
-  assert.equal(notes.promptVersion, 'draft-7');
+  assert.equal(notes.promptVersion, 'draft-8');
   assert.equal(notes.model, 'claude-sonnet-5-5');
   assert.equal(notes.seriesMix['the-numbers'], 1);
   assert.equal(notes.usage.costUsd > 0, true);
@@ -924,7 +924,7 @@ test('analyseReference: the picture goes to Anthropic as an image part, uses the
   assert.equal(out.analysis.palette[0].hex, '#F5F1EA');
   assert.match(out.brief, /^Quiet pages with one large headline\. Palette: #F5F1EA background, #1A1A1A headline\./);
   assert.match(out.brief, /The team likes: the calm layout$/);
-  assert.equal(out.notes.promptVersion, 'reference-1');
+  assert.equal(out.notes.promptVersion, 'reference-2');
   assert.equal(logs[0].task, 'reference');
 });
 
@@ -937,4 +937,40 @@ test('analyseReference: an OpenAI-compatible provider gets a data URL; bad input
   await assert.rejects(ai.analyseReference({ image: { mediaType: 'image/png', data: Buffer.alloc(5 * 1024 * 1024 + 1) } }), /larger than 5 MB/);
   await assert.rejects(ai.analyseReference({ image: { mediaType: 'image/png', data: PNG_B64 }, note: 'x'.repeat(501) }), /note must be/);
   assert.equal(f.calls.length, 1);
+});
+
+const PROPOSAL = {
+  colours: { light: '#0b0b0f', dark: '#000000', ink: '#F4F4F6', inverse: '#ffffff', primary: '#39ff88', accent: '#39FF88' },
+  display: { case: 'upper', tracking: 0.01, weight: 700 }, label: { case: 'upper', tracking: 0.12, font: 'mono' },
+  accent: 'colour', surface: 'outline', decoration: { kind: 'grid', on: 'all' }, photo: { treatment: 'duotone', strength: 0.8 },
+};
+
+test('analyseReference: the model proposes style settings from the engine\'s own lists, and they come back checked', async () => {
+  const f = fakeFetch(anthropicOk({ ...STYLE, proposal: PROPOSAL }));
+  const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+  const out = await ai.analyseReference({ image: { mediaType: 'image/png', data: PNG_B64 } });
+  assert.deepEqual(out.analysis.proposal.colours, { light: '#0B0B0F', dark: '#000000', ink: '#F4F4F6', inverse: '#FFFFFF', primary: '#39FF88', accent: '#39FF88' });
+  assert.equal(out.analysis.proposal.surface, 'outline');
+  // the schema the model is given carries the lists, so it can only pick from them
+  const schema = f.calls[0].body.tools[0].input_schema.properties.proposal;
+  assert.deepEqual(schema.properties.surface.enum, ['shadow', 'outline', 'flat']);
+  assert.ok(!schema.properties.decoration.properties.kind.enum.includes('artwork'), 'artwork is a picture the team uploads, never proposed');
+  assert.ok(!schema.properties.accent.enum.includes('series'));
+  assert.match(f.calls[0].body.system, /`proposal`: the style settings/);
+  // without a proposal the brief still comes back (older answers, or a model that leaves it out)
+  const plain = await createAI({ providers: [anthropic], fetch: fakeFetch(anthropicOk(STYLE)), now: NOW, prices: PRICES, sleep: noSleep }).analyseReference({ image: { mediaType: 'image/png', data: PNG_B64 } });
+  assert.equal(plain.analysis.proposal, undefined);
+});
+
+test('analyseReference: a proposal outside the lists or ranges is refused, never passed on', async () => {
+  const bad = [
+    { ...PROPOSAL, surface: 'glass' }, { ...PROPOSAL, colours: { light: 'red;}</style>' } }, { ...PROPOSAL, colours: { neon: '#00FF00' } },
+    { ...PROPOSAL, display: { case: 'lower' } }, { ...PROPOSAL, display: { case: 'upper', tracking: 2 } }, { ...PROPOSAL, label: { case: 'upper', font: 'Comic Sans' } },
+    { ...PROPOSAL, decoration: { kind: 'artwork' } }, { ...PROPOSAL, photo: { treatment: 'sepia' } }, { ...PROPOSAL, accent: 'series' }, { ...PROPOSAL, css: 'x' },
+  ];
+  for (const proposal of bad) {
+    const f = fakeFetch(anthropicOk({ ...STYLE, proposal }), anthropicOk({ ...STYLE, proposal }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    await assert.rejects(ai.analyseReference({ image: { mediaType: 'image/png', data: PNG_B64 } }), (e) => e.code === 'invalid_output', JSON.stringify(proposal));
+  }
 });

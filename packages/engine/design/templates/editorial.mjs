@@ -4,8 +4,9 @@
 import { dropShadowCss, rgbaOf, shadowCss } from '../../lib/design/brand.mjs';
 import { DesignError } from '../../lib/design/errors.mjs';
 import { WEB_ADDRESS } from '../../lib/design/lint.mjs';
-import { GROUND_NAMES } from '../../lib/design/tokens.mjs';
+import { GROUND_NAMES, groundName, isDarkColour } from '../../lib/design/tokens.mjs';
 import { esc, fmtE, fmtSub, hs, px } from './common.mjs';
+import { accentOf, decorationOf, footerOf, isDark, logoPlace, surfaceOf } from './style.mjs';
 
 export const PAGE = { w: 1080, h: 1350, m: 70, headTop: 154, subGap: 28 };
 export const HEADLINE_SIZES = [70, 84, 112];
@@ -14,15 +15,16 @@ const POSITION = /^(\d{1,3}(\.\d{1,2})?)% (\d{1,3}(\.\d{1,2})?)%$/;
 
 // Which series, ground and accent style a page uses: the series from the brand file (by key), a label of its own, and any
 // per-page override of ground and accent from the fixed lists.
+// Ground names are read as their neutral names (an older name such as "white" or "ink" is the same ground).
 export function styleOf(spec, brand) {
-  let s = { name: brand.name, ground: 'white', accent: 'muted' };
+  let s = { name: brand.name, ground: 'light' };
   if (spec.series !== undefined) {
     s = brand.series[spec.series];
     if (!s) throw new DesignError(`series "${spec.series}" is not in brand.json (known: ${Object.keys(brand.series).join(', ')})`);
   }
-  const ground = spec.ground ?? s.ground;
-  if (!GROUND_NAMES.includes(ground)) throw new DesignError(`ground must be one of ${GROUND_NAMES.join(', ')}`);
-  return { label: spec.label ?? s.name, ground, accent: spec.accent ?? s.accent };
+  const ground = groundName(spec.ground ?? s.ground);
+  if (!ground) throw new DesignError(`ground must be one of ${GROUND_NAMES.join(', ')}`);
+  return { label: spec.label ?? s.name, ground, accent: accentOf(brand, { spec, series: spec.series !== undefined ? s : null, fallback: 'muted' }) };
 }
 
 // Mono labels are upper case by default; camel-cased names (a brand such as "YouTube") and web addresses keep their case.
@@ -33,16 +35,20 @@ export const folio = (ctx) => (ctx.counter ? `${pad2(ctx.counter.n)} / ${pad2(ct
 
 export const runhead = (left, right, rule = true) => `<div class="rh">${left ? lbl(left) : '<span></span>'}${right ? lbl(right) : '<span></span>'}</div>${rule ? '<div class="rh-rule"></div>' : ''}`;
 
-// Footer: the full colour logo bottom-left, a mono label bottom-right ("Swipe →" on page 1 of a carousel, else the website).
-export function footer(ctx, { label, inverse = false } = {}) {
-  const B = ctx.brand;
+// Footer: the logo bottom-left (or right, as the brand's style says; in a light pill with footer "pill"), a label on the other
+// side ("Swipe →" on page 1 of a carousel, else the website; nothing with footer "none"). The full colour logo on a light
+// surface; on a dark one (the page's ground, or the panel when the footer sits on it) the mark with the wordmark in white.
+export function footer(ctx, { label, inverse, spec, onPanel = false } = {}) {
+  const B = ctx.brand, style = footerOf(B), swipe = ctx.counter?.n === 1;
+  if (inverse === undefined) inverse = onPanel ? isDarkColour(B.surfaces.panel) : spec ? isDark(B, styleOf(spec, B).ground) : false;
   let right = label;
-  if (right === undefined) right = ctx.counter?.n === 1 ? 'Swipe →' : B.website;
+  if (right === undefined) right = swipe ? 'Swipe →' : style === 'none' ? '' : B.website;
   const [fw, fh] = B.logos.fullSize, k = 32 / fh;
-  const logo = inverse
-    ? `<span class="logo-inv"><img src="${B.logoMarkSrc}" alt="" style="height:32px"><i role="img" aria-label="${esc(B.name)}" style="--lw:${px((fw - B.logos.wordmarkFrom) * k)}px;--lx:-${px(B.logos.wordmarkFrom * k)}px;--lm:${px(B.logos.markGap * k)}px"></i></span>`
-    : `<img class="logo" src="${B.logoFullSrc}" alt="${esc(B.name)}">`;
-  return `<div class="ft footer"><div>${logo}</div>${right ? lbl(right, '', 'foot') : ''}</div>`;
+  const logo = style === 'pill' ? `<span class="lpill"><img src="${B.logoFullSrc}" alt="${esc(B.name)}"></span>`
+    : inverse
+      ? `<span class="logo-inv"><img src="${B.logoMarkSrc}" alt="" style="height:32px"><i role="img" aria-label="${esc(B.name)}" style="--lw:${px((fw - B.logos.wordmarkFrom) * k)}px;--lx:-${px(B.logos.wordmarkFrom * k)}px;--lm:${px(B.logos.markGap * k)}px"></i></span>`
+      : `<img class="logo" src="${B.logoFullSrc}" alt="${esc(B.name)}">`;
+  return `<div class="ft footer${logoPlace(B, 'editorial').right ? ' flip' : ''}"><div>${logo}</div>${right ? lbl(right, '', 'foot') : ''}</div>`;
 }
 
 // The headline and its sub line, from (70, y), or in the flow of its parent with `flow`. Sizes 70 / 84 / 112 (the fit loop may
@@ -99,7 +105,9 @@ export function phone(ctx, spec, { w, at, cut }) {
   const img = `<img data-user data-phone data-name="${esc(spec.image)}" data-fit="width" src="${ctx.image(spec.image)}" alt="">`;
   // `cut`: only the top `cut` pixels show, fading out at the foot (the website's product wells).
   const inner = cut ? `<div class="cut" style="height:${px(cut)}px">${img}</div>` : img;
-  return `<div class="phone" data-obj data-avoid data-bleed style="${pos}width:${px(w)}px;filter:${dropShadowCss(B.shadows.phone, k)}">${inner}</div>`;
+  // The drop shadow belongs to the shadowed surface style; outlined and flat brands show the capture as it is.
+  const shadow = surfaceOf(B) === 'shadow' ? `;filter:${dropShadowCss(B.shadows.phone, k)}` : '';
+  return `<div class="phone" data-obj data-avoid data-bleed style="${pos}width:${px(w)}px${shadow}">${inner}</div>`;
 }
 
 // A desktop screen in the website's window chrome (its DeviceFrame): a white window with the device radius, the layered device
@@ -114,7 +122,12 @@ export function desktopWindow(ctx, spec, { w, framed = false, title, tilt = fals
   const dot = `<span class="dot" style="width:${px(W.dot * k)}px;height:${px(W.dot * k)}px"></span>`;
   const name = title ? `<span class="ttl" data-role="art" style="margin-left:${px(W.titleGap * k)}px;font-size:${px(W.titleSize * k)}px;padding:${px(W.titlePadY * k)}px ${px(W.titlePadX * k)}px">${esc(title)}</span>` : '';
   const bar = framed ? '' : `<div class="bar" style="height:${px(W.bar * k)}px;padding:0 ${px(W.padX * k)}px;gap:${px(W.dotGap * k)}px">${dot}${dot}${dot}${name}</div>`;
-  const shadow = `${shadowCss(B.shadows.window, k)},0 0 0 ${px(ring)}px ${rgbaOf(B.surfaces.line)}`;
+  // The surface style: the layered device shadow and a line ring (shadow), a solid ring in the outline colour (outline), or the
+  // line ring alone (flat). Colours are the brand's checked ones; the widths are numbers.
+  const surface = surfaceOf(B);
+  const shadow = surface === 'outline' ? `0 0 0 ${px(Math.max(1, 1.5 * B.scale))}px ${B.surfaces.outline ?? B.text.ink}`
+    : surface === 'flat' ? `0 0 0 ${px(ring)}px ${rgbaOf(B.surfaces.line)}`
+      : `${shadowCss(B.shadows.window, k)},0 0 0 ${px(ring)}px ${rgbaOf(B.surfaces.line)}`;
   const img = (extra = '') => `<img data-user data-name="${esc(spec.image)}" data-fit="width" src="${ctx.image(spec.image)}" alt=""${extra}>`;
   const size = ctx.imageSize?.(spec.image), r = Number(region);
   const pic = size && r >= 0.4 && r < 1 ? `<div class="crop" style="height:${px((w * size.h) / size.w)}px">${img(` style="width:${px(100 / r)}%"`)}</div>` : img();
@@ -122,13 +135,14 @@ export function desktopWindow(ctx, spec, { w, framed = false, title, tilt = fals
 }
 
 // The page: ground, accent style, the body. `flex` marks pages whose objects flow (so shrinking the headline helps).
-// An ink page gets the website's faint dot grid unless the spec says `dots: false`.
+// A dark ground (by its colour) gets light type and the brand's decoration (by default a faint dot grid) unless the spec says
+// `dots: false`.
 export function page(ctx, spec, { body, dark = false, flex = false, ground, accent }) {
   const st = styleOf(spec, ctx.brand);
-  const g = dark ? 'ink' : (ground ?? st.ground);
-  const cls = [`acc-${accent ?? st.accent}`, g === 'ink' ? 'dark' : ''].filter(Boolean).join(' ');
-  const dots = g === 'ink' && spec.dots !== false ? ' dots' : '';
-  return { body: `<div class="cv${dots}" style="--bg:var(--g-${g})">${body}</div>`, bodyClass: cls, bodyAttrs: `data-editorial="1"${flex ? ' data-flex="1"' : ''}` };
+  const g = dark ? 'dark' : (groundName(ground) ?? st.ground), isDarkPage = isDark(ctx.brand, g);
+  const cls = [`acc-${accent ?? st.accent}`, isDarkPage ? 'dark' : ''].filter(Boolean).join(' ');
+  const deco = decorationOf(ctx.brand, { dark: isDarkPage, off: spec.dots === false });
+  return { body: `<div class="cv${deco ? ` ${deco}` : ''}" style="--bg:var(--g-${g})">${body}</div>`, bodyClass: cls, bodyAttrs: `data-editorial="1"${flex ? ' data-flex="1"' : ''}` };
 }
 export const head = (ctx, spec, { right, rule = true } = {}) => {
   const st = styleOf(spec, ctx.brand);

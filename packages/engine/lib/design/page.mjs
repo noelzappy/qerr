@@ -2,7 +2,7 @@
 // body and the in-page runtime. The page is self-contained (data: URIs only) and may not load anything from anywhere.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
-import { brandCssVars } from './brand.mjs';
+import { brandCssVars, styleClasses } from './brand.mjs';
 import { RUNTIME } from './runtime.mjs';
 import { esc } from '../../design/templates/common.mjs';
 
@@ -21,7 +21,9 @@ export function buildPage({ brand, size, body, bodyClass = '', bodyAttrs = '', s
   const extra = Object.hasOwn(SHEETS, sheet ?? '') ? `<style>${SHEETS[sheet]}</style>` : '';
   const nonce = crypto.randomBytes(16).toString('base64');
   const vars = `--W:${size.w}px;--H:${size.h}px;--pad:${size.pad}px;--top:${size.top}px;--fbot:${size.fbot}px;--logo-h:${size.logoH}px;--url:${size.url}px;--hs:1;${brandCssVars(brand)}`;
-  return `<!doctype html><html lang="en" data-family="${esc(brand.font.family)}" data-mono="${esc(brand.font.mono)}"><head><meta charset="utf-8">
+  // The style choices (surface, photo treatment, artwork fit) as class names from fixed tables (styleClasses).
+  const cls = styleClasses(brand);
+  return `<!doctype html><html lang="en"${cls ? ` class="${esc(cls)}"` : ''} data-family="${esc(brand.font.family)}" data-mono="${esc(brand.font.mono)}"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="${cspFor(nonce)}">
 <title>${esc(brand.name)} post</title>
 <style>:root{${vars}}</style>

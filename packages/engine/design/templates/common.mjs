@@ -16,8 +16,8 @@ export const fmt = (s) => esc(s).replace(/\\n|\n/g, '<br>').replace(/\*([^*]+)\*
 export const fmtE = (s) => esc(s).replace(/\\n|\n/g, '<br>').replace(/\*([^*]+)\*/g, '<em data-role="accent">$1</em>');
 // The sub line: \n is a line break; *text* is bold ink.
 export const fmtSub = (s) => esc(s).replace(/\\n|\n/g, '<br>').replace(/\*([^*]+)\*/g, '<b>$1</b>');
-// A font size that the fit loop can shrink (headlines, big numbers).
-export const hs = (n) => `calc(${n}px*var(--hs,1))`;
+// A font size that the fit loop can shrink (headlines, big numbers), times the brand's headline scale (--h-scale, 1 by default).
+export const hs = (n) => `calc(${n}px*var(--hs,1)*var(--h-scale,1))`;
 export const byName = (table, size) => table[size.name];
 // A number the code computed, as plain digits for markup (never "NaN" or an exponent).
 export const px = (n) => String(Math.round(Number(n) * 100) / 100);

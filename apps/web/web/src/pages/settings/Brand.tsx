@@ -1,7 +1,10 @@
 // Settings, Brand and look: everything that makes the posts look and sound like the organisation, with no file to edit.
 //   Identity      name, website, tagline, what the brand does, time zone, language, currency
 //   Logos         the full logo and the mark (PNG), or a simple pair drawn from the name; where the wordmark starts
-//   Colours, type four colours, the headline weight, the corners, an optional font; a preview and the contrast checks
+//   Colours       four colours to start from, then every colour role (grounds, text, accents, surfaces, slabs) set one by one,
+//                 the headline weight, the corners, the body font; a sketch and the contrast checks
+//   Type          headlines, body and labels: font, case, letter spacing, weight; the headline scale and the accent device
+//   Surfaces      cards and panels, decoration (with uploaded artwork), photo treatment, logo place and footer
 //   Series        the kinds of posts, each with its page colour and how the second half of a headline is set
 //   Voice         how the brand sounds and how its images should look (the AI follows both), and names to spell exactly
 //   Advanced      a brand.json fragment and the dot map, for people who know the design engine
@@ -17,7 +20,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, groundColours, isDarkGround, mix, validHex, type BrandLook, type BrandSettings, type BrandView, type Palette, type PaletteChange } from './brand-types';
+import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, validHex, type BrandLook, type BrandSettings, type BrandView, type PaletteChange } from './brand-types';
+import { StyleSketch } from './StyleSketch';
+import { ColourRoles, LookFields, TypeFields } from './style-fields';
 import { measureLogo, simpleLogos } from './logo-tools';
 import { Section, SettingsPage } from './section';
 
@@ -48,41 +53,6 @@ function ColourField({ label, hint, value, onChange, error }: { label: string; h
       </div>
       <p className="text-[12.5px] text-muted-foreground">{hint}</p>
       {error && <p className="text-[12.5px] font-medium text-destructive" role="alert">{error}</p>}
-    </div>
-  );
-}
-
-// ---- preview --------------------------------------------------------------------------------------------------------
-
-// A small sketch of a post on each ground, drawn from the form's values (the real images come from the design engine).
-function Preview({ s, palette, logo, font }: { s: BrandSettings; palette: Palette | null; logo: string | null; font: string | null }) {
-  const grounds = palette?.grounds ?? groundColours(s.colours);
-  const radius = s.corners === 'square' ? 3 : s.corners === 'round' ? 14 : 7;
-  const shown = ['white', 'mint', 'gold-pale', 'ink'];
-  const ink = palette?.text.ink ?? s.colours.dark;
-  const primary = palette?.accents.primary ?? s.colours.primary;
-  const gold = palette?.accents.gold ?? s.colours.accent;
-  const muted = palette?.text.muted ?? mix(s.colours.dark, '#ffffff', 0.7);
-  return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="A sketch of posts in these colours">
-      {shown.map((g) => {
-        const dark = isDarkGround(g);
-        const text = dark ? '#ffffff' : ink;
-        const second = dark ? gold : s.series[0]?.accent === 'colour' ? primary : muted;
-        return (
-          <div key={g} className="flex aspect-[4/5] flex-col justify-between overflow-hidden border p-3" style={{ background: grounds[g], borderRadius: radius, fontFamily: font ? `'${font}', Inter, sans-serif` : undefined }}>
-            <div className="flex items-center gap-1.5">
-              {logo ? <img src={logo} alt="" className="size-4 rounded-sm object-contain" /> : <span className="size-4 rounded-sm" style={{ background: s.colours.primary }} />}
-              <span className="truncate text-[9px]" style={{ color: text, opacity: 0.8 }}>{s.name}</span>
-            </div>
-            <div className="text-[15px] leading-tight" style={{ color: text, fontWeight: s.headlineWeight }}>
-              Plan every post, <span style={{ color: second }}>see every step.</span>
-            </div>
-            <span className="w-fit rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider" style={{ color: dark ? gold : primary, background: dark ? 'rgba(255,255,255,.12)' : '#ffffff' }}>Label</span>
-            <span className="sr-only">{GROUND_LABEL[g]} ground</span>
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -155,10 +125,11 @@ export function BrandSettingsPage() {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState('');
   const [logoBust, setLogoBust] = useState(0);
+  const [artBust, setArtBust] = useState(0);
   const appInfo = useAppInfo();
 
   useEffect(() => { if (data.data) { setView(data.data); setS(data.data.settings); } }, [data.data]);
-  const savedLook = useMemo(() => (view ? { checks: view.checks, changes: view.changes, palette: view.palette } : null), [view]);
+  const savedLook = useMemo(() => (view ? { checks: view.checks, changes: view.changes, palette: view.palette, explicit: view.explicit } : null), [view]);
   const look = useLook(s, savedLook);
   const dirty = useMemo(() => !!view && !!s && JSON.stringify(view.settings) !== JSON.stringify(s), [view, s]);
 
@@ -225,13 +196,14 @@ export function BrandSettingsPage() {
     }
   }
 
-  async function uploadFont(file: File, family: string) {
-    setUploading('font');
+  // Uploads change only the files; what the person typed in the form stays as it is.
+  async function uploadFont(file: File, family: string, role: 'body' | 'display' | 'label' = 'body') {
+    setUploading(role === 'body' ? 'font' : `font-${role}`);
     try {
       const form = new FormData();
       form.set('file', file, file.name);
       form.set('family', family);
-      const next = await api.upload<BrandView>('/api/settings/brand/font', form);
+      const next = await api.upload<BrandView>(`/api/settings/brand/font?role=${role}`, form);
       setView(next);
       toast.success('The font is uploaded.');
     } catch (err) {
@@ -241,7 +213,31 @@ export function BrandSettingsPage() {
     }
   }
 
+  async function removeFont(role: 'display' | 'label') {
+    try { setView(await api.delete<BrandView>(`/api/settings/brand/font?role=${role}`)); } catch (err) { toast.error(errorMessage(err)); }
+  }
+
+  async function uploadArtwork(file: File) {
+    setUploading('artwork');
+    try {
+      const form = new FormData();
+      form.set('file', file, file.name);
+      setView(await api.upload<BrandView>('/api/settings/brand/artwork', form));
+      setArtBust((n) => n + 1);
+      toast.success('The artwork is uploaded.');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setUploading('');
+    }
+  }
+
+  async function removeArtwork() {
+    try { setView(await api.delete<BrandView>('/api/settings/brand/artwork')); } catch (err) { toast.error(errorMessage(err)); }
+  }
+
   const checks = look?.checks ?? view.checks;
+  const artworkUrl = view.artwork ? `${view.artwork}?b=${artBust}` : null;
   const failing = checks.filter((c) => !c.ok);
   return (
     <SettingsPage
@@ -292,7 +288,7 @@ export function BrandSettingsPage() {
           )}
         </Section>
 
-        <Section id="look" title="Colours and type" description="Four colours make every page colour of your posts. The checks below say whether text stays readable on each.">
+        <Section id="look" title="Colours" description="Four colours to start from: they make every colour role of your posts. Then set any role yourself. The checks below say whether text stays readable on each page colour.">
           <div className="grid gap-4 sm:grid-cols-2">
             <ColourField label="Primary" hint="Your main brand colour" value={s.colours.primary} onChange={(v) => setColour('primary', v)} error={fields['colours.primary']} />
             <ColourField label="Accent" hint="Highlights, numbers and buttons on dark pages" value={s.colours.accent} onChange={(v) => setColour('accent', v)} error={fields['colours.accent']} />
@@ -303,7 +299,11 @@ export function BrandSettingsPage() {
             <Notice tone="info">The Advanced settings (an imported pack) set the exact page and text colours, so changing these four colours has little effect. Empty the Advanced fragment to let these colours decide.</Notice>
           )}
           <Changes changes={look?.changes ?? []} />
-          <Preview s={s} palette={look?.palette ?? null} logo={logoUrl(view.logos.mark)} font={view.font?.family ?? null} />
+          <details className="rounded-lg border p-3" open={Object.values(s.roles).some((g) => Object.keys(g).length > 0)}>
+            <summary className="cursor-pointer text-[13.5px] font-medium">Colour roles <span className="font-normal text-muted-foreground">(each page, text and accent colour, set one by one)</span></summary>
+            <div className="mt-3"><ColourRoles roles={s.roles} palette={look?.palette ?? null} onChange={(roles) => set('roles', roles)} /></div>
+          </details>
+          <StyleSketch s={s} palette={look?.palette ?? null} logo={logoUrl(view.logos.mark)} artwork={artworkUrl} font={view.font?.family ?? null} />
           <div className="grid gap-4 sm:grid-cols-2">
             <SelectField label="Headline weight" value={String(s.headlineWeight)} onValueChange={(v) => set('headlineWeight', Number(v))} options={[300, 400, 500, 600, 700].map((w) => ({ value: String(w), label: { 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'Semi-bold', 700: 'Bold' }[w]! }))} />
             <SelectField label="Corners" value={s.corners} onValueChange={(v) => set('corners', v as BrandSettings['corners'])} options={[{ value: 'square', label: 'Square' }, { value: 'soft', label: 'Softly rounded' }, { value: 'round', label: 'Round' }]} />
@@ -317,20 +317,28 @@ export function BrandSettingsPage() {
               {[...checks].sort((a, b) => Number(a.ok) - Number(b.ok)).map((c) => (
                 <li key={c.label} className="flex items-center gap-2">
                   {c.ok ? <Check className="size-3.5 text-primary" aria-label="Readable" /> : <X className="size-3.5 text-destructive" aria-label="Too faint" />}
-                  <span className="flex-1">{c.label}</span>
+                  <span className="flex-1">{c.label}{c.set && <span className="text-muted-foreground"> (a colour you set)</span>}</span>
                   <span className="tabular-nums text-muted-foreground">{c.ratio.toFixed(1)} : 1 (needs {c.needs})</span>
                 </li>
               ))}
             </ul>
-            {failing.length > 0 && <p className="mt-2 text-[12.5px] text-muted-foreground">Posts with faint text get a warning from the design checks. Make the dark colour darker or the light colour lighter: the four colours you picked are as far as the automatic adjustment can go.</p>}
+            {failing.length > 0 && <p className="mt-2 text-[12.5px] text-muted-foreground">Posts with faint text get a warning from the design checks. {failing.some((c) => c.set) ? 'Colours you set yourself are used exactly as you set them: change them, or make them from the four colours again. ' : ''}Otherwise make the dark colour darker or the light colour lighter: the four colours you picked are as far as the automatic adjustment can go.</p>}
           </details>
+        </Section>
+
+        <Section id="type" title="Type" description="How headlines, body text and labels are set. Leave a value empty to keep the brand's own.">
+          <TypeFields style={s.style} onChange={(type) => set('style', { ...s.style, type })} fonts={view.fonts} busy={uploading} onUpload={(role, f, fam) => void uploadFont(f, fam, role)} onRemove={(role) => void removeFont(role)} />
+        </Section>
+
+        <Section id="surfaces" title="Surfaces and decoration" description="How cards and panels stand off the page, the texture behind pages, what happens to photos, and where the logo goes.">
+          <LookFields style={s.style} onChange={(style) => set('style', style)} artwork={artworkUrl} busy={uploading === 'artwork'} onArtwork={(f) => void uploadArtwork(f)} onRemoveArtwork={() => void removeArtwork()} />
         </Section>
 
         <Section
           id="series"
           title="Series"
           description="The kinds of posts you make (tips, news, numbers...). Each has a page colour; the AI picks a series for every post."
-          aside={<Button type="button" variant="outline" size="sm" disabled={s.series.length >= 16} onClick={() => set('series', [...s.series, { key: `series-${s.series.length + 1}`, name: 'New series', ground: 'white', accent: 'muted' }])}><Plus aria-hidden="true" /> Add a series</Button>}
+          aside={<Button type="button" variant="outline" size="sm" disabled={s.series.length >= 16} onClick={() => set('series', [...s.series, { key: `series-${s.series.length + 1}`, name: 'New series', ground: 'light', accent: 'muted' }])}><Plus aria-hidden="true" /> Add a series</Button>}
         >
           {fields.series && <p className="text-[12.5px] font-medium text-destructive" role="alert">{fields.series}</p>}
           <ul className="flex flex-col gap-2">
@@ -466,7 +474,7 @@ function ImportPack({ onSaved }: { onSaved: (v: BrandView) => void }) {
   return (
     <details className="rounded-lg border p-3">
       <summary className="cursor-pointer text-[13.5px] font-medium">Import a brand pack</summary>
-      <p className="mt-2 text-[12.5px] text-muted-foreground">If you already have a brand pack folder (from the command-line tool), choose its files. Its exact colours and rules are kept in the Advanced settings; the form is filled from it. This replaces the saved brand and logos.</p>
+      <p className="mt-2 text-[12.5px] text-muted-foreground">If you have a brand pack folder (brand.json, its logos and an optional map.json, such as brands/demo in the repository), choose its files. Its exact colours and rules are kept in the Advanced settings; the form is filled from it. This replaces the saved brand and logos.</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {row('brand', 'brand.json', 'application/json,.json')}
         {row('map', 'map.json', 'application/json,.json', true)}

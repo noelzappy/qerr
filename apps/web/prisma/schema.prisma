@@ -410,6 +410,9 @@ model BrandProfile {
   logoMarkKey    String?
   fontKey        String?
   fontFamily     String?
+  // The style layer's own uploads: { display?: { key, family }, label?: { key, family }, artwork?: { key, type } } (woff2 fonts
+  // for headlines and labels, and a PNG, JPEG or WebP picture for the decoration)
+  assets         Json     @default("{}")
   updatedById    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now()) @updatedAt
