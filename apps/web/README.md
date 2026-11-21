@@ -76,7 +76,7 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
   colour and on both slabs of a myth-and-fact page, against the brand's contrast limits.
 - **Type:** case, letter spacing and weight per role (headlines, body, labels), and each role's font: built in (Inter for
   the body; headlines in the body or label font; labels in IBM Plex Mono or the body font), a family from the curated
-  Google Fonts list, or a woff2 file of your own. See "Google Fonts" below.
+  Google Fonts list (in every weight the role is drawn at), or a woff2 file of your own. See "Google Fonts" below.
 - **Series:** each with its page colour and headline style.
 - **Voice and visual direction:** in the team's own words, with names to spell exactly.
 - **Advanced:** a `brand.json` fragment merged over the rest, a dot map, and "Import a brand pack", which moves a pack's
@@ -116,12 +116,16 @@ own face from the server's copy.
 | Route (admins only) | Does |
 |---|---|
 | `GET /api/settings/brand/google-fonts` | the curated list: `{ categories, fonts: [{ family, category, weights, licence, note }] }` |
-| `POST /api/settings/brand/google-font` | `{ role, family, weight }`: the family must be on the list and the weight one it offers (400 otherwise; no address is made from free text). The server asks `https://fonts.googleapis.com/css2?family=<Family>:wght@<weight>&display=swap` with a browser User-Agent, keeps the `latin` and `latin-ext` faces, downloads those woff2 files from `https://fonts.gstatic.com/` only (no redirects, 2 MB per file, the `wOF2` signature checked) and stores them with their unicode ranges. A headline or label font is switched on for its role. Audited as `brand.font.google` (family, weight, licence, subsets, bytes). Google refusing the family or weight, failing, or being unreachable gives a 502 with a plain message and nothing is stored; an oversize file gives 413. |
-| `GET /api/settings/brand/font/:role` | the stored font of a role (its latin file), for the page's preview |
+| `POST /api/settings/brand/google-font` | `{ role, family }` (and an optional `weight`, which older pages send: it must be one the family offers and is brought as well): the family must be on the list (no address is made from free text). The server works out the weights the brand draws that role's family at with the saved settings (the engine's `familyWeights`, see [docs/design.md](../../docs/design.md), "Weights by role") and, for each, the weight the family has or the nearest it has; asks `https://fonts.googleapis.com/css2?family=<Family>:wght@<w1>;<w2>;...&display=swap` once with a browser User-Agent; keeps each weight's `latin` and `latin-ext` faces; downloads each distinct woff2 file once from `https://fonts.gstatic.com/` only (no redirects, 2 MB per file and 8 MB for all files of a pick, at most nine weights, the `wOF2` signature checked) and stores them with their unicode ranges and weights. A headline or label font is switched on for its role. Audited as `brand.font.google` (family, weights, licence, files, subsets, bytes). Google refusing the family or a weight, failing, or being unreachable gives a 502 with a plain message and nothing is stored; an oversize file or pick gives 413. |
+| `GET /api/settings/brand/font/:role` | the stored font of a role (the latin file of its regular weight, or the nearest), for the page's preview |
 
-The one weight picked is used for everything in that role (the files are declared for weights 100 to 900, so the browser
-never draws a synthetic bold): pick a regular weight for the body. A headline device that sets the second half in a lighter
-weight shows no difference with a one-weight font.
+Each stored weight is its own `@font-face` rule, declared for the weights it is the nearest to, so bold text in that role
+is drawn with the family's true bold (or the nearest weight it has) and the browser never draws a synthetic bold. The
+brand view's `fontSources.<role>.google` says `{ family, weights, missing }`: the weights brought, and the weights the brand
+now draws the role at that the font was stored without (after the headline weight changed, or for a Google font saved
+with one weight before fonts came in several). The form lists both; picking the font again adds the missing ones, and until
+then the nearest stored weight stands in. Change the weights and save before picking a font. An uploaded font stays one
+file, declared for every weight.
 
 **Outbound hosts.** Only when an admin picks a Google font does the server connect to `fonts.googleapis.com` and
 `fonts.gstatic.com` (HTTPS). A deployment with an egress allowlist must allow both for the feature; nothing else needs them,

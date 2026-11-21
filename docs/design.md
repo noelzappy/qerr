@@ -731,12 +731,28 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
 - **Fonts by role.** `font.family` is the sans (body text, and headlines unless they have their own), `font.mono` the mono
   (figures in drawn artefacts, and labels unless they have their own). Optional `font.display` (headlines) and `font.label`
   (running heads, footers, eyebrows, the website) name a family: the sans, the mono, or one with files of role `display` or
-  `label` in `font.files` (roles: `sans`, `mono`, `display`, `label`; each file a `.woff2` with its weight and unicode
-  range). A name with no files is refused. In the web app (Settings, Brand and look, Type) each role's font is built in,
-  a woff2 upload (one file declared for every character), or a family from a curated list of Google Fonts that the server
-  downloads once and stores: its `latin` and `latin-ext` files, each listed in `font.files` with the unicode range Google
-  gave it (as the demo pack lists Inter), declared for weights `100 900` so the one weight picked is used throughout the role.
-  The engine sees only files in the pack folder; nothing is fetched while a page is rendered.
+  `label` in `font.files` (roles: `sans`, `mono`, `display`, `label`; each file a `.woff2` with the weight it is declared
+  for, `"400"` or a range such as `"300 700"`, from 100 to 900, and its unicode range). Each file is its own `@font-face`
+  rule with that `font-weight`. A file's path is relative, inside the repository, with no `..`; a brand has at most 64
+  files, 18 per role. A name with no files is refused.
+- **Weights by role.** The page draws each role at these weights (`roleWeights` in `lib/design/brand.mjs`): body text
+  (`sans`) at the body weight (`style.type.body.weight`, default 400), its bold words at the headline weight, and 400, 500
+  (website, pills) and 600 (tags); headlines (`display`) at the headline weight (`font.headlineWeight` or
+  `style.type.display.weight`), the lighter accent and big figures at `font.accentWeight` (or the display weight minus
+  300), poster headlines at `poster.headlineWeight` (or the display weight) and 600 (a layout's plain brand name); labels
+  at the label weight (`style.type.label.weight`, default 500); the mono of drawn figures at 400 and 500. A family that
+  fills several roles (the sans for headlines too) is drawn at the weights of each (`familyWeights`).
+  `test-design-fonts.mjs` fails when a stylesheet sets a weight this list does not know.
+- **Fonts in the web app.** In Settings, Brand and look, Type, each role's font is built in, a woff2 upload (one file
+  declared for every character and every weight, `100 900`), or a family from a curated list of Google Fonts that the
+  server downloads once and stores: every weight the brand draws that role's family at (with the saved settings), or,
+  where the family lacks one, the nearest it has; each weight's `latin` and `latin-ext` files, listed in `font.files` with
+  the unicode range Google gave them (as the demo pack lists Inter). Each file is declared for the weights it is the
+  nearest to (`weightRanges`: with 400 and 700, `100 549` and `550 900`), so every weight is drawn with the true face
+  nearest to it and the browser never makes a synthetic bold. A variable family's one file is declared for all the
+  weights it draws. A Google font saved before fonts came in several weights keeps its one weight, declared `100 900`;
+  Settings lists the weights the brand now uses that it lacks, and picking it again adds them. The engine sees only files
+  in the pack folder; nothing is fetched while a page is rendered.
 - **`style`** (optional; without it a brand looks exactly as before). Every field is optional, a value from a fixed list or
   a number in range (`styleProblems`); the stylesheet takes only table entries and checked numbers, and the page root only
   fixed class names (`styleClasses`):
