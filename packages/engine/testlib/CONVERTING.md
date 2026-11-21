@@ -188,6 +188,15 @@ the table (for example `closing`'s default text, `region`) is a shared change: a
   conditions. The first variant whose `when` holds is drawn; a spec that matches none falls back to the function.
 - **`ensureValid`.** The registry validates every built-in layout the first time one is used and throws a plain `Error` naming
   each problem; `test-design-builtin.mjs` checks the same with `builtinProblems()`.
+- **Poster group: one choice per condition.** A `when` tests one choice from `SPEC_CHOICES`, so a headline that depends on both
+  the spec's `size` and its `align` cannot be split into one block per combination of the two: `object` and `product` give one
+  headline block per size (a `sized()` helper in `builtin/poster.mjs`; `product`'s default size also depends on `sub`, which
+  `present`/`absent` can test beside the size) and take the align through the headline's `specAlign`. The poster page does not
+  honour `specSize` (`test-design-layout.mjs` says so). `closing`'s default text needed no new choice: the headline's
+  `fallback` and `subFallback` options fill in the brand's tagline and website. Product's ground is `cool` whatever the series
+  says (the template's default ground comes before the series'), and a poster without a photo ground words a wrong or photo
+  ground as `groundOf` did (the page file checks it before `builtFrame`). `myth-fact`'s slab text has no `#txt` and its page
+  carries `data-flex`.
 
 ## Pre-existing issues seen in the baseline (not part of the conversion)
 
