@@ -67,7 +67,9 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
 - **Logos:** the full logo and the mark, as PNGs. The page measures where the wordmark starts. "Draw a simple logo from the
   name" makes a plain pair in the browser.
 - **Colours and type:** four colours (primary, accent, dark, light), the headline weight, the corners and an optional
-  woff2 font. A live preview and the contrast checks sit next to them.
+  woff2 font. While people pick colours, the page asks `POST /api/settings/brand/preview` (nothing is saved). The answer
+  gives the colours posts will use, which colours were adjusted, and 32 contrast checks: headlines, sub lines, labels and
+  accent words on every page colour and on both slabs of a myth-and-fact page, against the brand's contrast limits.
 - **Series:** each with its page colour and headline style.
 - **Voice and visual direction:** in the team's own words, with names to spell exactly.
 - **Advanced:** a `brand.json` fragment merged over the rest, a dot map, and "Import a brand pack", which moves a pack's
@@ -82,7 +84,9 @@ be able to read images.
 How it reaches the engine (`src/server/services/brand-settings.ts`):
 
 - **Expanding the settings.** The four colours are spread over the engine's grounds, text, accents, gradient and
-  surfaces. The layout values (shadows, window and phone chrome, lint and contrast limits, photo rules) come from the
+  surfaces. Each text colour is then fitted to the page colours it is set on (`fitContrast`). A colour that already
+  reads is kept exactly; one that does not is moved towards black on light pages, or towards white on dark ones, only as
+  far as the contrast limits need. The page says which colours moved. The layout values (shadows, window and phone chrome, lint and contrast limits, photo rules) come from the
   demo pack. Then the Advanced fragment is merged. Everything is checked by the engine's own `validateBrand` before it is
   saved.
 - **Writing the pack folder.** `syncBrand` writes the result, the uploaded logos and font and the map as a pack folder

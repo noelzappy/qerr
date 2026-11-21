@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BusyButton, FormProblem, SelectField, TextAreaField } from '../batches/parts';
 import { ErrorBlock } from '../kit/states';
-import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, groundColours, isDarkGround, mix, validHex, type BrandSettings, type BrandView } from './brand-types';
+import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, groundColours, isDarkGround, mix, validHex, type BrandLook, type BrandSettings, type BrandView, type Palette, type PaletteChange } from './brand-types';
 import { measureLogo, simpleLogos } from './logo-tools';
 import { Section, SettingsPage } from './section';
 
@@ -58,32 +58,74 @@ function ColourField({ label, hint, value, onChange, error }: { label: string; h
 // ---- preview --------------------------------------------------------------------------------------------------------
 
 // A small sketch of a post on each ground, drawn from the form's values (the real images come from the design engine).
-function Preview({ s, logo, font }: { s: BrandSettings; logo: string | null; font: string | null }) {
-  const grounds = groundColours(s.colours);
+function Preview({ s, palette, logo, font }: { s: BrandSettings; palette: Palette | null; logo: string | null; font: string | null }) {
+  const grounds = palette?.grounds ?? groundColours(s.colours);
   const radius = s.corners === 'square' ? 3 : s.corners === 'round' ? 14 : 7;
   const shown = ['white', 'mint', 'gold-pale', 'ink'];
+  const ink = palette?.text.ink ?? s.colours.dark;
+  const primary = palette?.accents.primary ?? s.colours.primary;
+  const gold = palette?.accents.gold ?? s.colours.accent;
+  const muted = palette?.text.muted ?? mix(s.colours.dark, '#ffffff', 0.7);
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="A sketch of posts in these colours">
       {shown.map((g) => {
         const dark = isDarkGround(g);
-        const ink = dark ? '#ffffff' : s.colours.dark;
-        const second = dark ? s.colours.accent : s.series[0]?.accent === 'colour' ? s.colours.primary : mix(s.colours.dark, '#ffffff', 0.7);
+        const text = dark ? '#ffffff' : ink;
+        const second = dark ? gold : s.series[0]?.accent === 'colour' ? primary : muted;
         return (
           <div key={g} className="flex aspect-[4/5] flex-col justify-between overflow-hidden border p-3" style={{ background: grounds[g], borderRadius: radius, fontFamily: font ? `'${font}', Inter, sans-serif` : undefined }}>
             <div className="flex items-center gap-1.5">
               {logo ? <img src={logo} alt="" className="size-4 rounded-sm object-contain" /> : <span className="size-4 rounded-sm" style={{ background: s.colours.primary }} />}
-              <span className="truncate text-[9px]" style={{ color: ink, opacity: 0.8 }}>{s.name}</span>
+              <span className="truncate text-[9px]" style={{ color: text, opacity: 0.8 }}>{s.name}</span>
             </div>
-            <div className="text-[15px] leading-tight" style={{ color: ink, fontWeight: s.headlineWeight }}>
+            <div className="text-[15px] leading-tight" style={{ color: text, fontWeight: s.headlineWeight }}>
               Plan every post, <span style={{ color: second }}>see every step.</span>
             </div>
-            <span className="h-1.5 w-10 rounded-full" style={{ background: dark ? s.colours.accent : s.colours.primary }} />
+            <span className="w-fit rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider" style={{ color: dark ? gold : primary, background: dark ? 'rgba(255,255,255,.12)' : '#ffffff' }}>Label</span>
             <span className="sr-only">{GROUND_LABEL[g]} ground</span>
           </div>
         );
       })}
     </div>
   );
+}
+
+const COLOUR_NAME: Record<PaletteChange['colour'], string> = { primary: 'primary', accent: 'accent', dark: 'dark' };
+
+// The colours the server moved so text stays readable, side by side with what was picked.
+function Changes({ changes }: { changes: PaletteChange[] }) {
+  if (!changes.length) return null;
+  return (
+    <Notice tone="info" title="Adjusted so text stays readable">
+      Where they are used for text, posts use {changes.map((c, i) => (
+        <span key={c.colour}>
+          {i > 0 && (i === changes.length - 1 ? ' and ' : ', ')}
+          a slightly {c.colour === 'accent' ? 'lighter' : 'darker'} {COLOUR_NAME[c.colour]}
+          {' '}<span className="inline-flex items-center gap-1 align-middle">
+            <span className="inline-block size-3 rounded-full border" style={{ background: c.from }} aria-hidden="true" />
+            <span className="font-mono text-[12px]">{c.from}</span> → <span className="inline-block size-3 rounded-full border" style={{ background: c.to }} aria-hidden="true" />
+            <span className="font-mono text-[12px]">{c.to}</span>
+          </span>
+        </span>
+      ))}. Large shapes keep the colours you picked.
+    </Notice>
+  );
+}
+
+// Waits for typing to stop, then asks the server what these settings would give.
+function useLook(s: BrandSettings | null, initial: BrandLook | null): BrandLook | null {
+  const [look, setLook] = useState<BrandLook | null>(initial);
+  useEffect(() => { setLook(initial); }, [initial]);
+  const key = s ? JSON.stringify(s) : '';
+  useEffect(() => {
+    if (!s || !Object.values(s.colours).every(validHex)) return;
+    let live = true;
+    const t = setTimeout(() => {
+      api.post<BrandLook>('/api/settings/brand/preview', s).then((l) => { if (live) setLook(l); }).catch(() => { /* the saved look stays */ });
+    }, 350);
+    return () => { live = false; clearTimeout(t); };
+  }, [key]);
+  return look;
 }
 
 // ---- logos ----------------------------------------------------------------------------------------------------------
@@ -119,6 +161,8 @@ export function BrandSettingsPage() {
   const appInfo = useAppInfo();
 
   useEffect(() => { if (data.data) { setView(data.data); setS(data.data.settings); } }, [data.data]);
+  const savedLook = useMemo(() => (view ? { checks: view.checks, changes: view.changes, palette: view.palette } : null), [view]);
+  const look = useLook(s, savedLook);
   const dirty = useMemo(() => !!view && !!s && JSON.stringify(view.settings) !== JSON.stringify(s), [view, s]);
 
   if (data.error) return <ErrorBlock message={data.error} onRetry={() => void data.reload()} />;
@@ -200,7 +244,8 @@ export function BrandSettingsPage() {
     }
   }
 
-  const failing = view.checks.filter((c) => !c.ok);
+  const checks = look?.checks ?? view.checks;
+  const failing = checks.filter((c) => !c.ok);
   return (
     <SettingsPage
       title="Brand and look"
@@ -260,7 +305,8 @@ export function BrandSettingsPage() {
           {['grounds', 'text', 'accents', 'gradient', 'surfaces'].some((k) => k in (view.advanced ?? {})) && (
             <Notice tone="info">The Advanced settings (an imported pack) set the exact page and text colours, so changing these four colours has little effect. Empty the Advanced fragment to let these colours decide.</Notice>
           )}
-          <Preview s={s} logo={logoUrl(view.logos.mark)} font={view.font?.family ?? null} />
+          <Changes changes={look?.changes ?? []} />
+          <Preview s={s} palette={look?.palette ?? null} logo={logoUrl(view.logos.mark)} font={view.font?.family ?? null} />
           <div className="grid gap-4 sm:grid-cols-2">
             <SelectField label="Headline weight" value={String(s.headlineWeight)} onValueChange={(v) => set('headlineWeight', Number(v))} options={[300, 400, 500, 600, 700].map((w) => ({ value: String(w), label: { 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'Semi-bold', 700: 'Bold' }[w]! }))} />
             <SelectField label="Corners" value={s.corners} onValueChange={(v) => set('corners', v as BrandSettings['corners'])} options={[{ value: 'square', label: 'Square' }, { value: 'soft', label: 'Softly rounded' }, { value: 'round', label: 'Round' }]} />
@@ -268,10 +314,10 @@ export function BrandSettingsPage() {
           <FontPicker current={view.font?.family ?? null} busy={uploading === 'font'} onUpload={(f, fam) => void uploadFont(f, fam)} onRemove={async () => { try { setView(await api.delete<BrandView>('/api/settings/brand/font')); } catch (err) { toast.error(errorMessage(err)); } }} />
           <details className="rounded-lg border p-3" open={failing.length > 0}>
             <summary className="cursor-pointer text-[13.5px] font-medium">
-              {failing.length ? `${failing.length} colour ${failing.length === 1 ? 'pair is' : 'pairs are'} hard to read` : 'Every page colour keeps text readable'} <span className="font-normal text-muted-foreground">(saved colours)</span>
+              {failing.length ? `${failing.length} of ${checks.length} colour pairs are hard to read` : `All ${checks.length} colour pairs are readable`} <span className="font-normal text-muted-foreground">(headlines, sub lines, labels and accent words on every page colour)</span>
             </summary>
             <ul className="mt-3 grid gap-1.5 text-[12.5px] sm:grid-cols-2">
-              {view.checks.map((c) => (
+              {[...checks].sort((a, b) => Number(a.ok) - Number(b.ok)).map((c) => (
                 <li key={c.label} className="flex items-center gap-2">
                   {c.ok ? <Check className="size-3.5 text-primary" aria-label="Readable" /> : <X className="size-3.5 text-destructive" aria-label="Too faint" />}
                   <span className="flex-1">{c.label}</span>
@@ -279,7 +325,7 @@ export function BrandSettingsPage() {
                 </li>
               ))}
             </ul>
-            {failing.length > 0 && <p className="mt-2 text-[12.5px] text-muted-foreground">Images with faint text are refused by the design checks. Make the dark colour darker or the light colours lighter, then save.</p>}
+            {failing.length > 0 && <p className="mt-2 text-[12.5px] text-muted-foreground">Posts with faint text get a warning from the design checks. Make the dark colour darker or the light colour lighter: the four colours you picked are as far as the automatic adjustment can go.</p>}
           </details>
         </Section>
 

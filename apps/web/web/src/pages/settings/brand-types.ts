@@ -17,6 +17,17 @@ export interface BrandSettings {
   logo: { wordmarkFrom: number; markGap: number };
 }
 
+export interface ContrastCheck { label: string; ratio: number; needs: number; ok: boolean }
+export interface PaletteChange { colour: 'primary' | 'accent' | 'dark'; from: string; to: string }
+// The colours posts use, after the server fitted the text colours to the page colours (POST /api/settings/brand/preview).
+export interface Palette {
+  grounds: Record<string, string>;
+  text: Record<string, string>;
+  accents: Record<string, string>;
+  slabs: Record<string, string>;
+}
+export interface BrandLook { checks: ContrastCheck[]; changes: PaletteChange[]; palette: Palette }
+
 export interface BrandView {
   saved: boolean;
   settings: BrandSettings;
@@ -24,7 +35,9 @@ export interface BrandView {
   font: { family: string } | null;
   advanced: Record<string, unknown>;
   map: unknown;
-  checks: Array<{ label: string; ratio: number; needs: number; ok: boolean }>;
+  checks: ContrastCheck[];
+  changes: PaletteChange[];
+  palette: Palette;
   logosMissing: boolean;
   updatedAt: string | null;
 }

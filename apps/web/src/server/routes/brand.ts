@@ -2,6 +2,7 @@
 //
 //   GET    /                      the settings in force, whether they are saved, the logos, the font and the contrast checks
 //   PUT    /                      save the settings (checked by the engine's own brand validator before they are stored)
+//   POST   /preview               what unsaved settings would give: the page colours, the contrast checks, the adjusted colours
 //   PUT    /advanced              a brand.json fragment and the optional dot map, for people who know the engine's brand file
 //   POST   /logo/:which           the full logo or the mark (PNG); :which is full | mark
 //   GET    /logo/:which           the uploaded file
@@ -22,7 +23,7 @@ import { badRequest, HttpError, notFound, readJson } from '../http.js';
 import { requireRole, requireUser } from '../middleware.js';
 import { enqueueTracked } from '../services/activity.js';
 import {
-  advancedSchema, brandFromProfile, brandProblems, brandSettingsSchema, contrastChecks, currentSettings, expandBrand, mapProblems, splitPackBrand, syncBrand,
+  advancedSchema, brandFromProfile, brandProblems, brandSettingsSchema, contrastChecks, paletteChanges, currentSettings, expandBrand, mapProblems, splitPackBrand, syncBrand,
 } from '../services/brand-settings.js';
 import { privateKey } from '../storage/types.js';
 import { sniffImage } from './vault.js';
@@ -74,6 +75,19 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     return deps.prisma.brandProfile.create({ data: { settings: currentSettings(null) as unknown as Prisma.InputJsonValue, updatedById: actorId } });
   }
 
+  // The colours posts use, the readability checks and the colours that were moved, for a brand.json. When the Advanced
+  // fragment sets the palette (an imported pack), the form's colours are not what posts use, so nothing counts as moved.
+  const ADVANCED_PALETTE = ['grounds', 'text', 'accents', 'surfaces'];
+  function look(settings: ReturnType<typeof currentSettings>, brand: Record<string, unknown>, advanced: unknown) {
+    const fromAdvanced = !!advanced && typeof advanced === 'object' && ADVANCED_PALETTE.some((k) => k in (advanced as object));
+    const pick = (k: string) => (brand[k] ?? {}) as Record<string, unknown>;
+    return {
+      checks: contrastChecks(brand),
+      changes: fromAdvanced ? [] : paletteChanges(settings, brand),
+      palette: { grounds: pick('grounds'), text: pick('text'), accents: pick('accents'), slabs: (pick('poster').slabs ?? {}) as Record<string, unknown> },
+    };
+  }
+
   async function view() {
     const p = await profile();
     const settings = currentSettings(p);
@@ -90,7 +104,7 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
       font: p?.fontKey ? { family: p.fontFamily } : null,
       advanced: p?.advanced ?? {},
       map: p?.map ?? null,
-      checks: contrastChecks(brand),
+      ...look(settings, brand, p?.advanced),
       // Images cannot be made until the logo and the mark are uploaded.
       logosMissing: p ? state.logosMissing || !p.logoFullKey || !p.logoMarkKey : false,
       updatedAt: p?.updatedAt ?? null,
@@ -98,6 +112,14 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
   }
 
   app.get('/', async (c) => c.json(await view()));
+
+  // Nothing is saved: the page asks this while people pick colours, so the checks and the preview follow the form.
+  app.post('/preview', async (c) => {
+    const settings = await readJson(c, brandSettingsSchema);
+    const p = await profile();
+    const brand = brandFromProfile({ settings, advanced: p?.advanced ?? {}, logoFullWidth: p?.logoFullWidth ?? null, logoFullHeight: p?.logoFullHeight ?? null, fontFamily: p?.fontFamily ?? null }, settings);
+    return c.json(look(settings, brand, p?.advanced));
+  });
 
   app.put('/', async (c) => {
     const actor = c.get('user');

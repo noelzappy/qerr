@@ -86,6 +86,18 @@ const lum = (h: string) => { const [r, g, b] = rgb(h).map((v) => { const s = v /
 export const contrast = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return Math.round(((x + 0.05) / (y + 0.05)) * 100) / 100; };
 
 const WHITE = '#FFFFFF';
+const BLACK = '#000000';
+
+// `c`, moved towards `towards` in small steps until it reaches `min` against every colour in `against` (or as far as it can).
+export function fitContrast(c: string, against: string[], min: number, towards: string): string {
+  const worst = (x: string) => Math.min(...against.map((a) => contrast(x, a)));
+  if (worst(c) >= min) return c;
+  for (let i = 1; i <= 100; i++) {
+    const x = mix(towards, c, i / 100);
+    if (worst(x) >= min) return x;
+  }
+  return towards;
+}
 const RADII: Record<(typeof CORNERS)[number], { card: number; device: number; button: number; slab: number }> = {
   square: { card: 2, device: 6, button: 2, slab: 6 },
   soft: { card: 8, device: 12, button: 4, slab: 28 },
@@ -109,20 +121,40 @@ export function expandBrand(s: BrandSettings, base: Json = baseBrand()): Json {
   if (s.money) b.money = s.money; else delete b.money;
   for (const [k, v] of [['voice', s.voice], ['visualDirection', s.visualDirection]] as const) { if (v) b[k] = v; else delete b[k]; }
   delete b.references;
-  b.grounds = { white: WHITE, tint: light, mint: mix(primary, WHITE, 0.14), 'gold-pale': mix(accent, WHITE, 0.16), ink: dark, deep: mix(dark, primary, 0.78) };
-  b.text = { ink: dark, body: mix(dark, WHITE, 0.85), muted: mix(dark, WHITE, 0.7), mutedInv: mix(WHITE, dark, 0.62), invBody: mix(WHITE, dark, 0.82), hair: { color: dark, alpha: 0.12 } };
-  b.accents = { gold: accent, goldDeep: mix(accent, dark, 0.55), primary };
+  // Every text colour is fitted to the page colours it is set on, so the design checks pass with the brand's own colours:
+  // a colour that already reads is kept exactly; one that does not is moved towards black (on light pages) or white (on dark
+  // pages) only as far as it must. paletteChanges() tells people which colours moved.
+  const limits = (isObj(base.contrast) ? base.contrast : {}) as Record<string, number>;
+  const need = (k: string) => (typeof limits[k] === 'number' ? limits[k] : 4.5) + 0.1;
+  const mint = mix(primary, WHITE, 0.12), goldPale = mix(accent, WHITE, 0.14);
+  const lights = [WHITE, light, mint, goldPale];
+  const ink = fitContrast(dark, lights, need('headline'), BLACK);
+  const textPrimary = fitContrast(primary, lights, need('accent'), BLACK);
+  const deep = fitContrast(mix(dark, textPrimary, 0.78), [WHITE], need('headline'), BLACK);
+  const slabMyth = fitContrast(mix(dark, textPrimary, 0.85), [WHITE], need('headline'), BLACK);
+  const darks = [ink, deep, slabMyth];
+  const gold = fitContrast(accent, darks, need('accent'), WHITE);
+  b.grounds = { white: WHITE, tint: light, mint, 'gold-pale': goldPale, ink, deep };
+  b.text = {
+    ink,
+    body: fitContrast(mix(ink, WHITE, 0.85), lights, need('sub'), BLACK),
+    muted: fitContrast(mix(ink, WHITE, 0.7), lights, need('label'), BLACK),
+    mutedInv: fitContrast(mix(WHITE, ink, 0.62), darks, need('label'), WHITE),
+    invBody: fitContrast(mix(WHITE, ink, 0.82), darks, need('sub'), WHITE),
+    hair: { color: ink, alpha: 0.12 },
+  };
+  b.accents = { gold, goldDeep: fitContrast(mix(accent, dark, 0.55), lights, need('accent'), BLACK), primary: textPrimary };
   b.gradient = { sage: mix(primary, dark, 0.7), teal: primary, mint: mix(primary, WHITE, 0.5), gold: accent, amber: mix(accent, dark, 0.85) };
-  b.surfaces = { panel: light, card: WHITE, line: { color: dark, alpha: 0.08 } };
+  b.surfaces = { panel: light, card: WHITE, line: { color: ink, alpha: 0.08 } };
   const shadows = (isObj(base.shadows) ? base.shadows : {}) as Record<string, Array<Json>>;
-  b.shadows = Object.fromEntries(Object.entries(shadows).map(([k, layers]) => [k, layers.map((l) => ({ ...l, color: dark }))]));
+  b.shadows = Object.fromEntries(Object.entries(shadows).map(([k, layers]) => [k, layers.map((l) => ({ ...l, color: ink }))]));
   const r = RADII[s.corners];
   b.radius = { card: r.card, device: r.device, button: r.button };
   const font = { ...(base.font as Json) };
   font.headlineWeight = s.headlineWeight;
   font.accentWeight = Math.max(100, s.headlineWeight - 100);
   b.font = font;
-  b.poster = { ...(base.poster as Json), headlineWeight: Math.min(900, s.headlineWeight + 200), slabs: { myth: mix(dark, primary, 0.85), fact: mix(primary, WHITE, 0.14) }, slabRadius: r.slab };
+  b.poster = { ...(base.poster as Json), headlineWeight: Math.min(900, s.headlineWeight + 200), slabs: { myth: slabMyth, fact: mint }, slabRadius: r.slab };
   b.series = Object.fromEntries(s.series.map((x) => [x.key, { name: x.name, ground: x.ground, accent: x.accent }]));
   b.spelling = s.spellings.map((x) => ({ wrong: escapeRe(x.wrong), flags: '', right: x.right }));
   b.logos = { ...(base.logos as Json), wordmarkFrom: s.logo.wordmarkFrom, markGap: s.logo.markGap };
@@ -180,15 +212,42 @@ export function splitPackBrand(b: Json): { settings: BrandSettings; advanced: Js
 }
 
 // The colour pairs the design checks care about most, with the ratio each needs (from the brand's contrast limits).
-export function contrastChecks(b: Json): Array<{ label: string; ratio: number; needs: number; ok: boolean }> {
-  const grounds = b.grounds as Record<string, string>, text = b.text as Record<string, string>, limits = b.contrast as Record<string, number>;
-  const out: Array<{ label: string; ratio: number; needs: number; ok: boolean }> = [];
-  const add = (label: string, fg: string, bg: string, needs: number) => { const ratio = contrast(fg, bg); out.push({ label, ratio, needs, ok: ratio >= needs }); };
-  for (const g of tokens.GROUND_NAMES) {
-    const dark = tokens.DARK_GROUNDS.includes(g);
-    add(`Headline on the ${g} ground`, dark ? WHITE : text.ink, grounds[g], limits.headline);
-    add(`Sub line on the ${g} ground`, dark ? text.invBody : text.body, grounds[g], limits.sub);
+export interface ContrastCheck { label: string; ratio: number; needs: number; ok: boolean }
+
+// Every pair of text and page colour the templates draw, with the ratio the design checks need (the brand's contrast
+// limits): headlines, sub lines, labels and accent words on each ground, and on the two slabs of a myth-and-fact page.
+export function contrastChecks(b: Json): ContrastCheck[] {
+  const grounds = b.grounds as Record<string, string>, text = b.text as Record<string, string>, accents = b.accents as Record<string, string>;
+  const limits = b.contrast as Record<string, number>;
+  const slabs = (isObj(b.poster) && isObj(b.poster.slabs) ? b.poster.slabs : {}) as Record<string, string>;
+  const out: ContrastCheck[] = [];
+  const add = (label: string, fg: string, bg: string, needs: number) => {
+    if (!bg || !fg) return;
+    const ratio = contrast(fg, bg);
+    out.push({ label, ratio, needs, ok: ratio >= needs });
+  };
+  const surfaces: Array<[string, string, boolean]> = [
+    ...tokens.GROUND_NAMES.map((g): [string, string, boolean] => [`the ${g} ground`, grounds[g]!, tokens.DARK_GROUNDS.includes(g)]),
+    ['the myth slab', slabs.myth!, true],
+    ['the fact slab', slabs.fact!, false],
+  ];
+  for (const [where, bg, dark] of surfaces) {
+    add(`Headline on ${where}`, dark ? WHITE : text.ink!, bg, limits.headline!);
+    add(`Sub line on ${where}`, dark ? text.invBody! : text.body!, bg, limits.sub!);
+    add(`Labels on ${where}`, dark ? text.mutedInv! : text.muted!, bg, limits.label!);
+    add(`Accent words on ${where}`, dark ? accents.gold! : accents.primary!, bg, limits.accent!);
   }
+  return out;
+}
+
+// The colours the expansion had to move for readability: what was asked for and what posts use as text.
+export function paletteChanges(s: BrandSettings, b: Json): Array<{ colour: 'primary' | 'accent' | 'dark'; from: string; to: string }> {
+  const accents = (b.accents ?? {}) as Record<string, string>, text = (b.text ?? {}) as Record<string, string>;
+  const out: Array<{ colour: 'primary' | 'accent' | 'dark'; from: string; to: string }> = [];
+  const add = (colour: 'primary' | 'accent' | 'dark', from: string, to: string | undefined) => { if (to && to.toUpperCase() !== from.toUpperCase()) out.push({ colour, from, to: to.toUpperCase() }); };
+  add('primary', s.colours.primary, accents.primary);
+  add('accent', s.colours.accent, accents.gold);
+  add('dark', s.colours.dark, text.ink);
   return out;
 }
 

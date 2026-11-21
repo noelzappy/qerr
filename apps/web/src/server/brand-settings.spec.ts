@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { CreateAiOptions } from './ai.js';
 import { importAiPackage } from './engine/root.js';
 import { pipelineEngine } from './engine/pipeline.js';
-import { brandState, contrast, expandBrand, mergeAdvanced, mix, resetBrandState, settingsFromBrand, syncBrand, baseBrand, type BrandSettings } from './services/brand-settings.js';
+import { brandState, contrast, contrastChecks, expandBrand, mergeAdvanced, mix, paletteChanges, resetBrandState, settingsFromBrand, syncBrand, baseBrand, type BrandSettings } from './services/brand-settings.js';
 import { renderPost } from './services/render.js';
 import { seedBatch } from './testing-desk.js';
 import { createTestApp, type TestApp } from './testing.js';
@@ -60,13 +60,50 @@ describe('expanding the settings', () => {
     const engine = await import('@vesk/engine/design/brand' as string) as { validateBrand(b: unknown): string[] };
     const b = expandBrand(SETTINGS);
     expect(engine.validateBrand(b)).toEqual([]);
-    expect(b.accents).toEqual({ gold: '#F9A825', goldDeep: mix('#F9A825', '#1B2A1E', 0.55), primary: '#2E7D32' });
+    // The accent reads on every dark page as given; the green is nudged a shade darker so small text reads on its pale tint.
+    expect((b.accents as Record<string, string>).gold).toBe('#F9A825');
+    expect(contrast((b.accents as Record<string, string>).primary!, '#2E7D32')).toBeLessThan(1.1);
+    expect(contrastChecks(b).filter((c) => !c.ok)).toEqual([]);
     expect((b.grounds as Record<string, string>).ink).toBe('#1B2A1E');
     expect((b.radius as Record<string, number>).card).toBe(20);
     expect(b.series).toEqual({ tips: { name: 'Garden tips', ground: 'white', accent: 'colour' }, news: { name: 'News', ground: 'tint', accent: 'muted' } });
     expect(b.spelling).toEqual([{ wrong: 'GlobexGarden', flags: '', right: 'Globex Garden' }]);
     expect(b.voice).toBe('Friendly and practical.');
     expect(JSON.stringify(b)).not.toContain('Acme');
+  });
+
+  it('keeps every text colour readable on every page colour, adjusting only the colours that need it', () => {
+    // The walkthrough's bakery: its terracotta primary is too light for small text on its own pale page colours.
+    const bakery = { ...SETTINGS, colours: { primary: '#B4532A', accent: '#E9B949', dark: '#2B1D14', light: '#FAF4EC' } };
+    const b = expandBrand(bakery);
+    expect(contrastChecks(b).filter((c) => !c.ok)).toEqual([]);
+    const changes = paletteChanges(bakery, b);
+    expect(changes.map((c) => c.colour)).toEqual(['primary']);
+    expect(changes[0]!.from).toBe('#B4532A');
+    // Only as much darker as it needs: still the same terracotta family, not black.
+    expect(contrast(changes[0]!.to, '#B4532A')).toBeLessThan(1.6);
+    // Colours that already pass are left exactly as given.
+    const calm = { ...SETTINGS, colours: { primary: '#1D4ED8', accent: '#FACC15', dark: '#111827', light: '#F8FAFC' } };
+    expect(paletteChanges(calm, expandBrand(calm))).toEqual([]);
+    // A bright orange primary and amber accent with a mid-grey "dark" colour: all three are moved until text reads.
+    const loud = { ...SETTINGS, colours: { primary: '#FF9900', accent: '#FFB000', dark: '#555555', light: '#FFFFFF' } };
+    const lb = expandBrand(loud);
+    expect(contrastChecks(lb).filter((c) => !c.ok)).toEqual([]);
+    expect(paletteChanges(loud, lb).map((c) => c.colour).sort()).toEqual(['accent', 'dark', 'primary']);
+  });
+
+  it('checks small text and accents too, on every ground and both myth-and-fact slabs', () => {
+    const b = expandBrand(SETTINGS);
+    const labels = contrastChecks(b).map((c) => c.label);
+    expect(labels).toContain('Accent words on the mint ground');
+    expect(labels).toContain('Labels on the deep ground');
+    expect(labels).toContain('Accent words on the fact slab');
+    expect(labels).toContain('Accent words on the myth slab');
+    // The fact slab's accent words in the walkthrough's colours, before the fix, were 4.1:1.
+    const before = structuredClone(b) as Record<string, any>;
+    before.accents.primary = '#B4532A';
+    before.poster.slabs.fact = mix('#B4532A', '#FFFFFF', 0.14);
+    expect(contrastChecks(before).find((c) => c.label === 'Accent words on the fact slab')).toMatchObject({ ok: false, needs: 4.5 });
   });
 
   it('reads the demo pack back into the form, and keeps Advanced away from the managed files', () => {
@@ -114,6 +151,19 @@ describe('Settings, Brand', () => {
     // Not the demo logo: there is none until one is uploaded.
     expect(app.body.brand.logo).toBeNull();
     expect((await t.prisma.auditLog.findFirstOrThrow({ where: { action: 'brand.update' } })).detail).toMatchObject({ name: 'Globex Garden', firstSave: true });
+  });
+
+  it('previews unsaved colours: the checks, the colours posts will use and which ones were moved, without saving', async () => {
+    const api = await admin();
+    const res = await api.post('/api/settings/brand/preview', { ...SETTINGS, colours: { primary: '#B4532A', accent: '#E9B949', dark: '#2B1D14', light: '#FAF4EC' } });
+    expect(res.status).toBe(200);
+    expect(res.body.checks.every((c: { ok: boolean }) => c.ok)).toBe(true);
+    expect(res.body.changes).toEqual([{ colour: 'primary', from: '#B4532A', to: res.body.palette.accents.primary }]);
+    expect(res.body.palette.slabs.fact).toMatch(/^#[0-9A-F]{6}$/);
+    expect(await t.prisma.brandProfile.count()).toBe(0);
+    expect((await api.post('/api/settings/brand/preview', { ...SETTINGS, colours: { ...SETTINGS.colours, primary: 'red' } })).status).toBe(400);
+    const editor = t.api(await t.signIn(await t.createUser('editor')));
+    expect((await editor.post('/api/settings/brand/preview', SETTINGS)).status).toBe(403);
   });
 
   it('refuses settings the engine would refuse, and fields it does not know', async () => {
