@@ -869,6 +869,18 @@ export const layoutHasImage = (l) => !!l.fields?.image;
 // Whether a layout shows a phone (the renderer then insists on a pre-framed capture).
 export const layoutUsesPhone = (l) => (l.blocks ?? []).some((x) => x.type === 'screen' && optionOf(x, 'device') === 'phone');
 
+// Which kind of screen picture one design block (a post, or a carousel page) needs: "phone" (a pre-framed phone capture: the
+// product template, the screen template without "device": "desktop", a brand layout whose screen block is a phone) or "desktop"
+// (a plain screenshot in a window), or null when the block shows no screen. `layouts` are the brand's layouts, for template "layout".
+export function screenDeviceOf(spec, layouts = []) {
+  if (!spec || typeof spec !== 'object') return null;
+  if (spec.template === 'product') return 'phone';
+  if (spec.template === 'screen') return spec.device === 'desktop' ? 'desktop' : 'phone';
+  if (spec.template !== 'layout') return null;
+  const block = (Array.isArray(layouts) ? layouts : []).find((l) => l?.id === spec.layout)?.blocks?.find((x) => x?.type === 'screen');
+  return block ? optionOf(block, 'device') : null;
+}
+
 // The keys a design block for a layout may have besides its fields: the page frame, as for the built-in templates.
 const FRAME_KEYS = ['template', 'layout', 'sizes', 'name', 'networkSizes', 'series', 'label', 'ground', 'accent'];
 

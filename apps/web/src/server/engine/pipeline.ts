@@ -121,6 +121,12 @@ export interface PipelineEngine {
   networks: readonly string[];
   classicNetworks: readonly string[];
   imageTypes: Record<string, string>;
+  // Whether a picture has an alpha channel (a pre-framed phone capture does), read from its header; null when it cannot tell (GIF).
+  hasAlpha(bytes: Buffer): boolean | null;
+  // Which kind of screen picture a design block needs: 'phone', 'desktop' or null (the brand's layouts, for template "layout").
+  screenDeviceOf(spec: unknown, layouts?: unknown[]): 'phone' | 'desktop' | null;
+  // The brand's own layouts (brand.json "layouts" of the pack in force).
+  loadLayouts(options: { root: string }): unknown[];
 }
 
 // The engine's validateBatch throws (instead of listing an error) for a date such as 2027-13-01, whose month does not
@@ -143,7 +149,7 @@ let cached: Promise<PipelineEngine> | null = null;
 
 export function pipelineEngine(): Promise<PipelineEngine> {
   cached ??= (async () => {
-    const [batch, push, client, upload, render, del, chrome, core, networks, assets] = await Promise.all([
+    const [batch, push, client, upload, render, del, chrome, core, networks, assets, layout] = await Promise.all([
       engineImport<any>('batch'),
       engineImport<any>('push'),
       engineImport<any>('client'),
@@ -154,6 +160,7 @@ export function pipelineEngine(): Promise<PipelineEngine> {
       engineImport<any>('core'),
       engineImport<any>('networks'),
       engineImport<any>('design/assets'),
+      engineImport<any>('design/layout'),
     ]);
     return {
       root: core.ROOT,
@@ -178,6 +185,9 @@ export function pipelineEngine(): Promise<PipelineEngine> {
       networks: networks.NETWORKS,
       classicNetworks: networks.CLASSIC_NETWORKS,
       imageTypes: assets.IMAGE_TYPES,
+      hasAlpha: assets.hasAlpha,
+      screenDeviceOf: layout.screenDeviceOf,
+      loadLayouts: layout.loadLayouts,
     } satisfies PipelineEngine;
   })();
   return cached;

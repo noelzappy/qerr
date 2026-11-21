@@ -31,9 +31,9 @@ export interface DesignPreviewResult {
 }
 
 // The problems saving a post with this design would report, with the same words (the post is a stand-in; only its design counts).
-export async function designPreviewProblems(design: Json): Promise<string[]> {
+export async function designPreviewProblems(design: Json, deps?: Pick<Deps, 'prisma' | 'storage'>): Promise<string[]> {
   const staged: StagedPost = { postKey: 'preview', title: 'Preview', date: '2030-01-01', time: '09:00', caption: 'Preview', networks: {}, design, sources: [], warnings: [] };
-  const problems = await problemsOf({ name: 'preview', timezone: 'UTC', defaultTime: '09:00', defaultNetworks: ['instagram'] }, [staged]);
+  const problems = await problemsOf({ name: 'preview', timezone: 'UTC', defaultTime: '09:00', defaultNetworks: ['instagram'] }, [staged], deps);
   // Saving words each problem "post <id>: design: ..."; here there is no post, so the stand-in's id is left off.
   return problems.map((p) => p.replace(/^post preview: /, ''));
 }
@@ -51,7 +51,7 @@ export async function previewDesign(
   // `render` replaces the engine's renderer (tests only; the route never passes it).
   opts: { size?: string; lock: <T>(fn: () => Promise<T>) => Promise<T>; render?: (options: Record<string, unknown>) => Promise<RenderResult> },
 ): Promise<DesignPreviewResult> {
-  const problems = await designPreviewProblems(design);
+  const problems = await designPreviewProblems(design, deps);
   if (problems.length) throw new HttpError(422, 'The post is not valid', problems);
 
   const engine = await pipelineEngine();

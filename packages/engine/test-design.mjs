@@ -7,13 +7,13 @@ import path from 'node:path';
 import { validateBatch } from './lib/batch.mjs';
 import { loadBrand } from './lib/design/brand.mjs';
 import { stemOf } from './lib/design/batch.mjs';
-import { autoLines, arcPoints, contrastRatio, explainProblems, findLayoutProblems, imageSize, luminance, upscaleFactor, upscaleWarning, worstContrast } from './lib/design/checks.mjs';
+import { autoLines, arcPoints, contrastRatio, ratioBelow, explainProblems, findLayoutProblems, imageSize, luminance, upscaleFactor, upscaleWarning, worstContrast } from './lib/design/checks.mjs';
 import { Browser, findChrome } from './lib/design/chrome.mjs';
 import http from 'node:http';
 import { buildPage } from './lib/design/page.mjs';
 import { TEMPLATE_FNS } from './lib/design/builtin-layouts.mjs';
 import { detectConverter } from './lib/design/convert.mjs';
-import { lintText } from './lib/design/lint.mjs';
+import { foreignMoneyIn, foreignMoneyWarning, lintText } from './lib/design/lint.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { pngBytes } from './testlib/png.mjs';
 import { renderSpec } from './testlib/render.mjs';
@@ -103,6 +103,36 @@ test('brand lint: the brand\'s spelling rules, emoji and length guidance', () =>
   assert.equal(l('x'.repeat(55), 'headline', 'wide').length, 1); // wide guidance is shorter
   assert.deepEqual(l('x'.repeat(55), 'headline', 'story'), []);
   assert.deepEqual(l('Line one\\nLine *two*'), []);
+});
+
+test('brand lint: another currency in a text is flagged (words, symbols, any case), a euro or a web address is not', () => {
+  const l = (text, field = 'headline') => lintText([{ field, text }], 'feed', brand);
+  for (const t of ['9 dollars', '9 DOLLARS', 'Only 1 dollar', '$9 a month', 'US$9', 'Now 5 pounds sterling', '£5']) {
+    assert.match(l(t, 'sub')[0], /^sub: mentions another currency \("[^"]+"\); Acme Savings works in euros \(€\) only$/, t);
+  }
+  assert.deepEqual(l('Save 9 euros, or € 9, every month', 'sub'), []);
+  assert.deepEqual(l('See acmesavings.example/dollars', 'sub'), []);
+  // a pattern a person wrote as a list of words in Settings: escaped symbols and plain words, matched in any case
+  const own = { money: { local: 'Euros only', foreign: 'dollars|\\$|USD' } };
+  for (const t of ['9 dollars', '9 Dollars', '$9', 'USD 9', 'usd 9']) assert.ok(foreignMoneyIn(t, own), t);
+  assert.equal(foreignMoneyIn('9 euros', own), null);
+  assert.match(foreignMoneyWarning('caption', 'It costs 9 dollars', own), /^caption: mentions another currency \("dollars"\); Euros only$/);
+  // no money setting, or a pattern that is not a regular expression: nothing is flagged
+  assert.equal(foreignMoneyIn('9 dollars', {}), null);
+  assert.equal(foreignMoneyIn('9 dollars', { money: { local: 'x', foreign: '(' } }), null);
+  assert.equal(foreignMoneyWarning('caption', 'x', { money: { local: '', foreign: 'x' } }), 'caption: mentions another currency ("x")');
+});
+
+test('a contrast warning never prints a ratio that equals its target: the check keeps the true value, the message the precision', () => {
+  assert.equal(ratioBelow(3.2411, 4.5), '3.2');
+  assert.equal(ratioBelow(4.44, 4.5), '4.4');
+  // 4.46 to 4.4999 would round to 4.5 at one decimal: two decimals, cut off, not rounded up
+  assert.equal(ratioBelow(4.4701, 4.5), '4.47');
+  assert.equal(ratioBelow(4.4999, 4.5), '4.49');
+  assert.equal(ratioBelow(6.9999999, 7), '6.99');
+  for (const r of [4.45, 4.4701, 4.4999, 4.499999999]) assert.ok(Number(ratioBelow(r, 4.5)) < 4.5, String(r));
+  // the same ratio is still below the target when compared (the check is not rounded)
+  assert.ok(4.4701 < 4.5);
 });
 
 test('contrast maths: WCAG ratios and worst-case against the pixels behind the text', () => {

@@ -244,6 +244,9 @@ model VaultItem {
   fileName        String?
   contentType     String?
   size            Int?
+  // screens only: true when the file is a pre-framed phone capture (transparent, as the engine tests it), false for a plain
+  // screenshot, null when not known yet (read from the file when first needed)
+  phoneFramed     Boolean?
   // 'own' | 'licensed' | 'rights_to_confirm' | null
   licence         String?
   licenceNotes    String?

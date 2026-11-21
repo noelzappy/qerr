@@ -220,7 +220,7 @@ helper; those files are committed, so the example batches render on a fresh inst
    `packages/engine/design/fonts/`; another woff2 font may live in your pack, named by its repository path.
 4. Set `timezone` to the brand's IANA time zone (the AI drafts in it, the app shows it; batches name their own). Set
    `money.local` to one sentence on the brand's currency and `money.foreign` to a pattern of the currencies pictures must
-   not show, or remove `money` to allow every currency.
+   not show and texts are warned about, or remove `money` to allow every currency.
 5. Write `vault.json` with the brand's own confirmed facts, in the demo's format.
 6. Optionally add `prompts/draft.md`, `research.md`, `rewrite.md` or `reference.md` (start from `packages/ai/src/prompts/`,
    keep the version line), and a `map.json` from data you may use.

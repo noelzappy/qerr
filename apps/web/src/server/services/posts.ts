@@ -63,7 +63,7 @@ export async function patchPost(deps: Deps, actor: Actor, id: string, input: z.i
   };
 
   const staged: StagedPost = { postKey: post.postKey, title: next.title, date: next.date, time: next.time, caption: next.caption, networks: next.networks, design: next.design, sources: next.sources, warnings: [] };
-  const errors = await problemsOf(post.batch, [staged]);
+  const errors = await problemsOf(post.batch, [staged], deps);
   const media = asMedia(post.media);
   for (const [n, o] of Object.entries(splitNetworks(next.networks).overrides)) {
     for (const rel of o.media ?? []) if (!media.some((m) => m.rel === rel)) errors.push(`${n}: media "${rel}" is not one of this post's files`);

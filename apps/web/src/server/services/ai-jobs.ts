@@ -11,11 +11,14 @@ import type { Deps } from '../deps.js';
 import { HttpError } from '../http.js';
 import { getAiConfig, getSetting, SETTING_RESEARCH_LAST_RUN, SETTING_TOPICS, setSetting, type AiRunContext } from './ai-config.js';
 import { linkVaultPhotos, vaultForAi, kindFromAi } from './ai-vault.js';
+import { ensureScreenFraming } from './screen-framing.js';
 import { importEngineBatch, NETWORK_NAMES } from './batches.js';
 import { createVaultItemFromSystem, VAULT_KINDS } from './vault.js';
 import { brandInfo } from '../brand.js';
 import { proposalOf, syncBrand } from './brand-settings.js';
 import { layoutProblems } from './layouts.js';
+import { loadPost, patchPost, patchPostInput } from './posts.js';
+import { splitNetworks, joinNetworks, type NetworkOverride } from './post-model.js';
 
 const isKind = (k: string): k is (typeof VAULT_KINDS)[number] => (VAULT_KINDS as readonly string[]).includes(k);
 const SOURCE_NOTES_MAX = 20_000;
@@ -129,10 +132,11 @@ async function researchNow(deps: Deps, payload: { actorId?: string; topics?: str
 
 // ---- rewrite ----
 
-const rewritePayload = z.object({ postId: z.string().min(1), instruction: z.string().trim().min(1).max(2000), actorId: z.string().optional(), activityId: z.string().optional() });
+const rewritePayload = z.object({ postId: z.string().min(1), instruction: z.string().trim().min(1).max(2000), apply: z.boolean().optional(), actorId: z.string().optional(), activityId: z.string().optional() });
 
-// Returns the AI's new version of the post. It is not applied here: the caller (the review page flow) shows it to a
-// person and saves it as an edit, which resets approval.
+// Returns the AI's new version of the post. Without `apply` it is not saved (the caller decides). With `apply` (what the
+// post page's "Rewrite with AI" does) it is saved through the same edit as a person's, so the usual checks run, an
+// approved post goes back to Writing, and a changed design is made again.
 export async function runRewrite(deps: Deps, rawPayload: unknown): Promise<Record<string, unknown>> {
   const payload = rewritePayload.parse(rawPayload);
   const activityId = (rawPayload as { activityId?: string }).activityId;
@@ -153,7 +157,7 @@ async function rewriteNow(deps: Deps, payload: z.infer<typeof rewritePayload>, h
   let result: Record<string, unknown>;
   try {
     result = await ai.rewrite({
-      post: { postKey: post.postKey, title: post.title, date: post.date, time: post.time, caption: post.caption, networks: post.networks, design: post.design, sources: post.sources },
+      post: { id: post.postKey, postKey: post.postKey, title: post.title, date: post.date, time: post.time, caption: post.caption, networks: splitNetworks(post.networks).overrides, design: post.design, sources: post.sources },
       instruction: payload.instruction,
       vault: sources.map(vaultView),
     });
@@ -161,8 +165,40 @@ async function rewriteNow(deps: Deps, payload: z.infer<typeof rewritePayload>, h
     await config.flush();
   }
   await audit(deps, payload.actorId ? { id: payload.actorId } : null, 'ai.rewrite_post', 'post', post.id, { instruction: payload.instruction, result });
-  handle.result({ postId: post.id, instruction: cap(payload.instruction, 300) });
+  if (!payload.apply) {
+    handle.result({ postId: post.id, instruction: cap(payload.instruction, 300) });
+    return result;
+  }
+  handle.progress({ step: 'Saving the new words' });
+  const changes = await applyRewrite(deps, payload, post, result);
+  handle.result({ postId: post.id, instruction: cap(payload.instruction, 300), applied: true, changed: changes.fields, before: { caption: cap(post.caption, 1500) }, after: { caption: cap(changes.caption, 1500) }, approvalWithdrawn: post.status === 'approved' && changes.contentChanged });
   return result;
+}
+
+const isText = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0;
+
+// Saves the AI's version as an edit by the person who asked. A rewrite that does not pass the edit checks fails the run
+// with the reason and leaves the post as it was.
+async function applyRewrite(deps: Deps, payload: z.infer<typeof rewritePayload>, post: { id: string; networks: unknown; caption: string; status: string }, result: Record<string, unknown>) {
+  const actor = payload.actorId ? await deps.prisma.user.findUnique({ where: { id: payload.actorId }, select: { id: true, email: true } }) : null;
+  if (!actor) throw new Error('The person who asked for the rewrite could not be found');
+  const input: Record<string, unknown> = {};
+  if (isText(result.title)) input.title = result.title;
+  if (isText(result.caption)) input.caption = result.caption;
+  if (typeof result.date === 'string') input.date = result.date;
+  if (typeof result.time === 'string') input.time = result.time;
+  if (result.design && typeof result.design === 'object' && !Array.isArray(result.design)) input.design = result.design;
+  if (Array.isArray(result.sources)) input.sources = result.sources.filter(isText);
+  // Per-network captions from the AI, keeping each network's other settings and the skip list the post already has.
+  if (result.networks && typeof result.networks === 'object' && !Array.isArray(result.networks)) {
+    const { skip } = splitNetworks(post.networks);
+    input.networks = joinNetworks(skip, splitNetworks(result.networks).overrides as Record<string, NetworkOverride>);
+  }
+  const parsed = patchPostInput.parse(input);
+  const before = await loadPost(deps, post.id);
+  const after = await patchPost(deps, actor, post.id, parsed);
+  const fields = (['title', 'caption', 'date', 'time', 'networks', 'design', 'sources'] as const).filter((k) => JSON.stringify(before[k] ?? null) !== JSON.stringify(after[k] ?? null));
+  return { fields, caption: after.caption, contentChanged: fields.some((f) => f !== 'title') };
 }
 
 // ---- design references ----
@@ -279,6 +315,7 @@ async function draftNow(deps: Deps, payload: z.infer<typeof draftPayload>, handl
     });
     let result: DraftBatchResult;
     try {
+      await ensureScreenFraming(deps, items);
       result = await ai.draftBatch({
         vault: items.map((i) => vaultForAi(i, deps.now())),
         ...(brief.series ? { series: brief.series } : {}),

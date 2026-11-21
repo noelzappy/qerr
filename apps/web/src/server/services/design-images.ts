@@ -10,6 +10,7 @@ import path from 'node:path';
 import type { VaultItem } from '@prisma/client';
 import type { Deps } from '../deps.js';
 import { pipelineEngine } from '../engine/pipeline.js';
+import { screenFraming } from './screen-framing.js';
 
 type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -35,8 +36,30 @@ const insideAssets = (file: string): boolean => {
   return !n.startsWith('..') && n.startsWith('design/assets/');
 };
 
+// A screen picture must be the kind its layout shows: a phone layout (the product template, a brand layout with a phone screen block)
+// takes only a pre-framed phone capture, a desktop screen only a plain screenshot. The kind is read from the stored file, as the
+// engine tests it. Said before any render, in plain words.
+async function screenProblems(deps: Pick<Deps, 'prisma' | 'storage'>, design: unknown): Promise<string[]> {
+  const engine = await pipelineEngine();
+  const layouts = engine.loadLayouts({ root: engine.root });
+  const out: string[] = [];
+  for (const { node, item } of await photosOfDesign(deps, design)) {
+    if (!item || item.kind !== 'screen') continue;
+    const need = engine.screenDeviceOf(node, layouts);
+    if (!need) continue;
+    const framing = await screenFraming(deps, item);
+    if (!framing || framing === need) continue;
+    const where = node === design ? 'design' : `design page ${designNodes(design).indexOf(node)}`;
+    out.push(need === 'phone'
+      ? `${where}: "${item.title}" is a desktop screenshot, but this layout shows a phone and needs a phone screen (a capture with the phone already drawn around it). Pick a phone screen, or a layout made for a desktop screenshot`
+      : `${where}: "${item.title}" is a phone screen, but this layout shows a desktop screenshot. Pick a desktop screenshot, or a layout that shows a phone`);
+  }
+  return out;
+}
+
 // Every problem with a design block a person typed: the engine's validators plus our rule about where pictures may come from.
-export async function designProblems(design: unknown): Promise<string[]> {
+// With deps it also checks the kind of each screen picture against the layout (screenProblems).
+export async function designProblems(design: unknown, deps?: Pick<Deps, 'prisma' | 'storage'>): Promise<string[]> {
   const engine = await pipelineEngine();
   const problems = engine.designBlockProblems(withoutVaultIds(design), { root: engine.root });
   designNodes(design).forEach((node, i) => {
@@ -46,6 +69,7 @@ export async function designProblems(design: unknown): Promise<string[]> {
       problems.push(`${where}: image "${node.image}" must be a file under design/assets/ or a vault photo (set vaultItemId)`);
     }
   });
+  if (deps && !problems.length) problems.push(...(await screenProblems(deps, design)));
   return problems;
 }
 

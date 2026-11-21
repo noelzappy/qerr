@@ -47,9 +47,13 @@ export function forPrompt(item, opts, maxBody = 700) {
 // Pictures the drafter may offer: a photo or a framed phone screen that has a file and is not deleted.
 export const usableMedia = (items) => items.filter((i) => MEDIA_KINDS.includes(i.kind) && i.file && !i.deletedAt);
 
+// What the model is told a screen item is: the product template (a phone layout) takes only the first, a desktop layout the second.
+const SCREEN_WORDS = { phone: 'phone screen, framed', desktop: 'desktop screenshot' };
+
 // The compact form for a picture: enough to judge what it shows, short enough to offer well over a hundred of them.
 export function forPromptMedia(item, maxDescription = 220) {
   const o = { id: item.id, kind: item.kind, title: item.title ?? null, description: String(item.body ?? '').slice(0, maxDescription) };
+  if (item.kind === 'screen' && ['phone', 'desktop'].includes(item.framing)) o.screenKind = SCREEN_WORDS[item.framing];
   if (item.tags?.length) o.tags = item.tags.slice(0, 8);
   if (item.identifiable) o.identifiablePeople = true;
   if (needsRightsCheck(item)) o.rightsToConfirm = true;

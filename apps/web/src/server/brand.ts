@@ -12,6 +12,8 @@ export interface BrandInfo {
   timezone: string;
   series: Array<{ key: string; name: string }>;
   logoMarkFile: string | null;
+  // The brand's money (brand.json "money"): what it is, and a pattern (matched without regard to case) of other currencies.
+  money: { local: string; foreign: string } | null;
 }
 
 interface EngineCore {
@@ -51,6 +53,7 @@ export function readBrandInfo(file: string = core.brandFile('brand.json')): Bran
     const inside = path.relative(core.ROOT, abs);
     if (!inside.startsWith('..') && !path.isAbsolute(inside) && fs.existsSync(abs)) logoMarkFile = abs;
   }
+  const m = raw.money as { local?: unknown; foreign?: unknown } | undefined;
   return {
     name: text(raw.name, 'Vesk'),
     website: text(raw.website, ''),
@@ -58,6 +61,7 @@ export function readBrandInfo(file: string = core.brandFile('brand.json')): Bran
     timezone: validTimeZone(tz) ? tz : 'UTC',
     series,
     logoMarkFile,
+    money: typeof m?.foreign === 'string' && m.foreign ? { local: typeof m.local === 'string' ? m.local : '', foreign: m.foreign } : null,
   };
 }
 

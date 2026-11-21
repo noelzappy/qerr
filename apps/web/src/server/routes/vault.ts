@@ -15,6 +15,7 @@ import { LICENCES, publicVaultItem, staleFigureDays, VAULT_KINDS } from '../serv
 import { staleInfo } from '../services/vault-rules.js';
 import { describeError, logger } from '../log.js';
 import { privateKey } from '../storage/types.js';
+import { framingOfBytes, phoneFramedOf } from '../services/screen-framing.js';
 import type { Prisma } from '@prisma/client';
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
@@ -240,7 +241,7 @@ export function vaultRoutes(deps: Deps): Hono<AppEnv> {
     const reset = item.status === 'confirmed' && key !== item.fileKey;
     const done = await deps.prisma.vaultItem.update({
       where: { id: item.id },
-      data: { fileKey: key, fileName: name, contentType: kind.type, size: bytes.length, ...(reset ? { status: 'unconfirmed', confirmedById: null, confirmedAt: null } : {}) },
+      data: { fileKey: key, fileName: name, contentType: kind.type, size: bytes.length, phoneFramed: item.kind === 'screen' ? phoneFramedOf(await framingOfBytes(bytes)) : null, ...(reset ? { status: 'unconfirmed', confirmedById: null, confirmedAt: null } : {}) },
     });
     if (item.fileKey && item.fileKey !== key) {
       await deps.storage.deleteObject(item.fileKey).catch((e) => logger.warn('vault.old_file_not_deleted', { itemId: item.id, message: String((e as Error).message).slice(0, 200) }));

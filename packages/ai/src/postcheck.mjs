@@ -1,9 +1,9 @@
 // Checks one AI-written post against the vault and the engine's rules. Nothing a model wrote is trusted:
 // it either passes here, is repaired in a way that is reported, or is rejected with reasons.
 import { LIMITS, NETWORKS } from '@vesk/engine/networks';
-import { lintText, textFieldsOf } from '@vesk/engine/design/lint';
+import { foreignMoneyWarning, lintText, textFieldsOf } from '@vesk/engine/design/lint';
 import { POSTER_TEMPLATES } from '@vesk/engine/design/spec';
-import { normalisePostDesign, postDesignProblems } from '@vesk/engine/design/layout';
+import { normalisePostDesign, postDesignProblems, screenDeviceOf } from '@vesk/engine/design/layout';
 import { layoutImageKind } from './context.mjs';
 import { EMOJI_G, fixSpelling, isTitleCase, numberKeys, quoteIsSourced, quotesIn, trimToLimit, unsourcedNumbers, usSpellings } from './facts.mjs';
 import { MEDIA_KINDS, foreignMoneyPattern, isStale, mentionsForeignMoney, needsRightsCheck } from './vault.mjs';
@@ -74,13 +74,27 @@ function templateProblems(design, ctx) {
   return out;
 }
 
+// The image of each page must be the right kind of vault item, and a screen must be the right kind of screen: a phone layout (the
+// product template, a brand layout with a phone screen block) takes only a pre-framed phone capture, a desktop screen block only a
+// plain screenshot. Which one a screen item is, the app works out from the stored file (item.framing: "phone" or "desktop");
+// an item that says nothing is not judged here (the renderer still refuses a wrong one). There is no repair: no template the
+// drafter may use takes the other kind with the same fields, so the post is rejected and the model is told why.
 function imageKindProblems(design, ctx) {
   const pages = design.template === 'carousel' && Array.isArray(design.pages) ? design.pages.map((p, i) => [p, `carousel page ${i + 1}: `]) : [[design, '']];
   const out = [];
   for (const [p, at] of pages) {
     const want = p?.template === 'layout' ? layoutImageKind(ctx.layouts?.find((l) => l.id === p.layout)) : IMAGE_KIND[p?.template], item = vaultItemOf(p?.image, ctx);
-    if (!want || !item || !MEDIA_KINDS.includes(item.kind) || item.kind === want) continue;
-    out.push(`${at}${p.template} needs a vault item of kind ${want} as its image, but ${item.id} is a ${item.kind}; ${want === 'screen' ? 'pick a framed phone screen' : 'pick a photo'} item instead`);
+    if (!want || !item || !MEDIA_KINDS.includes(item.kind)) continue;
+    if (item.kind !== want) {
+      out.push(`${at}${p.template} needs a vault item of kind ${want} as its image, but ${item.id} is a ${item.kind}; ${want === 'screen' ? 'pick a framed phone screen' : 'pick a photo'} item instead`);
+      continue;
+    }
+    const device = item.kind === 'screen' ? screenDeviceOf(p, ctx.layouts) : null;
+    if (device && ['phone', 'desktop'].includes(item.framing) && item.framing !== device) {
+      out.push(device === 'phone'
+        ? `${at}${p.template === 'layout' ? `layout "${p.layout}"` : p.template} shows a pre-framed phone capture, but ${item.id} is a desktop screenshot (no phone around it); pick a screen item marked "phone screen, framed", or a layout whose picture is a desktop screenshot`
+        : `${at}layout "${p.layout}" shows a desktop screenshot, but ${item.id} is a pre-framed phone capture; pick a screen item marked "desktop screenshot", or a layout or template that shows a phone`);
+    }
   }
   return out;
 }
@@ -212,7 +226,13 @@ export function checkPost(raw, ctx) {
   }
 
   // style and source warnings (never block)
-  for (const w of lintText(imageFields, 'feed', ctx.brand)) if (/long for/.test(w)) warnings.push(w);
+  for (const w of lintText(imageFields, 'feed', ctx.brand)) if (/long for|mentions another currency/.test(w)) warnings.push(w);
+  // Another currency than the brand's in a caption (the image text is covered by lintText above). A fact the post cites may
+  // carry it, so it is a warning a person reads before approving, not a rejection.
+  for (const { where, text } of [{ where: 'caption', text: caption }, ...Object.entries(networkCaptions).map(([n, text]) => ({ where: `${n} caption`, text }))]) {
+    const w = foreignMoneyWarning(where, text, ctx.brand);
+    if (w) warnings.push(w);
+  }
   for (const f of imageFields) {
     if (/headline/.test(f.field) && isTitleCase(f.text)) warnings.push(`${f.field} looks like Title Case; the house style is sentence case`);
   }

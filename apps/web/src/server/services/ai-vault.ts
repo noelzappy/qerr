@@ -7,6 +7,7 @@
 // finds the real file (it copies it from the bucket next to the render).
 import type { VaultItem } from '@prisma/client';
 import path from 'node:path';
+import { framingOfItem } from './screen-framing.js';
 import { rightsProblems, staleInfo } from './vault-rules.js';
 
 type Json = Record<string, unknown>;
@@ -35,7 +36,7 @@ export function vaultForAi(item: VaultItem, now: Date): Json {
     sourceUrl: item.sourceUrl, validUntil: item.validUntil?.toISOString() ?? null, recordedAt: item.recordedAt?.toISOString() ?? null,
     tags: item.tags, ...(stale ? { stale: true } : {}),
     ...(isFile && item.fileKey && !item.deletedAt
-      ? { file: syntheticPhotoPath(item), identifiable: item.peoplePresent, consent: item.consentRecorded, ...(rightsProblems(item).length ? { rightsToConfirm: true } : {}) }
+      ? { file: syntheticPhotoPath(item), ...(item.kind === 'screen' && framingOfItem(item) ? { framing: framingOfItem(item) } : {}), identifiable: item.peoplePresent, consent: item.consentRecorded, ...(rightsProblems(item).length ? { rightsToConfirm: true } : {}) }
       : {}),
   };
 }

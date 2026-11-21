@@ -89,7 +89,8 @@ export interface StagedPost {
 }
 
 // Every error the engine and our design rules find in these posts, with the batch header, all listed together.
-export async function problemsOf(header: Pick<Batch, 'timezone' | 'defaultTime' | 'defaultNetworks'> & { name: string }, staged: StagedPost[]): Promise<string[]> {
+// With deps it also checks the kind of each screen picture against its layout (a desktop screenshot is not a phone capture).
+export async function problemsOf(header: Pick<Batch, 'timezone' | 'defaultTime' | 'defaultNetworks'> & { name: string }, staged: StagedPost[], deps?: Pick<Deps, 'prisma' | 'storage'>): Promise<string[]> {
   const engine = await pipelineEngine();
   const errors: string[] = [];
   if (!engine.validTimeZone(header.timezone)) errors.push(`timezone "${header.timezone}" is not a valid IANA time zone (for example Europe/London)`);
@@ -107,7 +108,7 @@ export async function problemsOf(header: Pick<Batch, 'timezone' | 'defaultTime' 
   const { errors: engineErrors } = engine.validateBatch(raw, { fallbackName: header.name, root: engine.root });
   errors.push(...engineErrors);
   for (const s of staged) {
-    if (s.design) for (const p of await designProblems(s.design)) errors.push(`post ${s.postKey}: ${p}`);
+    if (s.design) for (const p of await designProblems(s.design, deps)) errors.push(`post ${s.postKey}: ${p}`);
   }
   return [...new Set(errors)];
 }
@@ -175,7 +176,7 @@ export async function createBatch(deps: Deps, actor: AuditActor & { id: string }
   const defaultNetworks = input.defaultNetworks ?? [...(await pipelineEngine()).classicNetworks];
   const name = await uniqueName(deps, input.name ?? slugify(input.title));
   const staged = stageManual(input.posts ?? [], input.defaultTime);
-  const errors = await problemsOf({ name, timezone: input.timezone, defaultTime: input.defaultTime, defaultNetworks }, staged);
+  const errors = await problemsOf({ name, timezone: input.timezone, defaultTime: input.defaultTime, defaultNetworks }, staged, deps);
   const missing = await missingSources(deps, staged.flatMap((s) => s.sources));
   for (const id of missing) errors.push(`source ${id} is not in the vault`);
   if (errors.length) throw unprocessable('The batch is not valid', errors);
@@ -195,7 +196,7 @@ export async function addPosts(deps: Deps, actor: AuditActor & { id: string }, b
   const start = batch.posts.reduce((n, p) => Math.max(n, p.position + 1), 0);
   const staged = stageManual(inputs, batch.defaultTime, start);
   const taken = new Set(batch.posts.map((p) => p.postKey));
-  const errors = (await problemsOf(batch, staged)).concat(staged.filter((s) => taken.has(s.postKey)).map((s) => `post ${s.postKey}: duplicate id`));
+  const errors = (await problemsOf(batch, staged, deps)).concat(staged.filter((s) => taken.has(s.postKey)).map((s) => `post ${s.postKey}: duplicate id`));
   for (const id of await missingSources(deps, staged.flatMap((s) => s.sources))) errors.push(`source ${id} is not in the vault`);
   if (errors.length) throw unprocessable('The post is not valid', errors);
   const posts: Post[] = [];
@@ -244,7 +245,7 @@ export async function importEngineBatch(deps: Deps, actor: AuditActor & { id: st
   for (const p of posts) if (typeof p.id === 'string' && !POST_KEY_RE.test(p.id)) allErrors.push(`post ${p.id}: id may only use letters, digits, . _ - (up to 60 characters) and cannot be only dots`);
   if (!errors.length) {
     for (const p of posts) {
-      if (p.design !== undefined) for (const problem of await designProblems(p.design)) allErrors.push(`post ${String(p.id)}: ${problem}`);
+      if (p.design !== undefined) for (const problem of await designProblems(p.design, deps)) allErrors.push(`post ${String(p.id)}: ${problem}`);
     }
   }
   if (allErrors.length || !valid) throw unprocessable('The batch is not valid', [...new Set(allErrors)]);

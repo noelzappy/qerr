@@ -6,6 +6,23 @@ export const WEB_ADDRESS = /https?:\/\/\S+|\b[\w-]+(?:\.[\w-]+)*\.[a-z]{2,24}\b(
 const withoutUrls = (t) => t.replace(WEB_ADDRESS, ' ');
 const plain = (t) => t.replace(/\*/g, '').replace(/\\n|\n/g, ' ').replace(/\s+/g, ' ').trim();
 
+// Another currency in a text. The brand's money.foreign is a pattern (matched without regard to case) of the currencies it does not
+// use; money.local says what its money is. Web addresses are left out. -> the words that matched, or null.
+export function foreignMoneyIn(text, brand) {
+  const pattern = brand?.money?.foreign;
+  if (typeof pattern !== 'string' || !pattern || typeof text !== 'string') return null;
+  let re;
+  try { re = new RegExp(pattern, 'i'); } catch { return null; }
+  return withoutUrls(text).match(re)?.[0] ?? null;
+}
+
+// The warning for one text (`where`: "caption", "headline", ...) that names another currency, or null. A warning, never a block:
+// a fact the brand cites may carry the other currency, and a person decides.
+export function foreignMoneyWarning(where, text, brand) {
+  const found = foreignMoneyIn(text, brand);
+  return found === null ? null : `${where}: mentions another currency ("${found.trim().slice(0, 30)}")${brand.money.local ? `; ${brand.money.local}` : ''}`;
+}
+
 // fields: [{ field: 'headline', text }], sizeName: 'feed' ...
 export function lintText(fields, sizeName, brand) {
   const warnings = [];
@@ -16,6 +33,8 @@ export function lintText(fields, sizeName, brand) {
       const m = withoutUrls(t).match(new RegExp(r.wrong, r.flags ?? ''));
       if (m) warnings.push(`${field}: "${m[0]}" should be written "${r.right}"`);
     }
+    const money = foreignMoneyWarning(field, t, brand);
+    if (money) warnings.push(money);
     const emoji = t.match(EMOJI);
     if (emoji) warnings.push(`${field}: contains an emoji (${emoji[0]}); image text uses words only`);
     const kind = field.replace(/^page \d+ /, '');

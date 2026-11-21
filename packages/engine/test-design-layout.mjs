@@ -12,7 +12,7 @@ import { explainProblems, findLayoutProblems } from './lib/design/checks.mjs';
 import { findChrome } from './lib/design/chrome.mjs';
 import { DesignError } from './lib/design/errors.mjs';
 import {
-  BLOCKS, BLOCK_TYPES, FIELDS, MIN_MARGINS, cellOf, findLayout, layoutCatalogue, layoutDesignProblems, layoutUsesPhone, loadLayouts,
+  BLOCKS, BLOCK_TYPES, FIELDS, MIN_MARGINS, cellOf, findLayout, layoutCatalogue, layoutDesignProblems, layoutUsesPhone, loadLayouts, screenDeviceOf,
   normaliseLayoutDesign, sampleDesign, slotRect, validateLayout, validateLayouts,
 } from './lib/design/layout.mjs';
 import { frameOf, layoutFit, renderLayout } from './lib/design/layout-render.mjs';
@@ -720,4 +720,18 @@ test('real render: a sub line too long for its slot is refused, naming the slot'
     assert.match(r.error, /the sub line \("A sub line that is far too long.*"\) runs \d+ px out of the bottom of its slot/);
     assert.deepEqual(fs.readdirSync(out), []);
   } finally { fs.rmSync(out, { recursive: true, force: true }); }
+});
+
+test('screenDeviceOf: which kind of screen picture a design block needs', () => {
+  const phone = { id: 'p', blocks: [{ type: 'screen' }] }, desk = { id: 'd', blocks: [{ type: 'screen', device: 'desktop' }] }, plain = { id: 'n', blocks: [{ type: 'photo' }] };
+  const layouts = [phone, desk, plain];
+  assert.equal(screenDeviceOf({ template: 'product' }, layouts), 'phone');
+  assert.equal(screenDeviceOf({ template: 'screen' }, layouts), 'phone');
+  assert.equal(screenDeviceOf({ template: 'screen', device: 'desktop' }, layouts), 'desktop');
+  assert.equal(screenDeviceOf({ template: 'layout', layout: 'p' }, layouts), 'phone');
+  assert.equal(screenDeviceOf({ template: 'layout', layout: 'd' }, layouts), 'desktop');
+  assert.equal(screenDeviceOf({ template: 'layout', layout: 'n' }, layouts), null);
+  assert.equal(screenDeviceOf({ template: 'layout', layout: 'missing' }, layouts), null);
+  for (const t of ['object', 'number', 'photo', 'myth-fact', 'closing', 'carousel']) assert.equal(screenDeviceOf({ template: t }, layouts), null);
+  assert.equal(screenDeviceOf(null), null);
 });

@@ -42,7 +42,7 @@ describe('the brand pack in the web app', () => {
     try {
       const file = path.join(dir, 'brand.json');
       fs.writeFileSync(file, JSON.stringify({ name: 'Studio', website: 'studio.example', tagline: 'Hello.', timezone: 'Mars/Base', series: { b: { name: 'Bee' }, a: {} }, logos: { mark: '/etc/passwd.png' } }));
-      expect(readBrandInfo(file)).toEqual({ name: 'Studio', website: 'studio.example', tagline: 'Hello.', timezone: 'UTC', series: [{ key: 'b', name: 'Bee' }, { key: 'a', name: 'a' }], logoMarkFile: null });
+      expect(readBrandInfo(file)).toEqual({ name: 'Studio', website: 'studio.example', tagline: 'Hello.', timezone: 'UTC', series: [{ key: 'b', name: 'Bee' }, { key: 'a', name: 'a' }], logoMarkFile: null, money: null });
       fs.writeFileSync(file, '{nope');
       expect(() => readBrandInfo(file)).toThrow(/could not be read .*Set BRAND_DIR/);
     } finally {

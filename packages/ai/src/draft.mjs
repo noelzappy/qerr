@@ -77,8 +77,17 @@ export async function draftBatch(rt, input = {}) {
   };
   const meter = rt.newMeter();
   const usedNote = () => (ctx.usedImages.size ? `\nPictures already used in this batch (do not use these pictures again, on any page): ${JSON.stringify([...ctx.usedImages.keys()])}` : '');
-  const ask = (k, extraNote = '') => [{ role: 'user', content: `Draft ${k} posts for this request.${extraNote}${usedNote()}\n\n${JSON.stringify({ ...request, postCount: k, batchPostCount: n })}` }];
-  const draftedSoFar = () => accepted.map((p) => ({ id: p.id, date: p.date, title: p.title, template: p.design?.template, sources: p.sources }));
+  const ask = (k, extraNote = '') => [{ role: 'user', content: `Draft ${k} posts for this request.${extraNote}${usedNote()}${layoutNote()}\n\n${JSON.stringify({ ...request, postCount: k, batchPostCount: n })}` }];
+  // What the model sees of the posts already drafted, with the brand layout each one (or each carousel page) uses: a later call
+  // plans on its own, so without the layout ids it cannot tell which layouts the batch has already leaned on.
+  const layoutsOf = (d) => (d?.template === 'layout' ? [d.layout] : Array.isArray(d?.pages) ? d.pages.filter((x) => x?.template === 'layout').map((x) => x.layout) : []);
+  const draftedSoFar = () => accepted.map((p) => ({ id: p.id, date: p.date, title: p.title, template: p.design?.template, ...(layoutsOf(p.design).length ? { layouts: layoutsOf(p.design) } : {}), sources: p.sources }));
+  const layoutNote = () => {
+    const ids = layoutBriefs(brand).map((l) => l.id);
+    if (ids.length < 2 || !accepted.length) return '';
+    const n = Object.fromEntries(ids.map((id) => [id, accepted.filter((p) => layoutsOf(p.design).includes(id)).length]));
+    return `\nBrand layouts used so far in this batch: ${JSON.stringify(n)}. Vary the layouts: prefer one that has been used less, as long as it fits the idea and the pictures left.`;
+  };
   const tokensFor = (k) => Math.min(16000, 2000 + k * 2500);
 
   const accepted = [], rejected = [], repaired = [], suggestions = [], imageReasons = [];

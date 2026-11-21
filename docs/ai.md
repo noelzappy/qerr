@@ -60,7 +60,9 @@ the hard rules leave room and never to quote them as claims.
 `draftBatch` may override `name`, `tagline`, `website` and `descriptor` with its `brand` argument; colours and file paths
 never reach the model. `timezone` defaults to the pack's `timezone`, then `UTC`. When the pack sets `money.foreign` (a
 pattern of other currencies), a post that uses a vault picture whose title, description or tags match it is rejected,
-with the `money.local` sentence in the reason. Without `money` every currency is allowed. The `series` must be keys of the pack's `series`.
+with the `money.local` sentence in the reason. Without `money` every currency is allowed. A caption, a network's own caption or
+image text that matches `money.foreign` (words, symbols, any case; web addresses are left out) is not rejected, since a fact the post cites may
+carry another currency, but the post gets a warning (`caption: mentions another currency ("dollars"); <money.local>`) for a person to read. The `series` must be keys of the pack's `series`.
 
 ## Design references
 
@@ -110,10 +112,18 @@ the picture is data and is never followed.
 
 ## Vault items the library expects
 
-`{ id, kind, title?, body, status: 'confirmed' | 'unconfirmed', recordedAt?, validFrom?, validUntil?, tags?, sourceUrls?, file?, license?, identifiable?, consent? }`.
+`{ id, kind, title?, body, status: 'confirmed' | 'unconfirmed', recordedAt?, validFrom?, validUntil?, tags?, sourceUrls?, file?, framing?, license?, identifiable?, consent? }`.
 Kinds: fact, figure, news, event, product-note, story, photo, screen. `file` (photos and screens) is a path relative to the
 repository. A figure is stale when `validUntil` has passed, or when it has no `validUntil` and was recorded over 180 days ago.
 A photo with `license: 'rights-to-confirm'`, or with identifiable people and no recorded consent, adds a warning.
+
+`framing` (screens only) is `"phone"` for a pre-framed phone capture (transparent, the phone already drawn around the screen) or
+`"desktop"` for a plain screenshot; leave it out when unknown. The web app works it out from the stored file with the engine's own
+test (`hasAlpha` in `design/assets.mjs`, the one the renderer applies before it will put a picture in a phone layout) when the file
+is uploaded. The model sees it as `screenKind` (`phone screen, framed` or `desktop screenshot`), and `postcheck.mjs` rejects a
+post that puts a desktop screenshot in a phone layout (`product`, or a brand layout whose screen block is a phone) or a phone
+capture in a desktop screen block, with the reason fed back to the model. There is no repair: no template the drafter may use
+takes the other kind of picture with the same fields.
 
 ## The brand's own layouts
 
@@ -123,7 +133,11 @@ When the brand pack's `brand.json` has `layouts` (made in the web app's Settings
 the kind of vault `picture` it shows. No geometry reaches the model: it fills a layout in, it never draws one. The draft prompt
 (from `draft-9`) explains `{ "template": "layout", "layout": "<id>", ...fields }` and tells the model to prefer a layout whose
 description fits an idea; from `draft-10` a carousel page may be such a layout too (one with a `feed` size, without `sizes` of its
-own), drawn with its place in the carousel. A layout the engine's validator does not accept is never offered.
+own), drawn with its place in the carousel. A layout the engine's validator does not accept is never offered. From `draft-11`
+the prompt asks the model to vary the layouts across a batch (no layout in more than about a third of the posts, unused layouts
+first), and every call after the first is told how often each layout has been used and which layouts each drafted post used;
+the prompt also explains that a layout needing a picture can only be used while unused pictures remain, and that a `quote`
+field takes a quotation that is in a cited item (a quotation that is not in the vault is rejected).
 
 ## How drafting works
 
@@ -214,6 +228,11 @@ the drafter's `notes` kept on the batch (shown with an "AI draft" badge), and a 
 Vault photos are offered to the library with a made-up path named after their id; the app swaps it for `vaultItemId`, and
 the render job copies the real file from the private bucket. If the AI fails, the monthly budget is used up or the answer does
 not pass the checks, no batch is made and the reason is written to the audit log as `ai.draft_batch.failed`.
+
+The `rewrite-post` job (queued by `POST /api/posts/:id/rewrite`, or "Rewrite with AI" in the post page's menu) calls `rewrite` with the post and its linked
+facts and, with `apply`, saves the answer as an edit by the person who asked: the title, caption, per-network captions, date, time, design and sources
+go through the same checks as a manual edit, approval is taken off and a changed design is made again. A failure leaves the post as it was. The route
+refuses first, with the reason, when no provider is ticked for rewriting, the monthly budget is missing or used up, or the post has no linked facts.
 
 Every record `log` receives is saved as a row in `ai_calls` (task, model, tokens, cost, duration, outcome, the run and the
 batch it made). Month-to-date spend on the AI settings page is the sum of that month's `costUsd`. A provider needs its input and

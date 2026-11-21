@@ -400,7 +400,18 @@ handlers are plain functions (`src/server/jobs/handlers.ts`), so tests call them
 | `refresh-delivery` | `{ batchId }` | Lists scheduled and draft posts in each Buffer account and reconciles the deliveries. |
 | `refresh-sweep` | none | Cron, every 15 minutes: enqueues `refresh-delivery` for batches that have deliveries to check. |
 | `draft-batch` | `{ actorId, brief }` | Asks the AI for a batch and imports it as a draft batch owned by `actorId`, marked as an AI draft, with a render queued for each design (see AI, below). Queued by `POST /api/batches/ai-draft`. |
-| `research-run`, `rewrite-post` | ids, topics or instruction | Call the AI adapter (below). |
+| `research-run` | `{ actorId?, topics? }` | Calls the AI adapter (below). |
+| `rewrite-post` | `{ postId, instruction, apply?, actorId? }` | Asks the AI to rewrite one post from its linked facts. With `apply` (what `POST /api/posts/:id/rewrite` sets) the answer is saved as an edit by `actorId` through the same checks as `PATCH /api/posts/:id`: title, caption, per-network captions, date, time, design and sources; approval is taken off and a changed design is made again. The run keeps the caption before and after. Without `apply` it only returns the answer. |
+
+## Rewrite a post with AI
+
+`POST /api/posts/:id/rewrite` (admin and editor; in `src/server/routes/review.ts`) takes `{ instruction }` (1 to 500 characters, trimmed)
+and queues the `rewrite-post` job with `apply: true`, answering `202 { queued: true, activityId }`. It answers `409` with the reason, and queues
+nothing, when the post is removed, no enabled provider is ticked for "Rewriting posts", the monthly budget is missing or used up, the post has
+no linked facts that still exist, or a rewrite of the post is already queued or running; `404` for an unknown post, `400` for a bad instruction.
+Editing rules are the ones of `PATCH /api/posts/:id` (a removed post is refused; there is no other guard, so a post already in Buffer is
+changed in Vesk only, as with a manual edit). `GET /api/posts/:id` carries `rewrite: { available, reason }` so the post page can say why the
+action cannot start without exposing provider details. The run is titled "Rewrite: <post>" (kind "Rewrite a post" in Activity).
 
 ## AI
 

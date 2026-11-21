@@ -5,6 +5,7 @@ import path from 'node:path';
 import type { Batch, Post } from '@prisma/client';
 import type { Deps } from '../deps.js';
 import { pipelineEngine, type EngineItem } from '../engine/pipeline.js';
+import { currencyWarnings } from './currency-check.js';
 import { designProblems, photosOfDesign } from './design-images.js';
 import { POST_KEY_RE, rawBatchForEngine } from './post-model.js';
 import { rightsProblems, sourceProblems } from './vault-rules.js';
@@ -52,7 +53,7 @@ export async function itemsForPosts(deps: Pick<Deps, 'prisma'>, batch: Batch, po
   return { errors: [], items };
 }
 
-export async function approvalReport(deps: Pick<Deps, 'prisma' | 'now'>, post: PostWithBatch): Promise<ApprovalReport> {
+export async function approvalReport(deps: Pick<Deps, 'prisma' | 'now' | 'storage'>, post: PostWithBatch): Promise<ApprovalReport> {
   const engine = await pipelineEngine();
   const blockers: string[] = [];
   const warnings: string[] = [...post.warnings];
@@ -63,7 +64,7 @@ export async function approvalReport(deps: Pick<Deps, 'prisma' | 'now'>, post: P
   // The words, networks, dates and design, checked by the engine exactly as a batch file would be.
   const { errors, items } = await itemsForPosts(deps, post.batch, [post]);
   blockers.push(...errors);
-  if (post.design) blockers.push(...(await designProblems(post.design)));
+  if (post.design) blockers.push(...(await designProblems(post.design, deps)));
 
   if (post.design && post.renderStatus !== 'ok') {
     const why = post.renderStatus === 'failed' && post.renderError ? `: ${post.renderError}` : '';
@@ -78,6 +79,8 @@ export async function approvalReport(deps: Pick<Deps, 'prisma' | 'now'>, post: P
       } else warnings.push(line);
     }
   }
+
+  warnings.push(...(await currencyWarnings(post)));
 
   const staleDays = await staleFigureDays(deps);
   const now = deps.now();
@@ -102,4 +105,4 @@ export async function approvalReport(deps: Pick<Deps, 'prisma' | 'now'>, post: P
   return { blockers: [...new Set(blockers)], warnings: [...new Set(warnings)] };
 }
 
-export const approvalProblems = async (deps: Pick<Deps, 'prisma' | 'now'>, post: PostWithBatch): Promise<string[]> => (await approvalReport(deps, post)).blockers;
+export const approvalProblems = async (deps: Pick<Deps, 'prisma' | 'now' | 'storage'>, post: PostWithBatch): Promise<string[]> => (await approvalReport(deps, post)).blockers;

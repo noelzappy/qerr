@@ -61,7 +61,7 @@ async function renderNow(deps: Deps, postId: string, handle: RunHandle): Promise
   const runDir = path.join(engine.root, 'out', 'app-render', randomUUID());
   try {
     if (!POST_KEY_RE.test(post.postKey)) return await fail(deps, post, 'This post has an id that cannot be used for files', handle);
-    const problems = await designProblems(post.design);
+    const problems = await designProblems(post.design, deps);
     if (problems.length) return await fail(deps, post, `The design is not valid: ${problems.join('; ')}`, handle);
 
     // A private copy of the spec whose vault photos point at files copied next to this run.

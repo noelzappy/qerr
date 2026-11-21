@@ -159,6 +159,14 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
   and cards; the raw design JSON is under "Advanced". The preview asks `POST /api/posts/preview-design`, waits a moment after
   the last edit, keeps the last good picture on screen and cancels a request that a newer edit has overtaken (`api.post` takes
   an optional `AbortSignal`; a cancelled request shows no error).
+- The post page's More menu has **Rewrite with AI** (disabled with "save first" while there are unsaved edits). It opens a small dialog
+  (`batches/RewritePostDialog.tsx`): "What should change?", a one-line statement that approval is taken off, Cancel and Rewrite. After
+  `POST /api/posts/:id/rewrite` the dialog follows the run with `useActivityRun`, then the page loads the post again, toasts "Rewritten" and
+  the dialog shows the caption before and after. When `rewrite.available` is false the dialog shows the reason instead of enabling Rewrite.
+- Failure text from background work is shown by `lib/errors.ts` `readableFailure` / `failureLine` / `tidyBlocker` and
+  `components/failure-text.tsx`: no internal paths, no leading image file name or "Render:", the first sentence and the advice sentence
+  in full, the rest behind "Show details". The stored text is unchanged. When a post's image could not be made the post page puts the
+  reason and **Make the image again** at the top of the preview column; the batch page's failed list links each post ("Open the post").
 - A post card on the batch page shows the image, title, date, one status chip (plus a problem chip when there is one), the
   network icons, **Edit**, **Approve** and a **More** menu.
 - **New batch** and **Draft with AI** are centred dialogs over the batch list (`/batches/new`, `/batches/ai-draft`).

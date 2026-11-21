@@ -440,7 +440,7 @@ test('draftBatch: a good post passes, the vault photo is resolved by id, the bat
   assert.deepEqual(p.warnings, []);
   assert.deepEqual(batch.defaultNetworks, ['instagram', 'linkedin', 'facebook', 'x']);
   assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
-  assert.equal(notes.promptVersion, 'draft-10');
+  assert.equal(notes.promptVersion, 'draft-11');
   assert.equal(notes.model, 'claude-sonnet-5-5');
   assert.equal(notes.seriesMix['the-numbers'], 1);
   assert.equal(notes.usage.costUsd > 0, true);
@@ -1005,6 +1005,25 @@ async function withLayouts(layouts, fn) {
   }
 }
 
+// Runs fn with BRAND_DIR pointing at a copy of the demo pack whose brand.json is changed by edit(brand).
+async function withBrand(edit, fn) {
+  const { ROOT } = await import('@vesk/engine/core');
+  const path = await import('node:path');
+  fs.mkdirSync(path.join(ROOT, 'out'), { recursive: true });
+  const dir = fs.mkdtempSync(path.join(ROOT, 'out', 'test-ai-brand-'));
+  const prev = process.env.BRAND_DIR;
+  try {
+    const brand = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
+    edit(brand);
+    fs.writeFileSync(path.join(dir, 'brand.json'), JSON.stringify(brand));
+    process.env.BRAND_DIR = path.relative(ROOT, dir);
+    return await fn();
+  } finally {
+    if (prev === undefined) delete process.env.BRAND_DIR; else process.env.BRAND_DIR = prev;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 const splitPost = (design = {}) => good({ id: '02-split', design: { template: 'layout', layout: 'split', image: 'vault:ph-1', headline: 'Real money, *every day.*', sub: 'Members save at the market stall.', ...design } });
 
 test('draftBatch: the brand\'s layouts are offered with their fields, and a post that fills one in passes the engine\'s checks', async () => {
@@ -1117,4 +1136,101 @@ test('analyseReference: a composition outside the engine\'s lists is refused by 
     await assert.rejects(ai.analyseReference({ image: { mediaType: 'image/png', data: PNG_B64 } }), (e) => e.code === 'invalid_output', JSON.stringify(composition).slice(0, 80));
   }
   assert.match(loadPrompt('reference').text, /`composition` \(optional\): a layout for the feed page/);
+});
+
+// ---------- screens: a phone layout takes a framed phone capture, a desktop screenshot only a desktop layout ----------
+const DESK_SCREEN = { id: 'scr-desk', kind: 'screen', title: 'Dashboard', body: 'The office dashboard in a browser.', status: 'confirmed', file: 'design/assets/screens/desk.png', framing: 'desktop' };
+const PHONE_SCREEN = { id: 'scr-phone', kind: 'screen', title: 'Passbook', body: 'The passbook on a phone.', status: 'confirmed', file: 'design/assets/screens/phone.png', framing: 'phone' };
+const UNKNOWN_SCREEN = { id: 'scr-unk', kind: 'screen', title: 'Old', body: 'A screen of unknown framing.', status: 'confirmed', file: 'design/assets/screens/old.png' };
+const screenVault = [...VAULT, DESK_SCREEN, PHONE_SCREEN, UNKNOWN_SCREEN];
+const product = (image, over = {}) => good({ id: 'pr-1', design: { template: 'product', series: 'on-record', headline: 'Every deposit, *recorded.*', image: `vault:${image}`, ground: 'cool', ...over } });
+const PHONE_LAYOUT = { id: 'phone-page', name: 'Phone page', fields: { image: { required: true }, headline: { required: true } }, canvas: { feed: LAYOUT_GRID },
+  blocks: [{ type: 'screen', slot: { col: 1, row: 1, width: 6, height: 24 } }, { type: 'headline', slot: { col: 7, row: 4, width: 6, height: 9 }, size: 64 }] };
+const DESK_LAYOUT = { ...PHONE_LAYOUT, id: 'desk-page', name: 'Desktop page', blocks: [{ type: 'screen', device: 'desktop', slot: { col: 1, row: 1, width: 12, height: 10 } }, { type: 'headline', slot: { col: 1, row: 12, width: 12, height: 6 }, size: 64 }] };
+const lay = (layout, image) => good({ id: `lay-${layout}`, design: { template: 'layout', layout, series: 'on-record', image: `vault:${image}`, headline: 'Every deposit, *recorded.*' } });
+
+test('draftBatch: the model is told for each screen picture whether it is a framed phone capture or a desktop screenshot', async () => {
+  const { f, ai } = draftWith([product('scr-phone')]);
+  await ai.draftBatch(req({ vault: screenVault }));
+  const content = f.calls[0].body.messages[0].content;
+  const sent = JSON.parse(content.slice(content.indexOf('\n\n{') + 2));
+  const by = (id) => sent.vault.find((i) => i.id === id);
+  assert.equal(by('scr-phone').screenKind, 'phone screen, framed');
+  assert.equal(by('scr-desk').screenKind, 'desktop screenshot');
+  assert.equal(by('scr-unk').screenKind, undefined, 'an unknown framing is not claimed');
+  assert.equal(by('ph-1').screenKind, undefined, 'photos have none');
+  assert.match(f.calls[0].body.system, /`screenKind`/);
+});
+
+test('draftBatch: a desktop screenshot in a phone layout is rejected with a reason, a phone capture there passes', async () => {
+  await withLayouts([PHONE_LAYOUT, DESK_LAYOUT], async () => {
+    for (const [post, re] of [
+      [product('scr-desk'), /shows a pre-framed phone capture, but scr-desk is a desktop screenshot/],
+      [lay('phone-page', 'scr-desk'), /layout "phone-page" shows a pre-framed phone capture, but scr-desk is a desktop screenshot/],
+      [lay('desk-page', 'scr-phone'), /layout "desk-page" shows a desktop screenshot, but scr-phone is a pre-framed phone capture/],
+    ]) {
+      const { ai } = draftWith([post]);
+      await assert.rejects(ai.draftBatch(req({ vault: screenVault })), (e) => e.code === 'no_valid_posts' && e.notes.rejected[0].reasons.some((x) => re.test(x)), String(re));
+    }
+    // the matching pairs, and a screen of unknown framing, are not judged by this check
+    for (const post of [product('scr-phone'), lay('phone-page', 'scr-phone'), lay('desk-page', 'scr-desk'), product('scr-unk')]) {
+      const { ai } = draftWith([post]);
+      const { batch } = await ai.draftBatch(req({ vault: screenVault }));
+      assert.equal(batch.posts.length, 1, post.id);
+    }
+    // a carousel page is judged like a post
+    const page = (image) => good({ id: 'car-1', caption: 'Swipe to see.\n\n#AcmeSavings', design: { template: 'carousel', series: 'on-record', pages: [{ template: 'product', headline: 'Every deposit', image: `vault:${image}`, ground: 'cool' }, { template: 'closing' }] } });
+    const { ai } = draftWith([page('scr-desk')]);
+    await assert.rejects(ai.draftBatch(req({ vault: screenVault })), (e) => e.notes.rejected[0].reasons.some((x) => /carousel page 1: product shows a pre-framed phone capture, but scr-desk is a desktop screenshot/.test(x)));
+  });
+});
+
+test('draftBatch: the brand layouts a batch has used are named to the next call, which is asked to vary them', async () => {
+  await withLayouts([SPLIT, FIGURES], async () => {
+    const mk = (i, layout) => good({ id: `l${i}`, date: `2026-12-${String(i + 1).padStart(2, '0')}`,
+      design: layout === 'split' ? { template: 'layout', layout, series: 'on-record', image: `vault:ph-${i + 2}`, headline: 'Real money, *every day.*' } : { template: 'layout', layout, series: 'on-record', big: '3,900+', stats: ['3,900+|members saving daily'] } });
+    const f = fakeFetch(anthropicOk({ plan: 'x', posts: [mk(1, 'figures'), mk(2, 'figures'), mk(3, 'figures'), mk(4, 'figures')] }), anthropicOk({ posts: [mk(5, 'split')] }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    await ai.draftBatch(req({ count: 5 }));
+    assert.ok(!/Brand layouts used so far/.test(f.calls[0].body.messages[0].content), 'nothing to say before the first post');
+    const second = f.calls[1].body.messages[0].content;
+    assert.match(second, /Brand layouts used so far in this batch: \{"split":0,"figures":4\}\. Vary the layouts/);
+    assert.match(second, /"layouts":\["figures"\]/, 'each drafted post names its layouts');
+  });
+});
+
+test('the draft prompt asks for varied layouts and explains screenKind', () => {
+  const t = loadPrompt('draft').text;
+  assert.match(t, /Vary the look across the batch/);
+  assert.match(t, /no single layout in more than about a third/);
+  assert.match(t, /A desktop screenshot is never a `product` picture/);
+});
+
+// ---------- another currency in the words of a post ----------
+const USD_FACT = { id: 'usd-1', kind: 'fact', title: 'A premium plan', body: 'The premium plan costs 25 dollars a month, or $25 a month.', status: 'confirmed' };
+const usdPost = (caption, headline) => good({ id: 'usd-post', sources: ['usd-1'], caption: `${caption}\n\n#AcmeSavings`, design: { template: 'closing', series: 'on-record', headline } });
+
+test('draftBatch: another currency than the brand\'s is a warning, in a caption and in image text, never a rejection', async () => {
+  const vault = [...VAULT, USD_FACT];
+  const asked = async (post) => (await draftWith([post]).ai.draftBatch(req({ vault }))).batch.posts[0];
+  const cap = await asked(usdPost('It costs 25 dollars a month.', 'A plan for groups'));
+  assert.deepEqual(cap.warnings, ['caption: mentions another currency ("dollars"); Acme Savings works in euros (€) only']);
+  const upper = await asked(usdPost('It costs 25 DOLLARS a month.', 'A plan for groups'));
+  assert.match(upper.warnings[0], /^caption: mentions another currency \("DOLLARS"\)/);
+  const sign = await asked(usdPost('It costs $25 a month.', 'A plan for groups'));
+  assert.match(sign.warnings[0], /^caption: mentions another currency \("\$"\)/);
+  const image = await asked(usdPost('A plan for groups.', 'Only 25 dollars a month'));
+  assert.deepEqual(image.warnings, ['headline: mentions another currency ("dollars"); Acme Savings works in euros (€) only']);
+  const plain = await asked(usdPost('A plan for groups.', 'A plan for groups'));
+  assert.deepEqual(plain.warnings.filter((w) => /currency/.test(w)), []);
+  // a network caption of its own is checked under its own name
+  const x = await asked({ ...usdPost('A plan for groups.', 'A plan for groups'), networkCaptions: { x: 'Only 25 dollars a month.' } });
+  assert.ok(x.warnings.includes('x caption: mentions another currency ("dollars"); Acme Savings works in euros (€) only'));
+});
+
+test('draftBatch: without a money setting in the brand no currency is flagged', async () => {
+  await withBrand((b) => { delete b.money; }, async () => {
+    const post = (await draftWith([usdPost('It costs 25 dollars a month.', 'Only 25 dollars a month')]).ai.draftBatch(req({ vault: [...VAULT, USD_FACT] }))).batch.posts[0];
+    assert.deepEqual(post.warnings.filter((w) => /currency/.test(w)), []);
+  });
 });
