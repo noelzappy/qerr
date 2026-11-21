@@ -438,7 +438,15 @@ for the demo brand and two style variants, before and after, and compares the pi
 - Editorial (`lib/design/builtin/editorial.mjs`): **`text`** without an artefact is drawn from its layout; `cover`, `stats` and
   `photo-story` by their functions.
 
-- Screen (`lib/design/builtin/screen.mjs`): `screen` by its function.
+- Screen (`lib/design/builtin/screen.mjs`): **`screen`** is drawn from four layouts, one per variant: a desktop window
+  (`device: desktop`), a phone beside a passbook (`beside`), a faded phone (`fade`) and the phone row (the default). They use the
+  screen group's pieces of the editorial page, each from a fixed list or a bounded number: the `screen` block (a phone the
+  width of its rectangle from its top, cut at its foot with `fit: crop`; a desktop window with `specWindow`, which takes the
+  spec's own validated `framed`, `tilt` and `region`, and `titleField`), `halo` (the glow behind the phone, sized from the
+  picture as the phone is drawn), `beside` (the passbook card of the spec's `beside`, in its rectangle), `footlogo` (the
+  footer with the logo alone), and two headline options: `lists` (the spec's pills and check list under the sub line) and
+  `row` (the headline and the phone side by side in one flex row, centred in the band their rectangles share). All of them
+  belong to the built-in editorial page; Settings, Layouts and the AI are not offered them.
 
 - Photo (`lib/design/builtin/photo.mjs`): `photo` and the page covers by their functions.
 
