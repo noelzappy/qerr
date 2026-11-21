@@ -326,6 +326,8 @@ function checkOne(d, template, where, errors, opts = {}) {
 
 // Validates one design spec (the template plus its options). Returns a list of problems, empty when fine.
 // opts.series: the series keys of the brand file (callers that can read it pass them; without them only the key's shape is checked).
+// opts.layoutPage(page, where): the problems of a carousel page { template: "layout", layout: "<id>", ... }, one of the brand's
+// own layouts (layout.mjs layoutPageProblems, which postDesignProblems passes). Without it such a page is refused, as before.
 export function validateDesign(d, where = 'design', opts = {}) {
   const errors = [];
   if (!d || typeof d !== 'object' || Array.isArray(d)) return [`${where}: must be an object`];
@@ -351,7 +353,8 @@ export function validateDesign(d, where = 'design', opts = {}) {
     if (!Array.isArray(d.pages) || d.pages.length < 2 || d.pages.length > MAX_PAGES) return [...errors, `${where}: pages needs 2 to ${MAX_PAGES} pages`];
     d.pages.forEach((p, i) => {
       const pw = `${where} page ${i + 1}`;
-      if (!p || !PAGE_TEMPLATES.includes(p.template)) errors.push(`${pw}: template must be one of ${PAGE_TEMPLATES.join(', ')}`);
+      if (p?.template === 'layout' && typeof opts.layoutPage === 'function') errors.push(...opts.layoutPage(p, pw));
+      else if (!p || !PAGE_TEMPLATES.includes(p.template)) errors.push(`${pw}: template must be one of ${PAGE_TEMPLATES.join(', ')}${typeof opts.layoutPage === 'function' ? ', or layout (one of the brand\'s layouts)' : ''}`);
       else checkOne(p, p.template, pw, errors, opts);
     });
     return errors;

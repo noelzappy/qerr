@@ -2,14 +2,15 @@
 // it either passes here, is repaired in a way that is reported, or is rejected with reasons.
 import { LIMITS, NETWORKS } from '@vesk/engine/networks';
 import { lintText, textFieldsOf } from '@vesk/engine/design/lint';
-import { POSTER_TEMPLATES, normaliseDesign, validateDesign } from '@vesk/engine/design/spec';
-import { layoutDesignProblems, normaliseLayoutDesign } from '@vesk/engine/design/layout';
+import { POSTER_TEMPLATES } from '@vesk/engine/design/spec';
+import { normalisePostDesign, postDesignProblems } from '@vesk/engine/design/layout';
 import { layoutImageKind } from './context.mjs';
 import { EMOJI_G, fixSpelling, isTitleCase, numberKeys, quoteIsSourced, quotesIn, trimToLimit, unsourcedNumbers, usSpellings } from './facts.mjs';
 import { MEDIA_KINDS, foreignMoneyPattern, isStale, mentionsForeignMoney, needsRightsCheck } from './vault.mjs';
 
 // The drafting assistant may only use the poster pages (a real photo or a framed phone screen on a pale ground), a full-bleed photo,
-// carousels of poster pages, and the brand's own layouts (template "layout", when the brand has some). The older editorial templates
+// carousels of poster pages, and the brand's own layouts (template "layout", when the brand has some, as a post or as a carousel
+// page). The older editorial templates
 // stay in the engine for hand-written batches.
 export const ALLOWED_TEMPLATES = [...POSTER_TEMPLATES, 'photo', 'carousel', 'layout'];
 const ALLOWED_LIST = 'object, number, product, myth-fact or closing';
@@ -59,13 +60,16 @@ function vaultItemOf(image, ctx) {
   return id ? ctx.byId.get(id) ?? null : null;
 }
 
-// Template rules the engine does not know: only poster pages inside a carousel, and the right kind of vault item behind each image.
+// Template rules the engine does not know: only poster pages (or the brand's layouts) inside a carousel, and the right kind of vault
+// item behind each image.
 function templateProblems(design, ctx) {
   if (!ALLOWED_TEMPLATES.includes(design.template) || (design.template === 'layout' && !ctx.layouts?.length)) return [`template "${design.template}" is not allowed; use ${ALLOWED_LIST}, or photo or carousel${ctx.layouts?.length ? ', or layout with one of the brand\'s layouts' : ''}`];
   if (design.template !== 'carousel' || !Array.isArray(design.pages)) return [];
   const out = [];
+  const layouts = ctx.layouts?.length > 0;
   design.pages.forEach((p, i) => {
-    if (!POSTER_TEMPLATES.includes(p?.template)) out.push(`carousel page ${i + 1} uses template "${p?.template}", which is not allowed; every page must be ${ALLOWED_LIST}`);
+    if (POSTER_TEMPLATES.includes(p?.template) || (layouts && p?.template === 'layout')) return;
+    out.push(`carousel page ${i + 1} uses template "${p?.template}", which is not allowed; every page must be ${ALLOWED_LIST}${layouts ? ', or layout with one of the brand\'s layouts' : ''}`);
   });
   return out;
 }
@@ -114,10 +118,9 @@ function repairGround(design) {
   return { design: out, changed };
 }
 
-// The engine's own checks of a design block: a brand layout's against the fields it declares, the rest against the templates.
-const designProblems = (design, ctx) => (design.template === 'layout'
-  ? layoutDesignProblems(design, 'design', { layouts: ctx.layouts ?? [], series: ctx.seriesKeys })
-  : validateDesign(design, 'design', { series: ctx.seriesKeys }));
+// The engine's own checks of a design block: a brand layout's (a post or a carousel page) against the fields it declares, the rest
+// against the templates.
+const designProblems = (design, ctx) => postDesignProblems(design, 'design', { layouts: ctx.layouts ?? [], series: ctx.seriesKeys });
 
 // checkPost(raw, ctx) -> { ok, post, reasons, repairs, imageSuggestion }
 // ctx: { byId: Map, byFile: Map, channels, period: {from,to}|null, seriesKeys, brand, now, takenIds: Set, tagline,
@@ -186,7 +189,7 @@ export function checkPost(raw, ctx) {
   const sourceText = sourceItems.map((i) => `${i.title ?? ''} ${i.body ?? ''}`).join('\n');
   const allowed = numberKeys(sourceText);
   allowed.add(date.slice(0, 4));
-  const imageFields = textFieldsOf(design.template === 'layout' ? normaliseLayoutDesign(design, ctx.layouts) : normaliseDesign(design));
+  const imageFields = textFieldsOf(normalisePostDesign(design, ctx.layouts));
   const texts = [{ where: 'caption', text: caption }, ...Object.entries(networkCaptions).map(([n, text]) => ({ where: `${n} caption`, text })), ...imageFields.map((f) => ({ where: `image text (${f.field})`, text: f.text }))];
   for (const { where, text } of texts) {
     const bad = unsourcedNumbers(text, allowed);

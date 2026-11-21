@@ -17,7 +17,7 @@ import { BlockEditor, FieldsEditor, GridEditor, GroundEditor, ScenarioBar, Sizes
 import { LayoutSketch } from './LayoutSketch';
 import {
   blockTitle, convertPage, defaultScenario, editableShape, fieldsShown, fullWidthPx, isBuiltPage, isFullWidth, pageCatalogue, pageKind, placeBy, pxOn, sizesOf,
-  uncovered, withPlace, withSize, type Scenario,
+  previewPage, sketchPages, SKETCH_PAGE_WORDS, uncovered, withPlace, withSize, type Scenario,
 } from './layout-model';
 import { BLOCK_LABEL, type Block, type Catalogue, type Layout, type PreviewResult, type StoredLayout } from './layout-types';
 
@@ -118,7 +118,9 @@ export function LayoutEditor({ initial, stored, catalogue, onSaved, onClose }: {
     setPreview(null);
     const empty = scenario.empty.filter((f) => layout.fields[f]);
     const artefact = layout.fields.artefact && typeof scenario.choices.artefact === 'string' ? scenario.choices.artefact : undefined;
-    try { setPreview(await api.post<PreviewResult>('/api/settings/layouts/preview', { definition: layout, size, ...(empty.length ? { empty } : {}), ...(artefact ? { artefact } : {}) })); }
+    // as that page of a carousel, when the sketch shows one (a carousel page is drawn at the feed size)
+    const page = sketchPages(layout).includes(scenario.page) ? previewPage(scenario.page) : undefined;
+    try { setPreview(await api.post<PreviewResult>('/api/settings/layouts/preview', { definition: layout, size, ...(empty.length ? { empty } : {}), ...(artefact ? { artefact } : {}), ...(page ? { page } : {}) })); }
     catch (e) { setPreview({ ok: false, size, error: errorMessage(e), warnings: problemsOf(e), notes: [] }); }
     finally { setBusy(''); }
   }
@@ -204,7 +206,7 @@ export function LayoutEditor({ initial, stored, catalogue, onSaved, onClose }: {
                         <ScenarioBar layout={layout} catalogue={catalogue} scenario={scenario} onChange={setScenario} />
                         {preview && (
                           <div className="flex flex-col gap-2">
-                            {preview.image && <img src={preview.image} alt={`Preview of the layout at ${preview.size} size`} className="w-full rounded-md border" />}
+                            {preview.image && <img src={preview.image} alt={`Preview of the layout at ${preview.size} size${preview.page ? `, as ${(SKETCH_PAGE_WORDS[preview.page] ?? '').toLowerCase()}` : ''}`} className="w-full rounded-md border" />}
                             {preview.error && <Notice tone="bad">{preview.error}</Notice>}
                             {preview.warnings.length > 0 && <Notice tone="warn" title="Checks:"><Lines items={preview.warnings} /></Notice>}
                           </div>

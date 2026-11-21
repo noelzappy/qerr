@@ -223,6 +223,21 @@ describe('the post editor', () => {
     expect(res.body.layouts).toEqual([{ id: 'big-quote', name: 'Big quote', description: null, sizes: ['feed'], fields: [{ name: 'quote', kind: 'text', required: true, max: 120, min: null, word: 'a quotation' }] }]);
     expect(JSON.stringify(res.body)).not.toContain('slot');
   });
+
+  it('lets a post made with a layout use a vault photo for its picture', async () => {
+    const user = await t.createUser('admin');
+    const api = t.api(await t.signIn(user));
+    const photo = layout({ fields: { quote: { required: true, max: 120 }, image: {} }, blocks: [...layout().blocks, { type: 'photo', slot: at(1, 16, 12, 7) }] });
+    expect((await api.post('/api/settings/layouts', { definition: photo })).status).toBe(201);
+    const { posts } = await seedBatch(t, user, { posts: [{ key: 'p1', design: { template: 'closing' } }] });
+    const design = { template: 'layout', layout: 'big-quote', quote: 'Hello', image: 'design/assets/demo/object-jar.jpg', vaultItemId: '00000000-0000-4000-8000-000000000000' };
+    const res = await api.patch(`/api/posts/${posts[0]!.id}`, { design });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    // the id is the app's own: any other key the layout does not take is still refused
+    const extra = await api.patch(`/api/posts/${posts[0]!.id}`, { design: { ...design, note: 'x' } });
+    expect(extra.status).toBe(422);
+    expect(extra.body.details).toEqual([expect.stringMatching(/^post p1: design: note is not used by layout "big-quote"/)]);
+  });
 });
 
 describe('the preview', () => {

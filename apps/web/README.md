@@ -138,8 +138,8 @@ editor covers everything a brand's layout can say, from the engine's catalogue (
 kind of page: blocks placed by clicking two cells of the grid or in pixels, on every size or per size; every option, the blocks
 inside a slab, the condition each block is drawn on ("Show this block": a field filled or empty, a carousel page, a choice's
 values), the page colour as one ground or cases, sizes, grids and fields. It sketches the page as it changes, "as if" a field
-were empty, on a carousel page or with a choice's value, shows the engine's verdict as you type and draws a real preview with
-the brand on request; a JSON view shows the layout as the engine reads it, and switching between them loses nothing
+were empty, as a single post or as page 1, a middle page or the last page of a carousel, or with a choice's value, shows the
+engine's verdict as you type and draws a real preview of that case with the brand on request; a JSON view shows the layout as the engine reads it, and switching between them loses nothing
 (`web/src/pages/settings/layout-model.ts`, checked by `src/web-layout-model.spec.ts`; see docs/design.md, "Editing a layout"). Starting points like the built-in pages come from the engine
 (`lib/design/layout-starters.mjs`), and so do the built-in templates' own layouts, listed read only with a sketch, their variant and
 their fields: "Duplicate to edit" copies one into a layout of the brand's own (`builtinCopy`), switched off, on the built-in
@@ -155,12 +155,12 @@ as `layouts` on every sync (one that no longer passes is left out and logged), w
 | `GET /api/settings/layouts` | the layouts, the starting points, the built-in layouts (`builtins`: read only, each with `template`, `variant`, `copyable` and `why` not) and the engine's catalogue (`catalogue.pages`: every kind of page a brand's layout may use, with its blocks, options, fields, conditions and grounds) |
 | `POST /api/settings/layouts` | add one: `{ definition, origin? }`, `{ starter, name? }` (a copy of a starting point under a free id) or `{ builtin, name? }` (a copy of a built-in layout under a free id, switched off; 400 with the reason for one a brand may not use) |
 | `POST /api/settings/layouts/validate` | `{ problems }` for a definition, nothing stored |
-| `POST /api/settings/layouts/preview` | `{ definition, size?, sample?, empty?, artefact? }`: one image drawn with sample words (`empty`: fields left empty; `artefact`: the sample artefact's type) through the renderer and every check, under the render lock, as a JPEG data URL; nothing stored |
-| `PUT /api/settings/layouts/:id` | replace the definition; a new id is refused while a post uses the old one |
+| `POST /api/settings/layouts/preview` | `{ definition, size?, sample?, empty?, artefact?, page? }`: one image drawn with sample words (`empty`: fields left empty; `artefact`: the sample artefact's type; `page`: `first`, `middle` or `last` draws it as that page of a carousel of three, at the feed size) through the renderer and every check, under the render lock, as a JPEG data URL; nothing stored |
+| `PUT /api/settings/layouts/:id` | replace the definition; a new id is refused while a post (or a carousel page) uses the old one |
 | `PATCH /api/settings/layouts/:id` | `enabled`, `position` |
 | `POST /api/settings/layouts/:id/duplicate` | a copy under a free id, switched off |
-| `DELETE /api/settings/layouts/:id` | refused while a post's design names it |
-| `GET /api/layouts` | any signed-in person: the layouts of the brand in force and the fields each takes, for the post editor |
+| `DELETE /api/settings/layouts/:id` | refused while a post's design, or a page of a carousel, names it |
+| `GET /api/layouts` | any signed-in person: the layouts of the brand in force and the fields each takes, for the post editor (a post, or a carousel page, made with one; the editor lists a carousel's pages one by one, and a page may use a layout with a feed size) |
 
 A design reference's analysis may suggest a layout (`analysis.composition`); it is checked by the same validator before it
 is stored, and "Use this layout" on the reference previews it with the brand before an admin adds it.
