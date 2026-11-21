@@ -153,6 +153,18 @@ export const CASES = [
   { id: 'passbook', design: { template: 'passbook', headline: 'A month *of saving.*', days: 30, ticked: 12, today: 13 } },
   { id: 'passbook-sub', design: { template: 'passbook', headline: 'Every day *ticked.*', sub: 'One tick for each day paid.', days: 31, ticked: 20, today: 21, tick: 'gold' } },
   { id: 'passbook-register', design: { template: 'passbook', headline: 'The passbook *and the card.*', sub: 'Side by side.', days: 28, ticked: 9, today: 10, register: REGISTER } },
+  // ledger, passbook and text with an artefact: every headline size with and without a sub line (the panel's top and the
+  // card's place follow them), long ledgers, the register card with a sub line, the series' frame
+  { id: 'ledger-70-tenrows', design: { template: 'ledger', headline: 'Ten days *on record.*', size: 70, columns: [{ label: 'Day' }, { label: 'Paid', align: 'end' }], rows: [['01', '10.00'], ['02', '12.50'], ['03', ''], ['04', '10.00'], ['05', '8.00'], ['06', '10.00'], ['07', ''], ['08', '12.50'], ['09', '10.00'], ['10', '10.00']], mark: [{ row: 9, col: 1 }] } },
+  { id: 'ledger-112-sub-series', design: { template: 'ledger', headline: 'The *ledger.*', sub: 'Every deposit, as it was made.', size: 112, series: 'news', label: 'Ledger', headRight: 'Week 12', ...LEDGER, notes: ['Figures in euros', 'Updated daily'] } },
+  { id: 'passbook-84-deep', design: { template: 'passbook', headline: 'A full *month.*', size: 84, days: 28, ticked: 28, today: 28, tick: 'gold', ground: 'deep' } },
+  { id: 'passbook-70-sub', design: { template: 'passbook', headline: 'Day by day, *on the page.*', sub: 'One tick for each day paid.', size: 70, days: 29, ticked: 4, today: 5 } },
+  { id: 'passbook-112-sub', design: { template: 'passbook', headline: 'A new *page.*', sub: 'Nothing paid yet.', size: 112, days: 31 } },
+  { id: 'passbook-register-nosub', design: { template: 'passbook', headline: 'The passbook *and the card.*', days: 30, ticked: 11, today: 12, register: REGISTER, accent: 'colour' } },
+  { id: 'passbook-register-112', design: { template: 'passbook', headline: 'Both *cards.*', size: 112, days: 31, ticked: 3, register: { title: 'This week', rows: [['Mon', '10.00'], ['Tue', '12.50'], ['Wed', ''], ['Thu', '10.00'], ['Fri', '8.00'], ['Sat', '10.00']], mark: 5 } } },
+  { id: 'text-artefact-register-sub-112', design: { template: 'text', headline: 'Where *it went.*', sub: 'Six lines, one month.', size: 112, accent: 'colour', series: 'explainers', artefact: { type: 'register', title: 'May', rows: [['Rent', '400.00'], ['Food', '120.50'], ['Transport', '42.00'], ['School', '60.00'], ['Phone', '15.00'], ['Savings', '80.00']], mark: 5 } } },
+  { id: 'text-artefact-ledger-84-dark', design: { template: 'text', headline: 'The week, *on dark.*', size: 84, ground: 'dark', dots: false, artefact: { type: 'ledger', ...LEDGER } } },
+  { id: 'text-artefact-passbook-70', design: { template: 'text', headline: 'A month *of saving.*', size: 70, label: 'Passbook', artefact: { type: 'passbook', days: 31, ticked: 30, today: 31, tick: 'gold' } } },
   // stats (editorial)
   { id: 'stats', design: { template: 'stats', big: '14.8M+', line: 'saved by members this year', stats: ['3,900+|members', '400+|groups', '120|towns'] } },
   { id: 'stats-photo', design: { template: 'stats', big: '*€* 2.4M', line: 'paid out', stats: ['3,900+|members', '400+|groups'], image: IMG.scene, series: 'the-numbers' } },

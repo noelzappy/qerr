@@ -209,6 +209,14 @@ the table (for example `closing`'s default text, `region`) is a shared change: a
   editorial page draws no `figure`; it now tests the refusal with a `slab` (a shared change). Imports a group needs in a
   shared page file go in its own section under names of its own (`import * as editorialKit ...`), so two groups importing the
   same helper do not declare it twice when their branches merge.
+- **Artefacts (ledger, passbook, text with an artefact).** The panel's top comes from a table by headline size and sub line, and
+  the size's default depends on the artefact (112 for a passbook page on its own without a sub line, else 84). A `when` holds
+  only one `field`, so the size is tested per band (`{ field: 'size', not: [70, 112], absent: 'sub' }` is 84 or unset) and the
+  type or register at the registry. The card geometry stays in `artefactCards` (`design/templates/artefacts.mjs`), from the
+  block's rectangle. The `register` choice used to read `spec.register` or `spec.artefact.register` whatever the template, so a
+  stray top-level `register` on a text page (which validateDesign lets through and the function ignores) picked the wrong
+  variant; it now reads the register the template draws (a shared change). An `import` may sit inside a group's section of
+  `layout-editorial.mjs` (imports are hoisted), which keeps the file's header free of merge conflicts.
 
 ## Pre-existing issues seen in the baseline (not part of the conversion)
 

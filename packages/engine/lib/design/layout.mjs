@@ -127,7 +127,8 @@ const BOOL = [true, false];
 // built-in templates' designs, which a brand's own layout does not take.
 export const SPEC_CHOICES = {
   artefact: { values: ARTEFACT_TYPES, read: (s) => (isObj(s?.artefact) ? s.artefact.type : undefined), unset: true, grid: true },
-  register: { values: BOOL, read: (s) => isObj(s?.register) || isObj(s?.artefact?.register) },
+  // the register card the page draws: the passbook template's own, a text page's artefact's (either place without a template)
+  register: { values: BOOL, read: (s) => (s?.template === 'passbook' ? isObj(s.register) : s?.template === 'text' ? isObj(s.artefact?.register) : isObj(s?.register) || isObj(s?.artefact?.register)) },
   beside: { values: BOOL, read: (s) => isObj(s?.beside) },
   pills: { values: BOOL, read: (s) => filled(s?.pills) },
   checks: { values: BOOL, read: (s) => filled(s?.checks) },
@@ -207,6 +208,9 @@ const ADDED_OPTIONS = [
   // -- poster group --
   // (end of poster group)
   // -- artefacts group --
+  // where the artefact an editorial page draws is: the block's field (a text page's artefact), or the spec itself, as the
+  // ledger template (columns, rows, mark, notes) and the passbook template (days, ticked, today, tick, register) take theirs
+  ['artefact', 'from', on(['editorial'], e(['field', 'ledger', 'passbook'], 'field'))],
   // (end of artefacts group)
   // -- editorial group --
   // (end of editorial group)
@@ -261,6 +265,7 @@ export const PAGES = {
       footer: [],
       spacer: [],
       // -- artefacts group --
+      artefact: ['from'],
       // (end of artefacts group)
       // -- editorial group --
       photo: ['frame'],
