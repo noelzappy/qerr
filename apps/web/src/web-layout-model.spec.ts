@@ -118,8 +118,10 @@ describe('the layout editor model', () => {
     l.blocks[3].size = 999;
     l.blocks[3].when = { present: 'sub', soon: true };
     (l.blocks[0] as Block).tilt = true;
+    // a label with fixed words and a source: the editor shows the words, so the source is listed
+    l.blocks[0].text = 'Words';
     l.fields.headline = { ...l.fields.headline, types: ['ledger'] };
-    expect(uncovered(l, cat)).toEqual(['colour', 'fields.headline.types', 'blocks[0].tilt', 'blocks[3].size', 'blocks[3].when.soon']);
+    expect(uncovered(l, cat)).toEqual(['colour', 'fields.headline.types', 'blocks[0].tilt', 'blocks[0].source', 'blocks[3].size', 'blocks[3].when.soon']);
   });
 
   it('changes one part at a time: places, sizes, dependent options, the kind of page', async () => {

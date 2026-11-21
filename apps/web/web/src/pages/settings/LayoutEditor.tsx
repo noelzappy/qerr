@@ -78,7 +78,7 @@ export function LayoutEditor({ initial, stored, catalogue, onSaved, onClose }: {
     const b: Block = { type: addType };
     const S = catalogue.sizes[size] ?? { w: 1080, h: 1350 };
     if (!spec.chrome) {
-      if (spec.fullWidth) { Object.assign(b, spec.fullWidth); b.px = fullWidthPx(Math.round(S.h * 0.6), S); }
+      if (isFullWidth(b, spec)) b.px = fullWidthPx(Math.round(S.h * 0.6), S);
       else if (page!.place.includes('slot')) {
         const g = layout.canvas[size];
         Object.assign(b, withPlace(b, 'slot', size, { col: 1, row: Math.max(1, g.rows - 1), width: Math.min(4, g.columns), height: 1 }, sizes));

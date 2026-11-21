@@ -327,6 +327,8 @@ function blockRest(b: unknown, l: Layout, cat: Catalogue, where: string, child: 
     if ((c.kind === 'field' || c.kind === 'binding' || c.kind === 'words') && typeof blk[c.kind === 'binding' ? c.key : 'field'] !== 'string' && blk[c.kind === 'binding' ? c.key : 'field'] !== undefined) out.push(`${where}.${c.kind === 'binding' ? c.key : 'field'}`);
     if (c.kind === 'words' && blk.text !== undefined && typeof blk.text !== 'string') out.push(`${where}.text`);
     if (c.kind === 'words' && blk.source !== undefined && !c.sources.includes(blk.source)) out.push(`${where}.source`);
+    // a label shows one of its field, fixed words or source: the others would not be shown
+    if (c.kind === 'words') out.push(...['text', 'source'].filter((k, i, all) => blk[k] !== undefined && (blk.field !== undefined || all.slice(0, i).some((x) => blk[x] !== undefined))).map((k) => `${where}.${k}`));
     if (c.kind === 'when') out.push(...readWhen(blk.when).rest.map((p) => `${where}.${p}`));
     if (c.kind === 'place') out.push(...placeRest(blk, sizesOf(l), where));
     if (c.kind === 'children' && blk.children !== undefined) {
