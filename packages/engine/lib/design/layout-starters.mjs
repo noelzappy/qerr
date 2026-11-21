@@ -69,7 +69,7 @@ export const STARTER_LAYOUTS = [
   },
   {
     id: 'myth-fact', name: 'Myth and fact', description: 'The myth on a dark slab and the fact on a pale one, on a dark textured page. Like the built-in myth and fact page.',
-    ground: 'ink', texture: 'lines', accent: 'colour',
+    ground: 'dark', texture: 'lines', accent: 'colour',
     fields: { myth: { required: true, max: 90 }, factLead: { required: true, max: 90 }, fact: { max: 140 } },
     canvas: { feed: POSTER },
     blocks: [
@@ -79,7 +79,7 @@ export const STARTER_LAYOUTS = [
         { type: 'label', text: 'Myth', style: 'tag', size: 24 },
         { type: 'headline', field: 'myth', style: 'poster', size: 68 },
       ] },
-      { type: 'slab', ground: 'mint', radius: 'slab', slot: at(1, 12, 12, 11), valign: 'center', padding: 48, gap: 24, children: [
+      { type: 'slab', ground: 'cool', radius: 'slab', slot: at(1, 12, 12, 11), valign: 'center', padding: 48, gap: 24, children: [
         { type: 'label', text: 'Fact', style: 'tag', size: 24 },
         { type: 'headline', field: 'factLead', style: 'poster', size: 68 },
         { type: 'sub', field: 'fact' },
@@ -101,7 +101,7 @@ export const STARTER_LAYOUTS = [
   },
   {
     id: 'quote', name: 'Quotation', description: 'A short quotation set large on a pale ground, with a label above it and the logo at the foot.',
-    ground: 'mint', accent: 'colour',
+    ground: 'cool', accent: 'colour',
     fields: { quote: { required: true, max: 120 }, label: { max: 40 } },
     canvas: { feed: POSTER, square: { ...POSTER, rows: 18 } },
     blocks: [

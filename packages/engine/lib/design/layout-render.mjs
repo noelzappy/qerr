@@ -7,11 +7,12 @@ import { DesignError } from './errors.mjs';
 import { LIMITS } from './figures.mjs';
 import { BLOCKS, TYPE_SCALE, cellOf, findLayout, optionOf, slotRect } from './layout.mjs';
 import { SIZES } from './sizes.mjs';
-import { ACCENT_STYLES, DARK_GROUNDS, GROUND_NAMES } from './tokens.mjs';
+import { GROUND_NAMES, groundName, isDarkColour } from './tokens.mjs';
 import { esc, fmtE, fmtSub, hs, px } from '../../design/templates/common.mjs';
 import { desktopWindow, folio, glow, lbl, obj, phone, photoWindow } from '../../design/templates/editorial.mjs';
 import { ledgerSvg, passbookSvg, registerSvg, svgBox } from '../../design/templates/artefacts.mjs';
 import { dotMapSvg } from '../../design/templates/map.mjs';
+import { accentOf, decorationOf, footerOf, isDark } from '../../design/templates/style.mjs';
 
 // Only a name from the fixed list ever reaches a class attribute, whatever was passed.
 const pick = (list, v, def) => (list.includes(v) ? v : def);
@@ -19,16 +20,22 @@ const opt = (blk, k) => { const o = BLOCKS[blk.type].options[k]; const v = optio
 const box = (r) => `left:${px(r.x)}px;top:${px(r.y)}px;width:${px(r.w)}px;height:${px(r.h)}px`;
 const CHECK = '<span class="ck" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg></span>';
 
-// The ground, accent style and series name a page uses: the spec's, else the layout's, else the series', else white / muted.
+// The ground, accent style and series name a page uses. Ground: the spec's, else the layout's, else the series', else light.
+// Accent: the spec's, else the layout's, else the brand's style (its accent device, else the series'), else muted. Whether the
+// ground is dark comes from the brand's own colour for it.
 export function frameOf(spec, layout, brand) {
   const series = spec.series !== undefined ? brand.series?.[spec.series] : null;
   if (spec.series !== undefined && !series) throw new DesignError(`series "${spec.series}" is not in brand.json (known: ${Object.keys(brand.series ?? {}).join(', ')})`);
-  const ground = spec.ground ?? (layout.ground && layout.ground !== 'series' ? layout.ground : series?.ground ?? 'white');
-  const accent = spec.accent ?? (layout.accent && layout.accent !== 'series' ? layout.accent : series?.accent ?? 'muted');
-  if (!GROUND_NAMES.includes(ground)) throw new DesignError(`ground must be one of ${GROUND_NAMES.join(', ')}`);
-  if (!ACCENT_STYLES.includes(accent)) throw new DesignError(`accent must be one of ${ACCENT_STYLES.join(', ')}`);
-  return { ground, accent, dark: DARK_GROUNDS.includes(ground), label: spec.label ?? series?.name ?? brand.name };
+  const ground = groundName(spec.ground ?? (layout.ground && layout.ground !== 'series' ? layout.ground : series?.ground ?? 'light'));
+  if (!ground) throw new DesignError(`ground must be one of ${GROUND_NAMES.join(', ')}`);
+  const own = spec.accent ?? (layout.accent && layout.accent !== 'series' ? layout.accent : undefined);
+  const accent = accentOf(brand, { spec: { accent: own }, series, fallback: 'muted' });
+  return { ground, accent, dark: isDark(brand, ground), label: spec.label ?? series?.name ?? brand.name };
 }
+
+// The page's decoration class: the layout's own choice, or (auto) the brand's style for an editorial page on this ground.
+const TEXTURE_CLASS = { none: '', dots: 'dots', grid: 'grid', lines: 'tex' };
+const textureOf = (layout, brand, dark) => (!layout.texture || layout.texture === 'auto' ? decorationOf(brand, { dark }) : Object.hasOwn(TEXTURE_CLASS, layout.texture) ? TEXTURE_CLASS[layout.texture] : '');
 
 // The margins the fit check holds text to on a layout page: the layout's own, less a few pixels for the optical overhang of
 // large type. They are never smaller than the size's minimum margins (layout.mjs checks the grid against them).
@@ -43,6 +50,7 @@ const scaled = (n, size) => Math.round(n * (TYPE_SCALE[size.name] ?? 1));
 
 function logoHtml(ctx, variant, h, dark) {
   const B = ctx.brand, [fw, fh] = B.logos.fullSize, k = h / fh;
+  if (variant === 'pill' || (variant === 'auto' && footerOf(B) === 'pill')) return `<span class="lpill ly-logo" data-avoid style="--logo-h:${px(h)}px"><img src="${B.logoFullSrc}" alt="${esc(B.name)}"></span>`;
   if (variant === 'mark') return `<img class="ly-logo" data-avoid src="${B.logoMarkSrc}" alt="${esc(B.name)}" style="height:${px(h)}px">`;
   if (variant === 'full' || (variant === 'auto' && !dark)) return `<img class="ly-logo" data-avoid src="${B.logoFullSrc}" alt="${esc(B.name)}" style="height:${px(h)}px">`;
   // The mark beside the full logo's wordmark, drawn white on a dark surface and ink on a light one (as on the poster pages).
@@ -191,7 +199,7 @@ function decorationHtml(blk, ctx, r, warnings) {
 }
 
 function slabHtml(blk, spec, ctx, frame, r) {
-  const g = opt(blk, 'ground'), dark = DARK_GROUNDS.includes(g), pad = opt(blk, 'padding');
+  const g = opt(blk, 'ground'), dark = g === 'panel' || g === 'card' ? isDarkColour(ctx.brand.surfaces[g]) : isDark(ctx.brand, g), pad = opt(blk, 'padding');
   const bg = g === 'panel' ? 'var(--panel)' : g === 'card' ? 'var(--card)' : `var(--g-${g})`;
   const inner = { x: r.inner.x - r.x + pad, y: r.inner.y - r.y + pad, w: r.inner.w - 2 * pad, h: r.inner.h - 2 * pad };
   if (inner.w < 16 || inner.h < 16) throw new DesignError(`a slab's padding (${pad} px) leaves no room for its text; give it more cells or less padding`);
@@ -223,9 +231,9 @@ export function renderLayout(spec, ctx) {
       if (inner) text += `<div class="${cellClass(blk)}" data-cell style="${box(r)}">${inner}</div>`;
     }
   }
-  const texture = layout.texture === 'dots' ? ' dots' : layout.texture === 'lines' ? ' tex' : '';
+  const texture = textureOf(layout, ctx.brand, frame.dark);
   return {
-    body: `<div class="cv lyt${texture}" style="--bg:var(--g-${frame.ground})">${under}${media}${text}</div>`,
+    body: `<div class="cv lyt${texture ? ` ${texture}` : ''}" style="--bg:var(--g-${frame.ground})">${under}${media}${text}</div>`,
     bodyClass: `acc-${frame.accent}${frame.dark ? ' dark' : ''}`,
     bodyAttrs: 'data-editorial="1" data-layout="1"',
     // the layout classes (design/layout.css), a fixed file of the engine that buildPage places after the brand's stylesheet

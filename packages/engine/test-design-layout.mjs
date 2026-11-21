@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { ROOT } from './lib/core.mjs';
-import { loadBrand, loadSeries } from './lib/design/brand.mjs';
+import { loadBrand, loadSeries, validateBrand } from './lib/design/brand.mjs';
 import { validateBatchDesigns } from './lib/design/batch.mjs';
 import { explainProblems, findLayoutProblems } from './lib/design/checks.mjs';
 import { findChrome } from './lib/design/chrome.mjs';
@@ -73,6 +73,8 @@ test('the layout itself: id, name, description, ground, accent, texture and unkn
   assert.ok(has(mod((l) => { l.ground = 'var(--x)'; }), 'ground must be'));
   assert.deepEqual(mod((l) => { l.ground = 'deep'; l.accent = 'colour'; l.texture = 'lines'; }), []);
   assert.deepEqual(mod((l) => { l.ground = 'series'; l.accent = 'series'; l.texture = 'none'; }), []);
+  assert.deepEqual(mod((l) => { l.ground = 'mint'; l.accent = 'none'; l.texture = 'auto'; }), [], 'an older ground name is read as the neutral one');
+  assert.deepEqual(mod((l) => { l.texture = 'grid'; }), []);
   assert.ok(has(mod((l) => { l.accent = 'bold'; }), 'accent must be'));
   assert.ok(has(mod((l) => { l.texture = 'stripes'; }), 'texture must be'));
   assert.ok(has(mod((l) => { l.css = 'body{}'; }), '"css" is not a known setting'));
@@ -143,7 +145,7 @@ test('blocks: known types and options from fixed lists, slots inside the grid, n
   assert.ok(has(mod((l) => { l.blocks[1].onclick = 'x'; }), '"onclick" is not a known setting'));
   assert.ok(has(mod((l) => { l.blocks[1].color = '#f00'; }), '"color" is not a known setting'));
   assert.ok(has(mod((l) => { l.blocks[1].x = 10; }), '"x" is not a known setting'));
-  assert.ok(has(mod((l) => { l.blocks[3].variant = 'giant'; }), 'variant must be one of auto, full, solid, mark'));
+  assert.ok(has(mod((l) => { l.blocks[3].variant = 'giant'; }), 'variant must be one of auto, full, solid, pill, mark'));
   assert.ok(has(mod((l) => { l.blocks[0].frame = 'polaroid'; }), 'frame must be one of'));
   assert.ok(has(mod((l) => { l.blocks.push({ type: 'decoration', kind: 'video', slot: at(1, 1, 1, 1) }); }), 'kind must be one of rule, panel'));
   assert.ok(has(mod((l) => { l.blocks.push({ type: 'stats', slot: at(1, 22, 12, 2), rules: 'yes' }); l.fields.stats = {}; }), 'rules must be true or false'));
@@ -227,6 +229,11 @@ test('a list of layouts: a list, at most 40, ids unique', () => {
   assert.throws(() => findLayout('demo', [{ ...base(), blocks: [] }]), /the brand's layout "demo" is not valid/);
   assert.throws(() => findLayout('demo', 'not a list'), /it has none/);
   assert.equal(findLayout('demo', [base()]).id, 'demo');
+  // the brand file's "layouts" are checked by validateBrand like every other brand value
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'brands', 'demo', 'brand.json'), 'utf8'));
+  assert.deepEqual(validateBrand({ ...raw, layouts: STARTER_LAYOUTS }), []);
+  assert.ok(has(validateBrand({ ...raw, layouts: [{ ...base(), blocks: [{ type: 'html', slot: at(1, 1, 1, 1) }] }] }), 'brand.json: layouts[0] "demo": blocks[0].type must be one of'));
+  assert.ok(has(validateBrand({ ...raw, layouts: 'x' }), 'brand.json: layouts must be a list'));
 });
 
 test('a design block for a layout is checked against the layout\'s declared fields', () => {
@@ -351,15 +358,27 @@ const ctxFor = (layouts, size = 'feed', extra = {}) => ({ size: SIZES[size], bra
 const pageOf = (spec, layouts, size, extra) => buildPage({ brand, size: SIZES[size ?? 'feed'], ...renderLayout({ focalCss: '50% 50%', ...spec }, ctxFor(layouts, size, extra)) });
 
 test('the page: ground, accent and series follow the spec, then the layout, then the series', () => {
-  assert.deepEqual(frameOf({}, base(), brand), { ground: 'white', accent: 'muted', dark: false, label: brand.name });
-  assert.deepEqual(frameOf({ series: 'explainers' }, base(), brand), { ground: brand.series.explainers.ground, accent: brand.series.explainers.accent, dark: ['ink', 'deep'].includes(brand.series.explainers.ground), label: brand.series.explainers.name });
+  assert.deepEqual(frameOf({}, base(), brand), { ground: 'light', accent: 'muted', dark: false, label: brand.name });
+  assert.deepEqual(frameOf({ series: 'explainers' }, base(), brand), { ground: brand.series.explainers.ground, accent: brand.series.explainers.accent, dark: brand.darkGrounds.includes(brand.series.explainers.ground), label: brand.series.explainers.name });
   assert.deepEqual(frameOf({ series: 'explainers' }, { ...base(), ground: 'deep', accent: 'weight' }, brand).ground, 'deep');
-  assert.equal(frameOf({ ground: 'mint', series: 'explainers', label: 'Mine' }, { ...base(), ground: 'deep' }, brand).ground, 'mint');
+  assert.equal(frameOf({ series: 'explainers' }, { ...base(), accent: 'weight' }, brand).accent, 'weight');
+  assert.equal(frameOf({ ground: 'mint', series: 'explainers', label: 'Mine' }, { ...base(), ground: 'deep' }, brand).ground, 'cool', 'older names are read as the neutral ones');
+  assert.equal(frameOf({ ground: 'ink' }, base(), brand).dark, true);
+  // the brand's own colours decide which grounds are dark, and its accent device applies when neither the post nor the layout sets one
+  const lightDeep = { ...brand, grounds: { ...brand.grounds, deep: '#F0F0F0' }, darkGrounds: brand.darkGrounds.filter((g) => g !== 'deep') };
+  assert.equal(frameOf({ ground: 'deep' }, base(), lightDeep).dark, false);
+  const device = { ...brand, style: { ...brand.style, type: { ...brand.style.type, accent: 'none' } } };
+  assert.equal(frameOf({}, base(), device).accent, 'none');
+  assert.equal(frameOf({}, { ...base(), accent: 'colour' }, device).accent, 'colour');
   assert.equal(frameOf({ label: 'Mine' }, base(), brand).label, 'Mine');
   assert.throws(() => frameOf({ series: 'nope' }, base(), brand), DesignError);
   const html = pageOf({ ...design(), ground: 'deep' }, [base()]);
   assert.match(html, /<body class="acc-muted dark" data-editorial="1" data-layout="1">/);
-  assert.match(html, /class="cv lyt" style="--bg:var\(--g-deep\)"/);
+  // texture auto: the brand's decoration for a dark editorial page (dots in the demo brand); none: nothing
+  assert.match(html, /class="cv lyt dots" style="--bg:var\(--g-deep\)"/);
+  assert.match(pageOf(design(), [{ ...base(), texture: 'none', ground: 'deep' }]), /class="cv lyt" style/);
+  assert.match(pageOf(design(), [{ ...base(), texture: 'grid' }]), /class="cv lyt grid" style/);
+  assert.match(pageOf(design(), [base()]), /class="cv lyt" style="--bg:var\(--g-light\)"/);
   assert.ok(html.includes('.ly-cell{'), 'the layout stylesheet is on the page');
 });
 
@@ -510,7 +529,7 @@ test('extra stylesheets come only from the engine\'s fixed list', () => {
 test('the layout stylesheet holds no literal colours, fonts or sizes of a brand', () => {
   const css = fs.readFileSync(path.join(ROOT, 'packages', 'engine', 'design', 'layout.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   assert.ok(!/#[0-9a-f]{3,6}\b/i.test(css), 'no hex colours');
-  assert.ok(!/font-family/.test(css), 'no fonts');
+  for (const f of css.match(/font-family:[^;}]*/g) ?? []) assert.match(f, /^font-family:var\(--\w+\)(,var\(--\w+\))*,(sans-serif|monospace)$/, 'fonts only from the brand\'s variables');
 });
 
 // ---- real renders: the same checks as for the built-in templates ----

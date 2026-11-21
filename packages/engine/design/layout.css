@@ -18,16 +18,17 @@
 .ly-line{display:block;min-width:0}
 
 /* type the built-in pages do not have */
-.ly-plain{display:inline-block;font-weight:600;letter-spacing:-.01em;color:var(--ink);white-space:nowrap}
+.ly-plain{display:inline-block;font-family:var(--display),var(--font),sans-serif;font-weight:600;letter-spacing:-.01em;color:var(--ink);white-space:nowrap}
 .ly-plain.ly-acc{color:var(--primary)}
-.dark .ly-plain{color:var(--g-white)}
+.dark .ly-plain{color:var(--inv)}
 .dark .ly-plain.ly-acc{color:var(--gold)}
-.ly-tag{display:inline-block;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:8px 20px;white-space:nowrap;color:var(--primary);background:var(--g-white);box-shadow:0 0 0 1px var(--line)}
-.dark .ly-tag{color:var(--g-white);background:rgba(255,255,255,.14);box-shadow:none}
+.ly-tag{display:inline-block;font-weight:600;letter-spacing:.08em;text-transform:var(--l-case);border-radius:999px;padding:8px 20px;white-space:nowrap;color:var(--primary);background:var(--g-light);box-shadow:0 0 0 1px var(--line)}
+.st-outline .ly-tag{background:transparent;box-shadow:0 0 0 var(--ow) var(--primary)}
+.dark .ly-tag{color:var(--inv);background:rgba(255,255,255,.14);box-shadow:none}
 .ly-url{display:inline-block;font-weight:500;letter-spacing:-.005em;color:var(--body);white-space:nowrap}
 .dark .ly-url{color:var(--inv-body)}
 .ly-logo{display:inline-block;vertical-align:top}
-.ly-logo.logo-inv{display:inline-flex}
+.ly-logo.logo-inv,.ly-logo.lpill{display:inline-flex}
 
 /* figures: in a row (sharing the width) or a column (optionally ruled) */
 .ly-stats{display:flex;min-width:0}
@@ -50,25 +51,30 @@
 .ly-r-card{border-radius:var(--r-card)}
 .ly-r-slab{border-radius:var(--r-slab)}
 .ly-shadow{box-shadow:var(--shadow-card),0 0 0 1px var(--line)}
+.st-outline .ly-shadow{box-shadow:0 0 0 var(--ow) var(--outline)}
+.st-flat .ly-shadow{box-shadow:none}
 .ly-stack{position:absolute}
 /* the type on a slab follows the slab's own colour, not the page's (these win over brand.css's .dark rules) */
 .cv .ly-light .h,.cv .ly-light .ps-h,.cv .ly-light .ly-plain{color:var(--ink)}
 .cv .ly-light .sub,.cv .ly-light .ly-url,.cv .ly-light .ly-bullets li,.cv .ly-light .checks li{color:var(--body)}
 .cv .ly-light .lbl{color:var(--muted)}
 .cv .ly-light .lbl.acc,.cv .ly-light .ly-plain.ly-acc{color:var(--primary)}
-.cv .ly-light .ly-tag{color:var(--primary);background:var(--g-white);box-shadow:0 0 0 1px var(--line)}
+.cv .ly-light .ly-tag{color:var(--primary);background:var(--g-light);box-shadow:0 0 0 1px var(--line)}
+.st-outline .cv .ly-light .ly-tag{background:transparent;box-shadow:0 0 0 var(--ow) var(--primary)}
 .acc-muted .cv .ly-light .h em,.acc-muted .cv .ly-light .ps-h em{color:var(--muted)}
 .acc-colour .cv .ly-light .h em,.acc-colour .cv .ly-light .ps-h em{color:var(--primary)}
-.acc-weight .cv .ly-light .h em,.acc-weight .cv .ly-light .ps-h em{color:inherit}
-.cv .ly-dark .h,.cv .ly-dark .ps-h,.cv .ly-dark .ly-plain{color:var(--g-white)}
+.acc-weight .cv .ly-light .h em,.acc-weight .cv .ly-light .ps-h em,.acc-none .cv .ly-light .h em,.acc-none .cv .ly-light .ps-h em{color:inherit}
+.cv .ly-dark .h,.cv .ly-dark .ps-h,.cv .ly-dark .ly-plain{color:var(--inv)}
 .cv .ly-dark .sub,.cv .ly-dark .ly-url,.cv .ly-dark .lbl,.cv .ly-dark .ly-bullets li,.cv .ly-dark .checks li{color:var(--inv-body)}
 .cv .ly-dark .lbl.acc,.cv .ly-dark .ly-plain.ly-acc{color:var(--gold)}
-.cv .ly-dark .ly-tag{color:var(--g-white);background:rgba(255,255,255,.14);box-shadow:none}
+.cv .ly-dark .ly-tag{color:var(--inv);background:rgba(255,255,255,.14);box-shadow:none}
 .acc-muted .cv .ly-dark .h em,.acc-muted .cv .ly-dark .ps-h em{color:var(--muted-inv)}
 .acc-colour .cv .ly-dark .h em,.acc-colour .cv .ly-dark .ps-h em{color:var(--gold)}
-.acc-weight .cv .ly-dark .h em,.acc-weight .cv .ly-dark .ps-h em{color:inherit}
+.acc-weight .cv .ly-dark .h em,.acc-weight .cv .ly-dark .ps-h em,.acc-none .cv .ly-dark .h em,.acc-none .cv .ly-dark .ps-h em{color:inherit}
 
 /* decorations: the tint panel (a flat band with a hairline top, as on the editorial pages), the website's dot grid and the posters' line texture, in a slot */
 .ly-panel{position:absolute;background:var(--panel);border-top:1px solid var(--line)}
-.ly-dots{background-image:radial-gradient(var(--dot) var(--dot-r),transparent var(--dot-r));background-size:var(--dot-s) var(--dot-s);background-position:calc(var(--dot-s)/2) calc(var(--dot-s)/2)}
-.ly-tex{background-image:repeating-linear-gradient(var(--tex-a),var(--tex) 0 1px,transparent 1px var(--tex-s))}
+.st-outline .ly-panel{border-top:var(--ow) solid var(--outline)}
+.st-flat .ly-panel{border-top:0}
+.ly-dots{background-image:radial-gradient(var(--dc) var(--dot-r),transparent var(--dot-r));background-size:var(--dot-s) var(--dot-s);background-position:calc(var(--dot-s)/2) calc(var(--dot-s)/2)}
+.ly-tex{background-image:repeating-linear-gradient(var(--tex-a),var(--tc) 0 1px,transparent 1px var(--tex-s))}

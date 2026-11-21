@@ -8,9 +8,10 @@
 //     "id": "split-photo",                        lowercase letters, digits and -, up to 40 (a design names it: { "template": "layout", "layout": "split-photo" })
 //     "name": "Split photo",                      shown in Settings and to the AI; never placed in an image
 //     "description": "A photo on top ...",        optional, up to 300 characters, for people and the AI
-//     "ground": "series" | a ground name,         the page colour (default: the series' ground, else white)
-//     "accent": "series" | an accent style,       how the *accent phrase* of a headline is set
-//     "texture": "none" | "dots" | "lines",       the faint dot grid or line texture on the page
+//     "ground": "series" | a ground name,         the page colour (default: the series' ground, else light); older names are read
+//                                                 as the neutral ones (white is light, tint soft, mint cool, gold-pale warm, ink dark)
+//     "accent": "series" | an accent style,       how the *accent phrase* of a headline is set (default: the brand's style)
+//     "texture": "auto" | "none" | "dots" | "grid" | "lines",  the page's decoration (auto: the brand's style decides)
 //     "fields": { "headline": { "required": true, "max": 90 }, "image": { "required": true }, "stats": { "min": 1, "max": 3 } },
 //     "canvas": { "feed": { "columns": 12, "rows": 15, "margin": { "top": 80, "right": 70, "bottom": 70, "left": 70 }, "gutter": 24 } },
 //     "blocks": [ { "type": "photo", "slot": { "col": 1, "row": 1, "width": 12, "height": 8 }, "bleed": ["top", "left", "right"] }, ... ]
@@ -24,7 +25,7 @@ import path from 'node:path';
 import { ROOT, brandFile } from '../core.mjs';
 import { ARTEFACT_TYPES, IMAGE_EXT, MAX_STATS, NETWORKS, focalToCss, parseSizes, parseStat, validateDesign } from './spec.mjs';
 import { SIZES, SIZE_NAMES } from './sizes.mjs';
-import { ACCENT_STYLES, DARK_GROUNDS, GROUND_NAMES, SERIES_KEY } from './tokens.mjs';
+import { ACCENT_STYLES, DARK_GROUNDS, GROUND_NAMES, SERIES_KEY, groundName } from './tokens.mjs';
 
 export const LAYOUT_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 export const MAX_LAYOUTS = 40;
@@ -79,9 +80,11 @@ export const WEBSITE_PX = [22, 24, 26, 28, 30];
 export const PAD_PX = [0, 24, 32, 40, 48, 56, 64];
 export const GAP_PX = [0, 12, 16, 24, 28, 32, 40, 48];
 export const SLAB_GROUNDS = [...GROUND_NAMES, 'panel', 'card'];
+export const TEXTURES = ['auto', 'none', 'dots', 'grid', 'lines'];
 export const LABEL_SOURCES = ['series', 'brand', 'folio'];
 
-const e = (list, def) => ({ t: 'enum', list, def });
+// canon: a reader that turns an older spelling into a listed name (a ground alias into its neutral name).
+const e = (list, def, canon) => ({ t: 'enum', list, def, canon });
 const b = (def) => ({ t: 'bool', def });
 const ALIGN = e(ALIGNS, 'left');
 const VALIGN = e(VALIGNS, 'top');
@@ -97,9 +100,9 @@ export const BLOCKS = {
   list: { kinds: ['items'], field: 'items', child: true, options: { style: e(['checks', 'pills', 'bullets'], 'checks'), align: ALIGN, valign: VALIGN } },
   photo: { kinds: ['image'], field: 'image', options: { frame: e(['none', 'card', 'raised'], 'none') }, bleed: true },
   screen: { kinds: ['image'], field: 'image', options: { device: e(['phone', 'desktop'], 'phone'), fit: e(['contain', 'crop'], 'contain'), glow: b(true), tilt: b(false), framed: b(false), align: e(ALIGNS, 'center'), valign: e(VALIGNS, 'center') } },
-  logo: { kinds: [], field: null, child: true, options: { variant: e(['auto', 'full', 'solid', 'mark'], 'auto'), size: e(LOGO_PX, 34), align: ALIGN, valign: VALIGN } },
+  logo: { kinds: [], field: null, child: true, options: { variant: e(['auto', 'full', 'solid', 'pill', 'mark'], 'auto'), size: e(LOGO_PX, 34), align: ALIGN, valign: VALIGN } },
   website: { kinds: [], field: null, child: true, options: { size: e(WEBSITE_PX, 26), align: ALIGN, valign: VALIGN } },
-  slab: { kinds: [], field: null, options: { ground: e(SLAB_GROUNDS, 'panel'), radius: e(['none', 'card', 'slab'], 'none'), shadow: b(false), padding: e(PAD_PX, 48), gap: e(GAP_PX, 24), align: ALIGN, valign: VALIGN }, bleed: true, children: true },
+  slab: { kinds: [], field: null, options: { ground: e(SLAB_GROUNDS, 'panel', (v) => groundName(v) ?? v), radius: e(['none', 'card', 'slab'], 'none'), shadow: b(false), padding: e(PAD_PX, 48), gap: e(GAP_PX, 24), align: ALIGN, valign: VALIGN }, bleed: true, children: true },
   artefact: { kinds: ['artefact'], field: 'artefact', options: { align: ALIGN, valign: VALIGN } },
   decoration: { kinds: [], field: null, options: { kind: e(['rule', 'panel', 'dots', 'texture', 'glow', 'map'], 'rule') }, bleed: true, under: true },
   spacer: { kinds: [], field: null, options: {} },
@@ -191,13 +194,13 @@ function optionProblems(block, spec, where, errors) {
   for (const [k, o] of Object.entries(spec.options)) {
     const v = block[k];
     if (v === undefined) continue;
-    if (o.t === 'enum' && !o.list.includes(v)) errors.push(`${where}.${k} must be one of ${o.list.join(', ')} (got ${show(v)})`);
+    if (o.t === 'enum' && !o.list.includes(o.canon ? o.canon(v) : v)) errors.push(`${where}.${k} must be one of ${o.list.join(', ')} (got ${show(v)})`);
     if (o.t === 'bool' && typeof v !== 'boolean') errors.push(`${where}.${k} must be true or false`);
   }
 }
 
-// The value of an option with its default filled in.
-export const optionOf = (block, k) => block[k] ?? BLOCKS[block.type].options[k]?.def;
+// The value of an option with its default filled in (an older spelling read as the listed name).
+export const optionOf = (block, k) => { const o = BLOCKS[block.type].options[k]; const v = block[k] ?? o?.def; return o?.canon ? o.canon(v) : v; };
 
 // One block (or one child of a slab). Returns the fields it shows.
 function blockProblems(blk, layout, sizes, where, errors, { child = false } = {}) {
@@ -266,9 +269,9 @@ export function validateLayout(l, where = 'layout') {
   unknownKeys(l, LAYOUT_KEYS, where, errors);
   if (!oneLine(l.name, 40)) errors.push(`${where}: name must be one line of up to 40 characters`);
   if (l.description !== undefined && (typeof l.description !== 'string' || l.description.length > 300)) errors.push(`${where}: description must be a text of up to 300 characters`);
-  if (l.ground !== undefined && l.ground !== 'series' && !GROUND_NAMES.includes(l.ground)) errors.push(`${where}: ground must be series or one of ${GROUND_NAMES.join(', ')}`);
+  if (l.ground !== undefined && l.ground !== 'series' && !groundName(l.ground)) errors.push(`${where}: ground must be series or one of ${GROUND_NAMES.join(', ')}`);
   if (l.accent !== undefined && l.accent !== 'series' && !ACCENT_STYLES.includes(l.accent)) errors.push(`${where}: accent must be series or one of ${ACCENT_STYLES.join(', ')}`);
-  if (l.texture !== undefined && !['none', 'dots', 'lines'].includes(l.texture)) errors.push(`${where}: texture must be none, dots or lines`);
+  if (l.texture !== undefined && !TEXTURES.includes(l.texture)) errors.push(`${where}: texture must be one of ${TEXTURES.join(', ')}`);
   // fields
   if (!isObj(l.fields) || !Object.keys(l.fields).length) errors.push(`${where}: fields must name at least one field the layout shows, like { "headline": { "required": true } }`);
   else for (const [name, f] of Object.entries(l.fields)) {
@@ -419,7 +422,7 @@ export function layoutDesignProblems(d, where = 'design', opts = {}) {
     if (typeof d.series !== 'string' || !SERIES_KEY.test(d.series)) errors.push(`${where}: series must be a key from brand.json (lowercase letters, digits and -)`);
     else if (opts.series && !opts.series.includes(d.series)) errors.push(`${where}: series "${d.series}" is not in brand.json (known: ${opts.series.join(', ') || 'none'})`);
   }
-  if (d.ground !== undefined && !GROUND_NAMES.includes(d.ground)) errors.push(`${where}: ground must be one of ${GROUND_NAMES.join(', ')}`);
+  if (d.ground !== undefined && !groundName(d.ground)) errors.push(`${where}: ground must be one of ${GROUND_NAMES.join(', ')}`);
   if (d.accent !== undefined && !ACCENT_STYLES.includes(d.accent)) errors.push(`${where}: accent must be one of ${ACCENT_STYLES.join(', ')}`);
   const own = Object.keys(l.fields);
   const extra = layoutHasImage(l) ? ['focal', 'zoom'] : [];
@@ -474,7 +477,7 @@ export function layoutCatalogue() {
   return {
     sizes: Object.fromEntries(SIZE_NAMES.map((z) => [z, { w: SIZES[z].w, h: SIZES[z].h, minMargins: MIN_MARGINS[z] }])),
     grid: GRID_LIMITS,
-    grounds: GROUND_NAMES, darkGrounds: DARK_GROUNDS, accents: ACCENT_STYLES, textures: ['none', 'dots', 'lines'],
+    grounds: GROUND_NAMES, darkGrounds: DARK_GROUNDS, accents: ACCENT_STYLES, textures: TEXTURES,
     fields: Object.fromEntries(Object.entries(FIELDS).map(([k, f]) => [k, { ...f }])),
     blocks: Object.fromEntries(Object.entries(BLOCKS).map(([k, s]) => [k, {
       kinds: s.kinds, field: s.field, child: !!s.child, bleed: !!s.bleed, children: !!s.children, under: !!s.under,
