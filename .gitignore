@@ -1,11 +1,14 @@
+# Secrets and local files. .env and accounts.json are what apps/web/scripts/make-seed-secrets.mjs reads; channels.json,
+# schema-cache.json and media/ are left over from the old command-line tool and stay ignored so they are never committed.
 .env
-channels.json
+.env.*
 accounts.json
+channels.json
+schema-cache.json
+media/
+# Written at run time: the saved brand as a pack (state/brand/), the render lock and temporary renders (out/).
 state/
 out/
-schema-cache.json
-media/*
-!media/README.md
 .DS_Store
 packages/engine/design/assets/photos/*
 !packages/engine/design/assets/photos/README.md
