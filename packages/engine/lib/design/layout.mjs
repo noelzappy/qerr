@@ -187,6 +187,12 @@ export const BLOCKS = {
   // -- editorial group --
   // (end of editorial group)
   // -- screen group --
+  // The screen template's (editorial pages only): the glow behind the layout's phone, sized from the phone as its screen block
+  // draws it (no rectangle of its own); the passbook card the spec's "beside" describes, in its rectangle; and the footer with
+  // the logo alone (no website, no "Swipe →").
+  halo: { kinds: [], field: null, options: {}, chrome: true, pages: ['editorial'] },
+  beside: { kinds: [], field: null, options: {}, pages: ['editorial'] },
+  footlogo: { kinds: [], field: null, options: {}, chrome: true, pages: ['editorial'] },
   // (end of screen group)
   // -- photo group --
   // (end of photo group)
@@ -202,6 +208,12 @@ const ADDED_OPTIONS = [
   // -- editorial group --
   // (end of editorial group)
   // -- screen group --
+  // lists: the spec's pills and check list (the screen template's) under the headline and its sub line. row: the headline is the
+  // text column of a row with the layout's phone (its screen block), centred in the band their rectangles share.
+  ['headline', 'lists', on(['editorial'], b(false))],
+  ['headline', 'row', on(['editorial'], b(false))],
+  // specWindow: a desktop window takes the spec's own validated framed, tilt and region.
+  ['screen', 'specWindow', on(['editorial'], b(false))],
   // (end of screen group)
   // -- photo group --
   // (end of photo group)
@@ -250,6 +262,10 @@ export const PAGES = {
       // -- editorial group --
       // (end of editorial group)
       // -- screen group --
+      screen: ['device', 'fit', 'specWindow'],
+      halo: [],
+      beside: [],
+      footlogo: [],
       // (end of screen group)
     },
     decorations: ['panel', 'rule', 'glow', 'map'],
@@ -266,6 +282,8 @@ const ADDED_HONOURS = [
   // -- editorial group --
   // (end of editorial group)
   // -- screen group --
+  ['editorial', 'headline', 'lists'],
+  ['editorial', 'headline', 'row'],
   // (end of screen group)
   // -- photo group --
   // (end of photo group)

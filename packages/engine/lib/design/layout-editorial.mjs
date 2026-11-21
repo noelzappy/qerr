@@ -20,7 +20,11 @@ const within = (r, p) => !!p && r.x >= p.x && r.y >= p.y && r.x + r.w <= p.x + p
 
 // The headline in its box (editorial.mjs textBlock): the size from the block, or the spec's own validated "size" (70, 84 or 112)
 // when the block takes it, with its class for the optical overhang. A subField's sub line flows 28 px under it in the same box,
-// subWidth wide, so it moves up as the fit loop shrinks the headline.
+// subWidth wide, so it moves up as the fit loop shrinks the headline; with `lists`, the spec's pills and check list (the screen
+// template's) follow it (editorial.mjs pillRow, checkList: escaped items, a fixed check drawing).
+// With `row`, the box is the text column of a flex row with the layout's phone (its screen block, drawn here and not on its
+// own): the row runs from the headline's left edge to the phone's right edge, the gap between their rectangles apart, and both
+// are centred in the band the two rectangles share (editorial.mjs textBlock's flow, as the screen template sets its phone row).
 function headline(blk, spec, ctx, r, state) {
   const v = spec[blk.field ?? 'headline'];
   if (typeof v !== 'string' || !v) return '';
@@ -28,7 +32,10 @@ function headline(blk, spec, ctx, r, state) {
   const cls = opt(blk, 'style') === 'poster' ? 'ps-h' : `h s${size}`;
   const s = blk.subField === undefined ? undefined : spec[blk.subField];
   const flow = typeof s === 'string' && s ? `<div class="sub" data-role="sub" data-min="30" style="margin-top:28px;max-width:${px(opt(blk, 'subWidth'))}px">${fmtSub(s)}</div>` : '';
-  return `<div class="abs"${lead(state)} style="${place(r)}${alignOf(blk)}"><div class="${cls}" data-role="headline" style="font-size:${fontSize(blk, size)};max-width:${px(r.w)}px">${fmtE(v)}</div>${flow}</div>`;
+  const lists = opt(blk, 'lists') ? screenKit.pillRow(spec.pills) + screenKit.checkList(spec.checks) : '';
+  const inner = `<div class="${cls}" data-role="headline" style="font-size:${fontSize(blk, size)};max-width:${px(r.w)}px">${fmtE(v)}</div>${flow}${lists}`;
+  if (opt(blk, 'row')) return phoneRow(blk, spec, ctx, r, state, `<div${lead(state)} style="width:${px(r.w)}px${alignOf(blk)}">${inner}</div>`);
+  return `<div class="abs"${lead(state)} style="${place(r)}${alignOf(blk)}">${inner}</div>`;
 }
 
 // A sub line on its own; on the panel when its rectangle lies on it (the fit check then does not count the panel's edge).
@@ -54,6 +61,61 @@ const foot = (blk, spec, ctx, r, state) => footer(ctx, { inverse: panelOf(state)
 // -- editorial group: drawings of new block types go here --
 // (end of editorial group)
 // -- screen group: drawings of new block types go here --
+// The screen template's page (design/templates/screen.mjs): a pre-framed phone in a row with the text, faded out under the text
+// or beside a passbook card, or a desktop window on the panel. Its imports are here (imports are hoisted), as namespaces with
+// names of their own, so that the groups' changes to this file stay apart and never declare a name twice.
+import * as screenArt from '../../design/templates/artefacts.mjs';
+import * as screenKit from '../../design/templates/editorial.mjs';
+import * as screenTpl from '../../design/templates/screen.mjs';
+import * as screenErr from './errors.mjs';
+
+// The layout's phone (its screen block, shown, device phone), and whether a headline draws it in its row (a headline with `row`
+// whose words are there: an empty headline draws nothing, and the phone is then drawn on its own).
+const phoneOf = (state) => state.shown.find((s) => s.blk.type === 'screen' && opt(s.blk, 'device') === 'phone') ?? null;
+const rowOf = (state, spec) => state.shown.some((s) => s.blk.type === 'headline' && opt(s.blk, 'row') && typeof spec[s.blk.field ?? 'headline'] === 'string' && spec[s.blk.field ?? 'headline'] !== '');
+
+// The headline's row (see headline above): `text` is its column. The phone's rectangle must lie beside the headline's, at the
+// same height, as the screen template sets them (text 430 px, gap 40, phone 470 in the band from 126 to 1240).
+function phoneRow(blk, spec, ctx, r, state, text) {
+  const p = phoneOf(state)?.r;
+  if (!p || p.y !== r.y || p.h !== r.h || p.x < r.x + r.w) throw new screenErr.DesignError('a headline set in a row needs the layout\'s phone beside it, at the same height');
+  return `<div class="abs" style="left:${px(r.x)}px;top:${px(r.y)}px;width:${px(p.x + p.w - r.x)}px;height:${px(r.h)}px;display:flex;align-items:center;gap:${px(p.x - r.x - r.w)}px"><div style="flex:1;min-width:0">${text}</div>${screenKit.phone(ctx, spec, { w: p.w })}</div>`;
+}
+
+// The screen block: a desktop window in a stack at the top of its rectangle, its width (the spec's own framed, tilt and region
+// with specWindow; a title from titleField); or a phone, the rectangle's width, from its top (it may run off the bottom edge),
+// cut at the rectangle's foot with fit "crop" (the website's product wells). A phone in a headline's row is drawn there.
+function screenBlock(blk, spec, ctx, r, state) {
+  if (opt(blk, 'device') === 'desktop') {
+    const own = opt(blk, 'specWindow'), title = blk.titleField === undefined ? undefined : spec[blk.titleField];
+    const win = screenKit.desktopWindow(ctx, spec, { w: r.w, framed: own && spec.framed === true, title, tilt: own && spec.tilt === true, region: own ? spec.region : undefined });
+    return `<div class="stack" style="left:${px(r.x)}px;top:${px(r.y)}px;width:${px(r.w)}px;gap:32px">${win}</div>`;
+  }
+  if (rowOf(state, spec)) return '';
+  return screenKit.phone(ctx, spec, { w: r.w, at: { x: r.x, y: r.y }, cut: opt(blk, 'fit') === 'crop' ? r.h : undefined });
+}
+
+// The glow the phone floats on, behind the layout's phone as its screen block draws it: in a headline's row, centred in the band
+// and moved right by the glow's inset (off the text column); cut, no taller than the cut. Nothing without a phone.
+function halo(blk, spec, ctx, r, state) {
+  const p = phoneOf(state);
+  if (!p) return '';
+  const { x, y, w, h } = p.r, ph = w * screenTpl.ratioOf(ctx, spec);
+  if (rowOf(state, spec)) return screenKit.glow(ctx, { x: x + ctx.brand.glow.inset * ctx.brand.scale, y: y + (h - ph) / 2, w, h: ph });
+  return screenKit.glow(ctx, { x, y, w, h: opt(p.blk, 'fit') === 'crop' ? Math.min(h, ph) : ph });
+}
+
+// The passbook card the spec's "beside" describes (passbookSvg checks its days, ticked, today and tick), filling its rectangle
+// with a padding of 28 px.
+function besideCard(blk, spec, ctx, r) {
+  const b = spec.beside;
+  if (!b || typeof b !== 'object') return '';
+  const pad = 28, w = r.w - 2 * pad, h = r.h - 2 * pad;
+  return screenKit.obj(r.x, r.y, r.w, r.h, 'card', screenArt.svgBox(pad, pad, w, h, screenArt.passbookSvg(w, h, { days: b.days ?? 31, ticked: b.ticked ?? 0, today: b.today ?? 0, tick: b.tick ?? 'ink' })));
+}
+
+// The footer with the logo alone (no website, no "Swipe →"), drawn for the panel when the page has one, else for the ground.
+const footlogo = (blk, spec, ctx, r, state) => footer(ctx, { label: '', inverse: panelOf(state) ? isDarkColour(ctx.brand.surfaces.panel) : state.frame.dark });
 // (end of screen group)
 
 export const DRAW = {
@@ -68,6 +130,10 @@ export const DRAW = {
   // -- editorial group --
   // (end of editorial group)
   // -- screen group --
+  screen: screenBlock,
+  halo,
+  beside: besideCard,
+  footlogo,
   // (end of screen group)
 };
 
