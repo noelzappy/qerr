@@ -2,8 +2,8 @@
 // design/templates/poster.mjs for the functions they replace). One entry per template: a list of { when?, layout }, the first
 // whose condition holds drawing the page; a spec that matches none is drawn by the template function (not converted yet).
 //
-// Converted: number, object, product (centre and side), myth-fact. Still drawn by its function: closing (phase 2,
-// testlib/CONVERTING.md).
+// Converted: number, object, product (centre and side), myth-fact, closing. Their functions in design/templates/poster.mjs are
+// unused and go when every template is converted.
 
 const CANVAS = { feed: { columns: 12, rows: 15, margin: 80, gutter: 40 } };
 // The headline sizes an object or product design may give (spec.mjs POSTER_SIZES).
@@ -117,9 +117,29 @@ const MYTH_FACT = {
   ],
 };
 
+// closing: the deep ground, the bar without its label, the headline (136 px; the brand's tagline when the spec has none) and its
+// line under it (the brand's website when the spec has none) from y 560; with the brand's dot map at the top right, from y 700.
+const CLOSING_HEAD = { type: 'headline', size: 136, fallback: 'tagline', subField: 'line', subFallback: 'website' };
+const CLOSING = {
+  id: 'closing',
+  name: 'Closing',
+  description: 'The tagline set large on a deep ground, the website under it, optionally with the brand\'s dot map.',
+  page: 'poster',
+  ground: 'deep',
+  fields: { headline: { max: 220 }, line: { max: 60 } },
+  canvas: CANVAS,
+  blocks: [
+    { type: 'decoration', kind: 'map', when: { field: 'map', is: true }, px: { x: 640, y: 150, w: 360, h: 450 } },
+    { type: 'bar', label: 'none' },
+    { ...CLOSING_HEAD, when: { field: 'map', is: true }, px: { x: 80, y: 700, w: 920, h: 600 } },
+    { ...CLOSING_HEAD, when: { field: 'map', is: false }, px: { x: 80, y: 560, w: 920, h: 740 } },
+  ],
+};
+
 export const LAYOUTS = {
   object: [{ layout: OBJECT }],
   number: [{ layout: NUMBER }],
   product: [{ when: { field: 'layout', is: 'side' }, layout: PRODUCT_SIDE }, { layout: PRODUCT }],
   'myth-fact': [{ layout: MYTH_FACT }],
+  closing: [{ layout: CLOSING }],
 };
