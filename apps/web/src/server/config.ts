@@ -9,7 +9,7 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
-  APP_URL: z.string().url('APP_URL must be a full URL such as https://social.example.com'),
+  APP_URL: z.string().url('APP_URL must be a full URL such as https://vesk.example.com'),
   BETTER_AUTH_SECRET: z.string().min(32, 'BETTER_AUTH_SECRET must be at least 32 characters'),
   APP_ENCRYPTION_KEY: z.string().min(1, 'APP_ENCRYPTION_KEY is required (base64 of 32 random bytes)'),
   APP_ENCRYPTION_KEY_VERSION: z.coerce.number().int().min(1).default(1),

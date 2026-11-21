@@ -11,10 +11,11 @@ import type { AppConfig } from './config.js';
 import type { Mailer } from './mail.js';
 import { audit } from './audit.js';
 import { linkEmail } from './mail.js';
+import { CLIENT_IP_HEADER } from './middleware.js';
 
 export const MIN_PASSWORD_LENGTH = 10;
 export const MAX_PASSWORD_LENGTH = 128;
-export const SELF_RESET_TTL_SECONDS = 60 * 60;
+const SELF_RESET_TTL_SECONDS = 60 * 60;
 export const ADMIN_RESET_TTL_SECONDS = 24 * 60 * 60;
 
 export interface AuthInput {
@@ -73,7 +74,7 @@ export function createAuth({ prisma, config, mailer }: AuthInput) {
       defaultCookieAttributes: { httpOnly: true, sameSite: 'lax', secure: config.isProduction },
       // Only the header our middleware sets from the trusted proxy hop (see trustedClientIp). Never x-forwarded-for:
       // its first entry is whatever the caller sent.
-      ipAddress: { ipAddressHeaders: ['x-sd-client-ip'] },
+      ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
     },
     // Our own buckets (rate-limit.ts, applied in app.ts) are the strict ones; this is Better Auth's broader per-address
     // guard, kept looser than ours on the sign-in and reset paths so it never answers first.

@@ -1,7 +1,7 @@
 // Tracks a CSS media query. Used to pick a side Sheet on desktop and a bottom Drawer on a phone.
 import { useSyncExternalStore } from 'react';
 
-export function useMediaQuery(query: string): boolean {
+function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(
     (notify) => {
       const list = window.matchMedia(query);

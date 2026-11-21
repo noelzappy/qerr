@@ -69,7 +69,7 @@ export const requestBodyLimit: MiddlewareHandler<AppEnv> = async (c, next) => {
   })(c, next);
 };
 
-export async function currentUser(deps: Pick<Deps, 'auth'>, headers: Headers): Promise<SessionUser | null> {
+async function currentUser(deps: Pick<Deps, 'auth'>, headers: Headers): Promise<SessionUser | null> {
   const session = await deps.auth.api.getSession({ headers });
   if (!session) return null;
   const u = session.user as typeof session.user & { role?: string; disabled?: boolean };
@@ -94,7 +94,7 @@ export const requireRole = (...roles: Role[]): MiddlewareHandler<AppEnv> => asyn
 };
 
 // The one header Better Auth reads the client address from. Set here and nowhere else; any copy a caller sends is dropped.
-export const CLIENT_IP_HEADER = 'x-sd-client-ip';
+export const CLIENT_IP_HEADER = 'x-vesk-client-ip';
 
 // THE client address. With `hops` proxies in front, each appending the address it saw to X-Forwarded-For, the
 // hops-th entry from the end is the real client; entries before it were written by the client and mean nothing.

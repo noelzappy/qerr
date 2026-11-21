@@ -1,15 +1,24 @@
 # The AI library (`packages/ai/`, `@vesk/ai`)
 
 No third-party dependencies, Node 20+, `fetch` only. It depends on the engine workspace (`@vesk/engine`) for the batch and design validators. It is the only way the Vesk web app talks to a model or a search
-provider. Interface: `docs/spec/app-contract.md`.
+provider. Its interface:
 
 ```js
 import { createAI } from '@vesk/ai';
-const ai = createAI({ providers, search, budget, log, prices });
+const ai = createAI({ providers, search, budget, log, prices });            // config from the app's settings, keys already decrypted
 await ai.draftBatch({ vault, series, period, count, channels, brand, timezone }); // -> { batch, notes }
 await ai.research({ topics, vault, since });                                       // -> { items, checks, notes }
 await ai.rewrite({ post, instruction, vault, channels });                          // -> post (with post.notes)
+await ai.analyseReference({ image, note });                                        // -> { analysis, brief, notes }
 ```
+
+- `draftBatch` returns `batch`, the engine's batch JSON (see [batch-format.md](batch-format.md)) with a `design` block on
+  each post, every post carrying `sources: [vaultItemId]` and `warnings: [string]`.
+- `research` returns `items: [{ kind, title, body, sourceUrls, foundAt, status: 'unconfirmed' }]` and
+  `checks: [{ vaultItemId, verdict, sourceUrls, note }]`.
+- `rewrite` returns the post in the same shape as one post of `draftBatch`.
+- All of it is untrusted output, validated against the batch format and the design spec validators before it is
+  returned (see "Safety rules").
 
 ## Configuration
 
@@ -155,8 +164,7 @@ the same version line. The pack's file is used when it exists, the library's oth
 
 ## How the Vesk web app uses it
 
-`apps/web` loads `@vesk/ai` by name (`src/server/ai.ts`; a stub that says "AI not installed yet" is used when the package
-is absent). The `draft-batch` job (queued by `POST /api/batches/ai-draft`, or the Draft with AI button on the batch list)
+`apps/web` depends on `@vesk/ai` and loads it through one seam, `loadAI()` in `src/server/ai.ts` (which tests replace). The `draft-batch` job (queued by `POST /api/batches/ai-draft`, or the Draft with AI button on the batch list)
 sends the confirmed vault items, calls `draftBatch`, and imports the answer through the same path as a batch file: a batch
 in `draft` state owned by the person who asked, each post linked to its vault sources and carrying the AI's warnings,
 the drafter's `notes` kept on the batch (shown with an "AI draft" badge), and a render queued for every design block.

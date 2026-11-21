@@ -4,7 +4,7 @@ import { Prisma, type Delivery } from '@prisma/client';
 import type { Deps } from '../deps.js';
 import type { EngineItem, EngineRecord, EngineState } from '../engine/pipeline.js';
 
-export const UNKNOWN_PREFIX = 'unknown, check Buffer';
+const UNKNOWN_PREFIX = 'unknown, check Buffer';
 
 export type DeliveryWithPostKey = Delivery & { post: { postKey: string } };
 
@@ -12,7 +12,7 @@ export type DeliveryWithPostKey = Delivery & { post: { postKey: string } };
 // Buffer, so a later send treats both as not sent.
 const LIVE_STATUSES = new Set(['created', 'unknown']);
 
-export function recordOf(d: Delivery): EngineRecord {
+function recordOf(d: Delivery): EngineRecord {
   const rec: EngineRecord = {
     account: d.account,
     mode: d.mode as 'draft' | 'live',
@@ -36,7 +36,7 @@ export function stateFromDeliveries(batchName: string, deliveries: DeliveryWithP
   return state;
 }
 
-export const bufferStatusOf = (rec: EngineRecord): 'draft' | 'scheduled' | 'unknown' => (rec.status === 'unknown' ? 'unknown' : rec.mode === 'live' ? 'scheduled' : 'draft');
+const bufferStatusOf = (rec: EngineRecord): 'draft' | 'scheduled' | 'unknown' => (rec.status === 'unknown' ? 'unknown' : rec.mode === 'live' ? 'scheduled' : 'draft');
 
 // Writes every record that changed since it was last written. The engine calls saveState() synchronously after each
 // Buffer answer; save() queues the write and flush() waits for all of them, so an answer is never lost in a long run.

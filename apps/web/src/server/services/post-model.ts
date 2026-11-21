@@ -32,7 +32,7 @@ export type NetworkOverride = {
 };
 
 export const asMedia = (value: unknown): MediaEntry[] => (Array.isArray(value) ? (value as MediaEntry[]) : []);
-export const asStringList = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []);
+const asStringList = (value: unknown): string[] => (Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : []);
 
 export function splitNetworks(value: unknown): { skip: string[]; overrides: Record<string, NetworkOverride> } {
   const obj = value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -54,7 +54,7 @@ export function targetNetworks(post: Pick<Post, 'networks'>, defaults: string[],
 const designObject = (design: unknown): Record<string, unknown> | null => (design && typeof design === 'object' && !Array.isArray(design) ? (design as Record<string, unknown>) : null);
 
 // The design size a network gets: networkSizes[network], else the first size of the design (feed by default).
-export function designSizeFor(design: unknown, network: string): string {
+function designSizeFor(design: unknown, network: string): string {
   const d = designObject(design);
   const ns = d?.networkSizes && typeof d.networkSizes === 'object' ? (d.networkSizes as Record<string, string>) : {};
   if (typeof ns[network] === 'string') return ns[network];
@@ -78,7 +78,7 @@ export function mediaFor(post: Pick<Post, 'networks' | 'design' | 'media'>, netw
 // duplicate guard hashes the path, so a re-rendered image counts as changed content.
 export const engineRel = (post: Pick<Post, 'postKey'>, m: MediaEntry): string => `${post.postKey}/${m.sha256.slice(0, 16)}/${m.rel}`;
 
-export function rawPostForEngine(post: Post, options: { withDesign: boolean; withMedia: boolean }): Record<string, unknown> {
+function rawPostForEngine(post: Post, options: { withDesign: boolean; withMedia: boolean }): Record<string, unknown> {
   const { skip, overrides } = splitNetworks(post.networks);
   const networks: Record<string, Record<string, unknown>> = {};
   for (const [n, o] of Object.entries(overrides)) {

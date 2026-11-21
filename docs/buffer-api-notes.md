@@ -1,24 +1,27 @@
 # Buffer API notes
 
-What this tool relies on in Buffer's API, where it came from, and how much of it is confirmed.
+What Vesk relies on in Buffer's API, where it came from, and how much of it is confirmed. The code is in
+`packages/engine/lib/` (the client, the push loop and `deletePost`) and in the web app's account check
+(`checkAccount` in `apps/web/src/server/services/buffer-accounts.ts`).
 
 ## Status of this information
 
 Everything below was taken from Buffer's public developer documentation (<https://developers.buffer.com>) on
-2026-11-20, when the tool was written. **None of it has been confirmed against a live Buffer account**, because no API
-key existed. The tests use a fake Buffer that was built from the same documentation, so they prove the tool is
-consistent with its own assumptions, not with Buffer.
+2026-11-20, when the code was written. **None of it has been confirmed against a live Buffer account**, because no API
+key existed. The tests use a fake Buffer that was built from the same documentation, so they prove Vesk is consistent
+with its own assumptions, not with Buffer.
 
-`node packages/engine/buffer.mjs check` is the way to turn assumptions into facts. Run it first with a real key (see below).
+The way to turn assumptions into facts is the first run against real Buffer: Check on the account in Settings, then
+one draft to one channel, looked at in Buffer (see "The first run against real Buffer" in the [README](../README.md)).
 
-## What the tool uses
+## What Vesk uses
 
 | Item | Value in the code | Source file |
 | --- | --- | --- |
 | Endpoint | `POST https://api.buffer.com` | `packages/engine/lib/client.mjs` |
 | Auth | Header `Authorization: Bearer <key>`; `Content-Type: application/json` | `packages/engine/lib/client.mjs` |
 | Body | `{ "query": "...", "variables": { ... } }` | `packages/engine/lib/client.mjs` |
-| Key | Created at <https://publish.buffer.com/settings/api>. One key belongs to one account. **Keys expire** (30 days by default, according to `docs/spec/web-app.md`; not confirmed here), so a `401` or `403` after a quiet month usually means "create a new key" | |
+| Key | Created at <https://publish.buffer.com/settings/api>. One key belongs to one account; an admin enters it in Settings, Buffer accounts, where it is stored encrypted. **Keys expire** (30 days by default, according to `docs/spec/web-app.md`; not confirmed here), so a `401` or `403` after a quiet month usually means "create a new key" | |
 | Errors | HTTP 429 for rate limits; 401 or 403 for a bad key; a GraphQL `errors` array on a 200 answer | `packages/engine/lib/client.mjs` |
 
 ### Queries
@@ -32,7 +35,8 @@ query { posts(input: { organizationId: "<id>", sort: [{ field: dueAt, direction:
   edges { node { id text dueAt } } } }
 ```
 
-The posts query is run twice, with `status: [scheduled]` and `status: [draft]`. It reads the first page only.
+The account check in Settings runs the first two. The posts query is run twice by a status refresh, with
+`status: [scheduled]` and `status: [draft]`. It reads the first page only.
 
 ### The mutation
 
@@ -60,53 +64,51 @@ as an uncertain answer and recorded as `unknown`.
 
 ### Enums relied on
 
-| Enum | Values the tool uses |
+| Enum | Values Vesk uses |
 | --- | --- |
 | `ShareMode` | `customScheduled` |
 | `SchedulingType` | `automatic` |
-| `PostType` (Instagram) | `post`, `reel`, `carousel` (and `story`, which the tool never sends) |
+| `PostType` (Instagram) | `post` (also for several images) and `reel`, unless a batch sets another `type`; never `story` |
 | `PostTypeFacebook` | `post` by default, or whatever `type` the batch sets |
 | post status filter | `scheduled`, `draft` |
 
 ### Media
 
-Buffer takes media by public URL only. There is no upload endpoint in the API, so the tool sends the file's URL and
-Buffer fetches it. The URL is the one `node packages/engine/buffer.mjs upload` recorded for the file (an object in the S3-compatible
-bucket, under `<S3_PREFIX><batch>/<hash>-<file>`) or, when nothing was uploaded, `MEDIA_BASE_URL/<file>`. Before sending, the tool checks each URL itself with a HEAD request. If your host answers HEAD
-differently from GET, that check can fail while Buffer could still fetch the file; the tool refuses the post in that
-case.
+Buffer takes media by public URL only. There is no upload endpoint in the API, so Vesk sends the file's URL and
+Buffer fetches it. Just before a send, the app copies each file the batch is about to send to the bucket's public prefix
+(`<S3_PREFIX><batch>/<hash>-<file>`) and gives Buffer that URL. Before sending, it checks each URL itself with a HEAD
+request. If the host answers HEAD differently from GET, that check can fail while Buffer could still fetch the file; the
+post is refused in that case.
 
 ### Rate limits (free plan)
 
 - 150 requests per 15 minutes
 - 600 requests per day
 
-The tool keeps itself under 140 requests in any 15 minutes and honours `Retry-After` on a 429 (60 seconds if the header
+Vesk keeps itself under 140 requests in any 15 minutes and honours `Retry-After` on a 429 (60 seconds if the header
 is missing, three tries). It does not count the daily limit. A month of three channels is about 21 to 40 requests.
 
-**Buffer's limits are per account, not per tool.** With several accounts (`accounts.json`) the tool therefore keeps a
-separate client per account: each has its own 140-in-15-minutes window and its own `Retry-After` wait, so one account
-being slow does not eat another's budget. Requests are still sent one at a time, so a wait on one account pauses the
-run. Whether the limits apply per key, per account or per organisation is not confirmed; the tool assumes per account
-(that is, per key).
+**Buffer's limits are per account, not per app.** With several accounts Vesk therefore keeps a separate client per
+account: each has its own 140-in-15-minutes window and its own `Retry-After` wait, so one account being slow does not
+eat another's budget. Requests are still sent one at a time, so a wait on one account pauses the run. Whether the limits
+apply per key, per account or per organisation is not confirmed; Vesk assumes per account (that is, per key).
 
 ### Several accounts, and X
 
-- Each account has its own key (from the environment variable named in `accounts.json`) and its own channels. The
-  tool maps our network names (`instagram`, `linkedin`, `facebook`, `x`) to an account and a channel id; it never
-  sends a channel id through an account that does not hold it (`check` reports the mismatch).
+- Each account has its own key (entered in Settings, Buffer accounts) and its own channels. An admin maps our network
+  names (`instagram`, `linkedin`, `facebook`, `x`) to an account and a channel id in Settings, Channels, choosing from
+  the channels the account's check listed; a post goes only through the account its network is routed to.
 - X is sent like LinkedIn: `text`, `channelId`, the schedule fields and optional `assets`; no `type`, no `metadata`.
-  Buffer's free X tier allows 280 characters; the limit is configurable per account (`captionLimits.x`).
-- `suggestChannels` matches Buffer's `service` value for X against `twitter` and `x`; which one Buffer uses is not
-  confirmed.
+  Buffer's free X tier allows 280 characters; the limit is configurable per account (its X caption limit).
+- The app matches Buffer's `service` value for X against `twitter` and `x`; which one Buffer uses is not confirmed.
 
 ## What is not confirmed
 
-Treat each of these as unverified until `check` and the first-run draft prove it.
+Treat each of these as unverified until the first run against real Buffer proves it.
 
 1. The endpoint and bearer authentication.
 2. `account { organizations }` and the `channels` query, including the field names and that `service` holds the network
-   name (`suggestChannels` matches it against `instagram`, `linkedin`, `facebook`).
+   name (the app matches it against `instagram`, `linkedin`, `facebook`).
 3. The `createPost` mutation, the `PostActionSuccess` and `MutationError` result types, and that `post { id text dueAt }`
    exists.
 4. `saveToDraft`, `mode: customScheduled` and `schedulingType: automatic` together produce a draft with the given time.
@@ -116,51 +118,43 @@ Treat each of these as unverified until `check` and the first-run draft prove it
    Instagram type.
 8. That `PostTypeFacebook` contains `post`. Facebook reels or stories may have other values.
 9. The `posts` query: the `input` shape, the `sort` field, the `filter.status` values (especially `draft`), and
-   pagination. The tool reads only the first page.
+   pagination. Vesk reads only the first page.
 10. That Buffer can fetch your media host (no hotlink or bot blocking, large videos allowed, redirects followed).
-11. Instagram and video requirements (formats, sizes, lengths) are not checked by the tool. Buffer or the network may
-    refuse a file the tool accepts.
+11. Instagram and video requirements (formats, sizes, lengths) are not checked by Vesk. Buffer or the network may
+    refuse a file Vesk accepts.
 12. The real behaviour of rate limiting: the header names, and whether a `Retry-After` is sent.
-13. Alt text for images: the tool does not send any. `check` prints any field on the image input whose name contains
-    `alt` or `description`, so you can see if one exists.
+13. Alt text for images: Vesk does not send any, and does not know whether Buffer takes one.
 14. That Buffer's `createPost` accepts X channels with exactly the fields sent for LinkedIn, and that no X-specific
     metadata is needed (for example for threads or replies).
-15. The `service` value of an X channel (`twitter` or `x`), and so that `check` suggests the right channel.
+15. The `service` value of an X channel (`twitter` or `x`), and so that the account check names X channels right.
 16. That the rate limits are per account, and that two keys of one person count as two accounts. Whether running several
     free Buffer accounts for one company is allowed is a question about Buffer's terms, not the API.
 17. That an expired key shows as a `401` or `403` and not as another error, and the real lifetime of a key.
-18. That Hetzner Object Storage accepts the SigV4 requests this tool signs and serves the uploaded files publicly under
+18. That Hetzner Object Storage accepts the SigV4 requests Vesk signs and serves the uploaded files publicly under
     the bucket policy (the signer matches AWS's published examples; nothing has been sent to Hetzner), and that Buffer
     can fetch from that host.
 19. The `deletePost(input: { id })` mutation in `packages/engine/lib/buffer-delete.mjs` and its `DeletePostSuccess` and `VoidMutationError`
     result types. They are assumptions from Buffer's other mutation names; nothing has run against Buffer.
 
-## How `check` verifies these
+## How to verify these
 
-`node packages/engine/buffer.mjs check [batch.json]` asks Buffer for its schema by GraphQL introspection (`__type`):
+The command-line tool once checked Buffer's schema by GraphQL introspection; that check went with the tool. What is left
+is what the app does with a real key:
 
-1. It confirms the key works and lists organisations and channels (points 1 and 2).
-2. It reads the types `CreatePostInput`, `AssetInput`, the image and video asset inputs (names found from
-   `AssetInput`), `PostInputMetaData`, the three metadata inputs, `ShareMode`, `SchedulingType`, `PostType`,
-   `PostTypeFacebook`, the `posts` input, its filter and the status enum.
-3. `compareSchema` reports every field the tool sends that does not exist, every required field the tool does not
-   send, and every enum value the tool uses that is not in the enum.
-4. It prints the status values, the service values, the mutations whose names contain "post" and any alt-text field.
-5. It writes `schema-cache.json`. `plan` then uses it to verify Facebook types.
+1. **Check** on an account (Settings, Buffer accounts) confirms that the key works and lists the organisations and the
+   channels (points 1, 2, 15 and 17).
+2. **One draft to one channel** (see "The first run against real Buffer" in the [README](../README.md)) shows whether
+   `createPost`, `saveToDraft`, the assets and the metadata are accepted (points 3 to 8, 10, 11 and 14).
+3. **Refresh status** after it shows whether the `posts` query and the `draft` status filter work (point 9).
+4. **Delete from Buffer** on that draft shows whether `deletePost` works (point 19).
 
-With several accounts, steps 1 is done per account (and a rejected key is reported by name without stopping the
-others), the schema in steps 2 to 5 is read once, and `check` adds the routing suggestion and the list of channels
-that are routed to an account that does not hold them.
-
-Introspection can only confirm shape. It cannot confirm behaviour: that a draft keeps its time, that media is fetched,
-or that thumbnails are in milliseconds. That is what the first-run draft in
-[monthly-routine.md](monthly-routine.md) is for. Introspection may also be disabled by Buffer; if `check` cannot
-introspect, the mismatch list is not trustworthy.
+Write what you confirmed into this file, with the date. A refusal from Buffer is shown in the app with Buffer's own
+message, which usually names the field it did not accept.
 
 ## Channels
 
-- Instagram, LinkedIn, Facebook and X are wired into the tool.
+- Instagram, LinkedIn, Facebook and X are wired into Vesk.
 - TikTok is supported by Buffer but not wired in. Adding a network means adding it to `packages/engine/lib/networks.mjs`, the metadata
-  rules in `packages/engine/lib/batch.mjs`, `channels.example.json`, `accounts.example.json` and `suggestChannels` in `packages/engine/lib/schema.mjs`,
-  with tests.
+  rules in `packages/engine/lib/batch.mjs`, the channel matching in `apps/web/src/server/engine/buffer.ts` and the web app's
+  pages, with tests.
 - WhatsApp is not a supported Buffer channel, so it cannot be added through Buffer.

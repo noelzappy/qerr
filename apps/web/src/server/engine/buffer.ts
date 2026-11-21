@@ -32,15 +32,15 @@ export function bufferEngine(): Promise<BufferEngine> {
       engineImport<{ createClient: BufferEngine['createClient'] }>('client'),
       engineImport<{ maskSecrets: BufferEngine['maskSecrets'] }>('core'),
       engineImport<{ NETWORKS: string[] }>('networks'),
-      engineImport<{ validateAccountsConfig(raw: unknown, env?: Record<string, string>): { errors: string[] } }>('accounts'),
+      engineImport<{ isValidAccountName(name: unknown): boolean }>('accounts'),
     ]);
     const list = [...networks.NETWORKS];
     return {
       networks: list,
       createClient: client.createClient,
       maskSecrets: core.maskSecrets,
-      isValidAccountName: (name) => !accounts.validateAccountsConfig({ accounts: [{ name, keyEnv: 'X' }] }, { X: 'x' }).errors.some((e) => e.includes('name is required')),
-      // Same matching as the engine's `check` command: x also answers to twitter.
+      isValidAccountName: accounts.isValidAccountName,
+      // x also answers to twitter: Buffer's service name for X is not confirmed.
       networkOf: (service) => {
         const s = String(service ?? '').toLowerCase();
         return list.find((n) => (n === 'x' ? s === 'x' || s.includes('twitter') : s.includes(n))) ?? null;

@@ -1,7 +1,9 @@
 // An inline message with an icon: info, success (good), caution (warn) or problem (bad). Not a toast: it stays in the page.
+// Also a list of problem lines for inside one, and the problem notice a form shows above its buttons.
 import type { ReactNode } from 'react';
 import { CircleAlert, CircleCheck, Info, TriangleAlert } from 'lucide-react';
 import { Alert } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
 
 const TONE = {
   info: { cls: 'border-info/30 bg-info/10 [&>svg]:text-info', Icon: Info },
@@ -20,5 +22,21 @@ export function Notice({ tone = 'info', title, children, actions }: { tone?: key
         {actions}
       </div>
     </Alert>
+  );
+}
+
+// Lists of problem lines inside a notice.
+export function Lines({ items, className }: { items: string[]; className?: string }) {
+  return <ul className={cn('mt-1.5 list-disc space-y-1 pl-[18px]', className)}>{items.map((l, i) => <li key={i} className="[overflow-wrap:anywhere]">{l}</li>)}</ul>;
+}
+
+// What went wrong with a form, and the lines that explain it. Nothing while there is no error.
+export function FormProblem({ error, lines }: { error: string; lines?: string[] }) {
+  if (!error) return null;
+  return (
+    <Notice tone="bad">
+      {error}
+      {lines && lines.length > 0 && <Lines items={lines} className="max-h-64 overflow-y-auto" />}
+    </Notice>
   );
 }

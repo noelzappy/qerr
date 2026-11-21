@@ -7,7 +7,7 @@ import { AuthLayout } from '../shell/AuthLayout';
 import { PasswordFields, passwordProblems } from '../shell/PasswordFields';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Notice } from '@/components/notice';
+import { Notice } from '@/components/kit';
 
 // A reset link is /reset-password?token=... (from the sign-in page or an admin) and /reset-password/<token> works too.
 export function ResetPassword() {

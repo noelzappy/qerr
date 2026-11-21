@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Notice } from '@/components/notice';
+import { Notice } from '@/components/kit';
 import { elapsedMs, formatElapsed, isActive, percent, progressText, runStatusLabel, STATUS_VARIANT, type ActivityRun } from '@/lib/activity';
 import { cn } from '@/lib/utils';
 

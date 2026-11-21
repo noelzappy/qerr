@@ -3,15 +3,17 @@
 The web app for a team that runs a brand's social media. A small team keeps a vault of confirmed facts and photos, imports or drafts a
 month of posts, reviews and approves each one, renders its images with the design engine, and sends the approved posts
 to Buffer as drafts, then live. It is a Hono server, Postgres through Prisma, pg-boss jobs and a React web app built into
-`dist/web` and served by the same server. The command-line engine (`packages/engine`, `@vesk/engine`) is reused as a
-library: batch validation, the duplicate guard and push loop, the Buffer client, the design renderer and storage.
+`dist/web` and served by the same server. The engine (`packages/engine`, `@vesk/engine`) is its library: batch
+validation, the duplicate guard and push loop, the Buffer client, the design renderer and storage. The server loads its
+modules by subpath (`engineImport('batch')` is `@vesk/engine/batch`, see `src/server/engine/`) and the AI library through
+`src/server/ai.ts`.
 
 The brand is set by an admin in Settings, Brand and look, and kept in the database: no file to edit. Until it is saved
 the app shows the brand pack named by `BRAND_DIR` (default `brands/demo`, the fictional Acme Savings) and seeds its first
 vault from that pack's `vault.json`. See "The brand" below.
 
-Like the command-line tool, the app has only been run against a fake Buffer and local or fake storage, never against a
-real Buffer account or a real bucket.
+The app has only been run against a fake Buffer and local or fake storage, never against a real Buffer account or a
+real bucket.
 
 ## Requirements
 
@@ -42,8 +44,10 @@ npm start                                              # or `npm run dev` (reloa
 ```
 
 There is no `.env` loader: the variables must be in the process environment. Do not put real keys in a file in the
-repository. On the first start with no users, the server logs one line, `bootstrap.admin_invite`, with an invite link for
-`BOOTSTRAP_ADMIN_EMAIL`. Open it, choose a name and a password, then sign in. Restarting does not make a second invite.
+repository. The server listens on `PORT` (default 3000) and answers `GET /healthz` with 200 and `{"ok":true}` once the
+database is reachable. On the first start with no users, the server logs one line, `bootstrap.admin_invite`, with an
+invite link for `BOOTSTRAP_ADMIN_EMAIL`. Open it, choose a name and a password, then sign in. Restarting does not make a
+second invite.
 
 Then, as an admin, follow the setup steps on Home. Each one opens the page where it is done:
 
@@ -129,7 +133,7 @@ TEST_DB_NAME=vesk_other npm test   # another database, so two runs do not clash
 
 Set `TEST_DB_NAME` for another database name and `TEST_DATABASE_ADMIN_URL` for another server (default
 `postgresql://postgres:postgres@127.0.0.1:55440/postgres`). Test files are named `*.spec.ts` so the repository's root
-`node --test` does not pick them up. Helpers are in `src/server/testing.ts` and `src/server/testing-desk.ts`.
+`node --test` does not pick them up. Helpers are in `src/server/testing.ts` and `src/server/testing-batches.ts`.
 The render specs launch real Chrome, one at a time. `npm run typecheck` covers the server, the tests and the web app.
 
 ## Environment variables
@@ -147,7 +151,7 @@ that names the variable, never its value.
 | `APP_ENCRYPTION_KEY` | Base64 of 32 random bytes; encrypts stored Buffer and AI keys |
 | `APP_ENCRYPTION_KEY_VERSION`, `APP_ENCRYPTION_KEY_OLD` | Key rotation: the current key's version (default 1) and older keys as `version:base64,version:base64` |
 | `BOOTSTRAP_ADMIN_EMAIL` | On first start with no users, makes an admin invite and logs its link once |
-| `BRAND_DIR` | The brand pack, a folder under `brands/` relative to the repository root, for example `brands/acme`. Default `brands/demo`. It must stay inside the repository; a blank value counts as unset, and the engine then falls back to `BRAND_DIR` in the root `.env`. Read by the engine, the AI library and the app. The app uses it only until a brand is saved in Settings; after that it points `BRAND_DIR` at the folder it writes under `state/brand/`. |
+| `BRAND_DIR` | The brand pack, a folder under `brands/` relative to the repository root, for example `brands/acme`. Default `brands/demo`. It must stay inside the repository; a blank value counts as unset. Read by the engine, the AI library and the app. The app uses it only until a brand is saved in Settings; after that it points `BRAND_DIR` at the folder it writes under `state/brand/`. |
 | `APP_NAME` | The name in page titles, emails and the sign-in page. Default: `Vesk`. |
 | `SEED_VAULT`, `SEED_SECRETS_B64` | `SEED_VAULT=0` turns off the automatic vault seed; `SEED_SECRETS_B64` is the one-time secrets seed, removed after the first start (see Seeding a new deployment) |
 | `TRUSTED_ORIGINS` | Extra origins allowed to make changes, comma separated (for the Vite dev server) |
@@ -161,10 +165,15 @@ that names the variable, never its value.
 | `S3_PATH_STYLE` | `false` for virtual-hosted style addressing; default is path style |
 | `CHROME_PATH` | Path to the Chrome executable, read by the design engine. Without Chrome, rendering fails with a message that says so. |
 
+Buffer keys and AI and search provider keys are not environment variables: an admin enters them in Settings (Buffer
+accounts; AI and search), and they are stored encrypted with `APP_ENCRYPTION_KEY` (AES-256-GCM, a fresh nonce per value,
+with the key version). The pages show only their last four characters; keys are never returned to the browser, logged or
+put in a job payload. A new deployment can be seeded with them once (see "Seeding a new deployment").
+
 ### Client address and rate limits
 
 The client address is worked out in one place (`clientIp` in `src/server/middleware.ts`). A middleware that runs first
-removes any `x-sd-client-ip` header the caller sent and sets it from the trusted address; Better Auth reads that header
+removes any `x-vesk-client-ip` header the caller sent and sets it from the trusted address; Better Auth reads that header
 only, so a spoofed or rotating `X-Forwarded-For` cannot get past its limiter or ours.
 
 When `RATE_LIMIT` is on, each of these answers 429 with `Retry-After` once a bucket is full (15-minute window):
@@ -231,9 +240,31 @@ Build the secrets on your own machine with `scripts/make-seed-secrets.mjs` (plai
 node apps/web/scripts/make-seed-secrets.mjs --anthropic-env <env file holding AI_ANTHROPIC_API_KEY>
 ```
 
-It reads the root `.env` and `accounts.json`, prints only which parts it included, and writes
-`SEED_SECRETS_B64=...` to `deploy/staging.env.local` (git-ignored, mode 600), replacing earlier `SEED_` lines.
-Options: `--root <dir>` and `--out <file>` (for tests). See `deploy/README.md` section 4a for the deployment steps.
+It reads two files at the repository root, both git-ignored, prints only which parts it included, and writes
+`SEED_SECRETS_B64=...` to `deploy/staging.env.local` (git-ignored, mode 600), replacing earlier `SEED_` lines:
+
+- `accounts.json`: the Buffer accounts and the routing. Each account names the environment variable that holds its key
+  (`keyEnv`), never the key:
+
+  ```json
+  {
+    "accounts": [
+      { "name": "main", "keyEnv": "BUFFER_KEY_MAIN", "organizationId": "", "captionLimits": { "x": 280 } },
+      { "name": "second", "keyEnv": "BUFFER_KEY_SECOND" }
+    ],
+    "routing": {
+      "x": { "account": "main", "channelId": "..." },
+      "instagram": { "account": "second", "channelId": "..." }
+    }
+  }
+  ```
+
+- `.env`: `KEY=value` lines with the keys `accounts.json` names (for example `BUFFER_KEY_MAIN=...`) and, optionally, one
+  of `BRAVE_SEARCH_API_KEY`, `TAVILY_API_KEY` or `EXA_API_KEY` for search.
+
+An account whose key is missing is left out, and so is any route to it or to a network the app does not support.
+Options: `--anthropic-env <file>` (an env file with `AI_ANTHROPIC_API_KEY`), `--root <dir>` and `--out <file>` (for
+tests). See `deploy/README.md` section 4a for the deployment steps.
 
 ## Roles
 
@@ -266,8 +297,7 @@ handlers are plain functions (`src/server/jobs/handlers.ts`), so tests call them
 
 The app never imports `@vesk/ai` directly. `src/server/ai.ts` is the seam: if the `@vesk/ai` workspace package is installed
 it is loaded and its `createAI({ providers, search, budget, log })` must return `{ draftBatch, research, rewrite }`
-(the input and result types are in `ai.ts`). If the package is absent, a stub is used and the three AI jobs fail with
-"AI not installed yet"; nothing else is affected. Providers (Anthropic or OpenAI-compatible), the search provider and the
+(the input and result types are in `ai.ts`). The library is an ordinary dependency of the app. Providers (Anthropic or OpenAI-compatible), the search provider and the
 monthly budget are set by an admin under AI and search (a provider's prices per million tokens too, which the budget needs to see its cost); their keys are encrypted at rest and only the last four
 characters are ever shown.
 

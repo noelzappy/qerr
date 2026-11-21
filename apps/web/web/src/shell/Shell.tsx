@@ -15,14 +15,13 @@ import { useAppInfo } from '../app-info';
 import { networkLabel } from '../lib/labels';
 import type { ChannelsOverview, HomeOverview } from '../lib/overview';
 import { useSession } from '../session';
-import { PageHeader } from '../pages/kit/page-header';
-import { EmptyBlock, LoadingBlock } from '../pages/kit/states';
+import { EmptyBlock, LoadingBlock, PageHeader } from '@/components/kit';
 import { ActivityMenu, ActivityProvider } from './activity';
 import { ErrorBoundary } from './ErrorBoundary';
 import { MAIN } from './nav';
 import { VeskLogo } from './VeskLogo';
 
-export const initials = (name: string, email: string) => (name || email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('') || '?';
+const initials = (name: string, email: string) => (name || email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('') || '?';
 
 const navClass = ({ isActive }: { isActive: boolean }) => cn(
   'flex min-h-9 items-center gap-2.5 rounded-md px-2.5 text-[13.5px] font-medium text-sidebar-foreground/80 outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-[3px] focus-visible:ring-sidebar-ring/50 max-md:min-h-11 max-md:text-[15px]',

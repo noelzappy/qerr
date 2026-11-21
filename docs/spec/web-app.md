@@ -1,8 +1,8 @@
 # Vesk: web app spec
 
 Status: the original design, written on 20 November 2026 before the app was built. The app in `apps/web` follows it;
-where it differs, the code and `apps/web/README.md` are right. The command-line tool in this repository
-(`packages/engine/buffer.mjs`, `packages/engine/design.mjs`) is the engine the app reuses.
+where it differs, the code and `apps/web/README.md` are right. It was written when Vesk was a command-line tool; that
+tool has since been removed, and its library code (`packages/engine`) is the engine the app uses.
 
 ## 1. What it is
 
@@ -138,10 +138,11 @@ research.
   short-lived signed URLs) and `public/` (only media of approved posts, unguessable paths, kept until the post has been
   sent and a retention period has passed).
 
-### 4.6 What carries over from the command-line tool
+### 4.6 What carried over from the command-line tool
 
-Buffer client and schema check, duplicate protection by hash, the batch format (as the internal shape of a
-batch), media checks, rate-limit handling, the design engine and its checks, and all their tests.
+The Buffer client, duplicate protection by hash, the batch format (as the internal shape of a batch), media checks,
+rate-limit handling, the design engine and its checks, and their tests. The schema check and the tool's own config files
+(`.env`, `accounts.json`, `channels.json`) did not: the app keeps accounts, keys and routing in its database.
 
 ## 5. Build order
 
@@ -160,5 +161,5 @@ Each step is usable on its own and is reviewed before the next.
 2. **Search provider:** which one (Brave, Tavily or Exa), and its key.
 3. **Photo rights:** every photo a brand takes from its own website or elsewhere needs a known source and a licence
    that allows social posts before it goes in the vault.
-4. **Domain:** the address the app will live at (for example `social.example.com`), behind the platform's proxy.
+4. **Domain:** the address the app will live at (for example `vesk.example.com`), behind the platform's proxy.
 5. **Email sending** for invites and password resets: ZeptoMail, SMTP or none (links shown to copy).

@@ -1,9 +1,7 @@
 // The design block of a post: a form for the common fields and a raw JSON editor for everything else. Both edit the same
 // object, so fields the form does not know (a carousel's pages, a ledger's rows) are kept exactly as they were.
 import { useEffect, useState } from 'react';
-import { Notice } from '@/components/notice';
-import { TextField } from '@/components/text-field';
-import { BusyButton, CheckField, SelectField, TextAreaField } from './parts';
+import { BusyButton, CheckField, Notice, SelectField, TextAreaField, TextField } from '@/components/kit';
 import { TEMPLATES } from './labels';
 import { useAppInfo } from '../../app-info';
 import type { DesignBlock } from './types';

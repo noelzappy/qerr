@@ -1,9 +1,9 @@
-// Batch loading, validation, per-channel resolution, warnings and Buffer request bodies. No network here.
+// Batch validation, per-channel resolution, warnings and Buffer request bodies. No network here.
 import fs from 'node:fs';
 import path from 'node:path';
-import { ROOT, readJson, sha256, sha256File, validTimeZone, zonedToUtcIso } from './core.mjs';
+import { ROOT, sha256, sha256File, validTimeZone, zonedToUtcIso } from './core.mjs';
 import { CLASSIC_NETWORKS, LIMITS, NETWORKS } from './networks.mjs';
-import { LEGACY_ACCOUNT, captionLimitFor } from './accounts.mjs';
+import { captionLimitFor } from './accounts.mjs';
 import { validateBatchDesigns } from './design/batch.mjs';
 import { loadSeries } from './design/brand.mjs';
 
@@ -20,31 +20,10 @@ export const CREATE_POST_QUERY = `mutation CreatePost($input: CreatePostInput!) 
   }
 }`;
 
-export class BatchError extends Error {
-  constructor(errors) {
-    super(`The batch is not valid:\n  - ${errors.join('\n  - ')}`);
-    this.errors = errors;
-  }
-}
-
 const mediaKind = (file) => {
   const ext = path.extname(file).toLowerCase();
   return IMAGE_EXT.includes(ext) ? 'image' : VIDEO_EXT.includes(ext) ? 'video' : null;
 };
-
-export function loadBatch(file, { root = ROOT } = {}) {
-  const abs = path.resolve(file);
-  if (!fs.existsSync(abs)) throw new BatchError([`file not found: ${file}`]);
-  let raw;
-  try {
-    raw = JSON.parse(fs.readFileSync(abs, 'utf8'));
-  } catch (e) {
-    throw new BatchError([`${file} is not valid JSON: ${e.message}`]);
-  }
-  const { errors, batch } = validateBatch(raw, { fallbackName: path.basename(abs, '.json'), root });
-  if (errors.length) throw new BatchError(errors);
-  return batch;
-}
 
 function normaliseMedia(list, where, errors) {
   if (!Array.isArray(list) || !list.length) {
@@ -67,7 +46,7 @@ export function validateBatch(raw, { fallbackName = 'batch', root = ROOT } = {})
   const name = String(raw.name || fallbackName).replace(/[^A-Za-z0-9._-]/g, '-');
   if (!validTimeZone(raw.timezone)) errors.push(`timezone "${raw.timezone}" is not a valid IANA time zone (e.g. Europe/London)`);
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(raw.defaultTime ?? '')) errors.push(`defaultTime "${raw.defaultTime}" must look like 09:00`);
-  if (typeof raw.mediaRoot !== 'string' || !raw.mediaRoot) errors.push('mediaRoot is required (folder with the media, relative to the buffer folder)');
+  if (typeof raw.mediaRoot !== 'string' || !raw.mediaRoot) errors.push('mediaRoot is required (the folder the media files are read from, relative to the repository root)');
   if (!Array.isArray(raw.posts) || !raw.posts.length) errors.push('posts must be a non-empty list');
   const defaults = raw.defaultNetworks ?? CLASSIC_NETWORKS;
   if (!Array.isArray(defaults) || !defaults.length || defaults.some((n) => !NETWORKS.includes(n))) errors.push(`defaultNetworks must be a non-empty list of ${NETWORKS.join(', ')}`);
@@ -120,8 +99,6 @@ export function validateBatch(raw, { fallbackName = 'batch', root = ROOT } = {})
   return { errors, batch: { name, timezone: raw.timezone, defaultTime: raw.defaultTime, mediaRootRel, mediaRoot: path.resolve(root, mediaRootRel), posts } };
 }
 
-export const mediaUrl = (rel, base) => `${base ? base.replace(/\/+$/, '') : '<MEDIA_BASE_URL>'}/${rel.split('/').map(encodeURIComponent).join('/')}`;
-
 const hashtagCount = (t) => (t.match(/(^|\s)#[\p{L}\p{N}_]+/gu) ?? []).length;
 
 function resolveType(network, cfg, media) {
@@ -147,7 +124,7 @@ function metadataFor(network, type, cfg) {
   return Object.keys(md).length ? md : undefined;
 }
 
-function warningsFor(item, schemaCache) {
+function warningsFor(item) {
   const w = [];
   const { network, text, media, type } = item;
   const limit = LIMITS[network];
@@ -166,19 +143,14 @@ function warningsFor(item, schemaCache) {
   if (network === 'x' && item.firstComment) w.push('firstComment is not sent to X (no X metadata is known); put it in the caption or drop it');
   if (network === 'linkedin' && videos && images) w.push('LinkedIn does not take video mixed with images');
   if (media.length > 1 && videos && network !== 'instagram') w.push('several items including a video; most networks take one video alone');
-  for (const m of media) if (!fs.existsSync(m.abs)) w.push(`local file missing: ${m.rel}`);
-  if (network === 'facebook') {
-    const known = schemaCache?.types?.PostTypeFacebook?.enumValues?.map((v) => v.name);
-    if (!known) w.push(`Facebook type "${type}" is unverified; run check`);
-    else if (!known.includes(type)) w.push(`Facebook type "${type}" is not in PostTypeFacebook (${known.join(', ')})`);
-  }
   return w;
 }
 
-// One item = one post on one channel, with everything push and plan need.
-// routing: { network: { account, channelId } } (accounts.json). Without it, channels: { network: channelId } means one account.
-// uploaded: { "<rel>": { url, sha256 } } from the state file (the upload command); used while the file is unchanged.
-export function resolveItems(batch, { channels = {}, routing, accounts = [], mediaBaseUrl = '', uploaded = {}, only, network: onlyNetwork, schemaCache } = {}) {
+// One item = one post on one channel, with everything the push loop needs.
+// routing: { network: { account, channelId } }; accounts: [{ name, captionLimits }] (see accounts.mjs).
+// uploaded: { "<rel>": { url, sha256 } } from runUpload (storage/upload.mjs); an upload counts while the file is unchanged.
+// A medium with no current upload has no URL (url null), and the push loop refuses its post.
+export function resolveItems(batch, { routing = {}, accounts = [], uploaded = {} } = {}) {
   const items = [];
   const hashes = new Map();
   const fileSha = (abs) => {
@@ -186,10 +158,8 @@ export function resolveItems(batch, { channels = {}, routing, accounts = [], med
     return hashes.get(abs);
   };
   for (const post of batch.posts) {
-    if (only && post.id !== only) continue;
     for (const [network, cfg] of Object.entries(post.networks)) {
-      if (onlyNetwork && network !== onlyNetwork) continue;
-      const route = routing ? routing[network] : { account: LEGACY_ACCOUNT, channelId: channels[network] || null };
+      const route = routing[network];
       const account = accounts.find((a) => a.name === route?.account);
       const staleUploads = [];
       const media = cfg.media.map((m) => {
@@ -198,7 +168,7 @@ export function resolveItems(batch, { channels = {}, routing, accounts = [], med
         // An upload counts only while the file is the one that was uploaded; otherwise the public copy shows old content.
         const current = up && fileSha(abs) === up.sha256;
         if (up && !current && fs.existsSync(abs)) staleUploads.push(m.rel);
-        return { ...m, abs, url: current ? up.url : mediaUrl(m.rel, mediaBaseUrl), hosted: current ? 'upload' : 'base-url' };
+        return { ...m, abs, url: current ? up.url : null };
       });
       const type = resolveType(network, cfg, media);
       const metadata = metadataFor(network, type, cfg);
@@ -208,8 +178,8 @@ export function resolveItems(batch, { channels = {}, routing, accounts = [], med
         charLimit: captionLimitFor(account, network, LIMITS), firstComment: cfg.firstComment,
       };
       item.hash = contentHash(item);
-      item.warnings = warningsFor(item, schemaCache);
-      for (const rel of staleUploads) item.warnings.push(`${rel} changed since it was uploaded; run upload again (until then the MEDIA_BASE_URL copy is used)`);
+      item.warnings = warningsFor(item);
+      for (const rel of staleUploads) item.warnings.push(`${rel} changed since it was uploaded; it must be uploaded again before it is sent`);
       items.push(item);
     }
   }
@@ -227,7 +197,7 @@ export function buildInput(item, { draft }) {
     : { video: { url: m.url, metadata: { thumbnailOffset: m.thumbnailOffsetMs ?? 0 } } }));
   const input = {
     text: item.text,
-    channelId: item.channelId ?? `<CHANNEL_ID:${item.network}>`,
+    channelId: item.channelId,
     schedulingType: 'automatic',
     mode: 'customScheduled',
     dueAt: item.dueAt,
@@ -239,7 +209,3 @@ export function buildInput(item, { draft }) {
 }
 
 export const buildRequest = (item, { draft }) => ({ query: CREATE_POST_QUERY, variables: { input: buildInput(item, { draft }) } });
-
-export function loadChannels(root = ROOT) {
-  return readJson(path.join(root, 'channels.json'), {});
-}

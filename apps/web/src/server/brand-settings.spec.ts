@@ -2,19 +2,19 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CreateAiOptions } from './ai.js';
-import { importAiPackage } from './engine/root.js';
+import { aiImport } from './engine/root.js';
 import { pipelineEngine } from './engine/pipeline.js';
 import { brandSettingsSchema, brandState, contrast, contrastChecks, expandBrand, mergeAdvanced, mix, paletteChanges, resetBrandState, settingsFromBrand, syncBrand, baseBrand, type BrandSettings } from './services/brand-settings.js';
 import { renderPost } from './services/render.js';
-import { seedBatch } from './testing-desk.js';
+import { seedBatch } from './testing-batches.js';
 import { createTestApp, type TestApp } from './testing.js';
 
 // The real AI library, talking to a fake provider.
 const fake = vi.hoisted(() => ({ fetch: null as null | ((url: string, init?: RequestInit) => Promise<Response>), bodies: [] as any[] }));
-const realCreateAI = (await importAiPackage<{ createAI: (options: unknown) => unknown }>())!.createAI;
+const realCreateAI = (await aiImport<{ createAI: (options: unknown) => unknown }>()).createAI;
 vi.mock('./ai.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./ai.js')>()),
-  loadAI: async () => ({ installed: true, createAI: (options: CreateAiOptions) => realCreateAI({ ...options, fetch: fake.fetch, sleep: async () => {} } as never) as never }),
+  loadAI: async () => ({ createAI: (options: CreateAiOptions) => realCreateAI({ ...options, fetch: fake.fetch, sleep: async () => {} } as never) as never }),
 }));
 
 let t: TestApp;

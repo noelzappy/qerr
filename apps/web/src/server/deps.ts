@@ -25,7 +25,7 @@ export interface Deps {
   jobs: Jobs;
   mailer: Mailer;
   now: () => Date;
-  // Built by buildDeps; callers of createApp do not pass these.
+  // Built by buildDeps; callers of createAppAndDeps do not pass these.
   auth: AppAuth;
   limits: Limits;
 }

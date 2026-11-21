@@ -40,14 +40,14 @@ describe('ZeptoMail request', () => {
 
   it('posts the documented shape with the auth header', async () => {
     const f = fakeFetch();
-    await createMailer(zeptoConfig({ MAIL_FROM_NAME: 'Acme Savings desk' }), f.impl).send({ to: 'ama@example.test', toName: 'Ama', subject: 'Hello', text: 'plain', html: '<p>rich</p>' });
+    await createMailer(zeptoConfig({ MAIL_FROM_NAME: 'Acme Savings team' }), f.impl).send({ to: 'ama@example.test', toName: 'Ama', subject: 'Hello', text: 'plain', html: '<p>rich</p>' });
     expect(f.calls).toHaveLength(1);
     const { url, init } = f.calls[0]!;
     expect(url).toBe('https://api.zeptomail.com/v1.1/email');
     expect(init.method).toBe('POST');
     expect(init.headers).toMatchObject({ Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Zoho-enczapikey ${KEY}` });
     expect(JSON.parse(String(init.body))).toEqual({
-      from: { address: 'noreply@acmesavings.example', name: 'Acme Savings desk' },
+      from: { address: 'noreply@acmesavings.example', name: 'Acme Savings team' },
       to: [{ email_address: { address: 'ama@example.test', name: 'Ama' } }],
       subject: 'Hello', htmlbody: '<p>rich</p>', textbody: 'plain',
     });

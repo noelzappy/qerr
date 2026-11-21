@@ -1,7 +1,8 @@
 # Stock photos (not committed)
 
-Put the photographs for photo posts here, for example `design/assets/photos/market-street.jpg`. Every file in this folder
-except this README and `CREDITS.md` is ignored by git, so photos never reach the repository.
+Photographs a design names by path go here, for example `design/assets/photos/market-street.jpg`. Every file in this
+folder except this README and `CREDITS.md` is ignored by git, so photos never reach the repository, and the folder is left
+out of the container image. In the web app, upload photos to the vault instead, with their source and licence.
 
 The demo brand's pictures are not here: they are synthetic drawings in `../demo/` (committed, made by
 `brands/demo/make-assets.mjs`), so a fresh clone can render the example batches without any photo.

@@ -21,7 +21,7 @@ const extOf = (item: Pick<VaultItem, 'fileName' | 'contentType'>): string => {
   return ({ 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' } as Record<string, string>)[item.contentType ?? ''] ?? '.jpg';
 };
 
-export const syntheticPhotoPath = (item: Pick<VaultItem, 'id' | 'fileName' | 'contentType'>): string => `design/assets/photos/vault-${item.id}${extOf(item)}`;
+const syntheticPhotoPath = (item: Pick<VaultItem, 'id' | 'fileName' | 'contentType'>): string => `design/assets/photos/vault-${item.id}${extOf(item)}`;
 
 // The AI library's kind names use hyphens; the app's use underscores.
 const kindForAi = (kind: string): string => kind.replace(/_/g, '-');

@@ -8,7 +8,7 @@ import { privateKey } from './storage/types.js';
 import type { TestApp, TestUser } from './testing.js';
 
 // Enough of a JPEG to pass the content check; the seed makes each file different.
-export const jpegBytes = (seed = 'a') => Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from(`desk-test-image-${seed}`.padEnd(64, '.'))]);
+export const jpegBytes = (seed = 'a') => Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.from(`vesk-test-image-${seed}`.padEnd(64, '.'))]);
 export const pngBytes = (seed = 'a') => Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.from(`png-${seed}`.padEnd(32, '.'))]);
 
 export const KEYS = { A: 'bufkey-AAAA-secret-1111', B: 'bufkey-BBBB-secret-2222' } as const;

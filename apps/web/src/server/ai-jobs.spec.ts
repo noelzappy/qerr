@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CreateAiOptions } from './ai.js';
 import { brandInfo } from './brand.js';
-import { importAiPackage } from './engine/root.js';
+import { aiImport } from './engine/root.js';
 import { handlers } from './jobs/handlers.js';
 import { runDraftBatch, runResearch, runRewrite } from './services/ai-jobs.js';
 import { monthRange, spentThisMonth } from './services/ai-config.js';
@@ -17,11 +17,10 @@ const fake = vi.hoisted(() => ({
   // When set, createAI is the real @vesk/ai library talking to this fetch, so the draft tests cover the library's own checks.
   fetch: null as null | ((url: string, init?: RequestInit) => Promise<Response>),
 }));
-const realCreateAI = (await importAiPackage<{ createAI: (options: unknown) => unknown }>())!.createAI;
+const realCreateAI = (await aiImport<{ createAI: (options: unknown) => unknown }>()).createAI;
 vi.mock('./ai.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./ai.js')>()),
   loadAI: async () => ({
-    installed: true,
     createAI: (options: CreateAiOptions) => {
       fake.options = options;
       if (fake.fetch) return realCreateAI({ ...options, fetch: fake.fetch, now: () => new Date('2026-11-20T10:00:00Z'), sleep: async () => {} } as never) as never;

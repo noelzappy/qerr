@@ -7,8 +7,7 @@ import { useSession } from '../session';
 import { AuthLayout } from '../shell/AuthLayout';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Notice } from '@/components/notice';
-import { TextField } from '@/components/text-field';
+import { Notice, TextField } from '@/components/kit';
 
 export function Login() {
   useDocumentTitle('Sign in');

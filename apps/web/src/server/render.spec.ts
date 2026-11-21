@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { pipelineEngine } from './engine/pipeline.js';
 import { oneAtATime, renderPost } from './services/render.js';
-import { addImage, seedBatch } from './testing-desk.js';
+import { addImage, seedBatch } from './testing-batches.js';
 import { createTestApp, type TestApp } from './testing.js';
 
 let t: TestApp;
@@ -17,7 +17,7 @@ beforeAll(async () => {
 afterAll(() => t.close());
 beforeEach(() => t.reset());
 
-// The same example the command-line tool ships, so the two cannot drift apart.
+// The example batch the repository ships in batches/, so the file and the renderer cannot drift apart.
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 // design/assets/... lives in the engine package.
 const ENGINE_PACKAGE = path.join(REPO_ROOT, 'packages', 'engine');

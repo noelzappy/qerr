@@ -11,7 +11,7 @@ export function errorMessage(err: unknown, fallback = 'Something went wrong. Try
 }
 
 // "3 minutes", "40 seconds": the retry-after header says seconds.
-export function waitText(seconds: number): string {
+function waitText(seconds: number): string {
   if (seconds < 90) return `${Math.max(1, Math.round(seconds))} seconds`;
   const minutes = Math.ceil(seconds / 60);
   return minutes < 90 ? `${minutes} minutes` : `${Math.ceil(minutes / 60)} hours`;

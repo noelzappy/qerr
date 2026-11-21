@@ -8,14 +8,12 @@ import { formatDateTime } from '../../lib/format';
 import { networkLabel } from '../../lib/labels';
 import { useSession } from '../../session';
 import { toast } from 'sonner';
-import { Notice } from '@/components/notice';
-import { TextField } from '@/components/text-field';
+import { BusyButton, ConfirmAction, DataList, EmptyBlock, ErrorBlock, Lines, Notice, RowsSkeleton, Spin, Sub, TextField, ToneBadge, type Column } from '@/components/kit';
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BusyButton, ConfirmAction, DataRows, EmptyState, ErrorState, Lines, SkeletonRows, Spin, Sub, ToneBadge, type Column } from './parts';
 import { deliveryState } from './labels';
 import type { BatchView, DeliveriesResponse, DeliveryRow, Plan, PlanRow } from './types';
 import { detailLines, localLabel, utcLabel } from './util';
@@ -227,8 +225,8 @@ export function ScheduleView({ batch, onChanged }: { batch: BatchView; onChanged
         </CardHeader>
         <CardContent className="flex min-w-0 flex-col gap-4">
           {staleNote && <Notice tone="warn">{staleNote}</Notice>}
-          {plans.loading && !plans.data ? <SkeletonRows rows={5} />
-            : plans.error ? <ErrorState message={plans.error} onRetry={() => void plans.reload()} />
+          {plans.loading && !plans.data ? <RowsSkeleton rows={5} shape="lines" />
+            : plans.error ? <ErrorBlock message={plans.error} onRetry={() => void plans.reload()} />
             : planError ? (
               <Notice tone="bad" title={planError.message}>
                 {detailLines(planError).length > 0 && <Lines items={detailLines(planError)} className="max-h-64 overflow-y-auto" />}
@@ -242,8 +240,8 @@ export function ScheduleView({ batch, onChanged }: { batch: BatchView; onChanged
                   {plan.approvedPosts} {plan.approvedPosts === 1 ? 'post is' : 'posts are'} approved{plan.notApproved > 0 ? `, and ${plan.notApproved} ${plan.notApproved === 1 ? 'is' : 'are'} still draft and not planned` : ''}.
                 </p>
                 {plan.rows.length === 0
-                  ? <EmptyState title="Nothing is planned yet">Approve posts on the Review tab. Approved posts appear here with the channel and time each one goes to.</EmptyState>
-                  : <div className={flush}><DataRows caption={`Plan for ${mode === 'draft' ? 'sending drafts' : 'going live'}, one row for each post and channel`} columns={planColumns} rows={plan.rows} rowKey={(r) => `${r.postKey}/${r.network}`} /></div>}
+                  ? <EmptyBlock title="Nothing is planned yet">Approve posts on the Review tab. Approved posts appear here with the channel and time each one goes to.</EmptyBlock>
+                  : <div className={flush}><DataList fit="container" caption={`Plan for ${mode === 'draft' ? 'sending drafts' : 'going live'}, one row for each post and channel`} columns={planColumns} rows={plan.rows} rowKey={(r) => `${r.postKey}/${r.network}`} /></div>}
               </>
             )}
         </CardContent>
@@ -277,11 +275,11 @@ export function ScheduleView({ batch, onChanged }: { batch: BatchView; onChanged
           {Object.keys(counts).length > 0 && (
             <div className="flex flex-wrap gap-1.5">{Object.entries(counts).map(([k, v]) => <ToneBadge key={k} tone={k === 'unknown' ? 'warn' : k === 'failed' ? 'bad' : 'quiet'}>{COUNT_LABEL[k] ?? k}: {v}</ToneBadge>)}</div>
           )}
-          {deliveries.loading && !deliveries.data ? <SkeletonRows rows={4} />
-            : deliveries.error ? <ErrorState message={deliveries.error} onRetry={() => void deliveries.reload()} />
+          {deliveries.loading && !deliveries.data ? <RowsSkeleton rows={4} shape="lines" />
+            : deliveries.error ? <ErrorBlock message={deliveries.error} onRetry={() => void deliveries.reload()} />
             : deliveries.data && deliveries.data.deliveries.length === 0
-              ? <EmptyState title="Nothing has been sent yet">When you send drafts, each post and channel appears here with its status in Buffer.</EmptyState>
-              : deliveries.data && <div className={flush}><DataRows caption="Deliveries to Buffer, one row for each post and channel" columns={delColumns} rows={deliveries.data.deliveries} rowKey={(d) => d.id} /></div>}
+              ? <EmptyBlock title="Nothing has been sent yet">When you send drafts, each post and channel appears here with its status in Buffer.</EmptyBlock>
+              : deliveries.data && <div className={flush}><DataList fit="container" caption="Deliveries to Buffer, one row for each post and channel" columns={delColumns} rows={deliveries.data.deliveries} rowKey={(d) => d.id} /></div>}
         </CardContent>
       </Card>
 

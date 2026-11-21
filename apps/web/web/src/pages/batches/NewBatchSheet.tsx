@@ -5,11 +5,8 @@ import { api } from '../../api';
 import { errorMessage, fieldErrors } from '../../lib/errors';
 import { networkLabel } from '../../lib/labels';
 import { toast } from 'sonner';
-import { TextField } from '@/components/text-field';
-import { Notice } from '@/components/notice';
+import { BusyButton, CheckField, FieldSet, FormPanel, FormProblem, Lines, Notice, SelectField, TextAreaField, TextField } from '@/components/kit';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FormPanel } from '@/components/form-panel';
-import { BusyButton, CheckField, FieldSet, FormProblem, Lines, SelectField, TextAreaField } from './parts';
 import { NETWORKS } from './labels';
 import type { BatchView } from './types';
 import { detailLines } from './util';
@@ -181,7 +178,7 @@ function ImportForm({ onClose, onBusy }: { onClose: () => void; onBusy: (busy: b
       <TextField key={fileKey} label="Choose a .json file" optional type="file" accept=".json,application/json" onChange={(e) => void pick(e.target.files?.[0])} />
       <TextAreaField
         label="Batch JSON" value={json} rows={14} spellCheck={false} mono
-        hint="The same format as a batch file for the command line tools. Nothing is saved until every post passes the checks."
+        hint="A batch file, in the same format as the example batches in the repository's batches folder. Nothing is saved until every post passes the checks."
         onChange={(e) => setJson(e.target.value)}
       />
     </form>

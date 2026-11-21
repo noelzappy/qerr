@@ -38,7 +38,7 @@ export const KIND_LABEL: Record<RunKind, string> = {
 };
 export const runKindLabel = (k: string) => KIND_LABEL[k as RunKind] ?? k;
 
-export const STATUS_LABEL: Record<RunStatus, string> = { queued: 'Waiting', running: 'Running', done: 'Done', failed: 'Failed', cancelled: 'Cancelled' };
+const STATUS_LABEL: Record<RunStatus, string> = { queued: 'Waiting', running: 'Running', done: 'Done', failed: 'Failed', cancelled: 'Cancelled' };
 export const runStatusLabel = (s: string) => STATUS_LABEL[s as RunStatus] ?? s;
 export const STATUS_VARIANT = { queued: 'quiet', running: 'info', done: 'success', failed: 'destructive', cancelled: 'quiet' } as const;
 
@@ -78,7 +78,7 @@ export const batchLink = (r: Pick<ActivityRun, 'batchId'>) => (r.batchId ? `/bat
 
 // The render and send runs of a batch that failed in the last ten minutes and were not started again since (the same post
 // rendered again, the batch sent again): what the batch page lists as "jobs failed".
-export const FAILURE_WINDOW_MS = 10 * 60_000;
+const FAILURE_WINDOW_MS = 10 * 60_000;
 export function recentFailures(items: ActivityRun[], now: number): ActivityRun[] {
   const retried = (r: ActivityRun) => items.some((x) => x.id !== r.id && x.kind === r.kind && (r.kind !== 'render-post' || x.postId === r.postId) && Date.parse(x.createdAt) > Date.parse(r.createdAt));
   return items.filter((r) => r.status === 'failed' && (r.kind === 'render-post' || r.kind === 'send-batch') && Date.parse(r.finishedAt ?? r.createdAt) >= now - FAILURE_WINDOW_MS && !retried(r));

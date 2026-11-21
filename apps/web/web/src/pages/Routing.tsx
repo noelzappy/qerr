@@ -6,15 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Notice } from '@/components/notice';
+import { BusyButton, ConfirmAction, ErrorBlock, Notice, PageHeader, SelectField } from '@/components/kit';
 import { useDocumentTitle, useLoad } from '../hooks';
 import { formProblem } from '../lib/errors';
 import { formatDateTime } from '../lib/format';
 import { networkLabel } from '../lib/labels';
-import { ConfirmAction } from './kit/confirm-action';
-import { SelectField } from './kit/fields';
-import { PageHeader } from './kit/page-header';
-import { BusyButton, ErrorBlock } from './kit/states';
 
 interface Route {
   accountId: string; accountName: string; channelId: string; channelName: string | null; updatedAt: string;
@@ -61,7 +57,7 @@ export function Routing() {
       <PageHeader
         title="Channel routing"
         description="For each network, choose the Buffer account and the channel its posts go to. A batch cannot be sent to a network that has no route."
-        actions={<BusyButton variant="outline" busy={refreshing || channels.loading} onClick={() => void refreshAll()}><RefreshCw aria-hidden="true" />Refresh from Buffer</BusyButton>}
+        actions={<BusyButton variant="outline" loading={refreshing || channels.loading} onClick={() => void refreshAll()}><RefreshCw aria-hidden="true" />Refresh from Buffer</BusyButton>}
       />
       {loading ? <CardsSkeleton />
         : routing.error ? <Card className="gap-0 p-0"><ErrorBlock message={routing.error} onRetry={() => void routing.reload()} /></Card>
@@ -143,7 +139,7 @@ function NetworkCard({ row, accounts, onChanged }: { row: RoutingRow; accounts: 
         hint={account && account.ok && matching.length === 0 ? `No ${networkLabel(network)} channels found for this account, so every channel is listed.` : undefined} />
       {error && <Notice tone="bad">{error}</Notice>}
       <div className="flex flex-wrap gap-2.5">
-        <BusyButton busy={busy} disabled={unchanged || !accountId || !channelId} onClick={() => void save()}>Save route</BusyButton>
+        <BusyButton loading={busy} disabled={unchanged || !accountId || !channelId} onClick={() => void save()}>Save route</BusyButton>
         {route && <Button variant="outline" className="max-sm:min-h-11" onClick={() => setClearing(true)}>Clear route</Button>}
       </div>
       <ConfirmAction
@@ -151,7 +147,7 @@ function NetworkCard({ row, accounts, onChanged }: { row: RoutingRow; accounts: 
         title={`Clear the ${networkLabel(network)} route?`}
         message={<>Posts for {networkLabel(network)} cannot be sent until you choose a channel again. Posts already sent are not affected.</>}
         confirmLabel="Clear route"
-        destructive
+        danger
         onCancel={() => setClearing(false)}
         onConfirm={async () => {
           await api.delete(`/api/routing/${network}`);

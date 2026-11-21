@@ -4,7 +4,7 @@ import type { Deps } from '../deps.js';
 import { describeError, logger } from '../log.js';
 import { asMedia, splitNetworks, type MediaEntry } from './post-model.js';
 
-export const MEDIA_URL_TTL_SECONDS = 300;
+const MEDIA_URL_TTL_SECONDS = 300;
 
 async function signed(deps: Pick<Deps, 'storage'>, m: MediaEntry) {
   let url: string | null = null;

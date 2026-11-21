@@ -1,12 +1,11 @@
 {
   "name": "@vesk/engine",
   "version": "0.2.0",
-  "description": "Makes on-brand social post images and schedules batches of posts into Buffer through its GraphQL API.",
+  "description": "The library under the Vesk web app: renders on-brand post images and schedules batches of posts into Buffer through its GraphQL API.",
   "license": "MIT",
   "private": true,
   "type": "module",
   "engines": { "node": ">=20" },
-  "bin": { "buffer": "buffer.mjs", "design": "design.mjs" },
   "exports": {
     "./package.json": "./package.json",
     "./*": "./lib/*.mjs"

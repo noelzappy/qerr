@@ -27,7 +27,8 @@ const captionLimitsOf = (value: unknown): Record<string, number> => {
   return out;
 };
 
-// The same shape as the engine's loadAccountsConfig, built from the database. Keys are decrypted here and nowhere else;
+// The accounts and routing the engine's push loop takes (see packages/engine/lib/accounts.mjs), built from the database.
+// Keys are decrypted here and nowhere else;
 // never log or return the result.
 export async function loadAccountsConfig(deps: Pick<Deps, 'prisma' | 'config'>): Promise<AccountsConfig> {
   const [rows, routes] = await Promise.all([
@@ -52,7 +53,7 @@ export async function clientsFor(deps: Pick<Deps, 'fetchImpl'>, cfg: AccountsCon
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-export const EXPIRY_WARNING_DAYS = 7;
+const EXPIRY_WARNING_DAYS = 7;
 
 export function expiryInfo(keyExpiresAt: Date | null, now: Date): { daysLeft: number | null; expired: boolean; expiryWarning: boolean } {
   if (!keyExpiresAt) return { daysLeft: null, expired: false, expiryWarning: false };
@@ -94,7 +95,7 @@ export interface CheckResult {
   allOrganizations?: boolean;
 }
 
-// Same queries as the engine's `check` command (lib/schema.mjs). Never throws: a failure is reported in the result,
+// Read-only: the key's organisations, then each organisation's channels. Never throws: a failure is reported in the result,
 // with the key and any bearer token masked.
 export async function checkAccount(deps: Pick<Deps, 'fetchImpl' | 'config'>, account: EngineAccount): Promise<CheckResult> {
   const engine = await bufferEngine();
@@ -123,7 +124,7 @@ export async function checkAccount(deps: Pick<Deps, 'fetchImpl' | 'config'>, acc
 
 // ---- Creating an account: used by the admin page's route and by the one-time seed (seed.ts) ----------------------
 
-export const apiKeySchema = z.string().trim().min(8, 'The Buffer key looks too short').max(500).regex(/^\S+$/, 'The Buffer key cannot contain spaces');
+const apiKeySchema = z.string().trim().min(8, 'The Buffer key looks too short').max(500).regex(/^\S+$/, 'The Buffer key cannot contain spaces');
 export const expirySchema = z.union([z.iso.datetime({ offset: true }), z.iso.date()]).nullable();
 export const captionLimitsSchema = z.record(z.string(), z.number().int().min(1).max(1_000_000));
 

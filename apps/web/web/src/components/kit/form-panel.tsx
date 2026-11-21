@@ -11,12 +11,12 @@ import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetT
 import { useIsMobile } from '@/hooks/use-media-query';
 import { cn } from '@/lib/utils';
 
-export type PanelSize = 'sm' | 'md' | 'lg' | 'xl';
+type PanelSize = 'sm' | 'md' | 'lg' | 'xl';
 
 // Widths on a desktop. A phone always uses the full width.
 const WIDTH: Record<PanelSize, string> = { sm: 'sm:max-w-md', md: 'sm:max-w-lg', lg: 'sm:max-w-2xl', xl: 'sm:max-w-4xl' };
 
-export interface FormPanelProps {
+interface FormPanelProps {
   open: boolean;
   onClose: () => void;
   title: string;

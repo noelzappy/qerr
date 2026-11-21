@@ -1,21 +1,22 @@
-// A list as a Table from the md breakpoint up and as cards on a phone. Columns are described once; the card shows the
+// A list as a Table when there is room and as cards when there is not. Columns are described once; the card shows the
 // primary cell as its heading, every other cell with its column name, and the actions cell last.
 import type { ReactNode } from 'react';
-import { SelectBox } from '@/components/bulk-bar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
+import { SelectBox } from './bulk-bar';
 
-export interface Col<T> {
+export interface Column<T> {
   key: string;
   header: string;
   cell: (row: T) => ReactNode;
-  // The card heading on a phone, shown without its column name.
+  // The card heading, shown without its column name.
   primary?: boolean;
   // Buttons: right aligned, header hidden from view but still read out.
   actions?: boolean;
 }
 
-// Optional tick boxes: a column on the table, a box on each card, and "Select all shown" above the cards on a phone.
-export interface RowSelect<T> {
+// Optional tick boxes: a column on the table, a box on each card, and "Select all shown" above the cards.
+interface RowSelect<T> {
   isSelected: (row: T) => boolean;
   onToggle: (row: T, range: boolean) => void;
   allSelected: boolean;
@@ -24,13 +25,25 @@ export interface RowSelect<T> {
   label: (row: T) => string;
 }
 
-export function DataList<T>({ columns, rows, rowKey, caption, select }: { columns: Col<T>[]; rows: T[]; rowKey: (row: T) => string; caption: string; select?: RowSelect<T> }) {
+// `fit` decides when the table turns into cards: `screen` (the default) below the md breakpoint; `container` when the
+// list itself is narrower than 720 px, so inside a narrow column the rows stack even on a wide screen.
+const SHOW = { screen: { table: 'hidden md:block', cards: 'md:hidden' }, container: { table: 'hidden @[720px]:block', cards: '@[720px]:hidden' } } as const;
+
+export function DataList<T>({ columns, rows, rowKey, caption, select, fit = 'screen' }: {
+  columns: Column<T>[];
+  rows: T[];
+  rowKey: (row: T) => string;
+  caption: string;
+  select?: RowSelect<T>;
+  fit?: keyof typeof SHOW;
+}) {
   const primary = columns.find((c) => c.primary) ?? columns[0]!;
   const actions = columns.find((c) => c.actions);
   const rest = columns.filter((c) => c !== primary && c !== actions);
+  const show = SHOW[fit];
   return (
-    <>
-      <div className="hidden md:block">
+    <div className={cn('min-w-0', fit === 'container' && '@container')}>
+      <div className={show.table}>
         <Table>
           <caption className="sr-only">{caption}</caption>
           <TableHeader>
@@ -66,14 +79,14 @@ export function DataList<T>({ columns, rows, rowKey, caption, select }: { column
         </Table>
       </div>
       {select && (
-        <div className="flex items-center gap-3 border-b bg-muted/60 px-4 py-3 md:hidden">
+        <div className={cn('flex items-center gap-3 border-b bg-muted/60 px-4 py-3', show.cards)}>
           <SelectBox checked={select.allSelected} label="Select all shown" onToggle={select.onToggleAll} />
           <span className="text-sm font-medium" aria-hidden="true">Select all shown</span>
         </div>
       )}
-      <ul className="divide-y md:hidden" aria-label={caption}>
+      <ul className={cn('divide-y', show.cards)} aria-label={caption}>
         {rows.map((row) => (
-          <li key={rowKey(row)} className={`flex flex-col gap-2 px-4 py-3.5 ${select?.isSelected(row) ? 'bg-muted/50' : ''}`}>
+          <li key={rowKey(row)} className={cn('flex flex-col gap-2 px-4 py-3.5', select?.isSelected(row) && 'bg-muted/50')}>
             <div className="flex min-w-0 items-start gap-3">
               {select && <SelectBox className="mt-1.5" checked={select.isSelected(row)} label={`Select ${select.label(row)}`} onToggle={(range) => select.onToggle(row, range)} />}
               <div className="min-w-0 flex-1 font-semibold [overflow-wrap:anywhere]">{primary.cell(row)}</div>
@@ -81,7 +94,7 @@ export function DataList<T>({ columns, rows, rowKey, caption, select }: { column
             <dl className="flex flex-col gap-1.5">
               {rest.map((c) => (
                 <div key={c.key} className="flex items-start justify-between gap-3">
-                  <dt className="flex-none pt-0.5 font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{c.header}</dt>
+                  <dt className="max-w-[40%] flex-none pt-0.5 font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{c.header}</dt>
                   <dd className="min-w-0 text-right [overflow-wrap:anywhere]">{c.cell(row)}</dd>
                 </div>
               ))}
@@ -90,6 +103,11 @@ export function DataList<T>({ columns, rows, rowKey, caption, select }: { column
           </li>
         ))}
       </ul>
-    </>
+    </div>
   );
+}
+
+// A small line of grey text under a name in a cell: ids, time zones, who made it.
+export function Sub({ children, mono = false }: { children: ReactNode; mono?: boolean }) {
+  return <span className={cn('block text-[13px] font-normal text-muted-foreground [overflow-wrap:anywhere]', mono && 'font-mono text-xs')}>{children}</span>;
 }

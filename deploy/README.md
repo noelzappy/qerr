@@ -32,14 +32,14 @@ openssl rand -base64 32   # run once for BETTER_AUTH_SECRET, once for APP_ENCRYP
 | `POSTGRES_PASSWORD` | yes | Password of the `social` database user. Used by both containers. |
 | `BETTER_AUTH_SECRET` | yes | Session secret, 32+ random bytes. |
 | `APP_ENCRYPTION_KEY` | yes | 32 random bytes, base64. Encrypts the stored Buffer and AI keys. **Keep a copy outside the server: without it the stored keys cannot be read, and changing it breaks them.** |
-| `APP_URL` | yes | The public address, for example `https://social.example.com`. Used for invite and reset links and the origin check. The compose file refuses to start without it. |
+| `APP_URL` | yes | The public address, for example `https://vesk.example.com`. Used for invite and reset links and the origin check. The compose file refuses to start without it. |
 | `BRAND_DIR` | no | Rarely needed: the brand is set in Settings (see "Your own brand"). The starting brand pack: a folder under `brands/`, relative to the repository root, for example `brands/acme`. Empty means the demo pack, `brands/demo`. It must stay inside the repository, and the pack must be in the image (the `Dockerfile` copies `brands/`). |
 | `APP_NAME` | no | The name in page titles, emails and the sign-in page. Default: `Vesk`. |
 | `BOOTSTRAP_ADMIN_EMAIL` | first deploy | Email of the first admin (see section 4). Set it in the platform only; it is not in the repository. |
 | `SEED_SECRETS_B64` | first deploy only | One-time secrets seed (section 4a). Remove it after the first start. `SEED_VAULT=0` turns off the automatic vault seed. |
 | `ZEPTOMAIL_API_KEY`, `MAIL_FROM`, `MAIL_FROM_NAME` | for email | Invites and password resets go through ZeptoMail's HTTP API. `MAIL_FROM` is the sender address, for example `noreply@example.com`; `MAIL_FROM_NAME` defaults to the brand's name. If unset, the admin page shows the invite link to copy instead. |
 | `STORAGE_DRIVER` | for scheduling | `local` (the default: files stay inside the container and are lost on redeploy, for trying things out only) or `s3`. A real deployment sets `s3` and the `S3_*` values. |
-| `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_BASE_URL`, `S3_PREFIX` | for scheduling | S3-compatible storage (Hetzner Object Storage was the target), as in `.env.example`, for example bucket `example-bucket`. `S3_PREFIX` defaults to `public/`. Nothing has been sent to a real bucket yet. |
+| `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_BASE_URL`, `S3_PREFIX` | for scheduling | S3-compatible storage (Hetzner Object Storage was the target), for example endpoint `https://fsn1.your-objectstorage.com`, region `fsn1` (the location), bucket `example-bucket`, public base URL `https://example-bucket.fsn1.your-objectstorage.com`. `S3_PREFIX` defaults to `public/`; allow public read on that prefix only, in the bucket policy (the app never changes it). Nothing has been sent to a real bucket yet. |
 
 **Private files rely on unguessable URLs.** The bucket is publicly readable, so `vault/` and `renders/` objects are not access-controlled. What protects them is the key: every new private object gets a random 43-character segment (32 random bytes, base64url) in its path, for example `vault/<random>/<id>/<sha>-<name>`, kept in the database and never shown to the browser; the app hands out short-lived signed URLs only. Bucket listing is denied, so an object can be reached only by someone who was given its exact URL. Anyone who obtains a URL (a log, a screenshot, a forwarded link) can read that file until it is deleted, so treat the URLs as secrets and do not put anything in the vault that must stay confidential. Keys written before this change have no random segment and still work. Moving private files to a bucket that is not publicly readable would remove this limit; that is not set up.
 
@@ -58,8 +58,8 @@ private repository or fork: anything in `brands/` is in the image.
 
 ## 3. Domain and HTTPS
 
-Point DNS for your address (for example `social.example.com`) at the server. In the compose service's **Domains** tab add:
-host `social.example.com`, service `app`, container port `3000`, HTTPS on, certificate Let's Encrypt. No port is
+Point DNS for your address (for example `vesk.example.com`) at the server. In the compose service's **Domains** tab add:
+host `vesk.example.com`, service `app`, container port `3000`, HTTPS on, certificate Let's Encrypt. No port is
 published on the host; only the platform's proxy reaches the app. The `app` service is also attached to the external
 `dokploy-network` so the proxy can reach it; if your Dokploy version wires compose domains differently, keep the
 service name and port and adjust the network accordingly. Then **Deploy**.
@@ -81,7 +81,8 @@ first start whenever the vault has never held an item. It needs no variable; `SE
 once it has run, even if items are deleted later. The demo pack's `vault.json` holds invented facts only; write your own
 for a real brand. The **secrets** are opt-in with `SEED_SECRETS_B64`:
 
-1. On your own machine, from the repository root, build the secrets. It reads `.env`, `accounts.json` and, for the AI
+1. On your own machine, from the repository root, build the secrets. It reads `.env`, `accounts.json` (both
+   git-ignored; their format is in [apps/web/README.md](../apps/web/README.md), "Seeding a new deployment") and, for the AI
    key, another env file you point it at, and prints only which parts it included, never a value:
 
    ```sh
@@ -145,6 +146,6 @@ through a rendered page would not be contained by the browser sandbox, only by t
 `deploy/check.sh` (needs Docker) lints the compose file with throwaway values, builds the real image, starts the stack
 under the project name `vesk-local` (containers `vesk-local-app-1` and `vesk-local-postgres-1`,
 no host ports) and checks that the app runs as non-root, Chromium starts, the engine renders a `text` page, `/healthz`
-answers 200, the login page loads and the bootstrap admin invite (for `admin@example.com`) is logged once. It never
-reads the repository's `.env`, and it removes the containers, the volume and the network it made when it ends. With
+answers 200, the login page loads and the bootstrap admin invite (for `admin@example.com`) is logged once. It passes in
+nothing from any `.env` file, and it removes the containers, the volume and the network it made when it ends. With
 `BRAND_DIR` unset in your shell it uses the default brand pack.

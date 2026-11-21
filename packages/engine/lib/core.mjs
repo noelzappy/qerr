@@ -1,12 +1,12 @@
-// Small shared helpers: paths, .env, secret masking, time zones, hashing, JSON files, tables.
+// Small shared helpers: paths, the brand pack, secret masking, time zones, hashing, JSON files, tables.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
-// ENGINE_DIR is this package (it holds design/: the brand, templates, fonts, logos and stock assets). ROOT is the repository
-// root, two levels up: it holds .env, accounts.json, batches/, media/, state/ and out/, which are the owner's data and not part
-// of any package.
+// ENGINE_DIR is this package (it holds design/: the brand CSS, templates, fonts and stock assets). ROOT is the repository
+// root, two levels up: it holds brands/ (the brand packs), state/ (the web app writes its saved brand there as a pack, under
+// state/brand/) and out/ (the render lock and temporary renders), which are not part of any package.
 export const ENGINE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const ROOT = path.resolve(ENGINE_DIR, '..', '..');
 
@@ -22,13 +22,13 @@ export function repoPath(rel, root = ROOT) {
 }
 
 // The brand pack: one folder with brand.json, the logos, and optionally map.json (the dot map), vault.json (the web app's
-// first vault), prompts/ (the AI's prompts) and example batches. BRAND_DIR names it, relative to the repository root, in the
-// environment or .env; it must stay inside the repository.
+// first vault) and prompts/ (the AI's prompts). BRAND_DIR names it, relative to the repository root, in the environment; it
+// must stay inside the repository.
 export const DEFAULT_BRAND_DIR = 'brands/demo';
 
 export function brandDir({ root = ROOT, env = process.env } = {}) {
-  // A blank value in the environment (as compose files pass an unset variable) counts as unset, so .env still applies.
-  const rel = (env.BRAND_DIR ?? '').trim() || (loadEnv({ root, env: {} }).BRAND_DIR ?? '').trim() || DEFAULT_BRAND_DIR;
+  // A blank value (as compose files pass an unset variable) counts as unset.
+  const rel = (env.BRAND_DIR ?? '').trim() || DEFAULT_BRAND_DIR;
   const abs = path.resolve(root, rel);
   const inside = path.relative(root, abs);
   if (!inside || inside.startsWith('..') || path.isAbsolute(inside)) throw new Error('BRAND_DIR must name a folder inside the repository, for example brands/demo');
@@ -37,33 +37,6 @@ export function brandDir({ root = ROOT, env = process.env } = {}) {
 
 // A file of the brand pack, for example brandFile('brand.json').
 export const brandFile = (name, opts = {}) => path.join(brandDir(opts), name);
-
-export function parseEnv(text) {
-  const out = {};
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line || line.startsWith('#')) continue;
-    const eq = line.indexOf('=');
-    if (eq < 1) continue;
-    let value = line.slice(eq + 1).trim();
-    if (/^(['"]).*\1$/.test(value)) value = value.slice(1, -1);
-    out[line.slice(0, eq).trim()] = value;
-  }
-  return out;
-}
-
-// Real environment variables win over the .env file. The merged map holds secrets: never print it.
-export function loadEnv({ root = ROOT, env = process.env } = {}) {
-  const file = path.join(root, '.env');
-  const fromFile = fs.existsSync(file) ? parseEnv(fs.readFileSync(file, 'utf8')) : {};
-  return { ...fromFile, ...Object.fromEntries(Object.entries(env).filter(([, v]) => v !== undefined)) };
-}
-
-export function loadConfig({ root = ROOT, env = process.env } = {}) {
-  const all = loadEnv({ root, env });
-  const get = (k) => (all[k] ?? '').trim();
-  return { apiKey: get('BUFFER_API_KEY'), orgId: get('BUFFER_ORG_ID'), mediaBaseUrl: get('MEDIA_BASE_URL') };
-}
 
 // The key must never reach a terminal, a log or a file. Every message passes through here.
 export function maskSecrets(text, secrets = []) {
@@ -110,13 +83,6 @@ export function readJson(file, fallback) {
   } catch (e) {
     throw new Error(`${file} is not valid JSON: ${e.message}`);
   }
-}
-
-export function writeJson(file, data) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n');
-  fs.renameSync(tmp, file);
 }
 
 export function table(headers, rows) {

@@ -1,5 +1,5 @@
 // Plain-words labels for batch, post, render and delivery states, and the fixed facts about each network.
-import type { Tone } from './parts';
+import type { Tone } from '@/components/kit';
 import type { BatchStatus, DeliveryRow, PostStatus, RenderStatus } from './types';
 
 export const NETWORKS = ['instagram', 'linkedin', 'facebook', 'x'] as const;

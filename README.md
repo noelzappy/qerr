@@ -6,170 +6,190 @@ brand's look; people review and approve each post; and the approved posts go to 
 first. It works for any organisation without writing code: the brand, its logos, colours, voice and visual direction are
 set in the admin panel, and the team can upload design references whose style the AI learns from.
 
-It has a web app and the engine under it:
+Vesk is a web app (`apps/web`). Home, Create, Publish and Settings, in light and dark:
 
-- **The web app** (`apps/web`). Home, Create, Publish and Settings, in light and dark:
-  - Home shows the week, what waits for approval, the setup steps and what goes out next.
-  - Create holds the batches on a board, with the vault and the picture library.
-  - Publish shows every planned post on a calendar or a list, per channel.
-  - Settings covers:
-    - Brand and look: identity, logos (or a simple logo drawn from the name), colours with a live preview and contrast
-      checks, series, voice, visual direction, and the import of an existing brand pack.
-    - Design references: pictures the AI describes as style briefs that guide every draft.
-    - The team, the Buffer accounts, the channels, the AI providers with a monthly budget, and the audit log.
+- **Home** shows the week, what waits for approval, the setup steps and what goes out next.
+- **Create** holds the batches on a board, with the vault and the picture library. A batch is drafted by the AI or
+  imported from a batch file; each post is reviewed, edited, re-rendered and approved one by one.
+- **Publish** shows every planned post on a calendar or a list, per channel, and sends approved posts to Buffer.
+- **Settings** covers:
+  - Brand and look: identity, logos (or a simple logo drawn from the name), colours with a live preview and contrast
+    checks, series, voice, visual direction, and the import of an existing brand pack.
+  - Design references: pictures the AI describes as style briefs that guide every draft.
+  - The team, the Buffer accounts, the channels, the AI providers with a monthly budget, and the audit log.
 
-  See [apps/web/README.md](apps/web/README.md).
-- **Design** (`packages/engine`). It renders finished, on-brand post images with headless Google Chrome: poster pages with
-  one strong picture, editorial pages with ledger and passbook cards, real product screens in framed phones and desktop
-  windows, photo posts, and carousels with a PDF. See [docs/design.md](docs/design.md).
-- **Schedule** (`packages/engine`). It turns each post into one Buffer post per channel (Instagram, LinkedIn, Facebook and
-  X), checks the media, and sends them as drafts first, through Buffer's GraphQL API. The channels can belong to one Buffer
-  account or to several.
-- **AI** (`packages/ai`). It drafts, researches and rewrites from the vault only, and describes design references. It uses
-  any Anthropic or OpenAI-compatible model. See [docs/ai.md](docs/ai.md).
+Under it are two libraries with no dependencies, which the app imports:
 
-The engine also runs on its own from the command line, with the brand in a folder (a **brand pack**, see "Brand packs"
-below). The repository ships a fictional demo brand, Acme Savings, so everything runs on a fresh clone.
+- **The engine** (`packages/engine`, `@vesk/engine`). It renders finished, on-brand post images with headless Google
+  Chrome (poster pages with one strong picture, editorial pages with ledger and passbook cards, real product screens in
+  framed phones and desktop windows, photo posts, and carousels with a PDF; see [docs/design.md](docs/design.md)), and it
+  turns each approved post into one Buffer post per channel (Instagram, LinkedIn, Facebook and X) through Buffer's GraphQL
+  API, with the duplicate guard, the media checks and the rate limits. The channels can belong to one Buffer account or
+  to several.
+- **The AI library** (`packages/ai`, `@vesk/ai`). It drafts, researches and rewrites from the vault only, and describes
+  design references. It uses any Anthropic or OpenAI-compatible model. See [docs/ai.md](docs/ai.md).
 
-One batch file describes the whole month: the words, the pictures and the dates.
+The repository ships a fictional demo brand, Acme Savings (`brands/demo`), so a fresh install has a brand to show and
+render with until an admin sets the real one.
 
 Licence: MIT, see [LICENSE](LICENSE).
 
 ## Status: never run against the real Buffer API
 
-This tool has been tested only against a fake Buffer inside `test.mjs`. It has not talked to the real Buffer API,
+Vesk has been tested only against a fake Buffer and fake or local storage. It has not talked to the real Buffer API,
 because no API key existed when it was written. Everything it knows about Buffer (endpoint, field names, enum values)
 comes from Buffer's public documentation and has not been confirmed on a live account. Read
-[docs/buffer-api-notes.md](docs/buffer-api-notes.md) for the full list of unverified points, and follow the first-run
-precaution in [docs/monthly-routine.md](docs/monthly-routine.md) before trusting it with a month of posts.
+[docs/buffer-api-notes.md](docs/buffer-api-notes.md) for the full list of unverified points, and follow "The first run
+against real Buffer" below before trusting it with a month of posts.
 
-The routing across several Buffer accounts, the X network and the upload of media to S3-compatible storage (Hetzner
-Object Storage) were added later and have the same status: they are tested against fakes only (`test-accounts.mjs`,
-`test-storage.mjs`). **Nothing has run against a real Buffer account or a real Hetzner bucket yet.** The S3 signer is
-checked against AWS's published signing examples, which proves the signature maths, not that Hetzner accepts it.
-
-`plan`, `media` and `--help` need no key and no network (except `media --verify`, which fetches your media URLs). The
-design commands need no key and no network either; they need Google Chrome on the machine.
+The routing across several Buffer accounts, the X network and the copy of media to S3-compatible storage (Hetzner Object
+Storage was the target) have the same status: they are tested against fakes only. **Nothing has run against a real
+Buffer account or a real Hetzner bucket yet.** The S3 signer is checked against AWS's published signing examples, which
+proves the signature maths, not that Hetzner accepts it.
 
 ## What it is and is not
 
 It is:
 
-- An image maker for a brand's posts: your texts and pictures in, finished images out in the brand pack's look, checked
-  by the tool (contrast, enlargement, text that does not fit).
-- A batch scheduler: one JSON file in, one Buffer post per channel out.
-- Safe by default: it creates drafts, and sends nothing without `--yes`.
-- Zero dependencies: the command-line tool and the AI library use Node.js only. (The web app in `apps/web` has its own.)
+- A desk for one brand per deployment: a vault of facts and pictures, batches of posts, review and approval, a calendar.
+- An image maker for the brand's posts: the words and pictures in, finished images out in the brand's look, checked by
+  the engine (contrast, enlargement, text that does not fit, exact pixel size).
+- A careful Buffer client: approved posts only, drafts before live, one Buffer post per post and channel, never sent
+  twice by accident.
 
 It is not:
 
-- A design editor. The templates are fixed; the brand pack sets their colours, fonts and logos, and you choose the
-  words, the picture and a few options.
-- A Buffer client for general use. It only creates posts and lists them.
-- A media host. Buffer takes media by public URL only. You either host the files yourself (`MEDIA_BASE_URL`) or let
-  `upload` put them in an S3-compatible bucket you own (`S3_*`); the tool does not create or configure the bucket.
-- A way to edit or delete Buffer posts. There is no update or delete call. You do that in Buffer.
-- A WhatsApp tool. WhatsApp is not a Buffer channel.
-- Wired to TikTok. Buffer supports it, but this tool only knows Instagram, LinkedIn, Facebook and X.
-
-## Requirements
-
-- Node.js 22.12 or newer for the repository (the web app needs it; the engine and the AI library alone need Node 20 or
-  newer). Tested on Node 24.
-- For the design commands only: Google Chrome (the macOS path is found automatically; set `CHROME_PATH` for another
-  location). JPG conversion uses `sips` (macOS) or `ffmpeg` when present, otherwise Chrome itself.
-- A Buffer account with a key from <https://publish.buffer.com/settings/api> (one key per account; keys expire, 30 days
-  by default, so expect to create new ones).
-- Somewhere to host media publicly over HTTPS: your own host, or an S3-compatible bucket with public read on one prefix.
-
-This is an npm workspaces monorepo (see "Repository layout" below). The command-line tool and the AI library have
-no dependencies, so to use only the CLI there is nothing to install. Run `npm install` once at the repository root if you also
-work on the web app (`apps/web`) or want `npm test` to run everything.
+- A design editor. The templates are fixed; the brand sets their colours, fonts and logos, and people choose the words,
+  the picture and a few options.
+- A general social media manager. It only creates, lists and deletes the posts it made, through Buffer. It never talks
+  to Instagram, LinkedIn, Facebook or X directly.
+- A media host for anyone else. Buffer takes media by public URL only, so the app copies the files of each post it sends
+  to the public prefix of a bucket you own. It does not create or configure the bucket.
+- A WhatsApp tool (WhatsApp is not a Buffer channel), and not wired to TikTok (Buffer supports it; Vesk knows Instagram,
+  LinkedIn, Facebook and X).
 
 ## Quick start
 
+### On a server: Docker Compose
+
+`deploy/docker-compose.yml` runs two containers: `app` (the `Dockerfile` at the repository root: the web app, the engine,
+the AI library, the brand packs and Chromium, on Node 22) and `postgres` (16, with a named volume). The app migrates the
+database, then starts on port 3000 behind your HTTPS reverse proxy; the compose file publishes no host port.
+[deploy/README.md](deploy/README.md) walks through it on Dokploy: the environment variables, the domain, the first
+login, seeding, backups, updating and why Chromium runs without its sandbox.
+
+The short version, on a host with Docker and a proxy:
+
+1. Generate `POSTGRES_PASSWORD`, `BETTER_AUTH_SECRET` and `APP_ENCRYPTION_KEY` (`openssl rand -base64 32` each) and keep
+   a copy of `APP_ENCRYPTION_KEY` outside the server: without it the stored keys cannot be read.
+2. Set them with `APP_URL`, `BOOTSTRAP_ADMIN_EMAIL`, `STORAGE_DRIVER=s3` and the `S3_*` values in the platform's
+   environment, then deploy.
+3. Open the invite link the app logs once (`bootstrap.admin_invite`), set a password, and follow the setup steps on Home.
+
+### On your machine: local development
+
+You need Node.js 22.12 or newer, Postgres 16 and Google Chrome (set `CHROME_PATH` if it is not in the usual place).
+From the repository root:
+
 ```sh
-cp .env.example .env                       # then put your key in .env
-cp channels.example.json channels.json     # then fill in the channel ids (one Buffer account)
-node packages/engine/buffer.mjs check                      # tests the key, lists channels, checks the schema
-node packages/engine/buffer.mjs plan batches/example-launch.json
-node packages/engine/design.mjs --help                     # make the images: texts and pictures in, post images out
-node packages/engine/design.mjs render batches/example-launch.json --out-dir media/preview   # the demo images (needs Chrome)
+npm install                                        # every workspace
+docker run -d --name vesk-pg -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:5432:5432 postgres:16
+docker exec vesk-pg createdb -U postgres vesk      # or any empty database (wait a few seconds after the first line)
+
+cd apps/web
+export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/vesk
+export APP_URL=http://localhost:3000
+export BETTER_AUTH_SECRET=$(openssl rand -hex 24)
+export APP_ENCRYPTION_KEY=$(openssl rand -base64 32)   # keep it: stored keys cannot be read without it
+export STORAGE_DRIVER=local
+export BOOTSTRAP_ADMIN_EMAIL=you@example.com
+npm run build && npm run migrate && npm start      # or `npm run dev` with `npm run dev:web` for Vite
 ```
 
-`plan` and `render` need no key and no `.env`, so you can try them first. The example batches use the demo brand
-(`brands/demo`); set `BRAND_DIR` to use your own (see "Brand packs"). Their figures are invented: they are format
-examples, not posts to send.
+Open the invite link the server logs on its first start, choose a name and a password, and sign in. Then follow the
+setup steps on Home; each opens the page where it is done:
 
-The full routine, including first-time setup, is in [docs/monthly-routine.md](docs/monthly-routine.md).
+1. Set up the brand, and upload the logos or draw a simple pair from the name (Settings, Brand and look).
+2. Add a Buffer account and run Check on it (Settings, Buffer accounts).
+3. Choose the account and channel for each network (Settings, Channels).
+4. Add an AI provider and a monthly budget (Settings, AI and search).
+5. Add the team's facts to the vault.
+6. Invite the team (Settings, Team).
+7. Draft the first batch with AI, or import one (the two files in `batches/` are examples for the demo brand).
 
-### One Buffer account or several
+The details, every command and the test set-up are in [apps/web/README.md](apps/web/README.md).
 
-- **One account (the original setup).** `BUFFER_API_KEY` (and `BUFFER_ORG_ID` if needed) in `.env` plus `channels.json`.
-  This works exactly as before, with or without the newer features, as long as there is **no `accounts.json`**. The
-  account is called `default` in the output and in the state file.
-- **Several accounts.** Copy `accounts.example.json` to `accounts.json` (git-ignored). It lists the accounts and routes
-  each of our network names (`instagram`, `linkedin`, `facebook`, `x`) to one account and one channel id:
+## Configuration
 
-  ```json
-  {
-    "accounts": [
-      { "name": "main", "keyEnv": "BUFFER_KEY_MAIN", "organizationId": "", "captionLimits": { "x": 280 } },
-      { "name": "second", "keyEnv": "BUFFER_KEY_SECOND" }
-    ],
-    "routing": {
-      "x": { "account": "main", "channelId": "..." },
-      "linkedin": { "account": "main", "channelId": "..." },
-      "facebook": { "account": "second", "channelId": "..." },
-      "instagram": { "account": "second", "channelId": "..." }
-    }
-  }
-  ```
+The deployment is configured by environment variables, read once at start; a missing or invalid value stops the server
+with a message that names the variable, never its value. The main ones:
 
-  `keyEnv` is the **name** of an environment variable (set in `.env` or the shell), never the key; the file is rejected if it
-  holds a field called `apiKey` or similar, and the error does not repeat the value. `organizationId` is optional (as
-  `BUFFER_ORG_ID` is). `captionLimits` overrides a network's caption limit for that account; use it to raise X above
-  280 when the X profile is on a paid tier. When `accounts.json` exists, `BUFFER_API_KEY`, `BUFFER_ORG_ID` and
-  `channels.json` are ignored. A post that goes to four channels is split across the accounts by the routing.
-  `node packages/engine/buffer.mjs check` prints a routing suggestion from what each key can see.
+| Variable | What it is |
+| --- | --- |
+| `DATABASE_URL` | Postgres connection string. The app and its pg-boss jobs share the database. |
+| `APP_URL` | The public address, for invite and reset links and the origin check. |
+| `BETTER_AUTH_SECRET` | The session secret. |
+| `APP_ENCRYPTION_KEY` | 32 random bytes, base64. Encrypts the stored Buffer and AI keys. Rotation: `APP_ENCRYPTION_KEY_VERSION` and `APP_ENCRYPTION_KEY_OLD`. |
+| `BOOTSTRAP_ADMIN_EMAIL` | On the first start with no users, the app logs one admin invite for this address. |
+| `STORAGE_DRIVER` and `S3_*` | `local` (a folder, for development and tests) or `s3` with `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_BASE_URL` and `S3_PREFIX` (default `public/`). |
+| `CHROME_PATH` | The Chrome or Chromium binary the engine renders with. |
+| `BRAND_DIR` | The brand pack shown until a brand is saved in Settings, and the source of the first vault. Default `brands/demo`. |
+| `APP_NAME` | The app's name in titles, emails and the sign-in page. Default `Vesk`. |
+| `ZEPTOMAIL_API_KEY`, `MAIL_FROM` or `SMTP_*` | Invite and reset emails. Without them the admin page shows the link to copy. |
 
-Run every command from the repository root: the tool reads `.env`, `accounts.json` and `channels.json` there, keeps
-`state/` there, and reads a batch's `mediaRoot` relative to it. npm scripts, if you prefer them: `npm test`,
-`npm run check`, `npm run plan -- <batch.json>`, `npm run buffer -- <command>` and `npm run design -- <command>`. They
-run `node packages/engine/buffer.mjs` and `node packages/engine/design.mjs`; calling those files directly works the same.
-`node packages/engine/buffer.mjs design <command>` is the same as `node packages/engine/design.mjs <command>`.
+The full list (rate limits, proxies, seeding, mail) is in [apps/web/README.md](apps/web/README.md).
 
-## Brand packs
+**Keys are not environment variables.** Buffer keys (one per Buffer account) and the AI and search provider keys are
+entered by an admin in Settings and stored encrypted with `APP_ENCRYPTION_KEY` (AES-256-GCM, with a key version so the
+key can be rotated). After saving, the app shows only their last four characters; they are never returned to the
+browser, logged or put in a job payload. A new deployment can be seeded with them once through `SEED_SECRETS_B64` (see
+section 4a of [deploy/README.md](deploy/README.md)). Buffer keys expire (30 days by default), so expect to replace them
+in Settings, Buffer accounts.
 
-For the command-line tool, everything that makes the posts one brand's lives in one folder under `brands/`, the brand
-pack. The design engine and the AI library read it.
+## The brand and the design references
 
-**In the web app you do not need a pack.** An admin sets the brand in Settings, Brand and look, and the app keeps it in its
-database. Until then the app shows the pack named by `BRAND_DIR` (the demo by default). An existing pack moves in through
-Settings, Brand and look, Advanced, "Import a brand pack": choose its `brand.json`, its two logos and its optional
-`map.json`. The pack's exact colours and rules are kept. Behind the scenes the app writes the saved brand out as a pack
-folder under `state/brand/` and points the engine at it, so the app and the command line render the same way.
+**The brand is set in Settings, Brand and look**, and the app keeps it in its database: identity (name, website,
+tagline, what the brand does, time zone, language, currency), logos, colours and type, series, voice, visual direction,
+and an Advanced section with a `brand.json` fragment, a dot map and the import of a brand pack. While people pick
+colours, the page shows the colours posts will use and the contrast checks. Every value passes the engine's own
+`validateBrand` before it is saved. Behind the scenes the app writes the saved brand out as a pack folder under
+`state/brand/` and points the engine at it, so the renders and the AI read the same brand. Images are refused until the
+logos are uploaded. [apps/web/README.md](apps/web/README.md) ("The brand") says how the four colours are spread over the
+engine's tokens and fitted for contrast.
+
+**Design references** (Settings, Design references) are pictures the team likes: a post, a poster, an advert, a page. A
+background job sends each to the drafting provider's model, which writes a style brief (summary, palette, type, layout,
+imagery, mood, what to avoid). People can edit a brief or switch it off; the briefs that are on reach every draft and
+rewrite as part of the brand. They are taste, not facts: the prompts tell the model to follow them where the hard rules
+leave room and never to quote them as claims. The drafting model must be able to read images.
+
+### Brand packs
+
+A brand can also live in files: a **brand pack**, one folder under `brands/`. Until an admin saves a brand, the app
+shows the pack named by `BRAND_DIR` (the demo by default) and seeds its first vault from that pack's `vault.json`. An
+existing pack moves into the app through Settings, Brand and look, Advanced, "Import a brand pack": choose its
+`brand.json`, its two logos and its optional `map.json`. The pack's exact colours and rules are kept.
 
 | File | Needed | What it is |
 | --- | --- | --- |
-| `brand.json` | yes | Name, website, tagline, descriptor, colours (grounds, text, accents, gradient, surfaces), shadows, radii, window and phone chrome, fonts, logo paths, series, spelling rules, length guidance, contrast targets and photo thresholds. Optional `timezone` and `money`. Every value is checked on load; a wrong one stops the run with the full list. See "The brand file" in [docs/design.md](docs/design.md). |
+| `brand.json` | yes | Name, website, tagline, descriptor, colours (grounds, text, accents, gradient, surfaces), shadows, radii, window and phone chrome, fonts, logo paths, series, spelling rules, length guidance, contrast targets and photo thresholds. Optional `timezone` and `money`. Every value is checked on load; a wrong one stops with the full list. See "The brand file" in [docs/design.md](docs/design.md). |
 | `logos/logo-full.png`, `logos/logo-mark.png` | yes | The full colour logo (the mark, then the wordmark) and the mark alone, transparent PNGs. `brand.json` names them by paths relative to the repository root, for example `brands/demo/logos/logo-full.png`. |
-| `vault.json` | for the web app | The first vault: facts, figures and research topics the web app imports once, into an empty database (see [apps/web/README.md](apps/web/README.md)). |
+| `vault.json` | no | The first vault: facts, figures and research topics the app imports once, into an empty database (see [apps/web/README.md](apps/web/README.md)). |
 | `map.json` | no | A dot map for the `closing` template's `map: true`: a grid, regions of cells and the regions to light. |
-| `prompts/<name>.md` | no | Replaces the AI library's `draft`, `research` or `rewrite` prompt for this brand (see [docs/ai.md](docs/ai.md)). |
+| `prompts/<name>.md` | no | Replaces the AI library's `draft`, `research`, `rewrite` or `reference` prompt for this brand (see [docs/ai.md](docs/ai.md)). |
 
-**Choosing the pack.** `BRAND_DIR` names it, relative to the repository root, in the environment or in `.env` (a real
-environment variable wins; a blank value counts as unset). It must be a folder inside the repository. Without it the
-default is `brands/demo`.
+**Choosing the pack.** `BRAND_DIR` names it, relative to the repository root, in the environment (a blank value counts
+as unset). It must be a folder inside the repository, and in a container the pack must be in the image (the `Dockerfile`
+copies `brands/`). Without it the default is `brands/demo`.
 
 **The demo pack** (`brands/demo`) is a fictional brand, Acme Savings: website `acmesavings.example`, time zone
-`Europe/London`, money in euros. Its `map.json` is an invented island and its `vault.json` holds invented facts and figures
-only. `brands/demo/make-assets.mjs` draws its logos, the map and three synthetic demo pictures
-(`packages/engine/design/assets/demo/object-jar.jpg`, `scene-market.jpg`, `screen-desk.png`); those files are committed, so
-the example batches render on a fresh clone. Run `node brands/demo/make-assets.mjs` again only after changing a drawing (it
-needs Chrome).
+`Europe/London`, money in euros. Its `map.json` is an invented island and its `vault.json` holds invented facts and
+figures only. `brands/demo/make-assets.mjs` draws its logos, the map and three synthetic demo pictures
+(`packages/engine/design/assets/demo/object-jar.jpg`, `scene-market.jpg`, `screen-desk.png`) with the engine's Chrome
+helper; those files are committed, so the example batches render on a fresh install. Run
+`node brands/demo/make-assets.mjs` again only after changing a drawing (it needs Chrome).
 
-**Starting your own.**
+**Starting your own pack.**
 
 1. Copy the demo: `cp -r brands/demo brands/<your-brand>`, then delete `make-assets.mjs` from the copy (it writes the demo's
    files), and delete `map.json` unless you will draw your own.
@@ -181,527 +201,192 @@ needs Chrome).
    `logos.wordmarkFrom` to the x where its wordmark starts, and `logos.markGap` to the gap between mark and wordmark (they
    are used to set the wordmark in white on dark grounds). Fonts: the engine ships Inter and IBM Plex Mono in
    `packages/engine/design/fonts/`; another woff2 font may live in your pack, named by its repository path.
-4. Set `timezone` to the brand's IANA time zone (the AI drafts in it, the web app shows it; batches name their own). Set
+4. Set `timezone` to the brand's IANA time zone (the AI drafts in it, the app shows it; batches name their own). Set
    `money.local` to one sentence on the brand's currency and `money.foreign` to a pattern of the currencies pictures must
    not show, or remove `money` to allow every currency.
 5. Write `vault.json` with the brand's own confirmed facts, in the demo's format.
-6. Optionally add `prompts/draft.md`, `research.md` or `rewrite.md` (start from `packages/ai/src/prompts/`, keep the version
-   line), and a `map.json` from data you may use.
-7. Put `BRAND_DIR=brands/<your-brand>` in `.env` and render one page to check it, for example
-   `node packages/engine/design.mjs text --headline 'Hello' --out media/preview/hello.jpg`. Look at the image. For the
-   web app, import the pack in Settings instead.
+6. Optionally add `prompts/draft.md`, `research.md`, `rewrite.md` or `reference.md` (start from `packages/ai/src/prompts/`,
+   keep the version line), and a `map.json` from data you may use.
+7. Import the pack in Settings, Brand and look, Advanced (or set `BRAND_DIR=brands/<your-brand>` and restart the app),
+   render one post and look at the image.
 
 A pack can hold private facts (`vault.json`) and the brand's own artwork. Keep a real brand's pack in a private repository
-or fork, not in a public one.
-
-## Repository layout
-
-An npm workspaces monorepo. The code is in three workspaces; your data stays at the root.
-
-| Path | What it is |
-| --- | --- |
-| `packages/engine/` (`@vesk/engine`) | The Buffer tool and the design tool: `buffer.mjs`, `design.mjs`, `lib/`, `design/` (brand CSS, templates, fonts and the asset folders, including the committed demo pictures in `design/assets/demo/`) and the engine tests. No dependencies. Other packages import its modules as `@vesk/engine/<module>`, for example `@vesk/engine/batch`. |
-| `packages/ai/` (`@vesk/ai`) | Drafting, research and rewriting (`src/`) and its tests. No third-party dependencies; it uses the engine's validators through `@vesk/engine`. |
-| `apps/web/` (`@vesk/web`) | The Vesk web app (see [apps/web/README.md](apps/web/README.md)). It imports `@vesk/engine/...` and `@vesk/ai`. |
-| `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default. See "Brand packs". |
-| `batches/`, `media/`, `state/`, `out/` | Your batch files (two examples for the demo brand ship here) and the files the tool makes (the last three are not in git). |
-| `docs/`, `deploy/`, `Dockerfile` | Documentation and the container set-up (Node 22). |
-
-Root scripts: `npm test` (engine, then AI, then web), `npm run test:engine`, `npm run test:ai`, `npm run test:web`,
-`npm run build` (the web app), `npm run buffer`, `npm run design`, `npm run plan`.
+or fork, not in a public one; `npm run export-public` makes a public copy of the repository that leaves out every pack
+but the demo.
 
 ## How it works
 
 ```
- your texts and pictures
- (design block in the batch, or flags)
+ vault (facts, figures, photos, screens)          design references
+        |                                                |
+        v                                                v
+   draft-batch job: the AI writes a batch from the vault, in the brand's voice    (or: import a batch file)
         |
         v
-   design render   (Chrome renders each image, then checks it: contrast, enlargement,
-        |            text that fits, exact pixel size)  -> media/<name>/*.jpg
-        |            and fills in "media" in the batch where it was empty
+   render-post job: the engine renders each post's design block with Chrome, then checks it
+        |            (contrast, enlargement, text that fits, exact pixel size)  -> private storage
         v
- batches/<name>.json          media/<name>/*.jpg *.mp4
-        |                            |
-        v                            |  you upload these to a public host
-   plan  (validate, one item          v
-   per post x channel, hash)   MEDIA_BASE_URL/<file>
-        |                            |
-        +--------------+-------------+
-                       v
-        media --verify  (HEAD: 200 and image/* or video/*)
-                       |
-                       v
-        push --yes      -> Buffer drafts   (createPost, saveToDraft)
-                       |        you review them in Buffer
-                       v
-        push --live --yes -> scheduled posts (createPost, no saveToDraft)
-                       |
-                       v
-        status          -> lists scheduled and draft posts, compares with state/
+   review: people edit, re-render and approve each post; warnings and sources on every card
+        |
+        v
+   plan: one row per post x channel, with the account, the channel and what will happen
+        |
+        v
+   send-batch job, drafts: the files about to be sent are copied to the public prefix and checked
+        |                  (HEAD: 200 and image/* or video/*), then createPost with saveToDraft
+        |                  you review the drafts in Buffer
+        v
+   send-batch job, live: createPost without saveToDraft, for posts whose draft is in Buffer
+        |
+        v
+   refresh-delivery job (and every 15 minutes): lists each account's scheduled and draft posts and reconciles them
 ```
 
-Where things are kept, all inside this repository:
-
-| Path | What it holds | In git? |
-| --- | --- | --- |
-| `batches/` | The batch files you write (`example-launch.json` and `example-editorial.json` ship as examples) | yes |
-| `brands/<name>/` | A brand pack: `brand.json`, logos, optional `vault.json`, `map.json`, `prompts/` | yes (keep a real brand's pack in a private repository) |
-| `channels.example.json` | Template for channel ids (one account) | yes |
-| `channels.json` | Your channel ids for each network (one account) | no |
-| `accounts.example.json` | Template for several accounts and the routing | yes |
-| `accounts.json` | Your accounts (names of key variables, not keys) and the routing | no |
-| `.env` | `BRAND_DIR`, keys (`BUFFER_API_KEY` or one `keyEnv` variable per account), `BUFFER_ORG_ID`, `MEDIA_BASE_URL`, `S3_*` | no |
-| `packages/engine/design/` | Brand CSS, templates, Inter and IBM Plex Mono and their licence | yes |
-| `packages/engine/design/assets/demo/` | The demo brand's synthetic pictures | yes |
-| `packages/engine/design/assets/photos/`, `.../screens/` | Your stock photos and app screenshots | no (only their READMEs, `CREDITS.md` and `SOURCES.md`) |
-| `media/<name>/` | Images and videos for a batch (rendered images land here) | no (see `media/README.md`) |
-| `state/<name>.json` | What was sent: Buffer id, account, mode, hash, time; and the uploaded media URLs | no |
-| `out/<name>-plan.json` | The exact requests `plan` would send | no |
-| `schema-cache.json` | The schema `check` read from Buffer | no |
-
-A picture in a batch's `design` block is written as `design/assets/photos/<file>` (or `design/assets/demo/<file>`); the
-tool looks for `design/...` paths in `packages/engine/design/` when the repository root has no such folder.
-
-The state file is the only memory of what was sent. If you delete it, the tool no longer knows and can create
-duplicates.
-
-A "channel" in the output is a network name (`instagram`, `linkedin`, `facebook`, `x`). `channels.json` maps each name to
-one Buffer channel id; `accounts.json` maps each name to an account and a channel id.
-
-An old state file (written before accounts existed) has no `account` on its records and stays valid: the
-duplicate-protection hash does not include the account, the route or the media URL, and `test-accounts.mjs` pins the
-hashes of the previous version to prove it. A record without an account is looked up in the account its network is
-routed to.
-
-## Commands
-
-The design commands (`cover`, `text`, `ledger`, `passbook`, `myth-fact`, `stats`, `screen`, `photo-story`, `closing`, `photo`, `carousel`, `page-cover`, `render`, `lint`) are documented in
-[docs/design.md](docs/design.md); run `node packages/engine/design.mjs --help` for the short version. The scheduling commands follow.
-
-Run `npm run buffer -- --help` for the short version. The output is:
-
-```
-Schedules a batch of social posts into Buffer (drafts by default).
-
-Usage:
-  npm run buffer -- check [batch.json]
-  npm run buffer -- plan <batch.json> [--only <postId>] [--channel <name>]
-  npm run buffer -- media <batch.json> [--verify] [--only <postId>] [--channel <name>]
-  npm run buffer -- upload <batch.json> [--only <postId>] [--yes]
-  npm run buffer -- push <batch.json> [--live] [--yes] [--only <postId>] [--channel <name>] [--force-new]
-  npm run buffer -- status <batch.json>
-  npm run buffer -- design <cover|text|ledger|passbook|myth-fact|stats|screen|photo-story|closing|photo|carousel|page-cover|render|lint> ...
-  npm run buffer -- help | --help | -h
-```
-
-(The real output continues with a short description of each command and flag.)
-
-Flags that several commands share:
-
-- `--only <postId>`: only the post with this id.
-- `--channel <name>`: only one network, `instagram`, `linkedin`, `facebook` or `x`. It takes the network name, not a
-  Buffer channel id.
-
-Exit codes: 0 on success. 1 when `check` finds mismatches, a rejected key or a wrongly routed channel, `media` finds a
-missing or unreachable file, `upload` stops or finds a file that is not publicly readable, `push` stops or refuses a
-post, or any error occurs.
-
-### check
-
-```
-node packages/engine/buffer.mjs check [batch.json]
-```
-
-Needs `BUFFER_API_KEY`, or with `accounts.json` the key of each account (an account whose key variable is empty is
-reported and skipped). Sends read-only requests: `account { organizations }`, `channels(...)` and a set of GraphQL
-introspection queries (`__type`). It never creates anything.
-
-With several accounts it does this per account: the key, the organisations, the channels. The schema is the same API
-for every account, so it is read once, with the first account that works. It then prints a suggested `routing` block
-and reports every channel in `accounts.json` that is routed to an account that does not hold it (and which account
-does). A rejected key is reported by account name and the others are still checked. Exit code 1 for any of these.
-Buffer's service name for X is not confirmed (`twitter` or `x`); both are matched in the suggestion.
-
-It prints the organisations and channels, a suggested `channels.json`, the shape of the input types the tool relies
-on, and any mismatch between what the tool sends and what Buffer's schema says. It saves `schema-cache.json`, which
-`plan` then uses to verify the Facebook post type. If you pass a batch, it checks the Facebook types that batch uses.
-Exit code 1 if there are mismatches.
-
-No real output exists yet. Without a key it prints:
-
-```
-Error: BUFFER_API_KEY is not set (put it in .env, see .env.example)
-```
-
-### plan
-
-```
-node packages/engine/buffer.mjs plan <batch.json> [--only <postId>] [--channel <name>]
-```
-
-No key, no network. Validates the batch, resolves each post into one item per channel, prints a table and any
-warnings, and writes `out/<name>-plan.json`. That file holds the exact draft and live request bodies for every item,
-with the channel id as `<CHANNEL_ID:network>` if `channels.json` has none. The key is never written to it. With
-`accounts.json` the table has an `account` column and each request in the plan file names its account.
-
-The caption column is `used/limit`; the limit is the network's, or the routed account's `captionLimits` (X: 280).
-
-With `--only` or `--channel`, the plan file contains only the filtered items and replaces the earlier one.
-
-Real output for the example batch (abridged, run on a fresh clone: no `MEDIA_BASE_URL`, no `channels.json`, images not
-rendered yet):
-
-```
-Batch example-launch  timezone Europe/London  28 channel posts (no network used)
-MEDIA_BASE_URL is not set; media URLs are shown as <MEDIA_BASE_URL>/<path>.
-
-post                  local             UTC               channel    type  media                     caption
---------------------  ----------------  ----------------  ---------  ----  ------------------------  ---------
-01-what-is-acme       Mon 23 Nov 09:00  2026-11-23 09:00  instagram  post  01-what-is-acme-feed.jpg  276/2200
-01-what-is-acme       Mon 23 Nov 09:00  2026-11-23 09:00  linkedin   -     01-what-is-acme-feed.jpg  276/3000
-01-what-is-acme       Mon 23 Nov 09:00  2026-11-23 09:00  facebook   post  01-what-is-acme-feed.jpg  276/63206
-01-what-is-acme       Mon 23 Nov 09:00  2026-11-23 09:00  x          -     01-what-is-acme-feed.jpg  125/280
-...
-03-how-a-group-works  Fri 27 Nov 09:00  2026-11-27 09:00  instagram  reel  03-how-a-group-works.mp4  202/2200
-...
-
-Warnings:
-  01-what-is-acme / instagram: local file missing: 01-what-is-acme-feed.jpg
-  ...
-  01-what-is-acme / facebook: Facebook type "post" is unverified; run check
-  ...
-
-Buffer requests needed: 28 creates (the free plan allows 150 per 15 minutes).
-Wrote out/example-launch-plan.json
-```
-
-The `caption` column is characters used over the network's limit. `local` is the batch time zone, `UTC` is what Buffer
-receives as `dueAt`.
-
-Each request in the plan file looks like this (caption shortened here):
-
-```json
-{
-  "input": {
-    "text": "A savings group is a circle of people w...",
-    "channelId": "<CHANNEL_ID:instagram>",
-    "schedulingType": "automatic",
-    "mode": "customScheduled",
-    "dueAt": "2026-11-27T09:00:00.000Z",
-    "assets": [{ "video": { "url": "<MEDIA_BASE_URL>/03-how-a-group-works.mp4", "metadata": { "thumbnailOffset": 0 } } }],
-    "metadata": { "instagram": { "type": "reel", "shouldShareToFeed": true } },
-    "saveToDraft": true
-  }
-}
-```
-
-`saveToDraft: true` is present in the draft request and absent in the live one.
-
-### media
-
-```
-node packages/engine/buffer.mjs media <batch.json> [--verify] [--only <postId>] [--channel <name>]
-```
-
-No key. Lists every media file the batch uses: local size (or `MISSING`) and the URL it must be reachable at. With
-`--verify` it also sends a HEAD request to each URL and expects HTTP 200 with a `image/*` or `video/*` content type. It
-needs `MEDIA_BASE_URL` for that. It sends nothing to Buffer.
-
-Real output without `--verify`, before the images are rendered (a rendered file shows its size, for example `0.09 MB`):
-
-```
-Media for example-launch: 7 files, to be hosted under the folder that MEDIA_BASE_URL points at.
-
-local file                                     size     must be reachable at
----------------------------------------------  -------  -----------------------------------------
-media/example-launch/01-what-is-acme-feed.jpg  MISSING  <MEDIA_BASE_URL>/01-what-is-acme-feed.jpg
-media/example-launch/02-the-numbers-feed.jpg   MISSING  <MEDIA_BASE_URL>/02-the-numbers-feed.jpg
-...
-```
-
-Real output of `--verify --only 01-what-is-acme` with `MEDIA_BASE_URL` unset (exit code 1):
-
-```
-local file                                     size     must be reachable at                       check
----------------------------------------------  -------  -----------------------------------------  ----------------------
-media/example-launch/01-what-is-acme-feed.jpg  MISSING  <MEDIA_BASE_URL>/01-what-is-acme-feed.jpg  MEDIA_BASE_URL not set
-```
-
-A passing file shows `ok (image/jpeg)`. A failing one shows `FAIL HTTP 404`, `FAIL content-type is "...", not image/*
-or video/*` or `FAIL unreachable (...)`.
-
-### push
-
-```
-node packages/engine/buffer.mjs push <batch.json> [--live] [--yes] [--only <postId>] [--channel <name>] [--force-new]
-```
-
-The only command that creates anything. Every item gets one `createPost` request (one Buffer request each).
-
-- Without `--yes`: prints the table with an `action` column (`create`, `skip: ...`, `refuse: ...`) and sends nothing.
-- With `--yes`: sends **drafts** (`saveToDraft: true`). Needs a key for every account that has something to create
-  (checked before anything is sent), and a URL for every media file: its uploaded URL if `upload` has run, else
-  `MEDIA_BASE_URL`.
-- With `--live --yes`: sends scheduled posts. Draft and live are separate records, so a post that is already a draft
-  is created again as live; the draft stays in Buffer and you delete it there.
-- `--force-new`: allows a create for a post whose content changed, or whose earlier attempt has an `unknown` outcome.
-  The old Buffer post, if any, stays and you delete it by hand.
-
-Before each create the tool re-checks the media URLs with HEAD requests. It sends items one at a time, in order. Each
-item goes through the Buffer account it is routed to, with that account's own key, rate-limit window and `Retry-After`
-handling.
-
-Real output of `push --only 03-how-a-group-works` without `--yes` (abridged):
-
-```
-Batch example-launch: DRAFTS, nothing will publish
-
-post                  local             UTC               channel    type  media                     caption    action
---------------------  ----------------  ----------------  ---------  ----  ------------------------  ---------  ------
-03-how-a-group-works  Fri 27 Nov 09:00  2026-11-27 09:00  instagram  reel  03-how-a-group-works.mp4  202/2200   create
-03-how-a-group-works  Fri 27 Nov 09:00  2026-11-27 09:00  linkedin   -     03-how-a-group-works.mp4  202/3000   create
-03-how-a-group-works  Fri 27 Nov 09:00  2026-11-27 09:00  facebook   post  03-how-a-group-works.mp4  202/63206  create
-03-how-a-group-works  Fri 27 Nov 09:00  2026-11-27 09:00  x          -     03-how-a-group-works.mp4  89/280     create
-...
-
-Nothing was sent. 4 request(s) would be made. Add --yes to send.
-```
-
-With `--live` the first line reads `Batch example-launch: LIVE, posts will be scheduled`.
-
-Real output of `push --yes` with no key:
-
-```
-Error: BUFFER_API_KEY is not set (put it in .env, see .env.example)
-```
-
-While sending, each item logs one line. These formats come from the code, not from a real run:
-
-```
-created 03-how-a-group-works / instagram: draft <buffer id> for 2026-11-27T09:00:00.000Z
-skip    03-how-a-group-works / instagram: already a draft (<buffer id>)
-REFUSE  03-how-a-group-works / instagram: media not reachable: ...
-```
-
-and a final summary line: `Done: N created, N skipped, N refused, N failed, N unknown. N Buffer requests.` With
-`accounts.json` there is one more line per account (created, skipped, refused, failed, unknown, **not sent**, requests),
-and a run that stops names the account and channel, then lists every item it did not get to:
-
-```
-STOPPED: No clear answer for p1 / facebook (account "second", channel f1): ... NOT retried. Run "status" before anything else.
-```
-
-Nothing is retried and no other account is started after the stop; finished items are skipped when you run `push` again.
-
-### upload
-
-```
-node packages/engine/buffer.mjs upload <batch.json> [--only <postId>] [--yes]
-```
-
-Puts the media a batch needs into S3-compatible storage (Hetzner Object Storage) and records the public URLs in
-`state/<name>.json`, so `plan`, `media` and `push` use them instead of `MEDIA_BASE_URL`. Settings in `.env`:
-`S3_ENDPOINT` (the host, for example `https://fsn1.your-objectstorage.com`), `S3_REGION` (the location: `fsn1`, `nbg1`
-or `hel1`; taken from the endpoint if it is a Hetzner one), `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`,
-`S3_PUBLIC_BASE_URL` (the public URL of the bucket's root) and `S3_PREFIX` (default `public/`). Requests are
-path-style (`<endpoint>/<bucket>/<key>`); `S3_PATH_STYLE=false` switches to `<bucket>.<host>`.
-
-- Without `--yes` it prints the files, their keys and URLs and stops. No network, no keys needed.
-- With `--yes`, for each file: hash it (SHA-256), HEAD the object, and upload only if it is missing (or has another
-  size or type). The key is `<S3_PREFIX><batch name>/<first 16 hex of the hash>-<file name>`: unguessable, and the same
-  content always gives the same key, so running `upload` again changes nothing. A changed file gets a new key.
-- Only files inside the batch's `mediaRoot` are uploaded. Paths with `..`, absolute paths and symlinks that lead out of
-  the folder are refused before anything is sent.
-- After each file it checks the public URL. If that is not a `200` with an image or video type it says `NOT PUBLIC` and
-  that "the bucket must allow public read on `<prefix>`", and exits 1. It never changes the bucket's policy or ACLs:
-  that is yours to set, ideally on `public/` only.
-- A storage error stops the run (the secret is masked in the message); running again is safe.
-- A file larger than 500 MB is refused (one upload is held in memory).
-- If a file changes after it was uploaded, the recorded URL no longer counts: the plan warns and `push` falls back to
-  `MEDIA_BASE_URL` until you run `upload` again.
-
-Real output without `--yes` and without `S3_*` set, for the example batch with its seven files in place (abridged):
-
-```
-Batch example-launch: 7 media files to put in the bucket
-
-local file                size     type        key                                                              public URL
-------------------------  -------  ----------  ---------------------------------------------------------------  ----------------------------
-01-what-is-acme-feed.jpg  0.09 MB  image/jpeg  public/example-launch/f33c78d095adec24-01-what-is-acme-feed.jpg  (S3_PUBLIC_BASE_URL not set)
-...
-Nothing was uploaded. With --yes each file is checked in the bucket first and uploaded only when missing.
-The storage settings are not usable:
-  - not set: S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_PUBLIC_BASE_URL (see .env.example)
-  - S3_REGION is not set (for Hetzner it is the location: fsn1, nbg1 or hel1)
-```
-
-`upload` has only been run against fakes. Nothing has been sent to a real bucket.
-
-### status
-
-```
-node packages/engine/buffer.mjs status <batch.json>
-```
-
-Needs `BUFFER_API_KEY` (and `BUFFER_ORG_ID` if the key sees several organisations), or with `accounts.json` the key of
-each account that holds a record in the state file. It asks each account for its own posts and compares each record
-only with the account that made it. Reads the first page of Buffer's
-`scheduled` posts and its `draft` posts, prints them, then prints each record in `state/<name>.json` with whether it
-is in Buffer. A record in `unknown` state is resolved to `created` only when exactly one Buffer post has the same
-due time and the same text (ignoring runs of whitespace). It never creates, edits or deletes anything in Buffer.
-
-Without a key it prints the same `BUFFER_API_KEY is not set` error. No real output exists yet.
-
-## Safety rules
-
-- **Drafts by default.** `push --yes` creates drafts. Only `push --live --yes` schedules for real.
-- **`--yes` to send.** Without it, `push` prints and stops.
-- **Media checks.** A post is refused unless every media URL answers a HEAD request with 200 and an `image/*` or
-  `video/*` type. Other posts in the run carry on.
-- **Duplicate protection by hash.** For each post and channel the state file stores a SHA-256 hash of the text, media
-  (kind, path, thumbnail offset), due time, type and metadata. Same hash and same mode: skipped. Same hash, draft
-  recorded, `--live` asked: created live. Different hash: refused, unless `--force-new`.
-- **Past times.** `--live` refuses an item whose due time has already passed. Drafts are not checked.
-- **No channel id, no route.** An item whose network has no id in `channels.json` (or in the routing of `accounts.json`)
-  is refused; with `accounts.json`, a network with no route at all is refused too, never sent through another account.
-- **A changed route is not a duplicate.** A record made in one account is not honoured as a record in another. If a
-  network is routed to a different account than the one that created the post, `push` refuses until you delete the
-  old post in Buffer and use `--force-new`.
-- **No automatic retry after an uncertain result.** A network error, timeout, 5xx answer, a 200 answer that is not
-  JSON or not a recognised result: the post is recorded as `unknown`, the run stops, and nothing is retried. The post
-  may or may not exist in Buffer. See "What to do after an unknown result" below.
+Everything a person does is checked on the server by role: an `editor` works on the vault, batches, review, approval
+and drafts; sending live and deleting from Buffer is for an `admin` or the person who made the batch. Every change goes
+into the audit log. A post's deliveries (one per channel) are the app's record of what is in Buffer; they are the only
+thing that stops a second send from creating a duplicate.
+
+## Safety model
+
+- **Approved posts only, drafts first.** Only approved posts go out. A send is drafts unless a person chooses live, and a
+  post goes live only from its draft in Buffer, unless an admin has turned on direct live sends (`allowDirectLive`).
+  Changing an approved post (its text, its date, a file) takes its approval away.
+- **The plan is confirmed.** A send names the plan it was confirmed against (the number of posts times channels and a
+  token over every row). If anything changed since the plan was shown, nothing is sent.
+- **Media checks.** A post is refused unless every media file has been copied to the public prefix and its URL answers
+  a HEAD request with 200 and an `image/*` or `video/*` type. Other posts in the run carry on.
+- **Duplicate protection by hash.** For each post and channel the delivery stores a SHA-256 hash of the text, media
+  (kind, path, thumbnail offset), due time, type and metadata. Same hash and same mode: skipped. Same hash, draft in
+  Buffer, live asked: created live (the draft stays in Buffer; delete it there). Different hash: refused until the old
+  post is deleted from Buffer.
+- **Past times.** A live send refuses a post whose due time has already passed.
+- **No route, no send.** A post on a network with no route (Settings, Channels), no channel id or no key is not sent,
+  and never through another account. A record made in one account is not honoured in another: if a network is routed to
+  a different account than the one that made the post, the plan refuses it until the old post is deleted from Buffer.
+- **No automatic retry after an uncertain result.** A network error, timeout, 5xx answer, a 200 answer that is not JSON
+  or not a recognised result: the delivery is recorded as `unknown`, the run stops, and nothing is retried. The post may
+  or may not exist in Buffer. Refresh the status: an `unknown` delivery is resolved only when exactly one Buffer post in
+  that account has the same due time and the same text. Otherwise look in Buffer and resolve it by hand in the app.
 - **Other errors stop the run.** A `MutationError` from Buffer, an HTTP 4xx or a GraphQL error stops the whole run.
-  Posts already created stay recorded.
-- **Rate limits.** Requests go one at a time. Buffer's limits are per account, so each account has its own client: its
-  own window (the client keeps under 140 requests in any 15 minutes) and its own `Retry-After` handling. A 429 answer
-  waits for `Retry-After` (60 seconds if absent) and repeats the same request, up to three times. A 429 means the
-  request was rejected, so repeating it cannot duplicate a post. The 600-a-day limit is not tracked; a month of three
-  channels is far below it.
-- **Warnings do not block.** Caption length, hashtags and media warnings are shown in `plan` and `push` but do not
-  stop a send. Read them.
+  Posts already created stay recorded, and the run says which account and channel it stopped at and what was not sent.
+- **Rate limits.** Requests go one at a time. Each Buffer account has its own client: its own window (under 140 requests
+  in any 15 minutes) and its own `Retry-After` handling. A 429 waits for `Retry-After` (60 seconds if absent) and repeats
+  the same request, up to three times; a 429 means the request was rejected, so repeating it cannot duplicate a post.
+- **Untrusted text.** Everything the AI writes, every fetched page and every batch value is data: validated against the
+  batch format and the design spec, escaped before it reaches a render page, and rendered in a locked-down page (a
+  strict Content-Security-Policy, pictures as checked `data:` files, every other request blocked). See "Untrusted text"
+  in [docs/design.md](docs/design.md) and "Safety rules" in [docs/ai.md](docs/ai.md).
+- **Secrets.** Keys are encrypted at rest, shown by their last four characters only, and masked out of every error and
+  log line. Private files (vault pictures and renders) live under unguessable keys and are read through short-lived
+  signed URLs; only the files about to be sent are copied under the public prefix. The app never changes the bucket's
+  policy or ACLs.
 
-### What to do after an unknown result
+## The first run against real Buffer
 
-1. Do not run `push --force-new` yet.
-2. Run `node packages/engine/buffer.mjs status <batch.json>`. If Buffer holds exactly one post with the same time and text, the tool
-   marks the record as created and nothing more is needed.
-3. If it says `UNKNOWN: not found`, look in Buffer by hand, on the right channel, at the right time, in drafts and in
-   the queue.
-4. If the post is there and you want to keep it, leave the record alone and send the rest with `--only` or `--channel`
-   for other items. If you want to resend it, delete it in Buffer first, then `push --only <id> --channel <network>
-   --force-new --yes`.
-5. If it is not there, `push --only <id> --channel <network> --force-new --yes`.
+Do this once, before the first real batch, because nothing here has been proved against real Buffer.
 
-## Key and secrets handling
-
-- The key lives in `.env` (git-ignored) or in the `BUFFER_API_KEY` environment variable. A real environment variable
-  wins over `.env`. With several accounts there is one variable per account, named by `keyEnv` in `accounts.json`; the
-  file itself never holds a key.
-- The S3 secret (`S3_SECRET_ACCESS_KEY`) is handled the same way. It signs requests and is never sent itself, never
-  printed, and masked in every error.
-- It is sent only as `Authorization: Bearer <key>` to `https://api.buffer.com`.
-- Every error message passes through a mask that replaces every key and secret this tool knows (all accounts, the S3
-  secret) and any `Bearer ...` token with `***`. They are never written to `out/`, `state/` or `schema-cache.json`. Tests
-  check this.
-- Never paste the key into an issue, a chat, a commit or a batch file. If it leaks, revoke it at
-  <https://publish.buffer.com/settings/api> and create a new one.
-- Channel ids are not secret but belong to one account, so `channels.json` is git-ignored and `channels.example.json`
-  is committed.
+1. Add one Buffer account in Settings, Buffer accounts, and run Check. It must list the organisation and the channels you
+   expect; route one network to one channel in Settings, Channels.
+2. Make a batch with one post, approve it, and send it as a draft to that channel only.
+3. Open Buffer and look at the draft: the text with its line breaks and hashtags, the date and time in the right time
+   zone, the media in the right order (and a video's thumbnail), the post type and first comment, and the channel.
+4. Refresh the status in the app. The delivery must show as a draft in Buffer. If the draft is not listed, or the refresh
+   fails, note the message: the `draft` status value is one of the unverified points.
+5. The first time you use several accounts, X or the bucket: send one draft through each account and look at each in
+   the right Buffer login; for X, compare the text length with the plan; open one public media URL in a private browser
+   window (it must show without a login).
+6. Write what you confirmed into [docs/buffer-api-notes.md](docs/buffer-api-notes.md). If anything was wrong, delete the
+   test draft in Buffer (from the app or in Buffer) and stop until it is fixed.
 
 ## Current status and known unverified points
 
-Verified (by `npm test`, against a fake Buffer and a fake bucket): batch validation, time zone conversion, request
-bodies, hashing and duplicate protection (including that a state file from before accounts existed is honoured), the
-state file, error handling, rate-limit handling per account, routing a post across two accounts, X caption limits,
-secret masking, the `check` and `status` logic, the SigV4 signer (against the examples AWS publishes), upload key
-naming, idempotent upload and refusal outside `mediaRoot`.
+Verified by the tests, against a fake Buffer and a fake bucket: batch validation, time zone conversion, request bodies,
+hashing and duplicate protection (including records that carry no account), error handling, rate-limit handling per
+account, routing a post across two accounts, X caption limits, secret masking, status reconciliation, the SigV4 signer
+(against the examples AWS publishes), upload key naming, idempotent upload and refusal of files outside the send folder,
+and the web app's routes, roles, jobs and pages against a real Postgres.
 
-Not verified against real Buffer (see [docs/buffer-api-notes.md](docs/buffer-api-notes.md)): the endpoint and auth,
-the `createPost` mutation and its input and result types, every enum value, `saveToDraft`, video thumbnail offsets,
-the `channels` and `posts` queries, the draft status value, whether Buffer fetches your media host, and the real
-rate-limit behaviour. `node packages/engine/buffer.mjs check` tests many of these by introspection, but only against a live key.
+Not verified against real Buffer (see [docs/buffer-api-notes.md](docs/buffer-api-notes.md)): the endpoint and auth, the
+`createPost` and `deletePost` mutations and their input and result types, every enum value, `saveToDraft`, video
+thumbnail offsets, the `channels` and `posts` queries, the draft status value, whether Buffer fetches media from the
+bucket, and the real rate-limit behaviour. Also not verified against anything real: that Hetzner Object Storage accepts
+the signed requests and serves the copied files publicly under the bucket policy you set; what Buffer calls X in its
+`service` field and whether its `createPost` takes X posts with the fields Vesk sends; whether one person may run several
+free Buffer accounts (a question about Buffer's terms, see [docs/spec/web-app.md](docs/spec/web-app.md)); and whether
+Buffer's rate limits are per key, per account or per organisation (Vesk treats them as per account).
 
-Also not verified against anything real: that Hetzner Object Storage accepts the signed requests and serves the uploaded
-files publicly under the bucket policy you set; that Buffer fetches media from that host; what Buffer calls X in its
-`service` field and whether its `createPost` takes X posts with the fields this tool sends (no X-specific metadata is
-sent); whether one person may run several free Buffer accounts (a question about Buffer's terms, see
-`docs/spec/web-app.md`); and whether Buffer's rate limits are per key, per account or per organisation (the tool treats
-them as per account).
-
-Also open: X counts a link as 23 characters and some characters as two, and this tool counts plain characters; no alt text for images, no Instagram stories, no per-network times, and `status` reads only the first page
-of results.
-
-## Troubleshooting
-
-| What you see | Cause | What to do |
-| --- | --- | --- |
-| `BUFFER_API_KEY is not set` | No key in `.env` or the environment | Create a key at publish.buffer.com/settings/api and put it in `.env` |
-| `Buffer answered HTTP 401 (Buffer rejected the API key)` (or 403) | Wrong, revoked or mistyped key | Check `.env` for stray spaces or quotes; create a new key |
-| `Several organizations found; set BUFFER_ORG_ID ...` | The key sees more than one organisation | Put one id in `BUFFER_ORG_ID` |
-| `Buffer refused <post> / <network>: <message>` (a `MutationError`) | Buffer understood the request and said no | Read the message, fix the batch or Buffer account, rerun. Nothing was recorded for that post |
-| `GraphQL error: ...` | Buffer's schema differs from what the tool sends | Run `check`; it lists the mismatches |
-| `Buffer kept answering 429 (rate limit); stopped.` | Rate limit hit even after three waits | Wait 15 minutes and rerun; created posts are skipped |
-| `REFUSE ... media not reachable: <url> -> HTTP 404` | File not uploaded, wrong `MEDIA_BASE_URL`, or a private bucket | Upload the file, fix the URL, run `media --verify` |
-| `REFUSE ... content-type is "text/html", not image/*` | The host serves a page, a login or an error, not the file | Open the URL in a browser; fix hosting |
-| `MEDIA_BASE_URL is not set and the media has not been uploaded ...` | No host for the media | Set `MEDIA_BASE_URL`, or run `upload` |
-| `no Buffer key for account "<name>": set <VAR> in .env` | The variable named by `keyEnv` is empty | Put that account's key in `.env`; nothing was sent |
-| `accounts.json is not valid:` followed by a list | Mistakes in `accounts.json` | Fix every line; see `accounts.example.json` |
-| `... was created in account "A" but <network> is now routed to "B"` | The routing changed after the post was pushed | Delete the post in Buffer, then `push --force-new`, or restore the old routing |
-| `NOT PUBLIC <file>: ... The bucket must allow public read on public/` | The uploaded file is not readable without a login | Allow public read on that prefix in the bucket's policy; rerun `upload` |
-| `The storage settings are not usable:` | `S3_*` missing or wrong | Fix `.env`; see `.env.example` |
-| `... was refused: HTTP 403 SignatureDoesNotMatch` (upload) | Wrong secret or access key id, or endpoint/region mismatch | Check `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION` (the location) |
-| `REFUSE ... no channel id for <network> in channels.json` | `channels.json` missing or empty for that network | Run `check`, copy the ids in |
-| `REFUSE ... content changed since <id> was created` | You edited a post that is already in Buffer | Delete the Buffer post, then `push --only <id> --force-new --yes` |
-| `REFUSE ... dueAt ... is in the past` | `--live` with a time that has passed | Change the date in the batch (this changes the hash), then use `--force-new` if it was already a draft |
-| `REFUSE ... an earlier attempt got no clear answer` / `UNKNOWN` | A previous send had an uncertain result | Follow "What to do after an unknown result" |
-| `The batch is not valid:` followed by a list | Batch file errors | Fix every line listed; see [docs/batch-format.md](docs/batch-format.md) |
-| `Facebook type "post" is unverified; run check` | `schema-cache.json` does not exist yet | Run `check` (needs a key) |
+Also open: X counts a link as 23 characters and some characters as two, and Vesk counts plain characters; no alt text
+for images, no Instagram stories, no per-network times, and a status refresh reads only the first page of Buffer's
+results.
 
 ## Tests
 
 ```sh
-npm test                 # the engine tests, the AI tests, then the web app's
-npm run test:engine      # node --test in packages/engine (runs every test*.mjs file, one at a time)
+npm test                 # the engine tests, the AI tests, the script tests, then the web app's
+npm run test:engine      # node --test in packages/engine (every test*.mjs file, one at a time: one Chrome)
 npm run test:ai          # node --test in packages/ai
+npm run test:scripts     # node --test for scripts/ (the public export)
 npm run test:web         # vitest in apps/web; needs Postgres, see apps/web/README.md
+npm run typecheck --workspace @vesk/web
 ```
 
-The engine tests are in `packages/engine/`, the AI tests in `packages/ai/test-ai.mjs`.
+`npm test` needs no keys and no network: Buffer, the AI providers and the bucket are faked. The render tests need Google
+Chrome (`CHROME_PATH`) and are skipped with a message without it; the web app's tests need Postgres 16 on
+`127.0.0.1:55440` (a throwaway `docker run -d -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:55440:5432 postgres:16` will do).
 
-`test.mjs`: 22 tests that use a fake Buffer and need no network. They do not need the media files.
-`test-accounts.mjs`: accounts and routing (a post fanned out across two accounts), per-account rate limits,
-failure reporting, the single-account setup and an old state file, the pinned hashes, X, `check` and `status` per
-account. `test-storage.mjs`: the SigV4 signer against AWS's published examples, S3 settings, put and head against a
-fake bucket that verifies every signature, upload keys, idempotence, refusal outside `mediaRoot`, secret masking, and
-`push` using uploaded URLs.
-`test-presign.mjs`: SigV4 query-string presigning (`packages/engine/lib/storage/presign.mjs`) against AWS's published example.
-`test-buffer-delete.mjs`: `deletePost` (`packages/engine/lib/buffer-delete.mjs`, an unverified mutation) against a fake Buffer.
-`test-design-render.mjs`: `renderDesignBlock` (`packages/engine/lib/design-render.mjs`, one post's design block without the CLI); the real render
-needs Google Chrome and is skipped without it.
-`test-design.mjs`: tests of the design tool (spec validation, flags, batch `design` blocks and media filling, file
-names, enlargement maths, brand lint, contrast maths, line placement, layout checks) plus real renders that need
-Google Chrome. `test-design-editorial.mjs`: the editorial templates (every field good and bad, hostile values, brand tokens and
-shadows, contrast on the grounds, framed phones and the desktop window, object and panel checks, the carousel PDF read back from
-its bytes, one real render per template, the refusal of an unframed phone). Without Chrome the
-real renders are skipped with a message and the rest still run. The engine tests run the files one at a time (one Chrome).
+The engine tests, in `packages/engine/`:
 
-## AI library
+- `test.mjs`: the push loop against a fake Buffer: time zones, the hash and the duplicate guard, request bodies, drafts
+  and live, a 429 and `Retry-After`, an unclear answer recorded as `unknown` and never retried, media checks, media that
+  was not uploaded, past times, status reconciliation and the example launch batch.
+- `test-accounts.mjs`: account names, a post fanned out across two accounts, per-account rate limits, failure reporting,
+  the pinned hashes, records that carry no account, X, and status per account.
+- `test-storage.mjs`: the SigV4 signer against AWS's published examples, S3 settings, put and head against a fake bucket
+  that verifies every signature, upload keys, idempotence, refusal outside the media folder, secret masking, and push
+  using the uploaded URLs. `test-presign.mjs`: query-string presigning (`lib/storage/presign.mjs`).
+- `test-buffer-delete.mjs`: `deletePost` (`lib/buffer-delete.mjs`, an unverified mutation) against a fake Buffer.
+- `test-design-render.mjs`: `renderDesignBlock` (`lib/design-render.mjs`, the render job's entry point).
+- `test-design.mjs`, `test-design-editorial.mjs`, `test-design-poster.mjs`, `test-design-website.mjs`,
+  `test-design-edge.mjs`: spec validation, file names, enlargement and contrast maths, brand lint, line placement, layout
+  checks, the editorial and poster templates, the carousel PDF read back from its bytes, and real renders of every
+  template through `renderDesignBlock`.
+- `test-design-security.mjs`: hostile text in every field of every template stays inert; the page's
+  Content-Security-Policy and request blocking.
+- `test-brand-pack.mjs`: `BRAND_DIR`, the demo pack and the brand file's optional fields.
 
-`packages/ai/` drafts batches from a vault of facts, researches the web and rewrites posts for the Vesk web app. Zero
-dependencies, `fetch` only; every model answer and fetched page is untrusted and checked before it is returned. See
-[docs/ai.md](docs/ai.md). Its tests are in `packages/ai/test-ai.mjs` (fake fetch, no network).
+The AI tests are in `packages/ai/test-ai.mjs` (fake fetch, no network), the export tests in
+`scripts/test-export-public.mjs`, and the web app's specs in `apps/web/src/**/*.spec.ts`.
 
+## Repository layout
+
+An npm workspaces monorepo.
+
+| Path | What it is |
+| --- | --- |
+| `apps/web/` (`@vesk/web`) | The web app: a Hono server, Postgres through Prisma, pg-boss jobs, and a React client built into `dist/web` (see [apps/web/README.md](apps/web/README.md)). The only workspace with dependencies. |
+| `packages/engine/` (`@vesk/engine`) | The engine: `lib/` (batch validation, the Buffer client, the push loop, storage, the design renderer) and `design/` (brand CSS, templates, fonts and the asset folders, including the committed demo pictures in `design/assets/demo/`), and its tests. No dependencies. The app imports its modules as `@vesk/engine/<module>`, for example `@vesk/engine/batch`. |
+| `packages/ai/` (`@vesk/ai`) | Drafting, research, rewriting and design-reference analysis (`src/`, with the versioned prompts) and its tests. No third-party dependencies; it uses the engine's validators. |
+| `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default. |
+| `batches/` | Two example batch files for the demo brand, to import in the app (Create, New batch, "Import batch JSON") or to start from. |
+| `deploy/`, `Dockerfile` | The container image and the Docker Compose set-up, with `deploy/check.sh` to try it end to end. |
+| `docs/` | The documentation (below). |
+| `scripts/` | `export-public.mjs`: a public copy of the repository without private brand packs (`npm run export-public`). |
+
+At run time the app writes `state/brand/` (the saved brand as a pack) and `out/` (the render lock and temporary renders)
+at the repository root, and `apps/web/.data/` with the local storage driver. None of them is in git.
 
 ## Documentation
 
-- [docs/monthly-routine.md](docs/monthly-routine.md): step by step, including first-time setup.
-- [docs/design.md](docs/design.md): making the images: every template and option, your own photos and screenshots, the
-  automatic checks, the photo rules.
-- [docs/batch-format.md](docs/batch-format.md): every field of a batch file, including the `design` block.
-- [docs/ai.md](docs/ai.md): the AI library: configuration, checks, safety rules, prompts and cost logging.
-- [docs/buffer-api-notes.md](docs/buffer-api-notes.md): what the tool relies on in Buffer's API.
-- [AGENTS.md](AGENTS.md): rules for anyone, person or AI agent, who changes or runs this repository.
-- [media/README.md](media/README.md): what goes in `media/` and how to name files.
+- [apps/web/README.md](apps/web/README.md): the web app: install, commands, environment variables, the brand, seeding,
+  roles, jobs, AI and known limits.
+- [deploy/README.md](deploy/README.md): deploying with Docker Compose (Dokploy as the worked example).
+- [docs/design.md](docs/design.md): the images: every template and option, pictures and screenshots, the automatic checks,
+  the photo rules.
+- [docs/batch-format.md](docs/batch-format.md): every field of a batch, including the `design` block.
+- [docs/ai.md](docs/ai.md): the AI library: its interface, configuration, checks, safety rules, prompts and cost logging.
+- [docs/buffer-api-notes.md](docs/buffer-api-notes.md): what Vesk relies on in Buffer's API, and what is unconfirmed.
+- [docs/spec/web-app.md](docs/spec/web-app.md): the original design of the web app.
 - [packages/engine/design/README.md](packages/engine/design/README.md): the templates, the fonts and the asset folders.
-- [deploy/README.md](deploy/README.md): deploying the web app with Docker Compose.
+- [AGENTS.md](AGENTS.md): rules for anyone, person or AI agent, who changes or runs this repository.
+- [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).

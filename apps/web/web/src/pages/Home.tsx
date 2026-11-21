@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import type { HomeOverview } from '../lib/overview';
-import { ErrorBlock } from './kit/states';
+import { ErrorBlock } from '@/components/kit';
 
 function greeting(hour: number) {
   if (hour < 12) return { text: 'Good morning', Icon: Sunrise };
