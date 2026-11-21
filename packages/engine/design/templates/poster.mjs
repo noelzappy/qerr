@@ -8,7 +8,8 @@
 //            the page colour, exactly, so the photo runs into the page unseen; anything else (a real scene) is placed as a
 //            full-bleed band, edge to edge from its top to the page bottom, with no radius or shadow, on the ground (the series',
 //            the spec's, else the cool ground). See objectPhoto.
-//   number   one big figure (and up to three supporting figures) over the same kind of photo.
+//   number   one big figure (and up to three supporting figures) over the same kind of photo. Drawn from its layout
+//            (lib/design/builtin/poster.mjs); the function below is unused and goes when every poster is converted.
 //   product  a website framed phone, large, on a pale ground with the website's soft glow; centred under the headline and running
 //            off the bottom, or beside it.
 //   mythFact the myth on a solid dark slab, the fact on a pale slab, on a dark ground with its decoration; the series mark at the

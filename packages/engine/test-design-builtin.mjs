@@ -21,7 +21,7 @@ const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const demo = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
 const brands = Object.fromEntries(Object.entries(STYLES).map(([k, style]) => [k, style ? { ...demo, ...normaliseBrand({ ...RAW, style }) } : demo]));
-const CONVERTED = ['number'];
+const CONVERTED = ['number', 'text'];
 const ctxOf = (brand, counter, dims = { w: 1800, h: 1800 }) => ({ size: SIZES.feed, brand, counter, image: () => PIXEL, imageSize: () => dims });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '' });
 
@@ -36,8 +36,10 @@ test('every built-in layout is a valid layout, registered under a real template,
   assert.deepEqual(builtinProblems(), []);
   for (const [t, list] of Object.entries(BUILTIN)) for (const v of list) assert.deepEqual(validateLayout(v.layout), [], t);
   assert.equal(builtinLayoutFor({ template: 'number', big: '1' }).id, 'number');
-  // the templates not converted yet are still drawn by their functions
-  for (const t of ['text', 'object', 'product', 'myth-fact', 'closing', 'cover', 'ledger', 'passbook', 'stats', 'screen', 'photo-story', 'photo', 'pagecover', 'layout', 'carousel', 'constructor', '__proto__']) assert.equal(builtinLayoutFor({ template: t }), null, t);
+  assert.equal(builtinLayoutFor({ template: 'text', headline: 'h' }).id, 'text');
+  // a text page with an artefact, and the templates not converted yet, are still drawn by their functions
+  assert.equal(builtinLayoutFor({ template: 'text', headline: 'h', artefact: { type: 'register' } }), null);
+  for (const t of ['object', 'product', 'myth-fact', 'closing', 'cover', 'ledger', 'passbook', 'stats', 'screen', 'photo-story', 'photo', 'pagecover', 'layout', 'carousel', 'constructor', '__proto__']) assert.equal(builtinLayoutFor({ template: t }), null, t);
   assert.equal(builtinLayoutFor(null), null);
 });
 
@@ -58,13 +60,16 @@ test('the same page with every field filled, empty, hostile, and every ground an
   const specs = [];
   for (const h of H) {
     specs.push({ template: 'number', big: h.slice(0, 40), line: h, stats: [[h, h], [h, h], [h, h]], image: 'a.jpg', label: h.slice(0, 40) });
+    specs.push({ template: 'text', headline: h, sub: h, label: h.slice(0, 40), headRight: h.slice(0, 30) });
   }
   for (const ground of ['light', 'soft', 'cool', 'warm', 'dark', 'deep', 'white', 'tint', 'mint', 'gold-pale', 'ink']) {
     for (const accent of [undefined, 'muted', 'colour', 'weight', 'none']) {
       specs.push({ template: 'number', big: '1', ground, accent }, { template: 'number', big: '1', ground, accent, image: 'a.jpg', series: 'the-numbers' });
+      specs.push({ template: 'text', headline: 'a *b*', ground, accent, dots: false }, { template: 'text', headline: 'a *b*', ground, accent, size: 70, series: 'news' });
     }
   }
   specs.push({ template: 'number', big: '1', ground: 'photo', image: 'a.jpg', photoTop: 300 }, { template: 'number', big: '1', image: 'a.jpg', photoTop: 960, focal: '10% 90%', zoom: 2 });
+  for (const size of [70, 84, 112]) specs.push({ template: 'text', headline: 'h', size });
   for (const [style, brand] of Object.entries(brands)) {
     for (const s of specs) {
       const spec = forSize(normaliseDesign(s), 'feed');
@@ -87,12 +92,15 @@ test('a converted template refuses what its function refused, with the same word
   same({ template: 'number', big: '1', ground: 'photo' }); // a photo ground with no photo
   same({ template: 'number', big: '1', series: 'nope' });
   same({ template: 'number', big: '1', ground: 'purple', image: 'a.jpg' });
+  same({ template: 'text', headline: 'h', series: 'nope' });
+  same({ template: 'text', headline: 'h', ground: 'photo' });
 });
 
 test('the renderer draws a converted template from its layout, with the templates\' fit margins', () => {
   const brand = { ...demo, root: demo.root };
-  const p = preparePage(brand, { spec: normaliseDesign({ template: 'number', big: '1' }), sizeName: 'feed' });
-  assert.equal(p.layout.id, 'number');
+  const p = preparePage(brand, { spec: normaliseDesign({ template: 'text', headline: 'h' }), sizeName: 'feed' });
+  assert.equal(p.layout.id, 'text');
   assert.deepEqual({ pad: layoutFit(p.layout, 'feed').pad, top: layoutFit(p.layout, 'feed').top }, { pad: 62, top: 46 });
-  assert.equal(preparePage(brand, { spec: normaliseDesign({ template: 'text', headline: 'h' }), sizeName: 'feed' }).layout, null);
+  assert.equal(preparePage(brand, { spec: normaliseDesign({ template: 'number', big: '1' }), sizeName: 'feed' }).layout.id, 'number');
+  assert.equal(preparePage(brand, { spec: normaliseDesign({ template: 'text', headline: 'h', artefact: { type: 'register', title: 'T', rows: [['a', '1']] } }), sizeName: 'feed' }).layout, null);
 });
