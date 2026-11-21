@@ -82,41 +82,15 @@ export const OPTION_LABEL: Record<string, string> = {
   radius: 'Corners', shadow: 'Shadow', padding: 'Padding (px)', gap: 'Gap between (px)', kind: 'Kind',
   shrink: 'Shrinks to fit', subWidth: 'Sub line width (px)', row: 'In a row with the phone', rule: 'Rule under it', label: 'Label beside the logo',
   fallback: 'When the post gives none', subFallback: 'Sub line when the post gives none', from: 'Artefact from',
+  titleField: 'Window title from', subField: 'Sub line under it',
 };
 export const EDGES: Edge[] = ['top', 'right', 'bottom', 'left'];
 
-const isSlot = (s: unknown): s is Slot => !!s && typeof s === 'object' && 'col' in (s as object);
-export const slotFor = (b: Block, size: string): Slot | null => (isSlot(b.slot) ? b.slot : (b.slot as Record<string, Slot> | undefined)?.[size] ?? null);
-const isPx = (p: unknown): p is Px => !!p && typeof p === 'object' && 'x' in (p as object);
-export const pxFor = (b: Block, size: string): Px | null => (isPx(b.px) ? b.px : (b.px as Record<string, Px> | undefined)?.[size] ?? null);
-// A layout on one of the built-in templates' pages (poster, editorial): blocks at pixel rectangles, chrome the page places.
-export const builtPage = (l: Layout) => !!l.page && l.page !== 'grid';
 // Where a built-in page puts its chrome, roughly, for the sketch only (the engine places it by the brand's style).
 export const CHROME_RECT: Record<string, Px> = {
   bar: { x: 80, y: 52, w: 920, h: 44 }, runhead: { x: 70, y: 52, w: 940, h: 40 }, footer: { x: 70, y: 1262, w: 940, h: 44 },
   footlogo: { x: 70, y: 1262, w: 300, h: 44 }, mark: { x: 700, y: 1250, w: 300, h: 44 }, photoFooter: { x: 70, y: 1262, w: 940, h: 44 },
 };
-// A block's condition in words ("sub is filled", "artefact is ledger").
-export function whenWords(w?: When): string {
-  if (!w || typeof w !== 'object') return '';
-  const list = (v: unknown) => (Array.isArray(v) ? v.join(' or ') : String(v));
-  const parts: string[] = [];
-  if (w.present !== undefined) parts.push(`${String(w.present)} is filled`);
-  if (w.absent !== undefined) parts.push(`${String(w.absent)} is empty`);
-  if (w.page !== undefined) parts.push(`on a ${String(w.page)} page`);
-  if (w.field !== undefined) parts.push(w.is !== undefined ? `${String(w.field)} is ${list(w.is)}` : `${String(w.field)} is not ${list(w.not)}`);
-  return parts.join(', ');
-}
-
-// A block's slot set for one size. With several sizes a single slot becomes one per size (each size its own copy).
-export function withSlot(b: Block, size: string, slot: Slot, sizes: string[]): Block {
-  if (sizes.length <= 1) return { ...b, slot };
-  const per: Record<string, Slot> = {};
-  for (const z of sizes) per[z] = slotFor(b, z) ?? slot;
-  per[size] = slot;
-  return { ...b, slot: per };
-}
-
 export function marginsOf(m: Grid['margin']): Margins {
   if (typeof m === 'number') return { top: m, right: m, bottom: m, left: m };
   return { top: m?.top ?? 0, right: m?.right ?? 0, bottom: m?.bottom ?? 0, left: m?.left ?? 0 };
@@ -145,16 +119,6 @@ export function cellAt(g: Grid, page: { w: number; h: number }, px: number, py: 
   return col >= 1 && col <= g.columns && row >= 1 && row <= g.rows ? { col, row } : null;
 }
 
-
-// A short description of a block for lists and the sketch.
-export function blockTitle(b: Block): string {
-  const what = BLOCK_LABEL[b.type] ?? b.type;
-  if (b.type === 'label') return `${what}: ${b.field ? b.field : b.text ? `"${b.text}"` : b.source ?? ''}`;
-  if (b.type === 'decoration') return `${what}: ${String(b.kind ?? 'rule')}`;
-  if (b.type === 'slab' || b.type === 'slabs') return `${what} (${b.children?.length ?? 0} inside)`;
-  const base = b.field ? `${what}: ${b.field}` : what;
-  return b.when ? `${base} (when ${whenWords(b.when)})` : base;
-}
 
 // A new layout: a headline and the logo on the feed page's editorial grid.
 export const blankLayout = (id = 'my-layout'): Layout => ({

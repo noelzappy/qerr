@@ -4,7 +4,7 @@
 // validator accepts.
 import { describe, expect, it } from 'vitest';
 import {
-  blockControls, controlKeys, conditionWords, convertPage, defaultScenario, fieldsShown, fromModel, groundIn, holds, newClause, placeAs, readGround,
+  blockControls, choicesFor, controlKeys, conditionWords, convertPage, defaultScenario, fieldsShown, fromModel, groundIn, holds, newClause, placeAs, readGround,
   readWhen, tidyBlock, toModel, uncovered, withPlace, withSamePlace, withSize, writeGround, writeWhen, specFor,
 } from '../web/src/pages/settings/layout-model';
 import type { Block, Catalogue, Layout } from '../web/src/pages/settings/layout-types';
@@ -173,5 +173,10 @@ describe('the layout editor model', () => {
     expect(holds({ field: 'artefact', is: 'ledger' }, { ...t, empty: ['artefact'] }, text, cat)).toBe(false);
     expect(holds({ field: 'artefact', not: 'ledger' }, { ...t, empty: ['artefact'] }, text, cat)).toBe(true);
     expect(newClause('choice', {}, cat.pages.grid, ['artefact']).choice).toEqual({ field: 'artefact', op: 'is', values: ['ledger'], list: false });
+    // a choice that is a field is offered only once the layout declares it (the engine refuses it otherwise)
+    expect(choicesFor(cat.pages.grid, ['headline'])).toEqual([]);
+    expect(choicesFor(cat.pages.grid, ['headline', 'artefact'])).toEqual(['artefact']);
+    expect(choicesFor(cat.pages.editorial, ['headline'])).toEqual(['register']);
+    expect(newClause('choice', {}, cat.pages.editorial, ['headline']).choice).toEqual({ field: 'register', op: 'is', values: [true], list: false });
   });
 });

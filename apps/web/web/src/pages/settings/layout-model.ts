@@ -6,7 +6,7 @@
 // (src/web-layout-model.spec.ts). Nothing here decides what is valid: the engine's validator does, and its verdict is shown as
 // people edit.
 import {
-  cellOf, marginsOf, rectOf,
+  BLOCK_LABEL, cellOf, marginsOf, rectOf,
   type Block, type Catalogue, type ChoiceValue, type Edge, type FieldRule, type Grid, type GroundCase, type Layout, type Margins, type Needs,
   type OptionSpec, type PageBlockSpec, type PageCatalogue, type Px, type Slot, type When,
 } from './layout-types';
@@ -77,9 +77,13 @@ export function newClause(kind: ClauseKind, c: Condition, page: PageCatalogue, d
     return { ...c, [kind]: declared.find((f) => f !== other) ?? declared[0] ?? 'headline' };
   }
   if (kind === 'page') return { ...c, page: page.conditions.pages[0] ?? 'single' };
-  const [field, spec] = Object.entries(page.conditions.choices)[0] ?? ['artefact', { values: ['ledger'] }];
+  // a choice that is a field only once the layout declares it
+  const field = choicesFor(page, declared)[0] ?? Object.keys(page.conditions.choices)[0] ?? 'artefact';
+  const spec = page.conditions.choices[field] ?? { values: ['ledger'] };
   return { ...c, choice: { field, op: 'is', values: [spec.values[0]], list: false } };
 }
+// The choices a condition may test: the page's, a field among them only once the layout declares it.
+export const choicesFor = (page: PageCatalogue, declared: string[]): string[] => Object.entries(page.conditions.choices).filter(([n, c]) => !c.declared || declared.includes(n)).map(([n]) => n);
 export function dropClause(kind: ClauseKind, c: Condition): Condition { const next = { ...c }; delete next[kind]; return next; }
 
 export const PAGE_WORDS: Record<string, string> = { first: 'on the first page of a carousel', later: 'on a later page of a carousel', single: 'on a single post (not a carousel)' };
@@ -103,6 +107,16 @@ export function conditionWords(c: Condition): string {
   return parts.join(' and ');
 }
 export const whenWords = (w: unknown) => conditionWords(readWhen(w).cond);
+
+// A block in a list: what it is, what it shows, and when it is drawn ("Headline: quote, when sub is filled").
+export function blockWhat(b: Block): string {
+  const what = BLOCK_LABEL[b.type] ?? b.type;
+  if (b.type === 'label') return `${what}: ${b.field ? b.field : b.text !== undefined ? `"${b.text}"` : b.source ?? ''}`;
+  if (b.type === 'decoration') return `${what}: ${String(b.kind ?? 'rule')}`;
+  if (b.type === 'slab' || b.type === 'slabs') return `${what} (${b.children?.length ?? 0} inside)`;
+  return b.field ? `${what}: ${b.field}` : what;
+}
+export const blockTitle = (b: Block): string => (b.when !== undefined ? `${blockWhat(b)}, when ${whenWords(b.when) || 'its condition holds'}` : blockWhat(b));
 
 // ---- the page colour ("ground"): one ground, or cases each with a condition, the last without ----
 
