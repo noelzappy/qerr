@@ -203,6 +203,49 @@ export function findLayoutProblems(m, S) {
   return problems;
 }
 
+// ---- page covers: the brand's words inside their box ----
+// The most lines a cover's tagline may take once it wraps.
+export const COVER_TAGLINE_LINES = 2;
+// boxes = what window.__ds.coverBoxes() returned; S = the cover size ({ w, h, pad, top, bottom? }). Every word of a cover (the
+// logo, tagline, descriptor and website, the website included) stays inside its box (the coverWords block's rectangle) and inside
+// the size's margins, whichever is tighter on each side, and the tagline takes at most COVER_TAGLINE_LINES lines. On top of
+// findLayoutProblems, never instead of it.
+export function findCoverProblems(boxes, S) {
+  const problems = [];
+  const page = { x0: S.pad, x1: S.w - S.pad, y0: S.top, y1: S.h - (S.bottom ?? S.pad) };
+  for (const { box, words } of boxes ?? []) {
+    const lim = {
+      left: box.x0 >= page.x0 ? [box.x0, 'box'] : [page.x0, 'margin'], right: box.x1 <= page.x1 ? [box.x1, 'box'] : [page.x1, 'margin'],
+      top: box.y0 >= page.y0 ? [box.y0, 'box'] : [page.y0, 'margin'], bottom: box.y1 <= page.y1 ? [box.y1, 'box'] : [page.y1, 'margin'],
+    };
+    const seen = words.filter((w) => w.rects.length).map((w) => ({ w, u: union(w.role === 'logo' ? w.rects : w.rects.map(core)) }));
+    // Words stacked taller than the room there is are too many words, whichever of them reaches past the edge.
+    const all = union(seen.map((x) => x.u)), room = lim.bottom[0] - lim.top[0];
+    const tall = seen.length > 0 && all.y1 - all.y0 > room + 1;
+    if (tall) problems.push({ kind: 'covertall', role: 'words', text: seen.map((x) => x.w.text).filter(Boolean).join(' / ').slice(0, 80), px: Math.round(all.y1 - all.y0 - room), room: Math.round(room) });
+    for (const { w, u } of seen) {
+      const over = { left: lim.left[0] - u.x0, right: u.x1 - lim.right[0], top: tall ? 0 : lim.top[0] - u.y0, bottom: tall ? 0 : u.y1 - lim.bottom[0] };
+      for (const [edge, px] of Object.entries(over)) if (px > 1) problems.push({ kind: 'coverout', role: w.role, text: w.text, edge, of: lim[edge][1], px: Math.round(px) });
+      if (w.role === 'headline' && w.lines > COVER_TAGLINE_LINES) problems.push({ kind: 'coverlines', role: w.role, text: w.text, lines: w.lines });
+    }
+  }
+  return problems;
+}
+
+const COVER_WORDS = { headline: 'tagline', sub: 'descriptor', url: 'website', logo: 'logo' };
+// Why a cover's words do not fit, naming the cover and the words. tagline: { size, min } (px: the layout's, and the smallest tried).
+export function explainCoverProblems(problems, sizeName, { size, min } = {}) {
+  const w = (r) => COVER_WORDS[r] ?? r;
+  const lines = problems.map((p) => {
+    const what = p.role === 'logo' ? 'the logo' : `the ${w(p.role)} ("${p.text}")`;
+    if (p.kind === 'coverlines') return `${what} takes ${p.lines} lines (at most ${COVER_TAGLINE_LINES})`;
+    if (p.kind === 'covertall') return `the words stand ${p.px} px taller than the ${p.room} px of their box`;
+    return `${what} runs ${p.px} px ${p.of === 'box' ? `out of the ${p.edge} of its box` : `past the ${p.edge} margin`}`;
+  });
+  const tried = size ? ` even with the tagline set from ${size} px down to ${min} px, on one line and wrapped over ${COVER_TAGLINE_LINES} lines` : '';
+  return `The brand's words do not fit the ${sizeName} cover${tried}: ${[...new Set(lines)].join('; ')}. Shorten the brand's tagline, descriptor or website (Settings, Brand and look); a cover never draws clipped words.`;
+}
+
 const ROLE_WORDS = { headline: 'headline', stat: 'big number', statlabel: 'number label', sub: 'sub line', eyebrow: 'eyebrow', label: 'label', foot: 'footer label', logo: 'logo', art: 'text on the artefact', artbody: 'text on the artefact', accent: 'accent phrase' };
 export function explainProblems(problems, sizeName, lengths = {}) {
   const w = (r) => ROLE_WORDS[r] ?? r;

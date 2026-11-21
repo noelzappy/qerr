@@ -326,6 +326,21 @@ the footer. If nothing fits it draws none and says so.
 from the brand file's tagline, description and website. They are not post images, so a batch or a post refuses the template; the
 web app has no page that makes them yet.
 
+The words are set at the sizes their layout gives them (`size`, `subSize`, `urlSize`), and every word (the logo, the tagline,
+the descriptor and the website, which never breaks over two lines) must lie inside its box (the `coverWords` rectangle) and inside
+the cover size's margins, whichever is tighter on each side. When they do not (upper-case display type is wider, a tagline can be
+long, the X header's 970 px box is narrower than its 80 px tagline in the demo's words; in a row, a wide tagline squeezes the
+descriptor and website out of the box), the renderer (`fitCover` in `lib/design/render.mjs`, `findCoverProblems` in
+`lib/design/checks.mjs`) sets the tagline smaller in steps of 7% down to 62% of its layout size (the headlines' floor), on one line;
+then, if it still does not fit, balanced over at most two lines, again from its full size down to 62%. The descriptor and the
+website keep their sizes, like body text everywhere (the descriptor already wraps in its box). The first setting that fits is
+used, with a note ("tagline set at 87% of the layout's size to fit the x cover"), and a warning below 70%. A cover whose words fit
+none of these is refused, and nothing is written: "The brand's words do not fit the x cover even with the tagline set from 80 px
+down to 50 px, on one line and wrapped over 2 lines: the words stand 9 px taller than the 290 px of their box. Shorten the brand's
+tagline, descriptor or website (Settings, Brand and look); a cover never draws clipped words." With the demo's words every cover
+fits in every style; with upper-case display type the Facebook cover's tagline is set at 93% and the LinkedIn and X taglines at
+75%.
+
 ### What was removed
 
 The old green look is gone: the `card` template, the old `stats` and `screen` looks, the carousel slide kinds `title`, `step` and
@@ -490,7 +505,9 @@ By group:
   `"page": "cover"` (`lib/design/layout-cover.mjs`) whose canvas names the cover sizes (`profile`, `facebook`, `linkedin`,
   `x`) instead of the post sizes: the brand's mark centred in its rectangle (`coverMark`), or the brand's logo, tagline,
   descriptor and website in a box filling it (`coverWords`: a column, centred or set left, or a row, with the sizes and gaps
-  as bounded whole numbers). A cover's words are all the brand's, so its layout declares no field.
+  as bounded whole numbers). A cover's words are all the brand's, so its layout declares no field. They are held to their box
+  and the size's margins; the tagline shrinks (to 62%) and wraps (to two lines) to fit, or the cover is refused (see
+  "`page-cover`" above).
 
 The format gained what the built-ins need; every new value is a name from a fixed list or a bounded whole number, checked by
 `validateLayout` like the rest:

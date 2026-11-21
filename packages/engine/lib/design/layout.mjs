@@ -375,7 +375,8 @@ export const PAGES = {
     },
   },
   // A social page's cover or profile picture (lib/design/layout-cover.mjs), at the cover sizes, on the white ground: its words
-  // are all the brand's (words: "brand": no field, no text block needed). The fit check holds them to the size's own margins.
+  // are all the brand's (words: "brand": no field, no text block needed). The fit check holds them to the size's own margins
+  // and to their box; the renderer sets the tagline smaller, then over two lines, to fit (render.mjs fitCover).
   cover: {
     draws: {
       coverMark: [],
