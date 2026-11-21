@@ -109,6 +109,7 @@ function poster(ctx, ground, body, { flex = false, spec } = {}) {
   };
 }
 
+// Unused: drawn from its layout (lib/design/builtin/poster.mjs).
 export function object(spec, ctx) {
   const asked = groundOf(spec, ctx, 'photo', { photo: true }), g = asked === 'photo' ? sceneGround(spec, ctx) : asked, dark = isDark(ctx.brand, g);
   const top = spec.photoTop ?? POSTER.photoTop;
