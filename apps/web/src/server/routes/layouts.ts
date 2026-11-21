@@ -7,7 +7,8 @@
 //                             switched on); checked by the engine's layout validator before it is stored
 //   POST   /validate          what is wrong with a layout, without storing it: { problems }
 //   POST   /preview           a layout drawn with sample words at one size, through the renderer and every check: { image, ... };
-//                             { empty, artefact } draw it as if those fields were empty and the artefact of that type
+//                             { empty, artefact } draw it as if those fields were empty and the artefact of that type;
+//                             { page: first | middle | last } draw it as that page of a carousel (feed size)
 //   PUT    /:id               replace a layout's definition (checked again)
 //   PATCH  /:id               switch it on or off, or move it
 //   POST   /:id/duplicate     a copy under a free id
@@ -22,7 +23,7 @@ import type { AppEnv, Deps } from '../deps.js';
 import { badRequest, conflict, HttpError, notFound, readJson } from '../http.js';
 import { requireRole, requireUser } from '../middleware.js';
 import { syncBrand } from '../services/brand-settings.js';
-import { freeSlug, layoutEngine, layoutProblems, MAX_LAYOUTS, previewLayout } from '../services/layouts.js';
+import { CAROUSEL_PLACES, freeSlug, layoutEngine, layoutProblems, MAX_LAYOUTS, previewLayout } from '../services/layouts.js';
 import { oneAtATime } from '../services/render.js';
 
 type Json = Record<string, unknown>;
@@ -43,6 +44,8 @@ const previewBody = z.object({
   // "Preview as if": fields of the layout left empty, and the type of the sample artefact.
   empty: z.array(z.string().max(40)).max(20).optional(),
   artefact: z.enum(['ledger', 'passbook', 'register']).optional(),
+  // ... and as page 1, a middle page or the last page of a carousel (where the layout's "page" conditions hold), not a single post.
+  page: z.enum(CAROUSEL_PLACES).optional(),
 }).strict();
 
 export function layoutRoutes(deps: Deps): Hono<AppEnv> {
@@ -63,8 +66,13 @@ export function layoutRoutes(deps: Deps): Hono<AppEnv> {
     if (problems.length) throw badRequest('The layout is not valid', problems.map((message) => ({ path: 'definition', message })));
     return definition as Json & { id: string; name: string };
   };
-  // Posts whose design names this layout.
-  const postsUsing = (slug: string) => deps.prisma.post.count({ where: { status: { not: 'removed' }, design: { path: ['layout'], equals: slug } } });
+  // Posts whose design names this layout: a post made with it, or a carousel with a page made with it.
+  const postsUsing = (slug: string) => deps.prisma.post.count({
+    where: {
+      status: { not: 'removed' },
+      OR: [{ design: { path: ['layout'], equals: slug } }, { design: { path: ['pages'], array_contains: [{ template: 'layout', layout: slug }] } }],
+    },
+  });
 
   app.get('/', async (c) => {
     const { layout, starters } = await layoutEngine();
@@ -83,7 +91,7 @@ export function layoutRoutes(deps: Deps): Hono<AppEnv> {
     const definition = await checked(body.definition);
     const brand = await syncBrand(deps);
     if (brand.logosMissing) throw new HttpError(409, 'Add your logo and its mark in Settings, Brand before a preview can be made');
-    return c.json(await previewLayout(deps, definition, { size: body.size, sample: body.sample, empty: body.empty, artefact: body.artefact, lock: oneAtATime }));
+    return c.json(await previewLayout(deps, definition, { size: body.size, sample: body.sample, empty: body.empty, artefact: body.artefact, page: body.page, lock: oneAtATime }));
   });
 
   app.post('/', async (c) => {
