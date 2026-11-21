@@ -141,6 +141,8 @@ export const CASES = [
   // cover (editorial)
   { id: 'cover', design: { template: 'cover', headline: 'How a group *saves together.*', sub: 'Five steps, from the first deposit to the payout.', image: IMG.scene } },
   { id: 'cover-nosub-series', design: { template: 'cover', headline: 'On record, *every week.*', image: IMG.jar, series: 'news', headRight: 'Issue 4' } },
+  { id: 'cover-dark-focal', design: { template: 'cover', headline: 'The market, *up close.*', sub: 'A closer crop of the same picture.', image: IMG.scene, ground: 'dark', accent: 'colour', label: 'Up close', focal: '30% 60%', zoom: 1.2 } },
+  { id: 'cover-warm-nodots', design: { template: 'cover', headline: 'Warm, *without dots.*', image: IMG.drift, ground: 'warm', dots: false, accent: 'weight' } },
   // text (editorial)
   { id: 'text', design: { template: 'text', headline: 'Saving is easier *together.*', sub: 'A group keeps each other going, and every deposit is on the record.' } },
   { id: 'text-nosub', design: { template: 'text', headline: 'One clear line *on record.*' } },
@@ -160,10 +162,26 @@ export const CASES = [
   { id: 'passbook', design: { template: 'passbook', headline: 'A month *of saving.*', days: 30, ticked: 12, today: 13 } },
   { id: 'passbook-sub', design: { template: 'passbook', headline: 'Every day *ticked.*', sub: 'One tick for each day paid.', days: 31, ticked: 20, today: 21, tick: 'gold' } },
   { id: 'passbook-register', design: { template: 'passbook', headline: 'The passbook *and the card.*', sub: 'Side by side.', days: 28, ticked: 9, today: 10, register: REGISTER } },
+  // ledger, passbook and text with an artefact: every headline size with and without a sub line (the panel's top and the
+  // card's place follow them), long ledgers, the register card with a sub line, the series' frame
+  { id: 'ledger-70-tenrows', design: { template: 'ledger', headline: 'Ten days *on record.*', size: 70, columns: [{ label: 'Day' }, { label: 'Paid', align: 'end' }], rows: [['01', '10.00'], ['02', '12.50'], ['03', ''], ['04', '10.00'], ['05', '8.00'], ['06', '10.00'], ['07', ''], ['08', '12.50'], ['09', '10.00'], ['10', '10.00']], mark: [{ row: 9, col: 1 }] } },
+  { id: 'ledger-112-sub-series', design: { template: 'ledger', headline: 'The *ledger.*', sub: 'Every deposit, as it was made.', size: 112, series: 'news', label: 'Ledger', headRight: 'Week 12', ...LEDGER, notes: ['Figures in euros', 'Updated daily'] } },
+  { id: 'passbook-84-deep', design: { template: 'passbook', headline: 'A full *month.*', size: 84, days: 28, ticked: 28, today: 28, tick: 'gold', ground: 'deep' } },
+  { id: 'passbook-70-sub', design: { template: 'passbook', headline: 'Day by day, *on the page.*', sub: 'One tick for each day paid.', size: 70, days: 29, ticked: 4, today: 5 } },
+  { id: 'passbook-112-sub', design: { template: 'passbook', headline: 'A new *page.*', sub: 'Nothing paid yet.', size: 112, days: 31 } },
+  { id: 'passbook-register-nosub', design: { template: 'passbook', headline: 'The passbook *and the card.*', days: 30, ticked: 11, today: 12, register: REGISTER, accent: 'colour' } },
+  { id: 'passbook-register-112', design: { template: 'passbook', headline: 'Both *cards.*', size: 112, days: 31, ticked: 3, register: { title: 'This week', rows: [['Mon', '10.00'], ['Tue', '12.50'], ['Wed', ''], ['Thu', '10.00'], ['Fri', '8.00'], ['Sat', '10.00']], mark: 5 } } },
+  { id: 'text-artefact-register-sub-112', design: { template: 'text', headline: 'Where *it went.*', sub: 'Six lines, one month.', size: 112, accent: 'colour', series: 'explainers', artefact: { type: 'register', title: 'May', rows: [['Rent', '400.00'], ['Food', '120.50'], ['Transport', '42.00'], ['School', '60.00'], ['Phone', '15.00'], ['Savings', '80.00']], mark: 5 } } },
+  { id: 'text-artefact-ledger-84-dark', design: { template: 'text', headline: 'The week, *on dark.*', size: 84, ground: 'dark', dots: false, artefact: { type: 'ledger', ...LEDGER } } },
+  { id: 'text-artefact-passbook-70', design: { template: 'text', headline: 'A month *of saving.*', size: 70, label: 'Passbook', artefact: { type: 'passbook', days: 31, ticked: 30, today: 31, tick: 'gold' } } },
   // stats (editorial)
   { id: 'stats', design: { template: 'stats', big: '14.8M+', line: 'saved by members this year', stats: ['3,900+|members', '400+|groups', '120|towns'] } },
   { id: 'stats-photo', design: { template: 'stats', big: '*€* 2.4M', line: 'paid out', stats: ['3,900+|members', '400+|groups'], image: IMG.scene, series: 'the-numbers' } },
   { id: 'stats-big-only-dark', design: { template: 'stats', big: '98%', ground: 'dark' } },
+  { id: 'stats-photo-3-noline', design: { template: 'stats', big: '52', stats: ['3,900+|members', '400+|groups', '120|towns'], image: IMG.jar, ground: 'warm', accent: 'colour' } },
+  { id: 'stats-photo-nostats', design: { template: 'stats', big: '2026', line: 'the year on record', image: IMG.scene, ground: 'deep', dots: false, label: 'In numbers' } },
+  { id: 'stats-one-row-noline', design: { template: 'stats', big: '*€* 14.8M+', stats: ['120|towns on record'], accent: 'weight', series: 'explainers' } },
+  { id: 'stats-two-rows-soft', design: { template: 'stats', big: '1 in 3', line: 'members save weekly', stats: ['12|weeks', '*3*|deposits a week'], ground: 'soft', headRight: 'Week 12' } },
   // screen (editorial)
   { id: 'screen-phone', design: { template: 'screen', headline: 'Your savings, *on your phone.*', sub: 'Every deposit shows the moment it is made.', image: IMG.phone, pills: ['Read-only by design', 'Two-person approval'] } },
   { id: 'screen-phone-checks', design: { template: 'screen', headline: 'Built for *groups.*', image: IMG.phone, checks: ['Two-person approval', 'Every change logged'], glow: false } },
@@ -172,9 +190,18 @@ export const CASES = [
   { id: 'screen-desktop', design: { template: 'screen', device: 'desktop', headline: 'Watch the page fill *towards its target.*', sub: 'Anyone can see how far the page has come.', image: IMG.desk, title: 'Passbooks', region: 0.75 } },
   { id: 'screen-desktop-tilt', design: { template: 'screen', device: 'desktop', headline: 'Every passbook, *on record.*', image: IMG.desk, tilt: true } },
   { id: 'screen-desktop-framed', design: { template: 'screen', device: 'desktop', headline: 'As captured.', image: IMG.desk, framed: true, ground: 'soft' } },
+  { id: 'screen-phone-both-series', design: { template: 'screen', headline: 'Built *for groups.*', sub: 'Every change is logged.', image: IMG.phone, pills: ['Read-only'], checks: ['Two-person approval', 'Every change logged'], series: 'news' } },
+  { id: 'screen-phone-plain-dark', design: { template: 'screen', headline: 'On the phone, *in the dark.*', image: IMG.phone, ground: 'ink', accent: 'weight', dots: false, label: 'The app', headRight: 'Issue 5' } },
+  { id: 'screen-fade-sub-checks-dark', design: { template: 'screen', headline: 'The app, *faded out.*', sub: 'Only the top of the phone shows.', image: IMG.phone, fade: true, checks: ['Two-person approval'], ground: 'dark' } },
+  { id: 'screen-fade-noglow-pills', design: { template: 'screen', headline: 'No glow, *two pills.*', image: IMG.phone, fade: true, glow: false, pills: ['Read-only by design', 'Two-person approval'], series: 'explainers' } },
+  { id: 'screen-beside-nosub-gold', design: { template: 'screen', headline: 'The passbook *beside the phone.*', image: IMG.phone, beside: { days: 28, ticked: 9, today: 10, tick: 'gold' }, ground: 'deep', accent: 'colour' } },
+  { id: 'screen-desktop-framed-title-region', design: { template: 'screen', device: 'desktop', headline: 'Framed, *zoomed in.*', sub: 'Only the top-left half of the capture shows.', image: IMG.desk, framed: true, title: 'Passbooks', region: 0.5, series: 'the-numbers', dots: false } },
   // photo-story (editorial)
   { id: 'photo-story', design: { template: 'photo-story', headline: 'Market day, *together.*', sub: 'The collector comes round every Friday.', image: IMG.scene } },
   { id: 'photo-story-print', design: { template: 'photo-story', layout: 'print', headline: 'A jar *for every goal.*', sub: 'Small deposits add up.', image: IMG.jar, series: 'community' } },
+  { id: 'photo-story-panel-nosub-dark', design: { template: 'photo-story', layout: 'panel', headline: 'Friday, *at the market.*', image: IMG.scene, ground: 'dark', label: 'Field notes', accent: 'colour', focal: '50% 30%' } },
+  { id: 'photo-story-print-nosub-warm', design: { template: 'photo-story', layout: 'print', headline: 'Every jar *has a goal.*', image: IMG.mint, ground: 'warm', headRight: 'May 2026', dots: false } },
+  { id: 'photo-story-print-carousel', design: { template: 'carousel', series: 'community', pages: [{ template: 'photo-story', layout: 'print', headline: 'Page one, *in print.*', sub: 'The photo as a raised card.', image: IMG.jar }, { template: 'photo-story', layout: 'print', headline: 'Page two, *in print.*', image: IMG.scene, zoom: 1.1 }] } },
   // photo (every size)
   { id: 'photo', design: { template: 'photo', eyebrow: 'Market day', headline: 'Saving, *together.*', sub: 'Every deposit is on the record.', image: IMG.scene, sizes: ALL_SIZES } },
   { id: 'photo-bottom', design: { template: 'photo', headline: 'Text at the *bottom.*', image: IMG.scene, textAt: 'bottom', lines: false, sizes: ALL_SIZES } },

@@ -289,7 +289,7 @@ test('page kinds: the built-in templates\' poster and editorial pages, their chr
   assert.ok(has(mod((l) => { l.blocks[0].photoTop = true; }), 'photoTop is used on poster pages only'));
   // a block a page has no drawing for, and options its drawing does not honour, are refused
   assert.ok(has(modP((l) => { l.fields.items = {}; l.blocks.push({ type: 'list', px: { x: 80, y: 1000, w: 400, h: 100 } }); }), 'a poster page does not draw a list block'));
-  assert.ok(has(modE((l) => { l.fields.big = {}; l.blocks.push({ type: 'figure', px: { x: 70, y: 600, w: 400, h: 100 } }); }), 'an editorial page does not draw a figure block'));
+  assert.ok(has(modE((l) => { l.blocks.push({ type: 'slab', px: { x: 70, y: 600, w: 400, h: 100 } }); }), 'an editorial page does not draw a slab block'));
   assert.ok(has(modP((l) => { l.blocks[3].size = 36; }), 'size is not used on a poster page'));
   assert.ok(has(modE((l) => { l.blocks[3].valign = 'bottom'; }), 'valign is not used on an editorial page'));
   assert.ok(has(modP((l) => { l.fields.headline = {}; l.blocks.push({ type: 'headline', specSize: true, px: { x: 80, y: 1000, w: 920, h: 200 } }); }), 'specSize is not used on a poster page'));

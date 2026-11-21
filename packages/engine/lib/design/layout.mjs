@@ -127,7 +127,8 @@ const BOOL = [true, false];
 // built-in templates' designs, which a brand's own layout does not take.
 export const SPEC_CHOICES = {
   artefact: { values: ARTEFACT_TYPES, read: (s) => (isObj(s?.artefact) ? s.artefact.type : undefined), unset: true, grid: true },
-  register: { values: BOOL, read: (s) => isObj(s?.register) || isObj(s?.artefact?.register) },
+  // the register card the page draws: the passbook template's own, a text page's artefact's (either place without a template)
+  register: { values: BOOL, read: (s) => (s?.template === 'passbook' ? isObj(s.register) : s?.template === 'text' ? isObj(s.artefact?.register) : isObj(s?.register) || isObj(s?.artefact?.register)) },
   beside: { values: BOOL, read: (s) => isObj(s?.beside) },
   pills: { values: BOOL, read: (s) => filled(s?.pills) },
   checks: { values: BOOL, read: (s) => filled(s?.checks) },
@@ -191,8 +192,17 @@ export const BLOCKS = {
   // -- artefacts group --
   // (end of artefacts group)
   // -- editorial group --
+  // the editorial label row (photo-story's panel page): the series' name (or the spec's label) on the left and, on a carousel
+  // page, the folio on the right, across its rectangle
+  labelrow: { kinds: [], field: null, options: {}, text: true, pages: ['editorial'] },
   // (end of editorial group)
   // -- screen group --
+  // The screen template's (editorial pages only): the glow behind the layout's phone, sized from the phone as its screen block
+  // draws it (no rectangle of its own); the passbook card the spec's "beside" describes, in its rectangle; and the footer with
+  // the logo alone (no website, no "Swipe →").
+  halo: { kinds: [], field: null, options: {}, chrome: true, pages: ['editorial'] },
+  beside: { kinds: [], field: null, options: {}, pages: ['editorial'] },
+  footlogo: { kinds: [], field: null, options: {}, chrome: true, pages: ['editorial'] },
   // (end of screen group)
   // -- photo group --
   // (end of photo group)
@@ -215,10 +225,19 @@ const ADDED_OPTIONS = [
   ['screen', 'phoneTop', on(['poster'], b(false))],
   // (end of poster group)
   // -- artefacts group --
+  // where the artefact an editorial page draws is: the block's field (a text page's artefact), or the spec itself, as the
+  // ledger template (columns, rows, mark, notes) and the passbook template (days, ticked, today, tick, register) take theirs
+  ['artefact', 'from', on(['editorial'], e(['field', 'ledger', 'passbook'], 'field'))],
   // (end of artefacts group)
   // -- editorial group --
   // (end of editorial group)
   // -- screen group --
+  // lists: the spec's pills and check list (the screen template's) under the headline and its sub line. row: the headline is the
+  // text column of a row with the layout's phone (its screen block), centred in the band their rectangles share.
+  ['headline', 'lists', on(['editorial'], b(false))],
+  ['headline', 'row', on(['editorial'], b(false))],
+  // specWindow: a desktop window takes the spec's own validated framed, tilt and region.
+  ['screen', 'specWindow', on(['editorial'], b(false))],
   // (end of screen group)
   // -- photo group --
   // (end of photo group)
@@ -266,10 +285,19 @@ export const PAGES = {
       footer: [],
       spacer: [],
       // -- artefacts group --
+      artefact: ['from'],
       // (end of artefacts group)
       // -- editorial group --
+      photo: ['frame'],
+      figure: ['size', 'shrink'],
+      stats: ['direction', 'size', 'rules', 'shrink'],
+      labelrow: [],
       // (end of editorial group)
       // -- screen group --
+      screen: ['device', 'fit', 'specWindow'],
+      halo: [],
+      beside: [],
+      footlogo: [],
       // (end of screen group)
     },
     decorations: ['panel', 'rule', 'glow', 'map'],
@@ -290,6 +318,8 @@ const ADDED_HONOURS = [
   // -- editorial group --
   // (end of editorial group)
   // -- screen group --
+  ['editorial', 'headline', 'lists'],
+  ['editorial', 'headline', 'row'],
   // (end of screen group)
   // -- photo group --
   // (end of photo group)

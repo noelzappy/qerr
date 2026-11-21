@@ -11,7 +11,7 @@ import { ALIGNS as SPEC_ALIGNS, GROUND_NAMES, groundName } from './tokens.mjs';
 import { esc, fmtE, fmtSub, hs, px, taglineMarkup } from '../../design/templates/common.mjs';
 import { glow, phone } from '../../design/templates/editorial.mjs';
 import { dotMapSvg } from '../../design/templates/map.mjs';
-import { POSTER, bar, objectPhoto } from '../../design/templates/poster.mjs';
+import { BAR_LOW, POSTER, bar, objectPhoto } from '../../design/templates/poster.mjs';
 import { logoPlace } from '../../design/templates/style.mjs';
 
 // A headline or a figure's font size: shrunk by the fit loop with every other block that shrinks (hs), or fixed.
@@ -61,14 +61,24 @@ function photo(blk, spec, ctx, r) {
 }
 
 // -- poster group: drawings of new block types go here --
-// The logo bar; without its label (the website or "Swipe →") on the closing page.
-const logoBar = (blk, spec, ctx, r, state) => bar(ctx, state.frame.dark, opt(blk, 'label') === 'none' ? { right: '' } : {});
-
-// The phone shown where the page has a screen block (product): the pre-framed capture, the rectangle's width, from its top (or
-// the spec's validated phoneTop when the block takes it), running off the bottom.
+// A phone's top: its rectangle's, or the spec's validated phoneTop when the block takes it.
 const phoneTop = (blk, spec, r) => (opt(blk, 'phoneTop') && isInt(spec.phoneTop, 300, 960) ? spec.phoneTop : r.y);
+// The picture's height over its width (its own size, else a pre-framed phone capture's).
+const ratioOf = (ctx, spec) => { const d = ctx.imageSize?.(spec.image); return d && d.w > 0 ? d.h / d.w : 1354 / 660; };
+const hasImage = (spec) => typeof spec.image === 'string' && spec.image !== '';
+
+// The logo bar; without its label (the website or "Swipe →") on the closing page. When a photo (it always runs to the bottom
+// edge) or a phone whose full height reaches the bar's low place lies under where a bottom bar would be, the bar stays at the top,
+// on the ground, as poster.mjs decides (bottomTaken).
+function logoBar(blk, spec, ctx, r, state) {
+  const taken = hasImage(spec) && state.shown.some(({ blk: b, r: q }) => b.type === 'photo' || (b.type === 'screen' && phoneTop(b, spec, q) + q.w * ratioOf(ctx, spec) > BAR_LOW));
+  return bar(ctx, state.frame.dark, { ...(opt(blk, 'label') === 'none' ? { right: '' } : {}), bottomTaken: taken });
+}
+
+// The phone shown where the page has a screen block (product): the pre-framed capture, the rectangle's width, from its top,
+// running off the bottom.
 function screen(blk, spec, ctx, r) {
-  if (typeof spec.image !== 'string' || !spec.image) return '';
+  if (!hasImage(spec)) return '';
   return phone(ctx, spec, { w: r.w, at: { x: r.x, y: phoneTop(blk, spec, r) } });
 }
 
@@ -81,8 +91,8 @@ function decoration(blk, spec, ctx, r, state) {
   if (kind === 'glow') {
     const ph = state.shown.find((x) => x.blk.type === 'screen');
     if (ph) {
-      const y = phoneTop(ph.blk, spec, ph.r), d = ctx.imageSize?.(spec.image), ratio = d && d.w > 0 ? d.h / d.w : 1354 / 660;
-      return glow(ctx, { x: ph.r.x, y: y + 40, w: ph.r.w, h: Math.min(ctx.size.h - y, ph.r.w * ratio) });
+      const y = phoneTop(ph.blk, spec, ph.r);
+      return glow(ctx, { x: ph.r.x, y: y + 40, w: ph.r.w, h: Math.min(ctx.size.h - y, ph.r.w * ratioOf(ctx, spec)) });
     }
   }
   if (kind === 'map') {

@@ -440,13 +440,37 @@ for the demo brand and two style variants, before and after, and compares the pi
   `label`, else the series' name, else "Myths vs facts"), the bar's `label` (`auto` or `none`), and a headline's `fallback`
   (`tagline`: the brand's tagline when the spec has no headline) and `subFallback` (`website`: the brand's website when the spec
   has no sub line), as the closing page sets them. A poster page with the dot map refuses a brand without one, as `closing` did.
+  The `bar` block stays at the top, as the templates' bar does, when the page shows a photo block or a phone whose full height
+  reaches the bar's low place.
 
-- Artefacts (`lib/design/builtin/artefacts.mjs`): `ledger`, `passbook` and a `text` page with an artefact by their functions.
+- Artefacts (`lib/design/builtin/artefacts.mjs`): **`ledger`**, **`passbook`** (on its own, and with a register card) and a
+  **`text`** page with an artefact (one layout per type: ledger, register card, passbook page, passbook page with its register
+  card) are drawn from their layouts. Each is one band per headline size (70, 84, 112) with and without a sub line: the panel's
+  top, the headline's width and the card's place follow them, as on the templates, and the bands' conditions exclude each other.
+  The cards are an `artefact` block on the editorial page, drawn from the rectangle's top-left (a ledger or register card its own
+  drawn size, a ledger's notes under it; a passbook page fills the rectangle; beside its register card it is 410 px wide). Its
+  built-in-only option `from` (`field`, `ledger` or `passbook`) says where the artefact is: a text page's `artefact` field, or the
+  ledger or passbook template's own fields. A condition on `register` reads the register card the template draws (the passbook
+  template's own `register`, a text page's artefact's).
 
-- Editorial (`lib/design/builtin/editorial.mjs`): **`text`** without an artefact is drawn from its layout; `cover`, `stats` and
-  `photo-story` by their functions.
+- Editorial (`lib/design/builtin/editorial.mjs`): **`text`** without an artefact, **`cover`**, **`stats`** and **`photo-story`**
+  are drawn from their layouts (photo-story as two variants, `panel` and `print`, chosen by a `when` on its `layout`). For them
+  the editorial page also draws a `photo` (`frame`: `none` a photo window, as the stats band and the panel story's photo;
+  `card` the cover's card; `raised` the print story's card on the panel), the stats page's big `figure` (`size`, `shrink`; the
+  box is the figure itself, and it is not the page's `#txt`), its `stats` (`direction` `row`: each number in bold over its label,
+  side by side, 50 px apart; `column`: rows a third of the rectangle apart, numbers in the headline type at `size`, a hairline
+  between them with `rules`; `shrink`) and a `labelrow` (built-in editorial pages only: the series' name or the spec's `label`
+  and, on a carousel page, the folio, at the two ends of its rectangle).
 
-- Screen (`lib/design/builtin/screen.mjs`): `screen` by its function.
+- Screen (`lib/design/builtin/screen.mjs`): **`screen`** is drawn from four layouts, one per variant: a desktop window
+  (`device: desktop`), a phone beside a passbook (`beside`), a faded phone (`fade`) and the phone row (the default). They use the
+  screen group's pieces of the editorial page, each from a fixed list or a bounded number: the `screen` block (a phone the
+  width of its rectangle from its top, cut at its foot with `fit: crop`; a desktop window with `specWindow`, which takes the
+  spec's own validated `framed`, `tilt` and `region`, and `titleField`), `halo` (the glow behind the phone, sized from the
+  picture as the phone is drawn), `beside` (the passbook card of the spec's `beside`, in its rectangle), `footlogo` (the
+  footer with the logo alone), and two headline options: `lists` (the spec's pills and check list under the sub line) and
+  `row` (the headline and the phone side by side in one flex row, centred in the band their rectangles share). All of them
+  belong to the built-in editorial page; Settings, Layouts and the AI are not offered them.
 
 - Photo (`lib/design/builtin/photo.mjs`): `photo` and the page covers by their functions.
 
@@ -564,7 +588,7 @@ the post and the image is kept.
 | Check | How | What happens |
 | --- | --- | --- |
 | **Text fits** | Chrome measures the real text lines: inside the margins and above the footer, no text on text, no text on a photo, screenshot or on an object it does not belong to (text inside its own card is fine), body text at least 30 px, text not straddling the panel's edge, single-line numbers not wider than their box. Drawn objects must stay inside the page (a phone may run off the bottom), above the footer, clear of the logo, on the panel, and not overlap each other | The headline (and big numbers) shrink in steps down to 62% of the brand size. A long headline (more than 24 characters) starts a little smaller. If it still does not fit, or the sub line does not fit, the image **fails** with: "The text does not fit the feed format: ... Shorten the text ..." and nothing is written. Shrinking below 70% adds a warning. |
-| **Contrast** | The page is rendered with all text hidden; the pixels behind each text line are read. The worst case counts: the brightest part for light text (95th percentile, so a single speck does not decide), the darkest for dark text. Needs, on photo posts: headline and big numbers 3:1, sub line and eyebrow 4.5:1, website 3:1. On every other page (`brand.json` `contrast`): headline, big numbers, sub and body 7:1, labels, the footer label and the accent phrase 4.5:1, an artefact's labels 4.5:1 and the words written on it 7:1. Text inside artefacts (SVG text) is measured the same way | On photo posts the black scrim is raised in 0.05 steps (cap 0.65) before anything else; a weak website line gets a soft black fade behind the footer (cap 0.5). Anything still below the target is a warning with the measured ratio. `"scrim": "none"` switches the automatic fix off (it still warns). |
+| **Contrast** | The page is rendered with all text hidden; the pixels behind each text line are read. The worst case counts: the brightest part for light text (95th percentile, so a single speck does not decide), the darkest for dark text. Needs, on photo posts: headline and big numbers 3:1, sub line and eyebrow 4.5:1, website 3:1. On every other page (`brand.json` `contrast`): headline, big numbers, sub and body 7:1, labels, the footer label, the poster logo's wordmark and the accent phrase 4.5:1, an artefact's labels 4.5:1 and the words written on it 7:1. Text inside artefacts (SVG text) is measured the same way | On photo posts the black scrim is raised in 0.05 steps (cap 0.65) before anything else; a weak website line gets a soft black fade behind the footer (cap 0.5). Anything still below the target is a warning with the measured ratio. `"scrim": "none"` switches the automatic fix off (it still warns). |
 | **Enlargement** | The shown size of every supplied image against its real pixel size | Above 1.3x: a warning naming the file, its size and the width it would need. |
 | **Pixel size** | The captured image and the saved file are read back | A mismatch fails the image. |
 | **Fonts and images load** | Inter and IBM Plex Mono must load; every image must decode | A missing or unreadable image fails with its path. A missing font warns. |
@@ -638,7 +662,9 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
     screens), with `colour`, `shadows` and `highlights` naming brand colours (`primary`, `accent`, `ink`, `inverse` or a
     ground) and `strength` (0 to 1). The contrast checks measure the treated pixels, and the photo post's scrim sits above
     the treatment. A treated poster photo does not lend the page its edge colour (it stays on its ground).
-  - `logo`: `auto` (default), `top-left`, `top-right`, `bottom-left`, `bottom-right`. Posters move their logo bar; editorial
+  - `logo`: `auto` (default), `top-left`, `top-right`, `bottom-left`, `bottom-right`. Posters move their logo bar, except on
+    pages whose photo or phone runs to the bottom edge (`object`, `number` with a photo, `product` when the phone reaches the
+    bar): there the bar stays at the top, on the ground its logo is drawn for, and follows only the side. Editorial
     pages and photo posts keep the logo in their footer and follow the side. `footer`: `website` (default), `pill` (the logo
     on a light pill, and the website) or `none` (the logo alone; page 1 of a carousel still says "Swipe").
 - **`timezone`** (optional): an IANA time zone such as `Europe/London`. The AI drafts in it and the web app shows it; a batch
