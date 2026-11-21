@@ -11,7 +11,7 @@ import { cleanShape, linesToSvg, shapeProblems } from './lib/design/checks.mjs';
 import { buildPage } from './lib/design/page.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { focalToCss, validateDesign } from './lib/design/spec.mjs';
-import { TEMPLATE_FNS } from './design/templates/index.mjs';
+import { TEMPLATE_FNS } from './lib/design/builtin-layouts.mjs';
 import { esc, fmt, fmtE } from './design/templates/common.mjs';
 import { pngBytes } from './testlib/png.mjs';
 

@@ -1,9 +1,8 @@
 // The poster page of the built-in templates (object, number, product, myth-fact, closing), as a layout's "page": "poster" draws
 // it: one ground per post (a dark one with the posters' line texture), large two-tone headlines, a photo that bleeds off the
-// bottom and may lend the page its colour, and the logo bar. Each block is drawn with exactly the markup of
-// design/templates/poster.mjs, so a template expressed as a layout (lib/design/builtin-layouts.mjs) makes the same image.
-// What each block honours is listed in PAGES.poster (lib/design/layout.mjs). Phase 2 of the conversion adds drawings here,
-// each as its own function and one line in DRAW (see testlib/CONVERTING.md).
+// bottom and may lend the page its colour, and the logo bar. Each block is drawn with exactly the markup the
+// poster template functions wrote (testlib/builtin-markup.json holds it), with the helpers of design/templates/poster.mjs.
+// What each block honours is listed in PAGES.poster (lib/design/layout.mjs). A new drawing is its own function and one line in DRAW.
 import { DesignError } from './errors.mjs';
 import { BLOCKS, whenHolds } from './layout.mjs';
 import { decorationHtml, drawBuiltPage, isInt, opt, place } from './layout-parts.mjs';

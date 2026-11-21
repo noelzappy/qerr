@@ -1,5 +1,5 @@
 // node --test   (the photo group of the built-in templates as layouts, lib/design/builtin/photo.mjs: the full-bleed photo post
-// at every size is drawn from its layout, by lib/design/layout-photo.mjs, and the page is exactly the one its function drew,
+// at every size is drawn from its layout, by lib/design/layout-photo.mjs, and the page is exactly the one its function drew (testlib/builtin-markup.json),
 // for fields filled, empty and hostile, text at the top, the bottom or per size, every style variant and every size; and the
 // photo page's block types and options are checked like the rest of the format. The page covers likewise: one layout per kind,
 // drawn by lib/design/layout-cover.mjs at the cover sizes, the same page as their function's. No Chrome: the pixel comparison is
@@ -9,15 +9,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { brandFile } from './lib/core.mjs';
 import { loadBrand, normaliseBrand } from './lib/design/brand.mjs';
-import { builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
+import { TEMPLATE_FNS, builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
+import { DesignError } from './lib/design/errors.mjs';
 import { BLOCK_TYPES, exclusive, layoutCatalogue, validateLayout, whenHolds, whenProblems } from './lib/design/layout.mjs';
 import { layoutFit, renderLayoutWith } from './lib/design/layout-render.mjs';
 import { preparePage } from './lib/design/render.mjs';
 import { COVER_SIZES, SIZES, SIZE_NAMES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
-import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
+import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
+// The built-in layouts' own format (lib/design/builtin-layouts.mjs validates them so): what is for them only is allowed here;
+// test-design-layout-builtin.mjs checks what a brand's own layout may use.
+const validateBuiltin = (l, where) => validateLayout(l, where, { builtin: true });
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const demo = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
@@ -27,13 +31,25 @@ brands.right = { ...demo, ...normaliseBrand({ ...RAW, style: { logo: 'bottom-rig
 brands.noaccent = { ...demo, ...normaliseBrand({ ...RAW, style: { type: { accent: 'none' } } }) };
 const ctxOf = (brand, size, counter) => ({ size: SIZES[size], brand, counter, image: () => PIXEL, imageSize: () => ({ w: 1800, h: 1200 }) });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '', warnings: o.warnings ?? [] });
+// The pages are checked against the hashes recorded from the template functions the layouts replaced
+// (testlib/markup-fixture.mjs), and so are the refusals' words.
+const fx = markupFixture('photo');
+const draw = (t, spec, ctx) => parts(TEMPLATE_FNS[t](spec, ctx));
+const refusal = (t, spec, ctx) => {
+  let a;
+  try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
+  assert.ok(a instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a}`);
+  return `DesignError: ${a.message}`;
+};
 const has = (errs, frag) => errs.some((e) => e.includes(frag));
 const H = ['"><script>window.__pwn=1</script>', '</style><script>x</script>', '<img src=x onerror=alert(1)>', '*a* \\n b', '`${x}`', 'url(http://evil.example/x)'];
 
-const same = (s, brand, size, counter) => {
+// One case: the spec drawn at every size, for every look and page.
+const same = (s) => {
   assert.deepEqual(validateDesign(s), [], JSON.stringify(s));
-  const spec = forSize(normaliseDesign(s), size);
-  assert.deepEqual(parts(TEMPLATE_FNS.photo(spec, ctxOf(brand, size, counter))), parts(LEGACY_FNS.photo(spec, ctxOf(brand, size, counter))), `${size} ${JSON.stringify(s).slice(0, 160)}`);
+  const drawn = [];
+  for (const brand of Object.values(brands)) for (const size of SIZE_NAMES) for (const counter of [undefined, { n: 1, total: 2 }]) drawn.push(draw('photo', forSize(normaliseDesign(s), size), ctxOf(brand, size, counter)));
+  fx.check({ s }, drawn, JSON.stringify(s).slice(0, 160));
 };
 
 test('the photo post is drawn from its layout at every size', () => {
@@ -61,16 +77,14 @@ test('the same page as the function: fields filled, empty and hostile, text top,
     specs.push({ template: 'photo', eyebrow: h.slice(0, 60), headline: h, sub: h, image: `${h.replace(/[^a-z]/g, '') || 'x'}.jpg` });
     specs.push({ template: 'photo', eyebrow: h.slice(0, 60), headline: h, sub: h, image: 'a.jpg', textAt: 'bottom' });
   }
-  for (const brand of Object.values(brands)) {
-    for (const size of SIZE_NAMES) for (const s of specs) for (const counter of [undefined, { n: 1, total: 2 }]) same(s, brand, size, counter);
-  }
+  for (const s of specs) same(s);
 });
 
 test('a hostile focal point or textAt that slipped past the validator is still drawn as the function drew it', () => {
   for (const size of SIZE_NAMES) {
     for (const v of ['"><x', 'middle', '', null, undefined, 1]) {
       const spec = { ...forSize(normaliseDesign({ template: 'photo', headline: 'h', image: 'a.jpg' }), size), textAtResolved: v, focalCss: v };
-      assert.deepEqual(parts(TEMPLATE_FNS.photo(spec, ctxOf(demo, size))), parts(LEGACY_FNS.photo(spec, ctxOf(demo, size))), `${size} ${v}`);
+      fx.check({ size, v: v === undefined ? 'undefined' : v }, draw('photo', spec, ctxOf(demo, size)), `${size} ${v}`);
     }
   }
 });
@@ -89,12 +103,12 @@ const photoLayout = (head = {}, more = {}) => ({
   ],
   ...more,
 });
-const mod = (f, head) => { const l = photoLayout(head); f(l); return validateLayout(l); };
+const mod = (f, head) => { const l = photoLayout(head); f(l); return validateBuiltin(l); };
 
 test('the photo page\'s block types and options: valid, invalid and hostile', () => {
-  assert.deepEqual(validateLayout(photoLayout()), []);
-  assert.deepEqual(validateLayout(photoLayout({ valign: 'bottom' })), []);
-  assert.deepEqual(validateLayout(photoLayout({ eyebrow: false, subField: undefined }, { fields: { headline: {}, image: {} } })), []);
+  assert.deepEqual(validateBuiltin(photoLayout()), []);
+  assert.deepEqual(validateBuiltin(photoLayout({ valign: 'bottom' })), []);
+  assert.deepEqual(validateBuiltin(photoLayout({ eyebrow: false, subField: undefined }, { fields: { headline: {}, image: {} } })), []);
   for (const v of ['yes', 1, null, {}, '"><x']) assert.ok(has(mod(() => {}, { eyebrow: v }), 'eyebrow must be true or false'), String(v));
   for (const v of ['middle', 'BOTTOM', 1, '"><x']) assert.ok(has(mod(() => {}, { valign: v }), 'valign must be one of'), String(v));
   // the photo page sets its own type and width; what it does not draw is refused
@@ -115,8 +129,8 @@ test('the photo page\'s block types and options: valid, invalid and hostile', ()
   assert.deepEqual(mod((l) => { l.blocks[3].when = { field: 'textAt', is: 'top' }; l.blocks.push({ type: 'headline', when: { field: 'textAt', not: 'top' }, valign: 'bottom', subField: 'sub', px: { x: 70, y: 84, w: 880, h: 1115 } }); }), []);
   // a brand's own (grid) layout cannot use any of it, and the editor and the AI are not offered it
   const grid = { id: 'g', name: 'G', fields: { headline: {}, image: {} }, canvas: { feed: { columns: 12, rows: 15, margin: 70 } }, blocks: [{ type: 'headline', slot: { col: 1, row: 1, width: 12, height: 4 }, eyebrow: true }, { type: 'backdrop', slot: { col: 1, row: 5, width: 12, height: 4 } }] };
-  assert.ok(has(validateLayout(grid), 'eyebrow is used on photo pages only'));
-  assert.ok(has(validateLayout(grid), 'a backdrop block belongs to photo pages'));
+  assert.ok(has(validateBuiltin(grid), 'eyebrow is used on photo pages only'));
+  assert.ok(has(validateBuiltin(grid), 'a backdrop block belongs to photo pages'));
   for (const t of ['backdrop', 'scrim', 'lines', 'photoFooter']) assert.ok(!BLOCK_TYPES.includes(t) && !(t in layoutCatalogue().blocks), t);
   assert.ok(!('eyebrow' in layoutCatalogue().blocks.headline.options));
 });
@@ -158,15 +172,18 @@ test('each page cover is drawn from its own layout, exactly as its function drew
   const looks = Object.values(brands);
   for (const h of H) looks.push({ ...demo, tagline: `${h}, ${h}`, descriptor: `${h}.`, website: h, logoFullSrc: PIXEL, logoMarkSrc: PIXEL });
   looks.push({ ...demo, tagline: 'No comma here', descriptor: 'No full stop' });
-  for (const brand of looks) {
+  looks.forEach((brand, i) => {
     for (const kind of KINDS) {
       const spec = { template: 'pagecover', kind };
-      assert.deepEqual(parts(TEMPLATE_FNS.pagecover(spec, coverCtx(brand, kind))), parts(LEGACY_FNS.pagecover(spec, coverCtx(brand, kind))), `${kind} ${brand.tagline}`);
+      fx.check({ cover: kind, look: i, words: [brand.tagline, brand.descriptor, brand.website] }, draw('pagecover', spec, coverCtx(brand, kind)), `${kind} ${brand.tagline}`);
       assert.ok(!/<script|<img src=x|<\/style>/.test(TEMPLATE_FNS.pagecover(spec, coverCtx(brand, kind)).body), kind);
     }
+  });
+  // a kind that slipped past the validator matches no layout, and is refused (the function drew an empty page)
+  for (const kind of ['feed', '__proto__', undefined]) {
+    assert.equal(builtinLayoutFor({ template: 'pagecover', kind }), null, String(kind));
+    assert.throws(() => TEMPLATE_FNS.pagecover({ template: 'pagecover', kind }, coverCtx(demo, 'x')), DesignError, String(kind));
   }
-  // a kind that slipped past the validator matches no layout, and the function draws it (an empty page), as before
-  for (const kind of ['feed', '__proto__', undefined]) assert.equal(builtinLayoutFor({ template: 'pagecover', kind }), null, String(kind));
 });
 
 const coverLayout = (blk = {}, more = {}) => ({
@@ -177,23 +194,25 @@ const coverLayout = (blk = {}, more = {}) => ({
 });
 
 test('the cover page: its sizes, its block types and options, valid, invalid and hostile', () => {
-  assert.deepEqual(validateLayout(coverLayout()), []);
-  assert.deepEqual(validateLayout(coverLayout({ arrange: 'row', align: 'left', logo: 16, size: 200, subSize: 80, urlSize: 60, gap: 0, subGap: 120, urlGap: 0, subWidth: 1200 })), []);
-  assert.deepEqual(validateLayout(coverLayout({}, { canvas: { profile: { columns: 1, rows: 1, margin: 0 } }, blocks: [{ type: 'coverMark', px: { x: 250, y: 250, w: 580, h: 580 } }] })), []);
+  assert.deepEqual(validateBuiltin(coverLayout()), []);
+  assert.deepEqual(validateBuiltin(coverLayout({ arrange: 'row', align: 'left', logo: 16, size: 200, subSize: 80, urlSize: 60, gap: 0, subGap: 120, urlGap: 0, subWidth: 1200 })), []);
+  assert.deepEqual(validateBuiltin(coverLayout({}, { canvas: { profile: { columns: 1, rows: 1, margin: 0 } }, blocks: [{ type: 'coverMark', px: { x: 250, y: 250, w: 580, h: 580 } }] })), []);
   for (const [k, bad, msg] of [['arrange', 'grid', 'arrange must be one of column, row'], ['align', 'right', 'align must be one of center, left'], ['logo', 161, 'logo must be a whole number from 16 to 160'], ['size', 23, 'size must be a whole number from 24 to 200'], ['subWidth', 99.5, 'subWidth must be a whole number from 100 to 1200'], ['gap', '"><x', 'gap must be a whole number from 0 to 160'], ['urlGap', -1, 'urlGap must be a whole number'], ['subSize', null, 'subSize must be a whole number']]) {
-    assert.ok(has(validateLayout(coverLayout({ [k]: bad })), msg), `${k} ${bad}`);
+    assert.ok(has(validateBuiltin(coverLayout({ [k]: bad })), msg), `${k} ${bad}`);
   }
   // only a cover page is drawn at the cover sizes, and a cover page only at them
-  assert.ok(has(validateLayout(coverLayout({}, { canvas: { feed: { columns: 1, rows: 1, margin: 48 } } })), 'canvas has an unknown size "feed" (sizes of a cover page: profile, facebook, linkedin, x)'));
-  assert.ok(has(validateLayout(photoLayout({}, { canvas: { facebook: { columns: 1, rows: 1, margin: 24 } } })), 'canvas has an unknown size "facebook"'));
-  assert.ok(has(validateLayout(coverLayout({ px: { x: 0, y: 62, w: 1640, h: 600 } })), 'past the facebook page\'s height of 624'));
+  assert.ok(has(validateBuiltin(coverLayout({}, { canvas: { feed: { columns: 1, rows: 1, margin: 48 } } })), 'canvas has an unknown size "feed" (sizes of a cover page: profile, facebook, linkedin, x)'));
+  assert.ok(has(validateBuiltin(photoLayout({}, { canvas: { facebook: { columns: 1, rows: 1, margin: 24 } } })), 'canvas has an unknown size "facebook"'));
+  assert.ok(has(validateBuiltin(coverLayout({ px: { x: 0, y: 62, w: 1640, h: 600 } })), 'past the facebook page\'s height of 624'));
   // the cover's words are the brand's: no field needed there, and its blocks show none
-  assert.ok(has(validateLayout(coverLayout({ field: 'headline' }, { fields: { headline: {} } })), 'a coverWords shows no field'));
-  assert.ok(has(validateLayout({ ...photoLayout(), fields: {} }), 'fields must name at least one field'));
+  assert.ok(has(validateBuiltin(coverLayout({ field: 'headline' }, { fields: { headline: {} } })), 'a coverWords shows no field'));
+  assert.ok(has(validateBuiltin({ ...photoLayout(), fields: {} }), 'fields must name at least one field'));
   // a cover page draws its own blocks only, and nobody else draws them
-  assert.ok(has(validateLayout(coverLayout({}, { blocks: [{ type: 'headline', px: { x: 100, y: 100, w: 400, h: 100 } }], fields: { headline: {} } })), 'a cover page does not draw a headline block'));
-  assert.ok(has(validateLayout(photoLayout({}, { blocks: [...photoLayout().blocks, { type: 'coverMark', px: { x: 0, y: 0, w: 10, h: 10 } }] })), 'a coverMark block belongs to cover pages'));
+  assert.ok(has(validateBuiltin(coverLayout({}, { blocks: [{ type: 'headline', px: { x: 100, y: 100, w: 400, h: 100 } }], fields: { headline: {} } })), 'a cover page does not draw a headline block'));
+  assert.ok(has(validateBuiltin(photoLayout({}, { blocks: [...photoLayout().blocks, { type: 'coverMark', px: { x: 0, y: 0, w: 10, h: 10 } }] })), 'a coverMark block belongs to cover pages'));
   for (const t of ['coverMark', 'coverWords']) assert.ok(!BLOCK_TYPES.includes(t) && !(t in layoutCatalogue().blocks), t);
   // drawn only at a cover size
   assert.throws(() => renderLayoutWith({ ...coverLayout(), canvas: { feed: {} } }, { template: 'pagecover', kind: 'x' }, ctxOf(demo, 'feed')), /drawn at the cover sizes only/);
 });
+
+test('the markup fixture holds every case these tests draw, and only those', () => fx.done());

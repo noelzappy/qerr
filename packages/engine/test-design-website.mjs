@@ -10,7 +10,7 @@ import { buildPage } from './lib/design/page.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { normaliseDesign, validateDesign } from './lib/design/spec.mjs';
 import { ENGINE_DIR, ROOT, brandFile } from './lib/core.mjs';
-import { TEMPLATE_FNS } from './design/templates/index.mjs';
+import { TEMPLATE_FNS } from './lib/design/builtin-layouts.mjs';
 import { fmtE } from './design/templates/common.mjs';
 import { dotMapSvg } from './design/templates/map.mjs';
 

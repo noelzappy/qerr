@@ -7,8 +7,21 @@ import { CHOICE_NAMES, FIELD_NAMES, SPEC_CHOICES, exclusive, validateLayout, whe
 import { renderLayoutWith } from './lib/design/layout-render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign } from './lib/design/spec.mjs';
-import { textBlock } from './design/templates/editorial.mjs';
-import { words } from './design/templates/poster.mjs';
+import { fmtE, fmtSub, hs, px } from './design/templates/common.mjs';
+
+// The markup the templates' own helpers wrote for a headline and its sub line (editorial.mjs textBlock at y 154, poster.mjs
+// words at the poster's 80, 170), kept here as the reference the layout drawings must match now that the templates are gone.
+function textBlock({ w = 940, size = 84, headline, sub, subW = 820 }) {
+  const h = `<div class="h s${size}" data-role="headline" style="font-size:${hs(size)};max-width:${w}px">${fmtE(headline)}</div>`;
+  const s = sub ? `<div class="sub" data-role="sub" data-min="30" style="margin-top:28px;max-width:${subW}px">${fmtSub(sub)}</div>` : '';
+  return `<div class="abs" id="txt" style="left:70px;top:154px;width:${w}px">${h}${s}</div>`;
+}
+function words({ headline, sub, size, subW = 820, align = 'left' }) {
+  const center = align === 'center';
+  const h = `<div class="ps-h" data-role="headline" style="font-size:${hs(size)}">${fmtE(headline)}</div>`;
+  const s = sub ? `<div class="sub ps-sub" data-role="sub" data-min="30" style="margin-top:28px;max-width:${subW}px${center ? ';margin-left:auto;margin-right:auto' : ''}">${fmtSub(sub)}</div>` : '';
+  return `<div class="abs" id="txt" style="left:${px(80)}px;top:${px(170)}px;width:${px(920)}px;text-align:${center ? 'center' : 'left'}">${h}${s}</div>`;
+}
 
 const brand = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
@@ -56,7 +69,7 @@ test('a headline with its sub line flowing under it: valid on the built-in pages
   assert.ok(has(validateLayout(grid), 'subWidth is used on poster and editorial pages only'));
 });
 
-test('the flowing sub line is drawn exactly as the templates\' textBlock and words draw it', () => {
+test('the flowing sub line is drawn exactly as the templates\' textBlock and words drew it', () => {
   const H = '"><script>window.__pwn=1</script> *x*', S = 'A *bold* sub\\nline </style>';
   for (const [size, subW, head] of [[84, 900, 'Every saving, *on record.*'], [70, 820, H], [112, 940, 'Short']]) {
     const l = editorial({ size, subWidth: subW, px: { x: 70, y: 154, w: 940, h: 800 } });
@@ -73,12 +86,16 @@ test('the flowing sub line is drawn exactly as the templates\' textBlock and wor
 });
 
 test('conditions on the artefact\'s type and on the templates\' fixed options: values from fixed lists only', () => {
-  const w = (when, page) => whenProblems(when, ['headline', 'sub', 'artefact'], 'w', { page });
+  const w = (when, page) => whenProblems(when, ['headline', 'sub', 'artefact'], 'w', { page, builtin: true });
   for (const when of [{ field: 'artefact', is: 'ledger' }, { field: 'artefact', is: ['ledger', 'register'] }, { field: 'artefact', not: 'passbook' }, { field: 'artefact', is: 'passbook', present: 'sub' }]) assert.deepEqual(w(when, 'grid'), [], JSON.stringify(when));
   for (const when of [{ field: 'layout', is: 'side' }, { field: 'device', is: 'desktop' }, { field: 'glow', is: false }, { field: 'map', is: true }, { field: 'size', is: [70, 84] }, { field: 'align', not: 'center' }, { field: 'register', is: true }, { field: 'textAt', is: 'bottom', page: 'first' }]) {
     assert.deepEqual(w(when, 'editorial'), [], JSON.stringify(when));
     assert.deepEqual(whenProblems(when, FIELD_NAMES, 'registry'), [], JSON.stringify(when));
     assert.ok(has(w(when, 'grid'), 'field must be one of artefact on a grid page'), JSON.stringify(when));
+    // a brand's own poster or editorial layout may test the artefact's type and its register card only (its design has no others)
+    const brand = whenProblems(when, ['headline', 'sub', 'artefact'], 'w', { page: 'editorial' });
+    if (SPEC_CHOICES[when.field].brand) assert.deepEqual(brand, [], JSON.stringify(when));
+    else assert.ok(has(brand, 'field must be one of artefact, register on a brand\'s own layout'), JSON.stringify(when));
   }
   assert.ok(has(w({ field: 'colour', is: 'red' }, 'poster'), 'field must be one of artefact, register'));
   assert.ok(has(w({ field: 'artefact', is: 'poster' }, 'poster'), 'is must be one of ledger, passbook, register'));
@@ -133,9 +150,10 @@ test('conditions on the same choice that let no value through together exclude e
   // in a layout: two headlines that are never drawn together may show the same field and the same space
   const l = poster({ when: { field: 'layout', is: 'side' } });
   l.blocks.push({ type: 'headline', size: 88, px: { x: 80, y: 170, w: 920, h: 400 }, subField: 'sub', when: { field: 'layout', not: 'side' } });
-  assert.deepEqual(validateLayout(l), []);
+  assert.deepEqual(validateLayout(l, undefined, { builtin: true }), []);
+  assert.ok(has(validateLayout(l), 'on a brand\'s own layout'), 'a brand\'s layout cannot test a template\'s own layout');
   l.blocks[2].when = { field: 'layout', not: 'center' };
-  assert.ok(has(validateLayout(l), 'overlap'));
+  assert.ok(has(validateLayout(l, undefined, { builtin: true }), 'overlap'));
   const variants = draw(poster({ when: { field: 'layout', is: 'side' } }), { template: 'product', headline: 'H', layout: 'side' });
   assert.ok(variants.includes('>H</div>'));
   assert.ok(!draw(poster({ when: { field: 'layout', is: 'side' } }), { template: 'product', headline: 'H' }).includes('>H</div>'));

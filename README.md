@@ -17,7 +17,8 @@ Vesk is a web app (`apps/web`). Home, Create, Publish and Settings, in light and
     checks, series, voice, visual direction, and the import of an existing brand pack.
   - Design references: pictures the AI describes as style briefs that guide every draft.
   - Layouts: the brand's own page compositions, blocks placed on a grid with a visual editor, checked and drawn by the
-    engine like the built-in pages; posts and the AI can use them.
+    engine like the built-in pages; posts and the AI can use them. The built-in layouts are listed too, read only, and can be
+    duplicated into a layout of the brand's own on the built-in poster or editorial page.
   - The team, the Buffer accounts, the channels, the AI providers with a monthly budget, and the audit log.
 
 Under it are two libraries with no dependencies, which the app imports:
@@ -169,8 +170,10 @@ leave room and never to quote them as claims. The drafting model must be able to
 **Layouts** (Settings, Layouts) are the brand's own compositions: blocks (a headline, a photo, a colour panel, figures, the
 logo) placed in slots on a grid, with options from fixed lists. No one writes markup or CSS: the engine checks every layout,
 draws it in the brand's look and checks each image like a built-in page. A post picks one in its design, the AI is told
-about the ones in use, and a design reference may suggest one, which an admin previews before adding it. See
-[docs/design.md](docs/design.md), "Your own layouts".
+about the ones in use, and a design reference may suggest one, which an admin previews before adding it. The built-in templates'
+own layouts are listed there too, read only; an admin may duplicate one (all but the phone beside a passbook and the photo post)
+and change it on the built-in poster or editorial page. See [docs/design.md](docs/design.md), "Your own layouts" and "Starting
+from a built-in layout".
 
 ### Brand packs
 

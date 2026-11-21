@@ -24,6 +24,7 @@ export interface LayoutCatalogue {
   blocks: Record<string, { kinds: string[]; field: string | null; child: boolean; bleed: boolean; children: boolean; under: boolean; options: Record<string, { type: 'enum'; values: Array<string | number>; default: string | number } | { type: 'bool'; default: boolean }> }>;
   labelSources: string[];
   limits: { layouts: number; blocks: number; children: number };
+  pages: Record<string, { sizes: string[]; decorations: string[]; blocks: Record<string, { kinds: string[]; field: string | null; chrome: boolean; children: boolean; under: boolean; options: Record<string, unknown> }> }>;
 }
 
 interface EngineLayout {
@@ -38,7 +39,15 @@ interface EngineLayout {
   sampleDesign(l: unknown, opts?: { size?: string }): Json;
   layoutCatalogue(): LayoutCatalogue;
 }
-interface EngineStarters { STARTER_LAYOUTS: Json[]; starterCopy(id: string, opts?: { newId?: string; name?: string }): Json | null }
+// A built-in layout as Settings, Layouts lists it (the engine's lib/design/layout-starters.mjs builtinLayouts): read only; a brand
+// copies it into a layout of its own (builtinCopy) when `copyable`, else `why` says why not.
+export interface BuiltinLayoutEntry { template: string; variant: string | null; copyable: boolean; why: string | null; layout: Json }
+interface EngineStarters {
+  STARTER_LAYOUTS: Json[];
+  starterCopy(id: string, opts?: { newId?: string; name?: string }): Json | null;
+  builtinLayouts(): BuiltinLayoutEntry[];
+  builtinCopy(id: string, opts?: { newId?: string; name?: string }): Json | null;
+}
 
 let loaded: Promise<{ layout: EngineLayout; starters: EngineStarters }> | null = null;
 export function layoutEngine() {

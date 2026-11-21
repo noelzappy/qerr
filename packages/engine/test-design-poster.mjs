@@ -11,7 +11,7 @@ import { imageSize } from './lib/design/checks.mjs';
 import { buildPage } from './lib/design/page.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, validateDesign } from './lib/design/spec.mjs';
-import { TEMPLATE_FNS } from './design/templates/index.mjs';
+import { TEMPLATE_FNS } from './lib/design/builtin-layouts.mjs';
 import { pngBytes } from './testlib/png.mjs';
 import { renderSpec } from './testlib/render.mjs';
 

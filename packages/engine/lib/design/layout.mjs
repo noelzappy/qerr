@@ -49,6 +49,13 @@
 //                                               (headline: the spec's own validated "size" replaces the block's), "photoTop"
 //                                               (a poster photo: the spec's validated "photoTop" moves its top edge), "subField"
 //                                               and "subWidth" (a headline's sub line flowing under it in the same box).
+//
+// A brand's own layout (Settings, Layouts; brand.json "layouts") may use the poster and editorial pages too, with everything
+// they draw, except what reads a setting of the built-in templates' own designs, which a design for a brand's layout never has
+// ({ "template": "layout" } takes the layout's fields and the page frame only): the options specSize, specAlign, photoTop,
+// phoneTop, lists and specWindow, an artefact "from" the spec, the beside card, and conditions on any choice but the artefact's
+// type and its register card. Those, and the photo post's and the page covers' pages, which the renderer treats by the template's
+// own settings, are for the built-in layouts only (validateLayout(l, where, { builtin: true }), lib/design/builtin-layouts.mjs).
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, brandFile } from '../core.mjs';
@@ -125,6 +132,15 @@ export const LABEL_SOURCES = ['series', 'brand', 'folio'];
 // and PAGES).
 export const PAGE_KINDS = ['grid', 'poster', 'editorial', 'photo', 'cover'];
 const BUILT_PAGES = ['poster', 'editorial'];
+// The page kinds a brand's own layout may use, and why the others are the built-in layouts' only.
+export const BRAND_PAGE_KINDS = ['grid', 'poster', 'editorial'];
+const BUILTIN_PAGE_WHY = {
+  photo: 'the renderer raises the photo post\'s scrim, places its lines and holds its text to the photo contrast targets from the photo template\'s own settings (textAt, scrim, lines), which a design for a brand\'s layout does not have',
+  cover: 'page covers are made from the brand for its social profiles, never for a post',
+};
+export const builtinPageWhy = (page) => BUILTIN_PAGE_WHY[page] ?? null;
+// Pages drawn at the feed size only (the built-in templates' pages: their chrome is placed for 1080 x 1350).
+const FEED_PAGES = ['poster', 'editorial'];
 export const PAGE_CONDITIONS = ['single', 'first', 'later'];
 const WHEN_KEYS = ['present', 'absent', 'page', 'field', 'is', 'not'];
 const BOOL = [true, false];
@@ -133,12 +149,13 @@ const BOOL = [true, false];
 // type, and the built-in templates' own fixed options and flags, each with the fixed list of values it can have. read() gives a
 // spec's value: with the template's default filled in where every template has the same one (a phone is the default device), the
 // value as given where they differ (product's layout defaults to center, photo-story's to panel); an unset value (unset: true)
-// matches no "is", only a "not". Only "artefact" (a declared field) may be tested on a grid page; the rest are settings of the
-// built-in templates' designs, which a brand's own layout does not take.
+// matches no "is", only a "not". Only "artefact" (a declared field) may be tested on a grid page, and the artefact and its
+// register card on a brand's own poster or editorial page (grid, brand); the rest are settings of the built-in templates'
+// designs, which a design for a brand's own layout does not take.
 export const SPEC_CHOICES = {
-  artefact: { values: ARTEFACT_TYPES, read: (s) => (isObj(s?.artefact) ? s.artefact.type : undefined), unset: true, grid: true },
+  artefact: { values: ARTEFACT_TYPES, read: (s) => (isObj(s?.artefact) ? s.artefact.type : undefined), unset: true, grid: true, brand: true },
   // the register card the page draws: the passbook template's own, a text page's artefact's (either place without a template)
-  register: { values: BOOL, read: (s) => (s?.template === 'passbook' ? isObj(s.register) : s?.template === 'text' ? isObj(s.artefact?.register) : isObj(s?.register) || isObj(s?.artefact?.register)) },
+  register: { values: BOOL, read: (s) => (s?.template === 'passbook' ? isObj(s.register) : s?.template === 'text' ? isObj(s.artefact?.register) : isObj(s?.register) || isObj(s?.artefact?.register)), brand: true },
   beside: { values: BOOL, read: (s) => isObj(s?.beside) },
   pills: { values: BOOL, read: (s) => filled(s?.pills) },
   checks: { values: BOOL, read: (s) => filled(s?.checks) },
@@ -165,6 +182,8 @@ const e = (list, def, canon) => ({ t: 'enum', list, def, canon });
 const b = (def) => ({ t: 'bool', def });
 const n = (min, max, def) => ({ t: 'int', min, max, def });
 const on = (pages, o) => ({ ...o, pages });
+// An option that reads a setting of the built-in templates' own designs: the built-in layouts' only (see the header).
+const only = (o) => ({ ...o, builtin: true });
 const ALIGN = e(ALIGNS, 'left');
 const VALIGN = e(VALIGNS, 'top');
 const SHRINK = b(true);
@@ -173,13 +192,13 @@ const SHRINK = b(true);
 // bleed: photos, slabs and decorations may run over the margins to the page edges their slot touches. chrome: a part of the page
 // frame with no slot of its own (the page places it). text: a block whose words must stay inside the size's minimum margins.
 export const BLOCKS = {
-  headline: { kinds: TEXTUAL, field: 'headline', child: true, text: true, options: { size: e(HEADLINE_PX, 84), style: e(['editorial', 'poster'], 'editorial'), align: ALIGN, valign: VALIGN, shrink: SHRINK, specSize: on(BUILT_PAGES, b(false)), subWidth: on(BUILT_PAGES, n(100, 1080, 820)) } },
+  headline: { kinds: TEXTUAL, field: 'headline', child: true, text: true, options: { size: e(HEADLINE_PX, 84), style: e(['editorial', 'poster'], 'editorial'), align: ALIGN, valign: VALIGN, shrink: SHRINK, specSize: only(on(BUILT_PAGES, b(false))), subWidth: on(BUILT_PAGES, n(100, 1080, 820)) } },
   sub: { kinds: TEXTUAL, field: 'sub', child: true, text: true, options: { size: e(SUB_PX, 32), align: ALIGN, valign: VALIGN } },
   label: { kinds: ['short'], field: null, child: true, text: true, options: { style: e(['mono', 'tag', 'plain'], 'mono'), tone: e(['muted', 'accent'], 'muted'), size: e(LABEL_PX, 22), align: ALIGN, valign: VALIGN } },
   figure: { kinds: ['short'], field: 'big', child: true, text: true, options: { size: e(FIGURE_PX, 168), style: e(['editorial', 'poster'], 'editorial'), align: ALIGN, valign: VALIGN, shrink: SHRINK } },
   stats: { kinds: ['stats'], field: 'stats', child: true, text: true, options: { direction: e(['row', 'column'], 'row'), size: e(STAT_PX, 64), rules: b(false), align: ALIGN, valign: VALIGN, shrink: SHRINK } },
   list: { kinds: ['items'], field: 'items', child: true, text: true, options: { style: e(['checks', 'pills', 'bullets'], 'checks'), align: ALIGN, valign: VALIGN } },
-  photo: { kinds: ['image'], field: 'image', options: { frame: e(['none', 'card', 'raised'], 'none'), photoTop: on(['poster'], b(false)) }, bleed: true },
+  photo: { kinds: ['image'], field: 'image', options: { frame: e(['none', 'card', 'raised'], 'none'), photoTop: only(on(['poster'], b(false))) }, bleed: true },
   screen: { kinds: ['image'], field: 'image', options: { device: e(['phone', 'desktop'], 'phone'), fit: e(['contain', 'crop'], 'contain'), glow: b(true), tilt: b(false), framed: b(false), align: e(ALIGNS, 'center'), valign: e(VALIGNS, 'center') } },
   logo: { kinds: [], field: null, child: true, text: true, options: { variant: e(['auto', 'full', 'solid', 'pill', 'mark'], 'auto'), size: e(LOGO_PX, 34), align: ALIGN, valign: VALIGN } },
   website: { kinds: [], field: null, child: true, text: true, options: { size: e(WEBSITE_PX, 26), align: ALIGN, valign: VALIGN } },
@@ -212,7 +231,7 @@ export const BLOCKS = {
   // draws it (no rectangle of its own); the passbook card the spec's "beside" describes, in its rectangle; and the footer with
   // the logo alone (no website, no "Swipe →").
   halo: { kinds: [], field: null, options: {}, chrome: true, pages: ['editorial'] },
-  beside: { kinds: [], field: null, options: {}, pages: ['editorial'] },
+  beside: { kinds: [], field: null, options: {}, pages: ['editorial'], builtin: true },
   footlogo: { kinds: [], field: null, options: {}, chrome: true, pages: ['editorial'] },
   // (end of screen group)
   // -- photo group --
@@ -237,7 +256,7 @@ const ADDED_OPTIONS = [
   // -- poster group --
   // A headline takes the spec's own validated align (left or center) instead of the block's when the spec gives one (object,
   // product); its size follows the spec's through conditions on "size" (a "when" tests one choice, so align cannot be one too).
-  ['headline', 'specAlign', on(['poster'], b(false))],
+  ['headline', 'specAlign', only(on(['poster'], b(false)))],
   // A headline with nothing to show takes the brand's tagline (two-tone, as on the closing page), and its subField's sub line the
   // brand's website (the closing page's defaults).
   ['headline', 'fallback', on(['poster'], e(['none', 'tagline'], 'none'))],
@@ -245,22 +264,23 @@ const ADDED_OPTIONS = [
   // The bar's label beside the logo: auto (the website, or "Swipe →" on page 1 of a carousel) or none (the closing page).
   ['bar', 'label', on(['poster'], e(['auto', 'none'], 'auto'))],
   // A poster phone's top edge moves to the spec's validated phoneTop (product).
-  ['screen', 'phoneTop', on(['poster'], b(false))],
+  ['screen', 'phoneTop', only(on(['poster'], b(false)))],
   // (end of poster group)
   // -- artefacts group --
   // where the artefact an editorial page draws is: the block's field (a text page's artefact), or the spec itself, as the
   // ledger template (columns, rows, mark, notes) and the passbook template (days, ticked, today, tick, register) take theirs
-  ['artefact', 'from', on(['editorial'], e(['field', 'ledger', 'passbook'], 'field'))],
+  // (ledger and passbook read the spec's own fields, which a brand's layout's design does not have: built-in layouts only)
+  ['artefact', 'from', { ...on(['editorial'], e(['field', 'ledger', 'passbook'], 'field')), builtinValues: ['ledger', 'passbook'] }],
   // (end of artefacts group)
   // -- editorial group --
   // (end of editorial group)
   // -- screen group --
   // lists: the spec's pills and check list (the screen template's) under the headline and its sub line. row: the headline is the
   // text column of a row with the layout's phone (its screen block), centred in the band their rectangles share.
-  ['headline', 'lists', on(['editorial'], b(false))],
+  ['headline', 'lists', only(on(['editorial'], b(false)))],
   ['headline', 'row', on(['editorial'], b(false))],
   // specWindow: a desktop window takes the spec's own validated framed, tilt and region.
-  ['screen', 'specWindow', on(['editorial'], b(false))],
+  ['screen', 'specWindow', only(on(['editorial'], b(false)))],
   // (end of screen group)
   // -- photo group --
   // the photo post's headline box also holds the spec's eyebrow, over the headline
@@ -501,9 +521,10 @@ export function whenHolds(when, spec, counter) {
 }
 
 // fields: the field names a condition may name (a layout's declared fields). page: the kind of page the layout draws on; on a grid
-// page a { field, is } condition may test only the type of a declared artefact. Without a page (the registry of built-in
-// layouts) every choice may be tested.
-export function whenProblems(when, fields, where, { page } = {}) {
+// page a { field, is } condition may test only the type of a declared artefact, and on a brand's own poster or editorial page also
+// its register card. Without a page (the registry of built-in layouts), or for a built-in layout (builtin), every choice may be
+// tested.
+export function whenProblems(when, fields, where, { page, builtin = false } = {}) {
   if (!isObj(when) || !Object.keys(when).length) return [`${where} must be an object like { "present": "sub" }, { "absent": "image" }, { "page": "first" } or { "field": "artefact", "is": "ledger" }`];
   const errors = [];
   unknownKeys(when, WHEN_KEYS, where, errors);
@@ -518,9 +539,9 @@ export function whenProblems(when, fields, where, { page } = {}) {
     if (when.is !== undefined || when.not !== undefined) errors.push(`${where}: "is" and "not" need a "field" (one of ${CHOICE_NAMES.join(', ')})`);
     return errors;
   }
-  const c = choiceOf(when.field), grid = page === 'grid';
-  const allowed = grid ? CHOICE_NAMES.filter((n) => SPEC_CHOICES[n].grid) : CHOICE_NAMES;
-  if (!c || !allowed.includes(when.field)) return [...errors, `${where}.field must be one of ${allowed.join(', ')}${grid ? ' on a grid page' : ''} (got ${show(when.field)})`];
+  const c = choiceOf(when.field), grid = page === 'grid', brand = page !== undefined && !grid && !builtin;
+  const allowed = grid ? CHOICE_NAMES.filter((n) => SPEC_CHOICES[n].grid) : brand ? CHOICE_NAMES.filter((n) => SPEC_CHOICES[n].brand) : CHOICE_NAMES;
+  if (!c || !allowed.includes(when.field)) return [...errors, `${where}.field must be one of ${allowed.join(', ')}${grid ? ' on a grid page' : brand ? ' on a brand\'s own layout (the other choices are settings of the built-in templates\' designs)' : ''} (got ${show(when.field)})`];
   if (FIELDS[when.field] && page !== undefined && !fields.includes(when.field)) errors.push(`${where}.field: "${when.field}" is not in the layout's fields; declare it there first`);
   if ((when.is === undefined) === (when.not === undefined)) return [...errors, `${where}: give "is" or "not" (not both) with "field"`];
   const k = when.is !== undefined ? 'is' : 'not', vals = listOf(when[k]);
@@ -545,7 +566,7 @@ export function groundCase(layout, spec, counter) {
   return g.find((c) => whenHolds(c.when, spec, counter))?.ground;
 }
 const GROUND_WORDS = (page) => `series${page === 'poster' ? ', photo' : ''} or one of ${GROUND_NAMES.join(', ')}`;
-function groundProblems(l, page, where, errors) {
+function groundProblems(l, page, where, errors, builtin) {
   const one = (v, w) => {
     if (v === 'series' || groundName(v)) return;
     if (v === 'photo' && page === 'poster') { if (!isObj(l.fields) || !l.fields.image) errors.push(`${w}: a photo ground needs the image field`); return; }
@@ -561,7 +582,7 @@ function groundProblems(l, page, where, errors) {
     const last = i === l.ground.length - 1;
     if (last && c.when !== undefined) errors.push(`${w}: the last case has no "when" (it is the ground when no other case holds)`);
     if (!last && c.when === undefined) errors.push(`${w} needs a "when" (only the last case has none)`);
-    if (c.when !== undefined) errors.push(...whenProblems(c.when, isObj(l.fields) ? Object.keys(l.fields) : [], `${w}.when`, { page }));
+    if (c.when !== undefined) errors.push(...whenProblems(c.when, isObj(l.fields) ? Object.keys(l.fields) : [], `${w}.when`, { page, builtin }));
   });
 }
 
@@ -585,11 +606,14 @@ function slotProblems(slot, layout, sizes, where, errors) {
   }
 }
 
-function optionProblems(block, spec, where, errors, page) {
+const BUILTIN_ONLY = 'a setting of the built-in templates\' own designs, which a design for a brand\'s layout does not have, so only the built-in layouts use it';
+function optionProblems(block, spec, where, errors, page, builtin) {
   for (const [k, o] of Object.entries(spec.options)) {
     const v = block[k];
     if (v === undefined) continue;
     if (!usedOn(o, page)) { errors.push(`${where}.${k} is used on ${o.pages.join(' and ')} pages only`); continue; }
+    if (!builtin && o.builtin) { errors.push(`${where}.${k} reads ${BUILTIN_ONLY}`); continue; }
+    if (!builtin && o.builtinValues?.includes(v)) { errors.push(`${where}.${k} "${v}" reads ${BUILTIN_ONLY}`); continue; }
     if (o.t === 'enum' && !o.list.includes(o.canon ? o.canon(v) : v)) errors.push(`${where}.${k} must be one of ${o.list.join(', ')} (got ${show(v)})`);
     if (o.t === 'bool' && typeof v !== 'boolean') errors.push(`${where}.${k} must be true or false`);
     if (o.t === 'int' && !isInt(v, o.min, o.max)) errors.push(`${where}.${k} must be a whole number from ${o.min} to ${o.max}`);
@@ -618,16 +642,17 @@ function builtPageProblems(blk, layout, sizes, where, errors, page) {
 export const optionOf = (block, k) => { const o = BLOCKS[block.type].options[k]; const v = block[k] ?? o?.def; return o?.canon ? o.canon(v) : v; };
 
 // One block (or one child of a slab). Returns the fields it shows.
-function blockProblems(blk, layout, sizes, where, errors, { child = false, page = 'grid' } = {}) {
+function blockProblems(blk, layout, sizes, where, errors, { child = false, page = 'grid', builtin = false } = {}) {
   if (!isObj(blk)) { errors.push(`${where} must be an object like { "type": "headline", "slot": { ... } }`); return []; }
   const spec = Object.hasOwn(BLOCKS, blk.type) ? BLOCKS[blk.type] : null;
   if (!spec) { errors.push(`${where}.type must be one of ${BLOCK_TYPES.join(', ')} (got ${show(blk.type)})`); return []; }
   if (!usedOn(spec, page)) { errors.push(`${where}: a ${blk.type} block belongs to ${spec.pages.join(' and ')} pages (set the layout's "page"), not to ${aPage(page)}`); return []; }
+  if (!builtin && spec.builtin) { errors.push(`${where}: a ${blk.type} block draws ${BUILTIN_ONLY}`); return []; }
   if (child && !spec.child) { errors.push(`${where}: a ${blk.type} cannot go inside a slab (a slab holds ${BLOCK_TYPES.filter((t) => BLOCKS[t].child).join(', ')})`); return []; }
   const keys = [...BASE_KEYS, ...Object.keys(spec.options), ...(spec.bleed ? ['bleed'] : []), ...(spec.children ? ['children'] : []), ...(blk.type === 'label' ? ['text', 'source'] : []), ...(blk.type === 'screen' ? ['titleField'] : []), ...(blk.type === 'headline' ? ['subField'] : [])];
   unknownKeys(blk, keys, where, errors);
-  optionProblems(blk, spec, where, errors, page);
-  if (blk.when !== undefined) errors.push(...whenProblems(blk.when, isObj(layout.fields) ? Object.keys(layout.fields) : [], `${where}.when`, { page }));
+  optionProblems(blk, spec, where, errors, page, builtin);
+  if (blk.when !== undefined) errors.push(...whenProblems(blk.when, isObj(layout.fields) ? Object.keys(layout.fields) : [], `${where}.when`, { page, builtin }));
   if (page !== 'grid') builtPageProblems(blk, layout, sizes, where, errors, page);
   if (child) {
     if (blk.slot !== undefined || blk.px !== undefined) errors.push(`${where}: a block inside a slab has no slot of its own (it flows in the slab)`);
@@ -691,7 +716,7 @@ function blockProblems(blk, layout, sizes, where, errors, { child = false, page 
   if (spec.children) {
     if (blk.children === undefined) blk = { ...blk, children: [] };
     if (!Array.isArray(blk.children) || blk.children.length > MAX_CHILDREN) errors.push(`${where}.children must be a list of up to ${MAX_CHILDREN} blocks`);
-    else blk.children.forEach((c, i) => used.push(...blockProblems(c, layout, sizes, `${where}.children[${i}]`, errors, { child: true, page })));
+    else blk.children.forEach((c, i) => used.push(...blockProblems(c, layout, sizes, `${where}.children[${i}]`, errors, { child: true, page, builtin })));
   }
   return used;
 }
@@ -703,8 +728,10 @@ const overlaps = (a, b) => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) >
 const inside = (a, b) => a.x >= b.x - TOL && a.y >= b.y - TOL && a.x + a.w <= b.x + b.w + TOL && a.y + a.h <= b.y + b.h + TOL;
 const boxOf = (l, blk, z) => slotRect(l, blk, z).inner;
 
-// Every problem with one layout, as plain sentences. Empty when it can be used.
-export function validateLayout(l, where = 'layout') {
+// Every problem with one layout, as plain sentences. Empty when it can be used. A brand's own layout by default; { builtin: true }
+// for the built-in templates' layouts (lib/design/builtin-layouts.mjs), which may also use what reads the templates' own design
+// settings, and the photo post's and the page covers' pages (see the header).
+export function validateLayout(l, where = 'layout', { builtin = false } = {}) {
   const errors = [];
   if (!isObj(l)) return [`${where} must be an object`];
   if (typeof l.id !== 'string' || !LAYOUT_ID.test(l.id)) return [`${where}: id must be lowercase letters, digits and - (up to 40, starting with a letter or digit)`];
@@ -714,7 +741,8 @@ export function validateLayout(l, where = 'layout') {
   if (l.description !== undefined && (typeof l.description !== 'string' || l.description.length > 300)) errors.push(`${where}: description must be a text of up to 300 characters`);
   if (l.page !== undefined && !PAGE_KINDS.includes(l.page)) errors.push(`${where}: page must be one of ${PAGE_KINDS.join(', ')}`);
   const page = PAGE_KINDS.includes(l.page) ? l.page : 'grid';
-  if (l.ground !== undefined) groundProblems(l, page, where, errors);
+  if (!builtin && !BRAND_PAGE_KINDS.includes(page)) errors.push(`${where}: a ${page} page is for the built-in layouts only: ${BUILTIN_PAGE_WHY[page]} (a brand's layout may use ${BRAND_PAGE_KINDS.join(', ')})`);
+  if (l.ground !== undefined) groundProblems(l, page, where, errors, builtin);
   if (l.accent !== undefined && l.accent !== 'series' && !ACCENT_STYLES.includes(l.accent)) errors.push(`${where}: accent must be series or one of ${ACCENT_STYLES.join(', ')}`);
   if (l.texture !== undefined && !TEXTURES.includes(l.texture)) errors.push(`${where}: texture must be one of ${TEXTURES.join(', ')}`);
   // fields (a page whose words are all the brand's, PAGES[page].words "brand", may declare none and show no text block)
@@ -741,6 +769,7 @@ export function validateLayout(l, where = 'layout') {
   const before = errors.length;
   for (const [size, g] of Object.entries(l.canvas)) {
     if (!names.includes(size)) errors.push(`${where}: canvas has an unknown size "${clip(size)}" (sizes${page === 'cover' ? ' of a cover page' : ''}: ${names.join(', ')})`);
+    else if (FEED_PAGES.includes(page) && size !== 'feed') errors.push(`${where}: canvas has a ${size} size, but ${aPage(page)} is drawn at the feed size only`);
     else gridProblems(g, size, `${where}: canvas.${size}`, errors);
   }
   if (errors.length > before) return errors;
@@ -748,7 +777,7 @@ export function validateLayout(l, where = 'layout') {
   // blocks
   if (!Array.isArray(l.blocks) || !l.blocks.length || l.blocks.length > MAX_BLOCKS) { errors.push(`${where}: blocks must be a list of 1 to ${MAX_BLOCKS} blocks`); return errors; }
   const used = [];
-  l.blocks.forEach((blk, i) => used.push(...blockProblems(blk, l, sizes, `${where}: blocks[${i}]`, errors, { page }).map((name) => ({ name, i, when: blk?.when }))));
+  l.blocks.forEach((blk, i) => used.push(...blockProblems(blk, l, sizes, `${where}: blocks[${i}]`, errors, { page, builtin }).map((name) => ({ name, i, when: blk?.when }))));
   if (errors.length) return errors;
   // A field is shown once, or by blocks that are never drawn together (their conditions exclude each other).
   const twice = used.filter((u, k) => used.some((v, j) => j < k && v.name === u.name && (v.i === u.i || !exclusive(v.when, u.when))));
@@ -914,6 +943,8 @@ export function sampleDesign(l, { size } = {}) {
     if (TEXTUAL.includes(F.kind)) v = v.length > (f.max ?? F.max) ? v.slice(0, f.max ?? F.max).replace(/\*/g, '').trim() : v;
     if (F.kind === 'stats' || F.kind === 'items') v = v.slice(0, f.max ?? F.max);
     if (name === 'image' && l.blocks.some((x) => x.type === 'screen' && optionOf(x, 'device') === 'desktop')) v = 'design/assets/demo/screen-desk.png';
+    // a phone is always a pre-framed capture (the renderer refuses any other picture there)
+    if (name === 'image' && layoutUsesPhone(l)) v = 'design/assets/demo/screen-phone.png';
     if (F.kind === 'artefact' && f.types && !f.types.includes('register')) v = f.types[0] === 'passbook' ? { type: 'passbook', days: 31, ticked: 17, today: 18 } : { type: 'ledger', columns: [{ label: 'Day' }, { label: 'Paid', align: 'end' }], rows: [['01', '10.00'], ['02', '12.50'], ['03', '10.00']], mark: [{ row: 1, col: 1 }] };
     d[name] = v;
   }
@@ -939,5 +970,21 @@ export function layoutCatalogue() {
     }])),
     labelSources: LABEL_SOURCES,
     limits: { layouts: MAX_LAYOUTS, blocks: MAX_BLOCKS, children: MAX_CHILDREN },
+    // The built-in pages a brand's layout may use (poster, editorial): the block types each draws there and the options it honours,
+    // without what is for the built-in layouts only. Blocks there sit at pixel rectangles ("px") or are chrome the page places.
+    pages: Object.fromEntries(BRAND_PAGE_KINDS.filter((p) => p !== 'grid').map((p) => [p, {
+      sizes: SIZE_NAMES.filter((z) => !FEED_PAGES.includes(p) || z === 'feed'),
+      decorations: PAGES[p].decorations,
+      blocks: Object.fromEntries(Object.entries(PAGES[p].draws).filter(([t]) => !BLOCKS[t].builtin).map(([t, honoured]) => [t, {
+        kinds: BLOCKS[t].kinds, field: BLOCKS[t].field, chrome: !!BLOCKS[t].chrome, children: !!BLOCKS[t].children, under: !!BLOCKS[t].under,
+        options: Object.fromEntries(honoured.filter((o) => !BLOCKS[t].options[o].builtin).map((o) => [o, t === 'decoration' && o === 'kind' ? { ...optionSpec(BLOCKS[t].options[o]), values: PAGES[p].decorations } : optionSpec(BLOCKS[t].options[o])])),
+      }])),
+    }])),
   };
+}
+// An option as the editor is told it: a fixed list (without values for the built-in layouts only), a flag or a bounded number.
+function optionSpec(v) {
+  if (v.t === 'enum') return { type: 'enum', values: v.list.filter((x) => !v.builtinValues?.includes(x)), default: v.def };
+  if (v.t === 'int') return { type: 'int', min: v.min, max: v.max, default: v.def };
+  return { type: 'bool', default: v.def };
 }

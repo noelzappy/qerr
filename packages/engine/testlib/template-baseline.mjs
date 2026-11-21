@@ -342,23 +342,32 @@ export function compareRuns(base, run, { root = ROOT, only, styles = STYLE_NAMES
   return { images, results, failed };
 }
 
-// ---- compare the current code's markup with a run's (no Chrome) ----
-export async function compareMarkup(base, { root = ROOT, only, styles = STYLE_NAMES, cases } = {}) {
+// ---- the current code's markup of every page of the selection (no Chrome): { <style>: { <file>: text } } ----
+// (test-design-builtin.mjs checks it against the recorded hashes in testlib/builtin-markup.json)
+export async function currentMarkup({ root = ROOT, only, styles = STYLE_NAMES, cases } = {}) {
   prepareBrands(root);
   prepareAssets(root);
-  const A = runDir(root, base), rows = [];
+  const out = {};
   for (const style of styles) {
     await withBrandDir(style, async () => {
       const brand = loadBrand({ root });
-      const all = Object.assign({}, ...selectCases({ only, cases }).map((c) => caseMarkup(c, brand)), wantsPagecover(only) && !cases?.length ? pagecoverMarkup(brand) : {});
-      for (const [file, now] of Object.entries(all)) {
-        const f = path.join(A, style, file.replace(/\.png$/, '.html'));
-        const was = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
-        let at = -1;
-        if (was !== now) { at = 0; while (at < Math.min(was?.length ?? 0, now.length) && was[at] === now[at]) at++; }
-        rows.push({ style, file, same: was === now, missing: was === null, at, was: was?.slice(Math.max(0, at - 60), at + 140), now: now.slice(Math.max(0, at - 60), at + 140) });
-      }
+      out[style] = Object.assign({}, ...selectCases({ only, cases }).map((c) => caseMarkup(c, brand)), wantsPagecover(only) && !cases?.length ? pagecoverMarkup(brand) : {});
     });
+  }
+  return out;
+}
+
+// ---- compare the current code's markup with a run's (no Chrome) ----
+export async function compareMarkup(base, { root = ROOT, only, styles = STYLE_NAMES, cases } = {}) {
+  const A = runDir(root, base), rows = [];
+  for (const [style, all] of Object.entries(await currentMarkup({ root, only, styles, cases }))) {
+    for (const [file, now] of Object.entries(all)) {
+      const f = path.join(A, style, file.replace(/\.png$/, '.html'));
+      const was = fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : null;
+      let at = -1;
+      if (was !== now) { at = 0; while (at < Math.min(was?.length ?? 0, now.length) && was[at] === now[at]) at++; }
+      rows.push({ style, file, same: was === now, missing: was === null, at, was: was?.slice(Math.max(0, at - 60), at + 140), now: now.slice(Math.max(0, at - 60), at + 140) });
+    }
   }
   return rows;
 }

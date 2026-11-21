@@ -1,5 +1,5 @@
 // node --test   (the screen template as layouts, lib/design/builtin/screen.mjs: every variant, desktop, beside, fade and the phone
-// row, is drawn from its layout, and the page is exactly the one the template function drew, with every field filled, empty and
+// row, is drawn from its layout, and the page is exactly the one the template function drew (testlib/builtin-markup.json), with every field filled, empty and
 // hostile, every ground, accent, flag and option, on single posts and carousel pages, for pictures of any shape; and the screen
 // group's pieces of the editorial page (the screen block, halo, beside, footlogo, a headline's lists and row, specWindow) take
 // valid values only. No Chrome: the pixel comparison is testlib/template-baseline.mjs, run by hand.)
@@ -8,16 +8,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { brandFile } from './lib/core.mjs';
 import { loadBrand, normaliseBrand } from './lib/design/brand.mjs';
-import { builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
+import { TEMPLATE_FNS, builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
 import { LAYOUTS } from './lib/design/builtin/screen.mjs';
 import { DesignError } from './lib/design/errors.mjs';
 import { BLOCK_TYPES, layoutCatalogue, layoutUsesPhone, validateLayout } from './lib/design/layout.mjs';
 import { renderLayoutWith } from './lib/design/layout-render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
-import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
+import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
+// The built-in layouts' own format (lib/design/builtin-layouts.mjs validates them so): what is for them only is allowed here;
+// test-design-layout-builtin.mjs checks what a brand's own layout may use.
+const validateBuiltin = (l, where) => validateLayout(l, where, { builtin: true });
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const demo = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
@@ -27,13 +30,24 @@ const brands = Object.fromEntries(Object.entries(STYLES).map(([k, style]) => [k,
 const DIMS = [{ w: 660, h: 1354 }, { w: 800, h: 600 }, { w: 2400, h: 1500 }, undefined];
 const ctxOf = (brand, counter, dims = DIMS[0]) => ({ size: SIZES.feed, brand, counter, image: () => PIXEL, imageSize: () => dims });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '' });
+// The pages are checked against the hashes recorded from the template functions the layouts replaced
+// (testlib/markup-fixture.mjs), and so are the refusals' words.
+const fx = markupFixture('screen');
+const drawTemplate = (t, spec, ctx) => parts(TEMPLATE_FNS[t](spec, ctx));
+const refusal = (t, spec, ctx) => {
+  let a;
+  try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
+  assert.ok(a instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a}`);
+  return `DesignError: ${a.message}`;
+};
 const has = (errs, frag) => errs.some((e) => e.includes(frag));
 const H = ['"><script>window.__pwn=1</script>', '</style><script>x</script>', '<img src=x onerror=alert(1)>', '*a* \\n b', '`${x}`'];
 const HOSTILE = ['"><script>window.__pwn=1</script>', 'url(http://evil.example/x)', '__proto__', '1e3', NaN, -1, 1.5, null, {}, [], 'true'];
 
-const same = (s, { brand = demo, counter, dims } = {}) => {
+// One case: the spec drawn for each of `looks` ([brand, counter, dims]).
+const same = (s, looks) => {
   const spec = forSize(normaliseDesign(s), 'feed');
-  assert.deepEqual(parts(TEMPLATE_FNS.screen(spec, ctxOf(brand, counter, dims))), parts(LEGACY_FNS.screen(spec, ctxOf(brand, counter, dims))), `${JSON.stringify(s).slice(0, 160)} ${JSON.stringify(counter)} ${JSON.stringify(dims)}`);
+  fx.check({ s, looks: looks.map(([b, c, d]) => [Object.keys(brands).find((k) => brands[k] === b), c, d]) }, looks.map(([b, c, d]) => drawTemplate('screen', spec, ctxOf(b, c, d))), JSON.stringify(s).slice(0, 160));
 };
 
 // Every variant, with and without the fields and flags it takes.
@@ -70,7 +84,7 @@ for (const h of H) {
 }
 
 test('every screen variant is drawn from its layout, and every layout is valid', () => {
-  for (const { layout } of LAYOUTS.screen) assert.deepEqual(validateLayout(layout), [], layout.id);
+  for (const { layout } of LAYOUTS.screen) assert.deepEqual(validateBuiltin(layout), [], layout.id);
   const id = (s) => builtinLayoutFor({ template: 'screen', headline: 'h', image: 'a.png', ...s }).id;
   assert.equal(id({}), 'screen');
   assert.equal(id({ pills: ['a'], checks: ['b'], glow: false }), 'screen');
@@ -89,21 +103,15 @@ test('the screen layouts draw exactly the pages the function drew: every variant
   assert.ok(specs.length > 200, `${specs.length} specs`);
   // the specs are designs the engine accepts (the hostile ones below are not, and are drawn all the same)
   for (const s of specs) assert.deepEqual(validateDesign(s, 's'), [], JSON.stringify(s));
-  for (const brand of Object.values(brands)) {
-    for (const s of [...specs, ...hostile]) for (const counter of [undefined, { n: 1, total: 2 }, { n: 2, total: 3 }]) same(s, { brand, counter });
-  }
-  // the phone and its glow are sized from the picture: a squat picture, a wide one, and one whose size could not be read
-  for (const dims of DIMS) for (const s of [...specs, ...hostile]) same(s, { dims });
+  // every style and page, and the phone and its glow sized from the picture: a squat picture, a wide one, and one whose size
+  // could not be read
+  const looks = [...Object.values(brands).flatMap((b) => [undefined, { n: 1, total: 2 }, { n: 2, total: 3 }].map((c) => [b, c, DIMS[0]])), ...DIMS.map((d) => [demo, undefined, d])];
+  for (const s of [...specs, ...hostile]) same(s, looks);
 });
 
 test('the screen layouts refuse what the function refused, with the same words', () => {
   const refuse = (s) => {
-    const spec = forSize(normaliseDesign(s), 'feed');
-    let a, b;
-    try { TEMPLATE_FNS.screen(spec, ctxOf(demo)); } catch (e) { a = e; }
-    try { LEGACY_FNS.screen(spec, ctxOf(demo)); } catch (e) { b = e; }
-    assert.ok(a instanceof DesignError && b instanceof DesignError, JSON.stringify(s));
-    assert.equal(a.message, b.message);
+    fx.check({ refused: s }, refusal('screen', forSize(normaliseDesign(s), 'feed'), ctxOf(demo)), JSON.stringify(s));
   };
   for (const v of [{}, { fade: true }, { beside: { days: 31 } }, { device: 'desktop' }]) {
     refuse({ template: 'screen', headline: 'h', image: img, series: 'nope', ...v });
@@ -131,12 +139,12 @@ const ROW = () => [
   { type: 'headline', size: 70, subField: 'sub', subWidth: 430, lists: true, row: true, px: { x: 70, y: 126, w: 430, h: 1114 } },
   { type: 'screen', px: { x: 540, y: 126, w: 470, h: 1114 } },
 ];
-const mod = (f) => { const b = ROW(); f(b); return validateLayout(page(b)); };
-const grid = (blk, fields = { headline: {}, image: {} }) => validateLayout({ id: 'g', name: 'G', fields, canvas: { feed: { columns: 12, rows: 15, margin: 70 } }, blocks: [{ type: 'headline', slot: { col: 1, row: 1, width: 12, height: 4 } }, blk] });
+const mod = (f) => { const b = ROW(); f(b); return validateBuiltin(page(b)); };
+const grid = (blk, fields = { headline: {}, image: {} }) => validateBuiltin({ id: 'g', name: 'G', fields, canvas: { feed: { columns: 12, rows: 15, margin: 70 } }, blocks: [{ type: 'headline', slot: { col: 1, row: 1, width: 12, height: 4 } }, blk] });
 const draw = (l, spec, dims = DIMS[0]) => renderLayoutWith(l, forSize(normaliseDesign({ template: 'screen', image: img, ...spec }), 'feed'), ctxOf(demo, undefined, dims)).body;
 
 test('the screen pieces are valid on an editorial page only, with options from their fixed lists', () => {
-  assert.deepEqual(validateLayout(page(ROW())), []);
+  assert.deepEqual(validateBuiltin(page(ROW())), []);
   // a headline's lists and row, and a window's specWindow: true or false, on an editorial page only
   for (const [i, k] of [[2, 'lists'], [2, 'row'], [3, 'specWindow']]) {
     for (const v of HOSTILE) assert.ok(has(mod((b) => { b[i][k] = v; }), `${k} must be true or false`), `${k} ${String(v)}`);
@@ -145,7 +153,7 @@ test('the screen pieces are valid on an editorial page only, with options from t
   for (const k of ['lists', 'row']) {
     assert.ok(has(grid({ type: 'headline', slot: { col: 1, row: 6, width: 12, height: 4 }, field: 'headline', [k]: true }), `${k} is used on editorial pages only`), k);
     const poster = { id: 'p', name: 'P', page: 'poster', fields: { headline: {} }, canvas: { feed: { columns: 12, rows: 15, margin: 80 } }, blocks: [{ type: 'bar' }, { type: 'headline', px: { x: 80, y: 170, w: 920, h: 400 }, [k]: true }] };
-    assert.ok(has(validateLayout(poster), `${k} is used on editorial pages only`), k);
+    assert.ok(has(validateBuiltin(poster), `${k} is used on editorial pages only`), k);
   }
   assert.ok(has(grid({ type: 'screen', slot: { col: 1, row: 6, width: 12, height: 8 }, device: 'desktop', specWindow: true }), 'specWindow is used on editorial pages only'));
   // the new block types belong to the editorial page: never offered to the editor or the AI
@@ -156,7 +164,7 @@ test('the screen pieces are valid on an editorial page only, with options from t
   assert.ok(!('lists' in layoutCatalogue().blocks.headline.options) && !('row' in layoutCatalogue().blocks.headline.options) && !('specWindow' in layoutCatalogue().blocks.screen.options));
   // halo and footlogo are placed by the page (behind the phone, at the foot); beside takes a rectangle and shows no field
   assert.ok(has(mod((b) => { b[0].px = { x: 0, y: 0, w: 100, h: 100 }; }), 'a halo has no slot'));
-  assert.ok(has(validateLayout({ ...page(ROW()), blocks: [...ROW(), { type: 'footlogo', px: { x: 0, y: 1300, w: 100, h: 40 } }] }), 'a footlogo has no slot'));
+  assert.ok(has(validateBuiltin({ ...page(ROW()), blocks: [...ROW(), { type: 'footlogo', px: { x: 0, y: 1300, w: 100, h: 40 } }] }), 'a footlogo has no slot'));
   assert.ok(has(mod((b) => { b.push({ type: 'beside' }); }), 'slot is required'));
   assert.ok(has(mod((b) => { b.push({ type: 'beside', field: 'sub', px: { x: 70, y: 126, w: 300, h: 300 } }); }), 'a beside shows no field'));
   assert.ok(has(mod((b) => { b.push({ type: 'beside', px: { x: 70, y: 126, w: 300, h: 300 } }); }), 'overlap'));
@@ -215,3 +223,5 @@ test('a headline in a row needs the layout\'s phone beside it; the glow follows 
   const foot = renderLayoutWith(page(ROW()), forSize(normaliseDesign({ template: 'screen', headline: 'H', image: img }), 'feed'), ctxOf(demo, { n: 1, total: 2 })).body;
   assert.ok(!foot.includes('Swipe') && !foot.includes(demo.website));
 });
+
+test('the markup fixture holds every case these tests draw, and only those', () => fx.done());

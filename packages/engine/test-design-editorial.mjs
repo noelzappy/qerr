@@ -17,7 +17,7 @@ import { NETWORKS as ROUTED } from './lib/networks.mjs';
 import { imageSize } from './lib/design/checks.mjs';
 import { pngBytes } from './testlib/png.mjs';
 import { renderSpec } from './testlib/render.mjs';
-import { TEMPLATE_FNS } from './design/templates/index.mjs';
+import { TEMPLATE_FNS } from './lib/design/builtin-layouts.mjs';
 
 const SERIES = loadSeries();
 const v = (d, where = 'p') => validateDesign(d, where, { series: SERIES });
@@ -325,7 +325,7 @@ test('end to end: a carousel writes one image per page and a PDF of 1080x1350 px
   for (const p of pages) { assert.equal(p.width, 810); assert.equal(p.height, 1012.5); }
   assert.deepEqual([r.pdf.file, r.pdf.pages], ['pass.pdf', 4]);
   // the folio and the swipe cue: page 1 says Swipe, later pages the website (read back from the page the template builds)
-  const { TEMPLATE_FNS } = await import('./design/templates/index.mjs');
+  const { TEMPLATE_FNS } = await import('./lib/design/builtin-layouts.mjs');
   const brand = loadBrand();
   // the poster closing page carries no folio or series label: a small logo and the tagline only
   const html = (n) => TEMPLATE_FNS.closing({ template: 'closing', series: 'explainers' }, { size: { name: 'feed' }, brand, counter: { n, total: 4 }, image: () => '' }).body;

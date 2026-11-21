@@ -2,7 +2,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { TEMPLATE_FNS } from '../../design/templates/index.mjs';
 import { buildPage, buildPrintPage } from './page.mjs';
 import { COVER_SIZES, SIZES } from './sizes.mjs';
 import { forSize } from './spec.mjs';
@@ -13,7 +12,7 @@ import { DesignError } from './errors.mjs';
 import { pdfPages, snapMediaBox } from './pdf.mjs';
 import { findLayout, layoutUsesPhone } from './layout.mjs';
 import { layoutFit, renderLayout, renderLayoutWith } from './layout-render.mjs';
-import { builtinLayoutFor } from './builtin-layouts.mjs';
+import { TEMPLATE_FNS, builtinLayoutFor } from './builtin-layouts.mjs';
 
 export { DesignError };
 
@@ -46,8 +45,9 @@ export function preparePage(brand, job) {
     try { layout = findLayout(spec.layout, layouts); } catch (err) { throw new DesignError(err.message); }
     if (!layout.canvas[sizeName]) throw new DesignError(`layout "${layout.id}" has no ${sizeName} size`);
   } else layout = builtinLayoutFor(spec, job.counter);
-  // A built-in template is drawn from its layout (lib/design/builtin-layouts.mjs) when it has one for this spec, else by its function.
+  // A built-in template is drawn from its layout (lib/design/builtin-layouts.mjs). (TEMPLATE_FNS also takes a page a test adds.)
   const tpl = spec.template === 'layout' ? renderLayout : layout ? (s, c) => renderLayoutWith(layout, s, c) : TEMPLATE_FNS[spec.template];
+  if (!tpl) throw new DesignError(`template must be one of ${Object.keys(TEMPLATE_FNS).join(', ')} or layout (got "${String(spec.template).slice(0, 40)}")`);
   // Pictures are read and checked here, once, and embedded; templates only ever see the resulting data: URIs.
   const images = new Map(), dims = new Map();
   if (spec.image !== undefined) {
@@ -70,9 +70,9 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
   const THRESHOLD_KEY = isPhoto ? PHOTO_KEY : EDITORIAL_KEY;
   const need = (key) => (isPhoto ? brand.photo.minContrast[key] : brand.contrast[key]);
   warnings.push(...(out.warnings ?? []));
-  // The editorial pages keep the reference margins (70 px, a few px of optical overhang on the headline); a layout keeps its own
-  // (a built-in layout's page, its templates' reference margins).
-  const Sfit = layout ? layoutFit(layout, sizeName) : isPhoto || COVER_SIZES[sizeName] ? S : { ...S, pad: 62, top: 46 };
+  // A layout keeps its own margins (a built-in page, its reference margins: PAGES[page].fit); a page without a layout (one a test
+  // adds to TEMPLATE_FNS) the editorial pages' reference margins (70 px, a few px of optical overhang on the headline).
+  const Sfit = layout ? layoutFit(layout, sizeName) : { ...S, pad: 62, top: 46 };
   fs.mkdirSync(tmpDir, { recursive: true });
   const page = await browser.page(S.w, S.h);
   try {

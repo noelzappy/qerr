@@ -1,5 +1,5 @@
 // node --test   (the poster group of the built-in templates as layouts, lib/design/builtin/poster.mjs: object, product (centred and
-// beside), myth-fact and closing are drawn from their layouts, and each page is exactly the one its function drew, with fields
+// beside), myth-fact and closing are drawn from their layouts, and each page is exactly the one its function drew (testlib/builtin-markup.json), with fields
 // filled, empty and hostile, every ground, accent and option the templates take, and the same refusals; and the poster page's
 // new block types and options are checked like the rest. No Chrome: the pixel comparison is testlib/template-baseline.mjs.)
 import test from 'node:test';
@@ -7,40 +7,55 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { brandFile } from './lib/core.mjs';
 import { loadBrand, normaliseBrand } from './lib/design/brand.mjs';
-import { builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
+import { TEMPLATE_FNS, builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
 import { DesignError } from './lib/design/errors.mjs';
 import { BLOCK_TYPES, layoutCatalogue, validateLayout } from './lib/design/layout.mjs';
 import { renderLayoutWith } from './lib/design/layout-render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
-import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
+import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
+// The built-in layouts' own format (lib/design/builtin-layouts.mjs validates them so): what is for them only is allowed here;
+// test-design-layout-builtin.mjs checks what a brand's own layout may use.
+const validateBuiltin = (l, where) => validateLayout(l, where, { builtin: true });
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const demo = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
 const brands = Object.fromEntries(Object.entries(STYLES).map(([k, style]) => [k, style ? { ...demo, ...normaliseBrand({ ...RAW, style }) } : demo]));
 const ctxOf = (brand, counter, dims = { w: 660, h: 1354 }) => ({ size: SIZES.feed, brand, counter, image: () => PIXEL, imageSize: () => dims });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '' });
+// The pages are checked against the hashes recorded from the template functions the layouts replaced
+// (testlib/markup-fixture.mjs), and so are the refusals' words.
+const fx = markupFixture('poster');
+const draw = (t, spec, ctx) => parts(TEMPLATE_FNS[t](spec, ctx));
+const refusal = (t, spec, ctx) => {
+  let a;
+  try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
+  assert.ok(a instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a}`);
+  return `DesignError: ${a.message}`;
+};
 const has = (errs, frag) => errs.some((e) => e.includes(frag));
 const H = ['"><script>window.__pwn=1</script>', '</style><script>x</script>', '<img src=x onerror=alert(1)>', '*a* \\n b', '`${x}`', 'url(http://evil.example/x)'];
 const GROUNDS = ['light', 'soft', 'cool', 'warm', 'dark', 'deep', 'white', 'tint', 'mint', 'gold-pale', 'ink'];
 const ACCENTS = [undefined, 'muted', 'colour', 'weight', 'none'];
 const SERIES = Object.keys(RAW.series);
 
-// The layout's page and the function's, for every style, as a single post and as carousel pages, and for picture sizes that
+// The layout's page, against the function's (the fixture), for every style, as a single post and as carousel pages, and for picture sizes that
 // differ (product sizes its glow from the picture's own ratio).
 function same(s, { dims = [{ w: 660, h: 1354 }] } = {}) {
   const spec = forSize(normaliseDesign(s), 'feed');
+  const drawn = [];
   for (const [style, brand] of Object.entries(brands)) {
     for (const counter of [undefined, { n: 1, total: 2 }, { n: 2, total: 3 }]) {
       for (const d of dims) {
         const why = `${style} ${JSON.stringify(counter)} ${JSON.stringify(d)} ${JSON.stringify(s).slice(0, 160)}`;
         assert.ok(builtinLayoutFor(spec, counter), `not drawn from a layout: ${why}`);
-        assert.deepEqual(parts(TEMPLATE_FNS[s.template](spec, ctxOf(brand, counter, d))), parts(LEGACY_FNS[s.template](spec, ctxOf(brand, counter, d))), why);
+        drawn.push(draw(s.template, spec, ctxOf(brand, counter, d)));
       }
     }
   }
+  fx.check({ s, dims }, drawn, JSON.stringify(s).slice(0, 160));
 }
 
 test('object, product, myth-fact and closing are drawn from their layouts, product by its variant', () => {
@@ -103,19 +118,14 @@ test('closing: the tagline and the website by default, the map, every ground and
   // a brand whose tagline has no comma, and a hostile tagline and website, go through the same escaping
   for (const tagline of ['Saving made simple', '"><script>x</script>, <b>y</b>']) {
     const brand = { ...demo, tagline, website: '<i>w</i>' }, spec = forSize(normaliseDesign({ template: 'closing' }), 'feed');
-    assert.deepEqual(parts(TEMPLATE_FNS.closing(spec, ctxOf(brand))), parts(LEGACY_FNS.closing(spec, ctxOf(brand))));
+    fx.check({ closing: tagline }, draw('closing', spec, ctxOf(brand)), tagline);
     assert.ok(!TEMPLATE_FNS.closing(spec, ctxOf(brand)).body.includes('<script>'));
   }
 });
 
 test('the poster templates refuse what their functions refused, with the same words', () => {
   const refused = (s, brand = demo) => {
-    const spec = forSize(normaliseDesign(s), 'feed');
-    let a, b;
-    try { TEMPLATE_FNS[s.template](spec, ctxOf(brand)); } catch (e) { a = e; }
-    try { LEGACY_FNS[s.template](spec, ctxOf(brand)); } catch (e) { b = e; }
-    assert.ok(a instanceof DesignError && b instanceof DesignError, `${JSON.stringify(s)}: ${a} / ${b}`);
-    assert.equal(a.message, b.message);
+    fx.check({ refused: s, map: !!brand.map }, refusal(s.template, forSize(normaliseDesign(s), 'feed'), ctxOf(brand)), JSON.stringify(s));
   };
   for (const t of [{ template: 'object', headline: 'h', image: 'a.jpg' }, { template: 'product', headline: 'h', image: 'a.png' }, { template: 'product', layout: 'side', headline: 'h', image: 'a.png' }, { template: 'myth-fact', myth: 'm', factLead: 'f' }, { template: 'closing' }]) {
     refused({ ...t, series: 'nope' });
@@ -141,8 +151,8 @@ test('the poster page\'s new block types and options: valid, invalid and hostile
       { type: 'mark' },
     ],
   });
-  const mod = (f) => { const l = poster(); f(l); return validateLayout(l); };
-  assert.deepEqual(validateLayout(poster()), []);
+  const mod = (f) => { const l = poster(); f(l); return validateBuiltin(l); };
+  assert.deepEqual(validateBuiltin(poster()), []);
   // fixed lists and flags only
   for (const v of ['brand', 'yes', 'Auto', ...H, 1, true, null, {}, []]) {
     assert.ok(has(mod((l) => { l.blocks[1].label = v; }), 'label must be one of auto, none'), String(v));
@@ -167,11 +177,11 @@ test('the poster page\'s new block types and options: valid, invalid and hostile
   assert.ok(has(mod((l) => { l.blocks[4].device = 'desktop'; }), 'device is not used on a poster page'));
   // the poster headline's own options are not honoured on an editorial page nor offered on a grid page (nor to the editor or the AI)
   const editorial = { id: 'e', name: 'E', page: 'editorial', fields: { headline: {} }, canvas: { feed: { columns: 12, rows: 15, margin: 70 } }, blocks: [{ type: 'headline', px: { x: 70, y: 154, w: 940, h: 300 } }] };
-  for (const [k, v] of [['specAlign', true], ['fallback', 'tagline']]) assert.ok(has(validateLayout({ ...editorial, blocks: [{ ...editorial.blocks[0], [k]: v }] }), `${k} is used on poster pages only`), k);
+  for (const [k, v] of [['specAlign', true], ['fallback', 'tagline']]) assert.ok(has(validateBuiltin({ ...editorial, blocks: [{ ...editorial.blocks[0], [k]: v }] }), `${k} is used on poster pages only`), k);
   const grid = { id: 'g', name: 'G', fields: { headline: {} }, canvas: { feed: { columns: 12, rows: 15, margin: 70 } }, blocks: [{ type: 'headline', slot: { col: 1, row: 1, width: 12, height: 4 } }] };
-  for (const [k, v] of [['specAlign', true], ['fallback', 'tagline'], ['subFallback', 'website']]) assert.ok(has(validateLayout({ ...grid, blocks: [{ ...grid.blocks[0], [k]: v }] }), `${k} is used on poster pages only`), k);
-  assert.ok(has(validateLayout({ ...grid, blocks: [...grid.blocks, { type: 'mark' }] }), 'a mark block belongs to poster pages'));
-  assert.ok(has(validateLayout({ ...grid, blocks: [...grid.blocks, { type: 'slabs', slot: { col: 1, row: 6, width: 12, height: 4 } }] }), 'a slabs block belongs to poster pages'));
+  for (const [k, v] of [['specAlign', true], ['fallback', 'tagline'], ['subFallback', 'website']]) assert.ok(has(validateBuiltin({ ...grid, blocks: [{ ...grid.blocks[0], [k]: v }] }), `${k} is used on poster pages only`), k);
+  assert.ok(has(validateBuiltin({ ...grid, blocks: [...grid.blocks, { type: 'mark' }] }), 'a mark block belongs to poster pages'));
+  assert.ok(has(validateBuiltin({ ...grid, blocks: [...grid.blocks, { type: 'slabs', slot: { col: 1, row: 6, width: 12, height: 4 } }] }), 'a slabs block belongs to poster pages'));
   for (const t of ['slabs', 'mark']) assert.ok(!BLOCK_TYPES.includes(t) && !(t in layoutCatalogue().blocks), t);
   for (const o of ['specAlign', 'fallback', 'subFallback', 'label', 'phoneTop']) assert.ok(!Object.values(layoutCatalogue().blocks).some((b) => o in b.options), o);
 });
@@ -190,7 +200,7 @@ test('the new drawings escape what they show and take only validated numbers', (
       { type: 'mark' },
     ],
   };
-  assert.deepEqual(validateLayout(l), []);
+  assert.deepEqual(validateBuiltin(l), []);
   for (const h of H) {
     const spec = { template: 'layout', headline: h, line: h, myth: h, factLead: h, fact: h, label: h, image: 'a.png', align: h, phoneTop: h, size: h };
     const out = renderLayoutWith(l, spec, ctxOf({ ...demo, tagline: h, website: h }));
@@ -205,3 +215,5 @@ test('the new drawings escape what they show and take only validated numbers', (
   const at = renderLayoutWith(l, { template: 'layout', myth: 'm', factLead: 'f', image: 'a.png', phoneTop: 700 }, ctxOf(demo));
   assert.ok(at.body.includes('left:570px;top:700px;width:450px'));
 });
+
+test('the markup fixture holds every case these tests draw, and only those', () => fx.done());

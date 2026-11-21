@@ -1,11 +1,9 @@
-// The artefact templates as layouts: ledger, passbook, and a text page with an artefact (a "page": "editorial" each; see
-// lib/design/layout-editorial.mjs for how the blocks are drawn and design/templates/artefactPage.mjs for the function they
-// replace). One entry per template: a list of { when?, layout }, the first whose condition holds drawing the page; a spec that
-// matches none is drawn by the template function. A text page with an artefact is added here as more entries for "text" (they
-// are tried after builtin/editorial.mjs's, which takes a text page without one).
-//
-// Converted: ledger, passbook, and text with each type of artefact (a ledger, a register card, a passbook page, a passbook page
-// with its register card). Their function (artefactPage) is no longer used.
+// The artefact templates as layouts: ledger, passbook, and a text page with each type of artefact (a ledger, a register card, a
+// passbook page, a passbook page with its register card), a "page": "editorial" each (see lib/design/layout-editorial.mjs for how
+// the blocks are drawn). One entry per template: a list of { when?, layout }, the first whose condition holds drawing the page;
+// a spec that matches none (one validateDesign refuses) is refused. A text page with an artefact is added here as more entries
+// for "text" (they are tried after builtin/editorial.mjs's, which takes a text page without one). The pages are held to the
+// markup the template function (artefactPage) drew (testlib/builtin-markup.json).
 //
 // Every page is the same composition: the headline (and its sub line flowing under it) from y 154, the tint panel under it, and
 // the artefact on the panel as a crisp white card. Where the panel starts depends on the headline's size and on whether there

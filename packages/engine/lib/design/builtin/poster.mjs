@@ -1,9 +1,7 @@
-// The poster templates as layouts (a "page": "poster" each; see lib/design/layout-poster.mjs for how the blocks are drawn and
-// design/templates/poster.mjs for the functions they replace). One entry per template: a list of { when?, layout }, the first
-// whose condition holds drawing the page; a spec that matches none is drawn by the template function (not converted yet).
-//
-// Converted: number, object, product (centre and side), myth-fact, closing. Their functions in design/templates/poster.mjs are
-// unused and go when every template is converted.
+// The poster templates as layouts: number, object, product (centre and side), myth-fact and closing (a "page": "poster" each; see
+// lib/design/layout-poster.mjs for how the blocks are drawn). One entry per template: a list of { when?, layout }, the first
+// whose condition holds drawing the page; a spec that matches none (one validateDesign refuses) is refused. The pages are held
+// to the markup the template functions drew (testlib/builtin-markup.json).
 
 const CANVAS = { feed: { columns: 12, rows: 15, margin: 80, gutter: 40 } };
 // The headline sizes an object or product design may give (spec.mjs POSTER_SIZES).

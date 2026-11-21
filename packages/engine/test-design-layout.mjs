@@ -210,8 +210,11 @@ const editorial = () => ({
     { type: 'footer' },
   ],
 });
-const modP = (f) => { const l = poster(); f(l); return validateLayout(l); };
-const modE = (f) => { const l = editorial(); f(l); return validateLayout(l); };
+// These pages carry options of the built-in layouts' own (photoTop, specSize), so they are checked as built-in layouts are;
+// test-design-layout-builtin.mjs checks what a brand's own layout on these pages may use.
+const builtin = (l) => validateLayout(l, 'layout', { builtin: true });
+const modP = (f) => { const l = poster(); f(l); return builtin(l); };
+const modE = (f) => { const l = editorial(); f(l); return builtin(l); };
 
 test('px: a block may sit at a pixel rectangle instead of grid cells, whole numbers inside the page', () => {
   assert.deepEqual(mod((l) => { l.blocks[1] = { type: 'headline', px: { x: 70, y: 680, w: 940, h: 240 } }; }), []);
@@ -260,7 +263,7 @@ test('when: a block drawn only when a field is filled or empty, or on some pages
 });
 
 test('ground cases: the first whose condition holds, the last without one; photo on poster pages only', () => {
-  assert.deepEqual(validateLayout(poster()), []);
+  assert.deepEqual(builtin(poster()), []);
   assert.deepEqual(mod((l) => { l.ground = [{ when: { present: 'sub' }, ground: 'deep' }, { ground: 'series' }]; }), []);
   assert.ok(has(mod((l) => { l.ground = [{ when: { present: 'sub' }, ground: 'deep' }]; }), 'the last case has no "when"'));
   assert.ok(has(mod((l) => { l.ground = [{ ground: 'deep' }, { ground: 'light' }]; }), 'needs a "when" (only the last case has none)'));
@@ -274,7 +277,10 @@ test('ground cases: the first whose condition holds, the last without one; photo
 });
 
 test('page kinds: the built-in templates\' poster and editorial pages, their chrome and what each block honours there', () => {
-  assert.deepEqual(validateLayout(editorial()), []);
+  assert.deepEqual(builtin(editorial()), []);
+  // a brand's own layout may use these pages, but not the options that read a built-in template's own settings
+  assert.ok(has(validateLayout(poster()), 'photoTop reads a setting of the built-in templates\' own designs'));
+  assert.ok(has(validateLayout(editorial()), 'specSize reads a setting of the built-in templates\' own designs'));
   assert.ok(has(modP((l) => { l.page = 'magazine'; }), 'page must be one of grid, poster, editorial'));
   // chrome: no slot, on its own page only, never on a grid page (nor offered to the editor or the AI)
   assert.ok(has(mod((l) => { l.blocks.push({ type: 'bar' }); }), 'a bar block belongs to poster pages'));

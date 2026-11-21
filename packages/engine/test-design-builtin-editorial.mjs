@@ -1,6 +1,7 @@
 // node --test   (the editorial group of the built-in templates as layouts: cover, stats and photo-story, lib/design/builtin/
-// editorial.mjs. Each is drawn from its layout and makes exactly the page its function made, with every field filled, empty and
-// hostile, every ground, accent and option, on single posts and carousel pages; it refuses what the function refused, with the
+// editorial.mjs. Each is drawn from its layout and makes exactly the page its function made (testlib/builtin-markup.json), with
+// every field filled, empty and hostile, every ground, accent and option, on single posts and carousel pages; it refuses what the
+// function refused, with the
 // same words; and the block types and options the group added to the editorial page take only values from their fixed lists.
 // No Chrome: the pixel comparison is testlib/template-baseline.mjs, run by hand, see testlib/CONVERTING.md.)
 import test from 'node:test';
@@ -8,49 +9,61 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { brandFile } from './lib/core.mjs';
 import { loadBrand, normaliseBrand } from './lib/design/brand.mjs';
-import { builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
+import { TEMPLATE_FNS, builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
 import { LAYOUTS } from './lib/design/builtin/editorial.mjs';
 import { DesignError } from './lib/design/errors.mjs';
 import { BLOCK_TYPES, PAGES, layoutCatalogue, validateLayout } from './lib/design/layout.mjs';
 import { renderLayoutWith } from './lib/design/layout-render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
-import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
+import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
+// The built-in layouts' own format (lib/design/builtin-layouts.mjs validates them so): what is for them only is allowed here;
+// test-design-layout-builtin.mjs checks what a brand's own layout may use.
+const validateBuiltin = (l, where) => validateLayout(l, where, { builtin: true });
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const demo = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
 const brands = Object.fromEntries(Object.entries(STYLES).map(([k, style]) => [k, style ? { ...demo, ...normaliseBrand({ ...RAW, style }) } : demo]));
 const ctxOf = (brand, counter) => ({ size: SIZES.feed, brand, counter, image: () => PIXEL, imageSize: () => ({ w: 1800, h: 1200 }) });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '', warnings: o.warnings ?? [] });
+// The pages are checked against the hashes recorded from the template functions the layouts replaced
+// (testlib/markup-fixture.mjs), and so are the refusals' words.
+const fx = markupFixture('editorial');
+const draw = (t, spec, ctx) => parts(TEMPLATE_FNS[t](spec, ctx));
+const refusal = (t, spec, ctx) => {
+  let a;
+  try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
+  assert.ok(a instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a}`);
+  return `DesignError: ${a.message}`;
+};
 const has = (errs, frag) => errs.some((e) => e.includes(frag));
 const H = ['"><script>window.__pwn=1</script>', '</style><script>x</script>', '<img src=x onerror=alert(1)>', '*a* \\n b', '`${x}`', 'url(http://evil.example/x)'];
 const GROUNDS = ['light', 'soft', 'cool', 'warm', 'dark', 'deep', 'white', 'tint', 'mint', 'gold-pale', 'ink'];
 const ACCENTS = [undefined, 'muted', 'colour', 'weight', 'none'];
 const COUNTERS = [undefined, { n: 1, total: 2 }, { n: 2, total: 2 }, { n: 7, total: 10 }];
 
-// The same page from the layout and from the function, for every brand style and counter. The legacy function returns no
+// The same page from the layout as from the function (the fixture), for every brand style and counter. The function returned no
 // warnings; the layout's must be none either.
 function same(s, msg = JSON.stringify(s).slice(0, 140)) {
   const spec = forSize(normaliseDesign(s), 'feed');
-  for (const [style, brand] of Object.entries(brands)) {
-    for (const counter of COUNTERS) {
-      assert.deepEqual(parts(TEMPLATE_FNS[s.template](spec, ctxOf(brand, counter))), parts(LEGACY_FNS[s.template](spec, ctxOf(brand, counter))), `${style} ${JSON.stringify(counter)} ${msg}`);
-    }
-  }
+  const drawn = [];
+  for (const brand of Object.values(brands)) for (const counter of COUNTERS) drawn.push(draw(s.template, spec, ctxOf(brand, counter)));
+  fx.check({ s }, drawn, msg);
 }
 
 test('cover, stats and photo-story are drawn from their layouts, each variant from its own', () => {
-  for (const list of Object.values(LAYOUTS)) for (const v of list) assert.deepEqual(validateLayout(v.layout), [], v.layout.id);
+  for (const list of Object.values(LAYOUTS)) for (const v of list) assert.deepEqual(validateBuiltin(v.layout), [], v.layout.id);
   assert.equal(builtinLayoutFor({ template: 'cover', headline: 'h', image: 'a.jpg' }).id, 'cover');
   assert.equal(builtinLayoutFor({ template: 'stats', big: '1' }).id, 'stats');
   assert.equal(builtinLayoutFor({ template: 'photo-story', headline: 'h', image: 'a.jpg' }).id, 'photo-story');
   assert.equal(builtinLayoutFor({ template: 'photo-story', layout: 'panel', headline: 'h', image: 'a.jpg' }).id, 'photo-story');
   assert.equal(builtinLayoutFor({ template: 'photo-story', layout: 'print', headline: 'h', image: 'a.jpg' }).id, 'photo-story-print');
-  // a layout photo-story does not take (validateDesign refuses it) matches no variant and goes to the function, as before
+  // a layout photo-story does not take (validateDesign refuses it) matches no variant, and is refused
   for (const layout of ['center', 'side']) {
     assert.equal(builtinLayoutFor({ template: 'photo-story', layout, headline: 'h', image: 'a.jpg' }), null, layout);
+    assert.throws(() => TEMPLATE_FNS['photo-story']({ template: 'photo-story', layout, headline: 'h', image: 'a.jpg' }, ctxOf(demo)), DesignError, layout);
     assert.ok(validateDesign({ template: 'photo-story', layout, headline: 'h', image: 'a.jpg' }).length, layout);
   }
 });
@@ -98,12 +111,7 @@ test('photo-story: the same page as its function in both variants, with every fi
 
 test('they refuse what their functions refused, with the same words', () => {
   const refused = (s) => {
-    const spec = forSize(normaliseDesign(s), 'feed');
-    let a, b;
-    try { TEMPLATE_FNS[s.template](spec, ctxOf(demo)); } catch (e) { a = e; }
-    try { LEGACY_FNS[s.template](spec, ctxOf(demo)); } catch (e) { b = e; }
-    assert.ok(a instanceof DesignError && b instanceof DesignError, JSON.stringify(s));
-    assert.equal(a.message, b.message);
+    fx.check({ refused: s }, refusal(s.template, forSize(normaliseDesign(s), 'feed'), ctxOf(demo)), JSON.stringify(s));
   };
   for (const base of [{ template: 'cover', headline: 'h', image: 'a.jpg' }, { template: 'stats', big: '1' }, { template: 'stats', big: '1', image: 'a.jpg' }, { template: 'photo-story', headline: 'h', image: 'a.jpg' }, { template: 'photo-story', layout: 'print', headline: 'h', image: 'a.jpg' }]) {
     refused({ ...base, series: 'nope' });
@@ -121,7 +129,7 @@ const fig = (o = {}) => ({ type: 'figure', px: { x: 70, y: 140, w: 940, h: 180 }
 const row = (o = {}) => ({ type: 'stats', px: { x: 70, y: 448, w: 940, h: 150 }, ...o });
 const pic = (o = {}) => ({ type: 'photo', px: { x: 0, y: 616, w: 1080, h: 588 }, ...o });
 const labels = (o = {}) => ({ type: 'labelrow', px: { x: 70, y: 1220, w: 940, h: 40 }, ...o });
-const check = (...blocks) => validateLayout(page(blocks));
+const check = (...blocks) => validateBuiltin(page(blocks));
 const drawn = (l, spec, counter) => renderLayoutWith(l, forSize(normaliseDesign(spec), 'feed'), ctxOf(demo, counter)).body;
 
 test('the editorial page draws a photo, a figure, figures and the label row, with options from fixed lists only', () => {
@@ -149,8 +157,8 @@ test('the editorial page draws a photo, a figure, figures and the label row, wit
   assert.ok(has(check(fig(), labels({ rule: true })), '"rule" is not a known setting'));
   assert.ok(has(check(fig(), labels({ px: { x: 10, y: 1000, w: 940, h: 40 } })), 'keeps inside the feed page\'s minimum margins'));
   assert.ok(has(check(fig(), labels({ px: undefined })), '.slot is required'));
-  assert.ok(has(validateLayout({ ...page([fig(), labels()]), page: 'poster' }), 'a labelrow block belongs to editorial pages'));
-  assert.ok(has(validateLayout({ ...page([{ type: 'labelrow', slot: { col: 1, row: 1, width: 12, height: 1 } }, { type: 'figure', slot: { col: 1, row: 3, width: 12, height: 3 } }]), page: undefined }), 'a labelrow block belongs to editorial pages'));
+  assert.ok(has(validateBuiltin({ ...page([fig(), labels()]), page: 'poster' }), 'a labelrow block belongs to editorial pages'));
+  assert.ok(has(validateBuiltin({ ...page([{ type: 'labelrow', slot: { col: 1, row: 1, width: 12, height: 1 } }, { type: 'figure', slot: { col: 1, row: 3, width: 12, height: 3 } }]), page: undefined }), 'a labelrow block belongs to editorial pages'));
   // the editor and the AI are never offered it
   assert.ok(!BLOCK_TYPES.includes('labelrow') && !('labelrow' in layoutCatalogue().blocks));
   // blocks still may not lie on each other unless their conditions exclude each other
@@ -187,3 +195,5 @@ test('a drawing never writes an option or a spec value that is not from its list
     assert.ok(body.includes('<div class="ph" data-avoid style="left:0px;top:616px;width:1080px;height:588px">'), 'frame none');
   }
 });
+
+test('the markup fixture holds every case these tests draw, and only those', () => fx.done());

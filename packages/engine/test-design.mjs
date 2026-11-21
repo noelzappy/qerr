@@ -11,7 +11,7 @@ import { autoLines, arcPoints, contrastRatio, explainProblems, findLayoutProblem
 import { Browser, findChrome } from './lib/design/chrome.mjs';
 import http from 'node:http';
 import { buildPage } from './lib/design/page.mjs';
-import { TEMPLATE_FNS } from './design/templates/index.mjs';
+import { TEMPLATE_FNS } from './lib/design/builtin-layouts.mjs';
 import { detectConverter } from './lib/design/convert.mjs';
 import { lintText } from './lib/design/lint.mjs';
 import { SIZES } from './lib/design/sizes.mjs';

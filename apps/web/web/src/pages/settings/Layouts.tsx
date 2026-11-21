@@ -3,6 +3,8 @@
 // People start from a blank layout or a starting point, place blocks by clicking the grid, set their options, see a sketch at
 // once and a real preview on request, and save. The JSON view shows the same layout as the engine reads it. The server checks
 // every layout with the engine's own validator; the problems it finds are shown as they are typed.
+// The built-in layouts (the templates' own) are listed read only; an admin may copy one into a layout of the brand's own, on the
+// built-in poster or editorial page, where blocks sit at pixel rectangles and the page places its chrome.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, Braces, Copy, Eye, LayoutTemplate, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -16,8 +18,9 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LayoutSketch } from './LayoutSketch';
 import {
-  BLOCK_LABEL, EDGES, OPTION_LABEL, SIZE_LABEL, blankLayout, blockTitle, fieldsFor, marginsOf, slotFor, withSlot,
-  type Block, type Catalogue, type Edge, type Grid, type Layout, type LayoutsResponse, type PreviewResult, type Slot, type StoredLayout,
+  BLOCK_LABEL, EDGES, OPTION_LABEL, SIZE_LABEL, blankLayout, blockTitle, builtPage, marginsOf, pxFor, slotFor, whenWords, withSlot,
+  type Block, type BuiltinLayout, type Catalogue, type Edge, type Grid, type Layout, type LayoutsResponse, type OptionSpec, type PageBlockSpec,
+  type PreviewResult, type Px, type Slot, type StoredLayout,
 } from './layout-types';
 import { SettingsPage } from './section';
 
@@ -25,24 +28,35 @@ const word = (v: string | number) => String(v).replace(/-/g, ' ');
 const opts = (values: Array<string | number>) => values.map((v) => ({ value: String(v), label: word(v) }));
 const num = (v: string, fallback: number) => (v.trim() === '' || !Number.isFinite(Number(v)) ? fallback : Math.round(Number(v)));
 const problemsOf = (err: unknown) => (err instanceof ApiError && err.details ? err.details.map((d) => d.message) : []);
+// The page colour a layout starts from, for the sketch (a list of cases: the one used when no condition holds).
+const groundOf = (l: Layout) => (typeof l.ground === 'string' ? l.ground : Array.isArray(l.ground) ? l.ground[l.ground.length - 1]?.ground ?? '' : '');
+const PAGE_WORD: Record<string, string> = { poster: 'the poster page', editorial: 'the editorial page', photo: 'the photo post', grid: 'a grid' };
+// What a block type shows and takes: the grid's catalogue, or the built-in page's own (pages[page].blocks).
+const specOf = (catalogue: Catalogue, layout: Layout, type: string): PageBlockSpec | null => {
+  if (builtPage(layout)) return catalogue.pages[layout.page!]?.blocks[type] ?? null;
+  const b = catalogue.blocks[type];
+  return b ? { kinds: b.kinds, field: b.field, chrome: false, children: b.children, under: b.under, options: b.options } : null;
+};
+const fieldsOfKind = (catalogue: Catalogue, kinds: string[]) => Object.keys(catalogue.fields).filter((f) => kinds.includes(catalogue.fields[f].kind));
 
 // ---- one block's settings ----
 
-function OptionFields({ block, catalogue, onChange }: { block: Block; catalogue: Catalogue; onChange: (b: Block) => void }) {
-  const spec = catalogue.blocks[block.type];
-  if (!spec) return null;
+function OptionFields({ block, options, onChange }: { block: Block; options: Record<string, OptionSpec>; onChange: (b: Block) => void }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {Object.entries(spec.options).map(([k, o]) => (o.type === 'enum'
+      {Object.entries(options).map(([k, o]) => (o.type === 'enum'
         ? <SelectField key={k} label={OPTION_LABEL[k] ?? k} value={String(block[k] ?? o.default)} options={opts(o.values)}
             onValueChange={(v) => onChange({ ...block, [k]: typeof o.values[0] === 'number' ? Number(v) : v })} />
-        : <SwitchField key={k} label={OPTION_LABEL[k] ?? k} checked={(block[k] ?? o.default) === true} onCheckedChange={(v) => onChange({ ...block, [k]: v })} />))}
+        : o.type === 'int'
+          ? <TextField key={k} label={OPTION_LABEL[k] ?? k} type="number" min={o.min} max={o.max} hint={`${o.min} to ${o.max}`} value={String(block[k] ?? o.default)}
+              onChange={(e) => onChange({ ...block, [k]: num(e.target.value, Number(block[k] ?? o.default)) })} />
+          : <SwitchField key={k} label={OPTION_LABEL[k] ?? k} checked={(block[k] ?? o.default) === true} onCheckedChange={(v) => onChange({ ...block, [k]: v })} />))}
     </div>
   );
 }
 
 function WhatItShows({ block, layout, catalogue, onChange }: { block: Block; layout: Layout; catalogue: Catalogue; onChange: (b: Block) => void }) {
-  const spec = catalogue.blocks[block.type];
+  const spec = specOf(catalogue, layout, block.type);
   const declared = (kinds: string[]) => Object.keys(layout.fields).filter((f) => kinds.includes(catalogue.fields[f]?.kind));
   if (block.type === 'label') {
     const way = block.field !== undefined ? 'field' : block.text !== undefined ? 'text' : 'source';
@@ -50,22 +64,38 @@ function WhatItShows({ block, layout, catalogue, onChange }: { block: Block; lay
     return (
       <div className="grid gap-3 sm:grid-cols-2">
         <SelectField label="Words" value={way} onValueChange={set} options={[{ value: 'field', label: 'A field of the post' }, { value: 'text', label: 'Fixed words of the layout' }, { value: 'source', label: 'The series, brand or page number' }]} />
-        {way === 'field' && <SelectField label="Field" value={block.field ?? ''} onValueChange={(v) => onChange({ ...block, field: v })} options={opts(fieldsFor(catalogue, 'label'))} hint="Declare it under Fields" />}
+        {way === 'field' && <SelectField label="Field" value={block.field ?? ''} onValueChange={(v) => onChange({ ...block, field: v })} options={opts(fieldsOfKind(catalogue, ['short']))} hint="Declare it under Fields" />}
         {way === 'text' && <TextField label="Fixed words" value={block.text ?? ''} maxLength={40} onChange={(e) => onChange({ ...block, text: e.target.value })} />}
         {way === 'source' && <SelectField label="Shows" value={block.source ?? 'series'} onValueChange={(v) => onChange({ ...block, source: v })} options={catalogue.labelSources.map((s) => ({ value: s, label: { series: 'The series name', brand: 'The brand name', folio: 'The page number (carousels)' }[s] ?? s }))} />}
       </div>
     );
   }
   if (!spec?.kinds.length) return null;
+  // On a built-in page a headline may carry its sub line flowing under it, in the same box (subField).
+  const flowing = builtPage(layout) && block.type === 'headline';
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <SelectField label="Shows the field" value={block.field ?? spec.field ?? ''} onValueChange={(v) => onChange({ ...block, field: v })} options={opts(fieldsFor(catalogue, block.type))} hint="Declare it under Fields" />
+      <SelectField label="Shows the field" value={block.field ?? spec.field ?? ''} onValueChange={(v) => onChange({ ...block, field: v })} options={opts(fieldsOfKind(catalogue, spec.kinds))} hint="Declare it under Fields" />
+      {flowing && (
+        <SelectField label="Sub line under it" optional value={block.subField ?? ''} hint="Set 28 px under the headline, in the same box"
+          onValueChange={(v) => { const { subField: _s, subWidth: _w, ...rest } = block; onChange(v ? { ...rest, subField: v } : rest); }}
+          options={[{ value: '', label: 'None' }, ...opts(declared(['text', 'short']).filter((f) => f !== (block.field ?? 'headline')))]} />
+      )}
       {block.type === 'screen' && block.device === 'desktop' && (
         <SelectField label="Window title from" optional value={block.titleField ?? ''} onValueChange={(v) => { const { titleField: _t, ...rest } = block; onChange(v ? { ...rest, titleField: v } : rest); }}
-          options={[{ value: '', label: 'No title' }, ...opts(fieldsFor(catalogue, 'label'))]} />
+          options={[{ value: '', label: 'No title' }, ...opts(fieldsOfKind(catalogue, ['short']))]} />
       )}
     </div>
   );
+}
+
+// A block's rectangle on a built-in page, in page pixels.
+function PxFields({ px, page, onChange }: { px: Px | null; page: { w: number; h: number }; onChange: (p: Px) => void }) {
+  const p = px ?? { x: 80, y: 600, w: 920, h: 200 };
+  const field = (k: keyof Px, label: string, max: number) => (
+    <TextField key={k} label={label} type="number" min={0} max={max} value={String(p[k])} onChange={(e) => onChange({ ...p, [k]: num(e.target.value, p[k]) })} />
+  );
+  return <div className="grid grid-cols-4 gap-2">{field('x', 'Left', page.w)}{field('y', 'Top', page.h)}{field('w', 'Width', page.w)}{field('h', 'Height', page.h)}</div>;
 }
 
 function SlotFields({ slot, grid, onChange }: { slot: Slot | null; grid: Grid; onChange: (s: Slot) => void }) {
@@ -77,7 +107,8 @@ function SlotFields({ slot, grid, onChange }: { slot: Slot | null; grid: Grid; o
 }
 
 function BlockEditor({ block, layout, size, catalogue, onChange, child = false }: { block: Block; layout: Layout; size: string; catalogue: Catalogue; onChange: (b: Block) => void; child?: boolean }) {
-  const spec = catalogue.blocks[block.type];
+  const spec = specOf(catalogue, layout, block.type);
+  const built = builtPage(layout);
   const sizes = Object.keys(layout.canvas);
   const [childAt, setChildAt] = useState<number | null>(null);
   const [childType, setChildType] = useState('headline');
@@ -85,10 +116,18 @@ function BlockEditor({ block, layout, size, catalogue, onChange, child = false }
   const setChildren = (list: Block[]) => onChange({ ...block, children: list });
   return (
     <div className="flex flex-col gap-4">
-      {!child && (
+      {!child && built && (spec?.chrome
+        ? <p className="text-[13px] text-muted-foreground">The page places this, as the brand's style says (logo placement, footer style).</p>
+        : (
+          <FieldGroup legend={`Rectangle on the ${size} page (px)`} hint="From the page's top-left corner. Text keeps inside the page's minimum margins; the preview runs every check.">
+            <PxFields px={pxFor(block, size)} page={catalogue.sizes[size] ?? { w: 1080, h: 1350 }} onChange={(p) => onChange({ ...block, px: p })} />
+          </FieldGroup>
+        ))}
+      {!child && block.when && <p className="text-[13px] text-muted-foreground">Drawn only when {whenWords(block.when)}. Change the condition in the JSON view.</p>}
+      {!child && !built && (
         <FieldGroup legend={`Slot on the ${size} grid`} hint="In grid cells, counted from 1. Or click two cells on the sketch: the first corner, then the opposite one.">
           <SlotFields slot={slotFor(block, size)} grid={layout.canvas[size]} onChange={(s) => onChange(withSlot(block, size, s, sizes))} />
-          {spec?.bleed && (
+          {catalogue.blocks[block.type]?.bleed && (
             <div className="flex flex-wrap gap-x-5 gap-y-1">
               {EDGES.map((e) => <CheckField key={e} label={`Bleed ${e}`} checked={(block.bleed ?? []).includes(e)} onCheckedChange={(v) => { const list = (block.bleed ?? []).filter((x) => x !== e); onChange({ ...block, bleed: (v ? [...list, e] : list) as Edge[] }); }} />)}
             </div>
@@ -96,7 +135,7 @@ function BlockEditor({ block, layout, size, catalogue, onChange, child = false }
         </FieldGroup>
       )}
       <WhatItShows block={block} layout={layout} catalogue={catalogue} onChange={onChange} />
-      <OptionFields block={block} catalogue={catalogue} onChange={onChange} />
+      {spec && <OptionFields block={block} options={spec.options} onChange={onChange} />}
       {spec?.children && (
         <FieldGroup legend="Inside the panel" hint="These flow from the top of the panel, one under the other.">
           {children.length === 0 && <p className="text-[13px] text-muted-foreground">Nothing yet: add a headline, a sub line or a label.</p>}
@@ -114,7 +153,7 @@ function BlockEditor({ block, layout, size, catalogue, onChange, child = false }
           )}
           {children.length < catalogue.limits.children && (
             <div className="flex items-end gap-2">
-              <SelectField className="flex-1" label="Add inside" value={childType} onValueChange={setChildType} options={Object.keys(catalogue.blocks).filter((t) => catalogue.blocks[t].child).map((t) => ({ value: t, label: BLOCK_LABEL[t] ?? t }))} />
+              <SelectField className="flex-1" label="Add inside" value={childType} onValueChange={setChildType} options={(built ? ['headline', 'sub'] : Object.keys(catalogue.blocks).filter((t) => catalogue.blocks[t].child)).map((t) => ({ value: t, label: BLOCK_LABEL[t] ?? t }))} />
               <Button variant="outline" onClick={() => { setChildren([...children, { type: childType }]); setChildAt(children.length); }}><Plus /> Add</Button>
             </div>
           )}
@@ -196,6 +235,8 @@ function LayoutEditor({ initial, stored, catalogue, onSaved, onClose }: { initia
   const [error, setError] = useState('');
   const checked = useDebounced(layout, 400);
   const seq = useRef(0);
+  const built = builtPage(layout);
+  const pageCat = built ? catalogue.pages[layout.page!] : null;
 
   // The engine's verdict as people edit.
   useEffect(() => {
@@ -218,6 +259,17 @@ function LayoutEditor({ initial, stored, catalogue, onSaved, onClose }: { initia
     setCorner(null);
   };
   const addBlock = () => {
+    if (built) {
+      // On a built-in page: chrome is placed by the page; anything else starts at a rectangle across the middle of the page.
+      const spec = pageCat?.blocks[newType];
+      const b: Block = spec?.chrome ? { type: newType } : { type: newType, px: { x: 80, y: 600, w: 920, h: 200 } };
+      if (newType === 'slabs') b.children = [];
+      const next = { ...layout, blocks: [...layout.blocks, b] };
+      if (spec?.field && !layout.fields[spec.field]) next.fields = { ...layout.fields, [spec.field]: {} };
+      setLayout(next);
+      setSelected(next.blocks.length - 1);
+      return;
+    }
     const g = layout.canvas[size];
     const b: Block = { type: newType, slot: { col: 1, row: Math.max(1, g.rows - 1), width: Math.min(4, g.columns), height: 1 } };
     const spec = catalogue.blocks[newType];
@@ -278,7 +330,8 @@ function LayoutEditor({ initial, stored, catalogue, onSaved, onClose }: { initia
     } catch (e) { setJsonError(errorMessage(e)); }
   }
 
-  const darkPage = catalogue.darkGrounds.includes(layout.ground ?? '');
+  const darkPage = catalogue.darkGrounds.includes(groundOf(layout));
+  const blockTypes = built ? Object.keys(pageCat?.blocks ?? {}) : Object.keys(catalogue.blocks);
   return (
     <FormPanel open onClose={onClose} size="xl" busy={busy === 'save'} title={stored ? `Edit ${stored.name}` : 'New layout'}
       description="Place blocks on the grid and set their options. The sketch moves as you edit; the preview draws the real image with the brand and runs every check."
@@ -291,6 +344,13 @@ function LayoutEditor({ initial, stored, catalogue, onSaved, onClose }: { initia
       )}>
       <div className="flex flex-col gap-5">
         {error && <Notice tone="bad">{error}</Notice>}
+        {built && (
+          <Notice tone="info" title={`On ${PAGE_WORD[layout.page!] ?? layout.page} of the built-in templates`}>
+            Blocks sit at pixel rectangles on the feed page and are drawn with the built-in look; the logo bar, running head and footer are
+            placed by the page as your brand's style says. Conditions (a block drawn only when a field is filled) and page colours chosen by
+            conditions are edited in the JSON view.
+          </Notice>
+        )}
         {problems.length > 0
           ? <Notice tone="warn" title="The engine would not accept this layout yet:"><Lines items={problems.slice(0, 12)} />{problems.length > 12 && <p className="mt-1 text-[12.5px]">and {problems.length - 12} more</p>}</Notice>
           : <Notice tone="good">The engine accepts this layout.</Notice>}
@@ -301,21 +361,23 @@ function LayoutEditor({ initial, stored, catalogue, onSaved, onClose }: { initia
               <TextField label="Name" value={layout.name} maxLength={40} onChange={(e) => setLayout({ ...layout, name: e.target.value })} />
               <TextField label="Id" mono hint="What a post's design names: lowercase letters, digits and -" value={layout.id} maxLength={40} onChange={(e) => setLayout({ ...layout, id: e.target.value })} />
               <TextAreaField className="sm:col-span-2" label="Description" optional rows={2} maxLength={300} hint="For your team and the AI: what this layout is for." value={layout.description ?? ''} onChange={(e) => setLayout({ ...layout, description: e.target.value || undefined })} />
-              <SelectField label="Page colour" value={layout.ground ?? 'series'} onValueChange={(v) => setLayout({ ...layout, ground: v })} options={[{ value: 'series', label: "The series' colour" }, ...opts(catalogue.grounds)]} />
+              {Array.isArray(layout.ground)
+                ? <p className="text-[13px] text-muted-foreground">Page colour: chosen by conditions ({layout.ground.map((c) => (c.when ? `${c.ground} when ${whenWords(c.when)}` : `else ${c.ground}`)).join(', ')}); edit it in the JSON view.</p>
+                : <SelectField label="Page colour" value={layout.ground ?? 'series'} onValueChange={(v) => setLayout({ ...layout, ground: v })} options={[{ value: 'series', label: "The series' colour" }, ...opts([...catalogue.grounds, ...(layout.page === 'poster' && layout.fields.image ? ['photo'] : [])])]} />}
               <SelectField label="Second half of the headline" value={layout.accent ?? 'series'} onValueChange={(v) => setLayout({ ...layout, accent: v })} options={[{ value: 'series', label: "The brand's style" }, ...opts(catalogue.accents)]} />
               <SelectField label="Texture" value={layout.texture ?? 'auto'} onValueChange={(v) => setLayout({ ...layout, texture: v })} options={catalogue.textures.map((t) => ({ value: t, label: t === 'auto' ? "The brand's style" : word(t) }))} />
             </div>
-            <FieldGroup legend="Sizes" hint="Each size has its own grid; a block may sit in a different slot on each.">
+            {!built && <FieldGroup legend="Sizes" hint="Each size has its own grid; a block may sit in a different slot on each.">
               <div className="flex flex-wrap gap-x-5 gap-y-1">
                 {Object.keys(catalogue.sizes).map((z) => <CheckField key={z} label={SIZE_LABEL[z] ?? z} checked={!!layout.canvas[z]} disabled={!!layout.canvas[z] && sizes.length === 1} onCheckedChange={(v) => toggleSize(z, v)} />)}
               </div>
               {sizes.length > 1 && <div className="flex flex-wrap gap-1.5">{sizes.map((z) => <Button key={z} size="sm" variant={z === size ? 'secondary' : 'ghost'} onClick={() => setSize(z)}>{z}</Button>)}</div>}
-            </FieldGroup>
+            </FieldGroup>}
             {layout.canvas[size] && (
               <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
                 <div className="flex flex-col gap-2">
-                  <LayoutSketch layout={layout} size={size} catalogue={catalogue} selected={selected} dark={darkPage} onSelect={(i) => { setSelected(i); setCorner(null); }} onCell={selected !== null ? onCell : undefined} />
-                  <p className="text-[12.5px] text-muted-foreground">{selected === null ? 'Click a block to change it.' : corner ? `First corner at column ${corner.col}, row ${corner.row}: click the opposite corner.` : 'Click two cells to place the selected block.'}</p>
+                  <LayoutSketch layout={layout} size={size} catalogue={catalogue} selected={selected} dark={darkPage} onSelect={(i) => { setSelected(i); setCorner(null); }} onCell={selected !== null && !built ? onCell : undefined} />
+                  <p className="text-[12.5px] text-muted-foreground">{selected === null ? 'Click a block to change it.' : built ? 'Set the selected block\'s rectangle in pixels on the right.' : corner ? `First corner at column ${corner.col}, row ${corner.row}: click the opposite corner.` : 'Click two cells to place the selected block.'}</p>
                   {preview && (
                     <div className="flex flex-col gap-2">
                       {preview.image && <img src={preview.image} alt={`Preview of the layout at ${preview.size} size`} className="w-full rounded-md border" />}
@@ -338,7 +400,7 @@ function LayoutEditor({ initial, stored, catalogue, onSaved, onClose }: { initia
                     </ul>
                     {layout.blocks.length < catalogue.limits.blocks && (
                       <div className="flex items-end gap-2">
-                        <SelectField className="flex-1" label="Add a block" value={newType} onValueChange={setNewType} options={Object.keys(catalogue.blocks).map((t) => ({ value: t, label: BLOCK_LABEL[t] ?? t }))} />
+                        <SelectField className="flex-1" label="Add a block" value={newType} onValueChange={setNewType} options={blockTypes.map((t) => ({ value: t, label: BLOCK_LABEL[t] ?? t }))} />
                         <Button variant="outline" onClick={addBlock}><Plus /> Add</Button>
                       </div>
                     )}
@@ -348,7 +410,7 @@ function LayoutEditor({ initial, stored, catalogue, onSaved, onClose }: { initia
                       <BlockEditor key={selected} block={block} layout={layout} size={size} catalogue={catalogue} onChange={(b) => setBlock(selected, b)} />
                     </FieldGroup>
                   )}
-                  <GridEditor layout={layout} size={size} catalogue={catalogue} onChange={setLayout} />
+                  {!built && <GridEditor layout={layout} size={size} catalogue={catalogue} onChange={setLayout} />}
                   <FieldsEditor layout={layout} catalogue={catalogue} onChange={setLayout} />
                 </div>
               </div>
@@ -373,7 +435,7 @@ function LayoutCard({ item, catalogue, onEdit, onToggle, onCopy, onRemove }: { i
   const run = (what: string, fn: () => Promise<void>) => async () => { setBusy(what); try { await fn(); } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(''); } };
   return (
     <li className="grid gap-4 rounded-lg border bg-card p-3 sm:grid-cols-[9rem_minmax(0,1fr)]">
-      <LayoutSketch layout={item.definition} size={sizes.includes('feed') ? 'feed' : sizes[0]} catalogue={catalogue} showGrid={false} dark={catalogue.darkGrounds.includes(item.definition.ground ?? '')} />
+      <LayoutSketch layout={item.definition} size={sizes.includes('feed') ? 'feed' : sizes[0]} catalogue={catalogue} showGrid={false} dark={catalogue.darkGrounds.includes(groundOf(item.definition))} />
       <div className="flex min-w-0 flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
@@ -388,6 +450,7 @@ function LayoutCard({ item, catalogue, onEdit, onToggle, onCopy, onRemove }: { i
         {item.definition.description && <p className="text-[13px] text-muted-foreground">{item.definition.description}</p>}
         <div className="flex flex-wrap items-center gap-1.5">
           {sizes.map((z) => <ToneBadge key={z} tone="quiet">{z}</ToneBadge>)}
+          {builtPage(item.definition) && <ToneBadge tone="quiet">{PAGE_WORD[item.definition.page!] ?? item.definition.page}</ToneBadge>}
           <span className="text-[12px] text-muted-foreground">Fields: {Object.keys(item.definition.fields ?? {}).join(', ')}</span>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -395,6 +458,45 @@ function LayoutCard({ item, catalogue, onEdit, onToggle, onCopy, onRemove }: { i
           <BusyButton size="sm" variant="ghost" loading={busy === 'copy'} onClick={() => void run('copy', onCopy)()}><Copy aria-hidden="true" /> Duplicate</BusyButton>
           <Button size="sm" variant="ghost" onClick={onRemove}><Trash2 aria-hidden="true" /> Remove</Button>
         </div>
+      </div>
+    </li>
+  );
+}
+
+// A built-in layout: read only. Its sketch, what it is for, the variant of its template it draws, its fields; a copy to change, when a
+// brand's layout may use what it uses (else why not); and its JSON to read.
+function BuiltinCard({ item, catalogue, canCopy, onCopy }: { item: BuiltinLayout; catalogue: Catalogue; canCopy: boolean; onCopy: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [json, setJson] = useState(false);
+  const l = item.definition, sizes = Object.keys(l.canvas ?? {});
+  return (
+    <li className="grid gap-4 rounded-lg border bg-card p-3 sm:grid-cols-[9rem_minmax(0,1fr)]">
+      <LayoutSketch layout={l} size={sizes.includes('feed') ? 'feed' : sizes[0]} catalogue={catalogue} showGrid={false} dark={catalogue.darkGrounds.includes(groundOf(l))} />
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="truncate font-medium">{l.name}</h3>
+            <p className="font-mono text-[12px] text-muted-foreground">{'{ "template": "'}{item.template}{'" }'}{item.variant ? `, when ${item.variant}` : ''}</p>
+          </div>
+          <ToneBadge tone="info">Built-in</ToneBadge>
+        </div>
+        {l.description && <p className="text-[13px] text-muted-foreground">{l.description}</p>}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {sizes.map((z) => <ToneBadge key={z} tone="quiet">{z}</ToneBadge>)}
+          <ToneBadge tone="quiet">{PAGE_WORD[l.page ?? 'grid'] ?? l.page}</ToneBadge>
+          <span className="text-[12px] text-muted-foreground">Fields: {Object.keys(l.fields ?? {}).join(', ')}</span>
+        </div>
+        {!item.copyable && item.why && <p className="text-[12.5px] text-muted-foreground">Not copied into a layout of your own: {item.why}.</p>}
+        <div className="flex flex-wrap gap-2">
+          {item.copyable && (
+            <BusyButton size="sm" variant="outline" loading={busy} disabled={!canCopy}
+              onClick={async () => { setBusy(true); try { await onCopy(); } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); } }}>
+              <Copy aria-hidden="true" /> Duplicate to edit
+            </BusyButton>
+          )}
+          <Button size="sm" variant="ghost" aria-expanded={json} onClick={() => setJson(!json)}><Braces aria-hidden="true" /> {json ? 'Hide' : 'Show'} JSON</Button>
+        </div>
+        {json && <pre className="max-h-80 overflow-auto rounded-md border bg-muted/40 p-2 font-mono text-[11.5px] leading-snug">{JSON.stringify(l, null, 2)}</pre>}
       </div>
     </li>
   );
@@ -411,6 +513,12 @@ export function LayoutsPage() {
   const starter = useMemo(() => data?.starters.find((s) => s.id === start) ?? null, [data, start]);
 
   const replace = (l: StoredLayout) => list.setData((d) => (d ? { ...d, layouts: d.layouts.some((x) => x.id === l.id) ? d.layouts.map((x) => (x.id === l.id ? l : x)) : [...d.layouts, l] } : d));
+  async function copyBuiltin(b: BuiltinLayout) {
+    const { layout } = await api.post<{ layout: StoredLayout }>('/api/settings/layouts', { builtin: b.id });
+    replace(layout);
+    toast.success(`Copied as ${layout.slug}; it is off until you switch it on`);
+    setEditing({ layout: structuredClone(layout.definition), stored: layout });
+  }
   const freeId = (base: string) => { let id = base, n = 2; while (items.some((x) => x.slug === id)) id = `${base}-${n++}`; return id; };
   function begin() {
     const base = starter ? structuredClone(starter) : blankLayout();
@@ -442,6 +550,20 @@ export function LayoutsPage() {
                 onRemove={() => setRemoving(item)} />
             ))}</ul>}
           <p className="flex items-center gap-2 text-[12.5px] text-muted-foreground"><LayoutTemplate className="size-4" aria-hidden="true" /> {items.length} of {data.max} layouts. A design block uses one as {'{ "template": "layout", "layout": "<id>" }'} with the layout's fields.</p>
+          <section className="flex flex-col gap-3" aria-labelledby="builtin-layouts">
+            <div>
+              <h2 id="builtin-layouts" className="text-base font-semibold">Built-in layouts</h2>
+              <p className="text-[13px] text-muted-foreground">
+                The templates' own layouts, as a design names them ({'{ "template": "number" }'}): read only. Duplicate one to start a layout of
+                your own from it, on the same page, with the same blocks and pixel positions. A copy leaves out what reads a template's own
+                settings (the headline size and alignment a design gives, the phone's and photo's positions, the pills, a desktop window's
+                frame and tilt): set those in the copy itself. Page covers are not post images and are not listed.
+              </p>
+            </div>
+            <ul className="flex flex-col gap-3">
+              {data.builtins.map((b) => <BuiltinCard key={b.id} item={b} catalogue={data.catalogue} canCopy={items.length < data.max} onCopy={() => copyBuiltin(b)} />)}
+            </ul>
+          </section>
           {editing && (
             <LayoutEditor initial={editing.layout} stored={editing.stored} catalogue={data.catalogue} onClose={() => setEditing(null)}
               onSaved={(l) => { replace(l); setEditing(null); }} />

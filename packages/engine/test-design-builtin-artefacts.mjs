@@ -1,5 +1,5 @@
 // node --test   (the artefact group of the built-in templates as layouts, lib/design/builtin/artefacts.mjs: ledger, passbook and a
-// text page with an artefact are drawn from their layouts, and the page is exactly the one their function (artefactPage) drew,
+// text page with an artefact are drawn from their layouts, and the page is exactly the one their function (artefactPage) drew (testlib/builtin-markup.json),
 // for every artefact type, headline size, with and without a sub line, every ground and accent, carousel pages, hostile text and
 // stray keys; and the artefact block's "from" option on the editorial page. No Chrome: the pixel comparison is
 // testlib/template-baseline.mjs, see testlib/CONVERTING.md.)
@@ -8,21 +8,34 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { brandFile } from './lib/core.mjs';
 import { loadBrand, normaliseBrand } from './lib/design/brand.mjs';
-import { builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
+import { TEMPLATE_FNS, builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
 import { DesignError } from './lib/design/errors.mjs';
 import { BLOCK_TYPES, layoutCatalogue, validateLayout, whenHolds } from './lib/design/layout.mjs';
 import { renderLayoutWith } from './lib/design/layout-render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
-import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
+import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
+// The built-in layouts' own format (lib/design/builtin-layouts.mjs validates them so): what is for them only is allowed here;
+// test-design-layout-builtin.mjs checks what a brand's own layout may use.
+const validateBuiltin = (l, where) => validateLayout(l, where, { builtin: true });
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const demo = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
 const brands = Object.fromEntries(Object.entries(STYLES).map(([k, style]) => [k, style ? { ...demo, ...normaliseBrand({ ...RAW, style }) } : demo]));
 const ctxOf = (brand, counter) => ({ size: SIZES.feed, brand, counter, image: () => PIXEL, imageSize: () => ({ w: 1800, h: 1800 }) });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '', warnings: o.warnings ?? [] });
+// The pages are checked against the hashes recorded from the template functions the layouts replaced
+// (testlib/markup-fixture.mjs), and so are the refusals' words.
+const fx = markupFixture('artefacts');
+const draw = (t, spec, ctx) => parts(TEMPLATE_FNS[t](spec, ctx));
+const refusal = (t, spec, ctx) => {
+  let a;
+  try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
+  assert.ok(a instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a}`);
+  return `DesignError: ${a.message}`;
+};
 const has = (errs, frag) => errs.some((e) => e.includes(frag));
 const HOSTILE = ['"><script>window.__pwn=1</script>', '</style><script>x</script>', '<img src=x onerror=alert(1)>', '*a* \\n b', '`${x}`'];
 
@@ -47,23 +60,28 @@ const KINDS = {
 };
 const IDS = { ledger: 'ledger', 'ledger-plain': 'ledger', passbook: 'passbook', 'passbook-bare': 'passbook', 'passbook-register': 'passbook-register', 'text-ledger': 'text-ledger', 'text-register': 'text-register', 'text-passbook': 'text-passbook', 'text-passbook-register': 'text-passbook-register' };
 
-// The page drawn from the layout and by the function, for the spec as the renderer sees it.
+// The page drawn from the layout, for the spec as the renderer sees it, against the one the function drew (the fixture).
+const styleOf = (brand) => Object.keys(brands).find((k) => brands[k] === brand);
 function same(s, brand = demo, counter, what = JSON.stringify(s).slice(0, 160)) {
   assert.deepEqual(validateDesign(s), [], what);
   const spec = forSize(normaliseDesign(s), 'feed');
   assert.ok(builtinLayoutFor(spec, counter), `${what}: drawn from a layout`);
-  assert.deepEqual(parts(TEMPLATE_FNS[s.template](spec, ctxOf(brand, counter))), parts(LEGACY_FNS[s.template](spec, ctxOf(brand, counter))), what);
+  fx.check({ s, style: styleOf(brand), counter }, draw(s.template, spec, ctxOf(brand, counter)), what);
 }
 
 test('each artefact page is drawn from its own layout, and every one of them is a valid layout', () => {
   for (const [k, s] of Object.entries(KINDS)) {
     const l = builtinLayoutFor({ headline: 'h', ...s });
     assert.equal(l?.id, IDS[k], k);
-    assert.deepEqual(validateLayout(l), [], k);
+    assert.deepEqual(validateBuiltin(l), [], k);
   }
-  // a text page without an artefact is the editorial group's; an artefact of no known type is left to the function
+  // a text page without an artefact is the editorial group's; an artefact of no known type (validateDesign refuses it) has no
+  // layout, and is refused
   assert.equal(builtinLayoutFor({ template: 'text', headline: 'h' }).id, 'text');
-  for (const artefact of [{ type: 'nope' }, 'ledger', ['ledger'], 7, true]) assert.equal(builtinLayoutFor({ template: 'text', headline: 'h', artefact }), null, JSON.stringify(artefact));
+  for (const artefact of [{ type: 'nope' }, 'ledger', ['ledger'], 7, true]) {
+    assert.equal(builtinLayoutFor({ template: 'text', headline: 'h', artefact }), null, JSON.stringify(artefact));
+    assert.throws(() => TEMPLATE_FNS.text({ template: 'text', headline: 'h', artefact }, ctxOf(demo)), DesignError, JSON.stringify(artefact));
+  }
 });
 
 test('the same page as the function at every headline size, with and without a sub line, every style and carousel page', () => {
@@ -152,11 +170,7 @@ test('an artefact page refuses what its function refused, with the same words', 
   for (const s of [{ series: 'nope' }, { ground: 'photo' }, { ground: 'purple' }]) {
     for (const base of Object.values(KINDS)) {
       const spec = forSize(normaliseDesign({ ...base, headline: 'h', ...s }), 'feed');
-      let a, b;
-      try { TEMPLATE_FNS[base.template](spec, ctxOf(demo)); } catch (e) { a = e; }
-      try { LEGACY_FNS[base.template](spec, ctxOf(demo)); } catch (e) { b = e; }
-      assert.ok(a instanceof DesignError && b instanceof DesignError, JSON.stringify(s));
-      assert.equal(a.message, b.message);
+      fx.check({ refused: { ...base, ...s } }, refusal(base.template, spec, ctxOf(demo)), JSON.stringify(s));
     }
   }
 });
@@ -177,14 +191,14 @@ const page = (art = {}, extra = {}) => ({
 });
 
 test('the artefact block takes "from" on the editorial page only, from its fixed list', () => {
-  for (const from of ['field', 'ledger', 'passbook']) assert.deepEqual(validateLayout(page({ from })), [], from);
-  for (const from of ['nope', '', 1, true, null, {}, ['ledger'], ...HOSTILE, '__proto__', 'constructor']) assert.ok(has(validateLayout(page({ from })), '.from must be one of field, ledger, passbook'), JSON.stringify(from));
+  for (const from of ['field', 'ledger', 'passbook']) assert.deepEqual(validateBuiltin(page({ from })), [], from);
+  for (const from of ['nope', '', 1, true, null, {}, ['ledger'], ...HOSTILE, '__proto__', 'constructor']) assert.ok(has(validateBuiltin(page({ from })), '.from must be one of field, ledger, passbook'), JSON.stringify(from));
   // align and valign are a grid page's: the editorial page places the cards from the rectangle's top-left
-  assert.ok(has(validateLayout(page({ align: 'center' })), 'align is not used on an editorial page'));
+  assert.ok(has(validateBuiltin(page({ align: 'center' })), 'align is not used on an editorial page'));
   // a grid page has no "from" (its artefact is always the field), and a poster page draws no artefact
   const grid = { id: 'g', name: 'Grid', fields: { headline: {}, artefact: {} }, canvas: { feed: { columns: 12, rows: 15, margin: 70, gutter: 20 } }, blocks: [{ type: 'headline', slot: { col: 1, row: 1, width: 12, height: 3 } }, { type: 'artefact', from: 'ledger', slot: { col: 1, row: 5, width: 12, height: 10 } }] };
-  assert.ok(has(validateLayout(grid), '.from is used on editorial pages only'));
-  assert.ok(has(validateLayout(page({}, { page: 'poster', blocks: [{ type: 'headline', px: { x: 80, y: 170, w: 920, h: 300 } }, { type: 'artefact', px: { x: 80, y: 600, w: 920, h: 600 } }] })), 'a poster page does not draw a artefact block'));
+  assert.ok(has(validateBuiltin(grid), '.from is used on editorial pages only'));
+  assert.ok(has(validateBuiltin(page({}, { page: 'poster', blocks: [{ type: 'headline', px: { x: 80, y: 170, w: 920, h: 300 } }, { type: 'artefact', px: { x: 80, y: 600, w: 920, h: 600 } }] })), 'a poster page does not draw a artefact block'));
   // the editor and the AI are not offered it
   assert.ok(BLOCK_TYPES.includes('artefact'));
   assert.equal(layoutCatalogue().blocks.artefact.options.from, undefined);
@@ -205,3 +219,5 @@ test('the artefact drawing: the field or the spec itself, cards from the rectang
   for (const artefact of [undefined, 'ledger', 7, ['x'], null]) assert.ok(!draw({}, { headline: 'h', artefact }).includes('obj card'), JSON.stringify(artefact));
   assert.match(draw({ from: '__proto__' }), /width:444px/);
 });
+
+test('the markup fixture holds every case these tests draw, and only those', () => fx.done());

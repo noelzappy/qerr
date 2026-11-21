@@ -1,7 +1,7 @@
-// Pieces shared by every template. Templates are functions (spec, ctx) -> { body, bodyClass?, bodyAttrs? };
-// ctx = { size, brand, counter?, image(path) }.
+// Pieces shared by every page drawing (lib/design/layout-*.mjs and the helpers in this folder). A page is drawn from a layout and a
+// spec as { body, bodyClass?, bodyAttrs? }, with ctx = { size, brand, counter?, image(path), imageSize(path) }.
 //
-// RULE for every template: nothing from a spec, a batch, a flag or the brand file reaches the page except through
+// RULE for every drawing: nothing from a spec, a batch, a flag or the brand file reaches the page except through
 //   esc()/fmt()/fmtE()  for text and attribute values (they add <br>, <span class="gold"> or <em> only AFTER escaping),
 //   ctx.image()         for pictures (a checked data: URI),
 //   a number the code computed or a value picked from a fixed table or list.
@@ -18,7 +18,6 @@ export const fmtE = (s) => esc(s).replace(/\\n|\n/g, '<br>').replace(/\*([^*]+)\
 export const fmtSub = (s) => esc(s).replace(/\\n|\n/g, '<br>').replace(/\*([^*]+)\*/g, '<b>$1</b>');
 // A font size that the fit loop can shrink (headlines, big numbers), times the brand's headline scale (--h-scale, 1 by default).
 export const hs = (n) => `calc(${n}px*var(--hs,1)*var(--h-scale,1))`;
-export const byName = (table, size) => table[size.name];
 // A number the code computed, as plain digits for markup (never "NaN" or an exponent).
 export const px = (n) => String(Math.round(Number(n) * 100) / 100);
 // "Every saving, on record." -> "Every saving, *on record.*"

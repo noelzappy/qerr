@@ -1,9 +1,6 @@
-// The screen template as layouts: a pre-framed phone (beside a passbook, faded, or with pills or a check list) or a desktop
-// window (design/templates/screen.mjs). One entry per template: a list of { when?, layout }, the first whose condition holds
-// drawing the page; a spec that matches none is drawn by the template function.
-//
-// Converted: screen, every variant (desktop, beside, fade, and the phone row). The function is kept, unused, until phase 2
-// removes the template functions (testlib/CONVERTING.md).
+// The screen template as layouts, every variant: a pre-framed phone (beside a passbook, faded, or with pills or a check list, the
+// phone row by default) or a desktop window. One entry per template: a list of { when?, layout }, the first whose condition holds
+// drawing the page. The pages are held to the markup the template function drew (testlib/builtin-markup.json).
 //
 // The pieces are the screen group's drawings on the editorial page (lib/design/layout-editorial.mjs): the `screen` block (a phone
 // the width of its rectangle, from its top, cut at its foot with fit "crop"; a desktop window with the spec's framed, tilt and

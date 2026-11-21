@@ -1,8 +1,10 @@
 // Admin only: the brand's own layouts (Settings, Layouts). Mounted at /api/settings/layouts.
 //
-//   GET    /                  the layouts, the starting points, and the engine's catalogue of blocks, options and fields
-//   POST   /                  a new layout: { definition } (written by hand or in the editor) or { starter, name? } (a copy of a
-//                             starting point); checked by the engine's layout validator before it is stored
+//   GET    /                  the layouts, the starting points, the built-in layouts (read only, and whether a brand may copy
+//                             each), and the engine's catalogue of blocks, options and fields
+//   POST   /                  a new layout: { definition } (written by hand or in the editor), { starter, name? } (a copy of a
+//                             starting point) or { builtin, name? } (a copy of a built-in layout, switched off until it is
+//                             switched on); checked by the engine's layout validator before it is stored
 //   POST   /validate          what is wrong with a layout, without storing it: { problems }
 //   POST   /preview           a layout drawn with sample words at one size, through the renderer and every check: { image, ... }
 //   PUT    /:id               replace a layout's definition (checked again)
@@ -28,6 +30,7 @@ const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.
 const createBody = z.union([
   z.object({ definition: z.record(z.string(), z.unknown()), origin: z.string().regex(/^reference:[0-9a-f-]{36}$/).optional() }).strict(),
   z.object({ starter: z.string().min(1).max(40), name: z.string().trim().min(1).max(40).optional() }).strict(),
+  z.object({ builtin: z.string().min(1).max(40), name: z.string().trim().min(1).max(40).optional() }).strict(),
 ]);
 const putBody = z.object({ definition: z.record(z.string(), z.unknown()) }).strict();
 const patchBody = z.object({ enabled: z.boolean().optional(), position: z.number().int().min(0).max(1000).optional() }).strict();
@@ -62,7 +65,8 @@ export function layoutRoutes(deps: Deps): Hono<AppEnv> {
   app.get('/', async (c) => {
     const { layout, starters } = await layoutEngine();
     const rows = await deps.prisma.brandLayout.findMany({ orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
-    return c.json({ layouts: rows.map(view), starters: starters.STARTER_LAYOUTS, catalogue: layout.layoutCatalogue(), max: MAX_LAYOUTS });
+    const builtins = starters.builtinLayouts().map((b) => ({ id: b.layout.id, template: b.template, variant: b.variant, copyable: b.copyable, why: b.why, definition: b.layout }));
+    return c.json({ layouts: rows.map(view), starters: starters.STARTER_LAYOUTS, builtins, catalogue: layout.layoutCatalogue(), max: MAX_LAYOUTS });
   });
 
   app.post('/validate', async (c) => {
@@ -82,8 +86,20 @@ export function layoutRoutes(deps: Deps): Hono<AppEnv> {
     const actor = c.get('user');
     const body = await readJson(c, createBody);
     if (await deps.prisma.brandLayout.count() >= MAX_LAYOUTS) throw conflict(`Keep at most ${MAX_LAYOUTS} layouts; remove one first`);
-    let definition: Json, origin: string;
-    if ('starter' in body) {
+    let definition: Json, origin: string, enabled = true;
+    if ('builtin' in body) {
+      // A built-in layout, copied as a brand's own: off until it is switched on, as any copy.
+      const { starters } = await layoutEngine();
+      const entry = starters.builtinLayouts().find((b) => b.layout.id === body.builtin);
+      if (!entry) throw notFound('There is no built-in layout with that id');
+      if (!entry.copyable) throw badRequest(`This built-in layout cannot be copied: ${entry.why}`);
+      const slug = await freeSlug(deps, body.name ?? `${body.builtin}-copy`);
+      const copy = starters.builtinCopy(body.builtin, { newId: slug, name: body.name ?? `${String(entry.layout.name).slice(0, 33)} (copy)` });
+      if (!copy) throw notFound('There is no built-in layout with that id');
+      definition = copy;
+      origin = `builtin:${body.builtin}`;
+      enabled = false;
+    } else if ('starter' in body) {
       const { starters } = await layoutEngine();
       const slug = await freeSlug(deps, body.name ?? body.starter);
       const copy = starters.starterCopy(body.starter, { newId: slug, name: body.name });
@@ -98,7 +114,7 @@ export function layoutRoutes(deps: Deps): Hono<AppEnv> {
     if (await deps.prisma.brandLayout.findUnique({ where: { slug: d.id } })) throw conflict(`A layout with the id "${d.id}" exists already; choose another id`);
     const position = (await deps.prisma.brandLayout.aggregate({ _max: { position: true } }))._max.position ?? -1;
     const r = await deps.prisma.brandLayout.create({
-      data: { slug: d.id, name: d.name, definition: d as Prisma.InputJsonValue, origin, position: position + 1, createdById: actor.id, updatedById: actor.id },
+      data: { slug: d.id, name: d.name, definition: d as Prisma.InputJsonValue, origin, enabled, position: position + 1, createdById: actor.id, updatedById: actor.id },
     });
     await audit(deps, actor, 'layout.create', 'layout', r.id, { layout: r.slug, origin });
     await syncBrand(deps);
