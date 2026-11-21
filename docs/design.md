@@ -547,7 +547,11 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
   (figures in drawn artefacts, and labels unless they have their own). Optional `font.display` (headlines) and `font.label`
   (running heads, footers, eyebrows, the website) name a family: the sans, the mono, or one with files of role `display` or
   `label` in `font.files` (roles: `sans`, `mono`, `display`, `label`; each file a `.woff2` with its weight and unicode
-  range). A name with no files is refused.
+  range). A name with no files is refused. In the web app (Settings, Brand and look, Type) each role's font is built in,
+  a woff2 upload (one file declared for every character), or a family from a curated list of Google Fonts that the server
+  downloads once and stores: its `latin` and `latin-ext` files, each listed in `font.files` with the unicode range Google
+  gave it (as the demo pack lists Inter), declared for weights `100 900` so the one weight picked is used throughout the role.
+  The engine sees only files in the pack folder; nothing is fetched while a page is rendered.
 - **`style`** (optional; without it a brand looks exactly as before). Every field is optional, a value from a fixed list or
   a number in range (`styleProblems`); the stylesheet takes only table entries and checked numbers, and the page root only
   fixed class names (`styleClasses`):
