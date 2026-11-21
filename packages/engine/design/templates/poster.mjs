@@ -129,6 +129,7 @@ export function number(spec, ctx) {
   return poster(ctx, g, pic + bar(ctx, dark) + big + line + stats, { spec });
 }
 
+// Unused: drawn from its layouts (lib/design/builtin/poster.mjs: product, and product-side for layout "side").
 export function product(spec, ctx) {
   const g = groundOf(spec, ctx, 'cool'), dark = isDark(ctx.brand, g);
   const d = ctx.imageSize?.(spec.image), ratio = d && d.w > 0 ? d.h / d.w : 1354 / 660;
