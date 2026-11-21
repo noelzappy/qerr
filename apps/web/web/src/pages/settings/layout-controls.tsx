@@ -4,7 +4,8 @@
 // the "sketch as if" switches.
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
-import { CheckField, FieldGroup, SelectField, SwitchField, TextField } from '@/components/kit';
+import { CheckField, FieldGroup, Hint, SelectField, SwitchField, TextField } from '@/components/kit';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -42,7 +43,7 @@ function ChoiceClause({ choice, choices, page, onChange }: { choice: NonNullable
   const list = choices.includes(choice.field) ? choices : [choice.field, ...choices];
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <div className="grid gap-2 @md:grid-cols-2">
+      <div className="grid gap-2 @xs:grid-cols-2">
         <SelectField label="when" value={choice.field} options={list.map((n) => ({ value: n, label: CHOICE_WORDS[n] ?? n }))}
           onValueChange={(f) => onChange({ field: f, op: choice.op, values: [page.conditions.choices[f].values[0]], list: false })} />
         <SelectField label="is" value={choice.op} options={[{ value: 'is', label: 'one of' }, { value: 'not', label: 'none of' }]} onValueChange={(op) => onChange({ ...choice, op: op as 'is' | 'not' })} />
@@ -70,7 +71,7 @@ export function ConditionEditor({ when, onChange, page, declared, legend = 'Show
       <p className="text-sm font-medium">{legend}</p>
       {used.length === 0 && <p className="text-[13px] text-muted-foreground">{always}</p>}
       {used.map((k, i) => (
-        <div key={k} className="flex min-w-0 flex-col gap-1 rounded-md border bg-muted/30 px-2.5 pb-2.5 pt-1">
+        <div key={k} className="flex min-w-0 flex-col gap-1 rounded-md bg-muted/40 px-2.5 pb-2.5 pt-1">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[12.5px] font-medium text-muted-foreground">{i === 0 ? 'Only' : 'and'}</span>
             <Button size="icon" variant="ghost" className="size-8" aria-label={`Remove the condition: ${CLAUSE_ADD[k].toLowerCase()}`} onClick={() => set(dropClause(k, cond))}><X /></Button>
@@ -100,7 +101,7 @@ function GroundSelect({ value, page, layout, catalogue, onChange, label = 'Page 
   const list = page.grounds.filter((g) => g !== 'photo' || (page.photoGround && layout.fields[page.photoGround.field]));
   const alias = Object.hasOwn(catalogue.groundAliases, v) ? [{ value: v, label: `${v} (an older name for ${catalogue.groundAliases[v]})` }] : [];
   return <SelectField label={label} value={v} onValueChange={onChange} options={[...list.map((g) => ({ value: g, label: GROUND_LABEL[g] ?? word(g) })), ...alias]}
-    hint={page.photoGround && !layout.fields[page.photoGround.field] ? 'Declare the image field to start the page from the photo.' : undefined} />;
+    hintMode="inline" hint={page.photoGround && !layout.fields[page.photoGround.field] ? 'Declare the image field to start the page from the photo.' : undefined} />;
 }
 
 export function GroundEditor({ layout, catalogue, onChange }: { layout: Layout; catalogue: Catalogue; onChange: (l: Layout) => void }) {
@@ -120,7 +121,7 @@ export function GroundEditor({ layout, catalogue, onChange }: { layout: Layout; 
           {cases.map((c, i) => {
             const last = i === cases.length - 1, otherwise = last && !c.cond;
             return (
-              <li key={i} className="flex flex-col gap-3 rounded-md border p-3">
+              <li key={i} className="flex flex-col gap-3 border-l-2 pl-3">
                 <div className="flex items-center gap-1">
                   <p className="flex-1 text-sm font-medium">{otherwise ? 'Otherwise' : `Case ${i + 1}`}</p>
                   {!otherwise && <Button size="icon" variant="ghost" aria-label={`Move case ${i + 1} up`} disabled={i === 0} onClick={() => set({ kind: 'cases', cases: move(cases, i, -1) })}><ArrowUp /></Button>}
@@ -181,7 +182,7 @@ function PlaceEditor({ block, layout, size, setSize, catalogue, by, onChange }: 
   const summary = (z: string) => { const s = slotOn(block, z), p = pxOn(block, z); return s ? `column ${s.col}, row ${s.row}, ${s.width} x ${s.height} cells` : p ? `${p.x}, ${p.y}, ${p.w} x ${p.h} px` : 'not placed'; };
   return (
     <FieldGroup legend="Place" hint={how === 'slot' ? 'Drag the block on the canvas, or type its place here. Column and row count from 1; width and height are in cells.' : 'In page pixels from the top-left corner. Drag the block on the canvas, or type its place here. Text keeps inside the page\'s minimum margins.'}>
-      <div className="grid gap-3 @md:grid-cols-2">
+      <div className="grid gap-3 @xs:grid-cols-2">
         {by.length > 1 && <SelectField label="Placed by" value={how} options={[{ value: 'slot', label: 'Grid cells' }, { value: 'px', label: 'Page pixels' }]} onValueChange={(v) => onChange(placeAs(block, v as 'slot' | 'px', layout, catalogue))} />}
         {sizes.length > 1 && <SwitchField className="@md:mt-6" label="Same place on every size" checked={same} onCheckedChange={(v) => onChange(withSamePlace(block, v, size, sizes))} />}
       </div>
@@ -250,7 +251,7 @@ export function BlockEditor({ block, layout, size, setSize, catalogue, onChange,
         const way = block.field !== undefined ? 'field' : block.text !== undefined ? 'text' : 'source';
         const setWay = (w: string) => { const { field: _f, text: _t, source: _s, ...rest } = block; const f = c.fields.find((x) => declared.includes(x)) ?? c.fields[0]; change(w === 'field' ? { ...rest, field: f } : w === 'text' ? { ...rest, text: 'Label' } : { ...rest, source: c.sources[0] }, w === 'field' && !declared.includes(f) ? [f] : undefined); };
         return (
-          <div key="words" className="grid gap-3 @md:grid-cols-2">
+          <div key="words" className="grid gap-3 @xs:grid-cols-2">
             <SelectField label="Words" value={way} onValueChange={setWay} options={[{ value: 'field', label: 'A field of the post' }, { value: 'text', label: 'Fixed words of the layout' }, { value: 'source', label: 'The post type, brand or page number' }]} />
             {way === 'field' && <SelectField label="Field" value={block.field ?? ''} onValueChange={(f) => pick('field', f)} options={fieldOptions(c.fields)} />}
             {way === 'text' && <TextField label="Fixed words" value={block.text ?? ''} maxLength={c.max} hint={`One line, up to ${c.max} characters`} onChange={(e) => change({ ...block, text: e.target.value })} />}
@@ -265,7 +266,7 @@ export function BlockEditor({ block, layout, size, setSize, catalogue, onChange,
       );
       case 'option': return <OptionControl key={c.key} name={c.key} spec={c.spec} value={block[c.key]} onChange={(v) => change({ ...block, [c.key]: v })} />;
       case 'when': return (
-        <div key="when" className="rounded-lg border p-3 sm:p-4">
+        <div key="when" className="border-t pt-3">
           <ConditionEditor when={block.when} page={page} declared={declared} onChange={(w) => change(w ? { ...block, when: w } : (({ when: _w, ...rest }) => rest as Block)(block))} />
         </div>
       );
@@ -283,7 +284,7 @@ export function BlockEditor({ block, layout, size, setSize, catalogue, onChange,
             ))}
           </ul>
           {childAt !== null && children[childAt] && (
-            <div className="rounded-md border p-3">
+            <div className="border-l-2 pl-3">
               <BlockEditor block={children[childAt]} layout={layout} size={size} setSize={setSize} catalogue={catalogue} child={spec.holds?.[children[childAt].type] ?? []}
                 onChange={(cb, declare) => setChildren(children.map((x, k) => (k === childAt ? cb : x)), declare)} />
             </div>
@@ -310,13 +311,13 @@ export function BlockEditor({ block, layout, size, setSize, catalogue, onChange,
   const options = controls.filter((c) => c.kind === 'option');
   return (
     <div className="flex flex-col gap-4">
-      {!child && spec.chrome && <p className="text-[13px] text-muted-foreground">The page places this, as the brand's style says (logo placement, footer style).</p>}
+      {!child && spec.chrome && <p className="flex items-center gap-1 text-[13px] text-muted-foreground">Placed by the page <Hint about="Placed by the page">The page places this, as the brand's style says (logo placement, footer style).</Hint></p>}
       {controls.filter((c) => c.kind === 'place' || c.kind === 'bleed').map(render)}
-      <div className="grid gap-3 @md:grid-cols-2">
+      <div className="grid gap-3 @xs:grid-cols-2">
         {controls.filter((c) => c.kind === 'field' || c.kind === 'binding').map(render)}
       </div>
       {controls.filter((c) => c.kind === 'words').map(render)}
-      {options.length > 0 && <div className="grid gap-3 @md:grid-cols-2">{options.map(render)}</div>}
+      {options.length > 0 && <div className="grid gap-3 @xs:grid-cols-2">{options.map(render)}</div>}
       {controls.filter((c) => c.kind === 'when' || c.kind === 'children').map(render)}
     </div>
   );
@@ -336,35 +337,36 @@ export function FieldsEditor({ layout, catalogue, onChange, onRemoved }: { layou
   const without = (rule: FieldRule, k: keyof FieldRule) => { const { [k]: _x, ...rest } = rule; return rest; };
   return (
     <FieldGroup legend="Fields a post fills in" hint="What a post fills in for this layout, and how long it may be. Every field must be shown by exactly one block (or by blocks that are never drawn together).">
-      <ul className="flex flex-col gap-2">
+      <ul className="flex flex-col divide-y">
         {Object.entries(layout.fields).map(([name, rule]) => {
           const f = catalogue.fields[name], R = f?.rules;
+          const note = [f?.word, shown.includes(name) ? '' : 'No block shows it yet.'].filter(Boolean).join('. ');
+          const number = (label: string, key: 'min' | 'max', bounds: { min: number; max: number; default?: number }, value: number | undefined, onValue: (v: string) => void) => (
+            <label className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
+              {label}
+              <Input className="h-7 w-20 px-2 text-[13px]" type="number" inputMode="numeric" min={bounds.min} max={bounds.max} aria-label={`${label} for ${name}`} title={`up to ${bounds.max}`}
+                value={value === undefined ? '' : String(value)} placeholder={key === 'max' && bounds.default !== undefined ? String(bounds.default) : undefined} onChange={(e) => onValue(e.target.value)} />
+            </label>
+          );
           return (
-            <li key={name} className="flex flex-col gap-3 rounded-md border p-2.5">
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="font-mono text-[13px]">{name}</p>
-                  <p className="text-[12px] text-muted-foreground">{f?.word}{shown.includes(name) ? '' : ' · no block shows it yet'}</p>
-                </div>
-                <Button size="icon" variant="ghost" aria-label={`Remove the field ${name}`} onClick={() => { set(name, null); onRemoved?.(name, rule); }}><Trash2 /></Button>
+            <li key={name} className="flex flex-col gap-1.5 py-2 first:pt-0">
+              <div className="flex items-center gap-1">
+                <p className="min-w-0 flex-1 truncate font-mono text-[13px]">{name}</p>
+                {note && <Hint about={name}>{note}</Hint>}
+                <Button size="icon-sm" variant="ghost" aria-label={`Remove the field ${name}`} onClick={() => { set(name, null); onRemoved?.(name, rule); }}><Trash2 /></Button>
               </div>
-              <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
                 <CheckField label="Required" checked={rule.required === true} onCheckedChange={(v) => set(name, v ? { ...rule, required: true } : without(rule, 'required'))} />
-                {R?.min && <TextField className="w-28" label="At least" type="number" inputMode="numeric" min={R.min.min} max={R.min.max} optional value={rule.min === undefined ? '' : String(rule.min)}
-                  onChange={(e) => set(name, e.target.value === '' ? without(rule, 'min') : { ...rule, min: Math.min(R.min!.max, Math.max(R.min!.min, num(e.target.value, 0))) })} />}
-                {R?.max && <TextField className="w-32" label={R.min ? 'At most' : 'Most characters'} type="number" inputMode="numeric" min={R.max.min} max={R.max.max} hint={`up to ${R.max.max}`}
-                  value={rule.max === undefined ? '' : String(rule.max)} placeholder={R.max.default !== undefined ? String(R.max.default) : undefined}
-                  onChange={(e) => set(name, e.target.value === '' ? without(rule, 'max') : { ...rule, max: Math.min(R.max!.max, Math.max(R.max!.min, num(e.target.value, R.max!.default ?? 1))) })} />}
+                {R?.min && number('At least', 'min', R.min, rule.min, (v) => set(name, v === '' ? without(rule, 'min') : { ...rule, min: Math.min(R.min!.max, Math.max(R.min!.min, num(v, 0))) }))}
+                {R?.max && number(R.min ? 'At most' : 'Most characters', 'max', R.max, rule.max, (v) => set(name, v === '' ? without(rule, 'max') : { ...rule, max: Math.min(R.max!.max, Math.max(R.max!.min, num(v, R.max!.default ?? 1))) }))}
               </div>
               {R?.types && (
-                <div className="flex flex-col gap-1">
-                  <p className="text-[13px]">Kinds of table or card it takes <span className="text-muted-foreground">(none ticked: any)</span></p>
-                  <div className="flex flex-wrap gap-x-5 gap-y-1">
-                    {R.types.map((t) => {
-                      const list = rule.types ?? [];
-                      return <CheckField key={t} label={word(t)} checked={list.includes(t)} onCheckedChange={(v) => { const next = v ? R.types!.filter((x) => x === t || list.includes(x)) : list.filter((x) => x !== t); set(name, next.length ? { ...rule, types: next } : without(rule, 'types')); }} />;
-                    })}
-                  </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span className="flex items-center gap-1 text-[12.5px] text-muted-foreground">Kinds of table or card <Hint about="Kinds of table or card">None ticked: any.</Hint></span>
+                  {R.types.map((t) => {
+                    const list = rule.types ?? [];
+                    return <CheckField key={t} label={word(t)} checked={list.includes(t)} onCheckedChange={(v) => { const next = v ? R.types!.filter((x) => x === t || list.includes(x)) : list.filter((x) => x !== t); set(name, next.length ? { ...rule, types: next } : without(rule, 'types')); }} />;
+                  })}
                 </div>
               )}
             </li>
@@ -447,9 +449,9 @@ export function ScenarioBar({ layout, catalogue, scenario, onChange }: { layout:
   const pages = used.some((c) => c.page !== undefined);
   const choices = [...new Set(used.flatMap((c) => (c.choice ? [c.choice.field] : [])))].filter((n) => page.conditions.choices[n]);
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-dashed p-3" role="group" aria-label="Sketch as if">
+    <div className="flex flex-col gap-2" role="group" aria-label="Sketch as if">
       <div className="flex items-center gap-2">
-        <p className="flex-1 text-[13px] font-medium">Sketch as if</p>
+        <p className="flex flex-1 items-center gap-1 text-[13px] font-medium">Sketch as if <Hint about="Sketch as if">Blocks a post would not draw in this case are hidden (the selected one is shown dashed). The preview draws a single post with these fields empty.</Hint></p>
         <Button size="sm" variant="ghost" onClick={() => onChange(defaultScenario(layout))}>Reset</Button>
       </div>
       {fields.length > 0 && (
@@ -457,14 +459,13 @@ export function ScenarioBar({ layout, catalogue, scenario, onChange }: { layout:
           {fields.map((f) => <CheckField key={f} label={`${f} is filled`} checked={!scenario.empty.includes(f)} onCheckedChange={(v) => onChange({ ...scenario, empty: v ? scenario.empty.filter((x) => x !== f) : [...scenario.empty, f] })} />)}
         </div>
       )}
-      <div className="grid gap-2 @md:grid-cols-2">
+      <div className="grid gap-2 @xs:grid-cols-2">
         {pages && <SelectField label="Page" value={scenario.page} onValueChange={(p) => onChange({ ...scenario, page: p })} options={page.conditions.pages.map((p) => ({ value: p, label: { single: 'A single post', first: 'Page 1 of a carousel', later: 'A later carousel page' }[p] ?? p }))} />}
         {choices.map((n) => (
           <SelectField key={n} label={CHOICE_WORDS[n] ?? n} value={String(scenario.choices[n])} onValueChange={(v) => onChange({ ...scenario, choices: { ...scenario.choices, [n]: page.conditions.choices[n].values.find((x) => String(x) === v) } })}
             options={page.conditions.choices[n].values.map((v) => ({ value: String(v), label: word(v) }))} />
         ))}
       </div>
-      <p className="text-[12px] text-muted-foreground">Blocks a post would not draw in this case are hidden (the selected one is shown dashed). The preview draws a single post with these fields empty.</p>
     </div>
   );
 }

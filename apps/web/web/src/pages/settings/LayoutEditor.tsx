@@ -14,13 +14,13 @@
 // shown as people edit (a debounced check), the sketch follows the "sketch as if" switches, and the preview draws the real image
 // with the brand. Nothing here decides what is valid.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, Braces, CircleCheck, Eye, ImageIcon, Plus, Save, Trash2, TriangleAlert } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { ArrowDown, ArrowUp, Braces, CircleCheck, Eye, ImageIcon, Plus, Save, Trash2, TriangleAlert } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ApiError, api } from '../../api';
 import { useDebounced, useDocumentTitle } from '../../hooks';
 import { errorMessage } from '../../lib/errors';
-import { BusyButton, FieldGroup, Lines, Notice, SelectField, TextAreaField } from '@/components/kit';
+import { Breadcrumbs, BusyButton, FieldGroup, Hint, Lines, Notice, SelectField, TextAreaField } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useUnsavedGuard } from '@/hooks/use-unsaved-guard';
@@ -282,8 +282,8 @@ export function LayoutEditor({ initial, stored, catalogue, takenIds, onSaved }: 
         {shownPreview?.result.ok && shownPreview.result.warnings.length === 0 && !stale && <Notice tone="good">The image passed every check.</Notice>}
       </div>
       {hasConditions && (
-        <details className="rounded-md border px-3 py-2">
-          <summary className="cursor-pointer text-[13px] font-medium">Sketch as if (for blocks with a condition)</summary>
+        <details>
+          <summary className="cursor-pointer text-[13px] font-medium text-muted-foreground hover:text-foreground">Sketch as if (for blocks with a condition)</summary>
           <div className="mt-2"><ScenarioBar layout={layout} catalogue={catalogue} scenario={scenario} onChange={setScenario} /></div>
         </details>
       )}
@@ -296,7 +296,7 @@ export function LayoutEditor({ initial, stored, catalogue, takenIds, onSaved }: 
         ? (
           <>
             <div className="flex items-center gap-2">
-              <h2 className="min-w-0 flex-1 text-[15px] font-semibold">Block settings</h2>
+              <h2 className="min-w-0 flex-1 text-sm font-semibold">Block settings</h2>
               <Button size="sm" variant="ghost" onClick={() => setSelected(null)}>Page settings</Button>
             </div>
             <FieldGroup legend={blockTitle(block)}>
@@ -307,9 +307,9 @@ export function LayoutEditor({ initial, stored, catalogue, takenIds, onSaved }: 
         )
         : (
           <>
-            <div>
-              <h2 className="text-[15px] font-semibold">Page settings</h2>
-              <p className="text-[13px] text-muted-foreground">Select a block on the canvas or in the list to change it.</p>
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold">Page settings</h2>
+              <Hint about="Page settings">Select a block on the canvas or in the list to change it.</Hint>
             </div>
             {page
               ? <PageSettings layout={layout} catalogue={catalogue} size={size} onChange={setLayout} onName={setName} onId={setId} onPage={changePage} />
@@ -326,10 +326,8 @@ export function LayoutEditor({ initial, stored, catalogue, takenIds, onSaved }: 
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-[88rem] flex-col gap-4 pb-10">
       <header className="sticky top-0 z-30 -mx-1 flex flex-col gap-2 border-b bg-background px-1 pb-2 pt-1">
+        <Breadcrumbs items={[{ label: 'Settings', to: '/settings/preferences' }, { label: 'Layouts', to: '/settings/layouts' }, { label: layout.name?.trim() || stored?.name || 'New layout' }]} />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <Link to="/settings/layouts" className="inline-flex min-h-9 items-center gap-1.5 rounded-md text-[13.5px] font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50">
-            <ArrowLeft className="size-4" aria-hidden="true" /> Layouts
-          </Link>
           <Input aria-label="Layout name" value={layout.name ?? ''} maxLength={catalogue.layout.name.max} placeholder="Name this layout" onChange={(e) => setName(e.target.value)}
             className="h-9 min-w-40 flex-1 border-transparent bg-transparent px-2 text-base font-semibold shadow-none hover:border-input focus-visible:border-ring sm:max-w-md" />
           {dirty && <span role="status" className="inline-flex items-center gap-1.5 text-[12.5px] text-warning-foreground"><span className="size-2 rounded-full bg-warning" aria-hidden="true" /> You have changes that are not saved</span>}
@@ -369,14 +367,16 @@ export function LayoutEditor({ initial, stored, catalogue, takenIds, onSaved }: 
       </header>
 
       {advanced && (
-        <div className="flex flex-col gap-3 rounded-lg border p-4">
-          <h2 className="text-[15px] font-semibold">Advanced: JSON</h2>
+        <div className="flex flex-col gap-3 border-b pb-4">
+          <div className="flex items-center gap-1.5">
+            <h2 className="text-sm font-semibold">Advanced: JSON</h2>
+            <Hint about="Advanced: JSON">The layout exactly as Vesk reads it. Edit it here and apply it; the editor then shows it, and Vesk checks it like any other change.</Hint>
+          </div>
           {hidden.length > 0 && (
             <Notice tone="warn" title="Settings the editor cannot show (Vesk refuses them for a brand's layout); change or remove them here:">
               <Lines items={hidden.slice(0, 12)} />
             </Notice>
           )}
-          <p className="text-[13px] text-muted-foreground">The layout exactly as Vesk reads it. Edit it here and apply it; the editor then shows it, and Vesk checks it like any other change.</p>
           <TextAreaField label="Layout JSON" mono rows={16} spellCheck={false} value={json} onChange={(e) => setJson(e.target.value)} error={jsonError || undefined} />
           <div><Button variant="outline" onClick={applyJson}>Apply the JSON</Button></div>
         </div>

@@ -4,12 +4,12 @@
 // (colours, type, surfaces, decoration, photo treatment); "Apply this look" shows them beside the brand as it is and saves them
 // only when an admin accepts.
 import { useEffect, useRef, useState } from 'react';
-import { ImagePlus, LayoutTemplate, Loader2, Palette, RefreshCw, Trash2 } from 'lucide-react';
+import { ImagePlus, Loader2, Palette } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../api';
 import { useDocumentTitle, useLoad } from '../../hooks';
 import { errorMessage } from '../../lib/errors';
-import { BusyButton, ConfirmAction, ErrorBlock, Notice, SwitchField, TextField, ToneBadge } from '@/components/kit';
+import { BusyButton, ConfirmAction, ErrorBlock, Hint, MoreMenu, Notice, SwitchField, TextField, ToneBadge, type MoreMenuItem } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,50 +46,48 @@ function ReferenceCard({ r, onChange, onRemove }: { r: DesignReference; onChange
     catch (err) { setError(errorMessage(err)); }
     finally { setBusy(''); }
   }
+  const menu: MoreMenuItem[] = [
+    ...(r.status === 'ready' && r.analysis?.composition ? [{ label: 'Use this layout', onSelect: () => setComposing(true) }] : []),
+    { label: busy === 'again' ? 'Describing...' : 'Describe again', disabled: working || busy === 'again', onSelect: () => void again() },
+    { label: 'Remove', tone: 'danger' as const, onSelect: onRemove },
+  ];
+  const proposal = r.status === 'ready' && r.analysis?.proposal;
+  const hasBrief = !!(r.brief || r.status === 'ready');
   return (
-    <li className="grid gap-4 rounded-lg border bg-card p-3 sm:grid-cols-[11rem_minmax(0,1fr)]">
-      <div className="flex flex-col gap-2">
-        {r.imageUrl ? <img src={r.imageUrl} alt={`Design reference ${r.fileName}`} className="aspect-square w-full rounded-md border object-cover" loading="lazy" /> : <div className="aspect-square w-full rounded-md border bg-muted" />}
-        <ToneBadge tone={STATUS[r.status].tone} dot>{STATUS[r.status].label}</ToneBadge>
+    <li className="flex min-w-0 flex-col gap-2.5 rounded-lg border bg-card p-3">
+      {r.imageUrl ? <img src={r.imageUrl} alt={`Design reference ${r.fileName}`} className="aspect-[4/3] w-full rounded-md object-cover" loading="lazy" /> : <div className="aspect-[4/3] w-full rounded-md bg-muted" />}
+      <div className="flex items-center gap-1">
+        <div className="min-w-0 flex-1">
+          <ToneBadge tone={STATUS[r.status].tone} dot>{STATUS[r.status].label}</ToneBadge>
+          <p className="truncate text-[12.5px] text-muted-foreground" title={r.note ? `${r.fileName} · "${r.note}"` : r.fileName}>{r.fileName}{r.note ? ` · "${r.note}"` : ''}</p>
+        </div>
+        <MoreMenu items={menu} />
       </div>
-      <div className="flex min-w-0 flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="truncate text-[13px] text-muted-foreground">{r.fileName}{r.note ? ` · "${r.note}"` : ''}</span>
-          <SwitchField label="Drafts use this reference" hint="Turn off to stop drafts leaning towards this style" checked={r.enabled} disabled={busy === 'enabled'} onCheckedChange={(v) => void patch({ enabled: v }, 'enabled')} />
+      {r.analysis && (
+        <div className="flex items-center gap-2">
+          <span className="flex shrink-0 -space-x-1" aria-label="Colours the AI saw">
+            {r.analysis.palette.slice(0, 6).map((p) => <span key={p.hex + p.role} className="size-4 rounded-full border-2 border-card" style={{ background: p.hex }} title={`${p.hex} ${p.role}`} />)}
+          </span>
+          <p className="min-w-0 truncate text-[13px]" title={r.analysis.summary}>{r.analysis.summary || `Mood: ${r.analysis.mood}`}</p>
         </div>
-        {error && <Notice tone="bad">{error}</Notice>}
-        {working && <p className="flex items-center gap-2 text-[13px] text-muted-foreground"><Loader2 className="size-4 animate-spin" aria-hidden="true" /> The AI is describing the style. This takes a few seconds.</p>}
-        {r.status === 'failed' && <Notice tone="bad">{r.error ?? 'The AI could not describe this picture.'} Check that an AI provider is set up for drafting and that its model can read images.</Notice>}
-        {r.analysis && (
-          <div className="flex flex-wrap items-center gap-1.5" aria-label="Colours the AI saw">
-            {r.analysis.palette.map((p) => (
-              <span key={p.hex + p.role} className="flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11.5px]">
-                <span className="size-3 rounded-full border" style={{ background: p.hex }} aria-hidden="true" />
-                <span className="font-mono">{p.hex}</span> <span className="text-muted-foreground">{p.role}</span>
-              </span>
-            ))}
-            <span className="text-[12px] text-muted-foreground">Mood: {r.analysis.mood}</span>
+      )}
+      {error && <Notice tone="bad">{error}</Notice>}
+      {working && <p className="flex items-center gap-2 text-[13px] text-muted-foreground"><Loader2 className="size-4 animate-spin" aria-hidden="true" /> The AI is describing the style. This takes a few seconds.</p>}
+      {r.status === 'failed' && <Notice tone="bad">{r.error ?? 'The AI could not describe this picture.'} Check that an AI provider is set up for drafting and that its model can read images.</Notice>}
+      {hasBrief && (
+        <details className="group text-[13px]">
+          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Brief</summary>
+          <div className="mt-2 flex flex-col gap-2">
+            <Textarea aria-label="Style brief the AI is given" rows={5} maxLength={2000} value={brief} onChange={(e) => setBrief(e.target.value)} className="text-[13px]" />
+            {brief.trim() && brief !== (r.brief ?? '') && <div><BusyButton size="sm" variant="outline" loading={busy === 'brief'} onClick={() => void patch({ brief: brief.trim() }, 'brief')}>Save the brief</BusyButton></div>}
           </div>
-        )}
-        {(r.brief || r.status === 'ready') && (
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor={`brief-${r.id}`} className="text-[13px] font-medium">Style brief the AI is given</label>
-            <Textarea id={`brief-${r.id}`} rows={4} maxLength={2000} value={brief} onChange={(e) => setBrief(e.target.value)} className="text-[13px]" />
-          </div>
-        )}
-        {r.status === 'ready' && r.analysis?.proposal && (
-          <div className="flex flex-col gap-2 rounded-md bg-muted/50 p-3">
-            <p className="text-[13px] text-muted-foreground">Applying changes your colours, type and surfaces to match this picture; you see the differences first and nothing is saved until you confirm.</p>
-            <div><Button onClick={() => setApplying(true)}><Palette aria-hidden="true" /> Apply this look</Button></div>
-          </div>
-        )}
-        <div className="flex flex-wrap gap-2">
-          {brief.trim() && brief !== (r.brief ?? '') && <BusyButton size="sm" loading={busy === 'brief'} onClick={() => void patch({ brief: brief.trim() }, 'brief')}>Save the brief</BusyButton>}
-          {r.status === 'ready' && r.analysis?.composition && <Button size="sm" variant="outline" onClick={() => setComposing(true)}><LayoutTemplate aria-hidden="true" /> Use this layout</Button>}
-          <BusyButton size="sm" variant="outline" loading={busy === 'again'} disabled={working} onClick={() => void again()}><RefreshCw aria-hidden="true" /> Describe again</BusyButton>
-          <Button size="sm" variant="ghost" onClick={onRemove}><Trash2 aria-hidden="true" /> Remove</Button>
-        </div>
-        {r.status === 'ready' && r.analysis && !r.analysis.proposal && <p className="text-[12px] text-muted-foreground">Describe it again to get style settings you can apply to your brand.</p>}
+        </details>
+      )}
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
+        <SwitchField label="Drafts use it" hint="Turn off to stop drafts leaning towards this style" checked={r.enabled} disabled={busy === 'enabled'} onCheckedChange={(v) => void patch({ enabled: v }, 'enabled')} />
+        {proposal
+          ? <Button size="sm" onClick={() => setApplying(true)}><Palette aria-hidden="true" /> Apply this look</Button>
+          : r.status === 'ready' && r.analysis && <Hint about="Apply this look">Describe it again to get style settings you can apply to your brand.</Hint>}
       </div>
       {r.analysis?.proposal && <ApplyLook reference={r} open={applying} onClose={() => setApplying(false)} />}
       {r.analysis?.composition && <ReferenceLayout reference={r} open={composing} onClose={() => setComposing(false)} />}
@@ -138,25 +136,19 @@ export function ReferencesPage() {
   const max = list.data?.max ?? 24;
   const on = items.filter((r) => r.enabled && r.status === 'ready').length;
   return (
-    <SettingsPage
-      title="Design references"
-      description="Upload posts, posters, adverts or pages whose style you like. The AI describes each one, and every draft is told to lean towards these styles, alongside the visual direction in Brand and look."
-    >
-      <div className="flex flex-col gap-3 rounded-lg border border-dashed p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex min-w-60 flex-1 flex-col gap-1.5">
-            <TextField label="What you like about it" optional value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="The calm layout and the big numbers" />
-          </div>
-          <input ref={input} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(e) => { if (e.target.files?.length) void upload(e.target.files); e.target.value = ''; }} />
-          <BusyButton loading={uploading} disabled={items.length >= max} onClick={() => input.current?.click()}><ImagePlus aria-hidden="true" /> Upload pictures</BusyButton>
-        </div>
-        <p className="text-[12.5px] text-muted-foreground">JPEG, PNG, WebP or GIF. Large pictures are scaled down first. Up to {max} references; {on} {on === 1 ? 'is' : 'are'} in use now. Use pictures you may share with your AI provider.</p>
+    <SettingsPage title="Design references" description="Pictures whose style you like. Drafts lean towards the ones switched on.">
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+        <TextField className="min-w-60 flex-1" label="What you like about it" optional value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="The calm layout and the big numbers"
+          hint="JPEG, PNG, WebP or GIF. Large pictures are scaled down first. The AI describes each picture, and drafts are told to lean towards these styles alongside the visual direction in Brand and look." />
+        <input ref={input} type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(e) => { if (e.target.files?.length) void upload(e.target.files); e.target.value = ''; }} />
+        <BusyButton variant="outline" loading={uploading} disabled={items.length >= max} onClick={() => input.current?.click()}><ImagePlus aria-hidden="true" /> Upload pictures</BusyButton>
       </div>
+      <p className="-mt-3 text-[12.5px] text-muted-foreground">{items.length} of {max} uploaded, {on} in use. Use pictures you may share with your AI provider.</p>
       {uploadError && <Notice tone="bad">{uploadError}</Notice>}
       {list.error ? <ErrorBlock message={list.error} onRetry={() => void list.reload()} />
         : list.loading && !list.data ? <Skeleton className="h-48 rounded-lg" />
         : items.length === 0 ? <p className="py-6 text-center text-[13.5px] text-muted-foreground">No design references yet.</p>
-        : <ul className="flex flex-col gap-3">{items.map((r) => <ReferenceCard key={r.id} r={r} onChange={(n) => setItems((cur) => cur.map((x) => (x.id === n.id ? n : x)))} onRemove={() => setRemoving(r)} />)}</ul>}
+        : <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{items.map((r) => <ReferenceCard key={r.id} r={r} onChange={(n) => setItems((cur) => cur.map((x) => (x.id === n.id ? n : x)))} onRemove={() => setRemoving(r)} />)}</ul>}
       <ConfirmAction
         open={!!removing}
         title="Remove this design reference?"

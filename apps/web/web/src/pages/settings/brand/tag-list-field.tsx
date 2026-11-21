@@ -1,14 +1,15 @@
 // A list of short words edited as chips: type a word and press Enter or comma, or click Add. Pasted text with commas is split.
 // Controlled: the caller owns `values`. Label, hint and error are wired to the input like the kit's TextField.
-import { useId, useState, type ClipboardEvent, type KeyboardEvent } from 'react';
+import { useId, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { Hint } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export function TagListField({ label, hint, error, values, onChange, placeholder, addLabel = 'Add', maxItems = 20, maxLength = 30 }: {
   label: string;
-  hint?: string;
+  hint?: ReactNode;
   error?: string;
   values: string[];
   onChange: (next: string[]) => void;
@@ -46,13 +47,15 @@ export function TagListField({ label, hint, error, values, onChange, placeholder
 
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex min-h-5 items-center gap-1">
+        <Label htmlFor={id}>{label}</Label>
+        {hint && <Hint about={label} id={hintId}>{hint}</Hint>}
+      </div>
       <div className="flex gap-2">
         <Input id={id} value={draft} maxLength={maxLength} disabled={full} placeholder={placeholder} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKeyDown} onPaste={onPaste}
           className="max-sm:h-11 max-sm:text-base" aria-invalid={error ? true : undefined} aria-describedby={[hintId, errorId].filter(Boolean).join(' ') || undefined} />
         <Button type="button" variant="outline" className="max-sm:h-11" disabled={full || !draft.trim()} onClick={commit}>{addLabel}</Button>
       </div>
-      {hint && <p className="text-[13px] text-muted-foreground" id={hintId}>{hint}</p>}
       {error && <p className="text-[13px] font-medium text-destructive" id={errorId} role="alert">{error}</p>}
       {values.length > 0 && (
         <div role="list" className="flex flex-wrap gap-1.5">

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Check, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { api } from '../../../api';
-import { Notice } from '@/components/kit';
+import { Hint } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { validHex, type BrandLook, type BrandSettings, type ContrastCheck, type PaletteChange } from '../brand-types';
 import { StyleSketch } from '../StyleSketch';
@@ -30,19 +30,22 @@ const COLOUR_NAME: Record<PaletteChange['colour'], string> = { primary: 'primary
 export function Changes({ changes }: { changes: PaletteChange[] }) {
   if (!changes.length) return null;
   return (
-    <Notice tone="info" title="Adjusted so text stays readable">
-      Where they are used for text, posts use {changes.map((c, i) => (
-        <span key={c.colour}>
-          {i > 0 && (i === changes.length - 1 ? ' and ' : ', ')}
-          a slightly {c.colour === 'accent' ? 'lighter' : 'darker'} {COLOUR_NAME[c.colour]}
-          {' '}<span className="inline-flex items-center gap-1 align-middle">
-            <span className="inline-block size-3 rounded-full border" style={{ background: c.from }} aria-hidden="true" />
-            <span className="font-mono text-[12px]">{c.from}</span> → <span className="inline-block size-3 rounded-full border" style={{ background: c.to }} aria-hidden="true" />
-            <span className="font-mono text-[12px]">{c.to}</span>
+    <p className="flex items-center gap-1 text-[13px] text-muted-foreground">
+      Adjusted so text stays readable.
+      <Hint about="the adjusted colours">
+        Where they are used for text, posts use {changes.map((c, i) => (
+          <span key={c.colour}>
+            {i > 0 && (i === changes.length - 1 ? ' and ' : ', ')}
+            a slightly {c.colour === 'accent' ? 'lighter' : 'darker'} {COLOUR_NAME[c.colour]}
+            {' '}<span className="inline-flex items-center gap-1 align-middle">
+              <span className="inline-block size-3 rounded-full border" style={{ background: c.from }} aria-hidden="true" />
+              <span className="font-mono text-[12px]">{c.from}</span> → <span className="inline-block size-3 rounded-full border" style={{ background: c.to }} aria-hidden="true" />
+              <span className="font-mono text-[12px]">{c.to}</span>
+            </span>
           </span>
-        </span>
-      ))}. Large shapes keep the colours you picked.
-    </Notice>
+        ))}. Large shapes keep the colours you picked.
+      </Hint>
+    </p>
   );
 }
 
@@ -55,9 +58,9 @@ export const readabilityText = (checks: ContrastCheck[]) => {
 export function Readability({ checks }: { checks: ContrastCheck[] }) {
   const failing = checks.filter((c) => !c.ok);
   return (
-    <details className="rounded-lg border p-3" open={failing.length > 0}>
-      <summary className="cursor-pointer text-[13.5px] font-medium">
-        {readabilityText(checks)} <span className="font-normal text-muted-foreground">(headlines, sub lines, labels and accent words on every page colour)</span>
+    <details open={failing.length > 0}>
+      <summary className="flex cursor-pointer items-center gap-1 text-[13.5px] font-medium">
+        {readabilityText(checks)}
       </summary>
       <ul className="mt-3 grid gap-1.5 text-[12.5px] sm:grid-cols-2">
         {[...checks].sort((a, b) => Number(a.ok) - Number(b.ok)).map((c) => (
@@ -81,9 +84,12 @@ export function PreviewRail({ s, look, fallbackChecks, logo, artwork, font }: Sk
   return (
     <aside aria-label="Preview of your posts" className="hidden xl:sticky xl:top-0 xl:block xl:self-start">
       <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
-        <h2 className="text-[13px] font-semibold">Preview</h2>
+        <div className="flex items-center gap-1">
+          <h2 className="text-[13px] font-semibold">Preview</h2>
+          <Hint about="Preview">A sketch of your posts. The real images are made by Vesk.</Hint>
+        </div>
         <StyleSketch s={s} palette={look?.palette ?? null} logo={logo} artwork={artwork} font={font} compact />
-        <p className="text-[12.5px] text-muted-foreground" role="status">{readabilityText(checks)}. A sketch: the real images are made by Vesk.</p>
+        <p className="text-[12.5px] text-muted-foreground" role="status">{readabilityText(checks)}</p>
       </div>
     </aside>
   );

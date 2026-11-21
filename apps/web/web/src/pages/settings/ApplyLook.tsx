@@ -67,7 +67,7 @@ export function ApplyLook({ reference, open, onClose, logo }: { reference: Desig
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Apply this look?</DialogTitle>
-          <DialogDescription>Vesk suggests these style settings from {reference.fileName}, shown beside your brand as it is now. Nothing changes until you apply it, and you can change any part of it afterwards in Brand and look.</DialogDescription>
+          <DialogDescription>Style settings suggested from {reference.fileName}, beside your brand as it is now. Nothing changes until you apply it.</DialogDescription>
         </DialogHeader>
         {error ? <Notice tone="bad">{error}</Notice>
           : !data ? <Skeleton className="h-64" />

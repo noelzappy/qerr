@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Search, Trash2 } from 'lucide-react';
 import { api } from '../../api';
 import { errorMessage } from '../../lib/errors';
-import { BusyButton, SelectField, TextField } from '@/components/kit';
+import { BusyButton, FormPanel, Hint, SelectField, TextField } from '@/components/kit';
 import { FileField } from './brand/fields';
 import { SavedNote, useUploadStatus } from './brand/status';
 import { Button } from '@/components/ui/button';
@@ -62,33 +62,44 @@ export function RoleFont({ role, current, version, busy, onUpload, onGoogle, onR
   onUpload: (role: FontRole, f: File, family: string) => void; onGoogle: (role: FontRole, family: string, weight: number) => void; onRemove: (role: FontRole) => void;
 }) {
   const what = ROLE_WORD[role];
+  const [open, setOpen] = useState(false);
   const preview = useFontPreview(current, role, version);
   const fallback = role === 'body' ? 'Inter, the built-in font' : role === 'display' ? 'the body font' : 'the built-in monospaced font (IBM Plex Mono)';
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-dashed p-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-[13px] text-muted-foreground">
-            {current
-              ? <>In use for {what === 'body' ? 'body text' : `${what}s`}: <strong className="text-foreground">{current.family}</strong> ({sourceText(current)}).{current.source === 'google' && ' The one weight is used for all of this text.'}</>
-              : <>No {what} font of its own yet: {role === 'body' ? 'text uses' : `${what}s use`} {fallback}.</>}
-          </p>
-          {current && <p className="mt-1 text-[17px] leading-snug" style={preview ? { fontFamily: `'${preview}', sans-serif` } : undefined} aria-label={`Sample in ${current.family}`}>Save together, see every step.</p>}
-        </div>
-        {current && <Button type="button" variant="ghost" size="sm" className="shrink-0" onClick={() => onRemove(role)}><Trash2 aria-hidden="true" /> {role === 'body' ? 'Back to Inter' : 'Remove'}</Button>}
+    <div className="flex flex-col gap-1.5">
+      <div className="flex min-h-5 items-center gap-1">
+        <span className="text-sm leading-none font-medium select-none">Font file</span>
+        <Hint about="Font file">
+          {current
+            ? <>In use for {what === 'body' ? 'body text' : `${what}s`}: {current.family} ({sourceText(current)}).{current.source === 'google' && ' The one weight is used for all of this text.'}</>
+            : <>No {what} font of its own yet: {role === 'body' ? 'text uses' : `${what}s use`} {fallback}.</>}
+        </Hint>
       </div>
-      <Tabs defaultValue={current?.source === 'upload' ? 'upload' : 'google'}>
-        <TabsList>
-          <TabsTrigger value="google">Google Fonts</TabsTrigger>
-          <TabsTrigger value="upload">Upload a .woff2</TabsTrigger>
-        </TabsList>
-        <TabsContent value="google" className="mt-3">
-          <GoogleFontPicker role={role} current={current?.google ?? null} busy={busy === `google-${role}`} onUse={(family, weight) => onGoogle(role, family, weight)} />
-        </TabsContent>
-        <TabsContent value="upload" className="mt-3">
-          <UploadFont role={role} busy={busy === (role === 'body' ? 'font' : `font-${role}`)} onUpload={onUpload} />
-        </TabsContent>
-      </Tabs>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="min-w-0 truncate text-[15px] leading-snug font-medium" style={current && preview ? { fontFamily: `'${preview}', sans-serif` } : undefined} aria-label={current ? `Sample in ${current.family}` : undefined}>
+          {current ? current.family : role === 'body' ? 'Inter' : role === 'display' ? 'The body font' : 'IBM Plex Mono'}
+        </span>
+        <span className="text-[12.5px] text-muted-foreground">{current ? sourceText(current) : 'built in'}</span>
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>Change font</Button>
+        {current && <Button type="button" variant="ghost" size="sm" onClick={() => onRemove(role)}><Trash2 aria-hidden="true" /> {role === 'body' ? 'Back to Inter' : 'Remove'}</Button>}
+      </div>
+      <FormPanel
+        open={open} onClose={() => setOpen(false)} variant="dialog" size="lg" title={`Change the ${what} font`}
+        footer={<Button type="button" variant="outline" onClick={() => setOpen(false)}>Done</Button>}
+      >
+        <Tabs defaultValue={current?.source === 'upload' ? 'upload' : 'google'}>
+          <TabsList>
+            <TabsTrigger value="google">Google Fonts</TabsTrigger>
+            <TabsTrigger value="upload">Upload a .woff2</TabsTrigger>
+          </TabsList>
+          <TabsContent value="google" className="mt-3">
+            <GoogleFontPicker role={role} current={current?.google ?? null} busy={busy === `google-${role}`} onUse={(family, weight) => onGoogle(role, family, weight)} />
+          </TabsContent>
+          <TabsContent value="upload" className="mt-3">
+            <UploadFont role={role} busy={busy === (role === 'body' ? 'font' : `font-${role}`)} onUpload={onUpload} />
+          </TabsContent>
+        </Tabs>
+      </FormPanel>
     </div>
   );
 }
@@ -174,7 +185,6 @@ function GoogleFontPicker({ role, current, busy, onUse }: { role: FontRole; curr
           </div>
         ))}
       </div>
-      <p className="text-[12.5px] text-muted-foreground">A font shows a sample line once it is in use: Vesk keeps fonts on this server and never loads them from Google while you browse.</p>
       {font && (
         <div className="flex flex-wrap items-end gap-2">
           <SelectField className="w-48" label={`Weight of ${font.family}`} value={String(weight ?? nearest(font.weights, PREFERRED_WEIGHT[role]))} onValueChange={(v) => setWeight(Number(v))} options={font.weights.map((w) => ({ value: String(w), label: `${w} ${WEIGHT_NAME[w] ?? ''}`.trim() }))} />
@@ -184,8 +194,8 @@ function GoogleFontPicker({ role, current, busy, onUse }: { role: FontRole; curr
       )}
       {status.error && <p className="text-[13px] font-medium text-destructive" role="alert">{status.error}</p>}
       <p className="text-[12.5px] text-muted-foreground">
-        {font ? <>{font.family} is free to use under the {LICENCE_LABEL[font.licence]}. </> : 'Every family here is free to use (SIL Open Font License or Apache License). '}
-        Choosing a font downloads it once from Google Fonts to this server and saves it straight away; posts and this page never load anything from Google.
+        {font ? <>{font.family} is free to use under the {LICENCE_LABEL[font.licence]}. </> : 'Every family here is free to use. '}
+        Choosing a font downloads it once to this server and saves it straight away; nothing is loaded from Google in your browser.
       </p>
     </div>
   );

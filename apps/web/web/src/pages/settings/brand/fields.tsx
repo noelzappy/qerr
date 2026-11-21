@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { BusyButton, TextField } from '@/components/kit';
+import { BusyButton, Hint, TextField } from '@/components/kit';
 import { cn } from '@/lib/utils';
 import { validHex } from '../brand-types';
 import { SavedNote, useReportProblem, useUploadStatus } from './status';
@@ -49,9 +49,11 @@ export function ColourField({ label, hint, value, onChange, error }: { label: st
   const hintId = useId();
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <Label>{label}</Label>
+      <div className="flex min-h-5 items-center gap-1">
+        <Label>{label}</Label>
+        <Hint about={label} id={hintId}>{hint}</Hint>
+      </div>
       <ColourControl label={label} value={value} onChange={onChange} error={error} describedBy={hintId} />
-      <p id={hintId} className="text-[13px] text-muted-foreground">{hint}</p>
     </div>
   );
 }
@@ -102,16 +104,19 @@ export function FileField({ label, hint, accept, onFile, busy = false, buttonLab
   const hintId = `${id}-hint`, errorId = `${id}-error`;
   return (
     <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
-      <span id={`${id}-label`} className="text-sm leading-none font-medium select-none">{label}</span>
+      <div className="flex min-h-5 items-center gap-1">
+        <span id={`${id}-label`} className="text-sm leading-none font-medium select-none">{label}</span>
+        {hint && <Hint about={label} id={hintId}>{hint}</Hint>}
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <input ref={input} type="file" accept={accept} className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ''; }} />
-        <BusyButton variant="outline" size="sm" loading={busy} disabled={disabled} aria-labelledby={`${id}-label ${id}-button`} aria-describedby={[hint || immediate ? hintId : '', error ? errorId : ''].filter(Boolean).join(' ') || undefined} onClick={() => input.current?.click()}>
+        <BusyButton variant="outline" size="sm" loading={busy} disabled={disabled} aria-labelledby={`${id}-label ${id}-button`} aria-describedby={[hint ? hintId : '', error ? errorId : ''].filter(Boolean).join(' ') || undefined} onClick={() => input.current?.click()}>
           {icon}<span id={`${id}-button`}>{buttonLabel}</span>
         </BusyButton>
         {fileName && <span className="min-w-0 truncate text-[13px] text-muted-foreground">{fileName}</span>}
         {saved && <SavedNote />}
       </div>
-      {(hint || immediate) && <p id={hintId} className="text-[13px] text-muted-foreground">{hint}{hint && immediate ? ' ' : ''}{immediate && 'Saved as soon as you choose a file.'}</p>}
+      {immediate && !saved && <p className="text-[12.5px] text-muted-foreground">Saved as soon as you choose a file.</p>}
       {error && <p id={errorId} className="text-[13px] font-medium text-destructive" role="alert">{error}</p>}
     </div>
   );

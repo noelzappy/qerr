@@ -209,12 +209,11 @@ export function BrandSettingsPage() {
       <FieldProblemsProvider report={report}>
         <SettingsPage
           title="Brand and look"
-          description="How your posts look and sound. The AI follows the voice and the visual direction; Vesk draws every image from these colours, logos and post types."
         >
-          {!view.saved && <Notice tone="info" title="Not saved yet">These are the example brand's settings. Change them to your own and save: nothing is used until you do.</Notice>}
-          {view.saved && view.logosMissing && <Notice tone="warn" title="Images wait for your logo">Upload your logo and its mark (or draw a simple pair from your name) before images can be made.</Notice>}
+          {!view.saved && <Notice tone="info" title="Not saved yet">These are the example brand's settings. Nothing is used until you save your own.</Notice>}
+          {view.saved && view.logosMissing && <Notice tone="warn" title="Images wait for your logo">Upload your logo and its mark, or draw a simple pair from your name.</Notice>}
 
-          <nav aria-label="Sections of Brand and look" className="-mx-4 -mb-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+          <nav aria-label="Sections of Brand and look" className="-mx-4 -mb-4 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden">
             <ul className="flex min-w-max gap-1 border-b">
               {SECTIONS.map((x) => {
                 const active = x.id === section;

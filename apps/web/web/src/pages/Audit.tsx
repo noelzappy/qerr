@@ -68,15 +68,13 @@ export function Audit() {
   const filtered = !!action || !!actorQuery;
   const clear = () => { setAction(''); setActor(''); setPage(1); };
   return (
-    <SettingsPage title="Audit log" description="Every change that matters, with who made it and when. Secrets are never recorded here.">
-      <div className="flex flex-col gap-4">
-        <Card className="p-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]" role="search" aria-label="Filter the audit log">
-            <TextField label="Who" placeholder="Part of an email address" value={actor} onChange={(e) => { setActor(e.target.value); setPage(1); }} />
-            <SelectField label="What kind of change" value={action} onValueChange={(v) => { setAction(v); setPage(1); }} options={ACTION_OPTIONS} />
-            <div className="flex items-end"><Button variant="outline" className="max-sm:min-h-11" disabled={!filtered} onClick={clear}>Clear filters</Button></div>
-          </div>
-        </Card>
+    <SettingsPage title="Audit log" description="Secrets are never recorded here.">
+      <div className="flex flex-col gap-3">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end" role="search" aria-label="Filter the audit log">
+          <TextField label="Who" placeholder="Part of an email address" value={actor} onChange={(e) => { setActor(e.target.value); setPage(1); }} />
+          <SelectField label="What kind of change" value={action} onValueChange={(v) => { setAction(v); setPage(1); }} options={ACTION_OPTIONS} />
+          <Button variant="ghost" className="max-sm:min-h-11" disabled={!filtered} onClick={clear}>Clear filters</Button>
+        </div>
         <Card className="gap-0 overflow-hidden p-0" aria-label="Audit entries">
           {list.loading && !data ? <RowsSkeleton rows={6} />
             : list.error ? <ErrorBlock message={list.error} onRetry={() => void list.reload()} />

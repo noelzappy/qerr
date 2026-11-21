@@ -4,7 +4,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, ApiError } from '../../../api';
 import { errorMessage } from '../../../lib/errors';
-import { BusyButton, ConfirmAction, FormProblem, TextAreaField, TextField } from '@/components/kit';
+import { BusyButton, ConfirmAction, FormProblem, Hint, TextAreaField, TextField } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import type { BrandView } from '../brand-types';
@@ -32,10 +32,12 @@ export function VoiceSection({ ctx }: { ctx: BrandCtx }) {
       <TextAreaField label="Visual direction" optional hint="How the images should feel. For example: Calm pages with lots of space, one strong photo, numbers large; avoid busy collages." rows={5} maxLength={4000} value={s.visualDirection} onChange={(e) => set('visualDirection', e.target.value)} error={fields.visualDirection} />
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <Label>Names to spell exactly</Label>
+          <div className="flex items-center gap-1">
+            <Label>Names to spell exactly</Label>
+            <Hint about="Names to spell exactly">A wrong form and how it should be written. The checks correct it in every post.</Hint>
+          </div>
           <Button type="button" variant="ghost" size="sm" disabled={s.spellings.length >= MAX_SPELLINGS} onClick={() => set('spellings', [...s.spellings, { wrong: '', right: s.name }])}><Plus aria-hidden="true" /> Add a spelling</Button>
         </div>
-        <p className="text-[13px] text-muted-foreground">A wrong form and how it should be written. The checks correct it in every post.</p>
         {s.spellings.length === 0 && <p className="text-[13px] text-muted-foreground">No spellings yet.</p>}
         {s.spellings.map((x, i) => (
           <div key={i} className="grid items-end gap-2 sm:grid-cols-[1fr_auto_1fr_auto]">
@@ -57,12 +59,12 @@ export function AdvancedSection({ ctx }: { ctx: BrandCtx }) {
   const oldPattern = !!s.money && parseCurrencyPattern(s.money.foreign) === null;
   return (
     <Section id="advanced" title="Advanced" description="For people who work with Vesk's brand files: brand.json (described in docs/design.md) and the dot map. Most teams never need this section.">
-      <p className="text-[13px] text-muted-foreground">Everything in this section has its own Save or Import button and is saved straight away. It does not use the Save bar at the bottom of the page.</p>
+      <p className="text-[13px] text-muted-foreground">For people who work with Vesk's brand files. Everything here is saved straight away, not with the Save bar.</p>
       {oldPattern && s.money && (
-        <div className="flex flex-col gap-2 rounded-lg border p-3">
+        <div className="flex flex-col gap-2">
           <TextField
             label="Other currencies to flag, as a pattern" mono value={s.money.foreign} onChange={(e) => set('money', { ...s.money!, foreign: e.target.value })} error={fields['money.foreign']}
-            hint="This brand's list is a more detailed rule than a list of words, so it is kept here as a pattern. Separate options with |. This field is saved with the Save bar, not straight away."
+            hintMode="inline" hint="This brand's list is a more detailed rule than a list of words, so it is kept here as a pattern. Separate options with |. This field is saved with the Save bar, not straight away."
           />
         </div>
       )}
@@ -94,11 +96,10 @@ function AdvancedJson({ view, onSaved }: { view: BrandView; onSaved: (v: BrandVi
     }
   }
   return (
-    <details className="rounded-lg border p-3">
+    <details className="border-t pt-3">
       <summary className="cursor-pointer text-[13.5px] font-medium">Edit the brand.json fragment and the dot map</summary>
       <div className="mt-3 flex flex-col gap-3">
-        <p className="text-[13px] text-muted-foreground">The fragment is merged over what the other sections make; the logos and the fonts always come from uploads.</p>
-        <TextAreaField label="brand.json fragment" mono rows={10} value={advanced} onChange={(e) => setAdvanced(e.target.value)} />
+        <TextAreaField label="brand.json fragment" hint="Merged over what the other sections make; the logos and the fonts always come from uploads." mono rows={10} value={advanced} onChange={(e) => setAdvanced(e.target.value)} />
         <TextAreaField label="Dot map (map.json)" optional mono rows={4} value={map} onChange={(e) => setMap(e.target.value)} hint="Needed only for the map poster. Leave empty for none." />
         <FormProblem error={error} lines={lines} />
         <div><BusyButton variant="outline" loading={busy} onClick={() => void save()}>Save the Advanced settings</BusyButton></div>
@@ -139,10 +140,13 @@ function ImportPack({ onSaved }: { onSaved: (v: BrandView) => void }) {
     <FileField key={k} label={<>{label}{optional && <span className="font-normal text-muted-foreground"> (optional)</span>}</>} accept={accept} buttonLabel={files[k] ? 'Choose another file' : 'Choose a file'} fileName={files[k]?.name} onFile={(f) => setFiles((cur) => ({ ...cur, [k]: f }))} />
   );
   return (
-    <details className="rounded-lg border p-3">
+    <details className="border-t pt-3">
       <summary className="cursor-pointer text-[13.5px] font-medium">Import a brand pack</summary>
-      <p className="mt-2 text-[13px] text-muted-foreground">If you have a brand pack folder (brand.json, its logos and an optional map.json, such as brands/demo in the repository), choose its files. Its exact colours and rules are kept in the brand.json fragment below, and the other sections are filled from it. Nothing is changed until you import, and importing replaces the saved brand and logos.</p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <p className="mt-2 flex items-center gap-1 text-[13px] text-muted-foreground">
+        Importing replaces the saved brand and logos.
+        <Hint about="Import a brand pack">Choose the files of a brand pack folder (brand.json, its logos and an optional map.json, such as brands/demo in the repository). Its exact colours and rules are kept in the brand.json fragment, and the other sections are filled from it. Nothing is changed until you import.</Hint>
+      </p>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
         {row('brand', 'brand.json', 'application/json,.json')}
         {row('map', 'map.json', 'application/json,.json', true)}
         {row('full', 'logos/logo-full.png', 'image/png')}

@@ -1,18 +1,22 @@
 import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '../api';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BusyButton, ConfirmAction, ErrorBlock, Notice, SelectField } from '@/components/kit';
+import { BusyButton, ConfirmAction, ErrorBlock, Hint, MoreMenu, Notice, ToneBadge } from '@/components/kit';
+import { fromSelectValue, toSelectValue } from '@/lib/select-value';
 import { useDocumentTitle, useLoad } from '../hooks';
 import { formProblem } from '../lib/errors';
 import { formatDateTime } from '../lib/format';
 import { networkLabel } from '../lib/labels';
 import { useUnsavedGuard } from '@/hooks/use-unsaved-guard';
 import { SettingsPage } from './settings/section';
+
+// One row per network; on phones each row stacks.
+const ROW = 'grid gap-x-3 gap-y-2 px-3.5 md:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)_9.5rem_5.5rem] md:items-center';
 
 interface Route {
   accountId: string; accountName: string; channelId: string; channelName: string | null; updatedAt: string;
@@ -24,13 +28,22 @@ interface AccountChannels { accountId: string; accountName: string; ok: boolean;
 
 const channelText = (c: Channel) => `${c.displayName || c.name}${c.isQueuePaused ? ' (queue paused)' : ''}`;
 
-function CardsSkeleton() {
+function RowsSkeleton() {
   return (
-    <div className="grid gap-4 md:grid-cols-2" role="status" aria-label="Asking Buffer for channels">
-      {[0, 1, 2, 3].map((i) => (
-        <Card key={i} className="gap-3 p-5"><Skeleton className="h-6 w-1/3" /><Skeleton className="h-4 w-2/3" /><Skeleton className="h-9 w-full" /><Skeleton className="h-9 w-full" /></Card>
-      ))}
-    </div>
+    <Card className="gap-0 divide-y overflow-hidden p-0" role="status" aria-label="Asking Buffer for channels">
+      {[0, 1, 2, 3].map((i) => <div key={i} className={`${ROW} py-3`}><Skeleton className="h-5 w-20" /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></div>)}
+    </Card>
+  );
+}
+
+function RouteSelect({ label, value, onValueChange, options, disabled, className }: { label: string; value: string; onValueChange: (v: string) => void; options: Array<{ value: string; label: string }>; disabled?: boolean; className?: string }) {
+  return (
+    <Select value={toSelectValue(value, options)} onValueChange={(v) => onValueChange(fromSelectValue(v))} disabled={disabled}>
+      <SelectTrigger aria-label={label} className={`w-full max-sm:h-11 max-sm:text-base ${className ?? ''}`}><SelectValue /></SelectTrigger>
+      <SelectContent position="popper">
+        {options.map((o) => <SelectItem key={o.value} value={toSelectValue(o.value, [o])}>{o.label}</SelectItem>)}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -57,42 +70,45 @@ export function Routing() {
   return (
     <SettingsPage
       title="Channels"
-      description="For each network, choose the Buffer account and the channel its posts go to. A batch cannot be sent to a network that has no route."
+      description="A batch cannot be sent to a network that has no route."
       actions={<BusyButton variant="outline" loading={refreshing || channels.loading} onClick={() => void refreshAll()}><RefreshCw aria-hidden="true" />Refresh from Buffer</BusyButton>}
     >
-      {loading ? <CardsSkeleton />
+      {loading ? <RowsSkeleton />
         : routing.error ? <Card className="gap-0 p-0"><ErrorBlock message={routing.error} onRetry={() => void routing.reload()} /></Card>
         : channels.error ? <Card className="gap-0 p-0"><ErrorBlock message={channels.error} onRetry={() => void channels.reload()} /></Card>
         : (
-          <div className="flex flex-col gap-4">
-            {(channels.data ?? []).length === 0 && <Notice tone="info" title="No Buffer accounts yet.">Add an account under Buffer accounts first, then come back to choose channels.</Notice>}
+          <div className="flex flex-col gap-3">
+            {(channels.data ?? []).length === 0 && <Notice tone="info" title="No Buffer accounts yet.">Add one under <Link to="/settings/accounts" className="font-medium underline underline-offset-2">Buffer accounts</Link>, then come back to choose channels.</Notice>}
             {(channels.data ?? []).filter((a) => !a.ok).map((a) => (
               <Notice key={a.accountId} tone="warn" title={`Could not list channels for ${a.accountName}.`}>{a.error ?? 'Buffer did not answer.'} Check the account's key.</Notice>
             ))}
-            <div className="grid gap-4 md:grid-cols-2">
+            <Card className="gap-0 divide-y overflow-hidden p-0" role="table" aria-label="Channel routes">
+              <div role="row" className={`${ROW} hidden h-9 bg-muted/60 font-mono text-[11.5px] font-medium uppercase tracking-wider text-muted-foreground md:grid`}>
+                <span role="columnheader">Network</span><span role="columnheader">Buffer account</span><span role="columnheader">Channel</span><span role="columnheader">Status</span><span role="columnheader" className="sr-only">Actions</span>
+              </div>
               {(routing.data ?? []).map((row) => (
-                <NetworkCard key={row.network} row={row} accounts={channels.data ?? []} onChanged={() => void routing.reload()} />
+                <NetworkRow key={row.network} row={row} accounts={channels.data ?? []} onChanged={() => void routing.reload()} />
               ))}
-            </div>
+            </Card>
           </div>
         )}
     </SettingsPage>
   );
 }
 
-function NetworkCard({ row, accounts, onChanged }: { row: RoutingRow; accounts: AccountChannels[]; onChanged: () => void }) {
+function NetworkRow({ row, accounts, onChanged }: { row: RoutingRow; accounts: AccountChannels[]; onChanged: () => void }) {
   const { network, route } = row;
   const [accountId, setAccountId] = useState(route?.accountId ?? '');
   const [channelId, setChannelId] = useState(route?.channelId ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [clearing, setClearing] = useState(false);
-  useUnsavedGuard(accountId !== (route?.accountId ?? '') || channelId !== (route?.channelId ?? ''));
+  const dirty = accountId !== (route?.accountId ?? '') || channelId !== (route?.channelId ?? '');
+  useUnsavedGuard(dirty);
 
   const account = accounts.find((a) => a.accountId === accountId);
   const matching = (account?.channels ?? []).filter((c) => c.network === network);
   const options = matching.length ? matching : (account?.channels ?? []);
-  const unchanged = !!route && route.accountId === accountId && route.channelId === channelId;
   // The saved channel may no longer be in the account's list; keep it selectable so the form does not silently drop it.
   const savedMissing = !!route && accountId === route.accountId && !options.some((c) => c.id === route.channelId);
 
@@ -125,29 +141,39 @@ function NetworkCard({ row, accounts, onChanged }: { row: RoutingRow; accounts: 
     ...(savedMissing && route ? [{ value: route.channelId, label: `${route.channelName || route.channelId} (no longer listed)` }] : []),
     ...options.map((c) => ({ value: c.id, label: channelText(c) })),
   ];
+  const noMatch = !!account && account.ok && matching.length === 0;
+  const name = networkLabel(network);
 
   return (
-    <Card className="gap-3 p-5 max-sm:p-4" aria-label={networkLabel(network)}>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">{networkLabel(network)}</h2>
-        {route ? <Badge variant={needsAttention ? 'destructive' : 'success'}>{needsAttention ? 'Needs attention' : 'Routed'}</Badge> : <Badge variant="quiet">Not set</Badge>}
+    <div role="row" aria-label={name} className="py-2.5">
+      <div className={ROW}>
+        <h2 role="rowheader" className="text-[13.5px] font-medium">{name}</h2>
+        <div role="cell" className="min-w-0">
+          <RouteSelect label={`${name}: Buffer account`} value={accountId} onValueChange={(v) => { setAccountId(v); setChannelId(''); setError(''); }} options={accountOptions} />
+        </div>
+        <div role="cell" className="flex min-w-0 items-center gap-1">
+          <RouteSelect label={`${name}: channel`} value={channelId} onValueChange={setChannelId} options={channelOptions} disabled={!account} />
+          {noMatch && <Hint about={`${name} channels`}>{`No ${name} channels found for this account, so every channel is listed.`}</Hint>}
+        </div>
+        <div role="cell" className="flex items-center gap-1.5 text-[13px]">
+          {route ? <ToneBadge dot tone={needsAttention ? 'bad' : 'good'}>{needsAttention ? 'Needs attention' : 'Routed'}</ToneBadge> : <ToneBadge dot tone="quiet">Not set</ToneBadge>}
+          {route && <Hint about={`${name} route`}>{`Sending to ${route.channelName || route.channelId} through ${route.accountName}. Changed ${formatDateTime(route.updatedAt)}.`}</Hint>}
+        </div>
+        <div role="cell" className="flex items-center justify-end gap-1">
+          {dirty && <BusyButton size="sm" loading={busy} disabled={!accountId || !channelId} onClick={() => void save()}>Save</BusyButton>}
+          {route && <MoreMenu label={`More actions for ${name}`} items={[{ label: 'Clear route', tone: 'danger', onSelect: () => setClearing(true) }]} />}
+        </div>
       </div>
-      {route ? (
-        <p className="text-sm text-muted-foreground">Now sending to <strong className="text-foreground">{route.channelName || route.channelId}</strong> through <span className="font-mono">{route.accountName}</span>. Changed {formatDateTime(route.updatedAt)}.</p>
-      ) : <p className="text-sm text-muted-foreground">No channel chosen yet.</p>}
-      {warnings.map((w) => <Notice key={w.text} tone={w.tone}>{w.text}</Notice>)}
-      <SelectField label="Buffer account" value={accountId} onValueChange={(v) => { setAccountId(v); setChannelId(''); setError(''); }} options={accountOptions} />
-      <SelectField label="Channel" value={channelId} onValueChange={setChannelId} options={channelOptions} disabled={!account}
-        hint={account && account.ok && matching.length === 0 ? `No ${networkLabel(network)} channels found for this account, so every channel is listed.` : undefined} />
-      {error && <Notice tone="bad">{error}</Notice>}
-      <div className="flex flex-wrap gap-2.5">
-        <BusyButton loading={busy} disabled={unchanged || !accountId || !channelId} onClick={() => void save()}>Save route</BusyButton>
-        {route && <Button variant="outline" className="max-sm:min-h-11" onClick={() => setClearing(true)}>Clear route</Button>}
-      </div>
+      {(warnings.length > 0 || error) && (
+        <div className="mt-2 flex flex-col gap-1.5 px-3.5">
+          {warnings.map((w) => <Notice key={w.text} tone={w.tone}>{w.text}</Notice>)}
+          {error && <Notice tone="bad">{error}</Notice>}
+        </div>
+      )}
       <ConfirmAction
         open={clearing}
-        title={`Clear the ${networkLabel(network)} route?`}
-        message={<>Posts for {networkLabel(network)} cannot be sent until you choose a channel again. Posts already sent are not affected.</>}
+        title={`Clear the ${name} route?`}
+        message={<>Posts for {name} cannot be sent until you choose a channel again. Posts already sent are not affected.</>}
         confirmLabel="Clear route"
         danger
         onCancel={() => setClearing(false)}
@@ -155,10 +181,10 @@ function NetworkCard({ row, accounts, onChanged }: { row: RoutingRow; accounts: 
           await api.delete(`/api/routing/${network}`);
           setClearing(false);
           setAccountId(''); setChannelId('');
-          toast.success(`${networkLabel(network)} route cleared`);
+          toast.success(`${name} route cleared`);
           onChanged();
         }}
       />
-    </Card>
+    </div>
   );
 }

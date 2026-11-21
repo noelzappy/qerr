@@ -5,9 +5,8 @@ import { toast } from 'sonner';
 import { api } from '../api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BusyButton, CheckField, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FormPanel, Notice, SelectField, TagChips, TextField, type Column } from '@/components/kit';
+import { BusyButton, CheckField, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FormPanel, MoreMenu, Notice, SelectField, TagChips, TextField, ToneBadge, type Column } from '@/components/kit';
 import { RunProgress, RunStatusBadge, runSummary } from '@/components/activity-parts';
 import { useActivity } from '@/hooks/use-activity';
 import { useNow } from '@/hooks/use-now';
@@ -15,7 +14,7 @@ import { isActive } from '@/lib/activity';
 import { useDocumentTitle, useLoad } from '../hooks';
 import { errorMessage, fieldErrors, formProblem } from '../lib/errors';
 import { confirmDiscard, useUnsavedGuard } from '@/hooks/use-unsaved-guard';
-import { SettingsPage } from './settings/section';
+import { Section, SettingsPage } from './settings/section';
 import { PROVIDER_KIND_LABEL, SEARCH_KIND_LABEL, TASK_LABEL } from '../lib/labels';
 
 interface Provider { id: string; name: string; kind: 'anthropic' | 'openai-compatible'; baseUrl: string; model: string; keyLast4: string; tasks: string[]; enabled: boolean; inputPricePerMTok: number | null; outputPricePerMTok: number | null }
@@ -28,6 +27,8 @@ interface Settings {
 const TASKS = ['draft', 'research', 'rewrite'] as const;
 const usd = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'USD' });
 const sm = 'max-sm:min-h-11';
+// One bordered container; the list's rows are separated by hairlines.
+const LIST = 'overflow-hidden rounded-lg border';
 
 const KIND_OPTIONS = [{ value: 'anthropic', label: 'Anthropic' }, { value: 'openai-compatible', label: 'OpenAI-compatible (any service with that interface)' }];
 const SEARCH_OPTIONS = Object.entries(SEARCH_KIND_LABEL).map(([value, label]) => ({ value, label }));
@@ -35,7 +36,7 @@ const SEARCH_OPTIONS = Object.entries(SEARCH_KIND_LABEL).map(([value, label]) =>
 function SettingsSkeleton() {
   return (
     <div className="flex flex-col gap-6" role="status" aria-label="Loading the settings">
-      {[0, 1, 2].map((i) => <Card key={i} className="gap-3 p-5"><Skeleton className="h-6 w-1/4" /><Skeleton className="h-4 w-2/3" /><Skeleton className="h-9 w-full" /></Card>)}
+      {[0, 1, 2].map((i) => <div key={i} className="flex flex-col gap-3"><Skeleton className="h-5 w-1/4" /><Skeleton className="h-9 w-full" /></div>)}
     </div>
   );
 }
@@ -46,22 +47,22 @@ export function AiSettings() {
   const data = state.data;
 
   return (
-    <SettingsPage title="AI and search" description="Which AI services write and check posts, how much they may spend, and what the weekly research looks for. Keys are stored encrypted and cannot be read back.">
+    <SettingsPage title="AI and search" description="Keys are stored encrypted and cannot be shown again.">
       {state.loading && !data ? <SettingsSkeleton />
-        : state.error ? <Card className="gap-0 p-0"><ErrorBlock message={state.error} onRetry={() => void state.reload()} /></Card>
+        : state.error ? <div className={LIST}><ErrorBlock message={state.error} onRetry={() => void state.reload()} /></div>
         : data && (
-          <div className="flex flex-col gap-6">
+          <>
             <Providers providers={data.providers} onChanged={() => void state.reload()} />
             <SearchCard search={data.search} onChanged={() => void state.reload()} />
             <BudgetCard budget={data.budget} onChanged={() => void state.reload()} />
             <TopicsCard topics={data.topics} ready={data.providers.some((p) => p.enabled && p.tasks.includes('research')) && !!data.search} onChanged={() => void state.reload()} />
-          </div>
+          </>
         )}
     </SettingsPage>
   );
 }
 
-// Shown beside a card's title while it has changes that are not saved yet.
+// Shown beside a section's title while it has changes that are not saved yet.
 function NotSaved({ show }: { show: boolean }) {
   return show ? <Badge variant="warning" role="status">Not saved</Badge> : null;
 }
@@ -74,29 +75,25 @@ function Providers({ providers, onChanged }: { providers: Provider[]; onChanged:
     { key: 'model', header: 'Model', cell: (p) => <span className="font-mono [overflow-wrap:anywhere]">{p.model}</span> },
     { key: 'tasks', header: 'Used for', cell: (p) => p.tasks.map((t) => TASK_LABEL[t] ?? t).join(', ') },
     { key: 'key', header: 'Key', cell: (p) => <span className="whitespace-nowrap font-mono">{`•••• ${p.keyLast4}`}</span> },
-    { key: 'on', header: 'Status', cell: (p) => (p.enabled ? <Badge variant="success">On</Badge> : <Badge variant="quiet">Off</Badge>) },
+    { key: 'on', header: 'Status', cell: (p) => (p.enabled ? <ToneBadge tone="good" dot>On</ToneBadge> : <ToneBadge tone="quiet" dot>Off</ToneBadge>) },
     {
       key: 'actions', header: 'Actions', actions: true,
       cell: (p) => (
-        <div className="flex flex-wrap justify-end gap-2 max-md:justify-start">
-          <Button variant="outline" size="sm" className={sm} onClick={() => setEditing(p)}>Edit</Button>
-          <Button variant="outline" size="sm" className={sm} onClick={() => setDeleting(p)}>Delete</Button>
-        </div>
+        <MoreMenu label={`Actions for ${p.name}`} items={[
+          { label: 'Edit', onSelect: () => setEditing(p) },
+          { label: 'Delete provider', tone: 'danger', onSelect: () => setDeleting(p) },
+        ]} />
       ),
     },
   ];
   return (
-    <Card className="gap-0 overflow-hidden p-0" aria-label="AI providers">
-      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 p-5 max-sm:p-4">
-        <div className="min-w-0 flex-1 basis-72">
-          <CardTitle className="text-lg">AI providers</CardTitle>
-          <CardDescription className="mt-0.5">Each provider is used for the tasks you tick. The app tries enabled providers in the order they were added.</CardDescription>
-        </div>
-        <Button className={sm} onClick={() => setEditing('new')}><Plus aria-hidden="true" />Add a provider</Button>
-      </CardHeader>
-      {providers.length === 0 ? <EmptyBlock title="No AI provider yet">Add one to let the app draft batches, rewrite posts and run research.</EmptyBlock>
-        : <DataList caption="AI providers" columns={columns} rows={providers} rowKey={(p) => p.id} />}
-      {editing && <ProviderSheet key={editing === 'new' ? 'new' : editing.id} provider={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={(created) => { setEditing(null); toast.success(created ? 'AI provider added' : 'AI provider saved'); onChanged(); }} />}
+    <Section id="ai-providers" title="AI providers" description="Each provider is used for the tasks you tick. The app tries enabled providers in the order they were added."
+      aside={<Button variant="outline" size="sm" className={sm} onClick={() => setEditing('new')}><Plus aria-hidden="true" />Add a provider</Button>}>
+      <div className={LIST}>
+        {providers.length === 0 ? <EmptyBlock title="No AI provider yet">Add one to let the app draft batches, rewrite posts and run research.</EmptyBlock>
+          : <DataList caption="AI providers" columns={columns} rows={providers} rowKey={(p) => p.id} />}
+      </div>
+      {editing && <ProviderDialog key={editing === 'new' ? 'new' : editing.id} provider={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={(created) => { setEditing(null); toast.success(created ? 'AI provider added' : 'AI provider saved'); onChanged(); }} />}
       <ConfirmAction
         open={!!deleting}
         title="Delete this AI provider?"
@@ -112,11 +109,11 @@ function Providers({ providers, onChanged }: { providers: Provider[]; onChanged:
           onChanged();
         }}
       />
-    </Card>
+    </Section>
   );
 }
 
-function ProviderSheet({ provider, onClose, onSaved }: { provider: Provider | null; onClose: () => void; onSaved: (created: boolean) => void }) {
+function ProviderDialog({ provider, onClose, onSaved }: { provider: Provider | null; onClose: () => void; onSaved: (created: boolean) => void }) {
   const [name, setName] = useState(provider?.name ?? '');
   const [kind, setKind] = useState<Provider['kind']>(provider?.kind ?? 'anthropic');
   const [baseUrl, setBaseUrl] = useState(provider?.baseUrl ?? '');
@@ -168,13 +165,15 @@ function ProviderSheet({ provider, onClose, onSaved }: { provider: Provider | nu
   }
 
   return (
-    <FormPanel open onClose={requestClose} busy={busy} title={provider ? `Edit ${provider.name}` : 'Add an AI provider'}
+    <FormPanel open variant="dialog" size="lg" onClose={requestClose} busy={busy} title={provider ? `Edit ${provider.name}` : 'Add an AI provider'}
       footer={<><Button variant="outline" className={sm} onClick={requestClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="provider-form" loading={busy}>{provider ? 'Save changes' : 'Add provider'}</BusyButton></>}>
       <form id="provider-form" className="flex flex-col gap-4" onSubmit={(e) => void submit(e)} noValidate>
-        <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} error={fields.name} required autoFocus hint="Only for you, such as Claude main." />
-        <SelectField label="Kind" value={kind} onValueChange={(v) => setKind(v as Provider['kind'])} options={KIND_OPTIONS} error={fields.kind} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} error={fields.name} required autoFocus placeholder="Claude main" hint="Only for you." />
+          <SelectField label="Kind" value={kind} onValueChange={(v) => setKind(v as Provider['kind'])} options={KIND_OPTIONS} error={fields.kind} />
+        </div>
         <TextField label={provider ? 'New key' : 'Key'} type="password" autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)} error={fields.apiKey} mono optional={!!provider}
-          placeholder={provider ? `Leave blank to keep the key ending ${provider.keyLast4}` : ''} hint="Stored encrypted. It cannot be shown again." />
+          placeholder={provider ? `Leave blank to keep the key ending ${provider.keyLast4}` : ''} hintMode="inline" hint="Stored encrypted. It cannot be shown again." />
         <FieldGroup legend="Connection details" hint="Most providers need only a model name. Your provider's documentation lists the rest.">
           <TextField label="Service address" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} error={fields.baseUrl} mono optional={kind === 'anthropic'}
             placeholder={kind === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.example.com/v1'}
@@ -227,21 +226,15 @@ function SearchCard({ search, onChanged }: { search: Settings['search']; onChang
     }
   }
   return (
-    <Card className="gap-4 p-5 max-sm:p-4" aria-label="Search service">
-      <CardHeader className="gap-0.5 p-0">
-        <CardTitle className="flex flex-wrap items-center gap-2 text-lg">Search service <NotSaved show={dirty} /></CardTitle>
-        <CardDescription>Research looks things up on the web through this service, so it does not depend on one AI vendor.</CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
-        <form className="flex max-w-[520px] flex-col gap-4" onSubmit={(e) => void save(e)} noValidate>
-          <SelectField label="Service" value={kind} onValueChange={(v) => setKind(v as typeof kind)} options={SEARCH_OPTIONS} />
-          <TextField label={search ? 'New key' : 'Key'} type="password" autoComplete="off" mono value={apiKey} onChange={(e) => setApiKey(e.target.value)} error={fields.apiKey} optional={!!search}
-            placeholder={search ? `Leave blank to keep the key ending ${search.keyLast4}` : ''} hint="Stored encrypted. It cannot be shown again." />
-          {error && <Notice tone="bad">{error}</Notice>}
-          <div><BusyButton type="submit" loading={busy} disabled={!dirty}>Save search service</BusyButton></div>
-        </form>
-      </CardContent>
-    </Card>
+    <Section id="search-service" title="Search service" description="Research looks things up on the web through this service, so it does not depend on one AI vendor." aside={<NotSaved show={dirty} />}>
+      <form className="flex max-w-[520px] flex-col gap-3" onSubmit={(e) => void save(e)} noValidate>
+        <SelectField label="Service" value={kind} onValueChange={(v) => setKind(v as typeof kind)} options={SEARCH_OPTIONS} />
+        <TextField label={search ? 'New key' : 'Key'} type="password" autoComplete="off" mono value={apiKey} onChange={(e) => setApiKey(e.target.value)} error={fields.apiKey} optional={!!search}
+          placeholder={search ? `Leave blank to keep the key ending ${search.keyLast4}` : ''} hintMode="inline" hint="Stored encrypted. It cannot be shown again." />
+        {error && <Notice tone="bad">{error}</Notice>}
+        <div><BusyButton type="submit" loading={busy} disabled={!dirty}>Save search service</BusyButton></div>
+      </form>
+    </Section>
   );
 }
 
@@ -270,24 +263,18 @@ function BudgetCard({ budget, onChanged }: { budget: Settings['budget']; onChang
     }
   }
   return (
-    <Card className="gap-4 p-5 max-sm:p-4" aria-label="Monthly budget">
-      <CardHeader className="gap-0.5 p-0">
-        <CardTitle className="flex flex-wrap items-center gap-2 text-lg">Monthly budget <NotSaved show={dirty} /></CardTitle>
-        <CardDescription>AI work stops for the month when this is reached. The AI does not run at all until a budget above zero is set.</CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
-        <form className="flex max-w-[520px] flex-col gap-4" onSubmit={(e) => void save(e)} noValidate>
-          <TextField label="Budget per month (US dollars)" type="number" inputMode="decimal" min={0} step="0.01" value={value} onChange={(e) => setValue(e.target.value)} error={error} />
-          <p className="text-sm text-muted-foreground" aria-live="polite">
-            Spent in {budget.month}: <strong className="text-foreground">{usd.format(budget.spentUsd)}</strong>
-            {pct !== null && <> ({pct}% of the budget)</>}
-            {budget.monthlyBudgetUsd === null && <>. No budget is set yet, so the AI will not run until you set one.</>}
-            {budget.unpricedCalls > 0 && <>. {budget.unpricedCalls} {budget.unpricedCalls === 1 ? 'call' : 'calls'} this month had no price, so {budget.unpricedCalls === 1 ? 'it is' : 'they are'} not counted. Add the provider's prices above.</>}
-          </p>
-          <div><BusyButton type="submit" loading={busy} disabled={!dirty}>Save budget</BusyButton></div>
-        </form>
-      </CardContent>
-    </Card>
+    <Section id="monthly-budget" title="Monthly budget" description="AI work stops for the month when this is reached." aside={<NotSaved show={dirty} />}>
+      <form className="flex max-w-[520px] flex-col gap-3" onSubmit={(e) => void save(e)} noValidate>
+        <TextField label="Budget per month (US dollars)" type="number" inputMode="decimal" min={0} step="0.01" value={value} onChange={(e) => setValue(e.target.value)} error={error} />
+        <p className="text-[13px] text-muted-foreground" aria-live="polite">
+          Spent in {budget.month}: <strong className="text-foreground">{usd.format(budget.spentUsd)}</strong>
+          {pct !== null && <> ({pct}% of the budget)</>}
+          {budget.unpricedCalls > 0 && <>. {budget.unpricedCalls} {budget.unpricedCalls === 1 ? 'call' : 'calls'} this month had no price, so {budget.unpricedCalls === 1 ? 'it is' : 'they are'} not counted. Add the provider's prices above.</>}
+        </p>
+        <p className="text-[13px] text-muted-foreground">The AI does not run without a budget above zero{budget.monthlyBudgetUsd === null ? '. No budget is set yet.' : '.'}</p>
+        <div><BusyButton type="submit" loading={busy} disabled={!dirty}>Save budget</BusyButton></div>
+      </form>
+    </Section>
   );
 }
 
@@ -349,28 +336,21 @@ function TopicsCard({ topics, ready, onChanged }: { topics: string[]; ready: boo
     }
   }
   return (
-    <Card className="gap-4 p-5 max-sm:p-4" aria-label="Research topics">
-      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 p-0">
-        <div className="min-w-0 flex-1 basis-72">
-          <CardTitle className="flex flex-wrap items-center gap-2 text-lg">Research topics <NotSaved show={dirty} /></CardTitle>
-          <CardDescription className="mt-0.5">What the weekly research looks for. Everything it finds goes into Facts as unconfirmed, for a person to check.</CardDescription>
-        </div>
-        <BusyButton variant="outline" loading={running || working} disabled={dirty} title={dirty ? 'Save your changes first' : undefined} onClick={() => void runNow()}>Run research now</BusyButton>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4 p-0">
+    <Section id="research-topics" title="Research topics" description="What the weekly research looks for. Everything it finds goes into Facts as unconfirmed, for a person to check." aside={<><NotSaved show={dirty} /><BusyButton variant="outline" size="sm" loading={running || working} disabled={dirty} title={dirty ? 'Save your changes first' : undefined} onClick={() => void runNow()}>Run research now</BusyButton></>}>
+      <div className="flex flex-col gap-3">
         {!ready && <Notice tone="info" title="Research is not ready yet.">It needs an enabled AI provider ticked for research, and a search service with a key.</Notice>}
         {list.length === 0
-          ? <p className="text-muted-foreground">No topics yet. Add the subjects to watch, for example news about your market or changes to the rules in your field.</p>
+          ? <p className="text-muted-foreground">No topics yet. Add the subjects to watch, such as news about your market.</p>
           : <TagChips tags={list} label="Topics" removeLabel={(t) => `Remove ${t}`} onRemove={removeTopic} />}
-        <form className="flex items-end gap-2.5" onSubmit={(e) => { e.preventDefault(); add(); }}>
+        <form className="flex max-w-[520px] items-end gap-2" onSubmit={(e) => { e.preventDefault(); add(); }}>
           <TextField className="flex-1" label="Add a topic" value={draft} onChange={(e) => setDraft(e.target.value)} maxLength={200} />
           <Button type="submit" variant="outline" className="max-sm:h-11">Add</Button>
         </form>
         {error && <Notice tone="bad">{error}</Notice>}
         {last && (
-          <section aria-label="Latest research run" className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3.5">
+          <section aria-label="Latest research run" className="flex flex-col gap-1.5 border-t pt-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold">{working ? 'Research is running' : 'Last research run'}</h3>
+              <h3 className="text-[13px] font-semibold">{working ? 'Research is running' : 'Last research run'}</h3>
               <RunStatusBadge run={last} />
             </div>
             {working
@@ -379,11 +359,11 @@ function TopicsCard({ topics, ready, onChanged }: { topics: string[]; ready: boo
             <Link to={`/activity/${last.id}`} className="w-fit text-sm font-medium text-primary underline-offset-4 hover:underline max-sm:py-2.5">{working ? 'Follow it in Activity' : 'See what it found and skipped'}</Link>
           </section>
         )}
-        <div className="flex flex-wrap gap-2.5">
+        <div className="flex flex-wrap gap-2">
           <BusyButton loading={busy} disabled={!dirty} onClick={() => void save()}>Save topics</BusyButton>
           {dirty && <Button variant="ghost" className={sm} onClick={() => { setList(topics); setError(''); }}>Undo changes</Button>}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </Section>
   );
 }
