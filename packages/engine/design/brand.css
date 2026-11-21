@@ -101,6 +101,10 @@ svg.fig text{font-family:var(--mono),monospace}
    can be a mid tone, the accent is the deep green so it keeps its contrast */
 .poster .ps-sub{color:var(--ink)}
 .dark .ps-sub{color:var(--inv-body)}
+/* A poster's accent style follows its series: grey, the colour, or a lighter weight (the myth and fact slabs keep theirs). */
+.acc-muted .ps-h em{color:var(--muted)}
+.dark.acc-muted .ps-h em{color:var(--muted-inv)}
+.acc-weight .ps-h em{color:inherit;font-weight:var(--aw)}
 [data-sampled] .ps-h em{color:var(--acc,var(--slab-myth))}
 /* on a page that took the photo's colour the footer text is ink (or the light body on a dark one), not the muted body grey */
 [data-sampled] .purl{color:var(--ink)}

@@ -17,7 +17,7 @@
 //
 // Every value reaches the page through esc()/fmtE()/fmtSub(), ctx.image() or a number computed here (see common.mjs).
 import { DesignError } from '../../lib/design/errors.mjs';
-import { DARK_GROUNDS, GROUND_NAMES } from '../../lib/design/tokens.mjs';
+import { ACCENT_STYLES, DARK_GROUNDS, GROUND_NAMES } from '../../lib/design/tokens.mjs';
 import { esc, fmtE, fmtSub, hs, px, taglineMarkup } from './common.mjs';
 import { glow, phone } from './editorial.mjs';
 import { dotMapSvg } from './map.mjs';
@@ -81,11 +81,18 @@ function sceneGround(spec, ctx) {
 
 // The page: its ground (a token), dark type rules on a dark ground with the fine line texture. A page with a photo may still
 // change its ground and type colour in the browser, when the photo's plain background becomes the page (runtime.mjs flush()).
-function poster(ctx, ground, body, { flex = false } = {}) {
+// The headline's second half follows the page's accent style: the spec's own, else its series', else the colour (the poster look).
+// Only names from the fixed ACCENT_STYLES list reach the class attribute.
+function posterAccent(spec, ctx) {
+  const a = spec?.accent ?? (spec?.series !== undefined ? ctx.brand.series?.[spec.series]?.accent : undefined);
+  return ACCENT_STYLES.includes(a) ? a : 'colour';
+}
+
+function poster(ctx, ground, body, { flex = false, spec } = {}) {
   const dark = DARK_GROUNDS.includes(ground);
   return {
     body: `<div class="cv poster${dark ? ' tex' : ''}" style="--bg:var(--g-${ground})">${body}</div>`,
-    bodyClass: `acc-colour${dark ? ' dark' : ''}`,
+    bodyClass: `acc-${posterAccent(spec, ctx)}${dark ? ' dark' : ''}`,
     bodyAttrs: `data-editorial="1"${flex ? ' data-flex="1"' : ''}`,
   };
 }
@@ -95,7 +102,7 @@ export function object(spec, ctx) {
   const top = spec.photoTop ?? POSTER.photoTop;
   const body = objectPhoto(ctx, spec, { top }) + bar(ctx, dark)
     + words({ headline: spec.headline, sub: spec.sub, size: spec.size ?? 104, align: spec.align });
-  return poster(ctx, g, body);
+  return poster(ctx, g, body, { spec });
 }
 
 export function number(spec, ctx) {
@@ -106,7 +113,7 @@ export function number(spec, ctx) {
   const step = (920 + 40) / Math.max(1, list.length);
   const stats = list.map((s, i) => `<div class="abs" style="left:${px(POSTER.m + i * step)}px;top:448px;width:${px(step - 40)}px"><div class="ps-h" data-role="stat" style="font-size:${hs(64)}">${fmtSub(s[0])}</div><div class="sub ps-sub" data-role="statlabel" data-min="30" style="margin-top:6px">${fmtSub(s[1])}</div></div>`).join('');
   const pic = spec.image ? objectPhoto(ctx, spec, { top }) : '';
-  return poster(ctx, g, pic + bar(ctx, dark) + big + line + stats);
+  return poster(ctx, g, pic + bar(ctx, dark) + big + line + stats, { spec });
 }
 
 export function product(spec, ctx) {
@@ -122,7 +129,7 @@ export function product(spec, ctx) {
     text = words({ headline: spec.headline, sub: spec.sub, size: spec.size ?? (spec.sub ? 88 : 104), align: spec.align ?? 'center' });
   }
   const halo = spec.glow === false ? '' : glow(ctx, { x, y: y + 40, w, h: Math.min(POSTER.h - y, w * ratio) });
-  return poster(ctx, g, halo + bar(ctx, dark) + text + phone(ctx, spec, { w, at: { x, y } }));
+  return poster(ctx, g, halo + bar(ctx, dark) + text + phone(ctx, spec, { w, at: { x, y } }), { spec });
 }
 
 // Myth and fact as colour-blocked slabs on a dark textured ground, centred between the top bar and the series mark.
@@ -135,7 +142,7 @@ export function mythFact(spec, ctx) {
   const fact = `<div class="slab fact"><span class="tag" data-role="label">Fact</span><div class="ps-h" data-role="headline" style="font-size:${hs(t)};margin-top:30px">${fmtE(spec.factLead)}</div>${spec.fact ? `<div class="sub" data-role="sub" data-min="30" style="margin-top:24px">${fmtSub(spec.fact)}</div>` : ''}</div>`;
   const stack = `<div class="stack" style="left:${POSTER.m}px;top:150px;width:920px;height:1050px;gap:28px;justify-content:center">${myth}${fact}</div>`;
   const foot = `<div class="pmark" style="right:${POSTER.m}px;bottom:62px"><span data-role="foot">${esc(mark)}</span></div>`;
-  return poster(ctx, g, bar(ctx, dark) + stack + foot, { flex: true });
+  return poster(ctx, g, bar(ctx, dark) + stack + foot, { flex: true, spec });
 }
 
 const MAP = { x: 640, y: 150, w: 360, h: 450 };
@@ -144,5 +151,5 @@ export function closing(spec, ctx) {
   const g = groundOf(spec, ctx, 'deep'), dark = DARK_GROUNDS.includes(g);
   const map = spec.map ? `<svg class="fig map" style="left:${MAP.x}px;top:${MAP.y}px" width="${MAP.w}" height="${MAP.h}" viewBox="0 0 ${MAP.w} ${MAP.h}" aria-hidden="true">${dotMapSvg(ctx.brand.map, MAP.w, MAP.h)}</svg>` : '';
   const block = words({ headline: spec.headline ?? taglineMarkup(ctx.brand.tagline), sub: spec.line ?? ctx.brand.website, size: 136, y: spec.map ? 700 : 560, w: 920 });
-  return poster(ctx, g, map + bar(ctx, dark, { right: '' }) + block);
+  return poster(ctx, g, map + bar(ctx, dark, { right: '' }) + block, { spec });
 }

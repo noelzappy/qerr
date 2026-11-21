@@ -65,6 +65,14 @@ test('poster pages: only a small logo and the website, the two-tone headline, th
   assert.ok(/--g-mint:#E8EEF9;--g-gold-pale:#FCEBE4;--g-ink:#14213D;--g-deep:#1C2D52/.test(page));
 });
 
+test('poster headlines follow the series accent style: grey, the colour or a lighter weight', () => {
+  const body = (spec) => /<body class="([^"]*)"/.exec(html(spec))?.[1];
+  // explainers is a "muted" series in the demo pack, myth-vs-fact a "colour" one
+  assert.equal(body({ template: 'object', headline: 'a *b*', image: 'a.jpg', ground: 'mint', series: 'explainers' }), 'acc-muted');
+  assert.equal(body({ template: 'number', big: '12', line: 'x', ground: 'ink', series: 'myth-vs-fact' }), 'acc-colour dark');
+  assert.equal(body({ template: 'object', headline: 'a *b*', image: 'a.jpg', ground: 'mint' }), 'acc-colour');
+});
+
 test('object photos: one wrapper for both layouts, sampled in the page, with no gradient, blend or tone in the markup or the styles', () => {
   const named = html({ template: 'object', headline: 'h', image: 'a.jpg', ground: 'gold-pale', focal: '50% 60%' });
   assert.match(named, /<div class="ph pobj" data-avoid style="--pt:600px;--ph:750px;--pm:80px"><img data-user data-name="a\.jpg" data-fit="cover" data-sample data-fx="0\.5" data-fy="0\.6" src="data:[^"]+" alt="" style="object-position:50% 60%"><\/div>/);
