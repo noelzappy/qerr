@@ -29,7 +29,9 @@ const brandWarnings = (spec, brand) => [...new Set(spec.sizes.flatMap((s) => lin
 // -> { ok, files: [{ size, slide, file, abs, w, h }], warnings, notes, pdf?, error? }
 // `only` limits the sizes rendered (a list of size names). `outDir` is resolved against root; `stem` overrides the file name stem.
 // `layouts` replaces the brand's layouts for this render (the layout editor's preview).
-export async function renderDesignBlock({ root = ROOT, design, postId, outDir, stem, only, layouts, log = () => {} } = {}) {
+// `png` (tests only: the template baseline harness, testlib/template-baseline.mjs) writes lossless PNG files instead of JPEGs,
+// so that a pixel comparison sees real differences and not the JPEG encoder's noise. Posts are always JPEGs.
+export async function renderDesignBlock({ root = ROOT, design, postId, outDir, stem, only, layouts, png = false, log = () => {} } = {}) {
   const fail = (error, extra = {}) => ({ ok: false, files: [], warnings: [], notes: [], error, ...extra });
   let spec, brand;
   try {
@@ -45,7 +47,8 @@ export async function renderDesignBlock({ root = ROOT, design, postId, outDir, s
   }
   const name = stem ?? stemOf({ id: String(postId ?? 'post') }, spec);
   const dir = path.resolve(root, outDir);
-  let files = outputFiles(spec, { stem: name });
+  const ext = png ? '.png' : '.jpg';
+  let files = outputFiles(spec, { stem: name, ext });
   if (only?.length) {
     files = files.filter((f) => only.includes(f.size));
     if (!files.length) return fail(`none of the sizes ${only.join(', ')} is in this design (it makes ${spec.sizes.join(', ')})`);
@@ -93,7 +96,7 @@ export async function renderDesignBlock({ root = ROOT, design, postId, outDir, s
       }
     }
     // A carousel's PDF is made only when every size of it was rendered (not when `only` cut some out).
-    if (spec.template === 'carousel' && made.length === outputFiles(spec, { stem: name }).length) {
+    if (spec.template === 'carousel' && made.length === outputFiles(spec, { stem: name, ext }).length) {
       const abs = path.join(dir, pdfFile(name));
       try {
         const r = await renderPdf(browser, made.map((m) => m.abs), abs);
