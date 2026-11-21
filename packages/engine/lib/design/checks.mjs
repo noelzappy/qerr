@@ -154,7 +154,7 @@ const core = (r) => ({ x0: r.x0, x1: r.x1, y0: r.y0 + (r.y1 - r.y0) * 0.1, y1: r
 const overlap = (a0, b0, tol = 3) => { const a = core(a0), b = core(b0); return Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > tol && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > tol; };
 export const SCALABLE = new Set(['headline', 'stat']);
 // The footer label and the website line sit below the text area on purpose.
-const EXEMPT_EDGE = new Set(['url', 'foot']);
+const EXEMPT_EDGE = new Set(['url', 'foot', 'logo']);
 const hit = (a, b, tol = 2) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > tol && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > tol;
 
 // m = what window.__ds.measure() returned; S = the size's margins. Looks for text outside the safe area, text running into
@@ -203,7 +203,7 @@ export function findLayoutProblems(m, S) {
   return problems;
 }
 
-const ROLE_WORDS = { headline: 'headline', stat: 'big number', statlabel: 'number label', sub: 'sub line', eyebrow: 'eyebrow', label: 'label', foot: 'footer label', art: 'text on the artefact', artbody: 'text on the artefact', accent: 'accent phrase' };
+const ROLE_WORDS = { headline: 'headline', stat: 'big number', statlabel: 'number label', sub: 'sub line', eyebrow: 'eyebrow', label: 'label', foot: 'footer label', logo: 'logo', art: 'text on the artefact', artbody: 'text on the artefact', accent: 'accent phrase' };
 export function explainProblems(problems, sizeName, lengths = {}) {
   const w = (r) => ROLE_WORDS[r] ?? r;
   const lines = problems.map((p) => {

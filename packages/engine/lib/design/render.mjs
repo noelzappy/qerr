@@ -19,9 +19,10 @@ export { DesignError };
 
 // Which contrast target a text role has. Photo posts use brand.photo.minContrast (text over a picture, scrim raised to reach it);
 // everything else sits on a flat surface and uses brand.contrast: headline and the ink on a sheet 7:1, body 7:1, labels and accents 4.5:1.
+// The poster logo's wordmark (logo) is held to the label target, like the website beside it; it only ever warns.
 const PHOTO_KEY = { headline: 'headline', stat: 'headline', sub: 'sub', statlabel: 'sub', eyebrow: 'eyebrow', url: 'url' };
-const EDITORIAL_KEY = { headline: 'headline', stat: 'headline', accent: 'accent', sub: 'sub', statlabel: 'sub', label: 'label', foot: 'label', url: 'label', art: 'art', artbody: 'artbody' };
-const WORD = { url: 'website', foot: 'footer label', art: 'artefact label', artbody: 'artefact text', label: 'label' };
+const EDITORIAL_KEY = { headline: 'headline', stat: 'headline', accent: 'accent', sub: 'sub', statlabel: 'sub', label: 'label', foot: 'label', url: 'label', logo: 'label', art: 'art', artbody: 'artbody' };
+const WORD = { url: 'website', foot: 'footer label', logo: 'logo', art: 'artefact label', artbody: 'artefact text', label: 'label' };
 const MIN_SCALE = 0.62;
 const PUSHED = new Set(['panel', 'outside', 'avoid']);
 const parseRgb = (c) => { const m = c.match(/[\d.]+/g).map(Number); return luminance(m[0], m[1], m[2]); };

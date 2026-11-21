@@ -45,7 +45,8 @@ function groundOf(spec, ctx, fallback, { photo = false } = {}) {
 function logo(ctx, dark, h = 34) {
   const B = ctx.brand, [fw, fh] = B.logos.fullSize, k = h / fh;
   // On every poster ground the wordmark is drawn solid (ink on light grounds, white on dark) so it reads on mint, gold and photo grounds.
-  return `<span class="logo-inv${dark ? '' : ' logo-ink'}" style="height:${h}px"><img src="${B.logoMarkSrc}" alt="" style="height:${h}px"><i role="img" aria-label="${esc(B.name)}" style="height:${h}px;--lw:${px((fw - B.logos.wordmarkFrom) * k)}px;--lx:-${px(B.logos.wordmarkFrom * k)}px;--lm:${px(B.logos.markGap * k)}px"></i></span>`;
+  // It is measured like text (data-role "logo"): the renderer warns when what lies behind it leaves it under the label contrast.
+  return `<span class="logo-inv${dark ? '' : ' logo-ink'}" style="height:${h}px"><img src="${B.logoMarkSrc}" alt="" style="height:${h}px"><i data-role="logo" role="img" aria-label="${esc(B.name)}" style="height:${h}px;--lw:${px((fw - B.logos.wordmarkFrom) * k)}px;--lx:-${px(B.logos.wordmarkFrom * k)}px;--lm:${px(B.logos.markGap * k)}px"></i></span>`;
 }
 
 // The only chrome (also drawn for the built-in layouts' "bar" block, lib/design/layout-poster.mjs): the logo and the website (or

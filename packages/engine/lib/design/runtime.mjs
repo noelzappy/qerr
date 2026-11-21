@@ -109,11 +109,12 @@ window.__ds = {
     const rectsOf = (el) => { const g = document.createRange(); g.selectNodeContents(el); return [...g.getClientRects()].filter((b) => b.width > 1 && b.height > 1).map(box); };
     const avoidEls = [...document.querySelectorAll('[data-avoid]')], objEls = [...document.querySelectorAll('[data-obj]')];
     const roles = [...document.querySelectorAll('[data-role]')].map((el, i) => {
-      const svg = el instanceof SVGElement, cs = getComputedStyle(el);
-      const b = svg ? el.getBoundingClientRect() : null;
+      // An SVG figure and the poster logo's wordmark (a picture with no text in it) are measured on their box.
+      const svg = el instanceof SVGElement, cs = getComputedStyle(el), whole = svg || el.dataset.role === 'logo';
+      const b = whole ? el.getBoundingClientRect() : null;
       return {
-        i, role: el.dataset.role, rects: svg ? (b.width > 1 && b.height > 1 ? [box(b)] : []) : rectsOf(el), color: svg ? cs.fill : cs.color,
-        overX: svg ? 0 : el.scrollWidth - el.clientWidth, text: (el.innerText ?? el.textContent).trim().replace(/\s+/g, ' ').slice(0, 50),
+        i, role: el.dataset.role, rects: whole ? (b.width > 1 && b.height > 1 ? [box(b)] : []) : rectsOf(el), color: svg ? cs.fill : cs.color,
+        overX: svg ? 0 : el.scrollWidth - el.clientWidth, text: (el.getAttribute('aria-label') || el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 50),
         size: parseFloat(cs.fontSize), min: +(el.dataset.min || 0), nested: !!(el.parentElement && el.parentElement.closest('[data-role]')),
         onpanel: el.hasAttribute('data-onpanel'), inAvoid: avoidEls.map((a, k) => (a.contains(el) ? k : -1)).filter((k) => k >= 0),
         cell: el.closest('[data-cell]') ? box(el.closest('[data-cell]').getBoundingClientRect()) : null,

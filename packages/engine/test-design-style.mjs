@@ -14,6 +14,7 @@ import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
 import { GROUND_ALIASES, GROUND_NAMES, STYLE_DEFAULTS, groundName, isDarkColour } from './lib/design/tokens.mjs';
 import { TEMPLATE_FNS } from './design/templates/index.mjs';
+import { bar, words } from './design/templates/poster.mjs';
 import { pngBytes } from './testlib/png.mjs';
 
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
@@ -344,6 +345,31 @@ test('real render: a styled brand (black and neon, outlined, grid, condensed cap
     assert.ok(r.ratios.headline >= d.photo.minContrast.headline, JSON.stringify(r));
     assert.ok(!r.warnings.some((w) => /low contrast/.test(w)), r.warnings.join('\n'));
   } finally {
+    browser.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('real render: the poster logo is measured, so a wordmark on a surface it was not drawn for gives a contrast warning', { skip: chrome ? false : 'Google Chrome not found' }, async () => {
+  const dir = path.join(ROOT, 'out', 'test-style-logo');
+  fs.rmSync(dir, { recursive: true, force: true });
+  // A page made for this test: the real bar (white wordmark, drawn for the dark ground) over a pale box, or on the ground itself.
+  TEMPLATE_FNS['test-logo-surface'] = (spec, ctx) => ({
+    body: `<div class="cv poster" style="--bg:var(--g-deep)">${spec.pale ? '<div class="abs" style="left:0;top:0;width:1080px;height:220px;background:var(--g-warm)"></div>' : ''}${bar(ctx, true, { right: '' })}${words({ headline: 'Save together.', size: 104, y: 400 })}</div>`,
+    bodyClass: 'acc-colour dark', bodyAttrs: 'data-editorial="1"',
+  });
+  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });
+  try {
+    const run = (pale) => renderImage(browser, brand, { spec: { template: 'test-logo-surface', pale }, sizeName: 'feed', outFile: path.join(dir, `${pale ? 'pale' : 'ground'}.png`) }, { tmpDir: path.join(dir, 'tmp') });
+    const pale = await run(true);
+    assert.ok(pale.warnings.some((w) => /^low contrast: the logo text is \d+\.\d:1 against the surface behind it \(needs 4\.5:1\)$/.test(w)), pale.warnings.join('\n'));
+    assert.ok(pale.ratios.label < 2, JSON.stringify(pale.ratios));
+    // on the ground it was drawn for it passes, and it never stops a render (no fit problem for the logo)
+    const ground = await run(false);
+    assert.deepEqual(ground.warnings, []);
+    assert.ok(ground.ratios.label >= brand.contrast.label, JSON.stringify(ground.ratios));
+  } finally {
+    delete TEMPLATE_FNS['test-logo-surface'];
     browser.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
