@@ -132,6 +132,8 @@ export const CASES = [
   // cover (editorial)
   { id: 'cover', design: { template: 'cover', headline: 'How a group *saves together.*', sub: 'Five steps, from the first deposit to the payout.', image: IMG.scene } },
   { id: 'cover-nosub-series', design: { template: 'cover', headline: 'On record, *every week.*', image: IMG.jar, series: 'news', headRight: 'Issue 4' } },
+  { id: 'cover-dark-focal', design: { template: 'cover', headline: 'The market, *up close.*', sub: 'A closer crop of the same picture.', image: IMG.scene, ground: 'dark', accent: 'colour', label: 'Up close', focal: '30% 60%', zoom: 1.2 } },
+  { id: 'cover-warm-nodots', design: { template: 'cover', headline: 'Warm, *without dots.*', image: IMG.drift, ground: 'warm', dots: false, accent: 'weight' } },
   // text (editorial)
   { id: 'text', design: { template: 'text', headline: 'Saving is easier *together.*', sub: 'A group keeps each other going, and every deposit is on the record.' } },
   { id: 'text-nosub', design: { template: 'text', headline: 'One clear line *on record.*' } },
@@ -155,6 +157,10 @@ export const CASES = [
   { id: 'stats', design: { template: 'stats', big: '14.8M+', line: 'saved by members this year', stats: ['3,900+|members', '400+|groups', '120|towns'] } },
   { id: 'stats-photo', design: { template: 'stats', big: '*€* 2.4M', line: 'paid out', stats: ['3,900+|members', '400+|groups'], image: IMG.scene, series: 'the-numbers' } },
   { id: 'stats-big-only-dark', design: { template: 'stats', big: '98%', ground: 'dark' } },
+  { id: 'stats-photo-3-noline', design: { template: 'stats', big: '52', stats: ['3,900+|members', '400+|groups', '120|towns'], image: IMG.jar, ground: 'warm', accent: 'colour' } },
+  { id: 'stats-photo-nostats', design: { template: 'stats', big: '2026', line: 'the year on record', image: IMG.scene, ground: 'deep', dots: false, label: 'In numbers' } },
+  { id: 'stats-one-row-noline', design: { template: 'stats', big: '*€* 14.8M+', stats: ['120|towns on record'], accent: 'weight', series: 'explainers' } },
+  { id: 'stats-two-rows-soft', design: { template: 'stats', big: '1 in 3', line: 'members save weekly', stats: ['12|weeks', '*3*|deposits a week'], ground: 'soft', headRight: 'Week 12' } },
   // screen (editorial)
   { id: 'screen-phone', design: { template: 'screen', headline: 'Your savings, *on your phone.*', sub: 'Every deposit shows the moment it is made.', image: IMG.phone, pills: ['Read-only by design', 'Two-person approval'] } },
   { id: 'screen-phone-checks', design: { template: 'screen', headline: 'Built for *groups.*', image: IMG.phone, checks: ['Two-person approval', 'Every change logged'], glow: false } },
@@ -166,6 +172,9 @@ export const CASES = [
   // photo-story (editorial)
   { id: 'photo-story', design: { template: 'photo-story', headline: 'Market day, *together.*', sub: 'The collector comes round every Friday.', image: IMG.scene } },
   { id: 'photo-story-print', design: { template: 'photo-story', layout: 'print', headline: 'A jar *for every goal.*', sub: 'Small deposits add up.', image: IMG.jar, series: 'community' } },
+  { id: 'photo-story-panel-nosub-dark', design: { template: 'photo-story', layout: 'panel', headline: 'Friday, *at the market.*', image: IMG.scene, ground: 'dark', label: 'Field notes', accent: 'colour', focal: '50% 30%' } },
+  { id: 'photo-story-print-nosub-warm', design: { template: 'photo-story', layout: 'print', headline: 'Every jar *has a goal.*', image: IMG.mint, ground: 'warm', headRight: 'May 2026', dots: false } },
+  { id: 'photo-story-print-carousel', design: { template: 'carousel', series: 'community', pages: [{ template: 'photo-story', layout: 'print', headline: 'Page one, *in print.*', sub: 'The photo as a raised card.', image: IMG.jar }, { template: 'photo-story', layout: 'print', headline: 'Page two, *in print.*', image: IMG.scene, zoom: 1.1 }] } },
   // photo (every size)
   { id: 'photo', design: { template: 'photo', eyebrow: 'Market day', headline: 'Saving, *together.*', sub: 'Every deposit is on the record.', image: IMG.scene, sizes: ALL_SIZES } },
   { id: 'photo-bottom', design: { template: 'photo', headline: 'Text at the *bottom.*', image: IMG.scene, textAt: 'bottom', lines: false, sizes: ALL_SIZES } },
