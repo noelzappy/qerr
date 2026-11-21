@@ -188,6 +188,16 @@ the table (for example `closing`'s default text, `region`) is a shared change: a
   conditions. The first variant whose `when` holds is drawn; a spec that matches none falls back to the function.
 - **`ensureValid`.** The registry validates every built-in layout the first time one is used and throws a plain `Error` naming
   each problem; `test-design-builtin.mjs` checks the same with `builtinProblems()`.
+- **Screen (done).** A `when` tests one choice only, so two independent flags (a desktop window's `framed` and `tilt`) cannot
+  pick among blocks: the block reads the spec's own validated flags instead (`specWindow`, like `specSize`). A piece drawn in
+  two places of the DOM (the glow before the running head, the phone after the text) is two blocks: `halo` has no rectangle and
+  is sized from the layout's `screen` block as that block draws the phone. A flex row of two blocks is drawn by one of them:
+  the headline with `row` draws the row and the phone in it (the screen block then draws nothing), from the two rectangles
+  (their band, the gap between them), and refuses a phone that is not beside it at the same height. The template's footer has
+  no label at all (`footer(ctx, { label: '' })`), so it is its own chrome block (`footlogo`) rather than a change to the shared
+  footer drawing. The sub line decides the panel's top (`panelTopFor`): blocks in pairs with `{ present: 'sub' }` and
+  `{ absent: 'sub' }`. Imports a group's drawings need are written in its own section of the page file, as namespaces with
+  names of their own (`import * as screenKit from ...`), so no merge declares a name twice.
 
 ## Pre-existing issues seen in the baseline (not part of the conversion)
 
