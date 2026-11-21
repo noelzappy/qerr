@@ -1,0 +1,23 @@
+.env
+channels.json
+accounts.json
+state/
+out/
+schema-cache.json
+media/*
+!media/README.md
+.DS_Store
+packages/engine/design/assets/photos/*
+!packages/engine/design/assets/photos/README.md
+!packages/engine/design/assets/photos/CREDITS.md
+packages/engine/design/assets/screens/*
+!packages/engine/design/assets/screens/README.md
+!packages/engine/design/assets/screens/SOURCES.md
+review/
+packages/engine/design/assets/brand/*
+!packages/engine/design/assets/brand/SOURCES.md
+
+node_modules/
+
+# Dokploy environment block generated for pasting; never commit
+deploy/*.env.local

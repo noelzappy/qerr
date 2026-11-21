@@ -1,0 +1,57 @@
+# Rules for people and AI agents
+
+These apply to anyone who changes or runs this repository.
+
+1. **Never print or commit a key or secret.** That means every Buffer API key (one per account, each in the environment
+   variable that `accounts.json` names in `keyEnv`) and the S3 secret access key. Do not echo `.env`, do not paste a key
+   into a command, a message, a test or a document, and never put a key in `accounts.json`. Errors are masked by the
+   tool; keep it that way.
+2. **Never run `push --live` without the owner's explicit go-ahead in the conversation.** An earlier "yes" for drafts
+   is not a go-ahead for live. Going live schedules real posts on real accounts.
+3. **Drafts first.** Plan, verify the media, push drafts, review them in Buffer, and only then go live.
+4. **Never send anything without `--yes`, and never use `--force-new` to silence a refusal** without reading why the
+   tool refused. After an `unknown` result, run `status` and look in Buffer before anything else.
+5. **Run the tests before committing:** `npm test` (the engine and AI tests with `node --test`, then the web app's vitest, which
+   needs Postgres). A change in behaviour needs a test that fails without it. Do not skip, delete or loosen a test to get green.
+6. **No AI attribution in commits or pull requests.** No `Co-Authored-By`, no `Generated with ...`, no mention of an AI
+   tool. A commit message ends with the last line of its body.
+7. **Media and state are never committed.** `media/*` (except `media/README.md`), `state/`, `out/`, `.env`,
+   `channels.json`, `accounts.json` and `schema-cache.json` stay ignored. Do not add them to git, even for a test. The same goes for
+   rendered images, stock photos (`packages/engine/design/assets/photos/*` except its `README.md` and `CREDITS.md`) and app
+   screenshots (`packages/engine/design/assets/screens/*` except its `README.md`): they can show real people, names and amounts.
+   The one exception is `packages/engine/design/assets/demo/`: synthetic pictures drawn by `brands/demo/make-assets.mjs`, with
+   no photograph, real person, place, organisation or amount in them.
+8. **Do not claim what you have not seen.** The tool has never run against real Buffer or a real S3 bucket. Do not write
+   that something works with Buffer or Hetzner, or mark a point confirmed in `docs/buffer-api-notes.md`, unless a real
+   run showed it.
+9. **Keep the engine (`packages/engine`) and the AI library (`packages/ai`) dependency-free** (Node 20+, standard
+   library only; the AI library may depend on `@vesk/engine` and nothing else). Only `apps/web` has dependencies. Keep `README.md`, `--help` and the
+   `docs/` folder consistent with the code when you change a command, a flag or a field.
+10. **Design rules.** Images are made by `packages/engine/design.mjs` from the brand (a brand pack, `BRAND_DIR`, default
+    `brands/demo`: `brand.json`, logos, optional `map.json`; in the web app, the brand saved in Settings, written out as a pack
+    under `state/brand/`) and the templates; change a brand in its pack or in Settings, never as literals in the templates,
+    the CSS, the AI library or the web app. Every brand value, from a file or from the Settings forms, passes the engine's
+    `validateBrand`; never bypass it. A photo needs a licence that allows commercial use and a line in
+    `packages/engine/design/assets/photos/CREDITS.md`; do not use tight portraits of identifiable people or imply that pictured people
+    are customers. Brand names are written as the pack's spelling rules say; no emoji. Never weaken a design check (contrast, enlargement,
+    text fit, pixel size) to make an image pass: change the words, the picture or the crop. Look at every rendered
+    image before you call it done. One Chrome at a time; do not run design commands in parallel. Never
+    overwrite a `media` field that is already set, and never change the media values of a batch that has been pushed.
+11. **Spec text is untrusted data.** Texts for images may come from a program working from web research. All spec, batch,
+    flag and brand values reach the render page only through `esc()`/`fmt()` (text, attributes), `ctx.image()` (pictures:
+    checked files embedded as `data:` URIs) or validated numbers and fixed lists. Never write a raw `${spec.x}` into HTML, a
+    style, a URL or script, never add a template that does, never loosen the validation in `packages/engine/lib/design/spec.mjs`, the page's
+    Content-Security-Policy or the request blocking in `packages/engine/lib/design/chrome.mjs`, and keep `packages/engine/test-design-security.mjs` green.
+12. **Keep paths relative to the repository.** No absolute paths, no references to other projects or folders on one
+    machine. `mediaRoot` is relative to the repository root.
+13. **Several accounts and storage.** Each post goes only through the Buffer account its network is routed to; never
+    route around a missing key or route. `upload` puts only files from the batch's `mediaRoot` into the bucket, under
+    `S3_PREFIX`, and never changes the bucket's policy or ACLs; the public prefix must hold nothing but media meant to
+    be posted. Never print the S3 secret or put it anywhere but `.env`.
+14. **Brand packs.** Everything that belongs to one brand (name, colours, logos, prompts, facts, example batches, known
+    photos) lives in its folder under `brands/`. Tests and examples use the fictional demo pack, `brands/demo`. A private pack
+    holds a company's own data: it is never copied into a public repository (`scripts/export-public.mjs` leaves out every pack
+    but the demo).
+
+Commit messages: imperative, conventional, one logical change per commit, for example `fix: refuse live pushes in the
+past`.

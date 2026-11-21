@@ -1,0 +1,59 @@
+// The seam to the @vesk/ai workspace package. When the package is absent the stub has the same signatures and says
+// plainly that AI is not installed. Nothing else in the app imports the package directly.
+import { importAiPackage } from './engine/root.js';
+
+export interface AiProviderInput {
+  id: string; kind: 'anthropic' | 'openai-compatible'; baseUrl: string; model: string; apiKey: string; tasks: string[];
+  // USD per million tokens, keyed by model name; without it the library reports a call's cost as unknown.
+  prices?: Record<string, { inputPerMTok: number; outputPerMTok: number }>;
+}
+export interface AiSearchInput { kind: 'brave' | 'tavily' | 'exa'; apiKey: string }
+
+export interface CreateAiOptions {
+  providers: AiProviderInput[];
+  search?: AiSearchInput | null;
+  budget?: { monthlyLimitUsd: number; spentUsd: number };
+  log?: (record: Record<string, unknown>) => void;
+}
+
+export type AiProgress = { step: string; done?: number; total?: number };
+export interface DraftBatchInput { vault: unknown[]; series: unknown; period: unknown; count: number; channels: string[]; brand: unknown; timezone: string; onProgress?: (p: AiProgress) => void }
+// notes: what the drafter reports (prompt version, model, usage, rejected posts, repairs, image suggestions, messages).
+export interface DraftBatchResult { batch: Record<string, unknown>; notes?: Record<string, unknown> }
+export interface ResearchInput { topics: string[]; vault: unknown[]; since?: string; onProgress?: (p: AiProgress) => void }
+export interface ResearchResult {
+  items: Array<{ kind: string; title: string; body: string; sourceUrls: string[]; foundAt: string }>;
+  checks: Array<{ vaultItemId: string; verdict: string; sourceUrls: string[]; note: string }>;
+  // What the library searched, read, skipped and dropped (topics, dropped, windowStart, model). Absent in test fakes.
+  notes?: Record<string, unknown>;
+}
+export interface AnalyseReferenceInput { image: { mediaType: string; data: Buffer }; note?: string | null }
+export interface AnalyseReferenceResult { analysis: Record<string, unknown>; brief: string; notes?: Record<string, unknown> }
+export interface RewriteInput { post: Record<string, unknown>; instruction: string; vault: unknown[] }
+
+export interface AI {
+  draftBatch(input: DraftBatchInput): Promise<DraftBatchResult>;
+  research(input: ResearchInput): Promise<ResearchResult>;
+  rewrite(input: RewriteInput): Promise<Record<string, unknown>>;
+  analyseReference(input: AnalyseReferenceInput): Promise<AnalyseReferenceResult>;
+}
+
+export interface AiModule {
+  installed: boolean;
+  createAI(options: CreateAiOptions): AI;
+}
+
+const notInstalled = async (): Promise<never> => {
+  throw new Error('AI not installed yet');
+};
+
+export const stubAiModule: AiModule = {
+  installed: false,
+  createAI: () => ({ draftBatch: notInstalled, research: notInstalled, rewrite: notInstalled, analyseReference: notInstalled }),
+};
+
+export async function loadAI(): Promise<AiModule> {
+  const mod = await importAiPackage<{ createAI: AiModule['createAI'] }>();
+  if (!mod) return stubAiModule;
+  return { installed: true, createAI: mod.createAI };
+}

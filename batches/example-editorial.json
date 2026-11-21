@@ -1,0 +1,364 @@
+{
+  "name": "example-editorial",
+  "timezone": "Europe/London",
+  "defaultTime": "09:00",
+  "mediaRoot": "media/example-editorial",
+  "posts": [
+    {
+      "id": "01-savings-sense",
+      "date": "2027-01-11",
+      "title": "Savings sense: the paper book",
+      "caption": "Why the paper book lets your group down. Four ways a paper record fails, and what replaces it.\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "01-savings-sense-1.jpg",
+        "01-savings-sense-2.jpg",
+        "01-savings-sense-3.jpg",
+        "01-savings-sense-4.jpg",
+        "01-savings-sense-5.jpg",
+        "01-savings-sense-6.jpg",
+        "01-savings-sense-7.jpg"
+      ],
+      "design": {
+        "template": "carousel",
+        "series": "explainers",
+        "pages": [
+          {
+            "template": "cover",
+            "headline": "Why the paper book *lets you down.*",
+            "sub": "Four ways a paper record fails, and what replaces it.",
+            "image": "design/assets/demo/object-jar.jpg",
+            "focal": "50% 70%",
+            "zoom": 1.0
+          },
+          {
+            "template": "passbook",
+            "headline": "A page gets lost, and *so does the proof.*",
+            "sub": "The group book is the only copy. If it is lost, soaked or torn, the group is left with its memories.",
+            "days": 31,
+            "ticked": 17,
+            "register": {
+              "title": "Where this record exists",
+              "rows": [
+                [
+                  "Group book",
+                  "1"
+                ],
+                [
+                  "Treasurer’s copy",
+                  "–"
+                ],
+                [
+                  "Members’ copies",
+                  "–"
+                ],
+                [
+                  "Backup",
+                  "–"
+                ]
+              ],
+              "mark": 0
+            }
+          },
+          {
+            "template": "ledger",
+            "headline": "Totals are *added by hand.*",
+            "sub": "Every page is summed by a person at the end of a long day. One slip carries forward into every page after it.",
+            "columns": [
+              {
+                "label": "Week"
+              },
+              {
+                "label": "Deposit",
+                "align": "end"
+              },
+              {
+                "label": "Total, by hand",
+                "align": "end"
+              },
+              {
+                "label": "Off by",
+                "align": "end"
+              }
+            ],
+            "rows": [
+              [
+                "01",
+                "10.00",
+                "10.00",
+                "–"
+              ],
+              [
+                "02",
+                "10.00",
+                "20.00",
+                "–"
+              ],
+              [
+                "03",
+                "20.00",
+                "40.00",
+                "–"
+              ],
+              [
+                "04",
+                "10.00",
+                "40.00",
+                "10.00"
+              ],
+              [
+                "05",
+                "15.00",
+                "55.00",
+                "–"
+              ],
+              [
+                "06",
+                "10.00",
+                "65.00",
+                "–"
+              ],
+              [
+                "07",
+                "10.00",
+                "75.00",
+                "–"
+              ]
+            ],
+            "mark": [
+              {
+                "row": 3,
+                "col": 2
+              }
+            ],
+            "notes": [
+              "Week 4: 40.00 + 10.00 written as 40.00",
+              "Amounts in €, an example"
+            ]
+          },
+          {
+            "template": "text",
+            "headline": "Nobody else *can see it.*",
+            "sub": "Members only learn what the group holds when the book comes round. Until then, it lives in one bag."
+          },
+          {
+            "template": "ledger",
+            "headline": "Disputes come down to *whose word.*",
+            "sub": "When a member and the treasurer remember different amounts, a handwritten line settles very little.",
+            "columns": [
+              {
+                "label": "Week"
+              },
+              {
+                "label": "Member recalls",
+                "align": "end"
+              },
+              {
+                "label": "Treasurer wrote",
+                "align": "end"
+              }
+            ],
+            "rows": [
+              [
+                "01",
+                "10.00",
+                "10.00"
+              ],
+              [
+                "02",
+                "10.00",
+                "10.00"
+              ],
+              [
+                "03",
+                "20.00",
+                "10.00"
+              ],
+              [
+                "04",
+                "10.00",
+                "10.00"
+              ],
+              [
+                "05",
+                "10.00",
+                "10.00"
+              ]
+            ],
+            "mark": [
+              {
+                "row": 2,
+                "col": 1
+              },
+              {
+                "row": 2,
+                "col": 2
+              }
+            ],
+            "notes": [
+              "Week 3: two memories, one line",
+              "Amounts in €, an example"
+            ]
+          },
+          {
+            "template": "screen",
+            "device": "desktop",
+            "ground": "white",
+            "headline": "The same book, *on record.*",
+            "sub": "Acme Savings records each deposit, adds the totals itself and shows every member their own record.",
+            "image": "design/assets/demo/screen-desk.png",
+            "title": "Acme Savings"
+          },
+          {
+            "template": "closing",
+            "headline": "Save together, *see every step.*",
+            "map": true
+          }
+        ]
+      },
+      "networks": {
+        "instagram": {
+          "type": "carousel"
+        }
+      }
+    },
+    {
+      "id": "02-myth-vs-fact",
+      "date": "2027-01-13",
+      "title": "Myth vs fact",
+      "caption": "Myth: going digital means every member needs a smartphone. Fact: the treasurer records each deposit; a member’s own phone page is optional.\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "02-myth-vs-fact-feed.jpg"
+      ],
+      "design": {
+        "template": "myth-fact",
+        "series": "myth-vs-fact",
+        "myth": "Going digital means every member needs a smartphone.",
+        "factLead": "Members keep saving *exactly as they do today.*",
+        "fact": "The treasurer records each deposit; a member’s own phone page is optional."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "03-the-numbers",
+      "date": "2027-01-15",
+      "title": "The numbers",
+      "caption": "1,200+ savings groups keep their records on Acme Savings, and 9,400+ members save every week. (Demo figures.)\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "03-the-numbers-feed.jpg"
+      ],
+      "design": {
+        "template": "stats",
+        "series": "the-numbers",
+        "big": "1,200+",
+        "line": "savings groups on Acme Savings",
+        "stats": [
+          "9,400+|members saving weekly",
+          "85,000+|deposits recorded last year"
+        ],
+        "image": "design/assets/demo/scene-market.jpg",
+        "focal": "50% 60%"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "04-every-step",
+      "date": "2027-01-18",
+      "title": "Every step",
+      "caption": "Every deposit in the group book, on record the day it is made.\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "04-every-step-feed.jpg"
+      ],
+      "design": {
+        "template": "passbook",
+        "label": "Acme Savings",
+        "headRight": "Weekly group book, 31 weeks",
+        "headline": "Save together, *see every step.*",
+        "days": 31,
+        "ticked": 24,
+        "today": 25,
+        "tick": "gold"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "05-on-record",
+      "date": "2027-01-20",
+      "title": "On record",
+      "caption": "The treasurer enters each deposit, and every member sees the group’s record the same day.\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "05-on-record-feed.jpg"
+      ],
+      "design": {
+        "template": "screen",
+        "series": "on-record",
+        "headline": "A deposit, recorded *the day it is made.*",
+        "sub": "The treasurer enters each deposit; every member sees the group’s record.",
+        "image": "design/assets/demo/screen-desk.png",
+        "device": "desktop",
+        "title": "Acme Savings"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "06-company-news",
+      "date": "2027-01-22",
+      "title": "Company news",
+      "caption": "Harbour Street Savers, a weekly group of 24 members, moved its records from a paper book to Acme Savings.\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "06-company-news-feed.jpg"
+      ],
+      "design": {
+        "template": "photo-story",
+        "series": "news",
+        "layout": "print",
+        "headline": "Harbour Street Savers *join the record.*",
+        "sub": "A weekly group of 24 members moves from a paper book to Acme Savings.",
+        "image": "design/assets/demo/scene-market.jpg"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "07-community",
+      "date": "2027-01-25",
+      "title": "Community",
+      "caption": "Saving together has always worked. Acme Savings keeps the record, so the group keeps the trust.\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "07-community-feed.jpg"
+      ],
+      "design": {
+        "template": "photo-story",
+        "series": "community",
+        "layout": "panel",
+        "headline": "Saving together has *always worked.*",
+        "sub": "Acme Savings keeps the record, so the group keeps the trust.",
+        "image": "design/assets/demo/scene-market.jpg",
+        "focal": "50% 50%"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    }
+  ]
+}

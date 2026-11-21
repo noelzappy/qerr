@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "types": ["node"],
+    "outDir": "dist/server",
+    "rootDir": "src/server"
+  },
+  "include": ["src/server/**/*.ts"],
+  "exclude": ["src/server/**/*.spec.ts", "src/server/testing.ts", "src/server/testing-desk.ts"]
+}

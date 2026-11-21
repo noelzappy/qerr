@@ -1,0 +1,289 @@
+{
+  "name": "Acme Savings",
+  "website": "acmesavings.example",
+  "tagline": "Save together, see every step.",
+  "descriptor": "Group savings, goals and records in one place. A fictional brand for the demo.",
+  "timezone": "Europe/London",
+  "money": {
+    "local": "Acme Savings works in euros (€) only",
+    "foreign": "US\\$|\\$|£|\\b(?:dollars?|pounds? sterling|rupees?|yen|nairas?)\\b"
+  },
+  "grounds": {
+    "white": "#FFFFFF",
+    "tint": "#F5F7FB",
+    "mint": "#E8EEF9",
+    "gold-pale": "#FCEBE4",
+    "ink": "#14213D",
+    "deep": "#1C2D52"
+  },
+  "text": {
+    "ink": "#14213D",
+    "body": "#3C4A63",
+    "muted": "#5B6880",
+    "mutedInv": "#9AA8C2",
+    "invBody": "#CDD6E6",
+    "hair": {
+      "color": "#14213D",
+      "alpha": 0.12
+    }
+  },
+  "accents": {
+    "gold": "#F0805F",
+    "goldDeep": "#A8401F",
+    "primary": "#2F5BB7"
+  },
+  "gradient": {
+    "sage": "#4A6FA5",
+    "teal": "#2F8FBF",
+    "mint": "#9CC3EE",
+    "gold": "#F0805F",
+    "amber": "#E8603C"
+  },
+  "surfaces": {
+    "panel": "#F5F7FB",
+    "card": "#FFFFFF",
+    "line": {
+      "color": "#14213D",
+      "alpha": 0.08
+    }
+  },
+  "scale": 2,
+  "radius": {
+    "card": 8,
+    "device": 12,
+    "button": 4
+  },
+  "shadows": {
+    "card": [
+      {
+        "x": 0,
+        "y": 13,
+        "blur": 27,
+        "spread": -5,
+        "color": "#14213D",
+        "alpha": 0.18
+      },
+      {
+        "x": 0,
+        "y": 8,
+        "blur": 16,
+        "spread": -8,
+        "color": "#14213D",
+        "alpha": 0.22
+      }
+    ],
+    "window": [
+      {
+        "x": 0,
+        "y": 30,
+        "blur": 60,
+        "spread": -12,
+        "color": "#14213D",
+        "alpha": 0.25
+      },
+      {
+        "x": 0,
+        "y": 18,
+        "blur": 36,
+        "spread": -18,
+        "color": "#14213D",
+        "alpha": 0.3
+      }
+    ],
+    "phone": [
+      {
+        "x": 0,
+        "y": 24,
+        "blur": 32,
+        "spread": 0,
+        "color": "#14213D",
+        "alpha": 0.22
+      }
+    ]
+  },
+  "window": {
+    "refWidth": 560,
+    "bar": 32,
+    "dot": 8,
+    "dotGap": 6,
+    "padX": 12,
+    "titleGap": 12,
+    "titleSize": 10,
+    "titlePadX": 8,
+    "titlePadY": 2,
+    "tilt": {
+      "perspective": 1600,
+      "rotateY": -8,
+      "rotateX": 4
+    }
+  },
+  "phone": {
+    "refWidth": 300,
+    "fade": 56
+  },
+  "glow": {
+    "opacity": 0.6,
+    "blur": 64,
+    "inset": 40
+  },
+  "dots": {
+    "size": 1,
+    "spacing": 24,
+    "alpha": 0.08
+  },
+  "figure": {
+    "strong": 0.42,
+    "soft": 0.16,
+    "grid": 0.2
+  },
+  "font": {
+    "family": "Inter",
+    "mono": "IBM Plex Mono",
+    "headlineWeight": 400,
+    "accentWeight": 300,
+    "tracking": -0.02,
+    "leading": 1.2,
+    "files": [
+      {
+        "role": "sans",
+        "weight": "300 700",
+        "file": "design/fonts/inter-v20-latin.woff2",
+        "range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+      },
+      {
+        "role": "sans",
+        "weight": "300 700",
+        "file": "design/fonts/inter-v20-latin-ext.woff2",
+        "range": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF"
+      },
+      {
+        "role": "mono",
+        "weight": "400",
+        "file": "design/fonts/ibm-plex-mono-v23-400-latin.woff2",
+        "range": "U+0000-00FF, U+2000-206F, U+2190-2193, U+2212"
+      },
+      {
+        "role": "mono",
+        "weight": "400",
+        "file": "design/fonts/ibm-plex-mono-v23-400-latin-ext.woff2",
+        "range": "U+0100-02BA, U+20A0-20C4"
+      },
+      {
+        "role": "mono",
+        "weight": "500",
+        "file": "design/fonts/ibm-plex-mono-v23-500-latin.woff2",
+        "range": "U+0000-00FF, U+2000-206F, U+2190-2193, U+2212"
+      },
+      {
+        "role": "mono",
+        "weight": "500",
+        "file": "design/fonts/ibm-plex-mono-v23-500-latin-ext.woff2",
+        "range": "U+0100-02BA, U+20A0-20C4"
+      }
+    ]
+  },
+  "poster": {
+    "headlineWeight": 600,
+    "tracking": -0.035,
+    "leading": 1.06,
+    "slabs": {
+      "myth": "#23365E",
+      "fact": "#E8EEF9"
+    },
+    "slabRadius": 28,
+    "texture": {
+      "alpha": 0.045,
+      "spacing": 9,
+      "angle": 135
+    }
+  },
+  "logos": {
+    "full": "brands/demo/logos/logo-full.png",
+    "mark": "brands/demo/logos/logo-mark.png",
+    "fullSize": [
+      1740,
+      338
+    ],
+    "wordmarkFrom": 360,
+    "markGap": 39
+  },
+  "series": {
+    "explainers": {
+      "name": "Savings sense",
+      "ground": "white",
+      "accent": "muted"
+    },
+    "myth-vs-fact": {
+      "name": "Myths vs facts",
+      "ground": "ink",
+      "accent": "colour"
+    },
+    "the-numbers": {
+      "name": "The numbers",
+      "ground": "white",
+      "accent": "muted"
+    },
+    "on-record": {
+      "name": "On record",
+      "ground": "white",
+      "accent": "muted"
+    },
+    "news": {
+      "name": "News",
+      "ground": "tint",
+      "accent": "muted"
+    },
+    "community": {
+      "name": "Community",
+      "ground": "white",
+      "accent": "muted"
+    }
+  },
+  "spelling": [
+    {
+      "wrong": "Acme[ -]?savings",
+      "flags": "",
+      "right": "Acme Savings"
+    },
+    {
+      "wrong": "ACME SAVINGS",
+      "flags": "",
+      "right": "Acme Savings"
+    }
+  ],
+  "lint": {
+    "headlineMaxChars": {
+      "feed": 60,
+      "wide": 48,
+      "story": 60,
+      "square": 50
+    },
+    "subMaxChars": {
+      "feed": 110,
+      "wide": 90,
+      "story": 110,
+      "square": 90
+    }
+  },
+  "contrast": {
+    "headline": 7,
+    "accent": 4.5,
+    "sub": 7,
+    "label": 4.5,
+    "art": 4.5,
+    "artbody": 7
+  },
+  "photo": {
+    "scrimStart": 0.5,
+    "scrimCap": 0.65,
+    "scrimStep": 0.05,
+    "footerFadeCap": 0.5,
+    "minContrast": {
+      "headline": 3,
+      "sub": 4.5,
+      "eyebrow": 4.5,
+      "url": 3
+    },
+    "maxUpscale": 1.3
+  }
+}

@@ -1,0 +1,169 @@
+{
+  "name": "example-launch",
+  "timezone": "Europe/London",
+  "defaultTime": "09:00",
+  "mediaRoot": "media/example-launch",
+  "posts": [
+    {
+      "id": "01-what-is-acme",
+      "date": "2026-11-23",
+      "title": "What Acme Savings is",
+      "caption": "Save together, see every step.\n\nAcme Savings is one place for group savings, goals and records. Every deposit is recorded the day it is made, so the whole group knows where the money is.\n\nSee how it works: https://acmesavings.example\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "01-what-is-acme-feed.jpg"
+      ],
+      "design": {
+        "template": "object",
+        "headline": "Save together, *see every step.*",
+        "sub": "Group savings, goals and records in one place.",
+        "image": "design/assets/demo/object-jar.jpg",
+        "ground": "photo",
+        "align": "center"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Save together, see every step. Acme Savings keeps group savings, goals and records in one place.\n\nhttps://acmesavings.example"
+        }
+      }
+    },
+    {
+      "id": "02-the-numbers",
+      "date": "2026-11-25",
+      "title": "The numbers",
+      "caption": "1,200+ savings groups and 9,400+ members saving every week keep their records on Acme Savings. (Demo figures.)\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "02-the-numbers-feed.jpg"
+      ],
+      "design": {
+        "template": "number",
+        "big": "1,200+",
+        "line": "savings groups on Acme Savings",
+        "stats": [
+          "9,400+|members saving weekly"
+        ]
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "1,200+ savings groups, 9,400+ members saving weekly. (Demo figures.)"
+        }
+      }
+    },
+    {
+      "id": "03-how-a-group-works",
+      "date": "2026-11-27",
+      "title": "How a group works",
+      "caption": "A savings group is a circle of people who put in a fixed amount on a fixed day. Acme Savings records each deposit and shows every member what they have put in.\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "03-how-a-group-works.mp4"
+      ],
+      "networks": {
+        "instagram": {
+          "type": "reel"
+        },
+        "x": {
+          "caption": "A savings group puts in a fixed amount on a fixed day. Acme Savings records each deposit."
+        }
+      }
+    },
+    {
+      "id": "04-goals",
+      "date": "2026-11-30",
+      "title": "Group goals",
+      "caption": "A group can set a shared goal, and everyone sees how close it is.\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "04-goals-feed.jpg"
+      ],
+      "design": {
+        "template": "text",
+        "series": "explainers",
+        "headline": "One goal, *everyone can see it.*",
+        "sub": "Set a target for the year and watch the group get there."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Set a shared goal and see how close the group is."
+        }
+      }
+    },
+    {
+      "id": "05-approvals",
+      "date": "2026-12-02",
+      "title": "Two-person approval",
+      "caption": "A payout needs a second person in the group to approve it before it is recorded as paid.\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "05-approvals-feed.jpg"
+      ],
+      "design": {
+        "template": "myth-fact",
+        "series": "myth-vs-fact",
+        "myth": "One person can pay out the pot.",
+        "factLead": "Every payout needs *a second person.*",
+        "fact": "A payout is recorded as paid only after a second member approves it."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Every payout needs a second person to approve it."
+        }
+      }
+    },
+    {
+      "id": "06-on-record",
+      "date": "2026-12-04",
+      "title": "On record",
+      "caption": "The treasurer enters each deposit, and every member sees the group’s record the same day.\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "06-on-record-feed.jpg"
+      ],
+      "design": {
+        "template": "screen",
+        "series": "on-record",
+        "device": "desktop",
+        "headline": "A deposit, recorded *the day it is made.*",
+        "image": "design/assets/demo/screen-desk.png",
+        "title": "Acme Savings"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Each deposit recorded the day it is made, for every member to see."
+        }
+      }
+    },
+    {
+      "id": "07-statements",
+      "date": "2026-12-07",
+      "title": "Monthly statements",
+      "caption": "At the end of each month every member gets a short statement of what they put in and what the group holds.\n\n#AcmeSavings #SavingsGroups #SaveTogether",
+      "media": [
+        "07-statements-feed.jpg"
+      ],
+      "design": {
+        "template": "closing",
+        "headline": "Save together, *see every step.*",
+        "map": true
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "A short statement for every member, every month."
+        }
+      }
+    }
+  ]
+}

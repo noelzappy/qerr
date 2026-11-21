@@ -1,0 +1,19 @@
+{
+  "name": "@vesk/ai",
+  "version": "0.1.0",
+  "description": "AI drafting, research, rewriting and design-reference analysis for Vesk. No dependencies: plain fetch.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "exports": {
+    ".": "./src/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@vesk/engine": "*"
+  },
+  "scripts": {
+    "test": "node --test --test-concurrency=1"
+  }
+}

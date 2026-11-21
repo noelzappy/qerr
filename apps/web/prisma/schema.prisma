@@ -1,0 +1,445 @@
+// Vesk schema. Better Auth owns User, Session, Account and Verification (field names are the library's own).
+// Later changes go in NEW migrations; never edit a committed migration.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---- Better Auth ----------------------------------------------------------------------------------------------
+
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+  // 'admin' | 'editor'
+  role          String   @default("editor")
+  disabled      Boolean  @default(false)
+
+  sessions Session[]
+  accounts Account[]
+  invites  Invite[]
+  batches  Batch[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @default(now()) @updatedAt
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+// ---- Invites and audit ----------------------------------------------------------------------------------------
+
+model Invite {
+  id          String    @id @default(uuid())
+  email       String
+  role        String
+  // sha256 of the token; the token itself is shown once and never stored
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdById String?
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+
+  @@index([email])
+  @@map("invites")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  at         DateTime @default(now())
+  actorId    String?
+  actorEmail String?
+  // dotted, e.g. 'invite.create'
+  action     String
+  entity     String?
+  entityId   String?
+  // never contains secrets (see audit.ts)
+  detail     Json     @default("{}")
+
+  @@index([at])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+// ---- Buffer accounts and routing ------------------------------------------------------------------------------
+
+model BufferAccount {
+  id             String         @id @default(uuid())
+  // engine rule ^[A-Za-z0-9_-]{1,32}$
+  name           String         @unique
+  // 'v<keyVersion>.<nonce b64>.<ct+tag b64>'
+  keyCipher      String
+  keyVersion     Int
+  keyLast4       String
+  keyExpiresAt   DateTime?
+  organizationId String?
+  captionLimits  Json           @default("{}")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @default(now()) @updatedAt
+  routes         ChannelRoute[]
+
+  @@map("buffer_accounts")
+}
+
+model ChannelRoute {
+  // instagram | linkedin | facebook | x
+  network     String        @id
+  accountId   String
+  account     BufferAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  channelId   String
+  channelName String?
+  updatedAt   DateTime      @default(now()) @updatedAt
+
+  @@index([accountId])
+  @@map("channel_routes")
+}
+
+// ---- AI and search settings -----------------------------------------------------------------------------------
+
+model AiProvider {
+  id         String   @id @default(uuid())
+  name       String
+  // 'anthropic' | 'openai-compatible'
+  kind       String
+  baseUrl    String
+  model      String
+  keyCipher  String
+  keyVersion Int
+  keyLast4   String
+  // draft | research | rewrite
+  tasks      String[]
+  enabled    Boolean  @default(true)
+  // US dollars per million tokens, as the vendor lists them. Both must be set for the app to estimate a call's cost;
+  // without them a call is logged with an unknown cost and the monthly budget cannot see it.
+  inputPricePerMTok  Float?
+  outputPricePerMTok Float?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@map("ai_providers")
+}
+
+// One row per AI or search call, written as the AI library reports it. Month-to-date spend is the sum of costUsd.
+model AiCall {
+  id         String   @id @default(uuid())
+  at         DateTime @default(now())
+  // 'llm' | 'search' | 'fetch'
+  kind       String   @default("llm")
+  // draft | research | rewrite
+  task       String?
+  provider   String?
+  model      String?
+  tokensIn   Int?
+  tokensOut  Int?
+  // null when the cost could not be estimated (no prices set for the model)
+  costUsd    Float?
+  durationMs Int?
+  ok         Boolean  @default(true)
+  error      String?
+  // One draft run's calls share a runId; batchId is filled in when the run made a batch.
+  runId      String?
+  batchId    String?
+  actorId    String?
+
+  @@index([at])
+  @@index([batchId])
+  @@map("ai_calls")
+}
+
+// Singleton row: id = 'search'
+model SearchSetting {
+  id         String   @id @default("search")
+  // 'brave' | 'tavily' | 'exa'
+  kind       String
+  keyCipher  String
+  keyVersion Int
+  keyLast4   String
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@map("search_settings")
+}
+
+// monthlyBudgetUsd, researchTopics, staleFigureDays and similar
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@map("app_settings")
+}
+
+// ---- Vault ----------------------------------------------------------------------------------------------------
+
+model VaultItem {
+  id              String    @id @default(uuid())
+  // fact | figure | news | event | product_note | story | photo | screen
+  kind            String
+  title           String
+  body            String    @default("")
+  sourceUrl       String?
+  sourceNotes     String?
+  recordedAt      DateTime?
+  // 'confirmed' | 'unconfirmed'
+  status          String    @default("unconfirmed")
+  confirmedById   String?
+  confirmedAt     DateTime?
+  validFrom       DateTime?
+  validUntil      DateTime?
+  tags            String[]
+  // file fields (photos and screens); fileKey starts with 'vault/'
+  fileKey         String?
+  fileName        String?
+  contentType     String?
+  size            Int?
+  // 'own' | 'licensed' | 'rights_to_confirm' | null
+  licence         String?
+  licenceNotes    String?
+  peoplePresent   Boolean   @default(false)
+  consentRecorded Boolean   @default(false)
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
+  deletedAt       DateTime?
+
+  @@index([kind])
+  @@index([status])
+  @@map("vault_items")
+}
+
+// ---- Batches --------------------------------------------------------------------------------------------------
+
+model Batch {
+  id              String   @id @default(uuid())
+  // engine name rule
+  name            String   @unique
+  title           String
+  timezone        String
+  defaultTime     String
+  defaultNetworks String[]
+  periodStart     String?
+  periodEnd       String?
+  // 'draft' | 'in_review' | 'scheduled' | 'done'
+  status          String   @default("draft")
+  // Set when the AI drafted this batch: prompt version, model, usage, rejected posts, image suggestions. null for the rest.
+  aiDraft         Json?
+  ownerId         String
+  owner           User     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+  posts           Post[]
+  activityRuns    ActivityRun[]
+
+  @@index([ownerId])
+  @@map("batches")
+}
+
+model Post {
+  id           String     @id @default(uuid())
+  batchId      String
+  batch        Batch      @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  // engine post id, unique per batch
+  postKey      String
+  position     Int
+  title        String
+  // 'YYYY-MM-DD'
+  date         String
+  // 'HH:MM'
+  time         String
+  caption      String
+  // engine per-network overrides, skip list under `skip`
+  networks     Json       @default("{}")
+  design       Json?
+  // list of { rel, key, sha256, size, contentType, kind } under renders/<batchId>/...
+  media        Json       @default("[]")
+  // 'none' | 'queued' | 'rendering' | 'ok' | 'failed'
+  renderStatus String     @default("none")
+  renderError  String?
+  // vault item ids
+  sources      String[]
+  warnings     String[]
+  // 'draft' | 'approved' | 'removed'
+  status       String     @default("draft")
+  approvedById String?
+  approvedAt   DateTime?
+  removedAt    DateTime?
+  updatedAt    DateTime   @default(now()) @updatedAt
+  deliveries   Delivery[]
+  activityRuns ActivityRun[]
+
+  @@unique([batchId, postKey])
+  @@index([batchId])
+  @@map("posts")
+}
+
+model Delivery {
+  id            String    @id @default(uuid())
+  postId        String
+  post          Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  network       String
+  // Buffer account name
+  account       String
+  channelId     String
+  bufferId      String?
+  // 'draft' | 'live'
+  mode          String
+  // 'created' | 'unknown' | 'failed' | 'deleted'
+  status        String
+  // 'draft' | 'scheduled' | 'sent' | 'failed' | 'unknown'
+  bufferStatus  String?
+  hash          String
+  dueAt         DateTime
+  error         String?
+  previous      Json?
+  mediaUrls     Json?
+  lastCheckedAt DateTime?
+  // A plain sentence from the last status check or a person's resolution (never a secret)
+  statusNote    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+
+  @@unique([postId, network])
+  @@map("deliveries")
+}
+
+// ---- Activity -------------------------------------------------------------------------------------------------
+
+// One row per piece of background work (a pg-boss job): created when it is queued, updated as it runs, kept afterwards so
+// people can see what happened. Nothing secret goes in `progress`, `result` or `error`.
+model ActivityRun {
+  id         String    @id @default(uuid())
+  // the job name: draft-batch, research-run, render-post, rewrite-post, send-batch, refresh-delivery, refresh-sweep
+  kind       String
+  // 'queued' | 'running' | 'done' | 'failed' | 'cancelled'
+  status     String    @default("queued")
+  // A plain sentence for people, for example "AI draft for January 2027"
+  title      String
+  // null for runs the system started (the 15-minute status check)
+  actorId    String?
+  batchId    String?
+  batch      Batch?    @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  postId     String?
+  post       Post?     @relation(fields: [postId], references: [id], onDelete: SetNull)
+  // the pg-boss job id
+  jobId      String?
+  // { step: string, done?: number, total?: number }
+  progress   Json?
+  // A small summary of what the run did (shape depends on kind)
+  result     Json?
+  error      String?
+  createdAt  DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@index([batchId])
+  @@map("activity_runs")
+}
+
+// ---- Brand ----------------------------------------------------------------------------------------------------
+
+// Singleton row (id = 'brand'): the organisation's brand as people set it in Settings. While there is no row the brand pack
+// named by BRAND_DIR is used. The app turns this row into a brand pack folder under state/brand/ for the design engine and the
+// AI library (see services/brand-settings.ts).
+model BrandProfile {
+  id             String   @id @default("brand")
+  // The form's fields: name, website, colours, type, series, voice, visual direction... (brandSettingsSchema)
+  settings       Json
+  // A brand.json fragment merged over what the settings make (Advanced); logos and font files are always the uploaded ones.
+  advanced       Json     @default("{}")
+  // The optional dot map (map.json), checked by the engine's mapProblems
+  map            Json?
+  // Uploaded files in storage (brand/...): the full logo and the mark are PNGs, the font a woff2
+  logoFullKey    String?
+  logoFullWidth  Int?
+  logoFullHeight Int?
+  logoMarkKey    String?
+  fontKey        String?
+  fontFamily     String?
+  updatedById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
+
+  @@map("brand_profiles")
+}
+
+// A picture the team likes. The AI turns it into a written style brief, which drafts are given (brand.json references).
+model DesignReference {
+  id          String   @id @default(uuid())
+  // brand/<random>/<name>
+  fileKey     String
+  fileName    String
+  contentType String
+  size        Int
+  // What the team likes about it, in their words
+  note        String   @default("")
+  // 'pending' | 'analysing' | 'ready' | 'failed'
+  status      String   @default("pending")
+  // { summary, palette: [{ hex, role }], typography, layout, imagery, mood, avoid } from the AI
+  analysis    Json?
+  // The text drafts are given; people may edit it
+  brief       String?
+  error       String?
+  // Only enabled references with a brief reach the AI
+  enabled     Boolean  @default(true)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([createdAt])
+  @@map("design_references")
+}

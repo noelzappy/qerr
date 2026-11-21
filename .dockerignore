@@ -1,0 +1,30 @@
+# Secrets and local state never go into the image.
+.env
+.env.*
+!.env.example
+accounts.json
+channels.json
+schema-cache.json
+state/
+media/
+out/
+review/
+
+# Photos and screenshots can show real people and amounts; only their README and credits stay.
+packages/engine/design/assets/photos/*
+!packages/engine/design/assets/photos/README.md
+!packages/engine/design/assets/photos/CREDITS.md
+packages/engine/design/assets/screens/*
+!packages/engine/design/assets/screens/README.md
+
+node_modules
+**/node_modules
+apps/web/dist
+apps/web/.data
+.git
+.gitignore
+.DS_Store
+docs/
+**/test*.mjs
+**/testlib/
+**/*.spec.ts

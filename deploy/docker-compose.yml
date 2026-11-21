@@ -1,0 +1,74 @@
+# Vesk on Dokploy. Build context is the repository root (this file is deploy/docker-compose.yml): the Dockerfile
+# there builds the npm workspaces (packages/engine, packages/ai, apps/web) into one image on Node 22.
+# Every value comes from the Dokploy environment; nothing secret is written here.
+# Written for a Dokploy server (see deploy/README.md); any Docker Compose host works the same way.
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "3000"             # reached only through Dokploy's proxy; no host port is published
+    shm_size: "512m"       # Chromium needs shared memory when rendering
+    mem_limit: 1536m       # suggested: Node and Chromium (one render at a time); raise it if renders get killed
+    environment:
+      PORT: "3000"
+      DATABASE_URL: postgresql://social:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/social
+      APP_URL: ${APP_URL:?set APP_URL, for example https://social.example.com}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?set APP_ENCRYPTION_KEY}
+      # 'local' keeps files inside the container (development only); a real deployment sets 's3' and the S3_* values.
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
+      S3_PREFIX: ${S3_PREFIX:-public/}
+      CHROME_PATH: /usr/local/bin/chromium-container
+      # The brand pack under brands/ (brand.json, logos, the first vault, optional prompts and map).
+      BRAND_DIR: ${BRAND_DIR:-}
+      ZEPTOMAIL_API_KEY: ${ZEPTOMAIL_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      # One-time seed (see README): the vault imports by itself; keys come from SEED_SECRETS_B64 or a search key below.
+      SEED_VAULT: ${SEED_VAULT:-}
+      SEED_SECRETS_B64: ${SEED_SECRETS_B64:-}
+      BRAVE_SEARCH_API_KEY: ${BRAVE_SEARCH_API_KEY:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      EXA_API_KEY: ${EXA_API_KEY:-}
+    networks:
+      - default
+      - dokploy-network
+
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: social
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: social
+    volumes:
+      - social_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U social -d social"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    expose:
+      - "5432"
+
+volumes:
+  social_pgdata:
+
+networks:
+  dokploy-network:
+    external: true

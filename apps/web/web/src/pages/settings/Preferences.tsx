@@ -1,0 +1,47 @@
+// Settings, Preferences: choices that belong to this browser (the theme).
+import { useState } from 'react';
+import { Monitor, Moon, Sun } from 'lucide-react';
+import { useDocumentTitle } from '../../hooks';
+import { useSession } from '../../session';
+import { setTheme, themeChoice, type ThemeChoice } from '../../lib/theme';
+import { cn } from '@/lib/utils';
+import { Section, SettingsPage } from './section';
+
+const OPTIONS: Array<{ value: ThemeChoice; label: string; Icon: typeof Sun }> = [
+  { value: 'light', label: 'Light', Icon: Sun },
+  { value: 'dark', label: 'Dark', Icon: Moon },
+  { value: 'system', label: 'Same as the system', Icon: Monitor },
+];
+
+export function PreferencesPage() {
+  useDocumentTitle('Preferences');
+  const { me } = useSession();
+  const [choice, setChoice] = useState<ThemeChoice>(themeChoice());
+  return (
+    <SettingsPage title="Preferences" description="These choices are kept in this browser.">
+      <Section title="Account" description="Your name and email, as the team sees them. An admin can change your role; ask an admin for a password reset link if you need one.">
+        <dl className="grid gap-x-6 gap-y-2 text-[13.5px] sm:grid-cols-[8rem_1fr]">
+          <dt className="text-muted-foreground">Name</dt><dd>{me?.name || '-'}</dd>
+          <dt className="text-muted-foreground">Email</dt><dd className="break-all">{me?.email}</dd>
+          <dt className="text-muted-foreground">Role</dt><dd>{me?.role === 'admin' ? 'Admin' : 'Editor'}</dd>
+        </dl>
+      </Section>
+      <Section title="Theme">
+        <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Theme">
+          {OPTIONS.map(({ value, label, Icon }) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={choice === value}
+              onClick={() => { setTheme(value); setChoice(value); }}
+              className={cn('flex items-center gap-2.5 rounded-lg border p-3 text-left text-[13.5px] outline-none transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50', choice === value && 'border-primary ring-1 ring-primary')}
+            >
+              <Icon className="size-4" aria-hidden="true" /> {label}
+            </button>
+          ))}
+        </div>
+      </Section>
+    </SettingsPage>
+  );
+}

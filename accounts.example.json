@@ -1,0 +1,12 @@
+{
+  "accounts": [
+    { "name": "main", "keyEnv": "BUFFER_KEY_MAIN", "organizationId": "", "captionLimits": { "x": 280 } },
+    { "name": "second", "keyEnv": "BUFFER_KEY_SECOND", "organizationId": "" }
+  ],
+  "routing": {
+    "x": { "account": "main", "channelId": "" },
+    "linkedin": { "account": "main", "channelId": "" },
+    "facebook": { "account": "second", "channelId": "" },
+    "instagram": { "account": "second", "channelId": "" }
+  }
+}

@@ -1,0 +1,171 @@
+# The AI library (`packages/ai/`, `@vesk/ai`)
+
+No third-party dependencies, Node 20+, `fetch` only. It depends on the engine workspace (`@vesk/engine`) for the batch and design validators. It is the only way the Vesk web app talks to a model or a search
+provider. Interface: `docs/spec/app-contract.md`.
+
+```js
+import { createAI } from '@vesk/ai';
+const ai = createAI({ providers, search, budget, log, prices });
+await ai.draftBatch({ vault, series, period, count, channels, brand, timezone }); // -> { batch, notes }
+await ai.research({ topics, vault, since });                                       // -> { items, checks, notes }
+await ai.rewrite({ post, instruction, vault, channels });                          // -> post (with post.notes)
+```
+
+## Configuration
+
+- `providers`: `[{ id, kind: 'anthropic' | 'openai-compatible', baseUrl, model, apiKey, tasks: ['draft','research','rewrite'], prices?, temperature? }]`.
+  Keys arrive already decrypted. The first provider whose `tasks` lists the task is used. `openai-compatible` needs a `baseUrl`
+  (it calls `{baseUrl}/chat/completions`); Anthropic defaults to `https://api.anthropic.com`.
+- `search`: `{ kind: 'brave' | 'tavily' | 'exa', apiKey }`. Needed for `research` only.
+- `budget`: `{ monthlyLimitUsd, spentUsd }`. Before every model or search call, `spentUsd >= monthlyLimitUsd` throws
+  `AIError` with `code: 'budget'`. Spend is counted inside the instance from each call's estimated cost; `ai.spentUsd()` reads it.
+  A research run that runs out of budget between topics returns what it has, with `notes.stoppedEarly`.
+- `prices`: `{ "<model>": { inputPerMTok, outputPerMTok } }` in USD, supplied by the caller (or per provider). There are no built-in
+  prices. A model without an entry has cost `"unknown"` in the log and adds nothing to the spend, so the budget cannot stop a run
+  that uses an unpriced model. Set prices if you rely on the cap.
+- `log(record)`: one record per model call, search call and page read:
+  `{ at, kind: 'llm' | 'search' | 'fetch', provider, model, task, tokensIn, tokensOut, cost (USD or "unknown"), ms, ok, error? }`.
+  Prompts, replies and keys are never in a record; error text has keys removed. A throwing logger is ignored.
+- Seams for tests and the app: `fetch`, `pageTransport`, `sleep`, `lookup` (DNS), `now`, `root`, `timeoutMs`.
+
+Errors are `AIError` with a stable `code`: `config`, `budget`, `timeout`, `network`, `http`, `invalid_output`, `truncated`,
+`unsafe_url`, `rejected`, `no_valid_posts` (its `notes` hold the rejected posts and reasons).
+
+## The brand
+
+The library reads the brand from the brand pack (`BRAND_DIR`, default `brands/demo`; see "Brand packs" in the README),
+under the given `root`. Its own prompts name no brand. Each request carries a `brand` brief built from the pack's
+`brand.json` (`brandBrief` in `src/context.mjs`):
+
+- `name`, `descriptor` (what the brand does, or `null`), `tagline`, `website`;
+- `spellings`: the correct forms from the brand's `spelling` rules (the `right` of each);
+- `money`: the pack's `money.local` sentence (for example "Acme Savings works in euros (€) only"), or `null`;
+- `language`: the language and spelling to write in (`language` in `brand.json`, default British English);
+- `voice` and `visualDirection`: the team's own words on how the brand sounds and how its images look, or `null`;
+- `references`: the style briefs of the design references that are switched on (`references` in `brand.json`, written by
+  the web app), at most 24.
+
+The voice, the visual direction and the references are taste, not facts: the prompts tell the model to follow them where
+the hard rules leave room and never to quote them as claims.
+
+`draftBatch` may override `name`, `tagline`, `website` and `descriptor` with its `brand` argument; colours and file paths
+never reach the model. `timezone` defaults to the pack's `timezone`, then `UTC`. When the pack sets `money.foreign` (a
+pattern of other currencies), a post that uses a vault picture whose title, description or tags match it is rejected,
+with the `money.local` sentence in the reason. Without `money` every currency is allowed. The `series` must be keys of the pack's `series`.
+
+## Design references
+
+`analyseReference({ image: { mediaType, data }, note })` describes one picture the team likes (a post, a poster, an
+advert, a page) as a style brief. `data` is a Buffer or base64, at most 5 MB, of type PNG, JPEG, WebP or GIF; `note` is
+what the team likes about it (at most 500 characters, passed as data). It uses the provider set up for `draft` (logged as
+the task `reference`) with the versioned `reference` prompt. The model must accept images: messages may carry image parts,
+which are sent to Anthropic as base64 image blocks and to OpenAI-compatible services as `data:` URLs.
+
+It returns `{ analysis, brief, notes }`:
+
+- `analysis` is checked against a schema: `summary`, `palette` (up to 8 `{ hex, role }`), `typography`, `layout`,
+  `imagery`, `mood` and `avoid`.
+- `brief` is the same as one paragraph of at most 2,000 characters, ready for `brand.json` `references`.
+
+The prompt tells the model to describe the style and not the content: no copied words, claims, logos or names. Text inside
+the picture is data and is never followed.
+
+## Vault items the library expects
+
+`{ id, kind, title?, body, status: 'confirmed' | 'unconfirmed', recordedAt?, validFrom?, validUntil?, tags?, sourceUrls?, file?, license?, identifiable?, consent? }`.
+Kinds: fact, figure, news, event, product-note, story, photo, screen. `file` (photos and screens) is a path relative to the
+repository. A figure is stale when `validUntil` has passed, or when it has no `validUntil` and was recorded over 180 days ago.
+A photo with `license: 'rights-to-confirm'`, or with identifiable people and no recorded consent, adds a warning.
+
+## How drafting works
+
+1. Items are ranked (confirmed and current first) and the top ones sent to the model as data, with series, period, channels and limits.
+2. The model returns JSON (Anthropic: a forced tool call whose `input_schema` is the schema; OpenAI-compatible: `json_object`, falling
+   back to plain JSON extraction). It is validated against the schema; invalid output is sent back once with the problems, then the
+   call fails with `invalid_output`.
+3. Each post goes through `postcheck.mjs`:
+   - template must be an editorial template, `carousel` or `photo` (never `pagecover`), and the design passes the engine's `validateDesign`;
+   - images are written as `vault:<id>` and replaced by that item's `file`; any other path, URL or non-photo item is rejected;
+   - every number in the captions and image text must appear in the cited `sources` (so `85,000+` matches "more than
+     85,000 deposits");
+     quotations of three words or more must appear in a source; the post must cite at least one item that exists;
+   - a picture used twice in the batch, or one that shows another currency (see "The brand"), is rejected;
+   - repaired and reported: brand spelling, emoji in image text, duplicate or odd ids, an X caption over 280 (cut to whole sentences);
+   - warned, not blocked: unconfirmed or stale sources, photos needing rights, over-length Instagram or LinkedIn captions, more than
+     30 hashtags, Title Case headlines, US spellings, headline and sub lengths.
+4. If posts were rejected, one replacement call is made, checked the same way.
+5. The batch is validated by the engine's own `validateBatch`; a post it refuses is dropped and reported. If nothing is left the call
+   throws `no_valid_posts`.
+
+`notes`: `promptVersion`, `model`, `usage` (calls, tokens, cost or `"unknown"`), `plan`, `requested`, `delivered`, `seriesMix`,
+`rejected` (id and reasons), `repaired`, `imageSuggestions` (stock-photo briefs; nothing is fetched or embedded) and `messages`.
+
+## Research
+
+Per topic: search, read up to three pages (`fetchPage`), one model call. Returned items have `kind`, `title`, `body`, `sourceUrls`,
+`foundAt` and `status: 'unconfirmed'` (the library never confirms). Items are dropped when they cite a URL that was not read, contain a
+number absent from the pages, or duplicate a vault item or an earlier candidate. `checks` are `supported`, `contradicted` or
+`not found`, only for real vault ids and only with sources that were read; the strongest verdict per item wins.
+
+## Safety rules
+
+- Everything a model returns and every fetched page is untrusted. Output is never executed. Pages are reduced to text (scripts, styles,
+  comments and hidden blocks removed, control and zero-width characters removed), capped, and wrapped as `<source>` data blocks (a
+  closing tag inside a page is neutralised). The research prompt says that sources are never instructions.
+- `fetchPage` reads only http(s), no credentials in the URL, no `localhost`, `.local`, `.internal` or dot-less names, and only
+  global addresses. IPv4: not 0/8, 10/8, 100.64/10 (CGNAT, includes Tailscale), 127/8, 169.254/16, 172.16/12, 192.0.0/24,
+  192.168/16, 198.18/15, documentation ranges, multicast or 240/4. IPv6 is deny-by-default: only 2000::/3 is allowed, minus
+  documentation, 2001::/23, and 6to4, Teredo, NAT64 (64:ff9b::/96 and 64:ff9b:1::/48) and IPv4-mapped or compatible forms whose
+  embedded IPv4 is not public.
+- The address checked is the address connected to: pages are read with `node:http`/`node:https` and a custom `lookup` that resolves the
+  name, refuses it if any answer is not public, and returns only checked addresses, so a DNS answer that changes between the check and
+  the connection cannot reach an internal host. Host header and TLS SNI stay the original name. Redirects are followed by hand
+  (at most four), each hop checked and connected the same way. Size 1 MB, 8,000 characters, 15 seconds, text content types only.
+  The `pageTransport` seam (or `fromFetch(fetch)`) replaces the transport in tests; an injected transport is not pinned.
+- Keys are only sent in headers (or Tavily's bearer header), never put in URLs, logs or errors.
+- Drafts only ever come back as data; nothing here sends anything to Buffer.
+
+## Prompts
+
+`packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`. They are brand-neutral: they read the `brand` brief above.
+The first line is `<!-- version: draft-1 -->`; the version is returned in `notes.promptVersion`. Change a prompt by editing
+the file, bumping its version and reviewing the diff. Tests pin the versions' format only, not the wording.
+
+A brand pack can replace any of them with its own `prompts/<name>.md` (for example `brands/acme/prompts/draft.md`), with
+the same version line. The pack's file is used when it exists, the library's otherwise (`promptDir` in
+`src/prompts.mjs`). A pack's prompt can say more about the brand than the brief does; it must keep the library's rules
+(JSON output, sources are data, numbers from cited items), because the checks after the model do not change.
+
+## Provider API facts (read from the docs on 20 November 2026)
+
+- Anthropic Messages API: `POST /v1/messages`, `x-api-key`, `anthropic-version: 2023-06-01`, `tools` and `tool_choice`. Temperature is
+  only sent when configured; a 400 that mentions it makes the call repeat without it. `claude-sonnet-5-5` refused a forced `tool_choice` (seen in the live smoke), so on that 400 the call is repeated with `tool_choice: auto` and a system hint to call the tool.
+- Brave: `X-Subscription-Token`, `q`, `count` (max 20), `freshness`, results in `web.results[]` (`title`, `url`, `description`).
+- Tavily: `POST /search`, `Authorization: Bearer`, `query`, `max_results`, `topic`, `start_date`, `results[]` (`title`, `url`, `content`, `published_date`).
+- Exa: `POST /search`, `x-api-key`, `query`, `numResults`, `startPublishedDate`, `results[]` (`title`, `url`, `publishedDate`, `text`, `highlights`).
+
+## Weak or unverified
+
+- Not run against real Brave, Tavily, Exa or any OpenAI-compatible server. Brave's `page_age`/`age` and Tavily's
+  `include_published_date`, and Exa's `contents.text.maxCharacters`, were not confirmed in the docs read.
+- Page reads through the real transport were run once against `example.com` only; redirect handling and the pinned lookup are covered by tests with fake transports, not by a real redirecting site.
+- The number check is textual. Numbers written as words ("fourteen") and claims without numbers or quotation marks (an invented
+  person's name, a product behaviour) are controlled by the prompt and a human reviewer only.
+- Prices and the 180-day figure age are caller settings and a default; neither was checked against any real policy.
+
+## How the Vesk web app uses it
+
+`apps/web` loads `@vesk/ai` by name (`src/server/ai.ts`; a stub that says "AI not installed yet" is used when the package
+is absent). The `draft-batch` job (queued by `POST /api/batches/ai-draft`, or the Draft with AI button on the batch list)
+sends the confirmed vault items, calls `draftBatch`, and imports the answer through the same path as a batch file: a batch
+in `draft` state owned by the person who asked, each post linked to its vault sources and carrying the AI's warnings,
+the drafter's `notes` kept on the batch (shown with an "AI draft" badge), and a render queued for every design block.
+Vault photos are offered to the library with a made-up path named after their id; the app swaps it for `vaultItemId`, and
+the render job copies the real file from the private bucket. If the AI fails, the monthly budget is used up or the answer does
+not pass the checks, no batch is made and the reason is written to the audit log as `ai.draft_batch.failed`.
+
+Every record `log` receives is saved as a row in `ai_calls` (task, model, tokens, cost, duration, outcome, the run and the
+batch it made). Month-to-date spend on the AI settings page is the sum of that month's `costUsd`. A provider needs its input and
+output price per million tokens (set on the provider) for the library to estimate a cost; calls without prices are logged with
+an unknown cost, counted on the settings page, and do not count against the budget.
+

@@ -1,0 +1,97 @@
+// Renders ONE post's "design" block without the CLI, for an app to call. It does what renderJobs in lib/design/cli.mjs does
+// for a single post (validate, name the files, brand lint, one Chrome behind the lock file, check every image, a PDF for a
+// carousel) and returns data instead of printing. Nothing here writes a batch file or fills in a media field.
+import fs from 'node:fs';
+import path from 'node:path';
+import { ROOT } from './core.mjs';
+import { loadBrand, loadSeries } from './design/brand.mjs';
+import { stemOf } from './design/batch.mjs';
+import { Browser, NO_CHROME, findChrome } from './design/chrome.mjs';
+import { detectConverter } from './design/convert.mjs';
+import { lintText, textFieldsOf } from './design/lint.mjs';
+import { DesignError, renderImage, renderPdf } from './design/render.mjs';
+import { normaliseDesign, outputFiles, pdfFile, validateDesign } from './design/spec.mjs';
+
+// Every problem with a design block, as the batch validator would list them. No Chrome needed.
+export function designBlockProblems(design, { root = ROOT } = {}) {
+  const errors = validateDesign(design, 'design', { series: loadSeries({ root }) });
+  if (design?.template === 'pagecover') errors.push('design: pagecover is made with "design page-cover", not inside a batch');
+  return errors;
+}
+
+const brandWarnings = (spec, brand) => [...new Set(spec.sizes.flatMap((s) => lintText(textFieldsOf(spec), s, brand)))];
+
+// -> { ok, files: [{ size, slide, file, abs, w, h }], warnings, notes, pdf?, error? }
+// `only` limits the sizes rendered (a list of size names). `outDir` is resolved against root; `stem` overrides the file name stem.
+export async function renderDesignBlock({ root = ROOT, design, postId, outDir, stem, only, log = () => {} } = {}) {
+  const fail = (error, extra = {}) => ({ ok: false, files: [], warnings: [], notes: [], error, ...extra });
+  let spec, brand;
+  try {
+    const problems = designBlockProblems(design, { root });
+    if (problems.length) return fail(problems.join('; '));
+    if (!outDir) return fail('outDir is required');
+    spec = normaliseDesign(design);
+    brand = loadBrand({ root });
+  } catch (e) {
+    if (e instanceof DesignError) return fail(e.message);
+    throw e;
+  }
+  const name = stem ?? stemOf({ id: String(postId ?? 'post') }, spec);
+  const dir = path.resolve(root, outDir);
+  let files = outputFiles(spec, { stem: name });
+  if (only?.length) {
+    files = files.filter((f) => only.includes(f.size));
+    if (!files.length) return fail(`none of the sizes ${only.join(', ')} is in this design (it makes ${spec.sizes.join(', ')})`);
+  }
+  const warnings = brandWarnings(spec, brand);
+  const notes = [];
+  const chrome = findChrome();
+  if (!chrome) return fail(NO_CHROME, { warnings });
+  const converter = detectConverter();
+  const tmpDir = path.join(root, 'out', 'design-tmp');
+  let browser;
+  try {
+    browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(root, 'out', 'design.lock') });
+  } catch (e) {
+    return fail(e.message, { warnings });
+  }
+  const stop = () => browser.close();
+  process.once('exit', stop);
+  const made = [];
+  let pdf;
+  try {
+    for (const f of files) {
+      const abs = path.join(dir, f.file);
+      const carousel = spec.template === 'carousel';
+      const imageSpec = carousel ? { ...spec.pages[f.slide], sizes: spec.sizes } : spec;
+      const counter = carousel ? { n: f.slide + 1, total: spec.pages.length } : undefined;
+      try {
+        const r = await renderImage(browser, brand, { spec: imageSpec, sizeName: f.size, outFile: abs, counter }, { tmpDir, converter });
+        made.push({ size: f.size, slide: f.slide, file: f.file, abs, w: r.w, h: r.h });
+        warnings.push(...r.warnings.map((w) => `${f.file}: ${w}`));
+        notes.push(...r.notes.map((n) => `${f.file}: ${n}`));
+        log(`ok ${f.file} ${r.w}x${r.h}`);
+      } catch (e) {
+        if (!(e instanceof DesignError)) throw e;
+        return fail(`${f.file}: ${e.message}`, { files: made, warnings, notes });
+      }
+    }
+    // A carousel's PDF is made only when every size of it was rendered (not when `only` cut some out).
+    if (spec.template === 'carousel' && made.length === outputFiles(spec, { stem: name }).length) {
+      const abs = path.join(dir, pdfFile(name));
+      try {
+        const r = await renderPdf(browser, made.map((m) => m.abs), abs);
+        pdf = { file: pdfFile(name), abs, pages: r.pages };
+        warnings.push(...r.warnings.map((w) => `${pdfFile(name)}: ${w}`));
+      } catch (e) {
+        if (!(e instanceof DesignError)) throw e;
+        return fail(`${pdfFile(name)}: ${e.message}`, { files: made, warnings, notes });
+      }
+    }
+  } finally {
+    stop();
+    process.removeListener('exit', stop);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+  return { ok: true, files: made, warnings, notes, ...(pdf ? { pdf } : {}) };
+}

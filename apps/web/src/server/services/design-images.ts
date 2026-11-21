@@ -1,0 +1,79 @@
+// The pictures a design block names, and how they are checked and found.
+//
+// A design (or a carousel page) names its picture in `image`. Two kinds are allowed:
+//   - a file in the repository's design/assets folder (for example "design/assets/photos/cocoa-pods.jpg");
+//   - a vault photo, named by the optional field `vaultItemId` on the design or page. The render copies that photo from the
+//     private bucket and uses it instead of `image` (which must still look like an image file name, for the validator).
+// A design whose `image` has the file name of exactly one vault photo is treated as using that photo, so its rights are checked.
+// Any other path (absolute, outside design/assets, climbing out with "..") is refused: the renderer would read it from disk.
+import path from 'node:path';
+import type { VaultItem } from '@prisma/client';
+import type { Deps } from '../deps.js';
+import { pipelineEngine } from '../engine/pipeline.js';
+
+type Json = Record<string, unknown>;
+const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
+
+// The design and each carousel page, as the objects that may hold an `image`.
+export function designNodes(design: unknown): Json[] {
+  if (!isObj(design)) return [];
+  return [design, ...(Array.isArray(design.pages) ? design.pages.filter(isObj) : [])];
+}
+
+// A copy without the app's own `vaultItemId` field, which the engine's validators do not know.
+export function withoutVaultIds(design: unknown): unknown {
+  if (!isObj(design)) return design;
+  const copy: Json = { ...design };
+  delete copy.vaultItemId;
+  if (Array.isArray(copy.pages)) copy.pages = copy.pages.map((p) => (isObj(p) ? Object.fromEntries(Object.entries(p).filter(([k]) => k !== 'vaultItemId')) : p));
+  return copy;
+}
+
+const insideAssets = (file: string): boolean => {
+  if (!file || file.includes('\0') || path.isAbsolute(file) || file.includes('\\')) return false;
+  const n = path.posix.normalize(file);
+  return !n.startsWith('..') && n.startsWith('design/assets/');
+};
+
+// Every problem with a design block a person typed: the engine's validators plus our rule about where pictures may come from.
+export async function designProblems(design: unknown): Promise<string[]> {
+  const engine = await pipelineEngine();
+  const problems = engine.designBlockProblems(withoutVaultIds(design), { root: engine.root });
+  designNodes(design).forEach((node, i) => {
+    const where = node === design ? 'design' : `design page ${i}`;
+    if ('vaultItemId' in node && (typeof node.vaultItemId !== 'string' || !node.vaultItemId)) problems.push(`${where}: vaultItemId must be the id of a vault photo`);
+    if (typeof node.image === 'string' && !node.vaultItemId && !insideAssets(node.image)) {
+      problems.push(`${where}: image "${node.image}" must be a file under design/assets/ or a vault photo (set vaultItemId)`);
+    }
+  });
+  return problems;
+}
+
+export interface DesignPhoto {
+  node: Json;
+  // Undefined when vaultItemId names something that is not in the vault.
+  item?: VaultItem;
+  // The id that was asked for, when it was named.
+  vaultItemId?: string;
+}
+
+// The vault photos a design uses: by vaultItemId, or by an image file name that exactly one photo has.
+export async function photosOfDesign(deps: Pick<Deps, 'prisma'>, design: unknown): Promise<DesignPhoto[]> {
+  const out: DesignPhoto[] = [];
+  const nodes = designNodes(design);
+  const names = nodes.filter((n) => typeof n.image === 'string' && !n.vaultItemId).map((n) => path.posix.basename(n.image as string));
+  const ids = nodes.map((n) => n.vaultItemId).filter((v): v is string => typeof v === 'string');
+  if (!ids.length && !names.length) return out;
+  const items = await deps.prisma.vaultItem.findMany({
+    where: { OR: [{ id: { in: ids.filter((i) => /^[0-9a-f-]{36}$/i.test(i)) } }, { kind: { in: ['photo', 'screen'] }, fileName: { in: names }, deletedAt: null }] },
+  });
+  for (const node of nodes) {
+    if (typeof node.vaultItemId === 'string') {
+      out.push({ node, vaultItemId: node.vaultItemId, item: items.find((i) => i.id === node.vaultItemId) });
+    } else if (typeof node.image === 'string') {
+      const matches = items.filter((i) => i.fileName === path.posix.basename(node.image as string) && i.deletedAt === null);
+      if (matches.length === 1) out.push({ node, item: matches[0] });
+    }
+  }
+  return out;
+}

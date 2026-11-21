@@ -1,0 +1,127 @@
+{
+  "note": "Starting vault for the demo brand, Acme Savings. Every item is invented for the demo: no real company, person, place or figure. Imported once on an empty database; edit or delete in the app afterwards.",
+  "vault": [
+    {
+      "kind": "figure",
+      "title": "Groups on Acme Savings",
+      "body": "1,200+ savings groups keep their records on Acme Savings (demo figure).",
+      "sourceUrl": "https://acmesavings.example",
+      "sourceNote": "Invented for the demo.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": ["numbers", "public"]
+    },
+    {
+      "kind": "figure",
+      "title": "Deposits recorded",
+      "body": "More than 85,000 deposits were recorded on Acme Savings last year (demo figure).",
+      "sourceNote": "Invented for the demo.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": ["numbers", "public"]
+    },
+    {
+      "kind": "figure",
+      "title": "Members saving weekly",
+      "body": "9,400+ members save every week through their groups on Acme Savings (demo figure).",
+      "sourceNote": "Invented for the demo.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": ["numbers", "public"]
+    },
+    {
+      "kind": "fact",
+      "title": "What a savings group is",
+      "body": "A savings group is a circle of people who put in a fixed amount on a fixed day. The pot is kept for the group, and each member can see what they have put in.",
+      "sourceNote": "General explanation written for the demo.",
+      "status": "confirmed",
+      "tags": ["background", "public"]
+    },
+    {
+      "kind": "fact",
+      "title": "Paper records",
+      "body": "Many groups still keep one paper book. When that book is lost or damaged, the group loses its only record of who paid what.",
+      "sourceNote": "General explanation written for the demo.",
+      "status": "confirmed",
+      "tags": ["background", "public"]
+    },
+    {
+      "kind": "fact",
+      "title": "Free plan",
+      "body": "Acme Savings has a free plan for groups of up to 30 members.",
+      "sourceUrl": "https://acmesavings.example/pricing",
+      "sourceNote": "Invented for the demo.",
+      "status": "confirmed",
+      "tags": ["pricing", "public"]
+    },
+    {
+      "kind": "product",
+      "title": "Deposit records",
+      "body": "Each deposit is recorded with the member, the amount, the date and who took it. Members see their own record on their phone the same day.",
+      "sourceNote": "Demo product description.",
+      "status": "confirmed",
+      "tags": ["product", "records", "public"]
+    },
+    {
+      "kind": "product",
+      "title": "Group goals",
+      "body": "A group can set a shared goal, such as a target for the end of the year, and everyone sees how close it is.",
+      "sourceNote": "Demo product description.",
+      "status": "confirmed",
+      "tags": ["product", "goals", "public"]
+    },
+    {
+      "kind": "product",
+      "title": "Two-person approval",
+      "body": "A payout needs a second person in the group to approve it before it is recorded as paid.",
+      "sourceNote": "Demo product description.",
+      "status": "confirmed",
+      "tags": ["product", "controls", "public"]
+    },
+    {
+      "kind": "product",
+      "title": "Monthly statements",
+      "body": "At the end of each month every member gets a short statement of what they put in and what the group holds.",
+      "sourceNote": "Demo product description.",
+      "status": "confirmed",
+      "tags": ["product", "statements", "public"]
+    },
+    {
+      "kind": "news",
+      "title": "Harbour Street Savers join",
+      "body": "Harbour Street Savers, an invented weekly group of 24 members, moved its records from a paper book to Acme Savings.",
+      "sourceNote": "Invented for the demo.",
+      "status": "confirmed",
+      "validFrom": "2026-11-01",
+      "tags": ["news", "community", "public"]
+    },
+    {
+      "kind": "event",
+      "title": "Community savings day",
+      "body": "Acme Savings holds an open afternoon for group treasurers on the last Saturday of January (demo event).",
+      "sourceNote": "Invented for the demo.",
+      "status": "unconfirmed",
+      "validFrom": "2027-01-01",
+      "validUntil": "2027-01-31",
+      "tags": ["event", "community"]
+    },
+    {
+      "kind": "fact",
+      "title": "Planned features (internal)",
+      "body": "An example of an internal note: plans that are not public yet. The tag not-for-posts tells reviewers to keep it out of posts.",
+      "sourceNote": "Demo of an internal item.",
+      "status": "confirmed",
+      "tags": ["internal", "not-for-posts"]
+    }
+  ],
+  "research": {
+    "topics": [
+      "community savings groups and rotating savings clubs",
+      "personal finance tips for households saving together",
+      "news mentioning Acme Savings"
+    ]
+  }
+}

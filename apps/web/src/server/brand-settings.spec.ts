@@ -1,0 +1,309 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { CreateAiOptions } from './ai.js';
+import { importAiPackage } from './engine/root.js';
+import { pipelineEngine } from './engine/pipeline.js';
+import { brandState, contrast, expandBrand, mergeAdvanced, mix, resetBrandState, settingsFromBrand, syncBrand, baseBrand, type BrandSettings } from './services/brand-settings.js';
+import { renderPost } from './services/render.js';
+import { seedBatch } from './testing-desk.js';
+import { createTestApp, type TestApp } from './testing.js';
+
+// The real AI library, talking to a fake provider.
+const fake = vi.hoisted(() => ({ fetch: null as null | ((url: string, init?: RequestInit) => Promise<Response>), bodies: [] as any[] }));
+const realCreateAI = (await importAiPackage<{ createAI: (options: unknown) => unknown }>())!.createAI;
+vi.mock('./ai.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./ai.js')>()),
+  loadAI: async () => ({ installed: true, createAI: (options: CreateAiOptions) => realCreateAI({ ...options, fetch: fake.fetch, sleep: async () => {} } as never) as never }),
+}));
+
+let t: TestApp;
+let root: string;
+beforeAll(async () => {
+  t = await createTestApp();
+  root = (await pipelineEngine()).root;
+});
+afterAll(() => { resetBrandState(); return t.close(); });
+beforeEach(async () => {
+  await t.reset();
+  resetBrandState();
+  fake.fetch = null;
+  fake.bodies = [];
+});
+
+const DEMO = (f: string) => fs.readFileSync(path.join(root, 'brands', 'demo', 'logos', f));
+const INTER = () => fs.readFileSync(path.join(root, 'packages', 'engine', 'design', 'fonts', 'inter-v20-latin.woff2'));
+
+const SETTINGS: BrandSettings = {
+  name: 'Globex Garden', website: 'globex.example', tagline: 'Grow with us.', descriptor: 'A fictional garden centre.', timezone: 'America/New_York',
+  language: 'American English', money: null, colours: { primary: '#2E7D32', accent: '#F9A825', dark: '#1B2A1E', light: '#F3F7F2' },
+  headlineWeight: 500, corners: 'round', series: [{ key: 'tips', name: 'Garden tips', ground: 'white', accent: 'colour' }, { key: 'news', name: 'News', ground: 'tint', accent: 'muted' }],
+  spellings: [{ wrong: 'GlobexGarden', right: 'Globex Garden' }], voice: 'Friendly and practical.', visualDirection: 'Airy pages, one plant photo, lots of white.',
+  logo: { wordmarkFrom: 0, markGap: 0 },
+};
+
+async function admin() {
+  return t.api(await t.signIn(await t.createUser('admin')));
+}
+
+function upload(api: ReturnType<TestApp['api']>, url: string, name: string, body: Buffer, fields: Record<string, string> = {}) {
+  const form = new FormData();
+  form.set('file', new File([new Uint8Array(body)], name));
+  for (const [k, v] of Object.entries(fields)) form.set(k, v);
+  return api.post(url, form);
+}
+
+const activeBrand = () => JSON.parse(fs.readFileSync(path.join(root, process.env.BRAND_DIR!, 'brand.json'), 'utf8'));
+
+describe('expanding the settings', () => {
+  it('makes a complete brand the engine accepts, with the colours spread over every ground', async () => {
+    const engine = await import('@vesk/engine/design/brand' as string) as { validateBrand(b: unknown): string[] };
+    const b = expandBrand(SETTINGS);
+    expect(engine.validateBrand(b)).toEqual([]);
+    expect(b.accents).toEqual({ gold: '#F9A825', goldDeep: mix('#F9A825', '#1B2A1E', 0.55), primary: '#2E7D32' });
+    expect((b.grounds as Record<string, string>).ink).toBe('#1B2A1E');
+    expect((b.radius as Record<string, number>).card).toBe(20);
+    expect(b.series).toEqual({ tips: { name: 'Garden tips', ground: 'white', accent: 'colour' }, news: { name: 'News', ground: 'tint', accent: 'muted' } });
+    expect(b.spelling).toEqual([{ wrong: 'GlobexGarden', flags: '', right: 'Globex Garden' }]);
+    expect(b.voice).toBe('Friendly and practical.');
+    expect(JSON.stringify(b)).not.toContain('Acme');
+  });
+
+  it('reads the demo pack back into the form, and keeps Advanced away from the managed files', () => {
+    const s = settingsFromBrand(baseBrand());
+    expect(s.name).toBe('Acme Savings');
+    expect(s.colours.primary).toBe('#2F5BB7');
+    expect(s.series.length).toBeGreaterThan(0);
+    const b = mergeAdvanced(expandBrand(SETTINGS), { logos: { full: 'evil.png', wordmarkFrom: 12 }, font: { files: [] }, contrast: { headline: 4.5 }, ['__proto__' as string]: { x: 1 } });
+    expect((b.logos as Record<string, unknown>).full).not.toBe('evil.png');
+    expect((b.logos as Record<string, unknown>).wordmarkFrom).toBe(12);
+    expect(((b.font as Record<string, unknown>).files as unknown[]).length).toBeGreaterThan(0);
+    expect((b.contrast as Record<string, number>).headline).toBe(4.5);
+    expect(({} as Record<string, unknown>).x).toBeUndefined();
+    expect(contrast('#FFFFFF', '#000000')).toBe(21);
+  });
+});
+
+describe('Settings, Brand', () => {
+  it('shows the configured pack until something is saved; editors cannot see or change it', async () => {
+    const api = await admin();
+    const res = await api.get('/api/settings/brand');
+    expect(res.status).toBe(200);
+    expect(res.body.saved).toBe(false);
+    expect(res.body.settings.name).toBe('Acme Savings');
+    expect(res.body.checks.length).toBeGreaterThan(0);
+    const editor = t.api(await t.signIn(await t.createUser('editor')));
+    expect((await editor.get('/api/settings/brand')).status).toBe(403);
+    expect((await editor.put('/api/settings/brand', SETTINGS)).status).toBe(403);
+  });
+
+  it('saves the settings, writes them out as a pack folder, and the app and the engine use it at once', async () => {
+    const api = await admin();
+    const res = await api.put('/api/settings/brand', SETTINGS);
+    expect(res.status).toBe(200);
+    expect(res.body.saved).toBe(true);
+    expect(res.body.logosMissing).toBe(true);
+    expect(process.env.BRAND_DIR).toMatch(/^state\/brand\/[0-9a-f]{16}$/);
+    const written = activeBrand();
+    expect(written.name).toBe('Globex Garden');
+    expect(written.visualDirection).toBe('Airy pages, one plant photo, lots of white.');
+    const app = await t.api().get('/api/app');
+    expect(app.body.brand.name).toBe('Globex Garden');
+    expect(app.body.brand.timezone).toBe('America/New_York');
+    expect(app.body.brand.series).toEqual([{ key: 'tips', name: 'Garden tips' }, { key: 'news', name: 'News' }]);
+    // Not the demo logo: there is none until one is uploaded.
+    expect(app.body.brand.logo).toBeNull();
+    expect((await t.prisma.auditLog.findFirstOrThrow({ where: { action: 'brand.update' } })).detail).toMatchObject({ name: 'Globex Garden', firstSave: true });
+  });
+
+  it('refuses settings the engine would refuse, and fields it does not know', async () => {
+    const api = await admin();
+    expect((await api.put('/api/settings/brand', { ...SETTINGS, colours: { ...SETTINGS.colours, primary: 'red' } })).status).toBe(400);
+    expect((await api.put('/api/settings/brand', { ...SETTINGS, css: 'body{}' })).status).toBe(400);
+    expect((await api.put('/api/settings/brand', { ...SETTINGS, series: [{ key: 'Bad Key', name: 'x', ground: 'white', accent: 'muted' }] })).status).toBe(400);
+    expect((await api.put('/api/settings/brand', { ...SETTINGS, series: [{ key: 'a', name: 'x', ground: 'neon', accent: 'muted' }] })).status).toBe(400);
+    expect((await api.put('/api/settings/brand', { ...SETTINGS, timezone: 'Mars/Base' })).status).toBe(400);
+    expect((await api.put('/api/settings/brand', { ...SETTINGS, name: 'Two\nlines' })).status).toBe(400);
+    expect(await t.prisma.brandProfile.count()).toBe(0);
+  });
+
+  it('takes PNG logos and a woff2 font only, and renders refuse until both logos are there', async () => {
+    const api = await admin();
+    await api.put('/api/settings/brand', SETTINGS);
+    const editor = await t.createUser('editor');
+    const { posts } = await seedBatch(t, editor, { posts: [{ key: 'p1', design: { template: 'photo', headline: 'Hello', image: 'design/assets/photos/cocoa-pods.jpg' }, renderStatus: 'queued', images: [] }] });
+    await renderPost(t.deps, { postId: posts[0]!.id });
+    expect(await t.prisma.post.findUniqueOrThrow({ where: { id: posts[0]!.id } })).toMatchObject({ renderStatus: 'failed', renderError: expect.stringContaining('Add your logo') });
+
+    expect((await upload(api, '/api/settings/brand/logo/full', 'logo.jpg', Buffer.from('not a png'))).status).toBe(415);
+    expect((await upload(api, '/api/settings/brand/logo/other', 'logo.png', DEMO('logo-full.png'))).status).toBe(404);
+    const full = await upload(api, '/api/settings/brand/logo/full?wordmarkFrom=360&markGap=39', 'logo.png', DEMO('logo-full.png'));
+    expect(full.status).toBe(200);
+    expect(full.body.logos.fullSize).toEqual([1740, 338]);
+    expect(full.body.settings.logo).toEqual({ wordmarkFrom: 360, markGap: 39 });
+    expect(full.body.logosMissing).toBe(true);
+    const mark = await upload(api, '/api/settings/brand/logo/mark', 'mark.png', DEMO('logo-mark.png'));
+    expect(mark.body.logosMissing).toBe(false);
+    expect(brandState()).toMatchObject({ source: 'database', logosMissing: false });
+    const written = activeBrand();
+    expect(written.logos.full).toBe(`${process.env.BRAND_DIR}/logos/logo-full.png`);
+    expect(fs.readFileSync(path.join(root, written.logos.mark)).equals(DEMO('logo-mark.png'))).toBe(true);
+    expect((await t.api().get('/api/app')).body.brand.logo).toMatch(/^\/brand\/logo-mark\.png\?v=[0-9a-f]{16}$/);
+    const served = await api.get('/api/settings/brand/logo/mark');
+    expect(served.status).toBe(200);
+
+    expect((await upload(api, '/api/settings/brand/font', 'font.woff2', Buffer.from('not a font'), { family: 'Brand Sans' })).status).toBe(415);
+    expect((await upload(api, '/api/settings/brand/font', 'font.woff2', INTER(), { family: 'Brand<script>' })).status).toBe(400);
+    const font = await upload(api, '/api/settings/brand/font', 'font.woff2', INTER(), { family: 'Brand Sans' });
+    expect(font.body.font).toEqual({ family: 'Brand Sans' });
+    expect(activeBrand().font.family).toBe('Brand Sans');
+    expect(activeBrand().font.files[0].file).toBe(`${process.env.BRAND_DIR}/fonts/brand.woff2`);
+    expect((await api.delete('/api/settings/brand/font')).body.font).toBeNull();
+  });
+
+  it('merges Advanced settings and a dot map after the engine checks them', async () => {
+    const api = await admin();
+    await api.put('/api/settings/brand', SETTINGS);
+    expect((await api.put('/api/settings/brand/advanced', { advanced: { scale: 99 }, map: null })).status).toBe(400);
+    expect((await api.put('/api/settings/brand/advanced', { advanced: {}, map: { grid: { cols: 1 } } })).status).toBe(400);
+    const map = JSON.parse(fs.readFileSync(path.join(root, 'brands', 'demo', 'map.json'), 'utf8'));
+    const res = await api.put('/api/settings/brand/advanced', { advanced: { lint: { headlineMaxChars: { feed: 70, wide: 48, story: 60, square: 50 } } }, map });
+    expect(res.status).toBe(200);
+    expect(activeBrand().lint.headlineMaxChars.feed).toBe(70);
+    expect(fs.existsSync(path.join(root, process.env.BRAND_DIR!, 'map.json'))).toBe(true);
+  });
+});
+
+describe('importing a brand pack', () => {
+  const PACK = (f: string) => fs.readFileSync(path.join(root, 'brands', 'demo', f));
+  const form = (files: Record<string, Buffer>) => {
+    const f = new FormData();
+    for (const [k, v] of Object.entries(files)) f.set(k, new File([new Uint8Array(v)], `${k}.bin`));
+    return f;
+  };
+
+  it('moves a whole pack in: its exact colours and rules, its logos and its map, with the form filled from it', async () => {
+    const api = await admin();
+    const res = await api.post('/api/settings/brand/import', form({ brand: PACK('brand.json'), full: PACK('logos/logo-full.png'), mark: PACK('logos/logo-mark.png'), map: PACK('map.json') }));
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ saved: true, logosMissing: false, logos: { fullSize: [1740, 338] } });
+    expect(res.body.settings).toMatchObject({ name: 'Acme Savings', timezone: 'Europe/London', logo: { wordmarkFrom: 360, markGap: 39 } });
+    const pack = JSON.parse(PACK('brand.json').toString('utf8'));
+    const written = activeBrand();
+    expect(written.grounds).toEqual(pack.grounds);
+    expect(written.text).toEqual(pack.text);
+    expect(written.spelling).toEqual(pack.spelling);
+    expect(written.series).toEqual(pack.series);
+    expect(written.logos.full).toBe(`${process.env.BRAND_DIR}/logos/logo-full.png`);
+    expect(fs.existsSync(path.join(root, process.env.BRAND_DIR!, 'map.json'))).toBe(true);
+    expect((await t.prisma.auditLog.findFirstOrThrow({ where: { action: 'brand.import' } })).detail).toMatchObject({ name: 'Acme Savings', map: true });
+  });
+
+  it('refuses a pack the engine would refuse, or logos that are not PNG, and changes nothing', async () => {
+    const api = await admin();
+    const bad = JSON.parse(PACK('brand.json').toString('utf8'));
+    bad.grounds.white = 'white';
+    expect((await api.post('/api/settings/brand/import', form({ brand: Buffer.from(JSON.stringify(bad)), full: PACK('logos/logo-full.png'), mark: PACK('logos/logo-mark.png') }))).status).toBe(400);
+    expect((await api.post('/api/settings/brand/import', form({ brand: PACK('brand.json'), full: Buffer.from('jpeg'), mark: PACK('logos/logo-mark.png') }))).status).toBe(415);
+    expect((await api.post('/api/settings/brand/import', form({ brand: PACK('brand.json') }))).status).toBe(400);
+    expect((await api.post('/api/settings/brand/import', form({ brand: Buffer.from('{'), full: PACK('logos/logo-full.png'), mark: PACK('logos/logo-mark.png') }))).status).toBe(400);
+    expect(await t.prisma.brandProfile.count()).toBe(0);
+    const editor = t.api(await t.signIn(await t.createUser('editor')));
+    expect((await editor.post('/api/settings/brand/import', form({ brand: PACK('brand.json'), full: PACK('logos/logo-full.png'), mark: PACK('logos/logo-mark.png') }))).status).toBe(403);
+  });
+});
+
+describe('design references', () => {
+  const STYLE = { summary: 'Calm pages with one big headline.', palette: [{ hex: '#f3f7f2', role: 'background' }], typography: 'Large sans-serif.', layout: 'Left aligned.', imagery: 'One plant photo.', mood: 'Calm', avoid: 'Clutter.' };
+
+  async function withProvider() {
+    const api = await admin();
+    expect((await api.post('/api/settings/ai/providers', { name: 'Claude', kind: 'anthropic', model: 'm', apiKey: 'sk-ant-SECRETAIKEY-9876', tasks: ['draft'] })).status).toBe(201);
+    await api.put('/api/settings/ai/budget', { monthlyBudgetUsd: 10 });
+    return api;
+  }
+
+  it('uploads a picture, the AI describes it, and the brief reaches the brand the AI reads', async () => {
+    const api = await withProvider();
+    fake.fetch = async (_url, init) => {
+      fake.bodies.push(JSON.parse(String(init?.body)));
+      return new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'respond', input: STYLE }], usage: { input_tokens: 10, output_tokens: 10 }, stop_reason: 'tool_use' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+    expect((await upload(api, '/api/settings/brand/references', 'evil.svg', Buffer.from('<svg/>'))).status).toBe(415);
+    const res = await upload(api, '/api/settings/brand/references', 'Moodboard 1.png', DEMO('logo-mark.png'), { note: 'the calm layout' });
+    expect(res.status).toBe(201);
+    expect(res.body.reference).toMatchObject({ fileName: 'Moodboard_1.png', status: 'pending', note: 'the calm layout' });
+    expect(t.jobs.enqueued.map((j) => j.name)).toEqual(['analyse-reference']);
+    await t.jobs.drain(t.deps);
+
+    const image = fake.bodies[0].messages[0].content[0];
+    expect(image).toMatchObject({ type: 'image', source: { type: 'base64', media_type: 'image/png' } });
+    expect(Buffer.from(image.source.data, 'base64').equals(DEMO('logo-mark.png'))).toBe(true);
+    const list = await api.get('/api/settings/brand/references');
+    const ref = list.body.references[0];
+    expect(ref.status).toBe('ready');
+    expect(ref.brief).toMatch(/^Calm pages with one big headline\. Palette: #F3F7F2 background\./);
+    expect(ref.imageUrl).toBeTruthy();
+    // No brand was saved: the configured pack is copied with the brief added.
+    expect(brandState().source).toBe('pack');
+    expect(activeBrand().references).toEqual([ref.brief]);
+    expect(activeBrand().name).toBe('Acme Savings');
+
+    // People may edit the brief or switch a reference off.
+    const edited = await api.patch(`/api/settings/brand/references/${ref.id}`, { brief: 'Only white grounds.' });
+    expect(edited.body.reference.brief).toBe('Only white grounds.');
+    expect(activeBrand().references).toEqual(['Only white grounds.']);
+    await api.patch(`/api/settings/brand/references/${ref.id}`, { enabled: false });
+    expect(process.env.BRAND_DIR).toBe('brands/demo');
+    expect((await api.delete(`/api/settings/brand/references/${ref.id}`)).status).toBe(200);
+    expect(await t.prisma.designReference.count()).toBe(0);
+  });
+
+  it('keeps the failure on the reference when the AI cannot describe it', async () => {
+    const api = await withProvider();
+    fake.fetch = async () => new Response(JSON.stringify({ error: { message: 'model cannot read images' } }), { status: 400, headers: { 'content-type': 'application/json' } });
+    await upload(api, '/api/settings/brand/references', 'ref.png', DEMO('logo-mark.png'));
+    await t.jobs.drain(t.deps).catch(() => undefined);
+    const ref = (await api.get('/api/settings/brand/references')).body.references[0];
+    expect(ref.status).toBe('failed');
+    expect(ref.error).toMatch(/400/);
+    expect(ref.error).not.toContain('SECRETAIKEY');
+    const again = await api.post(`/api/settings/brand/references/${ref.id}/analyse`, {});
+    expect(again.body.reference.status).toBe('pending');
+  });
+});
+
+describe('sync', () => {
+  it('goes back to the configured pack when the saved brand is removed', async () => {
+    const api = await admin();
+    await api.put('/api/settings/brand', SETTINGS);
+    expect(brandState().source).toBe('database');
+    await t.prisma.brandProfile.deleteMany();
+    await syncBrand(t.deps);
+    expect(process.env.BRAND_DIR).toBe('brands/demo');
+    expect((await t.api().get('/api/app')).body.brand.name).toBe('Acme Savings');
+  });
+});
+
+let chrome = false;
+try { chrome = !!(await pipelineEngine()).findChrome(); } catch { chrome = false; }
+
+describe.skipIf(!chrome)('a brand saved in Settings, rendered by real Chrome', () => {
+  it('draws a post with the saved logos and colours', async () => {
+    const api = await admin();
+    await api.put('/api/settings/brand', SETTINGS);
+    await upload(api, '/api/settings/brand/logo/full?wordmarkFrom=360&markGap=39', 'logo.png', DEMO('logo-full.png'));
+    await upload(api, '/api/settings/brand/logo/mark', 'mark.png', DEMO('logo-mark.png'));
+    const editor = await t.createUser('editor');
+    const { posts } = await seedBatch(t, editor, { posts: [{ key: 'p1', design: { template: 'number', big: '1,200+', line: 'gardens planted this year', stats: ['9,400+|seedlings shared'] }, renderStatus: 'queued', images: [] }] });
+    await renderPost(t.deps, { postId: posts[0]!.id });
+    const row = await t.prisma.post.findUniqueOrThrow({ where: { id: posts[0]!.id } });
+    expect(row.renderError).toBeNull();
+    expect(row.renderStatus).toBe('ok');
+    const media = row.media as unknown as Array<{ key: string; source: string }>;
+    expect(media.filter((m) => m.source === 'render').length).toBeGreaterThan(0);
+    const first = await t.storage.getObject(media[0]!.key);
+    fs.mkdirSync(path.join(root, 'out', 'brand-check'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'out', 'brand-check', 'number.jpg'), first);
+  }, 240_000);
+});
