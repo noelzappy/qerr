@@ -206,6 +206,8 @@ export const CASES = [
   { id: 'photo', design: { template: 'photo', eyebrow: 'Market day', headline: 'Saving, *together.*', sub: 'Every deposit is on the record.', image: IMG.scene, sizes: ALL_SIZES } },
   { id: 'photo-bottom', design: { template: 'photo', headline: 'Text at the *bottom.*', image: IMG.scene, textAt: 'bottom', lines: false, sizes: ALL_SIZES } },
   { id: 'photo-noscrim-lines', design: { template: 'photo', headline: 'Lines given, *no scrim.*', image: IMG.jar, scrim: 'none', focal: { x: 0.5, y: 0.4 }, lines: [{ t: 'arc', x: 0.9, y: 0.7, r: 0.3, a0: 120, a1: 240 }, { t: 'br', x: 0.1, y: 0.6, l: 0.06 }], sizes: ['feed'] } },
+  { id: 'photo-bottom-full', design: { template: 'photo', eyebrow: 'Every Friday', headline: 'The collector *comes round.*', sub: 'Each deposit is posted as it is recorded.', image: IMG.jar, textAt: 'bottom', focal: { feed: '50% 30%', story: 'center top', wide: '40% 50%' }, sizes: ALL_SIZES } },
+  { id: 'photo-per-size', design: { template: 'photo', headline: 'Top here, *bottom there.*', sub: 'The text moves per size.', image: IMG.scene, textAt: { feed: 'bottom', square: 'top', story: 'bottom', wide: 'top' }, lines: { feed: [{ t: 'br', x: 0.85, y: 0.2, l: 0.05 }], wide: [] }, scrimPeak: 0.3, sizes: ALL_SIZES } },
   // carousels: every page template as page 1 (with "Swipe →") and as a later page (with the folio)
   ...[
     ['object', { template: 'object', headline: 'Page *one.*', image: IMG.jar }], ['number', { template: 'number', big: '14.8M+', line: 'saved', stats: ['3,900+|members'] }],

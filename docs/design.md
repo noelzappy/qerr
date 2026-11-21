@@ -472,7 +472,17 @@ for the demo brand and two style variants, before and after, and compares the pi
   `row` (the headline and the phone side by side in one flex row, centred in the band their rectangles share). All of them
   belong to the built-in editorial page; Settings, Layouts and the AI are not offered them.
 
-- Photo (`lib/design/builtin/photo.mjs`): `photo` and the page covers by their functions.
+- Photo (`lib/design/builtin/photo.mjs`): **`photo`** is drawn from its layout at every size, on its own kind of page
+  (`"page": "photo"`, `lib/design/layout-photo.mjs`): the photograph under everything (`backdrop`), the scrim and footer fade
+  the renderer raises until the text reads (`scrim`), the thin lines it draws (`lines`), one text box per `textAt` (two
+  headline blocks with exclusive conditions on `textAt`, the bottom one anchored at the foot of its rectangle with `"valign":
+  "bottom"`) holding the eyebrow (`"eyebrow": true`), the headline and its `subField` sub line, and the footer with the logo in
+  its pill (`photoFooter`). The type sizes per size are the page's own (`PAGES.photo.type`), the fit margins the size's.
+  The page covers (**`pagecover`**) are drawn from one layout per kind (`{ "field": "kind", "is": "facebook" }`), on a
+  `"page": "cover"` (`lib/design/layout-cover.mjs`) whose canvas names the cover sizes (`profile`, `facebook`, `linkedin`,
+  `x`) instead of the post sizes: the brand's mark centred in its rectangle (`coverMark`), or the brand's logo, tagline,
+  descriptor and website in a box filling it (`coverWords`: a column, centred or set left, or a row, with the sizes and gaps
+  as bounded whole numbers). A cover's words are all the brand's, so its layout declares no field.
 
 The format gained what the built-ins need; every new value is a name from a fixed list or a bounded whole number, checked by
 `validateLayout` like the rest:
@@ -491,7 +501,7 @@ The format gained what the built-ins need; every new value is a name from a fixe
   condition may also test one choice from a fixed table (`SPEC_CHOICES`): `{ "field": "artefact", "is": "ledger" }` (the
   artefact's type; the only choice a grid page may test, and only a declared artefact), and on the built-in pages the
   templates' own options and flags (`register`, `beside`, `pills`, `checks`, `layout`, `device`, `align`, `size`, `textAt`,
-  `scrim`, `map`, `fade`, `tilt`, `framed`, `glow`, `dots`), with `is` or `not` and a value or a list of values from that
+  `scrim`, `map`, `fade`, `tilt`, `framed`, `glow`, `dots`, and a page cover's `kind`), with `is` or `not` and a value or a list of values from that
   choice's list. Where every template has the same default it is filled in (a device is a phone unless it says desktop);
   where they differ the value is read as given, and an unset value matches no `is`, only a `not`.
 - **`ground`** may be a list of up to 4 cases, `[{ "when": { "present": "image" }, "ground": "photo" }, { "ground": "cool" }]`,

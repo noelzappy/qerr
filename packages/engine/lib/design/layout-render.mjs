@@ -7,9 +7,11 @@ import { DesignError } from './errors.mjs';
 import { LIMITS } from './figures.mjs';
 import { BLOCKS, PAGES, TYPE_SCALE, cellOf, findLayout, groundCase, slotRect, whenHolds } from './layout.mjs';
 import { box, decorationHtml, opt, textureOf } from './layout-parts.mjs';
+import { drawCover } from './layout-cover.mjs';
 import { drawEditorial } from './layout-editorial.mjs';
+import { drawPhoto } from './layout-photo.mjs';
 import { drawPoster } from './layout-poster.mjs';
-import { SIZES } from './sizes.mjs';
+import { COVER_SIZES, SIZES } from './sizes.mjs';
 import { GROUND_NAMES, groundName, isDarkColour } from './tokens.mjs';
 import { esc, fmtE, fmtSub, hs, px } from '../../design/templates/common.mjs';
 import { desktopWindow, folio, glow, lbl, obj, phone, photoWindow } from '../../design/templates/editorial.mjs';
@@ -34,10 +36,11 @@ export function frameOf(spec, layout, brand, counter) {
 
 // The margins the fit check holds text to on a layout page: the layout's own, less a few pixels for the optical overhang of
 // large type. They are never smaller than the size's minimum margins (layout.mjs checks the grid against them). A built-in
-// page (poster, editorial) keeps its templates' reference margins (PAGES[page].fit).
+// page (poster, editorial) keeps its templates' reference margins (PAGES[page].fit); the photo post and the page covers
+// (fit: null) the size's own margins, as their templates did.
 export function layoutFit(layout, sizeName) {
-  const S = SIZES[sizeName], page = layout.page ?? 'grid';
-  if (page !== 'grid') return { ...S, ...PAGES[page].fit };
+  const page = layout.page ?? 'grid', S = SIZES[sizeName] ?? (page === 'cover' ? COVER_SIZES[sizeName] : undefined);
+  if (page !== 'grid') return PAGES[page].fit ? { ...S, ...PAGES[page].fit } : S;
   const { m } = cellOf(layout.canvas[sizeName], sizeName);
   return { ...S, pad: Math.min(m.left, m.right) - 6, top: m.top - 6, bottom: m.bottom - 6 };
 }
@@ -211,6 +214,8 @@ export function renderLayoutWith(layout, spec, ctx) {
   if (!layout.canvas[size]) throw new DesignError(`layout "${layout.id}" has no ${size} size`);
   if (layout.page === 'poster') return drawPoster(layout, spec, ctx);
   if (layout.page === 'editorial') return drawEditorial(layout, spec, ctx);
+  if (layout.page === 'photo') return drawPhoto(layout, spec, ctx);
+  if (layout.page === 'cover') return drawCover(layout, spec, ctx);
   const frame = frameOf(spec, layout, ctx.brand, ctx.counter), warnings = [];
   let under = '', media = '', text = '';
   for (const blk of layout.blocks) {

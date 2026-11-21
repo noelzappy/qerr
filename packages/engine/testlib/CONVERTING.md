@@ -226,6 +226,22 @@ the table (for example `closing`'s default text, `region`) is a shared change: a
   says (the template's default ground comes before the series'), and a poster without a photo ground words a wrong or photo
   ground as `groundOf` did (the page file checks it before `builtFrame`). `myth-fact`'s slab text has no `#txt` and its page
   carries `data-flex`.
+- **The photo page (photo group).** A block option is one value for every size, but the photo post sets its type per size
+  (headline 112/68/120/88, sub, eyebrow, the sub line's width 800 or 560 on wide): those live in the page's own table,
+  `PAGES.photo.type`, and only the text box's rectangle is the layout's (`px` per size). The eyebrow is drawn inside the
+  headline's box (as the sub line is, with `subField`), switched on with the headline's `eyebrow` flag; it is not a declared
+  field, since a block can bind only its own field and `subField`. `textAt` is read through `SPEC_CHOICES` for both the
+  headline blocks' conditions (`is: 'top'` and `not: 'top'`, so any value but top is the bottom, as in the function) and the
+  body's `data-textat`. The page has no ground, series, accent setting or texture (the photo is the page; `photo` with no
+  accent device is the body's `acc-none`), so it draws its blocks with its own loop rather than `drawBuiltPage`, which would
+  refuse an unknown series the function ignores. Blocks carry their own line breaks, so the markup matches when the blocks
+  keep the template's order: backdrop, scrim, lines, text, footer.
+  The page covers needed what the format did not have: a `when` on the cover's `kind` (the only thing that tells the four
+  apart; added to `SPEC_CHOICES` in a `shared:` commit), a canvas of cover sizes (only on a `cover` page, with no minimum
+  margins: the fit check holds the words to the size's own), and leave to declare no field and show no text block (a page
+  with `words: 'brand'` in `PAGES`, also shared). Their quirks are kept: `left:0` without a unit, `align-items` and
+  `justify-content` written in a different order in the centred and the left column, the row's descriptor and website in an
+  unstyled `margin-left:auto` box.
 
 ## Pre-existing issues seen in the baseline (not part of the conversion)
 
