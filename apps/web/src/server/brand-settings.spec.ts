@@ -395,6 +395,34 @@ describe('design references', () => {
     }
     expect(await t.prisma.brandProfile.count()).toBe(0);
   });
+
+  const GRID = { columns: 12, rows: 24, margin: { top: 56, right: 70, bottom: 56, left: 70 }, gutter: 20, rowGutter: 0 };
+  const COMPOSITION = {
+    name: 'Split', description: 'A photo beside the headline.', fields: { image: { required: true }, headline: { required: true, max: 60 } }, grid: GRID,
+    blocks: [{ type: 'photo', slot: { col: 1, row: 1, width: 6, height: 24 }, bleed: ['top', 'left', 'bottom'] }, { type: 'headline', slot: { col: 7, row: 4, width: 6, height: 9 }, size: 64 }],
+  };
+  const answer = (input: unknown) => async () => new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'respond', input }], usage: { input_tokens: 10, output_tokens: 10 }, stop_reason: 'tool_use' }), { status: 200, headers: { 'content-type': 'application/json' } });
+
+  it('keeps a layout the reference suggests only when the engine accepts it, and adds it only when an admin does', async () => {
+    const api = await withProvider();
+    fake.fetch = answer({ ...STYLE, composition: COMPOSITION });
+    await upload(api, '/api/settings/brand/references', 'split.png', DEMO('logo-mark.png'));
+    await t.jobs.drain(t.deps);
+    const ref = (await api.get('/api/settings/brand/references')).body.references[0];
+    expect(ref.analysis.composition).toMatchObject({ id: 'from-reference', name: 'Split', canvas: { feed: GRID } });
+    expect(await t.prisma.brandLayout.count()).toBe(0);
+    const added = await api.post('/api/settings/layouts', { definition: { ...ref.analysis.composition, id: 'split' }, origin: `reference:${ref.id}` });
+    expect(added.status).toBe(201);
+    expect(added.body.layout).toMatchObject({ slug: 'split', origin: `reference:${ref.id}` });
+    expect(activeBrand().layouts.map((l: { id: string }) => l.id)).toEqual(['split']);
+    // a suggestion that is well formed but not a usable layout (blocks on each other) is never stored
+    fake.fetch = answer({ ...STYLE, composition: { ...COMPOSITION, blocks: [...COMPOSITION.blocks, { type: 'logo', slot: { col: 7, row: 10, width: 6, height: 1 } }] } });
+    await upload(api, '/api/settings/brand/references', 'overlap.png', DEMO('logo-mark.png'));
+    await t.jobs.drain(t.deps);
+    const second = (await api.get('/api/settings/brand/references')).body.references.find((r: { fileName: string }) => r.fileName === 'overlap.png');
+    expect(second.status).toBe('ready');
+    expect(second.analysis.composition).toBeUndefined();
+  });
 });
 
 describe('sync', () => {

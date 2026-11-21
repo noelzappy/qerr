@@ -15,6 +15,7 @@ import { importEngineBatch, NETWORK_NAMES } from './batches.js';
 import { createVaultItemFromSystem, VAULT_KINDS } from './vault.js';
 import { brandInfo } from '../brand.js';
 import { proposalOf, syncBrand } from './brand-settings.js';
+import { layoutProblems } from './layouts.js';
 
 const isKind = (k: string): k is (typeof VAULT_KINDS)[number] => (VAULT_KINDS as readonly string[]).includes(k);
 const SOURCE_NOTES_MAX = 20_000;
@@ -196,11 +197,14 @@ async function analyseNow(deps: Deps, payload: { referenceId: string; actorId?: 
     }
     // The style settings the AI proposes are checked against the settings' own lists before they are stored; a proposal that
     // does not pass is left out (the brief still counts).
-    const { proposal: _raw, ...rest } = out.analysis as Record<string, unknown>;
+    const { proposal: _raw, composition: _layout, ...rest } = out.analysis as Record<string, unknown>;
     const proposal = proposalOf(out.analysis);
-    const analysis = proposal ? { ...rest, proposal } : rest;
+    // The composition (a layout the reference suggests) is checked again by the engine's layout validator; one that does not pass
+    // is left out. It is only ever used when an admin previews it and adds it in Settings, Layouts.
+    const composition = _layout && !(await layoutProblems(_layout)).length ? _layout : null;
+    const analysis = { ...rest, ...(proposal ? { proposal } : {}), ...(composition ? { composition } : {}) };
     await deps.prisma.designReference.update({ where: { id: ref.id }, data: { status: 'ready', analysis: analysis as Prisma.InputJsonValue, brief: out.brief.slice(0, 2000), error: null } });
-    await audit(deps, payload.actorId ? { id: payload.actorId } : null, 'design_reference.analysed', 'design_reference', ref.id, { promptVersion: out.notes?.promptVersion ?? null, model: out.notes?.model ?? null, proposal: !!proposal });
+    await audit(deps, payload.actorId ? { id: payload.actorId } : null, 'design_reference.analysed', 'design_reference', ref.id, { promptVersion: out.notes?.promptVersion ?? null, model: out.notes?.model ?? null, proposal: !!proposal, composition: !!composition });
     await syncBrand(deps);
     handle.result({ referenceId: ref.id });
   } catch (err) {
