@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
 import { Notice, ToneBadge, type Tone } from '@/components/kit';
 import { elapsedMs, formatElapsed, isActive, percent, progressText, runStatusLabel, runTitle, type ActivityRun } from '@/lib/activity';
+import { failureLine } from '@/lib/errors';
 import { cn } from '@/lib/utils';
 
 const STATUS_TONE: Record<string, Tone> = { queued: 'quiet', running: 'info', done: 'good', failed: 'bad', cancelled: 'quiet' };
@@ -55,7 +56,7 @@ function Bullets({ items }: { items: ReactNode[] }) {
 // A short sentence for the run's outcome, used in lists. Empty when there is nothing useful to add to the title.
 export function runSummary(run: ActivityRun): string {
   const r = (run.result ?? {}) as Record<string, unknown>;
-  if (run.status === 'failed') return run.error ?? 'It failed';
+  if (run.status === 'failed') return run.error ? failureLine(run.error) : 'It failed';
   if (run.status !== 'done') return '';
   switch (run.kind) {
     case 'draft-batch': return typeof r.delivered === 'number' ? `${r.delivered} of ${num(r.requested)} posts drafted` : '';
@@ -65,6 +66,23 @@ export function runSummary(run: ActivityRun): string {
     case 'refresh-delivery': return typeof r.checked === 'number' ? `${r.checked} checked` : '';
     default: return '';
   }
+}
+
+// A rewrite: what was asked and, when the words were saved, the caption before and after.
+function RewriteResult({ r }: { r: Record<string, unknown> }) {
+  const before = str((r.before as { caption?: unknown } | undefined)?.caption);
+  const after = str((r.after as { caption?: unknown } | undefined)?.caption);
+  return (
+    <div className="flex flex-col gap-3">
+      <p>{r.applied === true ? 'The post was rewritten' : 'The AI rewrote the post'} as asked{str(r.instruction) && <>: {str(r.instruction)}</>}.{r.approvalWithdrawn === true && ' Approval was taken off.'}</p>
+      {before && after && before !== after && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Section title="Caption before"><p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{before}</p></Section>
+          <Section title="Caption after"><p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{after}</p></Section>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // What a finished run did, in words. Everything comes from the run's stored result; nothing here fetches.
@@ -156,6 +174,6 @@ export function RunResult({ run }: { run: ActivityRun }) {
     return <p><strong>{num(r.checked)}</strong> {num(r.checked) === 1 ? 'delivery' : 'deliveries'} checked in Buffer{num(r.unknown) > 0 && <>, <strong>{num(r.unknown)}</strong> could not be found there</>}.</p>;
   }
   if (run.kind === 'refresh-sweep') return <p>{num(r.batches)} {num(r.batches) === 1 ? 'batch was' : 'batches were'} queued for a status check.</p>;
-  if (run.kind === 'rewrite-post') return <p>The AI rewrote the post as asked{str(r.instruction) && <>: {str(r.instruction)}</>}.</p>;
+  if (run.kind === 'rewrite-post') return <RewriteResult r={r} />;
   return null;
 }

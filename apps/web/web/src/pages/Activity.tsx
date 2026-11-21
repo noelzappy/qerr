@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EmptyBlock, ErrorBlock, FormPanel, Notice, PageHeader, Pager, RowsSkeleton, SelectField, SwitchField } from '@/components/kit';
+import { FailureText } from '@/components/failure-text';
 import { RunProgress, RunResult, RunStatusBadge, runSummary } from '@/components/activity-parts';
 import { useActivity, useActivityRun } from '@/hooks/use-activity';
 import { useNow } from '@/hooks/use-now';
@@ -136,7 +137,7 @@ function RunPanel({ id, onClose }: { id: string; onClose: () => void }) {
           <div className="flex flex-col gap-5">
             <div className="flex flex-wrap items-center gap-3"><RunStatusBadge run={run} />{run.system && <span className="text-[13px] text-muted-foreground">Automatic status check</span>}</div>
             {isActive(run) && <RunProgress run={run} now={now} />}
-            {run.error && <Notice tone="bad" title="It failed.">{run.error}</Notice>}
+            {run.error && <Notice tone="bad" title="It failed."><FailureText text={run.error} /></Notice>}
             <dl className="grid gap-4 sm:grid-cols-2">
               <Fact label="Queued">{formatDateTime(run.createdAt)}</Fact>
               <Fact label="Started">{run.startedAt ? formatDateTime(run.startedAt) : 'Not started yet'}</Fact>

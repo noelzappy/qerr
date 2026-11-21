@@ -4,7 +4,8 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
 import { useActivity } from '@/hooks/use-activity';
-import { isActive, percent, recentFailures, type ActivityRun } from '@/lib/activity';
+import { FailureText } from '@/components/failure-text';
+import { isActive, percent, recentFailures, runTitle, type ActivityRun } from '@/lib/activity';
 
 export function BatchActivityStrip({ batchId, onSettled }: { batchId: string; onSettled: () => void }) {
   const { items, active } = useActivity({ batchId, status: 'all', pageSize: 100 });
@@ -46,18 +47,21 @@ export function BatchActivityStrip({ batchId, onSettled }: { batchId: string; on
           </div>
         )}
       </div>
-      {failures.length > 0 && <FailureList runs={failures} />}
+      {failures.length > 0 && <FailureList runs={failures} batchId={batchId} />}
     </section>
   );
 }
 
-function FailureList({ runs }: { runs: ActivityRun[] }) {
+function FailureList({ runs, batchId }: { runs: ActivityRun[]; batchId: string }) {
   return (
     <div role="alert" className="flex flex-col gap-1.5 text-[13px]">
       <p className="font-semibold text-destructive">{runs.length === 1 ? '1 job failed' : `${runs.length} jobs failed`}</p>
       <ul className="flex list-disc flex-col gap-1 pl-5 [overflow-wrap:anywhere]">
         {runs.map((r) => (
-          <li key={r.id}><Link to={`/activity/${r.id}`} className="font-medium underline-offset-4 hover:underline">{r.title}</Link>: {r.error ?? 'it failed'}</li>
+          <li key={r.id}>
+            <Link to={`/activity/${r.id}`} className="font-medium underline-offset-4 hover:underline">{runTitle(r.title)}</Link>: <FailureText text={r.error ?? 'It failed.'} />
+            {r.postId && <> <Link to={`/batches/${batchId}/posts/${r.postId}`} className="whitespace-nowrap font-medium text-primary underline-offset-4 hover:underline">Open the post</Link></>}
+          </li>
         ))}
       </ul>
     </div>

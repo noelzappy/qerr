@@ -105,6 +105,8 @@ export interface PostDetail {
   warnings: string[];
   sources: SourceView[];
   batch: { id: string; name: string; title: string; timezone: string; status: string; ownerId: string };
+  // Whether "Rewrite with AI" can start now, and if not, why.
+  rewrite?: { available: boolean; reason: string | null };
 }
 
 export interface ApproveAllResult {

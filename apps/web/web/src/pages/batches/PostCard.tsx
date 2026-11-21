@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { tidyBlocker } from '../../lib/errors';
 import { postFlow } from './flow/status';
 import { NETWORKS } from './labels';
 import { goesTo, readNetworks } from './networks';
@@ -86,7 +87,7 @@ export function PostCard({ summary, batch, version, onChanged, deliveries, highl
 
   const state = readNetworks(post?.networks);
   const onNetwork = (n: string) => (post ? goesTo(state, batch.defaultNetworks, n) : batch.defaultNetworks.includes(n));
-  const blockers = detail?.blockers ?? [];
+  const blockers = (detail?.blockers ?? []).map(tidyBlocker);
   const warnings = detail?.warnings ?? [];
   const flow = postFlow({
     status: post?.status ?? summary.status,
@@ -132,7 +133,7 @@ export function PostCard({ summary, batch, version, onChanged, deliveries, highl
 
         <PostChips flow={flow} problem={problem} />
         {blockers.length > 0 && post?.status !== 'removed' && (
-          <p className="line-clamp-1 text-[12.5px] text-destructive [overflow-wrap:anywhere]" title={blockers.join(' ')}>
+          <p className="line-clamp-2 text-[12.5px] text-destructive [overflow-wrap:anywhere]" title={blockers.join(' ')}>
             {blockers[0]}{blockers.length > 1 ? ` (and ${blockers.length - 1} more)` : ''}
           </p>
         )}

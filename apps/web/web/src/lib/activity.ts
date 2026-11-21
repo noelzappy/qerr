@@ -30,7 +30,7 @@ export const KIND_LABEL: Record<RunKind, string> = {
   'draft-batch': 'AI draft',
   'research-run': 'Research',
   'render-post': 'Make images',
-  'rewrite-post': 'AI rewrite',
+  'rewrite-post': 'Rewrite a post',
   'send-batch': 'Send to Buffer',
   'analyse-reference': 'Design reference',
   'refresh-delivery': 'Status check',

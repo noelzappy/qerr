@@ -4,7 +4,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { api } from '../../api';
-import { errorMessage } from '../../lib/errors';
+import { errorMessage, failureLine, tidyBlocker } from '../../lib/errors';
 import { networkLabel } from '../../lib/labels';
 import { ConfirmAction, ToneBadge, type Tone } from '@/components/kit';
 import { NetworkIcon } from '@/components/network-icon';
@@ -39,9 +39,11 @@ const FLAG_ORDER: PostFlag[] = ['render_failed', 'failed', 'needs_look', 'delete
 export const NO_SOURCES = 'No sources linked. Every claim should link to a fact.';
 
 export function postProblem(flow: PostFlow, d?: { blockers?: string[]; warnings?: string[]; renderError?: string | null; noSources?: boolean }): PostProblem | null {
-  const blockers = d?.blockers ?? [];
+  const blockers = (d?.blockers ?? []).map(tidyBlocker);
+  // The approval check already says the image failed; do not say it twice.
+  const imageInBlockers = blockers.some((b) => b.startsWith('The image could not be made'));
   const notes = [
-    ...(flow.flags.includes('render_failed') ? [`The image could not be made: ${d?.renderError ?? 'no reason was given'}`] : []),
+    ...(flow.flags.includes('render_failed') && !imageInBlockers ? [`The image could not be made: ${failureLine(d?.renderError)}`] : []),
     ...(d?.warnings ?? []),
     ...(d?.noSources ? [NO_SOURCES] : []),
   ];
