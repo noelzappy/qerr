@@ -4,7 +4,7 @@
 // engine refuses nor miss anything it accepts.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BLOCKS, CHOICE_NAMES, FIELDS, FIELD_NAMES, PAGE_KINDS, layoutCatalogue, layoutDesignProblems, sampleDesign, validateLayout } from './lib/design/layout.mjs';
+import { BLOCKS, CHOICE_NAMES, FIELDS, FIELD_NAMES, PAGE_KINDS, layoutCatalogue, layoutDesignProblems, sampleDesign, slabCount, validateLayout } from './lib/design/layout.mjs';
 import { STARTER_LAYOUTS, builtinCopy, builtinLayouts } from './lib/design/layout-starters.mjs';
 
 const cat = layoutCatalogue();
@@ -176,7 +176,7 @@ test('slab children: every child type the catalogue lists, with its options, and
       b.children = [child];
       ok(l, `${p} ${t} holds ${c}`);
       for (const [k, o] of Object.entries(cs.options)) {
-        const offered = spec.children && cs.childOptions.includes(k);
+        const offered = spec.holds[c].includes(k);
         b.children = [{ ...child, [k]: o.default }];
         if (offered && !o.needs) ok(l, `${p} ${t} > ${c}.${k}`);
         if (!offered) refused(l, `${p} ${t} > ${c}.${k} (not inside a slab)`);
@@ -336,24 +336,40 @@ test('the layout itself: the name, description, accent and texture the catalogue
   refused({ ...base('grid'), texture: 'waves' }, 'texture waves');
 });
 
+test('the myth and fact slabs: no more slabs than the page draws', () => {
+  const max = cat.pages.poster.blocks.slabs.slabs;
+  assert.equal(max, 2);
+  const h = (f) => ({ type: 'headline', field: f }), sub = { type: 'sub', field: 'sub' };
+  const make = (children) => { const { l, b } = withBlock('poster', 'slabs'); for (const c of children) l.fields[c.field] = {}; b.children = children; return l; };
+  ok(make([h('myth'), h('factLead'), { type: 'sub', field: 'fact' }]), 'two headlines and a sub line');
+  ok(make([sub, h('myth')]), 'a sub line first, then a headline: two slabs');
+  const slabsOnly = (l) => assert.deepEqual(validateLayout(l).map((e) => /make \d slabs/.test(e)), [true], JSON.stringify(validateLayout(l)));
+  slabsOnly(make([h('myth'), h('quote'), h('line')]));
+  slabsOnly(make([sub, h('myth'), h('quote')]));
+  refused(make([h('myth'), h('quote'), h('line')]), 'three headlines');
+  refused(make([sub, h('myth'), h('quote')]), 'a sub line first, then two headlines: three slabs');
+  assert.deepEqual([slabCount([]), slabCount([sub]), slabCount([sub, sub]), slabCount([h('a'), sub, h('b')]), slabCount([sub, h('a')])], [0, 1, 1, 2, 2]);
+});
+
 test('every starter and every built-in layout a brand may copy uses only what the catalogue offers', () => {
   const copies = builtinLayouts().filter((b) => b.copyable).map((b) => builtinCopy(b.layout.id));
   for (const l of [...STARTER_LAYOUTS, ...copies]) {
     const P = cat.pages[l.page ?? 'grid'];
     assert.ok(P, l.id);
-    const check = (b, child) => {
+    const check = (b, inside) => {
       const s = P.blocks[b.type];
       assert.ok(s, `${l.id} ${b.type}`);
       for (const [k, v] of Object.entries(b)) {
         if (['type', 'slot', 'px', 'when', 'field', 'bleed', 'children'].includes(k)) continue;
         if (k in s.bindings) continue;
         const o = s.options[k];
-        assert.ok(o && (!child || s.childOptions.includes(k)), `${l.id} ${b.type}.${k}`);
+        assert.ok(o && (!inside || inside.includes(k)), `${l.id} ${b.type}.${k}`);
         if (o.type === 'enum') assert.ok(o.values.includes(v) || Object.hasOwn(o.aliases ?? {}, v), `${l.id} ${b.type}.${k} = ${v}`);
       }
-      for (const c of b.children ?? []) { assert.ok(s.children.includes(c.type), `${l.id} ${b.type} > ${c.type}`); check(c, true); }
+      for (const c of b.children ?? []) { assert.ok(s.children.includes(c.type), `${l.id} ${b.type} > ${c.type}`); check(c, s.holds[c.type]); }
+      if (s.slabs) assert.ok(slabCount(b.children) <= s.slabs, `${l.id} ${b.type} slabs`);
     };
-    l.blocks.forEach((b) => check(b, false));
+    l.blocks.forEach((b) => check(b, null));
   }
 });
 

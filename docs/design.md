@@ -442,7 +442,9 @@ By group:
   `specAlign`. The poster page also draws a `screen` block (the pre-framed phone; `phoneTop` moves it to the spec's validated
   `phoneTop`), and a `glow` decoration on a page with a phone is that phone's glow, sized from the picture's own ratio. New for
   the poster page only: `slabs` (myth-fact's colour-blocked myth and fact slabs, stacked and centred; each headline child starts
-  the next slab, and the page is marked as flowing), the chrome block `mark` (the series mark opposite the logo bar: the spec's
+  the next slab, and the page is marked as flowing; it holds only `headline` children, which take only `size`, and `sub`
+  children, which take no options, and at most two slabs: each headline starts one, and so does a first child that is not a
+  headline), the chrome block `mark` (the series mark opposite the logo bar: the spec's
   `label`, else the series' name, else "Myths vs facts"), the bar's `label` (`auto` or `none`), and a headline's `fallback`
   (`tagline`: the brand's tagline when the spec has no headline) and `subFallback` (`website`: the brand's website when the spec
   has no sub line), as the closing page sets them. A poster page with the dot map refuses a brand without one, as `closing` did.
@@ -528,7 +530,8 @@ The chrome blocks, `specSize`, `photoTop`, `subField` and `subWidth` belong to t
 offered only what a grid page takes (`layoutCatalogue().blocks`). Settings, Layouts is driven by `layoutCatalogue().pages`, which
 describes every kind of page a brand's layout may use (`grid`, `poster`, `editorial`): its sizes, how blocks are placed (cells
 and pixels on a grid page, pixels on a built-in page), its decorations and page colours, the condition forms and the choices a
-brand may test there, and for every block type the fields it may show, its slab children, its options (a list, a flag or a
+brand may test there, and for every block type the fields it may show, the children it holds with the options each takes
+inside it (`holds`) and, for the myth and fact slabs, how many slabs it draws (`slabs`), its options (a list, a flag or a
 bounded whole number, each with what it needs of the block's other settings, such as a desktop window's `tilt` needing
 `"device": "desktop"`), its bindings (a label's words, `titleField`, `subField`) and the full-width rule; it also gives each
 field's rule bounds and each size's pixel bounds. Those dependencies are data the validator reads too, so the two cannot drift:

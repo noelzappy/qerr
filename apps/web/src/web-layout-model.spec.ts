@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   blockControls, choicesFor, controlKeys, conditionWords, convertPage, defaultScenario, fieldsShown, fromModel, groundIn, holds, newClause, placeAs, readGround,
-  readWhen, tidyBlock, toModel, uncovered, withPlace, withSamePlace, withSize, writeGround, writeWhen, specFor,
+  readWhen, slabCount, tidyBlock, toModel, uncovered, withPlace, withSamePlace, withSize, writeGround, writeWhen, specFor,
 } from '../web/src/pages/settings/layout-model';
 import type { Block, Catalogue, Layout } from '../web/src/pages/settings/layout-types';
 import { engineImport } from './server/engine/root.js';
@@ -29,10 +29,10 @@ describe('the layout editor model', () => {
       expect(validate(l), l.id).toEqual([]);
       roundTrips(l, cat);
       // every key of every block is one of the controls the editor draws for it
-      const walk = (b: Block, child: boolean) => {
+      const walk = (b: Block, child: false | string[]) => {
         const keys = new Set(['type', ...blockControls(b, l, cat, child).flatMap(controlKeys)]);
         for (const k of Object.keys(b)) expect(keys.has(k), `${l.id} ${b.type}.${k}`).toBe(true);
-        (b.children ?? []).forEach((c) => walk(c, true));
+        (b.children ?? []).forEach((c) => walk(c, specFor(cat, l, b.type)?.holds?.[c.type] ?? []));
       };
       l.blocks.forEach((b) => walk(b, false));
     }
@@ -154,6 +154,27 @@ describe('the layout editor model', () => {
     }
     const poster = convertPage(starters.find((s) => s.id === 'myth-fact')!, 'poster', cat);
     expect(poster.dropped).toEqual(['logo', 'website', 'slab', 'label']);
+  });
+
+  it('offers inside the myth and fact slabs only what the page draws there', async () => {
+    const { cat, validate, copies } = await engine();
+    const mythFact = copies.find((l) => l.blocks.some((b) => b.type === 'slabs'))!;
+    const slabs = specFor(cat, mythFact, 'slabs')!;
+    expect(slabs.children).toEqual(['headline', 'sub']);
+    expect(slabs.holds).toEqual({ headline: ['size'], sub: [] });
+    expect(slabs.slabs).toBe(2);
+    // a headline inside them has its field and its size, and nothing else
+    const inside = blockControls({ type: 'headline', field: 'myth' }, mythFact, cat, slabs.holds!.headline);
+    expect(inside.filter((c) => c.kind === 'option').map((c) => (c.kind === 'option' ? c.key : ''))).toEqual(['size']);
+    expect(inside.some((c) => c.kind === 'when' || c.kind === 'place')).toBe(false);
+    // what the page would not draw is refused by the engine and listed by the editor, never hidden
+    const at = mythFact.blocks.findIndex((b) => b.type === 'slabs');
+    const withChildren = (children: Block[]): Layout => ({ ...mythFact, blocks: mythFact.blocks.map((b, i) => (i === at ? { ...b, children } : b)) });
+    const figure = withChildren([...mythFact.blocks[at].children!, { type: 'figure', field: 'big' }]);
+    const styled = withChildren(mythFact.blocks[at].children!.map((c) => (c.type === 'headline' ? { ...c, style: 'poster' } : c)));
+    for (const l of [figure, styled]) { expect(validate(l)).not.toEqual([]); expect(uncovered(l, cat)).not.toEqual([]); }
+    expect(slabCount([{ type: 'sub' }, { type: 'headline' }, { type: 'headline' }])).toBe(3);
+    expect(validate(withChildren([{ type: 'headline', field: 'myth' }, { type: 'headline', field: 'factLead' }, { type: 'headline', field: 'fact' }])).join(' ')).toMatch(/make 3 slabs/);
   });
 
   it('sketches a layout as if fields were empty, on a carousel page or with a choice', async () => {

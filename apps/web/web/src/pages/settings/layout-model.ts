@@ -242,8 +242,12 @@ export type Control =
   | { kind: 'when' }
   | { kind: 'children'; types: string[] };
 
+// How many slabs a myth and fact block's children make: each headline starts one, and so does a first child that is not a headline.
+export const slabCount = (children: Block[] | undefined): number => (children ?? []).filter((c, i) => c.type === 'headline' || i === 0).length;
+
 // The controls of one block (or one slab child), in the order the editor shows them; [] for a block type the page does not draw.
-export function blockControls(b: Block, l: Layout, cat: Catalogue, child = false): Control[] {
+// child: false for a block of the page, else the options the parent takes on it (its catalogue's holds).
+export function blockControls(b: Block, l: Layout, cat: Catalogue, child: false | string[] = false): Control[] {
   const page = pageCatalogue(cat, l), spec = specFor(cat, l, b.type);
   if (!page || !spec) return [];
   const out: Control[] = [];
@@ -257,7 +261,7 @@ export function blockControls(b: Block, l: Layout, cat: Catalogue, child = false
     out.push({ kind: 'binding', key, fields: bind.fields ?? [] });
   }
   for (const [key, o] of Object.entries(spec.options)) {
-    if (child && !spec.childOptions.includes(key)) continue;
+    if (child && !child.includes(key)) continue;
     if (needsMet(b, o.needs, spec)) out.push({ kind: 'option', key, spec: o });
   }
   if (!child) out.push({ kind: 'when' });
@@ -313,7 +317,7 @@ function placeRest(b: Block, sizes: string[], where: string): string[] {
   return out;
 }
 
-function blockRest(b: unknown, l: Layout, cat: Catalogue, where: string, child: boolean): string[] {
+function blockRest(b: unknown, l: Layout, cat: Catalogue, where: string, child: false | string[]): string[] {
   if (!isObj(b) || typeof b.type !== 'string') return [where];
   const blk = b as Block, spec = specFor(cat, l, blk.type);
   if (!spec) return [where];
@@ -333,7 +337,7 @@ function blockRest(b: unknown, l: Layout, cat: Catalogue, where: string, child: 
     if (c.kind === 'place') out.push(...placeRest(blk, sizesOf(l), where));
     if (c.kind === 'children' && blk.children !== undefined) {
       if (!Array.isArray(blk.children)) out.push(`${where}.children`);
-      else blk.children.forEach((ch, i) => { out.push(...(isObj(ch) && c.types.includes(String(ch.type)) ? blockRest(ch, l, cat, `${where}.children[${i}]`, true) : [`${where}.children[${i}]`])); });
+      else blk.children.forEach((ch, i) => { out.push(...(isObj(ch) && c.types.includes(String(ch.type)) ? blockRest(ch, l, cat, `${where}.children[${i}]`, spec.holds?.[String(ch.type)] ?? []) : [`${where}.children[${i}]`])); });
     }
   }
   return out;
@@ -483,13 +487,13 @@ export function convertPage(l: Layout, to: string, cat: Catalogue): { layout: La
   const keep = sizes.length ? sizes : [target.sizes[0]];
   next.canvas = Object.fromEntries(keep.map((z) => [z, l.canvas[z] ?? Object.values(l.canvas)[0]]));
   const spec = (t: string) => target.blocks[t] ?? null;
-  const fit = (b: Block, child: boolean): Block | null => {
+  const fit = (b: Block, child: false | string[]): Block | null => {
     const s = spec(b.type);
     if (!s || (child && !s.child)) { dropped.push(b.type); return null; }
     const out: Block = { type: b.type };
     for (const k of ['field', 'text', 'source']) if (b[k] !== undefined) out[k] = b[k];
     for (const [k, v] of Object.entries(b)) {
-      if (k in s.options && (!child || s.childOptions.includes(k))) {
+      if (k in s.options && (!child || child.includes(k))) {
         const o = s.options[k];
         if (o.type !== 'enum' || o.values.includes(v as string | number) || (typeof v === 'string' && o.aliases && Object.hasOwn(o.aliases, v))) out[k] = v;
       }
@@ -509,7 +513,12 @@ export function convertPage(l: Layout, to: string, cat: Catalogue): { layout: La
         out.px = isFullWidth(out, s) ? fullWidthPx(p.y, page) : p;
       }
     }
-    if (s.children) out.children = (b.children ?? []).map((c) => fit(c, true)).filter((c): c is Block => !!c).filter((c) => s.children!.includes(c.type));
+    if (s.children) {
+      const held = (b.children ?? []).map((c) => (s.holds?.[c.type] ? fit(c, s.holds[c.type]) : (dropped.push(c.type), null))).filter((c): c is Block => !!c);
+      // no more slabs than the page draws: the children past the last slab are left out
+      out.children = s.slabs ? held.filter((_, i) => slabCount(held.slice(0, i + 1)) <= s.slabs!) : held;
+      for (const c of held.slice(out.children.length)) dropped.push(c.type);
+    }
     return tidyBlock(out, s);
   };
   next.blocks = l.blocks.map((b) => fit(b, false)).filter((b): b is Block => !!b);

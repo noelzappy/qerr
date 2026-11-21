@@ -169,7 +169,12 @@ test('the poster page\'s new block types and options: valid, invalid and hostile
   // the chrome mark has no slot and shows no field; the slabs take no option the page does not honour, and hold blocks it draws
   assert.ok(has(mod((l) => { l.blocks[5].px = { x: 80, y: 1200, w: 920, h: 40 }; }), 'a mark has no slot'));
   assert.ok(has(mod((l) => { l.blocks[5].field = 'myth'; }), 'a mark shows no field'));
-  assert.ok(has(mod((l) => { l.blocks[3].children.push({ type: 'logo' }); }), 'a poster page does not draw a logo block'));
+  assert.ok(has(mod((l) => { l.blocks[3].children.push({ type: 'logo' }); }), 'the slabs draw only headline and sub inside them, not a logo'));
+  // the slabs draw a headline's size and a sub line's words, two slabs and nothing more
+  assert.ok(has(mod((l) => { l.fields.big = {}; l.blocks[3].children.push({ type: 'figure', field: 'big' }); }), 'not a figure'));
+  assert.ok(has(mod((l) => { l.blocks[3].children[0].style = 'poster'; }), 'the slabs do not draw a headline\'s style'));
+  assert.ok(has(mod((l) => { l.blocks[3].children[2].align = 'center'; }), 'the slabs do not draw a sub\'s align'));
+  assert.ok(has(mod((l) => { l.fields.quote = {}; l.blocks[3].children.push({ type: 'headline', field: 'quote' }); }), 'make 3 slabs, and the page draws 2'));
   assert.ok(has(mod((l) => { l.blocks[3].children[0].valign = 'top'; }), 'no valign'));
   assert.ok(has(mod((l) => { l.blocks[3].children[0].field = 'quote'; }), 'not in the layout\'s fields'));
   assert.ok(has(mod((l) => { l.blocks[3].px = { x: 0, y: 300, w: 470, h: 900 }; }), 'keeps inside the feed page\'s minimum margins'));

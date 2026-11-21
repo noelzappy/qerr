@@ -8,7 +8,7 @@ import { CheckField, FieldGroup, SelectField, SwitchField, TextField } from '@/c
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  CHOICE_WORDS, blockControls, choicesFor, blockTitle, casesToOne, clauseKinds, conditionsUsed, defaultScenario, dropClause, edgesTouched, fieldsShown,
+  CHOICE_WORDS, blockControls, slabCount, choicesFor, blockTitle, casesToOne, clauseKinds, conditionsUsed, defaultScenario, dropClause, edgesTouched, fieldsShown,
   fullWidthPx, groundToCases, isFullWidth, newClause, pageCatalogue, placeAs, placeBy, pxOn, readGround, readWhen, samePlace, sizesOf, slotOn, specFor,
   tidyBlock, withPlace, withSamePlace, writeGround, writeWhen,
   type ClauseKind, type Condition, type Control, type GroundModel, type Scenario,
@@ -213,7 +213,7 @@ function PlaceEditor({ block, layout, size, setSize, catalogue, by, onChange }: 
 // ---- one block ----
 
 export function BlockEditor({ block, layout, size, setSize, catalogue, onChange, child = false }: {
-  block: Block; layout: Layout; size: string; setSize: (z: string) => void; catalogue: Catalogue; onChange: (b: Block, declare?: string[]) => void; child?: boolean;
+  block: Block; layout: Layout; size: string; setSize: (z: string) => void; catalogue: Catalogue; onChange: (b: Block, declare?: string[]) => void; child?: false | string[];
 }) {
   const spec = specFor(catalogue, layout, block.type), page = pageCatalogue(catalogue, layout);
   const declared = Object.keys(layout.fields);
@@ -224,6 +224,8 @@ export function BlockEditor({ block, layout, size, setSize, catalogue, onChange,
   const fieldOptions = (fields: string[]) => fields.map((f) => ({ value: f, label: declared.includes(f) ? f : `${f} (adds the field)` }));
   const pick = (key: string, f: string) => change(f ? { ...block, [key]: f } : (({ [key]: _x, ...rest }) => rest as Block)(block), f && !declared.includes(f) ? [f] : undefined);
   const children = block.children ?? [];
+  // what may be added inside: a myth and fact block takes no headline past its last slab
+  const addable = (spec.children ?? []).filter((t) => spec.slabs === null || slabCount([...children, { type: t }]) <= spec.slabs);
   const setChildren = (list: Block[], declare?: string[]) => change({ ...block, children: list }, declare);
   const render = (c: Control) => {
     switch (c.kind) {
@@ -281,15 +283,16 @@ export function BlockEditor({ block, layout, size, setSize, catalogue, onChange,
           </ul>
           {childAt !== null && children[childAt] && (
             <div className="rounded-md border p-3">
-              <BlockEditor block={children[childAt]} layout={layout} size={size} setSize={setSize} catalogue={catalogue} child
+              <BlockEditor block={children[childAt]} layout={layout} size={size} setSize={setSize} catalogue={catalogue} child={spec.holds?.[children[childAt].type] ?? []}
                 onChange={(cb, declare) => setChildren(children.map((x, k) => (k === childAt ? cb : x)), declare)} />
             </div>
           )}
-          {children.length < catalogue.limits.children && (
+          {spec.slabs !== null && slabCount(children) > spec.slabs && <p className="text-[13px] text-destructive">These make {slabCount(children)} slabs and the page draws {spec.slabs}. Each headline starts a slab, and so does a first line that is not a headline: remove one, or move a sub line under a headline.</p>}
+          {children.length < catalogue.limits.children && addable.length > 0 && (
             <div className="flex flex-wrap items-end gap-2">
-              <SelectField className="min-w-40 flex-1" label="Add inside" value={childType || c.types[0]} onValueChange={setChildType} options={c.types.map((t) => ({ value: t, label: BLOCK_LABEL[t] ?? t }))} />
+              <SelectField className="min-w-40 flex-1" label="Add inside" value={addable.includes(childType) ? childType : addable[0]} onValueChange={setChildType} options={addable.map((t) => ({ value: t, label: BLOCK_LABEL[t] ?? t }))} />
               <Button variant="outline" onClick={() => {
-                const t = childType || c.types[0], cs = page.blocks[t];
+                const t = addable.includes(childType) ? childType : addable[0], cs = page.blocks[t];
                 const nb: Block = { type: t };
                 let declare: string[] | undefined;
                 if (t === 'label') nb.text = 'Label';

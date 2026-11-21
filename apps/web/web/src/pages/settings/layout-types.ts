@@ -31,7 +31,10 @@ export interface PageBlockSpec {
   // a block the page runs the full width to its bottom edge (with these option values)
   fullWidth: Record<string, string> | null;
   options: Record<string, OptionSpec>;
-  childOptions: string[];
+  // a block with children: each child type it holds, with the options it takes inside (its children lists the same types)
+  holds: Record<string, string[]> | null;
+  // the most slabs a myth and fact block draws (each headline starts one, and so does a first child that is not a headline)
+  slabs: number | null;
   defaults: Record<string, unknown>;
   bindings: Record<string, { kinds?: string[]; fields?: string[]; max?: number; values?: string[]; needs: Needs; child: boolean }>;
 }

@@ -217,8 +217,9 @@ export const BLOCKS = {
   // Block types a phase 2 group adds go in its own section below (testlib/CONVERTING.md), so parallel changes merge.
   // -- poster group --
   // myth-fact's colour-blocked slabs, stacked and centred in the rectangle: each headline child starts the next slab (the myth's,
-  // then the fact's, each with its fixed tag), a sub line child goes in the slab before it.
-  slabs: { kinds: [], field: null, options: {}, text: true, children: true, pages: ['poster'] },
+  // then the fact's, each with its fixed tag), a sub line child goes in the slab before it. holds: the only child types it draws,
+  // with the only options it honours on each (layout-poster.mjs slabs()); slabs: how many slabs it draws (SLABS there).
+  slabs: { kinds: [], field: null, options: {}, text: true, children: true, pages: ['poster'], holds: { headline: ['size'], sub: [] }, slabs: 2 },
   // the series mark opposite the poster's logo bar (bottom right, or top right when the bar is at the bottom): the spec's label,
   // else the series' name, else "Myths vs facts".
   mark: { kinds: [], field: null, options: {}, chrome: true, pages: ['poster'] },
@@ -664,8 +665,12 @@ function builtPageProblems(blk, layout, sizes, where, errors, page) {
 // The value of an option with its default filled in (an older spelling read as the listed name).
 export const optionOf = (block, k) => { const o = BLOCKS[block.type].options[k]; const v = block[k] ?? o?.def; return o?.canon ? o.canon(v) : v; };
 
-// One block (or one child of a slab). Returns the fields it shows.
-function blockProblems(blk, layout, sizes, where, errors, { child = false, page = 'grid', builtin = false } = {}) {
+// How many slabs a slabs block's children make: each headline starts one, and a first child that is not a headline starts one too.
+export const slabCount = (children) => (Array.isArray(children) ? children.filter((c, i) => c?.type === 'headline' || i === 0).length : 0);
+
+// One block (or one child of a slab). Returns the fields it shows. inside: the options its parent draws on it (a parent with
+// "holds"), else every option a child may take.
+function blockProblems(blk, layout, sizes, where, errors, { child = false, page = 'grid', builtin = false, inside = null } = {}) {
   if (!isObj(blk)) { errors.push(`${where} must be an object like { "type": "headline", "slot": { ... } }`); return []; }
   const spec = Object.hasOwn(BLOCKS, blk.type) ? BLOCKS[blk.type] : null;
   if (!spec) { errors.push(`${where}.type must be one of ${BLOCK_TYPES.join(', ')} (got ${show(blk.type)})`); return []; }
@@ -681,6 +686,7 @@ function blockProblems(blk, layout, sizes, where, errors, { child = false, page 
     if (blk.slot !== undefined || blk.px !== undefined) errors.push(`${where}: a block inside a slab has no slot of its own (it flows in the slab)`);
     for (const k of CHILD_REFUSED) if (blk[k] !== undefined) errors.push(`${where}: a block inside a slab has no ${k} (set it on the slab)`);
     if (blk.when !== undefined) errors.push(`${where}: a block inside a slab has no condition of its own (set "when" on the slab)`);
+    if (inside) for (const k of Object.keys(spec.options)) if (blk[k] !== undefined && !CHILD_REFUSED.includes(k) && !inside.includes(k)) errors.push(`${where}.${k}: the slabs do not draw a ${blk.type}'s ${k} (${inside.length ? `it takes only ${inside.join(', ')}` : 'it takes no options'} there)`);
   } else if (spec.chrome) {
     if (blk.slot !== undefined || blk.px !== undefined) errors.push(`${where}: a ${blk.type} has no slot: the page places it (following the brand's logo placement)`);
   } else if (blk.px !== undefined) {
@@ -737,7 +743,14 @@ function blockProblems(blk, layout, sizes, where, errors, { child = false, page 
   if (spec.children) {
     if (blk.children === undefined) blk = { ...blk, children: [] };
     if (!Array.isArray(blk.children) || blk.children.length > MAX_CHILDREN) errors.push(`${where}.children must be a list of up to ${MAX_CHILDREN} blocks`);
-    else blk.children.forEach((c, i) => used.push(...blockProblems(c, layout, sizes, `${where}.children[${i}]`, errors, { child: true, page, builtin })));
+    else {
+      blk.children.forEach((c, i) => {
+        const w = `${where}.children[${i}]`;
+        if (spec.holds && isObj(c) && Object.hasOwn(BLOCKS, c.type) && !Object.hasOwn(spec.holds, c.type)) return errors.push(`${w}: the ${blk.type} draw only ${Object.keys(spec.holds).join(' and ')} inside them, not a ${c.type}`);
+        used.push(...blockProblems(c, layout, sizes, w, errors, { child: true, page, builtin, inside: spec.holds?.[c?.type] ?? null }));
+      });
+      if (spec.slabs && slabCount(blk.children) > spec.slabs) errors.push(`${where}.children make ${slabCount(blk.children)} slabs, and the page draws ${spec.slabs} (each headline starts a slab, and so does a first child that is not a headline)`);
+    }
   }
   return used;
 }
@@ -1028,14 +1041,20 @@ function pageCatalogue(p) {
       const opts = plain.filter((k) => reachable(s.options[k].needs, plain));
       const option = (k) => optionSpec(t === 'decoration' && k === 'kind' ? { ...s.options[k], list: decorations } : s.options[k]);
       const bind = bindable.map((k) => [k, BINDINGS[t][k]]).filter(([, v]) => reachable(v.needs, opts));
+      // what a block with children holds: each child type, with the options it takes inside (a child's own options here, but no
+      // vertical alignment; only those the parent draws when it has "holds")
+      const childOpts = (c) => honoured(c).filter((k) => reachable(BLOCKS[c].options[k].needs, honoured(c)) && !CHILD_REFUSED.includes(k) && (!s.holds || s.holds[c].includes(k)));
+      const holds = s.children ? Object.fromEntries(childTypes.filter((c) => !s.holds || Object.hasOwn(s.holds, c)).map((c) => [c, childOpts(c)])) : null;
       return [t, {
         kinds: s.kinds, field: s.field, fields: fieldsOf(s.kinds),
         chrome: !!s.chrome, child: !!s.child, text: !!s.text, under: !!s.under,
         bleed: grid && s.bleed ? { edges: EDGES, needs: BLEED_NEEDS[t] ?? null } : null,
-        children: s.children ? childTypes : null,
+        children: holds ? Object.keys(holds) : null,
+        holds,
+        // the most slabs a slabs block draws (each headline child starts one, and so does a first child that is not a headline)
+        slabs: s.slabs ?? null,
         fullWidth: FULL_WIDTH[p]?.[t] ?? null,
         options: Object.fromEntries(opts.map((k) => [k, option(k)])),
-        childOptions: s.child ? opts.filter((k) => !CHILD_REFUSED.includes(k)) : [],
         // every option's default, also of those this page does not take (a "needs" reads them)
         defaults: Object.fromEntries(Object.entries(s.options).map(([k, o]) => [k, o.def])),
         bindings: Object.fromEntries(bind.map(([k, v]) => [k, { ...(v.kinds ? { kinds: v.kinds, fields: fieldsOf(v.kinds) } : {}), ...(v.max ? { max: v.max } : {}), ...(v.values ? { values: v.values } : {}), needs: v.needs ?? null, child: v.child !== false }])),
