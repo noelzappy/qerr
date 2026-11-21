@@ -1,36 +1,38 @@
 # Making the post images
 
-`node packages/engine/design.mjs ...` (or `node packages/engine/buffer.mjs design ...`) turns your texts and pictures into finished post images, ready
-for the scheduling commands. It drives headless Google Chrome, so what you get is what Chrome draws, at the exact
-pixel size, checked before it is saved.
+The design engine turns a post's texts and pictures into finished post images. It drives headless Google Chrome, so what
+you get is what Chrome draws, at the exact pixel size, checked before it is saved.
 
-Everything here is taken from the code in `packages/engine/lib/design/` and `packages/engine/design/templates/`. Five poster templates (`object`, `number`, `product`, `myth-fact`, `closing`, see "The poster look"), seven earlier editorial templates (`cover`, `text`, `ledger`, `passbook`, `stats`, `screen`, `photo-story`), `carousel` (with a PDF), full-bleed `photo` posts and `page-cover` make up the tool. Where something has not been proved, it
+Everything here is taken from the code in `packages/engine/lib/design/` and `packages/engine/design/templates/`. Five poster templates (`object`, `number`, `product`, `myth-fact`, `closing`, see "The poster look"), seven earlier editorial templates (`cover`, `text`, `ledger`, `passbook`, `stats`, `screen`, `photo-story`), `carousel`, full-bleed `photo` posts and `page-cover` make up the engine. Where something has not been proved, it
 says so (see "What is weak or unverified" at the end).
 
 ## The short version
 
-```sh
-# one post from flags
-node packages/engine/design.mjs photo --image design/assets/demo/scene-market.jpg \
-  --headline 'Save together,\n*see every step.*' --sub 'Group savings, goals and records in one place.' \
-  --out media/2026-12/01-tagline.jpg
+Each post can carry a `design` block: the template, the words and the picture. The AI writes one for every post it
+drafts, a batch file can carry them (see "Design blocks in a batch" below and [batch-format.md](batch-format.md)), and
+people change them in review. Whenever a post's design is imported or changes, the web app's `render-post` job renders it
+with the engine (`renderDesignBlock` in `packages/engine/lib/design-render.mjs`) and keeps the images in private storage;
+review shows them with every warning, and "Re-render" makes them anew.
 
-# a whole month: put a "design" block on each post of the batch, then
-node packages/engine/design.mjs render batches/2026-12.json
-node packages/engine/buffer.mjs plan batches/2026-12.json
+```json
+{
+  "template": "photo",
+  "image": "design/assets/demo/scene-market.jpg",
+  "headline": "Save together,\n*see every step.*",
+  "sub": "Group savings, goals and records in one place."
+}
 ```
-
-`node packages/engine/design.mjs --help` lists every command and flag.
 
 ## Untrusted text
 
-Everything in a spec, a batch `design` block, a flag or a `--spec` file is **data, never markup**. This matters because
-the texts may later be written by a program from web research. What the tool does about it:
+Everything in a `design` block, whether it came from a batch file, the AI or the review page, is **data, never
+markup**. This matters because the texts may be written by a program from web research. What the engine does about it:
 
 - **One escape helper.** All text and attribute values go through `esc()` / `fmt()` in `packages/engine/design/templates/common.mjs`.
   `fmt()` escapes first and only then adds `<br>` (for `\n`) and `<span class="gold">` (for `*accent*`), so those are the
   only tags text can ever produce.
-- **Strict validation at the spec boundary** (`validateDesign`, run by every command and by batch validation): `template`,
+- **Strict validation at the spec boundary** (`validateDesign`, run on import, on every edit, by batch validation and
+  before every render): `template`,
   `sizes`, `series` (a key of the brand file), `ground`, `accent`, `tick`, `layout`, `device`, `size`, `kind`, `scrim` and `textAt` must be one of a fixed list; ledger and register cells, columns, notes and the window `title` are short one-line texts with their own limits; `zoom`, `region`, `days`, `ticked`, `today` are numbers in range; `framed`, `tilt`, `dots`, `glow`, `fade` and `map` true or false; `caption` and `silk` are refused; `pills` and `checks` lists of up to 4 short one-line texts; `focal` must match `N% N%`, a keyword or
   numbers in range; `scrimPeak` a finite number 0 to 0.65; `name` lowercase letters, digits and `. _ -`; every field of a thin-line shape a finite number in range (`x`, `y` -1 to 2; `r` up to 3; angles up to
   720; `l` up to 1; `dx`, `dy` 1 or -1; `o` 0 to 1; `w` up to 20) with `c` only `"gold"` or `"white"`; text fields must be
@@ -39,8 +41,8 @@ the texts may later be written by a program from web research. What the tool doe
   finite.
 - **Pictures are files, not addresses.** An `image` must have an allowed extension (`.jpg .jpeg .png .webp .gif`), exist
   as a regular file of at most 30 MB, and its first bytes must really be that kind of image (a renamed script or text file
-  is refused; so are `javascript:`, `http:` and `file:` strings). It is read by the tool and embedded as a `data:` URI;
-  the page never receives a path.
+  is refused; so are `javascript:`, `http:` and `file:` strings). It is read by the engine and embedded as a `data:` URI;
+  the page never receives a path. The web app accepts only files under `design/assets/` or a vault photo (`vaultItemId`).
 - **The page is locked down.** It carries a Content-Security-Policy (`default-src 'none'`; images and fonts from `data:` only;
   one inline script, allowed by a per-page nonce, which contains no spec data). Chrome runs without file-access flags, the
   page is loaded from a string (no file is opened), every request except `data:` is blocked through the DevTools protocol
@@ -54,18 +56,19 @@ the texts may later be written by a program from web research. What the tool doe
 ## Requirements and how images are made
 
 - **Google Chrome.** Found at `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` on macOS (and the usual
-  `/usr/bin` names on Linux). Set `CHROME_PATH` to use another build. Without Chrome the command stops with a message
-  that says how to fix it.
-- **One Chrome at a time.** A lock file (`out/design.lock`) stops a second design run from starting another Chrome,
-  because the machine has 8 GB of RAM. A batch uses one Chrome for all its images.
+  `/usr/bin` names on Linux). Set `CHROME_PATH` to use another build; the container image sets it to its Chromium
+  wrapper (see [deploy/README.md](../deploy/README.md)). Without Chrome the render fails with a message that says how to
+  fix it.
+- **One Chrome at a time.** The render job renders one post at a time, and a lock file (`out/design.lock`) stops a second
+  render from starting another Chrome while one runs. A post uses one Chrome for all its images.
 - **How Chrome is driven.** Through the DevTools protocol over a pipe, using only Node's standard library. The page is
   built as a self-contained string, laid out at the exact size (no browser window is involved), measured by a small script
   inside the page, and screenshotted. It needs no file or network access (see "Untrusted text").
 - **PNG to JPG.** The page is captured as PNG. A `.jpg` output is converted with `sips` (macOS) if it is there, else
   `ffmpeg` if it is there, else Chrome itself is asked for a JPEG. The last line of every run says which was used.
   Output is quality 92. Use a `.png` file name to keep the lossless PNG.
-- **Nothing is sent anywhere.** No key and no network are needed. Rendered images go where you say (by default
-  `media/design/`, or the batch's `mediaRoot`), all inside the ignored `media/` tree.
+- **Nothing is sent anywhere.** Rendering needs no key and no network. The render job draws into a temporary folder
+  under `out/` (ignored by git), stores the images in private storage under `renders/`, and removes the folder.
 
 ## Sizes
 
@@ -76,7 +79,7 @@ the texts may later be written by a program from web research. What the tool doe
 | `story` | 1080 x 1920 | Stories and reels covers. `photo` only. The top 270 px and bottom 350 px are kept clear of the app's own buttons |
 | `square` | 1080 x 1080 | Square feed posts. `photo` only |
 
-Ask for more than one with `--sizes feed,wide,story` (photo posts). Giving an editorial template or a carousel another size is
+Ask for more than one with `"sizes": ["feed", "wide", "story"]` (photo posts). Giving an editorial template or a carousel another size is
 refused with: "... is made for the feed format (1080x1350) only".
 
 ## The look: type, depth and tokens
@@ -205,7 +208,7 @@ and `label` (the myth-fact mark). Unknown combinations are refused with the fiel
 
 The sections below describe the earlier editorial templates; the poster templates are above.
 
-Text rules that apply everywhere: `\n` (a backslash and an n in a flag, or a newline in JSON) is a line break; `*words in
+Text rules that apply everywhere: a newline (`\n` in JSON) is a line break; `*words in
 asterisks*` are the headline's continuation (muted grey on the editorial pages, muted light grey on ink, gold on `photo` posts);
 everything is escaped, so no markup can be injected. Write the brand's names as its pack's `spelling` rules say (the demo: `Acme Savings`), in sentence
 case, with no emoji (see "Brand text rules"). Every text field is at most 220 characters; short fields have their own limit. Write a
@@ -214,7 +217,7 @@ headline as one statement sentence, then its continuation in asterisks (`"Pay ou
 ### `cover`: the photo-led opening page
 
 A photo inside the margins (the card radius and a 1 px line), the headline (84 px) under it, then the sub line. Fields: `headline` (required), `sub`, `image` (required), `focal` (`"71% 100%"`, `center`, `{ "x": 0.7, "y": 1 }`) and `zoom`
-(1 to 3, around the focal point). The tool warns when the picture is enlarged more than 1.3x.
+(1 to 3, around the focal point). The engine warns when the picture is enlarged more than 1.3x.
 
 ### `text`: a headline, with or without an artefact
 
@@ -288,12 +291,11 @@ The closing page is a poster page now (the dark textured ground, the tagline lar
 `{ "template": "carousel", "series": "explainers", "pages": [ ... ] }`: 2 to 10 `pages`, each any of `cover`, `text`, `ledger`,
 `passbook`, `myth-fact`, `stats`, `screen`, `photo-story`, `closing` (a page may override the carousel's `series` or `label`).
 Each page gets the series label and the folio ("01 / 07") in its running head; page 1 says "Swipe ->" in the footer, the others the
-website. Run it with `node packages/engine/design.mjs carousel --spec file.json --name passbooks --out media/2026-12`. File names:
-`<name>-1.jpg`, `<name>-2.jpg` ... and **`<name>.pdf`**, a PDF of the pages for LinkedIn documents, one page per image, each exactly
-1080 x 1350 CSS px (810 x 1012.5 pt), no margins, written only when every page was made. Chrome snaps a printed page to a grid of
-about one point (1013.04 pt for this size), so the tool corrects the page box to the true 1012.5 pt without changing any byte offset;
-if it cannot, it warns with the size it got. In a batch the PDF goes into `mediaRoot` next to the images; it is not added to
-`media` (upload it by hand where a document is wanted).
+website. File names: `<name>-1.jpg`, `<name>-2.jpg` ... and **`<name>.pdf`**, a PDF of the pages for LinkedIn documents, one page per
+image, each exactly 1080 x 1350 CSS px (810 x 1012.5 pt), no margins, written only when every page was made. Chrome snaps a printed
+page to a grid of about one point (1013.04 pt for this size), so the engine corrects the page box to the true 1012.5 pt without
+changing any byte offset; if it cannot, it warns with the size it got. The web app keeps the page images; it does not keep the PDF
+yet.
 
 ### `photo`: a full-bleed photograph with text
 
@@ -302,26 +304,27 @@ solid strength down to nothing, so the picture is untouched everywhere else. On 
 headline (words in asterisks turn brand gold), a white sub line, the brand's logo pill at the bottom left and its website in mono
 at the bottom right. Optional thin white and gold arcs and a corner bracket add a little brand motion. Works at every size.
 
-| Option (flag / field) | Meaning |
+| Field | Meaning |
 | --- | --- |
-| `--image` / `image` | The photo (jpg, png, webp, gif). Required. A path relative to the repository, or absolute. |
-| `--headline`, `--sub`, `--eyebrow` | Texts. Headline required. |
-| `--focal` / `focal` | Which part of the photo stays in frame when it is cropped: `"60% 40%"`, `center`, `left top`, or `{ "x": 0.6, "y": 0.4 }`. In a batch it can be per size: `{ "feed": "60% 40%", "wide": "50% 100%" }`. Default centre. |
-| `--text-at` / `textAt` | `top` (default) or `bottom`: where the text and scrim sit. Per size allowed. |
-| `--scrim` / `scrim` | `black` (default) or `none`. |
-| `--scrim-peak` / `scrimPeak` | Starting strength of the black scrim, 0 to 0.65 (default 0.5). The tool raises it by 0.05 steps up to 0.65 if the text needs it. |
-| `--no-lines` / `"lines": false` | No arcs or brackets. |
+| `image` | The photo (jpg, png, webp, gif). Required. A file under `design/assets/`, or a vault photo named with `vaultItemId`. |
+| `headline`, `sub`, `eyebrow` | Texts. Headline required. |
+| `focal` | Which part of the photo stays in frame when it is cropped: `"60% 40%"`, `center`, `left top`, or `{ "x": 0.6, "y": 0.4 }`. It can be per size: `{ "feed": "60% 40%", "wide": "50% 100%" }`. Default centre. |
+| `textAt` | `top` (default) or `bottom`: where the text and scrim sit. Per size allowed. |
+| `scrim` | `black` (default) or `none`. |
+| `scrimPeak` | Starting strength of the black scrim, 0 to 0.65 (default 0.5). The engine raises it by 0.05 steps up to 0.65 if the text needs it. |
+| `"lines": false` | No arcs or brackets. |
 | `lines` | Default `"auto"`. Or a list of up to 12 shapes (numbers only, in the ranges above): `{ "t": "arc", "x": 0.62, "y": 0.8, "r": 0.5, "a0": 200, "a1": 300, "c": "gold" }` and `{ "t": "br", "x": 0.92, "y": 0.06, "l": 0.07, "dx": -1, "dy": 1 }`. Per size allowed. |
 
-Automatic lines: when no shapes are given, the tool measures where the text really is and tries a few arc positions
+Automatic lines: when no shapes are given, the engine measures where the text really is and tries a few arc positions
 (chosen by a stable hash of the headline) on the side away from the text. It rejects any position whose arc would cross the text or
 the footer. If nothing fits it draws none and says so.
 
 ### `page-cover`: profile picture and cover images
 
-`node packages/engine/design.mjs page-cover --kind profile|facebook|linkedin|x --out media/covers/facebook.jpg` makes the fixed brand
-images for the social pages (1080x1080 profile, 1640x624 Facebook cover, 2256x382 LinkedIn cover, 1500x500 X header) on the white
-ground in the brand type, from the brand file's tagline, description and website. Not part of batches.
+`{ "template": "pagecover", "kind": "profile" | "facebook" | "linkedin" | "x" }` makes the fixed brand images for the social pages
+(1080x1080 profile, 1640x624 Facebook cover, 2256x382 LinkedIn cover, 1500x500 X header) on the white ground in the brand type,
+from the brand file's tagline, description and website. They are not post images, so a batch or a post refuses the template; the
+web app has no page that makes them yet.
 
 ### What was removed
 
@@ -330,19 +333,23 @@ The old green look is gone: the `card` template, the old `stats` and `screen` lo
 went too: the `paper` and `stone` grounds, the table and its grain, rotated sheets (`rotate`), the flat-print and paper shadows, the
 CSS phone body (`statusFill`) and the `onTable` and `bodyStrong` text colours. `photo` and `page-cover` stay, restyled.
 
-## Giving it your own photos and screenshots
+## Your own photos and screenshots
 
-- **Where `design/...` paths point.** A picture or brand file written as `design/...` (for example `design/assets/photos/market.jpg`)
-  is looked up under the repository root first, then in `packages/engine/design/`, where the brand, fonts, logos and the asset folders are.
-  Every other path is relative to the repository root. Run the commands from the repository root.
-- **Photos** go in `packages/engine/design/assets/photos/` (or anywhere; `--image` takes any path). The folder is ignored by git except
-  its `README.md` and `CREDITS.md`, so photos never enter the repository.
-- **Screenshots** go in `packages/engine/design/assets/screens/` (ignored by git), with their source in its `SOURCES.md`. Screenshots can
-  show real names and amounts: use test or demo data (an invented organisation, fake phone numbers), or blur anything real first.
+- **In the vault.** Upload photos and screens to the vault in the app, with their source, their licence, whether
+  identifiable people appear and whether their consent is recorded. A design names one with `vaultItemId` (the AI does
+  this for the pictures it picks); the render copies the file from the private bucket for that render only. A photo whose
+  rights are still to be confirmed, or with people and no recorded consent, blocks approval of the post.
+- **Files in the repository.** A picture written as `design/...` (for example `design/assets/photos/market.jpg`) is
+  looked up under the repository root first, then in `packages/engine/design/`, where the fonts and the asset folders are.
+  The web app accepts no other path. `packages/engine/design/assets/photos/` and `assets/screens/` are ignored by git
+  except their `README.md`, `CREDITS.md` and `SOURCES.md`, and they are left out of the container image, so on a
+  deployment use the vault.
+- **Screenshots** can show real names and amounts: use test or demo data (an invented organisation, fake phone numbers),
+  or blur anything real first.
 - **The demo pictures** are in `packages/engine/design/assets/demo/`: `object-jar.jpg`, `scene-market.jpg` and `screen-desk.png`,
   synthetic drawings made by `brands/demo/make-assets.mjs` (no photograph, no real person, place or amount). They are committed
-  so the example batches render on a fresh clone; use them as `design/assets/demo/<file>`.
-- **Size.** Give photos at least 1500 px on the long side. The tool measures how much each image is enlarged and warns
+  so the example batches render on a fresh install; use them as `design/assets/demo/<file>`.
+- **Size.** Give photos at least 1500 px on the long side. The engine measures how much each image is enlarged and warns
   above 1.3x, naming the file, its size and the width it needs. Phones and windows are checked the same way (a 660 px wide
   phone capture shown 470 px wide is fine).
 
@@ -350,19 +357,20 @@ CSS phone body (`statusFill`) and the `onTable` and `bodyStrong` text colours. `
 
 1. **The licence must allow commercial use** (a brand post is commercial). Free stock sites with a licence that allows
    it are fine; "free for personal use" is not.
-2. **Record every photo in `packages/engine/design/assets/photos/CREDITS.md`**: file, source page, author, licence, what is in it. That
-   file is committed (it lists licences and holds no pictures); the photos themselves are not.
+2. **Record where every photo came from**: for a vault photo, its source and licence in the vault; for a file in the
+   repository, a line in `packages/engine/design/assets/photos/CREDITS.md` (file, source page, author, licence, what is in
+   it). That file is committed (it lists licences and holds no pictures); the photos themselves are not.
 3. **Avoid tight portraits of identifiable people.** Crowds, hands, backs and wide market scenes are safer than faces.
 4. **Never imply that the people pictured are customers.** Do not write "our members" or a testimonial over a stock
    photograph of strangers, and do not use a photo of a real person next to a quote or a number that is not theirs.
-5. **Check what else is in the frame**: brand names, readable signs, children. Crop with `--focal` or choose another.
+5. **Check what else is in the frame**: brand names, readable signs, children. Crop with `focal` or choose another.
 6. A photo from another country than the brand's market can still be used as a mood image; do not caption it as local.
 7. **No other currency.** When the brand pack sets `money`, do not use a picture that shows another currency's notes, coins
    or signs; the AI library refuses vault pictures described with one (see [ai.md](ai.md)).
 
-## Batch mode: one file for the month
+## Design blocks in a batch
 
-Put a `design` block on a post of the normal batch (see [batch-format.md](batch-format.md)):
+A batch carries one `design` block per post (see [batch-format.md](batch-format.md)):
 
 ```json
 {
@@ -382,42 +390,33 @@ Put a `design` block on a post of the normal batch (see [batch-format.md](batch-
 }
 ```
 
-```sh
-node packages/engine/design.mjs render batches/2026-12.json            # every post with a design block
-node packages/engine/design.mjs render batches/2026-12.json --only 01-tagline
-node packages/engine/design.mjs lint batches/2026-12.json              # brand text check only, no Chrome
-```
+Each image is named from the post id and the size (`01-tagline-feed.jpg`, `01-tagline-wide.jpg`; a carousel
+`04-passbooks-1.jpg`...). Use `"name": "05-field-agents"` in the block to choose the stem. What the post sends:
 
-`render` writes each image into the batch's `mediaRoot`, named from the post id and the size (`01-tagline-feed.jpg`,
-`01-tagline-wide.jpg`; a carousel `04-passbooks-1.jpg`...). Use `"name": "05-field-agents"` in the block to choose the
-stem. Then it fills in `media`:
+- Each network gets the images of its size: `networkSizes` names one per network, the others get the first size (a
+  carousel's pages in order).
+- Files a person uploaded to the post by hand follow the rendered ones. A render replaces only the images an earlier
+  render made; uploaded files are never changed or dropped.
+- Changing the design drops the images the last render made and queues a new render. A failed render saves nothing,
+  and the post shows why it failed; it cannot be approved until its images are ready.
 
-- A post **without** `media` gets the first size's files, in order (`"media": ["01-tagline-feed.jpg"]`).
-- `networkSizes` fills `networks.<name>.media` with that size's files, again only where the post has none.
-- A `media` that is already set, by hand or by an earlier run, is **never changed**. If a hand-set `media` does not
-  list the image rendered for the post, `render` warns.
-- Failed images leave their post's `media` alone. The batch is rewritten only when something was filled in.
+Rendering again makes the same file names, so edit the words and render again. The `design` block is not part of the
+duplicate-protection hash (the image file names are), but it is validated with the rest of the post.
 
-Flags: `--only <postId>`, `--out-dir <dir>` (render somewhere else and write nothing to the batch; good for a preview
-that must not touch the real media folder), `--no-write` (render, do not touch the batch), `--strict` (exit 1 on
-warnings as well). Rendering again overwrites the same file names, so edit the words and run it again.
+## What the engine checks, by itself
 
-A `design` block is ignored by `plan`, `media` and `push` (and is not part of the duplicate-protection hash), but it is
-validated with the rest of the batch.
-
-## What the tool checks, by itself
-
-Every image goes through these before it is saved. Failures stop that image; warnings are printed and the image is kept.
+Every image goes through these before it is saved. A failure fails the render and nothing is saved; warnings are kept on
+the post and the image is kept.
 
 | Check | How | What happens |
 | --- | --- | --- |
 | **Text fits** | Chrome measures the real text lines: inside the margins and above the footer, no text on text, no text on a photo, screenshot or on an object it does not belong to (text inside its own card is fine), body text at least 30 px, text not straddling the panel's edge, single-line numbers not wider than their box. Drawn objects must stay inside the page (a phone may run off the bottom), above the footer, clear of the logo, on the panel, and not overlap each other | The headline (and big numbers) shrink in steps down to 62% of the brand size. A long headline (more than 24 characters) starts a little smaller. If it still does not fit, or the sub line does not fit, the image **fails** with: "The text does not fit the feed format: ... Shorten the text ..." and nothing is written. Shrinking below 70% adds a warning. |
-| **Contrast** | The page is rendered with all text hidden; the pixels behind each text line are read. The worst case counts: the brightest part for light text (95th percentile, so a single speck does not decide), the darkest for dark text. Needs, on photo posts: headline and big numbers 3:1, sub line and eyebrow 4.5:1, website 3:1. On every other page (`brand.json` `contrast`): headline, big numbers, sub and body 7:1, labels, the footer label and the accent phrase 4.5:1, an artefact's labels 4.5:1 and the words written on it 7:1. Text inside artefacts (SVG text) is measured the same way | On photo posts the black scrim is raised in 0.05 steps (cap 0.65) before anything else; a weak website line gets a soft black fade behind the footer (cap 0.5). Anything still below the target is a warning with the measured ratio. `--scrim none` switches the automatic fix off (it still warns). |
+| **Contrast** | The page is rendered with all text hidden; the pixels behind each text line are read. The worst case counts: the brightest part for light text (95th percentile, so a single speck does not decide), the darkest for dark text. Needs, on photo posts: headline and big numbers 3:1, sub line and eyebrow 4.5:1, website 3:1. On every other page (`brand.json` `contrast`): headline, big numbers, sub and body 7:1, labels, the footer label and the accent phrase 4.5:1, an artefact's labels 4.5:1 and the words written on it 7:1. Text inside artefacts (SVG text) is measured the same way | On photo posts the black scrim is raised in 0.05 steps (cap 0.65) before anything else; a weak website line gets a soft black fade behind the footer (cap 0.5). Anything still below the target is a warning with the measured ratio. `"scrim": "none"` switches the automatic fix off (it still warns). |
 | **Enlargement** | The shown size of every supplied image against its real pixel size | Above 1.3x: a warning naming the file, its size and the width it would need. |
 | **Pixel size** | The captured image and the saved file are read back | A mismatch fails the image. |
 | **Fonts and images load** | Inter and IBM Plex Mono must load; every image must decode | A missing or unreadable image fails with its path. A missing font warns. |
 | **Framed phones** | A `screen` phone's file header must have transparency, and in the page its four corners must be see-through | Fails with "... is not a pre-framed phone capture ... Use a pre-framed phone capture"; nothing is written. |
-| **Brand text** | `lint`, also run before every render | Warnings only, see below. |
+| **Brand text** | The brand lint, run before every render | Warnings only, see below. |
 
 The measured contrast uses the picture without the text's soft shadow, so it is a little stricter than what a viewer sees.
 
@@ -441,7 +440,8 @@ radii, shadows, window chrome, phone slot, series, fonts, logo paths, spelling r
 of the editorial pages and the photo thresholds (scrim start and cap, footer fade cap, minimum contrasts, enlargement
 limit). The tokens become CSS variables; `packages/engine/design/brand.css` and the templates use the variables, not
 literals. Every value is checked when the file is loaded (`validateBrand` in `packages/engine/lib/design/brand.mjs`), and a
-wrong one stops the run with a list of every problem.
+wrong one is refused with a list of every problem. A brand saved in Settings, Brand and look is written out as this file
+(see [apps/web/README.md](../apps/web/README.md), "The brand").
 
 - **Paths.** `logos.full` and `logos.mark` are PNG files, relative to the repository root and inside it (the demo:
   `brands/demo/logos/logo-full.png` and `logo-mark.png`). Font files are `design/fonts/...` paths, found in the engine's
@@ -464,7 +464,7 @@ wrong one stops the run with a list of every problem.
 - Poster photos: the plain-or-scene call is made from three strips of pixels, calibrated on one brand's photo library
   (`EDGE_LIMITS` in `lib/design/edge.mjs`, checked on real files by `test-design-edge.mjs` when they are present). A photo near a limit (a pale desk with a soft shadow
   at the top) can go either way: look at every image, and move the crop with `focal` if it matters. A card always shows the whole
-  crop; a plain photo's page colour can fall outside the brand palette (the tool notes it).
+  crop; a plain photo's page colour can fall outside the brand palette (the engine notes it).
 - The poster templates were tuned on one launch set only (ten images); other photos may need `photoTop`, `focal` or `zoom`.
 - The example batches (`batches/example-launch.json`, `batches/example-editorial.json`) are format examples for the demo brand,
   with synthetic pictures and invented figures, not sets to post. The editorial one still uses the earlier templates with
@@ -472,7 +472,7 @@ wrong one stops the run with a list of every problem.
 - Contrast is measured, but a pass does not mean the picture is pleasant: busy backgrounds can pass at the scrim cap and
   still be hard to read. Look at every image.
 - The automatic lines avoid the text but not the subject of the photo; they can cross a boat or a face. Use `lines` or
-  `--no-lines` when they do.
+  `"lines": false` when they do.
 - On a very bright photo with the footer URL, the soft footer fade can be a visible band.
 - The editorial templates have been run on a small set of posts only; very long ledgers, long sub lines or a
   3-line headline are shrunk or refused rather than redesigned.
@@ -482,5 +482,6 @@ wrong one stops the run with a list of every problem.
   window edge. Pick the share by eye.
 - The carousel PDF's page box is corrected after Chrome prints it (see `carousel`); it was read back with poppler's `pdfinfo` and
   macOS, not with every PDF reader. The `square` size is less used than `feed`.
-- Chrome versions: tested with one current Chrome on macOS only. Linux paths are listed but untried.
+- Chrome versions: the tests run with current Google Chrome on macOS and Linux. The container's Debian Chromium is
+  checked by `deploy/check.sh` with one text page only.
 - Images are checked for pixel size and loaded fonts, not for correct language, facts or figures. Check the numbers.
