@@ -4,7 +4,9 @@
 // (lib/design/builtin/photo.mjs) is the same image. What each block honours is listed in PAGES.cover (lib/design/layout.mjs).
 //
 // The words are the brand's, never a spec's: through pagecover.mjs coverWords (esc()/fmt()); every position and size is a
-// number from the layout's checked rectangles and bounded options.
+// number from the layout's checked rectangles and bounded options. The sizes are the layout's; the renderer sets the tagline
+// smaller or over two lines when the words would leave their box or the size's margins, and refuses words that fit neither
+// (render.mjs fitCover, checks.mjs findCoverProblems).
 import { DesignError } from './errors.mjs';
 import { slotRect, whenHolds } from './layout.mjs';
 import { opt } from './layout-parts.mjs';

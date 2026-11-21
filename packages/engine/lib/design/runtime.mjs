@@ -71,6 +71,32 @@ window.__ds = {
     cv.style.setProperty('--acc', accent && worst(accent) >= 4.5 ? 'rgb(' + accent.join(',') + ')' : light ? '#fff' : 'var(--ink)');
   },
   setScale(k) { document.documentElement.style.setProperty('--hs', String(k)); this.setScrim(this.peak); },
+  // A page cover's tagline (lib/design/layout-cover.mjs) at k times the size its layout gave it, in whole pixels, on one line or,
+  // with wrap, balanced over several lines (the renderer allows two). The layout's own size is read once from the page.
+  setCoverScale(k, wrap) {
+    this.coverBase = this.coverBase || new WeakMap();
+    for (const el of document.querySelectorAll('.pc .col [data-role="headline"]')) {
+      if (!this.coverBase.has(el)) this.coverBase.set(el, parseFloat(el.style.fontSize));
+      el.style.fontSize = Math.max(1, Math.round(this.coverBase.get(el) * k)) + 'px';
+      // white-space and text-wrap share text-wrap-mode: the one set last decides, so the order matters.
+      if (wrap) { el.style.whiteSpace = 'normal'; el.style.textWrap = 'balance'; } else { el.style.textWrap = ''; el.style.whiteSpace = 'nowrap'; }
+    }
+  },
+  // A page cover's word boxes: each box's rectangle, and the rectangles of the words in it (the tagline, descriptor and website
+  // line by line, the logo picture whole), with the number of lines each takes.
+  coverBoxes() {
+    const box = (b) => ({ x0: b.left, y0: b.top, x1: b.right, y1: b.bottom });
+    const lines = (rects) => { let n = 0, y = -Infinity; for (const r of [...rects].sort((a, b) => a.y0 - b.y0)) if (r.y0 > y) { n++; y = r.y0 + (r.y1 - r.y0) / 2; } return n; };
+    return [...document.querySelectorAll('.pc .col')].map((col) => ({
+      box: box(col.getBoundingClientRect()),
+      words: [...col.querySelectorAll('[data-role], img')].map((el) => {
+        const img = el.tagName === 'IMG', g = document.createRange();
+        g.selectNodeContents(el);
+        const rects = (img ? [el.getBoundingClientRect()] : [...g.getClientRects()]).filter((b) => b.width > 1 && b.height > 1).map(box);
+        return { role: img ? 'logo' : el.dataset.role, text: img ? '' : (el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 50), rects, lines: img ? 1 : lines(rects), size: img ? 0 : parseFloat(getComputedStyle(el).fontSize) };
+      }),
+    }));
+  },
   setScrim(peak) {
     this.peak = peak;
     const sc = document.getElementById('scrim'), pt = document.getElementById('pt');
