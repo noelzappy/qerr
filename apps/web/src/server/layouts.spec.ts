@@ -117,7 +117,9 @@ describe('the built-in layouts', () => {
     expect(photo.why).toMatch(/photo page is for the built-in layouts only/);
     expect(body.builtins.find((b: { id: string }) => b.id === 'product-side')).toMatchObject({ template: 'product', variant: 'layout is side', copyable: true, why: null });
     expect(body.builtins.find((b: { id: string }) => b.id === 'object').definition.page).toBe('poster');
-    expect(Object.keys(body.catalogue.pages)).toEqual(['poster', 'editorial']);
+    expect(Object.keys(body.catalogue.pages)).toEqual(['grid', 'poster', 'editorial']);
+    expect(body.catalogue.pages.grid.conditions.choices).toEqual({ artefact: { values: ['ledger', 'passbook', 'register'], unset: true, declared: true } });
+    expect(Object.keys(body.catalogue.pages.poster.conditions.choices)).toEqual(['register']);
   });
 
   it('copies one into a brand\'s own layout, switched off, under a free id; never one a brand may not use', async () => {
@@ -243,5 +245,25 @@ describe('the preview', () => {
     expect(long.body.ok).toBe(false);
     expect(long.body.error).toMatch(/does not fit/);
     expect(fs.readdirSync(path.join(root, 'out', 'layout-preview'))).toEqual([]);
+  });
+
+  it('draws it as if fields were empty and the artefact of a type ("preview as if")', async () => {
+    const api = await admin();
+    expect((await api.post('/api/settings/layouts/preview', { definition: layout(), artefact: 'scroll' })).status).toBe(400);
+    expect((await api.post('/api/settings/layouts/preview', { definition: layout(), empty: 'quote' })).status).toBe(400);
+    const engine = await pipelineEngine();
+    if (!engine.findChrome()) return;
+    // a required field left empty is the engine's refusal, as for a post; an optional one is simply not drawn
+    const required = await api.post('/api/settings/layouts/preview', { definition: layout(), empty: ['quote'] });
+    expect(required.body.ok).toBe(false);
+    expect(required.body.error).toMatch(/quote is required/);
+    const withSub = layout({
+      fields: { quote: { required: true, max: 120 }, sub: {} },
+      blocks: [{ type: 'headline', field: 'quote', slot: at(1, 3, 12, 8), size: 88 }, { type: 'sub', slot: at(1, 12, 12, 4), when: { present: 'sub' } }, { type: 'logo', slot: at(1, 24, 6, 1), valign: 'bottom' }],
+    });
+    const empty = await api.post('/api/settings/layouts/preview', { definition: withSub, empty: ['sub', 'not-a-field'] });
+    expect(empty.body.ok).toBe(true);
+    const art = layout({ fields: { artefact: {}, quote: {} }, blocks: [{ type: 'headline', field: 'quote', slot: at(1, 1, 12, 4) }, { type: 'artefact', slot: at(1, 6, 12, 16) }] });
+    expect((await api.post('/api/settings/layouts/preview', { definition: art, artefact: 'passbook' })).body.ok).toBe(true);
   });
 });

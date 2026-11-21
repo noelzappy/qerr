@@ -61,7 +61,7 @@ import path from 'node:path';
 import { ROOT, brandFile } from '../core.mjs';
 import { ARTEFACT_TYPES, DEVICES, HEADLINE_SIZES as SPEC_HEADLINE_SIZES, IMAGE_EXT, LAYOUTS as STORY_LAYOUTS, MAX_STATS, NETWORKS, PRODUCT_LAYOUTS, SCRIMS, focalToCss, parseSizes, parseStat, validateDesign } from './spec.mjs';
 import { COVER_SIZES, SIZES, SIZE_NAMES } from './sizes.mjs';
-import { ACCENT_STYLES, ALIGNS as SPEC_ALIGNS, DARK_GROUNDS, GROUND_NAMES, POSTER_SIZES, SERIES_KEY, groundName } from './tokens.mjs';
+import { ACCENT_STYLES, ALIGNS as SPEC_ALIGNS, DARK_GROUNDS, GROUND_ALIASES, GROUND_NAMES, POSTER_SIZES, SERIES_KEY, groundName } from './tokens.mjs';
 
 export const LAYOUT_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 export const MAX_LAYOUTS = 40;
@@ -178,12 +178,16 @@ export const MAX_GROUND_CASES = 4;
 
 // canon: a reader that turns an older spelling into a listed name (a ground alias into its neutral name). pages: the page kinds
 // an option (or a block type) is used on, when not all of them (the editor and the AI see only what a grid page takes).
-const e = (list, def, canon) => ({ t: 'enum', list, def, canon });
+// aliases: older spellings read as a listed name ({ white: "light" }), turned into the canon reader.
+const e = (list, def, aliases) => ({ t: 'enum', list, def, ...(aliases ? { aliases, canon: (v) => (typeof v === 'string' && Object.hasOwn(aliases, v) ? aliases[v] : v) } : {}) });
 const b = (def) => ({ t: 'bool', def });
 const n = (min, max, def) => ({ t: 'int', min, max, def });
 const on = (pages, o) => ({ ...o, pages });
 // An option that reads a setting of the built-in templates' own designs: the built-in layouts' only (see the header).
 const only = (o) => ({ ...o, builtin: true });
+// An option used only together with another setting of the same block: { device: "desktop" } (that option's value, its default
+// filled in) or { subField: true } (that key given). validateLayout refuses it otherwise; the editor shows it only then.
+const needs = (want, o) => ({ ...o, needs: want });
 const ALIGN = e(ALIGNS, 'left');
 const VALIGN = e(VALIGNS, 'top');
 const SHRINK = b(true);
@@ -192,17 +196,17 @@ const SHRINK = b(true);
 // bleed: photos, slabs and decorations may run over the margins to the page edges their slot touches. chrome: a part of the page
 // frame with no slot of its own (the page places it). text: a block whose words must stay inside the size's minimum margins.
 export const BLOCKS = {
-  headline: { kinds: TEXTUAL, field: 'headline', child: true, text: true, options: { size: e(HEADLINE_PX, 84), style: e(['editorial', 'poster'], 'editorial'), align: ALIGN, valign: VALIGN, shrink: SHRINK, specSize: only(on(BUILT_PAGES, b(false))), subWidth: on(BUILT_PAGES, n(100, 1080, 820)) } },
+  headline: { kinds: TEXTUAL, field: 'headline', child: true, text: true, options: { size: e(HEADLINE_PX, 84), style: e(['editorial', 'poster'], 'editorial'), align: ALIGN, valign: VALIGN, shrink: SHRINK, specSize: only(on(BUILT_PAGES, b(false))), subWidth: needs({ subField: true }, on(BUILT_PAGES, n(100, 1080, 820))) } },
   sub: { kinds: TEXTUAL, field: 'sub', child: true, text: true, options: { size: e(SUB_PX, 32), align: ALIGN, valign: VALIGN } },
   label: { kinds: ['short'], field: null, child: true, text: true, options: { style: e(['mono', 'tag', 'plain'], 'mono'), tone: e(['muted', 'accent'], 'muted'), size: e(LABEL_PX, 22), align: ALIGN, valign: VALIGN } },
   figure: { kinds: ['short'], field: 'big', child: true, text: true, options: { size: e(FIGURE_PX, 168), style: e(['editorial', 'poster'], 'editorial'), align: ALIGN, valign: VALIGN, shrink: SHRINK } },
   stats: { kinds: ['stats'], field: 'stats', child: true, text: true, options: { direction: e(['row', 'column'], 'row'), size: e(STAT_PX, 64), rules: b(false), align: ALIGN, valign: VALIGN, shrink: SHRINK } },
   list: { kinds: ['items'], field: 'items', child: true, text: true, options: { style: e(['checks', 'pills', 'bullets'], 'checks'), align: ALIGN, valign: VALIGN } },
   photo: { kinds: ['image'], field: 'image', options: { frame: e(['none', 'card', 'raised'], 'none'), photoTop: only(on(['poster'], b(false))) }, bleed: true },
-  screen: { kinds: ['image'], field: 'image', options: { device: e(['phone', 'desktop'], 'phone'), fit: e(['contain', 'crop'], 'contain'), glow: b(true), tilt: b(false), framed: b(false), align: e(ALIGNS, 'center'), valign: e(VALIGNS, 'center') } },
+  screen: { kinds: ['image'], field: 'image', options: { device: e(['phone', 'desktop'], 'phone'), fit: needs({ device: 'phone' }, e(['contain', 'crop'], 'contain')), glow: b(true), tilt: needs({ device: 'desktop' }, b(false)), framed: needs({ device: 'desktop' }, b(false)), align: e(ALIGNS, 'center'), valign: e(VALIGNS, 'center') } },
   logo: { kinds: [], field: null, child: true, text: true, options: { variant: e(['auto', 'full', 'solid', 'pill', 'mark'], 'auto'), size: e(LOGO_PX, 34), align: ALIGN, valign: VALIGN } },
   website: { kinds: [], field: null, child: true, text: true, options: { size: e(WEBSITE_PX, 26), align: ALIGN, valign: VALIGN } },
-  slab: { kinds: [], field: null, options: { ground: e(SLAB_GROUNDS, 'panel', (v) => groundName(v) ?? v), radius: e(['none', 'card', 'slab'], 'none'), shadow: b(false), padding: e(PAD_PX, 48), gap: e(GAP_PX, 24), align: ALIGN, valign: VALIGN }, bleed: true, children: true },
+  slab: { kinds: [], field: null, options: { ground: e(SLAB_GROUNDS, 'panel', GROUND_ALIASES), radius: e(['none', 'card', 'slab'], 'none'), shadow: b(false), padding: e(PAD_PX, 48), gap: e(GAP_PX, 24), align: ALIGN, valign: VALIGN }, bleed: true, children: true },
   artefact: { kinds: ['artefact'], field: 'artefact', options: { align: ALIGN, valign: VALIGN } },
   decoration: { kinds: [], field: null, options: { kind: e(['rule', 'panel', 'dots', 'texture', 'glow', 'map'], 'rule') }, bleed: true, under: true },
   spacer: { kinds: [], field: null, options: {} },
@@ -292,7 +296,7 @@ for (const [type, name, o] of ADDED_OPTIONS) {
   BLOCKS[type].options[name] = o;
 }
 const usedOn = (x, page) => !x.pages || x.pages.includes(page);
-// The block types a brand's own (grid) layout can use: what the layout editor and the AI are offered.
+// The block types a brand's own grid layout can use: what the AI is offered (the editor reads layoutCatalogue().pages).
 export const BLOCK_TYPES = Object.keys(BLOCKS).filter((t) => usedOn(BLOCKS[t], 'grid'));
 export const ALL_BLOCK_TYPES = Object.keys(BLOCKS);
 
@@ -407,6 +411,25 @@ for (const [page, type, name] of ADDED_HONOURS) {
   list.push(name);
 }
 const BASE_KEYS = ['type', 'slot', 'px', 'field', 'when'];
+// What a block shows besides its "field": a label's fixed words or source (exactly one of field, text, source), a desktop
+// window's title, and a headline's sub line flowing under it (on the built-in pages, not inside a slab). kinds: the field kinds
+// it may name; needs: as an option's.
+export const BINDINGS = {
+  label: { text: { max: 40 }, source: { values: LABEL_SOURCES } },
+  screen: { titleField: { kinds: ['short'], needs: { device: 'desktop' } } },
+  headline: { subField: { kinds: TEXTUAL, pages: PAGE_KINDS.filter((p) => p !== 'grid'), child: false } },
+};
+// A block type that bleeds only with its option at this value (a framed photo cannot bleed).
+export const BLEED_NEEDS = { photo: { frame: 'none' } };
+// The blocks a built-in page runs the full width to the bottom edge from a "px" rectangle (x 0, the page's width, its bottom at
+// the page's foot): the poster's photo, the editorial page's tint panel. The value names the option values it applies to.
+export const FULL_WIDTH = { poster: { photo: {} }, editorial: { decoration: { kind: 'panel' } } };
+const fullWidth = (page, blk) => { const w = FULL_WIDTH[page]?.[blk.type]; return !!w && Object.entries(w).every(([k, v]) => optionOf(blk, k) === v); };
+// The options a block inside a slab may not take (it flows in the slab: the slab aligns its children vertically).
+export const CHILD_REFUSED = ['valign'];
+// Whether a block has what an option (or binding) needs.
+const needsMet = (blk, want) => !want || Object.entries(want).every(([k, v]) => (v === true ? blk[k] !== undefined : optionOf(blk, k) === v));
+const needsWords = (want) => Object.entries(want).map(([k, v]) => (v === true ? k : `"${k}": "${v}"`)).join(' and ');
 const LAYOUT_KEYS = ['id', 'name', 'description', 'page', 'ground', 'accent', 'texture', 'fields', 'canvas', 'blocks'];
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -630,7 +653,7 @@ function builtPageProblems(blk, layout, sizes, where, errors, page) {
   for (const k of Object.keys(BLOCKS[blk.type].options)) if (blk[k] !== undefined && !honoured.includes(k)) errors.push(`${where}.${k} is not used on ${aPage(page)} (a ${blk.type} there takes ${honoured.join(', ') || 'no options'})`);
   if (blk.type === 'decoration' && !P.decorations.includes(optionOf(blk, 'kind'))) errors.push(`${where}: ${aPage(page)} draws the decorations ${P.decorations.join(', ')} only`);
   // The poster photo runs full width to the bottom edge (it bleeds off the page); the editorial panel fills the page from its top.
-  const full = (blk.type === 'photo' && page === 'poster') || (blk.type === 'decoration' && optionOf(blk, 'kind') === 'panel' && page === 'editorial');
+  const full = fullWidth(page, blk);
   if (full && blk.px === undefined) errors.push(`${where}: on ${aPage(page)} the ${blk.type === 'photo' ? 'photo' : 'panel'} takes a "px" rectangle`);
   if (full && blk.px !== undefined) for (const z of sizes) {
     const p = pxFor(blk.px, z), S = SIZE_OF[z];
@@ -649,14 +672,14 @@ function blockProblems(blk, layout, sizes, where, errors, { child = false, page 
   if (!usedOn(spec, page)) { errors.push(`${where}: a ${blk.type} block belongs to ${spec.pages.join(' and ')} pages (set the layout's "page"), not to ${aPage(page)}`); return []; }
   if (!builtin && spec.builtin) { errors.push(`${where}: a ${blk.type} block draws ${BUILTIN_ONLY}`); return []; }
   if (child && !spec.child) { errors.push(`${where}: a ${blk.type} cannot go inside a slab (a slab holds ${BLOCK_TYPES.filter((t) => BLOCKS[t].child).join(', ')})`); return []; }
-  const keys = [...BASE_KEYS, ...Object.keys(spec.options), ...(spec.bleed ? ['bleed'] : []), ...(spec.children ? ['children'] : []), ...(blk.type === 'label' ? ['text', 'source'] : []), ...(blk.type === 'screen' ? ['titleField'] : []), ...(blk.type === 'headline' ? ['subField'] : [])];
+  const keys = [...BASE_KEYS, ...Object.keys(spec.options), ...(spec.bleed ? ['bleed'] : []), ...(spec.children ? ['children'] : []), ...Object.keys(BINDINGS[blk.type] ?? {})];
   unknownKeys(blk, keys, where, errors);
   optionProblems(blk, spec, where, errors, page, builtin);
   if (blk.when !== undefined) errors.push(...whenProblems(blk.when, isObj(layout.fields) ? Object.keys(layout.fields) : [], `${where}.when`, { page, builtin }));
   if (page !== 'grid') builtPageProblems(blk, layout, sizes, where, errors, page);
   if (child) {
     if (blk.slot !== undefined || blk.px !== undefined) errors.push(`${where}: a block inside a slab has no slot of its own (it flows in the slab)`);
-    if (blk.valign !== undefined) errors.push(`${where}: a block inside a slab has no valign (set it on the slab)`);
+    for (const k of CHILD_REFUSED) if (blk[k] !== undefined) errors.push(`${where}: a block inside a slab has no ${k} (set it on the slab)`);
     if (blk.when !== undefined) errors.push(`${where}: a block inside a slab has no condition of its own (set "when" on the slab)`);
   } else if (spec.chrome) {
     if (blk.slot !== undefined || blk.px !== undefined) errors.push(`${where}: a ${blk.type} has no slot: the page places it (following the brand's logo placement)`);
@@ -687,25 +710,23 @@ function blockProblems(blk, layout, sizes, where, errors, { child = false, page 
     if (blk.source !== undefined && !LABEL_SOURCES.includes(blk.source)) errors.push(`${where}.source must be one of ${LABEL_SOURCES.join(', ')}`);
   } else if (spec.kinds.length) bind(blk.field ?? spec.field, spec.kinds);
   else if (blk.field !== undefined) errors.push(`${where}: a ${blk.type} shows no field (remove field)`);
-  if (blk.type === 'screen') {
-    if (blk.titleField !== undefined) {
-      if (optionOf(blk, 'device') !== 'desktop') errors.push(`${where}.titleField is only used with "device": "desktop"`);
-      else bind(blk.titleField, ['short'], 'titleField');
-    }
-    for (const k of ['tilt', 'framed']) if (blk[k] !== undefined && optionOf(blk, 'device') !== 'desktop') errors.push(`${where}.${k} is only used with "device": "desktop"`);
-    if (blk.fit !== undefined && optionOf(blk, 'device') !== 'phone') errors.push(`${where}.fit is only used with "device": "phone"`);
+  if (blk.type === 'screen' && blk.titleField !== undefined) {
+    const t = BINDINGS.screen.titleField;
+    if (!needsMet(blk, t.needs)) errors.push(`${where}.titleField is only used with ${needsWords(t.needs)}`);
+    else bind(blk.titleField, t.kinds, 'titleField');
   }
+  // Options used only with another setting (a desktop window's tilt, a phone's fit, a sub line's width).
+  for (const [k, o] of Object.entries(spec.options)) if (o.needs && blk[k] !== undefined && !needsMet(blk, o.needs)) errors.push(`${where}.${k} is only used with ${needsWords(o.needs)}`);
   // A headline's sub line flowing under it in the same box (the templates' textBlock and words), on the built-in pages.
-  if (blk.type === 'headline') {
-    if (blk.subField !== undefined) {
-      if (page === 'grid') errors.push(`${where}.subField is used on poster and editorial pages only (on a grid page, give the sub line its own block)`);
-      else if (child) errors.push(`${where}.subField: a headline inside a slab has no sub line of its own`);
-      else bind(blk.subField, TEXTUAL, 'subField');
-    } else if (blk.subWidth !== undefined) errors.push(`${where}.subWidth is only used with subField`);
+  if (blk.type === 'headline' && blk.subField !== undefined) {
+    const s = BINDINGS.headline.subField;
+    if (!s.pages.includes(page)) errors.push(`${where}.subField is used on poster and editorial pages only (on a grid page, give the sub line its own block)`);
+    else if (child) errors.push(`${where}.subField: a headline inside a slab has no sub line of its own`);
+    else bind(blk.subField, s.kinds, 'subField');
   }
   if (blk.bleed !== undefined) {
     if (!Array.isArray(blk.bleed) || blk.bleed.length > 4 || blk.bleed.some((x) => !EDGES.includes(x)) || new Set(blk.bleed).size !== blk.bleed.length) errors.push(`${where}.bleed must be a list of page edges from ${EDGES.join(', ')}`);
-    else if (blk.type === 'photo' && blk.bleed.length && optionOf(blk, 'frame') !== 'none') errors.push(`${where}: a framed photo cannot bleed (use "frame": "none")`);
+    else if (blk.bleed.length && !needsMet(blk, BLEED_NEEDS[blk.type])) errors.push(`${where}: a framed photo cannot bleed (use ${needsWords(BLEED_NEEDS[blk.type])})`);
     else for (const z of sizes) {
       const s = slotFor(blk.slot, z), g = layout.canvas[z];
       if (!isObj(s) || !isInt(s.col, 1, 99) || !isInt(s.width, 1, 99)) continue;
@@ -933,8 +954,16 @@ export const SAMPLE = {
   image: 'design/assets/demo/object-jar.jpg', artefact: { type: 'register', title: 'Where it went', rows: [['Rent', '400.00'], ['Food', '120.50'], ['Savings', '80.00']], mark: 2 },
 };
 
+// A sample artefact of each type (SAMPLE.artefact is the register card).
+const SAMPLE_ARTEFACTS = {
+  register: SAMPLE.artefact,
+  passbook: { type: 'passbook', days: 31, ticked: 17, today: 18 },
+  ledger: { type: 'ledger', columns: [{ label: 'Day' }, { label: 'Paid', align: 'end' }], rows: [['01', '10.00'], ['02', '12.50'], ['03', '10.00']], mark: [{ row: 1, col: 1 }] },
+};
+
 // A design block that shows every field of a layout with sample words (lists cut to the layout's maximum, texts to its length).
-export function sampleDesign(l, { size } = {}) {
+// artefact: the type of the sample artefact (a ledger, passbook or register card), when the layout's artefact field takes it.
+export function sampleDesign(l, { size, artefact } = {}) {
   const d = { template: 'layout', layout: l.id };
   for (const [name, f] of Object.entries(l.fields ?? {})) {
     const F = FIELDS[name];
@@ -945,7 +974,10 @@ export function sampleDesign(l, { size } = {}) {
     if (name === 'image' && l.blocks.some((x) => x.type === 'screen' && optionOf(x, 'device') === 'desktop')) v = 'design/assets/demo/screen-desk.png';
     // a phone is always a pre-framed capture (the renderer refuses any other picture there)
     if (name === 'image' && layoutUsesPhone(l)) v = 'design/assets/demo/screen-phone.png';
-    if (F.kind === 'artefact' && f.types && !f.types.includes('register')) v = f.types[0] === 'passbook' ? { type: 'passbook', days: 31, ticked: 17, today: 18 } : { type: 'ledger', columns: [{ label: 'Day' }, { label: 'Paid', align: 'end' }], rows: [['01', '10.00'], ['02', '12.50'], ['03', '10.00']], mark: [{ row: 1, col: 1 }] };
+    if (F.kind === 'artefact') {
+      const takes = (t) => Object.hasOwn(SAMPLE_ARTEFACTS, t) && (!f.types || f.types.includes(t));
+      v = structuredClone(SAMPLE_ARTEFACTS[takes(artefact) ? artefact : takes('register') ? 'register' : f.types[0] === 'passbook' ? 'passbook' : 'ledger']);
+    }
     d[name] = v;
   }
   if (size) d.sizes = [size];
@@ -956,35 +988,100 @@ export function sampleDesign(l, { size } = {}) {
 // The options of a block type that a grid page (a brand's own layout) takes; the others belong to the built-in pages.
 export const gridOptions = (type) => Object.entries(BLOCKS[type].options).filter(([, o]) => usedOn(o, 'grid'));
 
-// What the layout editor and the AI are told: every block type of a grid page, its options and the fields, as plain data. The
-// built-in pages' chrome and options (lib/design/builtin-layouts.mjs) are not offered there.
-export function layoutCatalogue() {
+// The condition choices ({ field, is | not }) a brand's layout may test on a page: the artefact's type on a grid page, the
+// artefact and its register card on a brand's poster or editorial page (whenProblems; the rest are the built-in layouts' only).
+const brandChoices = (page) => CHOICE_NAMES.filter((n) => (page === 'grid' ? SPEC_CHOICES[n].grid : SPEC_CHOICES[n].brand));
+
+// One page kind as a brand's layout may use it: what the editor offers there, and nothing validateLayout refuses a brand's
+// layout (test-design-layout-catalogue.mjs holds the two together).
+function pageCatalogue(p) {
+  const grid = p === 'grid';
+  const types = grid ? BLOCK_TYPES : Object.keys(PAGES[p].draws).filter((t) => !BLOCKS[t].builtin);
+  const honoured = (t) => (grid ? gridOptions(t).map(([k]) => k) : PAGES[p].draws[t]).filter((k) => !BLOCKS[t].options[k].builtin);
+  const decorations = grid ? BLOCKS.decoration.options.kind.list : PAGES[p].decorations;
+  const fieldsOf = (kinds) => FIELD_NAMES.filter((f) => kinds.includes(FIELDS[f].kind));
+  const childTypes = types.filter((t) => BLOCKS[t].child);
   return {
-    sizes: Object.fromEntries(SIZE_NAMES.map((z) => [z, { w: SIZES[z].w, h: SIZES[z].h, minMargins: MIN_MARGINS[z] }])),
-    grid: GRID_LIMITS,
-    grounds: GROUND_NAMES, darkGrounds: DARK_GROUNDS, accents: ACCENT_STYLES, textures: TEXTURES,
-    fields: Object.fromEntries(Object.entries(FIELDS).map(([k, f]) => [k, { ...f }])),
-    blocks: Object.fromEntries(BLOCK_TYPES.map((k) => [k, BLOCKS[k]]).map(([k, s]) => [k, {
-      kinds: s.kinds, field: s.field, child: !!s.child, bleed: !!s.bleed, children: !!s.children, under: !!s.under,
-      options: Object.fromEntries(gridOptions(k).map(([o, v]) => [o, v.t === 'enum' ? { type: 'enum', values: v.list, default: v.def } : { type: 'bool', default: v.def }])),
-    }])),
-    labelSources: LABEL_SOURCES,
-    limits: { layouts: MAX_LAYOUTS, blocks: MAX_BLOCKS, children: MAX_CHILDREN },
-    // The built-in pages a brand's layout may use (poster, editorial): the block types each draws there and the options it honours,
-    // without what is for the built-in layouts only. Blocks there sit at pixel rectangles ("px") or are chrome the page places.
-    pages: Object.fromEntries(BRAND_PAGE_KINDS.filter((p) => p !== 'grid').map((p) => [p, {
-      sizes: SIZE_NAMES.filter((z) => !FEED_PAGES.includes(p) || z === 'feed'),
-      decorations: PAGES[p].decorations,
-      blocks: Object.fromEntries(Object.entries(PAGES[p].draws).filter(([t]) => !BLOCKS[t].builtin).map(([t, honoured]) => [t, {
-        kinds: BLOCKS[t].kinds, field: BLOCKS[t].field, chrome: !!BLOCKS[t].chrome, children: !!BLOCKS[t].children, under: !!BLOCKS[t].under,
-        options: Object.fromEntries(honoured.filter((o) => !BLOCKS[t].options[o].builtin).map((o) => [o, t === 'decoration' && o === 'kind' ? { ...optionSpec(BLOCKS[t].options[o]), values: PAGES[p].decorations } : optionSpec(BLOCKS[t].options[o])])),
-      }])),
-    }])),
+    sizes: SIZE_NAMES.filter((z) => !FEED_PAGES.includes(p) || z === 'feed'),
+    // how a block is placed: grid cells ("slot") and page pixels ("px") on a grid page, page pixels on a built-in page
+    place: grid ? ['slot', 'px'] : ['px'],
+    decorations,
+    // the page colour: "series", a ground name (or an older name, groundAliases), and on a poster page "photo" with the image field
+    grounds: ['series', ...GROUND_NAMES, ...(p === 'poster' ? ['photo'] : [])],
+    photoGround: p === 'poster' ? { field: 'image' } : null,
+    // a block's (or a ground case's) "when": present / absent name a declared field; page one of pages; field names a choice,
+    // with "is" or "not" and one value or a list of distinct values from its list. declared: the choice is a field of the layout,
+    // which must be declared; unset: an empty one matches no "is", only a "not". Several keys must all hold; a block inside a
+    // slab takes none.
+    conditions: {
+      keys: WHEN_KEYS, pages: PAGE_CONDITIONS,
+      // (a choice that is a field only where a block of this page can show that field: it must be declared, and so shown)
+      choices: Object.fromEntries(brandChoices(p).filter((n) => !FIELDS[n] || types.some((t) => BLOCKS[t].kinds.includes(FIELDS[n].kind)))
+        .map((n) => [n, { values: SPEC_CHOICES[n].values, unset: !!SPEC_CHOICES[n].unset, declared: !!FIELDS[n] }])),
+    },
+    blocks: Object.fromEntries(types.map((t) => {
+      const s = BLOCKS[t];
+      const bindable = Object.entries(BINDINGS[t] ?? {}).filter(([, v]) => !v.pages || v.pages.includes(p)).map(([k]) => k);
+      // what a "needs" asks for can be had on this page: a binding it offers, or an option value it offers (or the default)
+      const reachable = (want, offered) => !want || Object.entries(want).every(([k, v]) => (v === true ? bindable.includes(k) : offered.includes(k) ? s.options[k].list?.includes(v) ?? true : s.options[k]?.def === v));
+      const plain = honoured(t);
+      const opts = plain.filter((k) => reachable(s.options[k].needs, plain));
+      const option = (k) => optionSpec(t === 'decoration' && k === 'kind' ? { ...s.options[k], list: decorations } : s.options[k]);
+      const bind = bindable.map((k) => [k, BINDINGS[t][k]]).filter(([, v]) => reachable(v.needs, opts));
+      return [t, {
+        kinds: s.kinds, field: s.field, fields: fieldsOf(s.kinds),
+        chrome: !!s.chrome, child: !!s.child, text: !!s.text, under: !!s.under,
+        bleed: grid && s.bleed ? { edges: EDGES, needs: BLEED_NEEDS[t] ?? null } : null,
+        children: s.children ? childTypes : null,
+        fullWidth: FULL_WIDTH[p]?.[t] ?? null,
+        options: Object.fromEntries(opts.map((k) => [k, option(k)])),
+        childOptions: s.child ? opts.filter((k) => !CHILD_REFUSED.includes(k)) : [],
+        // every option's default, also of those this page does not take (a "needs" reads them)
+        defaults: Object.fromEntries(Object.entries(s.options).map(([k, o]) => [k, o.def])),
+        bindings: Object.fromEntries(bind.map(([k, v]) => [k, { ...(v.kinds ? { kinds: v.kinds, fields: fieldsOf(v.kinds) } : {}), ...(v.max ? { max: v.max } : {}), ...(v.values ? { values: v.values } : {}), needs: v.needs ?? null, child: v.child !== false }])),
+      }];
+    })),
   };
 }
-// An option as the editor is told it: a fixed list (without values for the built-in layouts only), a flag or a bounded number.
+
+// What the layout editor and the AI are told, as plain data. blocks: the grid page's block types and options (what the AI's
+// compositions are offered). pages: every page kind a brand's layout may use (grid, poster, editorial), with its block types, the
+// options each takes there (a fixed list, a flag or a bounded whole number), the fields each may show, the condition forms and
+// choices, and the page colours; the built-in layouts' own options, blocks, choices and pages are not in it.
+export function layoutCatalogue() {
+  return {
+    sizes: Object.fromEntries(SIZE_NAMES.map((z) => [z, {
+      w: SIZES[z].w, h: SIZES[z].h, minMargins: MIN_MARGINS[z],
+      // a "px" rectangle on this size: whole numbers, x + w and y + h inside the page
+      px: { x: [0, SIZES[z].w - 1], y: [0, SIZES[z].h - 1], w: [1, SIZES[z].w], h: [1, SIZES[z].h] },
+    }])),
+    grid: GRID_LIMITS,
+    grounds: GROUND_NAMES, groundAliases: { ...GROUND_ALIASES }, darkGrounds: DARK_GROUNDS, accents: ACCENT_STYLES, textures: TEXTURES,
+    fields: Object.fromEntries(Object.entries(FIELDS).map(([k, f]) => [k, { ...f, rules: fieldRules(f) }])),
+    blocks: Object.fromEntries(BLOCK_TYPES.map((k) => [k, BLOCKS[k]]).map(([k, s]) => [k, {
+      kinds: s.kinds, field: s.field, child: !!s.child, bleed: !!s.bleed, children: !!s.children, under: !!s.under,
+      options: Object.fromEntries(gridOptions(k).map(([o, v]) => [o, optionSpec(v)])),
+    }])),
+    labelSources: LABEL_SOURCES,
+    layout: { id: { pattern: LAYOUT_ID.source, max: 40 }, name: { max: 40 }, description: { max: 300 }, accents: ['series', ...ACCENT_STYLES] },
+    limits: { layouts: MAX_LAYOUTS, blocks: MAX_BLOCKS, children: MAX_CHILDREN, groundCases: MAX_GROUND_CASES },
+    pages: Object.fromEntries(BRAND_PAGE_KINDS.map((p) => [p, pageCatalogue(p)])),
+  };
+}
+// The rules a layout's field may set: required, and max (texts), min and max (lists) or types (an artefact), with their bounds.
+function fieldRules(F) {
+  const r = { required: true };
+  if (TEXTUAL.includes(F.kind)) r.max = { min: 1, max: F.cap, default: F.max };
+  // (no min given: the field is optional, and one given has at least one entry)
+  if (['stats', 'items'].includes(F.kind)) { r.min = { min: 0, max: F.cap }; r.max = { min: 1, max: F.cap, default: F.max }; }
+  if (F.kind === 'artefact') r.types = ARTEFACT_TYPES;
+  return r;
+}
+// An option as the editor is told it: a fixed list (without values for the built-in layouts only, with the older spellings it
+// reads), a flag or a bounded whole number; and what it needs of the block's other settings.
 function optionSpec(v) {
-  if (v.t === 'enum') return { type: 'enum', values: v.list.filter((x) => !v.builtinValues?.includes(x)), default: v.def };
-  if (v.t === 'int') return { type: 'int', min: v.min, max: v.max, default: v.def };
-  return { type: 'bool', default: v.def };
+  const more = v.needs ? { needs: v.needs } : {};
+  if (v.t === 'enum') return { type: 'enum', values: v.list.filter((x) => !v.builtinValues?.includes(x)), default: v.def, ...(v.aliases ? { aliases: { ...v.aliases } } : {}), ...more };
+  if (v.t === 'int') return { type: 'int', min: v.min, max: v.max, step: 1, default: v.def, ...more };
+  return { type: 'bool', default: v.def, ...more };
 }

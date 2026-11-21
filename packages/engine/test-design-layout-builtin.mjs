@@ -15,7 +15,7 @@ import { BLOCKS, BRAND_PAGE_KINDS, CHOICE_NAMES, SPEC_CHOICES, layoutCatalogue, 
 import { renderLayout } from './lib/design/layout-render.mjs';
 import { builtinCopy, builtinCopyProblems, builtinLayouts } from './lib/design/layout-starters.mjs';
 import { preparePage } from './lib/design/render.mjs';
-import { SIZES } from './lib/design/sizes.mjs';
+import { SIZES, SIZE_NAMES } from './lib/design/sizes.mjs';
 import { forSize } from './lib/design/spec.mjs';
 import { renderDesignBlock } from './lib/design-render.mjs';
 
@@ -151,14 +151,14 @@ test('hostile values in a brand\'s layout on a built-in page are refused before 
   }
   // what the editor and the AI are offered on these pages is what a brand's layout may use
   const cat = layoutCatalogue().pages;
-  assert.deepEqual(Object.keys(cat), ['poster', 'editorial']);
-  for (const p of Object.values(cat)) {
-    assert.deepEqual(p.sizes, ['feed']);
+  assert.deepEqual(Object.keys(cat), ['grid', 'poster', 'editorial']);
+  for (const [name, p] of Object.entries(cat)) {
+    assert.deepEqual(p.sizes, name === 'grid' ? SIZE_NAMES : ['feed']);
     for (const [t, b] of Object.entries(p.blocks)) {
       assert.ok(!BLOCKS[t].builtin, t);
       for (const k of Object.keys(b.options)) assert.ok(!BLOCKS[t].options[k].builtin, `${t}.${k}`);
     }
-    if (p.blocks.artefact) assert.deepEqual(p.blocks.artefact.options.from.values, ['field']);
+    if (name === 'editorial') assert.deepEqual(p.blocks.artefact.options.from.values, ['field']);
   }
 });
 

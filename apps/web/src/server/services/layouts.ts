@@ -16,16 +16,10 @@ import { describeError, logger } from '../log.js';
 
 type Json = Record<string, unknown>;
 
-export interface LayoutCatalogue {
-  sizes: Record<string, { w: number; h: number; minMargins: Record<'top' | 'right' | 'bottom' | 'left', number> }>;
-  grid: { columns: [number, number]; rows: [number, number]; gutter: [number, number]; margin: [number, number]; minCell: number };
-  grounds: string[]; darkGrounds: string[]; accents: string[]; textures: string[];
-  fields: Record<string, { kind: string; cap?: number; max?: number; chars?: number; word: string }>;
-  blocks: Record<string, { kinds: string[]; field: string | null; child: boolean; bleed: boolean; children: boolean; under: boolean; options: Record<string, { type: 'enum'; values: Array<string | number>; default: string | number } | { type: 'bool'; default: boolean }> }>;
-  labelSources: string[];
-  limits: { layouts: number; blocks: number; children: number };
-  pages: Record<string, { sizes: string[]; decorations: string[]; blocks: Record<string, { kinds: string[]; field: string | null; chrome: boolean; children: boolean; under: boolean; options: Record<string, unknown> }> }>;
-}
+// The engine's layoutCatalogue(): every page kind a brand's layout may use, its block types, options, fields, conditions and
+// grounds, as plain data. The server passes it to Settings, Layouts as it is (web/src/pages/settings/layout-types.ts types it);
+// nothing here reads it.
+export type LayoutCatalogue = Record<string, unknown> & { pages: Record<string, unknown> };
 
 interface EngineLayout {
   LAYOUT_ID: RegExp;
@@ -36,7 +30,7 @@ interface EngineLayout {
   validateLayout(l: unknown, where?: string): string[];
   validateLayouts(list: unknown, where?: string): string[];
   layoutDesignProblems(d: unknown, where: string, opts: { layouts: unknown[]; series?: string[] }): string[];
-  sampleDesign(l: unknown, opts?: { size?: string }): Json;
+  sampleDesign(l: unknown, opts?: { size?: string; artefact?: string }): Json;
   layoutCatalogue(): LayoutCatalogue;
 }
 // A built-in layout as Settings, Layouts lists it (the engine's lib/design/layout-starters.mjs builtinLayouts): read only; a brand
@@ -93,12 +87,15 @@ export interface PreviewResult { ok: boolean; image?: string; size: string; erro
 
 // One layout drawn with sample words (or the words given) at one size, through the engine's renderer and every one of its
 // checks, as a JPEG data URL. Runs under the render lock (one Chrome at a time); nothing is stored.
-export async function previewLayout(deps: Deps, definition: Json, opts: { size?: string; sample?: Json; lock: <T>(fn: () => Promise<T>) => Promise<T> }): Promise<PreviewResult> {
+// empty: fields of the layout left out of the sample (as a post that leaves them empty); artefact: the sample artefact's type.
+export async function previewLayout(deps: Deps, definition: Json, opts: { size?: string; sample?: Json; empty?: string[]; artefact?: string; lock: <T>(fn: () => Promise<T>) => Promise<T> }): Promise<PreviewResult> {
   const engine = await pipelineEngine();
   const { layout } = await layoutEngine();
   const sizes = isObj(definition.canvas) ? Object.keys(definition.canvas) : [];
   const size = opts.size && sizes.includes(opts.size) ? opts.size : (sizes.includes('feed') ? 'feed' : sizes[0] ?? 'feed');
-  const design: Json = { ...layout.sampleDesign(definition, { size }), ...(opts.sample ?? {}), template: 'layout', layout: definition.id, sizes: [size] };
+  const design: Json = { ...layout.sampleDesign(definition, { size, artefact: opts.artefact }), ...(opts.sample ?? {}), template: 'layout', layout: definition.id, sizes: [size] };
+  const fields = isObj(definition.fields) ? Object.keys(definition.fields) : [];
+  for (const f of opts.empty ?? []) if (fields.includes(f)) delete design[f];
   const dir = path.join(engine.root, 'out', 'layout-preview', randomUUID());
   return opts.lock(async () => {
     try {

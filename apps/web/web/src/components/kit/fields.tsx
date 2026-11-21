@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { fromSelectValue, toSelectValue } from '@/lib/select-value';
 import { cn } from '@/lib/utils';
 
 interface FieldExtras {
@@ -55,8 +56,6 @@ export function TextAreaField({ label, hint, error, optional, className, mono, .
 }
 
 interface Option { value: string; label: string }
-// Radix Select cannot hold an item whose value is the empty string, so "none" travels as this word.
-const EMPTY = '__none__';
 
 export function SelectField({ label, value, onValueChange, options, placeholder, hint, error, disabled, optional, className }: FieldExtras & {
   value: string;
@@ -70,12 +69,12 @@ export function SelectField({ label, value, onValueChange, options, placeholder,
   const d = describedBy(id, hint, error);
   return (
     <FormField id={id} label={label} hint={hint} error={error} optional={optional} hintId={d.hintId} errorId={d.errorId} className={className}>
-      <Select value={value === '' ? EMPTY : value} onValueChange={(v) => onValueChange(v === EMPTY ? '' : v)} disabled={disabled}>
+      <Select value={toSelectValue(value, options)} onValueChange={(v) => onValueChange(fromSelectValue(v))} disabled={disabled}>
         <SelectTrigger id={id} className="w-full max-sm:h-11 max-sm:text-base" aria-invalid={error ? true : undefined} aria-describedby={d.describedBy}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent position="popper">
-          {options.map((o) => <SelectItem key={o.value} value={o.value === '' ? EMPTY : o.value}>{o.label}</SelectItem>)}
+          {options.map((o) => <SelectItem key={o.value} value={toSelectValue(o.value, [o])}>{o.label}</SelectItem>)}
         </SelectContent>
       </Select>
     </FormField>

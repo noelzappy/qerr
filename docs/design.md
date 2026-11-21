@@ -525,16 +525,23 @@ The format gained what the built-ins need; every new value is a name from a fixe
   when the fit loop shrinks the headline.
 
 The chrome blocks, `specSize`, `photoTop`, `subField` and `subWidth` belong to the built-in pages. The AI's compositions are
-offered only what a grid page takes (`layoutCatalogue().blocks`); Settings, Layouts also gets each built-in page a brand may use
-(`layoutCatalogue().pages`: its block types and the options it honours there, less what is for the built-in layouts only).
+offered only what a grid page takes (`layoutCatalogue().blocks`). Settings, Layouts is driven by `layoutCatalogue().pages`, which
+describes every kind of page a brand's layout may use (`grid`, `poster`, `editorial`): its sizes, how blocks are placed (cells
+and pixels on a grid page, pixels on a built-in page), its decorations and page colours, the condition forms and the choices a
+brand may test there, and for every block type the fields it may show, its slab children, its options (a list, a flag or a
+bounded whole number, each with what it needs of the block's other settings, such as a desktop window's `tilt` needing
+`"device": "desktop"`), its bindings (a label's words, `titleField`, `subField`) and the full-width rule; it also gives each
+field's rule bounds and each size's pixel bounds. Those dependencies are data the validator reads too, so the two cannot drift:
+`test-design-layout-catalogue.mjs` checks that everything the catalogue offers is accepted, that values just outside its bounds
+and lists are refused, and that everything it leaves out (block types, options, bindings, choices, grounds, sizes) is refused.
 
 ### Starting from a built-in layout
 
 An admin duplicates a built-in layout in Settings, Layouts ("Duplicate to edit"); the copy is a layout of the brand's own, on the
 same page (`"page": "poster"` or `"editorial"`), with the same blocks, pixel rectangles and look, switched off until it is switched
-on, and edited like any layout: its rectangles in pixels in the editor, its options from the page's own lists, its conditions and
-ground cases in the JSON view, with the engine's verdict as you type and a real preview with the brand. A post then uses it as
-`{ "template": "layout", "layout": "<id>", ...fields }`.
+on, and edited like any layout: its rectangles in pixels, its options from the page's own lists, its conditions and ground cases,
+all in the visual editor (see "Editing a layout" below), with the engine's verdict as you type and a real preview with the brand. A
+post then uses it as `{ "template": "layout", "layout": "<id>", ...fields }`.
 
 **What a brand may customise.** Everything those pages draw is a name from a fixed list, a flag or a bounded whole number that
 `validateLayout` checks, and every drawing takes text only through the escaping functions and numbers only from checked values, so
@@ -559,6 +566,39 @@ layout can be copied except the phone beside a passbook (its card is the design'
 why. `test-design-layout-builtin.mjs` checks that every copy is a valid brand layout, that what is for the built-in layouts only
 is refused, that hostile values are refused and hostile words drawn escaped, and renders every copy with the demo brand (which
 has a synthetic pre-framed phone, `design/assets/demo/screen-phone.png`, for the previews of the layouts that show a phone).
+
+### Editing a layout
+
+Everything a brand's layout can say is edited visually in Settings, Layouts; the JSON view shows the same layout as the engine
+reads it, and switching between them loses nothing. The editor's controls come from `layoutCatalogue().pages` for the layout's
+kind of page, so it offers nothing the validator refuses and leaves out nothing it accepts:
+
+- **The layout**: name, id, description, kind of page (moving a layout to another page keeps what that page draws, places it as
+  that page places blocks and names what it left out), the accent and the texture.
+- **Page colour**: one ground, or cases, each a condition and a ground, the first that holds being used, with an "otherwise"
+  last; cases are added, removed and reordered (up to 4).
+- **Sizes and grids**: the sizes of a grid page, and for each its columns, rows, gutter and row gutter (or the same as the
+  columns), and its margins, one for every side or one per side, never under the size's minimum.
+- **Blocks**: added from the page's block types, reordered and removed. Each block's place in grid cells (clicking two cells of
+  the sketch) or in page pixels, one place for every size or one per size; its bleed, only to the edges its slot touches; every
+  option the page takes for it, shown only when what it needs is set (a phone's `fit`, a desktop window's `tilt`, a sub line's
+  `subWidth`); what it shows (a field, which is declared when picked; a label's field, fixed words or source; a window title; a
+  headline's flowing sub line); and the blocks inside a slab, added, reordered and removed.
+- **Show this block**: always, or only when every clause holds: a field is filled, a field is empty, on page 1 of a carousel, a
+  later page or a single post (a post made with a layout is one image, so it is always a single post), or a choice is (or is not)
+  one of chosen values: the artefact's type once the layout declares an artefact, and on a poster or editorial page its register
+  card. The block list says when each block is drawn ("Sub line, when sub is filled").
+- **Fields**: declared, required, and their limits (characters, or the least and most entries) within the catalogue's bounds,
+  and the kinds of artefact one takes.
+
+The sketch follows "sketch as if" switches for what the conditions test (a field empty, a carousel page, a choice's value): the
+blocks a post would not draw in that case are hidden (the selected one dashed), conditional blocks are marked, and the page takes
+the colour that case would get. The preview draws the same case (`POST /api/settings/layouts/preview` with `empty` and
+`artefact`). The editor's model (`apps/web/web/src/pages/settings/layout-model.ts`) reads each part of the JSON into what the
+editor shows and writes it back; `apps/web/src/web-layout-model.spec.ts` opens every starter, every built-in layout a brand may
+copy and every layout the catalogue lets one build that the engine accepts, and checks that nothing is left unshown and that each
+comes back deep-equal. Anything in a layout the editor could not show (only what the engine refuses for a brand) is listed above
+the editor, to be fixed in the JSON view.
 
 ## Your own photos and screenshots
 
