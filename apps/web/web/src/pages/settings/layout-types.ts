@@ -17,20 +17,49 @@ export interface Layout {
   fields: Record<string, FieldRule>; canvas: Record<string, Grid>; blocks: Block[];
 }
 
-export type OptionSpec = { type: 'enum'; values: Array<string | number>; default: string | number } | { type: 'bool'; default: boolean } | { type: 'int'; min: number; max: number; default: number };
-// A block type on a built-in page (the catalogue's pages): what it shows, whether the page places it (chrome), and the options
-// the page honours there.
-export interface PageBlockSpec { kinds: string[]; field: string | null; chrome: boolean; children: boolean; under: boolean; options: Record<string, OptionSpec> }
+// What an option or a binding needs of the block's other settings: { device: "desktop" } (that option's value, its default filled
+// in) or { subField: true } (that key given).
+export type Needs = Record<string, string | number | boolean> | null;
+export type OptionSpec = ({ type: 'enum'; values: Array<string | number>; default: string | number; aliases?: Record<string, string> } | { type: 'bool'; default: boolean } | { type: 'int'; min: number; max: number; step: number; default: number }) & { needs?: Needs };
+export type ChoiceValue = string | number | boolean;
+// A block type on one page kind (the catalogue's pages): what it shows, how it is placed, the options the page takes there.
+export interface PageBlockSpec {
+  kinds: string[]; field: string | null; fields: string[];
+  chrome: boolean; child: boolean; text: boolean; under: boolean;
+  bleed: { edges: Edge[]; needs: Needs } | null;
+  children: string[] | null;
+  // a block the page runs the full width to its bottom edge (with these option values)
+  fullWidth: Record<string, string> | null;
+  options: Record<string, OptionSpec>;
+  childOptions: string[];
+  defaults: Record<string, unknown>;
+  bindings: Record<string, { kinds?: string[]; fields?: string[]; max?: number; values?: string[]; needs: Needs; child: boolean }>;
+}
+// One page kind a brand's layout may use: grid, poster or editorial.
+export interface PageCatalogue {
+  sizes: string[];
+  place: Array<'slot' | 'px'>;
+  decorations: string[];
+  grounds: string[];
+  photoGround: { field: string } | null;
+  conditions: { keys: string[]; pages: string[]; choices: Record<string, { values: ChoiceValue[]; unset: boolean; declared: boolean }> };
+  blocks: Record<string, PageBlockSpec>;
+}
+export interface FieldSpec {
+  kind: string; cap?: number; max?: number; chars?: number; word: string;
+  rules: { required: boolean; max?: { min: number; max: number; default?: number }; min?: { min: number; max: number }; types?: string[] };
+}
 export interface Catalogue {
-  sizes: Record<string, { w: number; h: number; minMargins: Margins }>;
+  sizes: Record<string, { w: number; h: number; minMargins: Margins; px: Record<'x' | 'y' | 'w' | 'h', [number, number]> }>;
   grid: { columns: [number, number]; rows: [number, number]; gutter: [number, number]; margin: [number, number]; minCell: number };
-  grounds: string[]; darkGrounds: string[]; accents: string[]; textures: string[];
-  fields: Record<string, { kind: string; cap?: number; max?: number; chars?: number; word: string }>;
+  grounds: string[]; groundAliases: Record<string, string>; darkGrounds: string[]; accents: string[]; textures: string[];
+  fields: Record<string, FieldSpec>;
+  // the grid page's block types (what the AI is offered); the editor reads pages
   blocks: Record<string, { kinds: string[]; field: string | null; child: boolean; bleed: boolean; children: boolean; under: boolean; options: Record<string, OptionSpec> }>;
   labelSources: string[];
-  limits: { layouts: number; blocks: number; children: number };
-  // The built-in pages a brand's layout may use (poster, editorial): their sizes, decorations and block types.
-  pages: Record<string, { sizes: string[]; decorations: string[]; blocks: Record<string, PageBlockSpec> }>;
+  layout: { id: { pattern: string; max: number }; name: { max: number }; description: { max: number }; accents: string[] };
+  limits: { layouts: number; blocks: number; children: number; groundCases: number };
+  pages: Record<string, PageCatalogue>;
 }
 
 export interface StoredLayout { id: string; slug: string; name: string; definition: Layout; origin: string; enabled: boolean; position: number; createdAt: string; updatedAt: string }

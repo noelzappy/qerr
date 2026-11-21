@@ -22,6 +22,7 @@ import {
   type Block, type BuiltinLayout, type Catalogue, type Edge, type Grid, type Layout, type LayoutsResponse, type OptionSpec, type PageBlockSpec,
   type PreviewResult, type Px, type Slot, type StoredLayout,
 } from './layout-types';
+import { specFor } from './layout-model';
 import { SettingsPage } from './section';
 
 const word = (v: string | number) => String(v).replace(/-/g, ' ');
@@ -32,11 +33,7 @@ const problemsOf = (err: unknown) => (err instanceof ApiError && err.details ? e
 const groundOf = (l: Layout) => (typeof l.ground === 'string' ? l.ground : Array.isArray(l.ground) ? l.ground[l.ground.length - 1]?.ground ?? '' : '');
 const PAGE_WORD: Record<string, string> = { poster: 'the poster page', editorial: 'the editorial page', photo: 'the photo post', grid: 'a grid' };
 // What a block type shows and takes: the grid's catalogue, or the built-in page's own (pages[page].blocks).
-const specOf = (catalogue: Catalogue, layout: Layout, type: string): PageBlockSpec | null => {
-  if (builtPage(layout)) return catalogue.pages[layout.page!]?.blocks[type] ?? null;
-  const b = catalogue.blocks[type];
-  return b ? { kinds: b.kinds, field: b.field, chrome: false, children: b.children, under: b.under, options: b.options } : null;
-};
+const specOf = (catalogue: Catalogue, layout: Layout, type: string): PageBlockSpec | null => specFor(catalogue, layout, type);
 const fieldsOfKind = (catalogue: Catalogue, kinds: string[]) => Object.keys(catalogue.fields).filter((f) => kinds.includes(catalogue.fields[f].kind));
 
 // ---- one block's settings ----
