@@ -199,6 +199,9 @@ const ADDED_OPTIONS = [
   // -- poster group --
   // (end of poster group)
   // -- artefacts group --
+  // where the artefact an editorial page draws is: the block's field (a text page's artefact), or the spec itself, as the
+  // ledger template (columns, rows, mark, notes) and the passbook template (days, ticked, today, tick, register) take theirs
+  ['artefact', 'from', on(['editorial'], e(['field', 'ledger', 'passbook'], 'field'))],
   // (end of artefacts group)
   // -- editorial group --
   // (end of editorial group)
@@ -247,6 +250,7 @@ export const PAGES = {
       footer: [],
       spacer: [],
       // -- artefacts group --
+      artefact: ['from'],
       // (end of artefacts group)
       // -- editorial group --
       // (end of editorial group)

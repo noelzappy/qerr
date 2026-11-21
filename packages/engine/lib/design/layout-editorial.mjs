@@ -50,6 +50,24 @@ const head = (blk, spec, ctx, r, state) => runhead(state.frame.label, folio(ctx)
 const foot = (blk, spec, ctx, r, state) => footer(ctx, { inverse: panelOf(state) ? isDarkColour(ctx.brand.surfaces.panel) : state.frame.dark });
 
 // -- artefacts group: drawings of new block types go here --
+// The artefact as crisp white cards (artefacts.mjs artefactCards): a ledger with its notes or a register card at the rectangle's
+// top-left, each its own drawn size; a passbook page filling the rectangle; a passbook page with its register card beside it.
+// `from` (a listed name) says where the artefact is: the block's field (a text page's artefact), or the spec itself, as the
+// ledger and passbook templates take theirs. The values are validateDesign's; the drawings escape every word and clamp every
+// number. A ledger's notes are marked as on the panel when the rectangle lies on it. (The import sits in this section so that the
+// groups' changes to this file merge; an import is hoisted wherever it is written.)
+import { artefactCards } from '../../design/templates/artefacts.mjs';
+
+const ARTEFACT_FROM = {
+  field: (blk, spec) => spec[blk.field ?? 'artefact'],
+  ledger: (blk, spec) => ({ type: 'ledger', columns: spec.columns, rows: spec.rows, mark: spec.mark, notes: spec.notes }),
+  passbook: (blk, spec) => ({ type: 'passbook', days: spec.days, ticked: spec.ticked, today: spec.today, tick: spec.tick, register: spec.register }),
+};
+function artefact(blk, spec, ctx, r, state) {
+  const a = ARTEFACT_FROM[opt(blk, 'from')](blk, spec);
+  if (!a || typeof a !== 'object' || Array.isArray(a)) return '';
+  return artefactCards(a, r, { onPanel: within(r, panelOf(state)) });
+}
 // (end of artefacts group)
 // -- editorial group: drawings of new block types go here --
 // (end of editorial group)
@@ -64,6 +82,7 @@ export const DRAW = {
   footer: foot,
   spacer: () => '',
   // -- artefacts group --
+  artefact,
   // (end of artefacts group)
   // -- editorial group --
   // (end of editorial group)

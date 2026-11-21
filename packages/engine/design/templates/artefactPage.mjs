@@ -1,5 +1,7 @@
 // A headline and sub line over the tint panel with one artefact on it, drawn as a crisp white card: a ledger, a passbook page
 // (with or without a register card beside it) or a register card. Used by the `ledger`, `passbook` and `text` templates.
+// Unused: these pages are drawn from their layouts (lib/design/builtin/artefacts.mjs, the cards by artefacts.mjs artefactCards).
+// It stays, with the functions that call it, until every template is converted (testlib/CONVERTING.md).
 import { ledgerSvg, passbookSvg, registerSvg, svgBox } from './artefacts.mjs';
 import { note, footer, head, obj, page, panel, panelTopFor, textBlock } from './editorial.mjs';
 
