@@ -15,13 +15,23 @@ const keepCase = (t) => CAMEL.test(t) || new RegExp(WEB_ADDRESS.source, 'i').tes
 export const lbl = (t, extra = '', role = 'label', attrs = '') => `<span class="lbl${keepCase(t) ? ' n' : ''}${extra ? ` ${extra}` : ''}" data-role="${role}"${attrs}>${esc(t)}</span>`;
 export const folio = (ctx) => (ctx.counter ? `${pad2(ctx.counter.n)} / ${pad2(ctx.counter.total)}` : null);
 
-export const runhead = (left, right, rule = true) => `<div class="rh">${left ? lbl(left) : '<span></span>'}${right ? lbl(right) : '<span></span>'}</div>${rule ? '<div class="rh-rule"></div>' : ''}`;
+// The tone class of text that sits on a surface of the other tone than the page's ground (the light panel on a dark page, a dark
+// panel on a light one): brand.css then colours it for that surface, as a page of its tone would be. '' when the tones agree.
+export const toneOf = (pageDark, surfaceDark) => (pageDark === surfaceDark ? '' : surfaceDark ? 'on-dark' : 'on-light');
+export const withTone = (cls, tone) => (tone ? `${cls} ${tone}` : cls);
+
+// The running head: at the top, or (`low`: the brand's logo took the top, see layout-editorial.mjs) at the foot of the page with
+// its rule above it, where its labels are footer labels. `tone`: toneOf() for what it sits on.
+export const runhead = (left, right, rule = true, { low = false, tone = '' } = {}) => {
+  const role = low ? 'foot' : 'label', cls = withTone(low ? 'rh low' : 'rh', tone);
+  return `<div class="${cls}">${left ? lbl(left, '', role) : '<span></span>'}${right ? lbl(right, '', role) : '<span></span>'}</div>${rule ? `<div class="${withTone(low ? 'rh-rule low' : 'rh-rule', tone)}"></div>` : ''}`;
+};
 
 // Footer: the logo bottom-left (or right, as the brand's style says; in a light pill with footer "pill"), a label on the other
 // side ("Swipe →" on page 1 of a carousel, else the website; nothing with footer "none"). The full colour logo on a light
 // surface; on a dark one (`inverse`: the page's ground, or the panel when the footer sits on it) the mark with the wordmark in
-// white.
-export function footer(ctx, { label, inverse = false } = {}) {
+// white. `up`: at the top of the page (the brand's logo placement, see layout-editorial.mjs). `tone`: toneOf() for its label.
+export function footer(ctx, { label, inverse = false, up = false, tone = '' } = {}) {
   const B = ctx.brand, style = footerOf(B), swipe = ctx.counter?.n === 1;
   let right = label;
   if (right === undefined) right = swipe ? 'Swipe →' : style === 'none' ? '' : B.website;
@@ -30,7 +40,8 @@ export function footer(ctx, { label, inverse = false } = {}) {
     : inverse
       ? `<span class="logo-inv"><img src="${B.logoMarkSrc}" alt="" style="height:32px"><i role="img" aria-label="${esc(B.name)}" style="--lw:${px((fw - B.logos.wordmarkFrom) * k)}px;--lx:-${px(B.logos.wordmarkFrom * k)}px;--lm:${px(B.logos.markGap * k)}px"></i></span>`
       : `<img class="logo" src="${B.logoFullSrc}" alt="${esc(B.name)}">`;
-  return `<div class="ft footer${logoPlace(B, 'editorial').right ? ' flip' : ''}"><div>${logo}</div>${right ? lbl(right, '', 'foot') : ''}</div>`;
+  const cls = withTone(`ft footer${up ? ' up' : ''}${logoPlace(B, 'editorial').right ? ' flip' : ''}`, right ? tone : '');
+  return `<div class="${cls}"><div>${logo}</div>${right ? lbl(right, '', 'foot') : ''}</div>`;
 }
 
 // The website's outlined pills ("Read-only by design") and its check list ("Two-person approval"), under the sub line. Each item
@@ -48,8 +59,8 @@ export function glow(ctx, { x, y, w, h }) {
   return `<div class="glow" aria-hidden="true" style="left:${px(x - g)}px;top:${px(y - g)}px;width:${px(w + 2 * g)}px;height:${px(h + 2 * g)}px"></div>`;
 }
 
-// A short mono note at a fixed place, on the panel (a ledger's notes).
-export const note = (x, y, t, { w } = {}) => `<div class="abs" style="left:${px(x)}px;top:${px(y)}px${w ? `;width:${px(w)}px` : ''}">${lbl(t, 'n', 'label', ' data-onpanel')}</div>`;
+// A short mono note at a fixed place, on the panel (a ledger's notes); `tone`: toneOf() for the panel.
+export const note = (x, y, t, { w, tone = '' } = {}) => `<div class="abs" style="left:${px(x)}px;top:${px(y)}px${w ? `;width:${px(w)}px` : ''}">${lbl(t, withTone('n', tone), 'label', ' data-onpanel')}</div>`;
 
 // An object with its own surface: cls "card" (raised white card), "flat" (white card, line only), "photo" or "photo raised";
 // inner is placed inside. Nothing is ever rotated.

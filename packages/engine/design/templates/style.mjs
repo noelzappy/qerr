@@ -27,12 +27,14 @@ export function decorationOf(brand, { dark, poster = false, off = false }) {
   return KIND[d.kind] ?? '';
 }
 
-// Where the logo goes on a page of this kind ('poster', 'editorial' or 'photo'): { bottom, right }. Editorial pages and photo
-// posts keep the logo in their footer at the bottom and follow only the side.
+// Where the logo goes on a page of this kind ('poster', 'editorial' or 'photo'): { bottom, right }. `auto` is each kind's own
+// place: the top left of a poster, the bottom left (in the footer) of an editorial page or a photo post. The page decides what
+// moves out of the way, and keeps its logo where it is when a picture takes that edge (poster.mjs bar, layout-editorial.mjs,
+// layout-photo.mjs).
 export function logoPlace(brand, kind) {
   const p = styled(brand).style.logo;
   const place = LOGO_PLACES.includes(p) && p !== 'auto' ? p : kind === 'poster' ? 'top-left' : 'bottom-left';
-  return { bottom: kind === 'poster' ? place.startsWith('bottom') : true, right: place.endsWith('right') };
+  return { bottom: place.startsWith('bottom'), right: place.endsWith('right') };
 }
 
 // What sits beside the logo: 'website' (the default), 'pill' (the logo in a light pill, and the website) or 'none'.

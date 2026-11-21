@@ -101,7 +101,8 @@ templates, `photo` and `page-cover`) follows one system:
   unicode ranges.
 - **Frame.** 70 px margins. A running head (series label on the left, "02 / 07" or the brand name on the right, a hairline
   rule), the full colour logo bottom-left and a mono label bottom-right ("Swipe ->" on page 1 of a carousel, otherwise the
-  website).
+  website). The brand's logo placement (`style.logo`) may put the logo on the right, or the footer at the top and the running
+  head at the foot.
 - **Grounds.** A fixed list of names (`white`, `tint`, `mint`, `gold-pale`, `ink`, `deep`), each a colour in `grounds`; the
   editorial pages use `white`, `tint` and `ink` (the closing and emphasis page). A page picks one with `ground`, or gets its
   series' ground. An ink page carries a dot grid (`dots` in `brand.json`: the demo draws 1 px white dots at 8% on a 24 px
@@ -114,6 +115,9 @@ templates, `photo` and `page-cover`) follows one system:
   are **white cards** (`surfaces.card`) on it with the card shadow (`shadows.card`; the demo: `0 13px 27px -5px` and
   `0 8px 16px -8px` in ink at 18% and 22%), a 1 px line (`surfaces.line`) and the card radius (`radius.card`, the demo 8 px).
   Nothing is rotated, textured or lit like paper. The myth card is flat (line, no shadow) so the fact card stands above it.
+  Text takes its colour from the surface it sits on, not from the page's ground: on an ink page the sub line, the footer (its
+  logo and website), a ledger's notes and a running head on the light panel are set as on a light page (and text on a dark
+  panel of a light page as on a dark one), so they meet the contrast targets on what is really behind them.
   Photos: scenes with people are full-bleed panels; an inset photo has the card radius and a line; a news photo is a raised
   card on the panel.
 - **Scale.** The tokens are in the brand's website pixels. A post is drawn at `scale` post pixels per website pixel (the
@@ -307,7 +311,7 @@ yet.
 What it makes: your photograph fills the whole image. Behind the text only, a neutral black gradient eases from a
 solid strength down to nothing, so the picture is untouched everywhere else. On top: an optional mono eyebrow, a white Inter
 headline (words in asterisks turn brand gold), a white sub line, the brand's logo pill at the bottom left and its website in mono
-at the bottom right. Optional thin white and gold arcs and a corner bracket add a little brand motion. Works at every size.
+at the bottom right (the brand's logo placement may swap the sides, or put both at the top and the text under them). Optional thin white and gold arcs and a corner bracket add a little brand motion. Works at every size.
 
 | Field | Meaning |
 | --- | --- |
@@ -549,8 +553,9 @@ The format gained what the built-ins need; every new value is a name from a fixe
   ground, else `cool`; a plain photo background then replaces it in the browser, as on the poster templates.
 - **Chrome blocks** with no slot, placed by the page and the brand's style (logo placement, footer style, "Swipe →" on page 1
   of a carousel): `bar` (the poster's logo and website), `runhead` (the editorial running head: the series or the spec's
-  `label`, and the folio, the spec's `headRight` or the brand's name; `rule`) and `footer` (the editorial footer, its logo drawn
-  for the panel when the page has one).
+  `label`, and the folio, the spec's `headRight` or the brand's name; `rule`) and `footer` (the editorial footer, its logo and
+  label drawn for what they sit on: the panel when it lies on it, else the ground). With the brand's logo at the top the
+  `footer` and the `runhead` change places (see `style.logo` under "The brand file").
 - **Options**: `shrink` (headline, figure, stats; default true: the block shrinks with every other such block in the fit loop;
   false keeps its size), `specSize` (a headline takes the spec's own validated `size`), `photoTop` (a poster photo's top edge
   moves to the spec's validated `photoTop`), and a headline's `subField` with `subWidth` (100 to 1080 px, default 820): that
@@ -715,7 +720,7 @@ the post and the image is kept.
 
 | Check | How | What happens |
 | --- | --- | --- |
-| **Text fits** | Chrome measures the real text lines: inside the margins and above the footer, no text on text, no text on a photo, screenshot or on an object it does not belong to (text inside its own card is fine), body text at least 30 px, text not straddling the panel's edge, single-line numbers not wider than their box. Drawn objects must stay inside the page (a phone may run off the bottom), above the footer, clear of the logo, on the panel, and not overlap each other | The headline (and big numbers) shrink in steps down to 62% of the brand size. A long headline (more than 24 characters) starts a little smaller. If it still does not fit, or the sub line does not fit, the image **fails** with: "The text does not fit the feed format: ... Shorten the text ..." and nothing is written. Shrinking below 70% adds a warning. |
+| **Text fits** | Chrome measures the real text lines: inside the margins and clear of the footer (above it, or under it when the brand's logo placement puts it at the top), no text on text, no text on a photo, screenshot or on an object it does not belong to (text inside its own card is fine), body text at least 30 px, text not straddling the panel's edge, single-line numbers not wider than their box. Drawn objects must stay inside the page (a phone may run off the bottom), clear of the footer and the logo, on the panel, and not overlap each other | The headline (and big numbers) shrink in steps down to 62% of the brand size. A long headline (more than 24 characters) starts a little smaller. If it still does not fit, or the sub line does not fit, the image **fails** with: "The text does not fit the feed format: ... Shorten the text ..." and nothing is written. Shrinking below 70% adds a warning. |
 | **Contrast** | The page is rendered with all text hidden; the pixels behind each text line are read. The worst case counts: the brightest part for light text (95th percentile, so a single speck does not decide), the darkest for dark text. Needs, on photo posts: headline and big numbers 3:1, sub line and eyebrow 4.5:1, website 3:1. On every other page (`brand.json` `contrast`): headline, big numbers, sub and body 7:1, labels, the footer label, the poster logo's wordmark and the accent phrase 4.5:1, an artefact's labels 4.5:1 and the words written on it 7:1. Text inside artefacts (SVG text) is measured the same way | On photo posts the black scrim is raised in 0.05 steps (cap 0.65) before anything else; a weak website line gets a soft black fade behind the footer (cap 0.5). Anything still below the target is a warning with the measured ratio. `"scrim": "none"` switches the automatic fix off (it still warns). |
 | **Enlargement** | The shown size of every supplied image against its real pixel size | Above 1.3x: a warning naming the file, its size and the width it would need. |
 | **Pixel size** | The captured image and the saved file are read back | A mismatch fails the image. |
@@ -810,11 +815,28 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
     and the type picked against the page agree. With the demo colours, a tinted or duotone `object-jar.jpg` takes the page,
     and in duotone so does `scene-market.jpg`, whose sky and buildings turn one grey; the overlay at strength 0.5 does not
     (see the contrast rule under Object photos).
-  - `logo`: `auto` (default), `top-left`, `top-right`, `bottom-left`, `bottom-right`. Posters move their logo bar, except on
-    pages whose photo or phone runs to the bottom edge (`object`, `number` with a photo, `product` when the phone reaches the
-    bar): there the bar stays at the top, on the ground its logo is drawn for, and follows only the side. Editorial
-    pages and photo posts keep the logo in their footer and follow the side. `footer`: `website` (default), `pill` (the logo
-    on a light pill, and the website) or `none` (the logo alone; page 1 of a carousel still says "Swipe").
+  - `logo`: `auto` (default: each page's own place, the top left of a poster, the bottom left of an editorial page and a
+    photo post), `top-left`, `top-right`, `bottom-left`, `bottom-right`. It places the logo a page draws itself, and only
+    that: the poster's logo bar, the editorial footer (also the footer with the logo alone on `screen` pages) and the photo
+    post's footer. A logo a layout places as a block stays where its layout puts it: a grid page's `logo` block (a brand's
+    own layout) and the page covers' logos.
+    - **Posters** move their logo bar to the top or the bottom (`myth-fact`'s series mark goes to the other edge), except on
+      pages whose photo or phone runs to the bottom edge (`object`, `number` with a photo, `product` when the phone reaches
+      the bar): there the bar stays at the top, on the ground its logo is drawn for, and follows only the side.
+    - **Editorial pages** with the logo at the top swap their chrome: the footer (the logo and the website) takes the running
+      head's place at the top, and the running head goes to the foot of the page, its rule above it, where its labels count
+      as footer labels. A page whose picture reaches into the band at the top (above y 126: `photo-story`'s full-bleed photo)
+      or, on a page with a running head, into the band at the foot (below y 1240: the phone beside a passbook on `screen`,
+      which runs off the bottom edge) keeps its footer at the bottom and follows only the side.
+    - **Photo posts** with the logo at the top put the footer there, as far from the top edge as it sits from the bottom one
+      (in a story, at the top margin, under the band the app's interface covers), and move the text out of its way: it starts
+      40 px under the footer's pill and runs down to as far from the bottom edge as it was from the top (in a story, above the
+      bottom band), so text set at the bottom (`textAt`) sits where the footer was. The footer fade, when the website needs
+      it, follows the footer.
+    - The fit check holds text and drawn objects clear of the footer wherever it is.
+
+    `footer`: `website` (default), `pill` (the logo on a light pill, and the website) or `none` (the logo alone; page 1 of a
+    carousel still says "Swipe").
 - **`timezone`** (optional): an IANA time zone such as `Europe/London`. The AI drafts in it and the web app shows it; a batch
   still names its own.
 - **`money`** (optional): `{ "local": "...", "foreign": "..." }`. `local` is one sentence on what the brand's money is (the

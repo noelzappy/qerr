@@ -173,7 +173,7 @@ export function LookFields({ style, onChange, artwork, busy, onArtwork, onRemove
         </>}
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <SelectField label="Logo" hint="Posters put their logo bar at the top or the bottom; other pages keep it in the footer and follow the side." value={style.logo} onValueChange={(v) => set('logo', v as StyleSettings['logo'])} options={[{ value: 'auto', label: 'As each page is laid out' }, ...optionsOf(LOGO_PLACES.filter((x) => x !== 'auto'))]} />
+        <SelectField label="Logo" hint="Moves the logo on posters, editorial pages and photo posts, with what shares its edge; a page whose picture takes that edge keeps its logo where it is and follows the side. A layout's own logo block stays where the layout puts it." value={style.logo} onValueChange={(v) => set('logo', v as StyleSettings['logo'])} options={[{ value: 'auto', label: 'As each page is laid out' }, ...optionsOf(LOGO_PLACES.filter((x) => x !== 'auto'))]} />
         <SelectField label="Beside the logo" value={style.footer} onValueChange={(v) => set('footer', v as StyleSettings['footer'])} options={optionsOf(FOOTERS, 'footer')} />
       </div>
     </div>

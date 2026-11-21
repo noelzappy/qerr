@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { buildPage, buildPrintPage } from './page.mjs';
-import { COVER_SIZES, SIZES } from './sizes.mjs';
+import { COVER_SIZES, SIZES, pillHeight } from './sizes.mjs';
 import { forSize } from './spec.mjs';
 import { SCALABLE, autoLines, contrastRatio, explainCoverProblems, explainProblems, findCoverProblems, findLayoutProblems, imageSize, linesToSvg, luminance, upscaleWarning } from './checks.mjs';
 import { convertToJpeg } from './convert.mjs';
@@ -203,8 +203,16 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
         const text = m.roles.filter((r) => ['headline', 'sub', 'eyebrow'].includes(r.role)).flatMap((r) => r.rects);
         const atTop = (spec.textAtResolved ?? 'top') === 'top';
         const u = text.reduce((a, r) => ({ y0: Math.min(a.y0, r.y0), y1: Math.max(a.y1, r.y1) }), { y0: Infinity, y1: -Infinity });
-        const zone = atTop ? { y0: u.y1 + 30, y1: m.footer.y0 - 20 } : { y0: S.top + 10, y1: u.y0 - 30 };
-        const res = autoLines({ W: S.w, H: S.h, avoid: [...text, m.footer], zone, seed: `${spec.headline}|${sizeName}` });
+        // The band beside the text, above where the footer sits at the bottom; the lines keep clear of the footer wherever it is.
+        // With the footer at the top (m.header, the brand's logo placement) the band above the text starts under it, or, when
+        // nothing fits there, at the top margin as usual (the lines still keep clear of the footer).
+        const foot = m.footer ? m.footer.y0 : S.h - S.fbot - pillHeight(S.logoH);
+        const zones = atTop ? [{ y0: u.y1 + 30, y1: foot - 20 }] : [...(m.header ? [m.header.y1 + 20] : []), S.top + 10].map((y0) => ({ y0, y1: u.y0 - 30 }));
+        let res;
+        for (const zone of zones) {
+          res = autoLines({ W: S.w, H: S.h, avoid: [...text, m.footer, m.header].filter(Boolean), zone, seed: `${spec.headline}|${sizeName}` });
+          if (res.shapes.length) break;
+        }
         shapes = res.shapes;
         if (res.note) warnings.push(res.note);
       }
