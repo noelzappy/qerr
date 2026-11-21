@@ -88,12 +88,22 @@ export interface Palette {
 }
 export interface BrandLook { checks: ContrastCheck[]; changes: PaletteChange[]; palette: Palette; explicit: string[] }
 
+export type FontRole = 'body' | 'display' | 'label';
+export interface FontSource { family: string; source: 'upload' | 'google'; google?: { family: string; weight: number }; file: string }
+// One family of the curated Google Fonts list (GET /api/settings/brand/google-fonts; services/google-fonts.ts on the server).
+export interface GoogleFont { family: string; category: string; weights: number[]; licence: 'OFL-1.1' | 'Apache-2.0'; note: string }
+export const GOOGLE_CATEGORY_LABEL: Record<string, string> = { sans: 'Sans serif', serif: 'Serif', display: 'Display', condensed: 'Condensed', mono: 'Monospace', handwriting: 'Handwriting' };
+export const LICENCE_LABEL: Record<GoogleFont['licence'], string> = { 'OFL-1.1': 'SIL Open Font License 1.1', 'Apache-2.0': 'Apache License 2.0' };
+export const WEIGHT_NAME: Record<number, string> = { 100: 'Thin', 200: 'Extra light', 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'Semi-bold', 700: 'Bold', 800: 'Extra bold', 900: 'Black' };
+
 export interface BrandView extends BrandLook {
   saved: boolean;
   settings: BrandSettings;
   logos: { full: string | null; mark: string | null; fullSize: [number, number] | null };
   font: { family: string } | null;
   fonts: { body: string | null; display: string | null; label: string | null };
+  // Where each role's font came from (an upload or Google Fonts), and the address of its file for the preview.
+  fontSources: Record<FontRole, FontSource | null>;
   artwork: string | null;
   advanced: Record<string, unknown>;
   map: unknown;
@@ -138,7 +148,7 @@ export const LABELS: Record<string, string> = {
   tint: 'Tinted', duotone: 'Duotone', overlay: 'Colour overlay',
   'top-left': 'Top left', 'top-right': 'Top right', 'bottom-left': 'Bottom left', 'bottom-right': 'Bottom right',
   website: 'Logo and website', pill: 'Logo in a pill, and website',
-  body: 'The body font', label: 'The label font', own: 'Its own font (upload below)', mono: 'The built-in mono (IBM Plex Mono)',
+  body: 'The body font', label: 'The label font', own: 'Its own font', mono: 'The built-in mono (IBM Plex Mono)',
   primary: 'Accent on light', accent: 'Accent on dark', ink: 'Headline colour', inverse: 'Headline colour on dark', ...GROUND_LABEL,
 };
 // "none" means a different thing in each list.

@@ -8,8 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   ACCENT_DEVICES, ARTWORK_FITS, DECORATION_ON, DECORATIONS, DISPLAY_FONTS, FOOTERS, LABEL_FONTS, LOGO_PLACES, PHOTO_TREATMENTS, ROLE_GROUPS, ROLE_LABEL, STYLE_COLOURS, SURFACES, TYPE_CASES,
-  emptyRoles, optionsOf, validHex, type BrandRoles, type Palette, type RoleGroup, type StyleSettings, type TypeRole,
+  emptyRoles, optionsOf, validHex, type BrandRoles, type FontRole, type FontSource, type Palette, type RoleGroup, type StyleSettings, type TypeRole,
 } from './brand-types';
+import { RoleFont } from './font-source';
 
 const WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
 const DEFAULT = '';
@@ -92,46 +93,31 @@ function TypeRoleFields({ title, hint, role, onChange, font }: { title: string; 
   );
 }
 
-export function TypeFields({ style, onChange, fonts, busy, onUpload, onRemove }: {
-  style: StyleSettings; onChange: (t: StyleSettings['type']) => void; fonts: { display: string | null; label: string | null };
-  busy: string; onUpload: (role: 'display' | 'label', f: File, family: string) => void; onRemove: (role: 'display' | 'label') => void;
+export function TypeFields({ style, onChange, fonts, version, busy, onUpload, onGoogle, onRemove }: {
+  style: StyleSettings; onChange: (t: StyleSettings['type']) => void; fonts: Record<FontRole, FontSource | null>; version: string;
+  busy: string; onUpload: (role: FontRole, f: File, family: string) => void; onGoogle: (role: FontRole, family: string, weight: number) => void; onRemove: (role: FontRole) => void;
 }) {
   const t = style.type;
+  const font = (role: FontRole) => <RoleFont role={role} current={fonts[role]} version={version} busy={busy} onUpload={onUpload} onGoogle={onGoogle} onRemove={onRemove} />;
   return (
     <div className="flex flex-col gap-3">
       <TypeRoleFields
-        title="Headlines" hint="The display type: headlines and big figures."
+        title="Headlines" hint="The display type: headlines and big figures. Built in, they use the body font or the label font."
         role={t.display} onChange={(r) => onChange({ ...t, display: { ...t.display, ...r } })}
         font={<SelectField label="Font" value={t.display.font} onValueChange={(v) => onChange({ ...t, display: { ...t.display, font: v as typeof t.display.font } })} options={optionsOf(DISPLAY_FONTS)} />}
       />
-      {t.display.font === 'own' && <RoleFont role="display" current={fonts.display} busy={busy === 'font-display'} onUpload={onUpload} onRemove={onRemove} />}
-      <TypeRoleFields title="Body" hint="Sub lines, lists and captions, in the body font (Inter, or the font uploaded under Colours and type)." role={t.body} onChange={(r) => onChange({ ...t, body: r })} />
+      {t.display.font === 'own' && font('display')}
+      <TypeRoleFields title="Body" hint="Sub lines, lists and captions, and headlines unless they have a font of their own. Built in, this is Inter." role={t.body} onChange={(r) => onChange({ ...t, body: r })} />
+      {font('body')}
       <TypeRoleFields
         title="Labels" hint="Running heads, footers, eyebrows and the website. Figures in drawn ledgers keep the mono."
         role={t.label} onChange={(r) => onChange({ ...t, label: { ...t.label, ...r } })}
         font={<SelectField label="Font" value={t.label.font} onValueChange={(v) => onChange({ ...t, label: { ...t.label, font: v as typeof t.label.font } })} options={optionsOf(LABEL_FONTS)} />}
       />
-      {t.label.font === 'own' && <RoleFont role="label" current={fonts.label} busy={busy === 'font-label'} onUpload={onUpload} onRemove={onRemove} />}
+      {t.label.font === 'own' && font('label')}
       <div className="grid gap-3 sm:grid-cols-2">
         <TextField label="Headline scale" hint="All headline sizes times this, from 0.8 to 1.25. Long headlines are still shrunk to fit." type="number" step={0.05} min={0.8} max={1.25} value={String(t.scale)} onChange={(e) => onChange({ ...t, scale: numberOrNull(e.target.value, 0.8, 1.25) ?? 1 })} />
         <SelectField label="Second half of a headline" hint="The *phrase* in a headline: one device for every page, or as each series says." value={t.accent} onValueChange={(v) => onChange({ ...t, accent: v as typeof t.accent })} options={optionsOf(ACCENT_DEVICES, 'accent')} />
-      </div>
-    </div>
-  );
-}
-
-function RoleFont({ role, current, busy, onUpload, onRemove }: { role: 'display' | 'label'; current: string | null; busy: boolean; onUpload: (role: 'display' | 'label', f: File, family: string) => void; onRemove: (role: 'display' | 'label') => void }) {
-  const input = useRef<HTMLInputElement>(null);
-  const [family, setFamily] = useState('');
-  const what = role === 'display' ? 'headline' : 'label';
-  return (
-    <div className="flex flex-col gap-2 rounded-lg border border-dashed p-3">
-      <p className="text-[12.5px] text-muted-foreground">{current ? <>The {what} font is <strong className="text-foreground">{current}</strong>.</> : `No ${what} font yet: until one is uploaded, ${role === 'display' ? 'headlines use the body font' : 'labels use the built-in mono'}. Upload a .woff2 file you are licensed to use and give it a name of its own.`}</p>
-      <div className="flex flex-wrap items-end gap-2">
-        <TextField label="Font name" className="w-56" value={family} onChange={(e) => setFamily(e.target.value)} placeholder={role === 'display' ? 'Brand Display' : 'Brand Label'} maxLength={40} />
-        <input ref={input} type="file" accept=".woff2,font/woff2" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(role, f, family.trim() || f.name.replace(/\.[^.]*$/, '').replace(/[^A-Za-z0-9 _-]+/g, ' ').trim().slice(0, 40) || 'Brand'); e.target.value = ''; }} />
-        <BusyButton type="button" variant="outline" size="sm" loading={busy} onClick={() => input.current?.click()}>Upload .woff2</BusyButton>
-        {current && <Button type="button" variant="ghost" size="sm" onClick={() => onRemove(role)}><Trash2 aria-hidden="true" /> Remove</Button>}
       </div>
     </div>
   );

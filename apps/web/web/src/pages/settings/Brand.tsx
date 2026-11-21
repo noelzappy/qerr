@@ -2,8 +2,9 @@
 //   Identity      name, website, tagline, what the brand does, time zone, language, currency
 //   Logos         the full logo and the mark (PNG), or a simple pair drawn from the name; where the wordmark starts
 //   Colours       four colours to start from, then every colour role (grounds, text, accents, surfaces, slabs) set one by one,
-//                 the headline weight, the corners, the body font; a sketch and the contrast checks
-//   Type          headlines, body and labels: font, case, letter spacing, weight; the headline scale and the accent device
+//                 the headline weight, the corners; a sketch and the contrast checks
+//   Type          headlines, body and labels: font (built in, from the curated Google Fonts list, or a .woff2 upload), case,
+//                 letter spacing, weight; the headline scale and the accent device
 //   Surfaces      cards and panels, decoration (with uploaded artwork), photo treatment, logo place and footer
 //   Series        the kinds of posts, each with its page colour and how the second half of a headline is set
 //   Voice         how the brand sounds and how its images should look (the AI follows both), and names to spell exactly
@@ -20,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, validHex, type BrandLook, type BrandSettings, type BrandView, type PaletteChange } from './brand-types';
+import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, validHex, type BrandLook, type BrandSettings, type BrandView, type FontRole, type PaletteChange } from './brand-types';
 import { StyleSketch } from './StyleSketch';
 import { ColourRoles, LookFields, TypeFields } from './style-fields';
 import { measureLogo, simpleLogos } from './logo-tools';
@@ -197,7 +198,7 @@ export function BrandSettingsPage() {
   }
 
   // Uploads change only the files; what the person typed in the form stays as it is.
-  async function uploadFont(file: File, family: string, role: 'body' | 'display' | 'label' = 'body') {
+  async function uploadFont(file: File, family: string, role: FontRole = 'body') {
     setUploading(role === 'body' ? 'font' : `font-${role}`);
     try {
       const form = new FormData();
@@ -213,8 +214,24 @@ export function BrandSettingsPage() {
     }
   }
 
-  async function removeFont(role: 'display' | 'label') {
+  async function removeFont(role: FontRole) {
     try { setView(await api.delete<BrandView>(`/api/settings/brand/font?role=${role}`)); } catch (err) { toast.error(errorMessage(err)); }
+  }
+
+  // A family from the curated Google Fonts list: the server downloads it once and stores it like an upload. A headline or label
+  // font is switched on for its role there too; only that choice is copied into the form, the rest of what was typed stays.
+  async function pickGoogleFont(role: FontRole, family: string, weight: number) {
+    setUploading(`google-${role}`);
+    try {
+      const next = await api.post<BrandView>('/api/settings/brand/google-font', { role, family, weight });
+      setView(next);
+      if (role !== 'body') setS((cur) => (cur ? { ...cur, style: { ...cur.style, type: { ...cur.style.type, [role]: { ...cur.style.type[role], font: next.settings.style.type[role].font } } } } : next.settings));
+      toast.success(`${family} ${weight} is downloaded and in use. New images use it from now on.`);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setUploading('');
+    }
   }
 
   async function uploadArtwork(file: File) {
@@ -308,7 +325,9 @@ export function BrandSettingsPage() {
             <SelectField label="Headline weight" value={String(s.headlineWeight)} onValueChange={(v) => set('headlineWeight', Number(v))} options={[300, 400, 500, 600, 700].map((w) => ({ value: String(w), label: { 300: 'Light', 400: 'Regular', 500: 'Medium', 600: 'Semi-bold', 700: 'Bold' }[w]! }))} />
             <SelectField label="Corners" value={s.corners} onValueChange={(v) => set('corners', v as BrandSettings['corners'])} options={[{ value: 'square', label: 'Square' }, { value: 'soft', label: 'Softly rounded' }, { value: 'round', label: 'Round' }]} />
           </div>
-          <FontPicker current={view.font?.family ?? null} busy={uploading === 'font'} onUpload={(f, fam) => void uploadFont(f, fam)} onRemove={async () => { try { setView(await api.delete<BrandView>('/api/settings/brand/font')); } catch (err) { toast.error(errorMessage(err)); } }} />
+          <p className="text-[12.5px] text-muted-foreground">
+            Posts use {view.fontSources.body ? <strong className="text-foreground">{view.fontSources.body.family}</strong> : 'Inter'} for text{view.fontSources.display ? <> and <strong className="text-foreground">{view.fontSources.display.family}</strong> for headlines</> : ''}. Choose fonts under <a className="underline underline-offset-2" href="#type">Type</a>: from Google Fonts or a .woff2 of your own.
+          </p>
           <details className="rounded-lg border p-3" open={failing.length > 0}>
             <summary className="cursor-pointer text-[13.5px] font-medium">
               {failing.length ? `${failing.length} of ${checks.length} colour pairs are hard to read` : `All ${checks.length} colour pairs are readable`} <span className="font-normal text-muted-foreground">(headlines, sub lines, labels and accent words on every page colour)</span>
@@ -327,7 +346,10 @@ export function BrandSettingsPage() {
         </Section>
 
         <Section id="type" title="Type" description="How headlines, body text and labels are set. Leave a value empty to keep the brand's own.">
-          <TypeFields style={s.style} onChange={(type) => set('style', { ...s.style, type })} fonts={view.fonts} busy={uploading} onUpload={(role, f, fam) => void uploadFont(f, fam, role)} onRemove={(role) => void removeFont(role)} />
+          <TypeFields
+            style={s.style} onChange={(type) => set('style', { ...s.style, type })} fonts={view.fontSources} version={view.updatedAt ?? ''} busy={uploading}
+            onUpload={(role, f, fam) => void uploadFont(f, fam, role)} onGoogle={(role, fam, w) => void pickGoogleFont(role, fam, w)} onRemove={(role) => void removeFont(role)}
+          />
         </Section>
 
         <Section id="surfaces" title="Surfaces and decoration" description="How cards and panels stand off the page, the texture behind pages, what happens to photos, and where the logo goes.">
@@ -388,22 +410,6 @@ export function BrandSettingsPage() {
   );
 }
 
-function FontPicker({ current, busy, onUpload, onRemove }: { current: string | null; busy: boolean; onUpload: (f: File, family: string) => void; onRemove: () => void }) {
-  const input = useRef<HTMLInputElement>(null);
-  const [family, setFamily] = useState('');
-  return (
-    <div className="flex flex-col gap-2 rounded-lg border p-3">
-      <div className="text-[13.5px] font-semibold">Font</div>
-      <p className="text-[12.5px] text-muted-foreground">{current ? <>Posts use <strong className="text-foreground">{current}</strong>.</> : 'Posts use Inter. To use your own, upload a .woff2 file you are licensed to use and give it a name.'}</p>
-      <div className="flex flex-wrap items-end gap-2">
-        <TextField label="Font name" className="w-56" value={family} onChange={(e) => setFamily(e.target.value)} placeholder="Brand Sans" maxLength={40} />
-        <input ref={input} type="file" accept=".woff2,font/woff2" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f, family.trim() || f.name.replace(/\.[^.]*$/, '').replace(/[^A-Za-z0-9 _-]+/g, ' ').trim().slice(0, 40) || 'Brand'); e.target.value = ''; }} />
-        <BusyButton type="button" variant="outline" size="sm" loading={busy} onClick={() => input.current?.click()}>Upload .woff2</BusyButton>
-        {current && <Button type="button" variant="ghost" size="sm" onClick={onRemove}>Back to Inter</Button>}
-      </div>
-    </div>
-  );
-}
 
 function Advanced({ view, onSaved }: { view: BrandView; onSaved: (v: BrandView) => void }) {
   const [advanced, setAdvanced] = useState(() => JSON.stringify(view.advanced ?? {}, null, 2));
