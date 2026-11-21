@@ -37,19 +37,23 @@ export const POST_FILTERS = [
   { value: 'warnings', label: 'Has warnings' },
 ];
 
+// Every layout a post's design may use, as the design engine names them (packages/engine/design/templates/index.mjs, plus
+// the carousel). The page cover is not here: it is made for a profile, never inside a batch.
 export const TEMPLATES: Array<{ value: string; label: string }> = [
+  { value: 'object', label: 'Object: a photo under a big headline' },
+  { value: 'number', label: 'Number: one big figure' },
+  { value: 'product', label: 'Product: a framed phone screen' },
+  { value: 'myth-fact', label: 'Myth and fact' },
+  { value: 'closing', label: 'Closing page' },
   { value: 'cover', label: 'Cover: photo, headline and sub line' },
   { value: 'text', label: 'Text: a headline, with or without an artefact' },
   { value: 'ledger', label: 'Ledger: a ruled table' },
   { value: 'passbook', label: 'Passbook: a ruled page of days' },
-  { value: 'myth-fact', label: 'Myth and fact' },
-  { value: 'stats', label: 'Stats: one big figure' },
+  { value: 'stats', label: 'Stats: figures side by side' },
   { value: 'screen', label: 'Screen: an app screenshot' },
   { value: 'photo-story', label: 'Photo story' },
-  { value: 'closing', label: 'Closing page' },
-  { value: 'carousel', label: 'Carousel of pages' },
   { value: 'photo', label: 'Photo post' },
-  { value: 'page-cover', label: 'Page cover' },
+  { value: 'carousel', label: 'Carousel of pages' },
 ];
 
 export interface DeliveryState { tone: Tone; label: string; help: string; unknown: boolean }
