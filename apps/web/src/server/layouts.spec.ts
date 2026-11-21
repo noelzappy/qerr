@@ -156,6 +156,19 @@ describe('the brand pack', () => {
   });
 });
 
+describe('the post editor', () => {
+  it('lists the brand\'s layouts and their fields to any signed-in person', async () => {
+    const api = await admin();
+    await api.post('/api/settings/layouts', { definition: layout({ fields: { quote: { required: true, max: 120 } } }) });
+    expect((await t.api().get('/api/layouts')).status).toBe(401);
+    const editor = t.api(await t.signIn(await t.createUser('editor')));
+    const res = await editor.get('/api/layouts');
+    expect(res.status).toBe(200);
+    expect(res.body.layouts).toEqual([{ id: 'big-quote', name: 'Big quote', description: null, sizes: ['feed'], fields: [{ name: 'quote', kind: 'text', required: true, max: 120, min: null, word: 'a quotation' }] }]);
+    expect(JSON.stringify(res.body)).not.toContain('slot');
+  });
+});
+
 describe('the preview', () => {
   it('refuses an invalid layout before any drawing', async () => {
     const api = await admin();

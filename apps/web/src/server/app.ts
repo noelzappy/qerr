@@ -19,6 +19,7 @@ import { overviewRoutes } from './routes/overview.js';
 import { bufferAccountsRoutes } from './routes/buffer-accounts.js';
 import { inviteRoutes } from './routes/invites.js';
 import { layoutRoutes } from './routes/layouts.js';
+import { layoutBriefs } from './services/layouts.js';
 import { localStorageRoutes } from './routes/local-storage.js';
 import { reviewRoutes } from './routes/review.js';
 import { routingRoutes } from './routes/routing.js';
@@ -60,6 +61,12 @@ export function createAppAndDeps(input: AppDeps | Deps, options: { webDir?: stri
     const file = brandInfo().logoMarkFile;
     if (!file || brandState().logosMissing) return c.notFound();
     return c.body(new Uint8Array(fs.readFileSync(file)), 200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=3600' });
+  });
+
+  // The brand's own layouts and the fields each takes, for the post editor (any signed-in person); Settings, Layouts edits them.
+  app.get('/api/layouts', requireUser(deps), async (c) => {
+    await syncBrand(deps);
+    return c.json({ layouts: await layoutBriefs() });
   });
 
   app.get('/api/me', requireUser(deps), (c) => {

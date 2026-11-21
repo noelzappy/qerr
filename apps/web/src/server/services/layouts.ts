@@ -28,6 +28,9 @@ export interface LayoutCatalogue {
 
 interface EngineLayout {
   LAYOUT_ID: RegExp;
+  FIELDS: Record<string, { kind: string; cap?: number; max?: number; chars?: number; word: string }>;
+  loadLayouts(opts?: { root?: string }): unknown[];
+  layoutSizes(l: unknown): string[];
   MAX_LAYOUTS: number;
   validateLayout(l: unknown, where?: string): string[];
   validateLayouts(list: unknown, where?: string): string[];
@@ -110,4 +113,27 @@ export async function freeSlug(deps: Pick<Deps, 'prisma'>, wanted: string): Prom
   if (!taken.has(base)) return base;
   for (let i = 2; i < 1000; i++) if (!taken.has(`${base}-${i}`)) return `${base}-${i}`;
   return `${base}-${randomUUID().slice(0, 4)}`;
+}
+
+export interface LayoutBrief {
+  id: string; name: string; description: string | null; sizes: string[];
+  fields: Array<{ name: string; kind: string; required: boolean; max: number | null; min: number | null; word: string }>;
+}
+
+// The layouts the brand in force has (brand.json "layouts" of the pack the engine reads), for the post editor: what a person
+// fills in for each. Only layouts the engine's validator accepts are listed.
+export async function layoutBriefs(): Promise<LayoutBrief[]> {
+  const { layout } = await layoutEngine();
+  const engine = await pipelineEngine();
+  return (layout.loadLayouts({ root: engine.root }) as Json[]).filter((l) => !layout.validateLayout(l).length).map((l) => {
+    const fields = (isObj(l.fields) ? l.fields : {}) as Record<string, { required?: boolean; max?: number; min?: number }>;
+    return {
+      id: String(l.id), name: String(l.name), description: typeof l.description === 'string' ? l.description : null, sizes: layout.layoutSizes(l),
+      fields: Object.entries(fields).map(([name, f]) => {
+        const F = layout.FIELDS[name];
+        const list = F.kind === 'stats' || F.kind === 'items';
+        return { name, kind: F.kind, required: f.required === true || (list && (f.min ?? 0) > 0), max: f.max ?? F.max ?? null, min: list ? f.min ?? null : null, word: F.word };
+      }),
+    };
+  });
 }
