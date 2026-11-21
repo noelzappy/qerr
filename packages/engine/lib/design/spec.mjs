@@ -1,4 +1,4 @@
-// The plain spec an owner writes by hand (a "design" block in a batch, a --spec file, or flags), checked and normalised.
+// A post's "design" block (written in the web app, imported with a batch, or drafted by the AI), checked and normalised.
 // Pure: no Chrome, no file system (image files are checked when rendering).
 import path from 'node:path';
 import { shapeProblems } from './checks.mjs';
