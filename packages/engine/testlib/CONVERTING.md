@@ -188,6 +188,14 @@ the table (for example `closing`'s default text, `region`) is a shared change: a
   conditions. The first variant whose `when` holds is drawn; a spec that matches none falls back to the function.
 - **`ensureValid`.** The registry validates every built-in layout the first time one is used and throws a plain `Error` naming
   each problem; `test-design-builtin.mjs` checks the same with `builtinProblems()`.
+- **Artefacts (ledger, passbook, text with an artefact).** The panel's top comes from a table by headline size and sub line, and
+  the size's default depends on the artefact (112 for a passbook page on its own without a sub line, else 84). A `when` holds
+  only one `field`, so the size is tested per band (`{ field: 'size', not: [70, 112], absent: 'sub' }` is 84 or unset) and the
+  type or register at the registry. The card geometry stays in `artefactCards` (`design/templates/artefacts.mjs`), from the
+  block's rectangle. The `register` choice used to read `spec.register` or `spec.artefact.register` whatever the template, so a
+  stray top-level `register` on a text page (which validateDesign lets through and the function ignores) picked the wrong
+  variant; it now reads the register the template draws (a shared change). An `import` may sit inside a group's section of
+  `layout-editorial.mjs` (imports are hoisted), which keeps the file's header free of merge conflicts.
 
 ## Pre-existing issues seen in the baseline (not part of the conversion)
 

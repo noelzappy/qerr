@@ -433,7 +433,15 @@ for the demo brand and two style variants, before and after, and compares the pi
 - Poster (`lib/design/builtin/poster.mjs`): **`number`** is drawn from its layout; `object`, `product`, `myth-fact` and
   `closing` by their functions.
 
-- Artefacts (`lib/design/builtin/artefacts.mjs`): `ledger`, `passbook` and a `text` page with an artefact by their functions.
+- Artefacts (`lib/design/builtin/artefacts.mjs`): **`ledger`**, **`passbook`** (on its own, and with a register card) and a
+  **`text`** page with an artefact (one layout per type: ledger, register card, passbook page, passbook page with its register
+  card) are drawn from their layouts. Each is one band per headline size (70, 84, 112) with and without a sub line: the panel's
+  top, the headline's width and the card's place follow them, as on the templates, and the bands' conditions exclude each other.
+  The cards are an `artefact` block on the editorial page, drawn from the rectangle's top-left (a ledger or register card its own
+  drawn size, a ledger's notes under it; a passbook page fills the rectangle; beside its register card it is 410 px wide). Its
+  built-in-only option `from` (`field`, `ledger` or `passbook`) says where the artefact is: a text page's `artefact` field, or the
+  ledger or passbook template's own fields. A condition on `register` reads the register card the template draws (the passbook
+  template's own `register`, a text page's artefact's).
 
 - Editorial (`lib/design/builtin/editorial.mjs`): **`text`** without an artefact is drawn from its layout; `cover`, `stats` and
   `photo-story` by their functions.
