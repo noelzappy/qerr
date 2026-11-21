@@ -343,7 +343,8 @@ export function contactSheets(run, { root = ROOT, only, styles = STYLE_NAMES, ca
           for (let c = 0; c < 3; c++) px[o + c] = Math.round(s[c] / (k * k));
         }
       });
-      const file = path.join(dir, `sheet-${style}-${start / per + 1}.png`);
+      const what = cases?.length ? 'cases' : only?.length ? only.join('+') : 'all';
+      const file = path.join(dir, `sheet-${what}-${style}-${start / per + 1}.png`);
       fs.writeFileSync(file, pngBytes(W, H, (x, y) => { const o = (y * W + x) * 3; return [px[o], px[o + 1], px[o + 2]]; }));
       written.push({ file: path.relative(root, file), images: files.slice(start, start + per) });
     }
