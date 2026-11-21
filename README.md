@@ -168,7 +168,8 @@ rewrite as part of the brand. They are taste, not facts: the prompts tell the mo
 leave room and never to quote them as claims. The drafting model must be able to read images.
 
 **Layouts** (Settings, Layouts) are the brand's own compositions: blocks (a headline, a photo, a colour panel, figures, the
-logo) placed in slots on a grid, with options from fixed lists. No one writes markup or CSS: the engine checks every layout,
+logo) placed in slots on a grid, with options from fixed lists, edited visually (conditions and page-colour cases included) or
+as JSON. No one writes markup or CSS: the engine checks every layout,
 draws it in the brand's look and checks each image like a built-in page. A post picks one in its design, the AI is told
 about the ones in use, and a design reference may suggest one, which an admin previews before adding it. The built-in templates'
 own layouts are listed there too, read only; an admin may duplicate one (all but the phone beside a passbook and the photo post)

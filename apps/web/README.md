@@ -130,13 +130,17 @@ and rendering never does. Uploading a woff2 file needs no outbound access.
 **Settings, Layouts** (`/api/settings/layouts`, `src/server/routes/layouts.ts`, admins only) holds the brand's own
 compositions: blocks placed in slots on a grid, as data the engine's layout validator checks
 (`packages/engine/lib/design/layout.mjs`; the format is in [docs/design.md](../../docs/design.md), "Your own layouts"). The
-editor places a block by clicking two cells of the grid, offers each block's options from the engine's catalogue, sketches
-the page as it changes, shows the engine's verdict as you type and draws a real preview with the brand on request; a JSON
-view shows the layout as the engine reads it. Starting points like the built-in pages come from the engine
+editor covers everything a brand's layout can say, from the engine's catalogue (`layoutCatalogue().pages`) for the layout's
+kind of page: blocks placed by clicking two cells of the grid or in pixels, on every size or per size; every option, the blocks
+inside a slab, the condition each block is drawn on ("Show this block": a field filled or empty, a carousel page, a choice's
+values), the page colour as one ground or cases, sizes, grids and fields. It sketches the page as it changes, "as if" a field
+were empty, on a carousel page or with a choice's value, shows the engine's verdict as you type and draws a real preview with
+the brand on request; a JSON view shows the layout as the engine reads it, and switching between them loses nothing
+(`web/src/pages/settings/layout-model.ts`, checked by `src/web-layout-model.spec.ts`; see docs/design.md, "Editing a layout"). Starting points like the built-in pages come from the engine
 (`lib/design/layout-starters.mjs`), and so do the built-in templates' own layouts, listed read only with a sketch, their variant and
 their fields: "Duplicate to edit" copies one into a layout of the brand's own (`builtinCopy`), switched off, on the built-in
-poster or editorial page, where the editor sets each block's rectangle in pixels and its options from the page's own lists
-(`layoutCatalogue().pages`); conditions are edited in the JSON view. What reads a built-in template's own design settings, and
+poster or editorial page, where the editor sets each block's rectangle in pixels and its options, conditions and ground cases
+from the page's own lists (`layoutCatalogue().pages`). What reads a built-in template's own design settings, and
 the photo post's and page covers' pages, are refused for a brand's layout (see [docs/design.md](../../docs/design.md), "Starting
 from a built-in layout"). Layouts are stored in `brand_layouts`; the enabled ones go into the pack's `brand.json`
 as `layouts` on every sync (one that no longer passes is left out and logged), where a post's design names one
@@ -144,10 +148,10 @@ as `layouts` on every sync (one that no longer passes is left out and logged), w
 
 | Route | Does |
 |---|---|
-| `GET /api/settings/layouts` | the layouts, the starting points, the built-in layouts (`builtins`: read only, each with `template`, `variant`, `copyable` and `why` not) and the engine's catalogue of blocks, options, fields and built-in pages |
+| `GET /api/settings/layouts` | the layouts, the starting points, the built-in layouts (`builtins`: read only, each with `template`, `variant`, `copyable` and `why` not) and the engine's catalogue (`catalogue.pages`: every kind of page a brand's layout may use, with its blocks, options, fields, conditions and grounds) |
 | `POST /api/settings/layouts` | add one: `{ definition, origin? }`, `{ starter, name? }` (a copy of a starting point under a free id) or `{ builtin, name? }` (a copy of a built-in layout under a free id, switched off; 400 with the reason for one a brand may not use) |
 | `POST /api/settings/layouts/validate` | `{ problems }` for a definition, nothing stored |
-| `POST /api/settings/layouts/preview` | `{ definition, size?, sample? }`: one image drawn with sample words through the renderer and every check, under the render lock, as a JPEG data URL; nothing stored |
+| `POST /api/settings/layouts/preview` | `{ definition, size?, sample?, empty?, artefact? }`: one image drawn with sample words (`empty`: fields left empty; `artefact`: the sample artefact's type) through the renderer and every check, under the render lock, as a JPEG data URL; nothing stored |
 | `PUT /api/settings/layouts/:id` | replace the definition; a new id is refused while a post uses the old one |
 | `PATCH /api/settings/layouts/:id` | `enabled`, `position` |
 | `POST /api/settings/layouts/:id/duplicate` | a copy under a free id, switched off |
