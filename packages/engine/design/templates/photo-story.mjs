@@ -1,6 +1,9 @@
 // photo-story: a photograph and the story under it. "panel": a full-bleed photo at the top, then a label, headline and sub line
 // (people in a place are a scene, never an object). "print": the headline and sub line on top, the photo as a raised card with the
 // card radius on the tint panel.
+// UNUSED: both variants are drawn from their layouts (lib/design/builtin/editorial.mjs). This function stays, unused, until
+// every template is converted (testlib/CONVERTING.md); test-design-builtin-editorial.mjs compares the layouts with it. (A
+// photo-story whose layout is not panel or print, which validateDesign refuses, still reaches it.)
 import { footer, folio, head, lbl, obj, page, panel, photoWindow, styleOf, textBlock } from './editorial.mjs';
 
 export function photoStory(spec, ctx) {

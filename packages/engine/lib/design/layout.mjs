@@ -185,6 +185,9 @@ export const BLOCKS = {
   // -- artefacts group --
   // (end of artefacts group)
   // -- editorial group --
+  // the editorial label row (photo-story's panel page): the series' name (or the spec's label) on the left and, on a carousel
+  // page, the folio on the right, across its rectangle
+  labelrow: { kinds: [], field: null, options: {}, text: true, pages: ['editorial'] },
   // (end of editorial group)
   // -- screen group --
   // (end of screen group)
@@ -248,6 +251,10 @@ export const PAGES = {
       // -- artefacts group --
       // (end of artefacts group)
       // -- editorial group --
+      photo: ['frame'],
+      figure: ['size', 'shrink'],
+      stats: ['direction', 'size', 'rules', 'shrink'],
+      labelrow: [],
       // (end of editorial group)
       // -- screen group --
       // (end of screen group)
