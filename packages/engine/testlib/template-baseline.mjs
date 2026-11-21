@@ -163,6 +163,12 @@ export const CASES = [
   { id: 'screen-desktop', design: { template: 'screen', device: 'desktop', headline: 'Watch the page fill *towards its target.*', sub: 'Anyone can see how far the page has come.', image: IMG.desk, title: 'Passbooks', region: 0.75 } },
   { id: 'screen-desktop-tilt', design: { template: 'screen', device: 'desktop', headline: 'Every passbook, *on record.*', image: IMG.desk, tilt: true } },
   { id: 'screen-desktop-framed', design: { template: 'screen', device: 'desktop', headline: 'As captured.', image: IMG.desk, framed: true, ground: 'soft' } },
+  { id: 'screen-phone-both-series', design: { template: 'screen', headline: 'Built *for groups.*', sub: 'Every change is logged.', image: IMG.phone, pills: ['Read-only'], checks: ['Two-person approval', 'Every change logged'], series: 'news' } },
+  { id: 'screen-phone-plain-dark', design: { template: 'screen', headline: 'On the phone, *in the dark.*', image: IMG.phone, ground: 'ink', accent: 'weight', dots: false, label: 'The app', headRight: 'Issue 5' } },
+  { id: 'screen-fade-sub-checks-dark', design: { template: 'screen', headline: 'The app, *faded out.*', sub: 'Only the top of the phone shows.', image: IMG.phone, fade: true, checks: ['Two-person approval'], ground: 'dark' } },
+  { id: 'screen-fade-noglow-pills', design: { template: 'screen', headline: 'No glow, *two pills.*', image: IMG.phone, fade: true, glow: false, pills: ['Read-only by design', 'Two-person approval'], series: 'explainers' } },
+  { id: 'screen-beside-nosub-gold', design: { template: 'screen', headline: 'The passbook *beside the phone.*', image: IMG.phone, beside: { days: 28, ticked: 9, today: 10, tick: 'gold' }, ground: 'deep', accent: 'colour' } },
+  { id: 'screen-desktop-framed-title-region', design: { template: 'screen', device: 'desktop', headline: 'Framed, *zoomed in.*', sub: 'Only the top-left half of the capture shows.', image: IMG.desk, framed: true, title: 'Passbooks', region: 0.5, series: 'the-numbers', dots: false } },
   // photo-story (editorial)
   { id: 'photo-story', design: { template: 'photo-story', headline: 'Market day, *together.*', sub: 'The collector comes round every Friday.', image: IMG.scene } },
   { id: 'photo-story-print', design: { template: 'photo-story', layout: 'print', headline: 'A jar *for every goal.*', sub: 'Small deposits add up.', image: IMG.jar, series: 'community' } },
