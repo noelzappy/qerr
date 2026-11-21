@@ -1,7 +1,7 @@
 // text: a headline and a sub line. With an artefact (a ledger, a passbook page or a register card) it sits on the panel below;
-// without one it is the typographic pause page: a big headline and the sub line on an empty panel band. The pause page is drawn
-// from its layout (lib/design/builtin/editorial.mjs); this function still draws a text page with an artefact, and goes when that
-// is converted too (testlib/CONVERTING.md).
+// without one it is the typographic pause page: a big headline and the sub line on an empty panel band. Unused: the pause page is
+// drawn from its layout (lib/design/builtin/editorial.mjs), a text page with an artefact from one layout per type of artefact
+// (lib/design/builtin/artefacts.mjs); the function stays until every template is converted (testlib/CONVERTING.md).
 import { artefactPage } from './artefactPage.mjs';
 import { footer, head, page, panel, textBlock } from './editorial.mjs';
 import { fmtSub } from './common.mjs';

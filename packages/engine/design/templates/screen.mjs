@@ -15,8 +15,9 @@ const BAND = { top: 126, bottom: 1240 };
 // fade: the text across the top, the phone centred under it, cut and faded out above the footer (the website's product wells).
 export const PHONE_FADE_W = 620;
 const FADE = { top: 600, bottom: 1236 };
-// A capture's height over its width (the website's phones are 660 x 1354).
-const ratioOf = (ctx, spec) => { const d = ctx.imageSize?.(spec.image); return d && d.w > 0 ? d.h / d.w : 1354 / 660; };
+// A capture's height over its width (the website's phones are 660 x 1354). Also used by the layout drawings
+// (lib/design/layout-editorial.mjs).
+export const ratioOf = (ctx, spec) => { const d = ctx.imageSize?.(spec.image); return d && d.w > 0 ? d.h / d.w : 1354 / 660; };
 const withGlow = (spec) => spec.glow !== false;
 
 function phonePage(spec, ctx) {
@@ -52,4 +53,6 @@ function desktopPage(spec, ctx) {
   return page(ctx, spec, { body });
 }
 
+// Unused: screen is drawn from its layouts (lib/design/builtin/screen.mjs, every variant); kept until phase 2 removes the
+// template functions (testlib/CONVERTING.md). The tests compare the layouts' pages with it (LEGACY_FNS).
 export const screen = (spec, ctx) => ((spec.device ?? 'phone') === 'desktop' ? desktopPage(spec, ctx) : phonePage(spec, ctx));

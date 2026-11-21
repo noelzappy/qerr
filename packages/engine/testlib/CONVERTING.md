@@ -188,6 +188,35 @@ the table (for example `closing`'s default text, `region`) is a shared change: a
   conditions. The first variant whose `when` holds is drawn; a spec that matches none falls back to the function.
 - **`ensureValid`.** The registry validates every built-in layout the first time one is used and throws a plain `Error` naming
   each problem; `test-design-builtin.mjs` checks the same with `builtinProblems()`.
+- **Screen (done).** A `when` tests one choice only, so two independent flags (a desktop window's `framed` and `tilt`) cannot
+  pick among blocks: the block reads the spec's own validated flags instead (`specWindow`, like `specSize`). A piece drawn in
+  two places of the DOM (the glow before the running head, the phone after the text) is two blocks: `halo` has no rectangle and
+  is sized from the layout's `screen` block as that block draws the phone. A flex row of two blocks is drawn by one of them:
+  the headline with `row` draws the row and the phone in it (the screen block then draws nothing), from the two rectangles
+  (their band, the gap between them), and refuses a phone that is not beside it at the same height. The template's footer has
+  no label at all (`footer(ctx, { label: '' })`), so it is its own chrome block (`footlogo`) rather than a change to the shared
+  footer drawing. The sub line decides the panel's top (`panelTopFor`): blocks in pairs with `{ present: 'sub' }` and
+  `{ absent: 'sub' }`. Imports a group's drawings need are written in its own section of the page file, as namespaces with
+  names of their own (`import * as screenKit from ...`), so no merge declares a name twice.
+- **Editorial group (cover, stats, photo-story).** The editorial page now draws `photo` (`frame`), `figure`, `stats` and the
+  new `labelrow`, each with the editorial markup, which is not the poster's: the stats figure is a bare `abs h big` box with its
+  line height set and *no* `#txt` (the stats page has none, so `editorialFigure` never calls `lead`); a `row` of stats is bold
+  numbers over labels in the sub style (`size` unused), a `column` is the ruled rows (its style keeps the template's trailing
+  `;` on the first row). A rule decoration is drawn across the middle of its rectangle, so stats' rule at `top:420px` is
+  `y: 419, h: 2`. photo-story's default variant is `{ field: 'layout', not: ['center', 'side', 'print'] }` (unset or panel), so
+  a layout it does not take still goes to the function, as `(spec.layout ?? 'panel') === 'panel'` decided. Two blocks with
+  `present`/`absent: 'image'` share the stats field and the space under the line. `test-design-layout.mjs` asserted that an
+  editorial page draws no `figure`; it now tests the refusal with a `slab` (a shared change). Imports a group needs in a
+  shared page file go in its own section under names of its own (`import * as editorialKit ...`), so two groups importing the
+  same helper do not declare it twice when their branches merge.
+- **Artefacts (ledger, passbook, text with an artefact).** The panel's top comes from a table by headline size and sub line, and
+  the size's default depends on the artefact (112 for a passbook page on its own without a sub line, else 84). A `when` holds
+  only one `field`, so the size is tested per band (`{ field: 'size', not: [70, 112], absent: 'sub' }` is 84 or unset) and the
+  type or register at the registry. The card geometry stays in `artefactCards` (`design/templates/artefacts.mjs`), from the
+  block's rectangle. The `register` choice used to read `spec.register` or `spec.artefact.register` whatever the template, so a
+  stray top-level `register` on a text page (which validateDesign lets through and the function ignores) picked the wrong
+  variant; it now reads the register the template draws (a shared change). An `import` may sit inside a group's section of
+  `layout-editorial.mjs` (imports are hoisted), which keeps the file's header free of merge conflicts.
 - **The photo page (photo group).** A block option is one value for every size, but the photo post sets its type per size
   (headline 112/68/120/88, sub, eyebrow, the sub line's width 800 or 560 on wide): those live in the page's own table,
   `PAGES.photo.type`, and only the text box's rectangle is the layout's (`px` per size). The eyebrow is drawn inside the
@@ -207,6 +236,10 @@ the table (for example `closing`'s default text, `region`) is a shared change: a
 
 ## Pre-existing issues seen in the baseline (not part of the conversion)
 
-- With the logo at the bottom (`style.logo` `bottom-left`/`bottom-right`), the poster bar sits over the photo of `number` and
-  `object` and over the phone of `product`; on a dark ground with a treated photo the white wordmark is unreadable there, and no
-  check measures the logo's contrast. Reproduce it as it is; fix it separately.
+- Fixed since (2026-11-21): with the logo at the bottom (`style.logo` `bottom-left`/`bottom-right`), the poster bar sat over the
+  photo of `number` and `object` and over the phone of `product`, white on a pale treated photo or into the phone's frame. Now
+  `bar(ctx, dark, { bottomTaken })` keeps the bar at the top when a photo or phone reaches the bottom: `object` always, `number`
+  with a photo, `product` when the phone's full height reaches `BAR_LOW`, and the layout `bar` block when a photo block is drawn.
+  A converted `object` or `product` (a phone block) must make the same decision in `layout-poster.mjs`'s `bar` drawing, or its
+  markup will differ from the function's. The wordmark is also measured now (`data-role="logo"`, the label target, a warning
+  only), so a logo left over a picture shows up in the baseline's warnings.

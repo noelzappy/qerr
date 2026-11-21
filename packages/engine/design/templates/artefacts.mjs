@@ -2,6 +2,7 @@
 // numbers; every word goes through esc(); every colour is a CSS class (the colours live in the brand pack's brand.json).
 import { LIMITS, MONO_ADVANCE, ledgerLayout, passbookGeometry, registerHeight } from '../../lib/design/figures.mjs';
 import { esc, px } from './common.mjs';
+import { lbl, note, obj } from './editorial.mjs';
 
 const n = (v) => px(v);
 const num = (v, lo, hi, fallback) => (Number.isFinite(Number(v)) ? Math.min(hi, Math.max(lo, Number(v))) : fallback);
@@ -64,4 +65,28 @@ export function passbookSvg(w, h, { days = 31, ticked = 0, today = 0, tick = 'in
     if (i + 1 === now) g += `<rect class="ln-ink nofill" x="${n(cx + 1)}" y="${n(cy + 1)}" width="${n(G.cw - 2)}" height="${n(G.ch - 2)}" stroke-width="2.5"/>`;
   }
   return g;
+}
+
+// The artefact as the editorial pages set it on the panel, as crisp white cards in the rectangle r (page pixels, from validated
+// numbers): a ledger card (its drawn size, its notes under it) or a register card at r's top-left; a passbook page filling r;
+// or, with a register card, the passbook page 410 px wide and r's height at r's top-left and the register card at r's top-right.
+// onPanel: the notes sit on the tint panel (the fit check then does not count the panel's edge for them).
+export function artefactCards(art, r, { onPanel = true } = {}) {
+  const at = (x, y, t) => (onPanel ? note(x, y, t) : `<div class="abs" style="left:${n(x)}px;top:${n(y)}px">${lbl(t, 'n', 'label')}</div>`);
+  if (art.type === 'ledger') {
+    const f = ledgerSvg(art), pad = 40, w = f.w + 2 * pad, h = f.h + 2 * pad;
+    return obj(r.x, r.y, w, h, 'card', svgBox(pad, pad, f.w, f.h, f.svg)) + (art.notes ?? []).map((t, i) => at(r.x, r.y + h + 44 + i * 42, t)).join('');
+  }
+  if (art.type === 'register') {
+    const f = registerSvg(art), pad = 32, w = f.w + 2 * pad, h = f.h + 2 * pad;
+    return obj(r.x, r.y, w, h, 'card', svgBox(pad, pad, f.w, f.h, f.svg));
+  }
+  const pass = { days: art.days ?? 31, ticked: art.ticked ?? 0, today: art.today ?? 0, tick: art.tick ?? 'ink' };
+  if (art.register) {
+    const pw = 410, ph = r.h, pad = 30, f = registerSvg(art.register), cw = f.w + 64, ch = f.h + 64;
+    return obj(r.x, r.y, pw, ph, 'card', svgBox(pad, pad, pw - 2 * pad, ph - 2 * pad, passbookSvg(pw - 2 * pad, ph - 2 * pad, pass)))
+      + obj(r.x + r.w - cw, r.y, cw, ch, 'card', svgBox(32, 32, f.w, f.h, f.svg));
+  }
+  const pad = 34, w = r.w - 2 * pad, h = r.h - 2 * pad;
+  return obj(r.x, r.y, r.w, r.h, 'card', svgBox(pad, pad, w, h, passbookSvg(w, h, pass)));
 }

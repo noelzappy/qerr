@@ -1,5 +1,7 @@
 // stats: one big figure (168 px, its accent set by the series), a line under it, up to three supporting figures, and optionally a
 // photo as a full-bleed panel across the bottom. Without a photo the supporting figures stack as ruled rows.
+// UNUSED: the stats page is drawn from its layout (lib/design/builtin/editorial.mjs). This function stays, unused, until every
+// template is converted (testlib/CONVERTING.md); test-design-builtin-editorial.mjs compares the layout with it.
 import { fmtE, fmtSub, hs, px } from './common.mjs';
 import { footer, head, page, photoWindow } from './editorial.mjs';
 
