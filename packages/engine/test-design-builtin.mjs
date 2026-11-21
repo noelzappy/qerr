@@ -13,9 +13,10 @@ import { validateLayout } from './lib/design/layout.mjs';
 import { layoutFit } from './lib/design/layout-render.mjs';
 import { preparePage } from './lib/design/render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
-import { forSize, normaliseDesign } from './lib/design/spec.mjs';
+import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
 import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
-import { CASES, STYLES } from './testlib/template-baseline.mjs';
+import { markupFixture } from './testlib/markup-fixture.mjs';
+import { CASES, STYLES, currentMarkup } from './testlib/template-baseline.mjs';
 
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const demo = loadBrand();
@@ -25,6 +26,22 @@ const brands = Object.fromEntries(Object.entries(STYLES).map(([k, style]) => [k,
 const CONVERTED = Object.keys(BUILTIN);
 const ctxOf = (brand, counter, dims = { w: 1800, h: 1800 }) => ({ size: SIZES.feed, brand, counter, image: () => PIXEL, imageSize: () => dims });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '' });
+// The pages are checked against the hashes recorded from the template functions (testlib/markup-fixture.mjs).
+const fx = markupFixture('builtin');
+const harness = markupFixture('harness');
+const draw = (t, spec, ctx) => {
+  const page = parts(TEMPLATE_FNS[t](spec, ctx));
+  assert.deepEqual(page, parts(LEGACY_FNS[t](spec, ctx)), `${t}: the layout's page is the function's`);
+  return page;
+};
+const refusal = (t, spec, ctx) => {
+  let a, b;
+  try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
+  try { LEGACY_FNS[t](spec, ctx); } catch (e) { b = e; }
+  assert.ok(a instanceof DesignError && b instanceof DesignError, JSON.stringify(spec).slice(0, 120));
+  assert.equal(a.message, b.message);
+  return `DesignError: ${a.message}`;
+};
 
 // Every page of the harness's cases that one of the converted templates draws, as the spec the renderer sees.
 const pages = CASES.flatMap((c) => {
@@ -47,10 +64,9 @@ test('a converted template draws exactly the page its function drew, for every c
   assert.ok(pages.length >= 10, `${pages.length} pages`);
   for (const [style, brand] of Object.entries(brands)) {
     for (const p of pages) {
-      for (const counter of [p.counter, undefined, { n: 1, total: 4 }, { n: 3, total: 4 }]) {
-        const spec = forSize(p.spec, 'feed');
-        assert.deepEqual(parts(TEMPLATE_FNS[spec.template](spec, ctxOf(brand, counter))), parts(LEGACY_FNS[spec.template](spec, ctxOf(brand, counter))), `${style} ${p.id} ${JSON.stringify(counter)}`);
-      }
+      const spec = forSize(p.spec, 'feed');
+      const drawn = [p.counter, undefined, { n: 1, total: 4 }, { n: 3, total: 4 }].map((counter) => draw(spec.template, spec, ctxOf(brand, counter)));
+      fx.check({ page: p.id, style }, drawn, `${style} ${p.id}`);
     }
   }
 });
@@ -73,22 +89,14 @@ test('the same page with every field filled, empty, hostile, and every ground an
   for (const [style, brand] of Object.entries(brands)) {
     for (const s of specs) {
       const spec = forSize(normaliseDesign(s), 'feed');
-      for (const counter of [undefined, { n: 1, total: 2 }, { n: 2, total: 2 }]) {
-        assert.deepEqual(parts(TEMPLATE_FNS[s.template](spec, ctxOf(brand, counter))), parts(LEGACY_FNS[s.template](spec, ctxOf(brand, counter))), `${style} ${JSON.stringify(s).slice(0, 120)}`);
-      }
+      const drawn = [undefined, { n: 1, total: 2 }, { n: 2, total: 2 }].map((counter) => draw(s.template, spec, ctxOf(brand, counter)));
+      fx.check({ s, style }, drawn, `${style} ${JSON.stringify(s).slice(0, 120)}`);
     }
   }
 });
 
 test('a converted template refuses what its function refused, with the same words', () => {
-  const same = (s) => {
-    const spec = forSize(normaliseDesign(s), 'feed');
-    let a, b;
-    try { TEMPLATE_FNS[s.template](spec, ctxOf(demo)); } catch (e) { a = e; }
-    try { LEGACY_FNS[s.template](spec, ctxOf(demo)); } catch (e) { b = e; }
-    assert.ok(a instanceof DesignError && b instanceof DesignError, JSON.stringify(s));
-    assert.equal(a.message, b.message);
-  };
+  const same = (s) => fx.check({ refused: s }, refusal(s.template, forSize(normaliseDesign(s), 'feed'), ctxOf(demo)), JSON.stringify(s));
   same({ template: 'number', big: '1', ground: 'photo' }); // a photo ground with no photo
   same({ template: 'number', big: '1', series: 'nope' });
   same({ template: 'number', big: '1', ground: 'purple', image: 'a.jpg' });
@@ -104,4 +112,58 @@ test('the renderer draws a converted template from its layout, with the template
   assert.equal(preparePage(brand, { spec: normaliseDesign({ template: 'number', big: '1' }), sizeName: 'feed' }).layout.id, 'number');
   // a template that is not converted has no layout (the closing page, while it is drawn by its function)
   if (!CONVERTED.includes('closing')) assert.equal(preparePage(brand, { spec: normaliseDesign({ template: 'closing' }), sizeName: 'feed' }).layout, null);
+});
+
+// Every design the templates' validator accepts, over every choice the registry's variants are chosen by, is drawn from a
+// layout: no valid design reaches a page without one (the template functions are gone).
+test('every valid design of a built-in template, at every size and carousel page, has a built-in layout', () => {
+  const REG = { title: 'T', rows: [['Rent', '400.00']], mark: 0 };
+  const LEDGER = { columns: [{ label: 'Day' }, { label: 'Paid', align: 'end' }], rows: [['01', '10.00']] };
+  const ARTEFACTS = [undefined, { type: 'ledger', ...LEDGER }, { type: 'register', ...REG }, { type: 'passbook', days: 30 }, { type: 'passbook', days: 30, register: REG }];
+  const SIZES_ = [undefined, 70, 76, 84, 88, 104, 112, 120];
+  const BASE = {
+    object: [{ headline: 'h', image: 'a.jpg' }, { size: SIZES_, align: [undefined, 'left', 'center'], sub: [undefined, 's'] }],
+    number: [{ big: '1' }, { image: [undefined, 'a.jpg'], ground: [undefined, 'photo'] }],
+    product: [{ headline: 'h', image: 'a.png' }, { layout: [undefined, 'center', 'side', 'panel'], size: SIZES_, glow: [undefined, true, false], sub: [undefined, 's'] }],
+    'myth-fact': [{ myth: 'm', factLead: 'f' }, { fact: [undefined, 'x'] }],
+    closing: [{}, { map: [undefined, true, false], headline: [undefined, 'h'] }],
+    cover: [{ headline: 'h', image: 'a.jpg' }, { sub: [undefined, 's'] }],
+    text: [{ headline: 'h' }, { artefact: ARTEFACTS, size: SIZES_, sub: [undefined, 's'], register: [undefined, REG] }],
+    ledger: [{ headline: 'h', ...LEDGER }, { size: SIZES_, sub: [undefined, 's'], notes: [undefined, ['n']] }],
+    passbook: [{ headline: 'h' }, { size: SIZES_, sub: [undefined, 's'], register: [undefined, REG], artefact: [undefined, { type: 'passbook', register: REG }] }],
+    stats: [{ big: '1' }, { image: [undefined, 'a.jpg'], stats: [undefined, ['1|a'], ['1|a', '2|b', '3|c']] }],
+    screen: [{ headline: 'h', image: 'a.png' }, { device: [undefined, 'phone', 'desktop'], beside: [undefined, { days: 31 }], fade: [undefined, true, false], glow: [undefined, false], pills: [undefined, ['p']], sub: [undefined, 's'] }],
+    'photo-story': [{ headline: 'h', image: 'a.jpg' }, { layout: [undefined, 'panel', 'print', 'center', 'side'], sub: [undefined, 's'] }],
+    photo: [{ headline: 'h', image: 'a.jpg' }, { textAt: [undefined, 'top', 'bottom', { feed: 'bottom', story: 'top' }], scrim: [undefined, 'none'], sizes: [undefined, ['feed', 'wide', 'story', 'square']] }],
+    pagecover: [{}, { kind: [undefined, 'profile', 'facebook', 'linkedin', 'x', 'feed'] }],
+  };
+  const product = (vary) => Object.entries(vary).reduce((list, [k, vs]) => list.flatMap((o) => vs.map((v) => (v === undefined ? o : { ...o, [k]: v }))), [{}]);
+  let n = 0;
+  for (const [template, [base, vary]] of Object.entries(BASE)) {
+    for (const v of product(vary)) {
+      const d = { template, ...base, ...v };
+      if (validateDesign(d).length) continue;
+      const spec = normaliseDesign(d);
+      const sizes = template === 'pagecover' ? [d.kind] : spec.sizes;
+      for (const size of sizes) {
+        for (const counter of template === 'photo' || template === 'pagecover' ? [undefined] : [undefined, { n: 1, total: 2 }, { n: 2, total: 2 }]) {
+          assert.ok(builtinLayoutFor(forSize(spec, size), counter), `no layout for ${JSON.stringify(d)} at ${size} ${JSON.stringify(counter)}`);
+          n++;
+        }
+      }
+    }
+  }
+  assert.ok(n > 1000, `${n} designs`);
+});
+
+test('every page of the harness, at every size it is made at and for every style, has the markup recorded', async () => {
+  const all = await currentMarkup();
+  let n = 0;
+  for (const [style, files] of Object.entries(all)) for (const [file, text] of Object.entries(files)) { harness.check(`${style}/${file}`, text); n++; }
+  assert.ok(n >= 400, `${n} pages`);
+});
+
+test('the markup fixture holds every case these tests draw, and only those', () => {
+  fx.done();
+  harness.done();
 });

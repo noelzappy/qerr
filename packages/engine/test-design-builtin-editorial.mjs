@@ -16,6 +16,7 @@ import { renderLayoutWith } from './lib/design/layout-render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
 import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
+import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
@@ -24,6 +25,21 @@ const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
 const brands = Object.fromEntries(Object.entries(STYLES).map(([k, style]) => [k, style ? { ...demo, ...normaliseBrand({ ...RAW, style }) } : demo]));
 const ctxOf = (brand, counter) => ({ size: SIZES.feed, brand, counter, image: () => PIXEL, imageSize: () => ({ w: 1800, h: 1200 }) });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '', warnings: o.warnings ?? [] });
+// The pages are checked against the hashes recorded from the template functions (testlib/markup-fixture.mjs).
+const fx = markupFixture('editorial');
+const draw = (t, spec, ctx) => {
+  const page = parts(TEMPLATE_FNS[t](spec, ctx));
+  assert.deepEqual(page, parts(LEGACY_FNS[t](spec, ctx)), `${t}: the layout's page is the function's`);
+  return page;
+};
+const refusal = (t, spec, ctx) => {
+  let a, b;
+  try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
+  try { LEGACY_FNS[t](spec, ctx); } catch (e) { b = e; }
+  assert.ok(a instanceof DesignError && b instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a} / ${b}`);
+  assert.equal(a.message, b.message);
+  return `DesignError: ${a.message}`;
+};
 const has = (errs, frag) => errs.some((e) => e.includes(frag));
 const H = ['"><script>window.__pwn=1</script>', '</style><script>x</script>', '<img src=x onerror=alert(1)>', '*a* \\n b', '`${x}`', 'url(http://evil.example/x)'];
 const GROUNDS = ['light', 'soft', 'cool', 'warm', 'dark', 'deep', 'white', 'tint', 'mint', 'gold-pale', 'ink'];
@@ -34,11 +50,9 @@ const COUNTERS = [undefined, { n: 1, total: 2 }, { n: 2, total: 2 }, { n: 7, tot
 // warnings; the layout's must be none either.
 function same(s, msg = JSON.stringify(s).slice(0, 140)) {
   const spec = forSize(normaliseDesign(s), 'feed');
-  for (const [style, brand] of Object.entries(brands)) {
-    for (const counter of COUNTERS) {
-      assert.deepEqual(parts(TEMPLATE_FNS[s.template](spec, ctxOf(brand, counter))), parts(LEGACY_FNS[s.template](spec, ctxOf(brand, counter))), `${style} ${JSON.stringify(counter)} ${msg}`);
-    }
-  }
+  const drawn = [];
+  for (const brand of Object.values(brands)) for (const counter of COUNTERS) drawn.push(draw(s.template, spec, ctxOf(brand, counter)));
+  fx.check({ s }, drawn, msg);
 }
 
 test('cover, stats and photo-story are drawn from their layouts, each variant from its own', () => {
@@ -98,12 +112,7 @@ test('photo-story: the same page as its function in both variants, with every fi
 
 test('they refuse what their functions refused, with the same words', () => {
   const refused = (s) => {
-    const spec = forSize(normaliseDesign(s), 'feed');
-    let a, b;
-    try { TEMPLATE_FNS[s.template](spec, ctxOf(demo)); } catch (e) { a = e; }
-    try { LEGACY_FNS[s.template](spec, ctxOf(demo)); } catch (e) { b = e; }
-    assert.ok(a instanceof DesignError && b instanceof DesignError, JSON.stringify(s));
-    assert.equal(a.message, b.message);
+    fx.check({ refused: s }, refusal(s.template, forSize(normaliseDesign(s), 'feed'), ctxOf(demo)), JSON.stringify(s));
   };
   for (const base of [{ template: 'cover', headline: 'h', image: 'a.jpg' }, { template: 'stats', big: '1' }, { template: 'stats', big: '1', image: 'a.jpg' }, { template: 'photo-story', headline: 'h', image: 'a.jpg' }, { template: 'photo-story', layout: 'print', headline: 'h', image: 'a.jpg' }]) {
     refused({ ...base, series: 'nope' });
@@ -187,3 +196,5 @@ test('a drawing never writes an option or a spec value that is not from its list
     assert.ok(body.includes('<div class="ph" data-avoid style="left:0px;top:616px;width:1080px;height:588px">'), 'frame none');
   }
 });
+
+test('the markup fixture holds every case these tests draw, and only those', () => fx.done());

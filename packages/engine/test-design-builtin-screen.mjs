@@ -16,6 +16,7 @@ import { renderLayoutWith } from './lib/design/layout-render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
 import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
+import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
@@ -27,13 +28,29 @@ const brands = Object.fromEntries(Object.entries(STYLES).map(([k, style]) => [k,
 const DIMS = [{ w: 660, h: 1354 }, { w: 800, h: 600 }, { w: 2400, h: 1500 }, undefined];
 const ctxOf = (brand, counter, dims = DIMS[0]) => ({ size: SIZES.feed, brand, counter, image: () => PIXEL, imageSize: () => dims });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '' });
+// The pages are checked against the hashes recorded from the template functions (testlib/markup-fixture.mjs).
+const fx = markupFixture('screen');
+const drawTemplate = (t, spec, ctx) => {
+  const page = parts(TEMPLATE_FNS[t](spec, ctx));
+  assert.deepEqual(page, parts(LEGACY_FNS[t](spec, ctx)), `${t}: the layout's page is the function's`);
+  return page;
+};
+const refusal = (t, spec, ctx) => {
+  let a, b;
+  try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
+  try { LEGACY_FNS[t](spec, ctx); } catch (e) { b = e; }
+  assert.ok(a instanceof DesignError && b instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a} / ${b}`);
+  assert.equal(a.message, b.message);
+  return `DesignError: ${a.message}`;
+};
 const has = (errs, frag) => errs.some((e) => e.includes(frag));
 const H = ['"><script>window.__pwn=1</script>', '</style><script>x</script>', '<img src=x onerror=alert(1)>', '*a* \\n b', '`${x}`'];
 const HOSTILE = ['"><script>window.__pwn=1</script>', 'url(http://evil.example/x)', '__proto__', '1e3', NaN, -1, 1.5, null, {}, [], 'true'];
 
-const same = (s, { brand = demo, counter, dims } = {}) => {
+// One case: the spec drawn for each of `looks` ([brand, counter, dims]).
+const same = (s, looks) => {
   const spec = forSize(normaliseDesign(s), 'feed');
-  assert.deepEqual(parts(TEMPLATE_FNS.screen(spec, ctxOf(brand, counter, dims))), parts(LEGACY_FNS.screen(spec, ctxOf(brand, counter, dims))), `${JSON.stringify(s).slice(0, 160)} ${JSON.stringify(counter)} ${JSON.stringify(dims)}`);
+  fx.check({ s, looks: looks.map(([b, c, d]) => [Object.keys(brands).find((k) => brands[k] === b), c, d]) }, looks.map(([b, c, d]) => drawTemplate('screen', spec, ctxOf(b, c, d))), JSON.stringify(s).slice(0, 160));
 };
 
 // Every variant, with and without the fields and flags it takes.
@@ -89,21 +106,15 @@ test('the screen layouts draw exactly the pages the function drew: every variant
   assert.ok(specs.length > 200, `${specs.length} specs`);
   // the specs are designs the engine accepts (the hostile ones below are not, and are drawn all the same)
   for (const s of specs) assert.deepEqual(validateDesign(s, 's'), [], JSON.stringify(s));
-  for (const brand of Object.values(brands)) {
-    for (const s of [...specs, ...hostile]) for (const counter of [undefined, { n: 1, total: 2 }, { n: 2, total: 3 }]) same(s, { brand, counter });
-  }
-  // the phone and its glow are sized from the picture: a squat picture, a wide one, and one whose size could not be read
-  for (const dims of DIMS) for (const s of [...specs, ...hostile]) same(s, { dims });
+  // every style and page, and the phone and its glow sized from the picture: a squat picture, a wide one, and one whose size
+  // could not be read
+  const looks = [...Object.values(brands).flatMap((b) => [undefined, { n: 1, total: 2 }, { n: 2, total: 3 }].map((c) => [b, c, DIMS[0]])), ...DIMS.map((d) => [demo, undefined, d])];
+  for (const s of [...specs, ...hostile]) same(s, looks);
 });
 
 test('the screen layouts refuse what the function refused, with the same words', () => {
   const refuse = (s) => {
-    const spec = forSize(normaliseDesign(s), 'feed');
-    let a, b;
-    try { TEMPLATE_FNS.screen(spec, ctxOf(demo)); } catch (e) { a = e; }
-    try { LEGACY_FNS.screen(spec, ctxOf(demo)); } catch (e) { b = e; }
-    assert.ok(a instanceof DesignError && b instanceof DesignError, JSON.stringify(s));
-    assert.equal(a.message, b.message);
+    fx.check({ refused: s }, refusal('screen', forSize(normaliseDesign(s), 'feed'), ctxOf(demo)), JSON.stringify(s));
   };
   for (const v of [{}, { fade: true }, { beside: { days: 31 } }, { device: 'desktop' }]) {
     refuse({ template: 'screen', headline: 'h', image: img, series: 'nope', ...v });
@@ -215,3 +226,5 @@ test('a headline in a row needs the layout\'s phone beside it; the glow follows 
   const foot = renderLayoutWith(page(ROW()), forSize(normaliseDesign({ template: 'screen', headline: 'H', image: img }), 'feed'), ctxOf(demo, { n: 1, total: 2 })).body;
   assert.ok(!foot.includes('Swipe') && !foot.includes(demo.website));
 });
+
+test('the markup fixture holds every case these tests draw, and only those', () => fx.done());

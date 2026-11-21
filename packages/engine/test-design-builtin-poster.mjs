@@ -14,6 +14,7 @@ import { renderLayoutWith } from './lib/design/layout-render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
 import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
+import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
@@ -22,6 +23,21 @@ const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
 const brands = Object.fromEntries(Object.entries(STYLES).map(([k, style]) => [k, style ? { ...demo, ...normaliseBrand({ ...RAW, style }) } : demo]));
 const ctxOf = (brand, counter, dims = { w: 660, h: 1354 }) => ({ size: SIZES.feed, brand, counter, image: () => PIXEL, imageSize: () => dims });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '' });
+// The pages are checked against the hashes recorded from the template functions (testlib/markup-fixture.mjs).
+const fx = markupFixture('poster');
+const draw = (t, spec, ctx) => {
+  const page = parts(TEMPLATE_FNS[t](spec, ctx));
+  assert.deepEqual(page, parts(LEGACY_FNS[t](spec, ctx)), `${t}: the layout's page is the function's`);
+  return page;
+};
+const refusal = (t, spec, ctx) => {
+  let a, b;
+  try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
+  try { LEGACY_FNS[t](spec, ctx); } catch (e) { b = e; }
+  assert.ok(a instanceof DesignError && b instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a} / ${b}`);
+  assert.equal(a.message, b.message);
+  return `DesignError: ${a.message}`;
+};
 const has = (errs, frag) => errs.some((e) => e.includes(frag));
 const H = ['"><script>window.__pwn=1</script>', '</style><script>x</script>', '<img src=x onerror=alert(1)>', '*a* \\n b', '`${x}`', 'url(http://evil.example/x)'];
 const GROUNDS = ['light', 'soft', 'cool', 'warm', 'dark', 'deep', 'white', 'tint', 'mint', 'gold-pale', 'ink'];
@@ -32,15 +48,17 @@ const SERIES = Object.keys(RAW.series);
 // differ (product sizes its glow from the picture's own ratio).
 function same(s, { dims = [{ w: 660, h: 1354 }] } = {}) {
   const spec = forSize(normaliseDesign(s), 'feed');
+  const drawn = [];
   for (const [style, brand] of Object.entries(brands)) {
     for (const counter of [undefined, { n: 1, total: 2 }, { n: 2, total: 3 }]) {
       for (const d of dims) {
         const why = `${style} ${JSON.stringify(counter)} ${JSON.stringify(d)} ${JSON.stringify(s).slice(0, 160)}`;
         assert.ok(builtinLayoutFor(spec, counter), `not drawn from a layout: ${why}`);
-        assert.deepEqual(parts(TEMPLATE_FNS[s.template](spec, ctxOf(brand, counter, d))), parts(LEGACY_FNS[s.template](spec, ctxOf(brand, counter, d))), why);
+        drawn.push(draw(s.template, spec, ctxOf(brand, counter, d)));
       }
     }
   }
+  fx.check({ s, dims }, drawn, JSON.stringify(s).slice(0, 160));
 }
 
 test('object, product, myth-fact and closing are drawn from their layouts, product by its variant', () => {
@@ -103,19 +121,14 @@ test('closing: the tagline and the website by default, the map, every ground and
   // a brand whose tagline has no comma, and a hostile tagline and website, go through the same escaping
   for (const tagline of ['Saving made simple', '"><script>x</script>, <b>y</b>']) {
     const brand = { ...demo, tagline, website: '<i>w</i>' }, spec = forSize(normaliseDesign({ template: 'closing' }), 'feed');
-    assert.deepEqual(parts(TEMPLATE_FNS.closing(spec, ctxOf(brand))), parts(LEGACY_FNS.closing(spec, ctxOf(brand))));
+    fx.check({ closing: tagline }, draw('closing', spec, ctxOf(brand)), tagline);
     assert.ok(!TEMPLATE_FNS.closing(spec, ctxOf(brand)).body.includes('<script>'));
   }
 });
 
 test('the poster templates refuse what their functions refused, with the same words', () => {
   const refused = (s, brand = demo) => {
-    const spec = forSize(normaliseDesign(s), 'feed');
-    let a, b;
-    try { TEMPLATE_FNS[s.template](spec, ctxOf(brand)); } catch (e) { a = e; }
-    try { LEGACY_FNS[s.template](spec, ctxOf(brand)); } catch (e) { b = e; }
-    assert.ok(a instanceof DesignError && b instanceof DesignError, `${JSON.stringify(s)}: ${a} / ${b}`);
-    assert.equal(a.message, b.message);
+    fx.check({ refused: s, map: !!brand.map }, refusal(s.template, forSize(normaliseDesign(s), 'feed'), ctxOf(brand)), JSON.stringify(s));
   };
   for (const t of [{ template: 'object', headline: 'h', image: 'a.jpg' }, { template: 'product', headline: 'h', image: 'a.png' }, { template: 'product', layout: 'side', headline: 'h', image: 'a.png' }, { template: 'myth-fact', myth: 'm', factLead: 'f' }, { template: 'closing' }]) {
     refused({ ...t, series: 'nope' });
@@ -205,3 +218,5 @@ test('the new drawings escape what they show and take only validated numbers', (
   const at = renderLayoutWith(l, { template: 'layout', myth: 'm', factLead: 'f', image: 'a.png', phoneTop: 700 }, ctxOf(demo));
   assert.ok(at.body.includes('left:570px;top:700px;width:450px'));
 });
+
+test('the markup fixture holds every case these tests draw, and only those', () => fx.done());

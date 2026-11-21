@@ -16,6 +16,7 @@ import { preparePage } from './lib/design/render.mjs';
 import { COVER_SIZES, SIZES, SIZE_NAMES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
 import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
+import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
@@ -27,13 +28,30 @@ brands.right = { ...demo, ...normaliseBrand({ ...RAW, style: { logo: 'bottom-rig
 brands.noaccent = { ...demo, ...normaliseBrand({ ...RAW, style: { type: { accent: 'none' } } }) };
 const ctxOf = (brand, size, counter) => ({ size: SIZES[size], brand, counter, image: () => PIXEL, imageSize: () => ({ w: 1800, h: 1200 }) });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '', warnings: o.warnings ?? [] });
+// The pages are checked against the hashes recorded from the template functions (testlib/markup-fixture.mjs).
+const fx = markupFixture('photo');
+const draw = (t, spec, ctx) => {
+  const page = parts(TEMPLATE_FNS[t](spec, ctx));
+  assert.deepEqual(page, parts(LEGACY_FNS[t](spec, ctx)), `${t}: the layout's page is the function's`);
+  return page;
+};
+const refusal = (t, spec, ctx) => {
+  let a, b;
+  try { TEMPLATE_FNS[t](spec, ctx); } catch (e) { a = e; }
+  try { LEGACY_FNS[t](spec, ctx); } catch (e) { b = e; }
+  assert.ok(a instanceof DesignError && b instanceof DesignError, `${JSON.stringify(spec).slice(0, 120)}: ${a} / ${b}`);
+  assert.equal(a.message, b.message);
+  return `DesignError: ${a.message}`;
+};
 const has = (errs, frag) => errs.some((e) => e.includes(frag));
 const H = ['"><script>window.__pwn=1</script>', '</style><script>x</script>', '<img src=x onerror=alert(1)>', '*a* \\n b', '`${x}`', 'url(http://evil.example/x)'];
 
-const same = (s, brand, size, counter) => {
+// One case: the spec drawn at every size, for every look and page.
+const same = (s) => {
   assert.deepEqual(validateDesign(s), [], JSON.stringify(s));
-  const spec = forSize(normaliseDesign(s), size);
-  assert.deepEqual(parts(TEMPLATE_FNS.photo(spec, ctxOf(brand, size, counter))), parts(LEGACY_FNS.photo(spec, ctxOf(brand, size, counter))), `${size} ${JSON.stringify(s).slice(0, 160)}`);
+  const drawn = [];
+  for (const brand of Object.values(brands)) for (const size of SIZE_NAMES) for (const counter of [undefined, { n: 1, total: 2 }]) drawn.push(draw('photo', forSize(normaliseDesign(s), size), ctxOf(brand, size, counter)));
+  fx.check({ s }, drawn, JSON.stringify(s).slice(0, 160));
 };
 
 test('the photo post is drawn from its layout at every size', () => {
@@ -61,16 +79,14 @@ test('the same page as the function: fields filled, empty and hostile, text top,
     specs.push({ template: 'photo', eyebrow: h.slice(0, 60), headline: h, sub: h, image: `${h.replace(/[^a-z]/g, '') || 'x'}.jpg` });
     specs.push({ template: 'photo', eyebrow: h.slice(0, 60), headline: h, sub: h, image: 'a.jpg', textAt: 'bottom' });
   }
-  for (const brand of Object.values(brands)) {
-    for (const size of SIZE_NAMES) for (const s of specs) for (const counter of [undefined, { n: 1, total: 2 }]) same(s, brand, size, counter);
-  }
+  for (const s of specs) same(s);
 });
 
 test('a hostile focal point or textAt that slipped past the validator is still drawn as the function drew it', () => {
   for (const size of SIZE_NAMES) {
     for (const v of ['"><x', 'middle', '', null, undefined, 1]) {
       const spec = { ...forSize(normaliseDesign({ template: 'photo', headline: 'h', image: 'a.jpg' }), size), textAtResolved: v, focalCss: v };
-      assert.deepEqual(parts(TEMPLATE_FNS.photo(spec, ctxOf(demo, size))), parts(LEGACY_FNS.photo(spec, ctxOf(demo, size))), `${size} ${v}`);
+      fx.check({ size, v: v === undefined ? 'undefined' : v }, draw('photo', spec, ctxOf(demo, size)), `${size} ${v}`);
     }
   }
 });
@@ -158,13 +174,13 @@ test('each page cover is drawn from its own layout, exactly as its function drew
   const looks = Object.values(brands);
   for (const h of H) looks.push({ ...demo, tagline: `${h}, ${h}`, descriptor: `${h}.`, website: h, logoFullSrc: PIXEL, logoMarkSrc: PIXEL });
   looks.push({ ...demo, tagline: 'No comma here', descriptor: 'No full stop' });
-  for (const brand of looks) {
+  looks.forEach((brand, i) => {
     for (const kind of KINDS) {
       const spec = { template: 'pagecover', kind };
-      assert.deepEqual(parts(TEMPLATE_FNS.pagecover(spec, coverCtx(brand, kind))), parts(LEGACY_FNS.pagecover(spec, coverCtx(brand, kind))), `${kind} ${brand.tagline}`);
+      fx.check({ cover: kind, look: i, words: [brand.tagline, brand.descriptor, brand.website] }, draw('pagecover', spec, coverCtx(brand, kind)), `${kind} ${brand.tagline}`);
       assert.ok(!/<script|<img src=x|<\/style>/.test(TEMPLATE_FNS.pagecover(spec, coverCtx(brand, kind)).body), kind);
     }
-  }
+  });
   // a kind that slipped past the validator matches no layout, and the function draws it (an empty page), as before
   for (const kind of ['feed', '__proto__', undefined]) assert.equal(builtinLayoutFor({ template: 'pagecover', kind }), null, String(kind));
 });
@@ -197,3 +213,5 @@ test('the cover page: its sizes, its block types and options, valid, invalid and
   // drawn only at a cover size
   assert.throws(() => renderLayoutWith({ ...coverLayout(), canvas: { feed: {} } }, { template: 'pagecover', kind: 'x' }, ctxOf(demo, 'feed')), /drawn at the cover sizes only/);
 });
+
+test('the markup fixture holds every case these tests draw, and only those', () => fx.done());
