@@ -7,6 +7,14 @@ export function luminance(r, g, b) {
 }
 export const contrastRatio = (l1, l2) => (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
 
+// A ratio that is below its target, as text for a message. The check compares the true ratio; this only prints it, to one decimal
+// when that still reads as below the target, else to two decimals cut off (never rounded up), so a warning never says
+// "4.5:1 (needs 4.5:1)".
+export function ratioBelow(ratio, need) {
+  const one = ratio.toFixed(1);
+  return Number(one) < need ? one : (Math.floor(ratio * 100) / 100).toFixed(2);
+}
+
 // Worst-case contrast of text of luminance `textL` over background pixels of the given luminances: light text is judged against
 // the brightest part of its background (95th percentile, so one specular speck does not decide), dark text against the darkest.
 export function worstContrast(textL, bgLuminances) {

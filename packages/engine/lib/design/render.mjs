@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import { buildPage, buildPrintPage } from './page.mjs';
 import { COVER_SIZES, SIZES, pillHeight } from './sizes.mjs';
 import { forSize } from './spec.mjs';
-import { SCALABLE, autoLines, contrastRatio, explainCoverProblems, explainProblems, findCoverProblems, findLayoutProblems, imageSize, linesToSvg, luminance, upscaleWarning } from './checks.mjs';
+import { SCALABLE, autoLines, contrastRatio, ratioBelow, explainCoverProblems, explainProblems, findCoverProblems, findLayoutProblems, imageSize, linesToSvg, luminance, upscaleWarning } from './checks.mjs';
 import { convertToJpeg } from './convert.mjs';
 import { hasAlpha, readImageBytes, sniff } from './assets.mjs';
 import { DesignError } from './errors.mjs';
@@ -189,7 +189,7 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
         await page.evaluate(`window.__ds.setFootFade(${fade})`);
         continue;
       }
-      for (const f of failing) warnings.push(`low contrast: the ${WORD[f.role] ?? f.key} text is ${f.ratio.toFixed(1)}:1 against the ${isPhoto ? 'picture' : 'surface'} behind it (needs ${f.need}:1)${isPhoto ? (spec.scrim === 'none' ? '; scrim is off' : '; the scrim is already at its cap, choose another photo or move the text to a calmer part with textAt/focal') : ''}`);
+      for (const f of failing) warnings.push(`low contrast: the ${WORD[f.role] ?? f.key} text is ${ratioBelow(f.ratio, f.need)}:1 against the ${isPhoto ? 'picture' : 'surface'} behind it (needs ${f.need}:1)${isPhoto ? (spec.scrim === 'none' ? '; scrim is off' : '; the scrim is already at its cap, choose another photo or move the text to a calmer part with textAt/focal') : ''}`);
       break;
     }
     if (isPhoto && peak > (spec.scrimPeak ?? brand.photo.scrimStart) + 1e-9) notes.push(`scrim raised to ${peak.toFixed(2)} to reach the contrast targets`);
