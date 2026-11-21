@@ -117,7 +117,9 @@ describe('the built-in layouts', () => {
     expect(photo.why).toMatch(/photo page is for the built-in layouts only/);
     expect(body.builtins.find((b: { id: string }) => b.id === 'product-side')).toMatchObject({ template: 'product', variant: 'layout is side', copyable: true, why: null });
     expect(body.builtins.find((b: { id: string }) => b.id === 'object').definition.page).toBe('poster');
-    expect(Object.keys(body.catalogue.pages)).toEqual(['poster', 'editorial']);
+    expect(Object.keys(body.catalogue.pages)).toEqual(['grid', 'poster', 'editorial']);
+    expect(body.catalogue.pages.grid.conditions.choices).toEqual({ artefact: { values: ['ledger', 'passbook', 'register'], unset: true, declared: true } });
+    expect(Object.keys(body.catalogue.pages.poster.conditions.choices)).toEqual(['register']);
   });
 
   it('copies one into a brand\'s own layout, switched off, under a free id; never one a brand may not use', async () => {

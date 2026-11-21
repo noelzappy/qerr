@@ -16,16 +16,10 @@ import { describeError, logger } from '../log.js';
 
 type Json = Record<string, unknown>;
 
-export interface LayoutCatalogue {
-  sizes: Record<string, { w: number; h: number; minMargins: Record<'top' | 'right' | 'bottom' | 'left', number> }>;
-  grid: { columns: [number, number]; rows: [number, number]; gutter: [number, number]; margin: [number, number]; minCell: number };
-  grounds: string[]; darkGrounds: string[]; accents: string[]; textures: string[];
-  fields: Record<string, { kind: string; cap?: number; max?: number; chars?: number; word: string }>;
-  blocks: Record<string, { kinds: string[]; field: string | null; child: boolean; bleed: boolean; children: boolean; under: boolean; options: Record<string, { type: 'enum'; values: Array<string | number>; default: string | number } | { type: 'bool'; default: boolean }> }>;
-  labelSources: string[];
-  limits: { layouts: number; blocks: number; children: number };
-  pages: Record<string, { sizes: string[]; decorations: string[]; blocks: Record<string, { kinds: string[]; field: string | null; chrome: boolean; children: boolean; under: boolean; options: Record<string, unknown> }> }>;
-}
+// The engine's layoutCatalogue(): every page kind a brand's layout may use, its block types, options, fields, conditions and
+// grounds, as plain data. The server passes it to Settings, Layouts as it is (web/src/pages/settings/layout-types.ts types it);
+// nothing here reads it.
+export type LayoutCatalogue = Record<string, unknown> & { pages: Record<string, unknown> };
 
 interface EngineLayout {
   LAYOUT_ID: RegExp;
