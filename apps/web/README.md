@@ -133,7 +133,7 @@ TEST_DB_NAME=vesk_other npm test   # another database, so two runs do not clash
 
 Set `TEST_DB_NAME` for another database name and `TEST_DATABASE_ADMIN_URL` for another server (default
 `postgresql://postgres:postgres@127.0.0.1:55440/postgres`). Test files are named `*.spec.ts` so the repository's root
-`node --test` does not pick them up. Helpers are in `src/server/testing.ts` and `src/server/testing-desk.ts`.
+`node --test` does not pick them up. Helpers are in `src/server/testing.ts` and `src/server/testing-batches.ts`.
 The render specs launch real Chrome, one at a time. `npm run typecheck` covers the server, the tests and the web app.
 
 ## Environment variables
@@ -173,7 +173,7 @@ put in a job payload. A new deployment can be seeded with them once (see "Seedin
 ### Client address and rate limits
 
 The client address is worked out in one place (`clientIp` in `src/server/middleware.ts`). A middleware that runs first
-removes any `x-sd-client-ip` header the caller sent and sets it from the trusted address; Better Auth reads that header
+removes any `x-vesk-client-ip` header the caller sent and sets it from the trusted address; Better Auth reads that header
 only, so a spoofed or rotating `X-Forwarded-For` cannot get past its limiter or ours.
 
 When `RATE_LIMIT` is on, each of these answers 429 with `Retry-After` once a bucket is full (15-minute window):
@@ -297,8 +297,7 @@ handlers are plain functions (`src/server/jobs/handlers.ts`), so tests call them
 
 The app never imports `@vesk/ai` directly. `src/server/ai.ts` is the seam: if the `@vesk/ai` workspace package is installed
 it is loaded and its `createAI({ providers, search, budget, log })` must return `{ draftBatch, research, rewrite }`
-(the input and result types are in `ai.ts`). If the package is absent, a stub is used and the three AI jobs fail with
-"AI not installed yet"; nothing else is affected. Providers (Anthropic or OpenAI-compatible), the search provider and the
+(the input and result types are in `ai.ts`). The library is an ordinary dependency of the app. Providers (Anthropic or OpenAI-compatible), the search provider and the
 monthly budget are set by an admin under AI and search (a provider's prices per million tokens too, which the budget needs to see its cost); their keys are encrypted at rest and only the last four
 characters are ever shown.
 

@@ -7,12 +7,11 @@ stylesheet are gone: everything is Tailwind utilities, the theme tokens and the 
 
 | Path | What |
 | --- | --- |
-| `src/components/ui/*` | shadcn components (button, input, textarea, label, select, checkbox, switch, dialog, alert-dialog, sheet, drawer, table, badge, card, tabs, dropdown-menu, sonner, alert, skeleton, separator, tooltip, scroll-area, popover). Owned by us: edit freely. |
-| `src/components/*.tsx` | Our own composites built on those: `text-field.tsx` (`TextField`, `FormField`), `notice.tsx` (`Notice`, an inline message), `form-panel.tsx` (`FormPanel`, see below). Add new shared composites here. Shared hooks that are not data loading are in `src/hooks/` (`use-media-query.ts`); the data hooks are in `src/hooks.ts`. |
+| `src/components/ui/*` | shadcn components (button, input, textarea, label, select, checkbox, switch, dialog, alert-dialog, sheet, drawer, table, badge, card, tabs, dropdown-menu, sonner, alert, skeleton, tooltip, popover). Owned by us: edit freely. |
+| `src/components/kit/` | The one shared kit, imported from `@/components/kit`: `TextField`, `FormField`, `Notice`, `FormPanel` (see below), `PageHeader`, `DataList`, field wrappers, states (`RowsSkeleton`, `EmptyBlock`, `ErrorBlock`, `LoadingBlock`, `Pager`, `BusyButton`), `ConfirmAction`, badges. Add new shared composites here. `src/components/*.tsx` holds the domain pieces (activity parts, network icon, post row). Shared hooks that are not data loading are in `src/hooks/` (`use-media-query.ts`); the data hooks are in `src/hooks.ts`. |
 | `src/index.css` | Tailwind import, fonts, theme tokens (light and dark). |
 | `src/lib/utils.ts` | `cn()` for class names. |
 | `src/lib/theme.ts` | `initTheme()`, `setTheme('light' \| 'dark' \| 'system')`, `useTheme()`. |
-| `src/pages/kit/` | Page-level pieces shared by the pages: `PageHeader`, `DataList`, field wrappers, states (`RowsSkeleton`, `EmptyBlock`, `ErrorBlock`, `LoadingBlock`, `Pager`, `BusyButton`), `ConfirmAction`. |
 | `src/shell/` | `Shell` (sidebar on desktop, Sheet menu on a phone), `nav.ts` (the one navigation list), `AuthLayout`, `PasswordFields`, `ErrorBoundary`. |
 | `components.json` (in `apps/web`) | shadcn config; the `@/` alias points to `web/src` (also in `vite.config.ts` and `tsconfig.web.json`). |
 
@@ -39,7 +38,7 @@ status tokens `success`, `warning` / `warning-foreground`, `info`, and `gold` (l
 Never use literal colours or Tailwind palette colours (`bg-green-500`).
 
 - Fonts: Inter is the default (`font-sans`); IBM Plex Mono is `font-mono` and is for ids, figures and small caps labels
-  (`font-mono text-[11px] uppercase tracking-wider text-muted-foreground`). Files are served from `/fonts`; no font CDN.
+  (`font-mono text-[11px] uppercase tracking-wider text-muted-foreground`). Files are served from `/fonts`: the engine's own copies in `packages/engine/design/fonts`, served and built by a small plugin in `apps/web/vite.config.ts`; no font CDN.
 - Radius is `0.5rem` (`rounded-md`, `rounded-lg`). Keep it calm: neutral surfaces, one green primary action per view.
 - Dark mode: variables exist (`.dark` class on `<html>`). The default is light until the pages are ported because the old
   CSS has no dark palette. Test with `localStorage.theme = 'dark'` then reload.
@@ -52,7 +51,7 @@ Never use literal colours or Tailwind palette colours (`bg-green-500`).
 - Create, edit and detail forms use **FormPanel**; destructive confirms use **AlertDialog**; a Dialog only informs. See "Panels, dialogs and confirms" below.
 - Toasts are **sonner**: `import { toast } from 'sonner'`, past tense, no trailing full stop ("Batch approved").
 - Loading uses **Skeleton** shaped like the content, not a page spinner. Empty and error states say what happened and what to do.
-- Lists: `Table` on desktop, cards on a phone (`pages/kit/data-list.tsx` shows the pattern).
+- Lists: `Table` on desktop, cards on a phone (`components/kit/data-list.tsx` shows the pattern).
 - Status uses `Badge` with the `success | warning | info | destructive | quiet` variants (or `secondary`, `outline`).
 - Responsive down to **360 px** with no sideways scroll; tap targets at least 44 px on a phone (`max-sm:min-h-11`).
 - Copy: sentence case, plain words. Money, dates and enums go through `lib/format.ts` and `lib/labels.ts`.
@@ -63,8 +62,8 @@ Never use literal colours or Tailwind palette colours (`bg-green-500`).
 
 | Need | Use |
 | --- | --- |
-| A form to create or edit something, or a detail view with editable fields | `FormPanel` (`@/components/form-panel`) |
-| "Are you sure?" before a destructive or irreversible action | `AlertDialog`, through `ConfirmAction` (`pages/kit/confirm-action.tsx`) |
+| A form to create or edit something, or a detail view with editable fields | `FormPanel` (`@/components/kit`) |
+| "Are you sure?" before a destructive or irreversible action | `AlertDialog`, through `ConfirmAction` (`@/components/kit`) |
 | A message or a read-only result that needs no input beyond closing it | `Dialog` |
 | The phone navigation menu | a left `Sheet` (`shell/Shell.tsx`), not a `FormPanel` |
 
@@ -79,7 +78,7 @@ the same anatomy in both: header (title and description), a body that scrolls, a
   title="Add a Buffer account" description="The key is write-only."
   footer={<>
     <Button variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-    <BusyButton type="submit" form="account-form" busy={saving}>Add account</BusyButton>
+    <BusyButton type="submit" form="account-form" loading={saving}>Add account</BusyButton>
   </>}
 >
   <form id="account-form" onSubmit={...}>...</form>

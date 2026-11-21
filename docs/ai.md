@@ -164,8 +164,7 @@ the same version line. The pack's file is used when it exists, the library's oth
 
 ## How the Vesk web app uses it
 
-`apps/web` loads `@vesk/ai` by name (`src/server/ai.ts`; a stub that says "AI not installed yet" is used when the package
-is absent). The `draft-batch` job (queued by `POST /api/batches/ai-draft`, or the Draft with AI button on the batch list)
+`apps/web` depends on `@vesk/ai` and loads it through one seam, `loadAI()` in `src/server/ai.ts` (which tests replace). The `draft-batch` job (queued by `POST /api/batches/ai-draft`, or the Draft with AI button on the batch list)
 sends the confirmed vault items, calls `draftBatch`, and imports the answer through the same path as a batch file: a batch
 in `draft` state owned by the person who asked, each post linked to its vault sources and carrying the AI's warnings,
 the drafter's `notes` kept on the batch (shown with an "AI draft" badge), and a render queued for every design block.

@@ -161,5 +161,5 @@ Each step is usable on its own and is reviewed before the next.
 2. **Search provider:** which one (Brave, Tavily or Exa), and its key.
 3. **Photo rights:** every photo a brand takes from its own website or elsewhere needs a known source and a licence
    that allows social posts before it goes in the vault.
-4. **Domain:** the address the app will live at (for example `social.example.com`), behind the platform's proxy.
+4. **Domain:** the address the app will live at (for example `vesk.example.com`), behind the platform's proxy.
 5. **Email sending** for invites and password resets: ZeptoMail, SMTP or none (links shown to copy).
