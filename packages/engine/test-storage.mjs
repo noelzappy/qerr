@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { maskSecrets } from './lib/core.mjs';
 import { createClient } from './lib/client.mjs';
-import { loadBatch, resolveItems, buildInput } from './lib/batch.mjs';
+import { validateBatch, resolveItems, buildInput } from './lib/batch.mjs';
 import { planRows, runPush } from './lib/push.mjs';
 import { S3Error, createS3, loadS3Config, publicUrl, signRequest, signingKey, uriEncode } from './lib/storage/s3.mjs';
 import { UploadError, objectKey, planUploads, runUpload, safeName } from './lib/storage/upload.mjs';
@@ -158,17 +158,18 @@ function project() {
   fs.writeFileSync(path.join(media, 'a.jpg'), 'AAAA-jpeg-bytes');
   fs.writeFileSync(path.join(media, 'sub', 'b one.PNG'), 'BBBB-png-bytes');
   fs.writeFileSync(path.join(media, 'v.mp4'), 'CCCC-video-bytes');
-  const batchFile = path.join(root, 'fan.json');
-  fs.writeFileSync(batchFile, JSON.stringify({
+  const { errors, batch } = validateBatch({
     name: 'fan', timezone: 'UTC', defaultTime: '09:00', mediaRoot: 'media/fan',
     posts: [
       { id: 'p1', date: '2026-12-01', caption: 'One', media: ['a.jpg'], skip: ['facebook', 'linkedin'] },
       { id: 'p2', date: '2026-12-02', caption: 'Two', media: ['sub/b one.PNG', 'a.jpg'], skip: ['facebook', 'linkedin'], networks: { instagram: { type: 'carousel' } } },
       { id: 'p3', date: '2026-12-03', caption: 'Three', media: ['v.mp4'], skip: ['facebook', 'linkedin'] },
     ],
-  }));
-  const batch = loadBatch(batchFile, { root });
-  return { root, media, batch, items: (opts = {}) => resolveItems(batch, { channels: { instagram: 'ci' }, mediaBaseUrl: 'https://old.example.com/fan', ...opts }) };
+  }, { root });
+  assert.deepEqual(errors, []);
+  const items = (opts = {}) => resolveItems(batch, { routing: { instagram: { account: 'main', channelId: 'ci' } }, accounts: [{ name: 'main', captionLimits: {} }], ...opts });
+  const itemsOf = (postId) => items().filter((i) => i.postId === postId);
+  return { root, media, batch, items, itemsOf };
 }
 
 test('upload keys are content-addressed, URL-safe and carry the batch name; content types follow the extension', () => {
@@ -183,8 +184,8 @@ test('upload keys are content-addressed, URL-safe and carry the batch name; cont
   assert.deepEqual(plan.map((f) => f.contentType), ['image/jpeg', 'image/png', 'video/mp4']);
   assert.equal(safeName('sub/we ird (1)é.jpg'), 'we-ird-1-.jpg');
   assert.equal(objectKey({ prefix: 'x/', batchName: 'n', sha256: 'f'.repeat(64), rel: 'q/r.jpg' }), `x/n/${'f'.repeat(16)}-r.jpg`);
-  // --only: just that post's files
-  const only = planUploads({ batch: p.batch, items: resolveItems(p.batch, { only: 'p3' }) });
+  // only the posts asked for: just their files
+  const only = planUploads({ batch: p.batch, items: p.itemsOf('p3') });
   assert.deepEqual(only.map((f) => f.rel), ['v.mp4']);
 });
 
@@ -219,7 +220,7 @@ test('an object with the same key but a different size is uploaded again', async
   const p = project();
   const bucket = fakeBucket();
   const s3 = createS3({ config: config(), fetchImpl: bucket.fetchImpl });
-  const plan = planUploads({ batch: p.batch, items: resolveItems(p.batch, { only: 'p1' }), prefix: 'public/', publicBaseUrl: config().publicBaseUrl });
+  const plan = planUploads({ batch: p.batch, items: p.itemsOf('p1'), prefix: 'public/', publicBaseUrl: config().publicBaseUrl });
   bucket.objects.set(plan[0].key, { body: Buffer.from('trunc'), type: 'image/jpeg' });
   const r = await runUpload({ plan, s3, config: config(), state: { posts: {} }, saveState() {}, fetchImpl: bucket.fetchImpl, log() {} });
   assert.equal(r.uploaded, 1);
@@ -238,9 +239,9 @@ test('nothing outside mediaRoot is ever uploaded: traversal, absolute paths and 
   assert.throws(() => planUploads({ batch: p.batch, items: fake('link.jpg') }), /resolves outside mediaRoot/);
   assert.throws(() => planUploads({ batch: p.batch, items: fake('linkdir/secret.txt') }), /resolves outside mediaRoot/);
   assert.throws(() => planUploads({ batch: p.batch, items: fake('missing.jpg') }), /file not found/);
-  // the batch loader already refuses such names, so a batch file cannot ask for them either
-  fs.writeFileSync(path.join(p.root, 'evil.json'), JSON.stringify({ timezone: 'UTC', defaultTime: '09:00', mediaRoot: 'media/fan', posts: [{ id: 'e', date: '2026-12-01', caption: 'c', media: ['../../secret.txt'] }] }));
-  assert.throws(() => loadBatch(path.join(p.root, 'evil.json'), { root: p.root }), /stay inside it/);
+  // the batch validator already refuses such names, so a batch cannot ask for them either
+  const evil = validateBatch({ timezone: 'UTC', defaultTime: '09:00', mediaRoot: 'media/fan', posts: [{ id: 'e', date: '2026-12-01', caption: 'c', media: ['../../secret.txt'] }] }, { root: p.root });
+  assert.ok(evil.errors.some((e) => /stay inside it/.test(e)), evil.errors.join('\n'));
   // one bad file stops the whole plan, so no partial upload happens
   assert.throws(() => planUploads({ batch: p.batch, items: [...p.items(), ...fake('../../secret.txt')] }), UploadError);
 });
@@ -250,7 +251,7 @@ test('a bucket that is not publicly readable is reported clearly, with the prefi
   const bucket = fakeBucket({ publicRead: false });
   const s3 = createS3({ config: config(), fetchImpl: bucket.fetchImpl });
   const logs = [];
-  const plan = planUploads({ batch: p.batch, items: resolveItems(p.batch, { only: 'p1' }), prefix: 'public/', publicBaseUrl: config().publicBaseUrl });
+  const plan = planUploads({ batch: p.batch, items: p.itemsOf('p1'), prefix: 'public/', publicBaseUrl: config().publicBaseUrl });
   const r = await runUpload({ plan, s3, config: config(), state: { posts: {} }, saveState() {}, fetchImpl: bucket.fetchImpl, log: (l) => logs.push(l) });
   assert.equal(r.uploaded, 1);
   assert.equal(r.notPublic, 1);
@@ -258,14 +259,14 @@ test('a bucket that is not publicly readable is reported clearly, with the prefi
   assert.ok(bucket.calls.every((c) => ['PUT', 'HEAD'].includes(c.method) && !/\?(policy|acl)/.test(c.url)), 'only PUT and HEAD of objects were used');
 });
 
-test('a storage error stops the upload, masks the secret and says that running again is safe', async () => {
+test('a storage error stops the upload, masks the secret and says that uploading again is safe', async () => {
   const p = project();
   const bucket = fakeBucket({ putStatus: 403 });
   const s3 = createS3({ config: config(), fetchImpl: bucket.fetchImpl });
   const state = { posts: {} };
   const plan = planUploads({ batch: p.batch, items: p.items(), prefix: 'public/', publicBaseUrl: config().publicBaseUrl });
   const r = await runUpload({ plan, s3, config: config(), state, saveState() {}, fetchImpl: bucket.fetchImpl, log() {} });
-  assert.match(r.stopped, /Stopped at a\.jpg: .*AccessDenied.*running upload again is safe/);
+  assert.match(r.stopped, /Stopped at a\.jpg: .*AccessDenied.*uploading again is safe/);
   assert.ok(!r.stopped.includes(SECRET));
   assert.equal(bucket.calls.filter((c) => c.method === 'PUT').length, 1, 'stopped at the first failure');
   assert.deepEqual(state.media ?? {}, {});
@@ -273,24 +274,24 @@ test('a storage error stops the upload, masks the secret and says that running a
 
 // ---------- push uses the uploaded URLs ----------
 
-test('push sends and probes the uploaded URLs when they exist, and MEDIA_BASE_URL otherwise; the hash is the same either way', async () => {
+test('push sends and probes the uploaded URLs; before the upload a medium has no URL; the hash is the same either way', async () => {
   const p = project();
   const bucket = fakeBucket();
   const s3 = createS3({ config: config(), fetchImpl: bucket.fetchImpl });
   const before = p.items();
-  assert.ok(before.every((i) => i.media.every((m) => m.url.startsWith('https://old.example.com/fan/') && m.hosted === 'base-url')), 'no upload yet: MEDIA_BASE_URL as before');
+  assert.ok(before.every((i) => i.media.every((m) => m.url === null)), 'no upload yet: no URL');
 
   const state = { batch: 'fan', posts: {} };
   await runUpload({ plan: planUploads({ batch: p.batch, items: before, prefix: 'public/', publicBaseUrl: config().publicBaseUrl }), s3, config: config(), state, saveState() {}, fetchImpl: bucket.fetchImpl, log() {} });
   const after = p.items({ uploaded: state.media });
-  assert.ok(after.every((i) => i.media.every((m) => m.hosted === 'upload' && m.url.startsWith(config().publicBaseUrl))));
+  assert.ok(after.every((i) => i.media.every((m) => m.url.startsWith(config().publicBaseUrl))));
   assert.deepEqual(after.map((i) => i.hash), before.map((i) => i.hash), 'uploading must not change the duplicate-protection hash');
   assert.equal(buildInput(after[0], { draft: true }).assets[0].image.url, state.media['a.jpg'].url);
 
   const server = fakeServer({ api: (n) => ok(`b${n}`), media: (url, init) => bucket.fetchImpl(url, init) });
   const client = createClient({ apiKey: 'k_buffer_key_1234', fetchImpl: server.fetchImpl, sleep: async () => {} });
   const pushState = { batch: 'fan', posts: {} };
-  const s = await runPush({ rows: planRows(after, pushState, {}), client, state: pushState, saveState() {}, live: false, fetchImpl: server.fetchImpl, log() {}, now: () => 0 });
+  const s = await runPush({ rows: planRows(after, pushState, {}), clients: { main: client }, state: pushState, saveState() {}, live: false, fetchImpl: server.fetchImpl, log() {}, now: () => 0 });
   assert.equal(s.created, 3);
   const sentUrls = server.posts().flatMap((c) => (c.body.variables.input.assets ?? []).map((a) => a.image?.url ?? a.video.url));
   assert.ok(sentUrls.length === 4 && sentUrls.every((u) => u.startsWith(config().publicBaseUrl)), 'Buffer was given the bucket URLs');
@@ -298,7 +299,7 @@ test('push sends and probes the uploaded URLs when they exist, and MEDIA_BASE_UR
   assert.ok(probed.length >= 4 && probed.every((u) => u.startsWith(config().publicBaseUrl)), 'the reachability check used the same URLs');
 });
 
-test('an upload goes stale when the file changes: push falls back to MEDIA_BASE_URL and the plan says so', async () => {
+test('an upload goes stale when the file changes: the medium loses its URL until it is uploaded again, and the item says so', async () => {
   const p = project();
   const bucket = fakeBucket();
   const state = { posts: {} };
@@ -307,8 +308,7 @@ test('an upload goes stale when the file changes: push falls back to MEDIA_BASE_
   fs.writeFileSync(path.join(p.media, 'v.mp4'), 'a different video');
   const items = p.items({ uploaded: state.media });
   const reel = items.find((i) => i.postId === 'p3');
-  assert.equal(reel.media[0].hosted, 'base-url');
-  assert.ok(reel.media[0].url.startsWith('https://old.example.com/fan/'));
-  assert.ok(reel.warnings.some((w) => /v\.mp4 changed since it was uploaded; run upload again/.test(w)));
-  assert.equal(items.find((i) => i.postId === 'p1').media[0].hosted, 'upload');
+  assert.equal(reel.media[0].url, null);
+  assert.ok(reel.warnings.some((w) => /v\.mp4 changed since it was uploaded; it must be uploaded again before it is sent/.test(w)));
+  assert.equal(items.find((i) => i.postId === 'p1').media[0].url, state.media['a.jpg'].url);
 });

@@ -1,23 +1,18 @@
-// node --test   Several Buffer accounts, channel routing, X, per-account limits, old single-account state.
+// node --test   Several Buffer accounts, channel routing, X, per-account limits, records without an account.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { createClient } from './lib/client.mjs';
 import { validateBatch, resolveItems, contentHash } from './lib/batch.mjs';
-import { ConfigError, collectSecrets, loadAccountsConfig, requireKey } from './lib/accounts.mjs';
+import { isValidAccountName } from './lib/accounts.mjs';
 import { decide, planRows, runPush, runStatus } from './lib/push.mjs';
-import { runCheckAccounts } from './lib/schema.mjs';
 import { fakeServer, ok } from './testlib/fakes.mjs';
 
 const KEYS = { A: 'fake_ACCOUNT_A_secret_1', B: 'fake_ACCOUNT_B_secret_2' };
 const BASE = 'https://media.example.com/fan';
-const tmp = (prefix = 'accounts-') => fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 
 const accounts = [
-  { name: 'A', keyEnv: 'BUFFER_KEY_A', apiKey: KEYS.A, organizationId: '', captionLimits: {} },
-  { name: 'B', keyEnv: 'BUFFER_KEY_B', apiKey: KEYS.B, organizationId: '', captionLimits: {} },
+  { name: 'A', apiKey: KEYS.A, organizationId: '', captionLimits: {} },
+  { name: 'B', apiKey: KEYS.B, organizationId: '', captionLimits: {} },
 ];
 // X and LinkedIn through A, Facebook and Instagram through B (the example in the spec).
 const routing = {
@@ -37,82 +32,32 @@ const batchOf = (raw = rawFan()) => {
   assert.deepEqual(errors, []);
   return batch;
 };
-const fanItems = (opts = {}) => resolveItems(batchOf(), { routing, accounts, mediaBaseUrl: BASE, ...opts });
+// The web app uploads every file to the public prefix before it sends; here each medium gets the URL an upload would give it.
+const withUrls = (items) => {
+  for (const i of items) for (const m of i.media) m.url = `${BASE}/${m.rel}`;
+  return items;
+};
+const fanItems = (opts = {}) => withUrls(resolveItems(batchOf(), { routing, accounts, ...opts }));
 
-function multiHarness({ items = fanItems(), api, live = false, state = { batch: 'fan', posts: {} }, forceNew = false, budget } = {}) {
+function multiHarness({ items = fanItems(), api, live = false, state = { batch: 'fan', posts: {} }, budget } = {}) {
   const server = fakeServer({ api });
   const sleeps = { A: [], B: [] };
   const clients = Object.fromEntries(['A', 'B'].map((n) => [n, createClient({ apiKey: KEYS[n], fetchImpl: server.fetchImpl, sleep: async (ms) => { sleeps[n].push(ms); }, ...(budget ? { budget } : {}) })]));
   const logs = [];
   const run = () => runPush({
-    rows: planRows(items, state, { live, forceNew }), clients, state, saveState() {}, live,
+    rows: planRows(items, state, { live }), clients, state, saveState() {}, live,
     fetchImpl: server.fetchImpl, log: (l) => logs.push(l), now: () => Date.parse('2026-11-20T00:00:00Z'),
   });
   return { server, run, state, logs, sleeps, clients };
 }
-// The media files of these fixtures do not exist on disk; that warning is not what is tested here.
-const notMissing = (w) => !/local file missing/.test(w);
 const whoIs = (call) => (call.headers.Authorization === `Bearer ${KEYS.A}` ? 'A' : 'B');
 
-// ---------- accounts.json ----------
+// ---------- accounts and routing ----------
 
-test('accounts.json: keys come from the named environment variables, never from the file', () => {
-  const root = tmp();
-  fs.writeFileSync(path.join(root, 'accounts.json'), JSON.stringify({
-    accounts: [{ name: 'main', keyEnv: 'BUFFER_KEY_MAIN', organizationId: 'org1', captionLimits: { x: 25000 } }, { name: 'second', keyEnv: 'BUFFER_KEY_SECOND' }],
-    routing: { x: { account: 'main', channelId: 'cx' }, instagram: { account: 'second', channelId: 'ci' } },
-  }));
-  fs.writeFileSync(path.join(root, '.env'), 'BUFFER_KEY_MAIN=from_dotenv_main\nBUFFER_KEY_SECOND=from_dotenv_second\n');
-  const cfg = loadAccountsConfig({ root, env: { BUFFER_KEY_SECOND: 'from_process_env' } });
-  assert.equal(cfg.mode, 'accounts');
-  assert.equal(cfg.accounts[0].apiKey, 'from_dotenv_main');
-  assert.equal(cfg.accounts[1].apiKey, 'from_process_env', 'real environment wins over .env');
-  assert.equal(cfg.accounts[0].organizationId, 'org1');
-  assert.deepEqual(cfg.routing.x, { account: 'main', channelId: 'cx' });
-  assert.ok(!fs.readFileSync(path.join(root, 'accounts.json'), 'utf8').includes('from_dotenv'));
-  assert.deepEqual(collectSecrets({ root, env: {} }).sort(), ['from_dotenv_main', 'from_dotenv_second']);
-  assert.throws(() => requireKey({ name: 'z', keyEnv: 'BUFFER_KEY_Z', apiKey: '' }), /BUFFER_KEY_Z/);
+test('account names: letters, digits, _ and -, up to 32 characters', () => {
+  for (const good of ['main', 'Second_2', 'a-b', 'x'.repeat(32)]) assert.equal(isValidAccountName(good), true, good);
+  for (const bad of ['', 'x'.repeat(33), 'two words', 'name.with.dots', 'ünï', undefined, 7, { name: 'main' }]) assert.equal(isValidAccountName(bad), false, String(bad));
 });
-
-test('accounts.json validation lists every problem and never echoes a pasted key', () => {
-  const root = tmp();
-  const pasted = 'not_a_real_PASTED_key_abcdef';
-  fs.writeFileSync(path.join(root, 'accounts.json'), JSON.stringify({
-    accounts: [
-      { name: 'one', keyEnv: pasted },
-      { name: 'two', keyEnv: 'BUFFER_KEY_TWO', apiKey: pasted },
-      { name: 'three', keyEnv: 'BUFFER_KEY_THREE', captionLimits: { x: 'many', tiktok: 5 } },
-      { name: 'one', keyEnv: 'BUFFER_KEY_ONE' },
-    ],
-    routing: { x: { account: 'ghost', channelId: 'c' }, whatsapp: { account: 'one' } },
-    extra: 1,
-  }));
-  assert.throws(() => loadAccountsConfig({ root, env: {} }), (e) => {
-    assert.ok(e instanceof ConfigError);
-    assert.ok(!e.message.includes(pasted), 'the pasted key must not be repeated');
-    for (const part of ['keyEnv must be the NAME', 'Keys are read from the environment variable', 'duplicate name', 'captionLimits.x', 'unknown network "tiktok"', 'routing.x: account must be one of', 'unknown network "whatsapp"', 'unknown top-level field "extra"']) assert.match(e.message, new RegExp(part.replace(/[.]/g, '\\.')), part);
-    return true;
-  });
-});
-
-test('without accounts.json the original BUFFER_API_KEY + channels.json setup works as before', () => {
-  const root = tmp();
-  fs.writeFileSync(path.join(root, '.env'), 'BUFFER_API_KEY=legacy_key_value\nBUFFER_ORG_ID=orgL\n');
-  fs.writeFileSync(path.join(root, 'channels.json'), JSON.stringify({ instagram: 'ci', linkedin: 'cl' }));
-  const cfg = loadAccountsConfig({ root, env: {} });
-  assert.equal(cfg.mode, 'legacy');
-  assert.equal(cfg.accounts.length, 1);
-  assert.equal(cfg.accounts[0].name, 'default');
-  assert.equal(cfg.accounts[0].apiKey, 'legacy_key_value');
-  assert.equal(cfg.accounts[0].organizationId, 'orgL');
-  const items = resolveItems(batchOf(rawFan({ defaultNetworks: undefined })), { routing: cfg.routing, accounts: cfg.accounts, mediaBaseUrl: BASE });
-  assert.deepEqual(items.map((i) => [i.network, i.account, i.channelId]), [
-    ['instagram', 'default', 'ci'], ['linkedin', 'default', 'cl'], ['facebook', 'default', null],
-    ['instagram', 'default', 'ci'], ['linkedin', 'default', 'cl'], ['facebook', 'default', null],
-  ]);
-});
-
-// ---------- routing ----------
 
 test('a post is split across two accounts, each request carrying its own key and channel', async () => {
   const items = fanItems();
@@ -133,7 +78,7 @@ test('a post is split across two accounts, each request carrying its own key and
 test('a network with no route is refused, not sent through some other account', async () => {
   const partial = { ...routing };
   delete partial.x;
-  const items = resolveItems(batchOf(), { routing: partial, accounts, mediaBaseUrl: BASE });
+  const items = withUrls(resolveItems(batchOf(), { routing: partial, accounts }));
   const h = multiHarness({ items, api: (n) => ok(`b${n}`) });
   const s = await h.run();
   assert.equal(s.refused, 2);
@@ -178,7 +123,7 @@ test('a failure on one account stops the run, names the account and channel, and
   assert.equal(h.state.posts.p1.facebook.status, 'unknown');
   assert.equal(h.state.posts.p1.facebook.account, 'B');
   // A rerun refuses the unknown record rather than creating a possible duplicate in account B.
-  const again = planRows(fanItems(), h.state, { live: false, forceNew: false });
+  const again = planRows(fanItems(), h.state, { live: false });
   assert.equal(again.find((r) => r.item.postId === 'p1' && r.item.network === 'facebook').action, 'refuse');
 });
 
@@ -190,7 +135,7 @@ test('a Buffer refusal on one account is reported with its account too', async (
   assert.equal(s.created, 1);
 });
 
-// ---------- old state, old hashes ----------
+// ---------- records without an account, old hashes ----------
 
 // Hashes printed by the version before accounts and X existed, for this exact batch. They must never change.
 const LEGACY_RAW = {
@@ -207,7 +152,7 @@ const LEGACY_HASHES = {
   'a2/instagram': '0c35500e693280c6ce5a4ce821bd9a0291f0d17af4242d99850fa9ba2cfc8957',
   'a2/facebook': '350eac70c78edaea3499d19f996013dc1a859603078fd19dae09f1407302c74f',
 };
-// A state file exactly as the previous version wrote it: no `account`, no `media`.
+// State exactly as the first version wrote it: no `account`, no `media`.
 const OLD_STATE = JSON.parse(JSON.stringify({
   batch: 'legacy',
   posts: {
@@ -221,27 +166,25 @@ const OLD_STATE = JSON.parse(JSON.stringify({
 
 test('the duplicate-protection hash is unchanged: pinned values, and independent of account, routing, limits and uploads', () => {
   const batch = batchOf(LEGACY_RAW);
-  const channels = { instagram: 'c1', linkedin: 'c2', facebook: 'c3' };
-  const plain = resolveItems(batch, { channels, mediaBaseUrl: 'https://m.example.com' });
+  const plain = resolveItems(batch, { routing: { instagram: { account: 'A', channelId: 'c1' }, linkedin: { account: 'A', channelId: 'c2' }, facebook: { account: 'A', channelId: 'c3' } }, accounts });
   assert.deepEqual(Object.fromEntries(plain.map((i) => [`${i.postId}/${i.network}`, i.hash])), LEGACY_HASHES);
+  assert.deepEqual(resolveItems(batch).map((i) => i.hash), plain.map((i) => i.hash), 'no routing at all');
   const routed = resolveItems(batch, {
     routing: { instagram: { account: 'B', channelId: 'x' }, linkedin: { account: 'A', channelId: 'y' }, facebook: { account: 'B', channelId: 'z' } },
-    accounts: [{ ...accounts[0], captionLimits: { linkedin: 10 } }, accounts[1]], mediaBaseUrl: '', uploaded: { 'one.jpg': { url: 'https://bucket.example/public/x/one.jpg', sha256: 'abc' } },
+    accounts: [{ ...accounts[0], captionLimits: { linkedin: 10 } }, accounts[1]], uploaded: { 'one.jpg': { url: 'https://bucket.example/public/x/one.jpg', sha256: 'abc' } },
   });
   assert.deepEqual(routed.map((i) => i.hash), plain.map((i) => i.hash));
   assert.equal(contentHash({ text: 'x', media: [], dueAt: 'd' }), contentHash({ text: 'x', media: [], dueAt: 'd', account: 'A' }));
 });
 
-test('a state file written by the previous version is still honoured, in the old and the new setup', async () => {
+test('records that carry no account are still honoured, whichever account the network is routed to', async () => {
   const batch = batchOf(LEGACY_RAW);
-  const channels = { instagram: 'c1', linkedin: 'c2', facebook: 'c3' };
-  for (const opts of [
-    { channels, mediaBaseUrl: BASE },
-    { routing: { instagram: { account: 'B', channelId: 'c1' }, linkedin: { account: 'A', channelId: 'c2' }, facebook: { account: 'B', channelId: 'c3' } }, accounts, mediaBaseUrl: BASE },
-  ]) {
-    const items = resolveItems(batch, opts);
+  const oneAccount = { instagram: { account: 'A', channelId: 'c1' }, linkedin: { account: 'A', channelId: 'c2' }, facebook: { account: 'A', channelId: 'c3' } };
+  const twoAccounts = { instagram: { account: 'B', channelId: 'c1' }, linkedin: { account: 'A', channelId: 'c2' }, facebook: { account: 'B', channelId: 'c3' } };
+  for (const r of [oneAccount, twoAccounts]) {
+    const items = resolveItems(batch, { routing: r, accounts });
     const state = structuredClone(OLD_STATE);
-    const rows = planRows(items, state, { live: false, forceNew: false });
+    const rows = planRows(items, state, { live: false });
     const by = Object.fromEntries(rows.map((r) => [`${r.item.postId}/${r.item.network}`, r]));
     assert.equal(by['a1/instagram'].action, 'skip', 'same hash, draft: skipped');
     assert.match(by['a1/instagram'].reason, /buf_ig/);
@@ -249,33 +192,34 @@ test('a state file written by the previous version is still honoured, in the old
     assert.equal(by['a2/facebook'].action, 'refuse', 'changed content: refused');
     assert.equal(by['a2/instagram'].action, 'create');
     // live over an old draft keeps the history exactly as before
-    const live = planRows(items, state, { live: true, forceNew: false });
+    const live = planRows(items, state, { live: true });
     assert.equal(live.find((r) => r.item.postId === 'a1' && r.item.network === 'instagram').promote, true);
   }
   // and it sends nothing for the skipped and refused ones
   const server = fakeServer({ api: (n) => ok(`n${n}`) });
   const client = createClient({ apiKey: 'k_legacy_key', fetchImpl: server.fetchImpl, sleep: async () => {} });
   const state = structuredClone(OLD_STATE);
-  const items = resolveItems(batch, { channels, mediaBaseUrl: BASE });
-  const s = await runPush({ rows: planRows(items, state, {}), client, state, saveState() {}, live: false, fetchImpl: server.fetchImpl, log() {}, now: () => 0 });
+  const items = withUrls(resolveItems(batch, { routing: oneAccount, accounts }));
+  const s = await runPush({ rows: planRows(items, state, {}), clients: { A: client }, state, saveState() {}, live: false, fetchImpl: server.fetchImpl, log() {}, now: () => 0 });
   assert.equal(s.skipped, 2);
   assert.equal(s.refused, 1);
   assert.equal(s.created, 2);
   assert.equal(state.posts.a1.linkedin.bufferId, 'buf_li');
   assert.equal(state.posts.a1.instagram.bufferId, 'buf_ig');
   assert.equal(server.posts().length, 2);
-  assert.equal(state.posts.a2.instagram.account, 'default', 'new records say which account made them');
+  assert.equal(state.posts.a2.instagram.account, 'A', 'new records say which account made them');
 });
 
 test('a record made in one account is not honoured as a record in another', () => {
   const items = fanItems();
   const item = items.find((i) => i.postId === 'p1' && i.network === 'facebook');
   const rec = { status: 'created', mode: 'draft', bufferId: 'bf1', hash: item.hash, account: 'A' };
-  const d = decide(rec, item, { live: false, forceNew: false });
-  assert.equal(d.action, 'refuse');
-  assert.match(d.reason, /account "A".*routed to "B"/);
-  assert.equal(decide(rec, item, { live: false, forceNew: true }).action, 'create');
-  assert.equal(decide({ ...rec, account: 'B' }, item, { live: false, forceNew: false }).action, 'skip');
+  for (const live of [false, true]) {
+    const d = decide(rec, item, { live });
+    assert.equal(d.action, 'refuse');
+    assert.match(d.reason, /account "A".*routed to "B"; delete it from Buffer/);
+  }
+  assert.equal(decide({ ...rec, account: 'B' }, item, { live: false }).action, 'skip');
 });
 
 // ---------- X ----------
@@ -294,96 +238,33 @@ test('x is opt-in per post or per batch, so batches written before X keep their 
 test('x takes its own caption override, sends no type or metadata, and has a 280 character limit', () => {
   const long = 'y'.repeat(281);
   const batch = batchOf(rawFan({ posts: [{ id: 'p1', date: '2026-12-01', caption: long, media: ['a.jpg'], networks: { x: { caption: 'Short for X' }, linkedin: {}, instagram: {}, facebook: {} } }] }));
-  const items = resolveItems(batch, { routing, accounts, mediaBaseUrl: BASE });
+  const items = resolveItems(batch, { routing, accounts });
   const x = items.find((i) => i.network === 'x');
   assert.equal(x.text, 'Short for X');
   assert.equal(x.type, null);
   assert.equal(x.metadata, undefined);
   assert.equal(x.charLimit, 280);
-  assert.deepEqual(x.warnings.filter(notMissing), []);
+  assert.deepEqual(x.warnings, []);
   assert.equal(items.find((i) => i.network === 'linkedin').text, long, 'other networks keep the post caption');
 });
 
 test('x caption limit warnings: 280 by default, per account when raised, and the other X warnings', () => {
   const caption = 'z'.repeat(281);
   const mk = (extra = {}) => batchOf(rawFan({ posts: [{ id: 'p1', date: '2026-12-01', caption, media: ['a.jpg'], skip: ['instagram', 'linkedin', 'facebook'], ...extra }] }));
-  const warn = (items) => items.find((i) => i.network === 'x').warnings.filter(notMissing);
-  assert.match(warn(resolveItems(mk(), { routing, accounts, mediaBaseUrl: BASE }))[0], /caption is 281 characters, x allows 280/);
+  const warn = (items) => items.find((i) => i.network === 'x').warnings;
+  assert.match(warn(resolveItems(mk(), { routing, accounts }))[0], /caption is 281 characters, x allows 280/);
   const paid = [{ ...accounts[0], captionLimits: { x: 25000 } }, accounts[1]];
-  assert.deepEqual(warn(resolveItems(mk(), { routing, accounts: paid, mediaBaseUrl: BASE })), []);
-  assert.equal(resolveItems(mk(), { routing, accounts: paid, mediaBaseUrl: BASE }).find((i) => i.network === 'x').charLimit, 25000);
+  assert.deepEqual(warn(resolveItems(mk(), { routing, accounts: paid })), []);
+  assert.equal(resolveItems(mk(), { routing, accounts: paid }).find((i) => i.network === 'x').charLimit, 25000);
   // the limit belongs to the account the network is routed to
   const elsewhere = { ...routing, x: { account: 'B', channelId: 'x1' } };
-  assert.match(warn(resolveItems(mk(), { routing: elsewhere, accounts: paid, mediaBaseUrl: BASE }))[0], /allows 280/);
-  assert.equal(warn(resolveItems(mk({ caption: 'z'.repeat(280) }), { routing, accounts, mediaBaseUrl: BASE })).length, 0, 'exactly 280 is fine');
-  assert.match(warn(resolveItems(mk({ media: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg'], caption: 'ok' }), { routing, accounts, mediaBaseUrl: BASE })).join('|'), /5 images, X allows 4/);
-  assert.match(warn(resolveItems(mk({ caption: 'ok', networks: { x: { firstComment: 'later' } } }), { routing, accounts, mediaBaseUrl: BASE })).join('|'), /firstComment is not sent to X/);
+  assert.match(warn(resolveItems(mk(), { routing: elsewhere, accounts: paid }))[0], /allows 280/);
+  assert.equal(warn(resolveItems(mk({ caption: 'z'.repeat(280) }), { routing, accounts })).length, 0, 'exactly 280 is fine');
+  assert.match(warn(resolveItems(mk({ media: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg'], caption: 'ok' }), { routing, accounts })).join('|'), /5 images, X allows 4/);
+  assert.match(warn(resolveItems(mk({ caption: 'ok', networks: { x: { firstComment: 'later' } } }), { routing, accounts })).join('|'), /firstComment is not sent to X/);
 });
 
-// ---------- check and status ----------
-
-function bufferWorld() {
-  // A holds the X and LinkedIn channels, B holds Facebook and Instagram. Each answers only to its own key.
-  const world = {
-    [KEYS.A]: { orgs: [{ id: 'oA', name: 'Org A' }], channels: [{ id: 'x1', name: 'savingspaa', displayName: 'Acme Savings', service: 'twitter', isQueuePaused: false }, { id: 'l1', name: 'savingspaa', displayName: 'Acme Savings', service: 'linkedin', isQueuePaused: false }] },
-    [KEYS.B]: { orgs: [{ id: 'oB', name: 'Org B' }], channels: [{ id: 'f1', name: 'savingspaa', displayName: 'Acme Savings', service: 'facebook', isQueuePaused: false }, { id: 'i1', name: 'savingspaa', displayName: 'Acme Savings', service: 'instagram', isQueuePaused: false }] },
-  };
-  const introspections = [];
-  const server = fakeServer({
-    api: (_n, call) => {
-      const mine = world[call.headers.Authorization.replace('Bearer ', '')];
-      if (!mine) return new Response('nope', { status: 401 });
-      const q = call.body.query;
-      if (q.includes('organizations')) return new Response(JSON.stringify({ data: { account: { organizations: mine.orgs } } }));
-      if (q.includes('channels(')) return new Response(JSON.stringify({ data: { channels: mine.channels } }));
-      const names = [...q.matchAll(/(t\d+): __type\(name: "([^"]+)"\)/g)];
-      introspections.push(...names.map((m) => m[2]));
-      return new Response(JSON.stringify({ data: Object.fromEntries(names.map(([, alias]) => [alias, null])) }));
-    },
-  });
-  const clientFor = (key) => createClient({ apiKey: key, fetchImpl: server.fetchImpl, sleep: async () => {} });
-  return { server, introspections, clientFor };
-}
-
-test('check runs per account, reads the schema once, suggests a routing and reports channels in the wrong account', async () => {
-  const w = bufferWorld();
-  const out = [];
-  const root = tmp('check-');
-  const wrong = { ...routing, facebook: { account: 'A', channelId: 'f1' }, linkedin: { account: 'A', channelId: 'ghost' } };
-  const r = await runCheckAccounts({
-    accounts: [{ name: 'A', client: w.clientFor(KEYS.A), orgId: '' }, { name: 'B', client: w.clientFor(KEYS.B), orgId: '' }],
-    routing: wrong, facebookTypes: ['post'], log: (l) => out.push(l), root,
-  });
-  const text = out.join('\n');
-  assert.match(text, /Account "A": the key works/);
-  assert.match(text, /Account "B": the key works/);
-  assert.match(text, /Channels in oA \(account "A"\)/);
-  assert.match(text, /Channels in oB \(account "B"\)/);
-  assert.match(text, /Suggested routing for accounts\.json/);
-  assert.match(text, /"x": \{\s+"account": "A",\s+"channelId": "x1"/, 'the twitter service is suggested for x');
-  assert.match(text, /"instagram": \{\s+"account": "B"/);
-  assert.deepEqual(r.routingProblems, [
-    'linkedin: channel ghost is not in account "A" (nor in any account that could be read)',
-    'facebook: channel f1 is routed to account "A" but account "B" holds it',
-  ]);
-  assert.equal(w.introspections.filter((n) => n === 'CreatePostInput').length, 1, 'the schema is read once, not once per account');
-  assert.ok(!text.includes(KEYS.A) && !text.includes(KEYS.B));
-});
-
-test('check keeps going when one account key is rejected and says which one', async () => {
-  const w = bufferWorld();
-  const out = [];
-  const r = await runCheckAccounts({
-    accounts: [{ name: 'A', client: w.clientFor('fake_expired_key_0000'), orgId: '' }, { name: 'B', client: w.clientFor(KEYS.B), orgId: '' }],
-    routing, facebookTypes: ['post'], log: (l) => out.push(l), root: tmp('check-'),
-  });
-  assert.equal(r.failures.length, 1);
-  assert.match(r.failures[0], /account "A": .*rejected the API key/);
-  assert.match(out.join('\n'), /Account "B": the key works/);
-  assert.ok(!out.join('\n').includes('fake_expired_key_0000'));
-  // routes through the unreadable account are not reported as wrong: it could not be read
-  assert.deepEqual(r.routingProblems, []);
-});
+// ---------- status ----------
 
 test('status asks each account for its own posts and matches records only inside their account', async () => {
   const state = { batch: 'fan', posts: {

@@ -67,7 +67,7 @@ const REQUIRED = ['S3_ENDPOINT', 'S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACC
 export function loadS3Config(env) {
   const get = (k) => String(env[k] ?? '').trim();
   const missing = REQUIRED.filter((k) => !get(k));
-  const errors = missing.length ? [`not set: ${missing.join(', ')} (see .env.example)`] : [];
+  const errors = missing.length ? [`not set: ${missing.join(', ')}`] : [];
   let endpoint = get('S3_ENDPOINT').replace(/\/+$/, '');
   let region = get('S3_REGION');
   if (endpoint) {

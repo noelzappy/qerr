@@ -21,14 +21,13 @@ test('without BRAND_DIR the default pack is used, and it is a complete brand', (
   assert.ok(loadSeries().length > 0);
 });
 
-test('BRAND_DIR comes from the environment or .env (the environment wins), relative to the repository root', () => {
+test('BRAND_DIR comes from the environment, relative to the repository root; a .env file is not read', () => {
   const root = tmpRoot();
   try {
     assert.equal(brandDir({ root, env: { BRAND_DIR: 'brands/acme' } }), path.join(root, 'brands', 'acme'));
     fs.writeFileSync(path.join(root, '.env'), 'BRAND_DIR=brands/from-file\n');
-    assert.equal(brandDir({ root, env: {} }), path.join(root, 'brands', 'from-file'));
-    assert.equal(brandDir({ root, env: { BRAND_DIR: 'brands/acme' } }), path.join(root, 'brands', 'acme'));
-    assert.equal(brandDir({ root, env: { BRAND_DIR: '  ' } }), path.join(root, 'brands', 'from-file'), 'a blank value falls back');
+    assert.equal(brandDir({ root, env: {} }), path.join(root, DEFAULT_BRAND_DIR));
+    assert.equal(brandDir({ root, env: { BRAND_DIR: '  ' } }), path.join(root, DEFAULT_BRAND_DIR), 'a blank value counts as unset');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 

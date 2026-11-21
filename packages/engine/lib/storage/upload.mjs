@@ -1,5 +1,5 @@
-// `upload`: puts a batch's media into S3-compatible storage under content-addressed keys and records the public URLs
-// in the state file, where `plan`, `media` and `push` pick them up instead of MEDIA_BASE_URL.
+// Puts the media a batch is about to send into S3-compatible storage under content-addressed keys and records the public
+// URLs in state.media, where resolveItems (batch.mjs) picks them up for the push loop.
 import fs from 'node:fs';
 import path from 'node:path';
 import { sha256File } from '../core.mjs';
@@ -74,7 +74,7 @@ export async function runUpload({ plan, s3, config, state, saveState, fetchImpl 
       }
     } catch (e) {
       if (!(e instanceof S3Error)) throw e;
-      summary.stopped = `Stopped at ${f.rel}: ${e.message}. ${summary.uploaded} uploaded before this; running upload again is safe.`;
+      summary.stopped = `Stopped at ${f.rel}: ${e.message}. ${summary.uploaded} uploaded before this; uploading again is safe.`;
       break;
     }
     const url = publicUrl(config, f.key);
@@ -83,11 +83,8 @@ export async function runUpload({ plan, s3, config, state, saveState, fetchImpl 
     const probe = await probeMedia(url, fetchImpl);
     if (!probe.ok) {
       summary.notPublic++;
-      log(`NOT PUBLIC ${f.rel}: ${url} answered "${probe.reason}". The bucket must allow public read on ${config.prefix} (this tool does not change bucket policy).`);
+      log(`NOT PUBLIC ${f.rel}: ${url} answered "${probe.reason}". The bucket must allow public read on ${config.prefix} (Vesk never changes the bucket's policy).`);
     }
   }
   return summary;
 }
-
-// { "<rel>": { url, sha256 } } for resolveItems, from a state file.
-export const uploadedFrom = (state) => state?.media ?? {};

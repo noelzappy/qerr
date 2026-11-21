@@ -25,7 +25,6 @@ import { assertInside, engineRel, mediaFor, rawBatchForEngine, targetNetworks } 
 export type Mode = 'draft' | 'live';
 type Actor = AuditActor & { id: string; role?: string };
 
-const IRRELEVANT_WARNINGS = [/^local file missing/, /^Facebook type "/];
 const settingKey = (batchId: string) => `send:${batchId}`;
 const ALLOW_DIRECT_LIVE = 'allowDirectLive';
 
@@ -104,7 +103,7 @@ export async function buildPlan(deps: Deps, batchId: string, mode: Mode): Promis
   if (errors.length) throw new HttpError(409, 'An approved post is no longer valid. Open it in review to fix it', errors);
   const flat: DeliveryWithPostKey[] = batch.posts.flatMap((p) => p.deliveries.map((d) => ({ ...d, post: { postKey: p.postKey } })));
   const state = stateFromDeliveries(batch.name, flat);
-  const engineRows = engine.planRows(items, state, { live: mode === 'live', forceNew: false });
+  const engineRows = engine.planRows(items, state, { live: mode === 'live' });
   const now = deps.now().getTime();
 
   const blockersByPost = new Map<string, string[]>();
@@ -129,7 +128,7 @@ export async function buildPlan(deps: Deps, batchId: string, mode: Mode): Promis
     return {
       postId: post.id, postKey: item.postId, title: item.title, network: item.network, account: item.account, channelId: item.channelId,
       dueAtLocal: `${item.date} ${item.time}`, dueAtUtc: item.dueAt, action: r.action, promote: !!r.promote, explanation,
-      warnings: item.warnings.filter((w) => !IRRELEVANT_WARNINGS.some((re) => re.test(w))), problems, needsDraftFirst,
+      warnings: item.warnings, problems, needsDraftFirst,
       willSend: r.action === 'create' && problems.length === 0, media: item.media.length,
     };
   });
@@ -282,7 +281,7 @@ async function sendNow(deps: Deps, payload: { batchId: string; mode: Mode; actor
 
     const items = engine.resolveItems(valid, { routing, accounts: ctx.cfg.accounts, uploaded: uploadState.media });
     const byKey = new Map(items.map((i) => [`${i.postId}|${i.network}`, i]));
-    const rows: EngineRow[] = engine.planRows(items, ctx.state, { live: mode === 'live', forceNew: false }).map((r) => {
+    const rows: EngineRow[] = engine.planRows(items, ctx.state, { live: mode === 'live' }).map((r) => {
       const planned = ctx.plan.rows.find((p) => p.postKey === r.item.postId && p.network === r.item.network);
       if (r.action === 'create' && planned && !planned.willSend) return { item: r.item, action: 'refuse', reason: planned.problems.join('; ') };
       return r;

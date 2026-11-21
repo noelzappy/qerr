@@ -2,14 +2,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import os from 'node:os';
-import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { ROOT, maskSecrets, zonedToUtcIso } from './lib/core.mjs';
 import { createClient } from './lib/client.mjs';
-import { buildInput, contentHash, loadBatch, resolveItems, validateBatch } from './lib/batch.mjs';
-import { decide, loadState, planRows, runPush, runStatus } from './lib/push.mjs';
-import { compareSchema, expectations, runCheck } from './lib/schema.mjs';
+import { buildInput, contentHash, resolveItems, validateBatch } from './lib/batch.mjs';
+import { decide, planRows, runPush, runStatus } from './lib/push.mjs';
 
 const KEY = 'sk_test_SECRET_KEY_12345';
 const BASE = 'https://media.example.com/launch';
@@ -23,11 +20,17 @@ const rawBatch = (over = {}) => ({
   ],
   ...over,
 });
-const channels = { instagram: 'ch_ig', linkedin: 'ch_li', facebook: 'ch_fb' };
+const accounts = [{ name: 'main', apiKey: KEY, organizationId: '', captionLimits: {} }];
+const routing = { instagram: { account: 'main', channelId: 'ch_ig' }, linkedin: { account: 'main', channelId: 'ch_li' }, facebook: { account: 'main', channelId: 'ch_fb' } };
+// The web app uploads every file to the public prefix before it sends; here each medium gets the URL an upload would give it.
+const withUrls = (items) => {
+  for (const i of items) for (const m of i.media) m.url = `${BASE}/${m.rel.split('/').map(encodeURIComponent).join('/')}`;
+  return items;
+};
 const itemsOf = (raw = rawBatch()) => {
   const { errors, batch } = validateBatch(raw);
   assert.deepEqual(errors, []);
-  return resolveItems(batch, { channels, mediaBaseUrl: BASE });
+  return withUrls(resolveItems(batch, { routing, accounts }));
 };
 
 // A fake Buffer + media host. `api` decides how POSTs to the API are answered.
@@ -41,13 +44,13 @@ function fakeServer({ api, media = () => new Response(null, { status: 200, heade
 }
 const ok = (id, dueAt = '2026-12-01T09:00:00.000Z') => new Response(JSON.stringify({ data: { createPost: { __typename: 'PostActionSuccess', post: { id, text: 't', dueAt } } } }));
 
-function harness({ items = itemsOf(), api, live = false, sleeps = [], state = { batch: 't', posts: {} }, forceNew = false } = {}) {
+function harness({ items = itemsOf(), api, live = false, sleeps = [], state = { batch: 't', posts: {} } } = {}) {
   const server = fakeServer({ api });
   const client = createClient({ apiKey: KEY, fetchImpl: server.fetchImpl, sleep: async (ms) => { sleeps.push(ms); } });
   const logs = [];
   let saves = 0;
   const run = () => runPush({
-    rows: planRows(items, state, { live, forceNew }), client, state, saveState: () => { saves++; },
+    rows: planRows(items, state, { live }), clients: { main: client }, state, saveState: () => { saves++; },
     live, fetchImpl: server.fetchImpl, log: (l) => logs.push(l), now: () => Date.parse('2026-11-20T00:00:00Z'),
   });
   return { server, run, state, logs, sleeps, saves: () => saves };
@@ -73,22 +76,25 @@ test('the content hash is stable and sensitive to text, media and dueAt', () => 
   assert.notEqual(h, contentHash({ ...base, dueAt: '2026-12-01T10:00:00.000Z' }));
 });
 
-test('same hash is skipped, changed hash is refused unless --force-new', () => {
+test('same hash is skipped; a changed hash or an unclear earlier attempt is refused, never sent again on its own', () => {
   const [item] = itemsOf();
   const rec = { status: 'created', mode: 'draft', bufferId: 'b1', hash: item.hash };
-  assert.equal(decide(rec, item, { live: false, forceNew: false }).action, 'skip');
-  assert.equal(decide({ ...rec, mode: 'live' }, item, { live: true, forceNew: false }).action, 'skip');
-  assert.equal(decide({ ...rec, mode: 'live' }, item, { live: false, forceNew: false }).action, 'skip');
-  const promote = decide(rec, item, { live: true, forceNew: false });
+  assert.equal(decide(rec, item, { live: false }).action, 'skip');
+  assert.equal(decide({ ...rec, mode: 'live' }, item, { live: true }).action, 'skip');
+  assert.equal(decide({ ...rec, mode: 'live' }, item, { live: false }).action, 'skip');
+  const promote = decide(rec, item, { live: true });
   assert.equal(promote.action, 'create');
   assert.ok(promote.promote);
   const changed = { ...rec, hash: 'other' };
-  const refused = decide(changed, item, { live: false, forceNew: false });
-  assert.equal(refused.action, 'refuse');
-  assert.match(refused.reason, /content changed/);
-  assert.equal(decide(changed, item, { live: false, forceNew: true }).action, 'create');
-  assert.equal(decide({ status: 'unknown', hash: item.hash }, item, { live: false, forceNew: false }).action, 'refuse');
-  assert.equal(decide(undefined, item, { live: false, forceNew: false }).action, 'create');
+  for (const live of [false, true]) {
+    const refused = decide(changed, item, { live });
+    assert.equal(refused.action, 'refuse');
+    assert.match(refused.reason, /content changed.*delete it from Buffer/);
+  }
+  const unclear = decide({ status: 'unknown', hash: item.hash }, item, { live: false });
+  assert.equal(unclear.action, 'refuse');
+  assert.match(unclear.reason, /no clear answer; refresh the status/);
+  assert.equal(decide(undefined, item, { live: false }).action, 'create');
 });
 
 test('push skips what is recorded and refuses what changed, sending nothing for them', async () => {
@@ -152,7 +158,7 @@ test('request body: image post (draft vs live), LinkedIn has no type metadata', 
   assert.equal(buildInput(li, { draft: false }).metadata, undefined);
 });
 
-test('request body: carousel keeps order and encodes URLs; reel has a video asset', () => {
+test('request body: carousel keeps order; reel has a video asset', () => {
   const items = itemsOf();
   const car = buildInput(items.find((i) => i.postId === 'p3'), { draft: true });
   assert.deepEqual(car.assets.map((a) => a.image.url), [`${BASE}/s1.jpg`, `${BASE}/s2.jpg`, `${BASE}/s3%20x.jpg`]);
@@ -163,7 +169,7 @@ test('request body: carousel keeps order and encodes URLs; reel has a video asse
   assert.deepEqual(reel.metadata, { instagram: { type: 'reel', shouldShareToFeed: true } });
 });
 
-test('push drafts send saveToDraft, push --live does not, and state records the mode', async () => {
+test('draft pushes send saveToDraft, live pushes do not, and the state records the mode', async () => {
   const d = harness({ api: (n) => ok(`d${n}`) });
   const ds = await d.run();
   assert.equal(ds.created, 4);
@@ -218,7 +224,7 @@ test('an ambiguous failure (5xx or timeout) is recorded as unknown, never retrie
     assert.equal(h.state.posts.p1.instagram.status, 'unknown');
     assert.ok(h.saves() >= 1);
     // a second run refuses the unknown record instead of creating a possible duplicate
-    const again = planRows(itemsOf(), h.state, { live: false, forceNew: false });
+    const again = planRows(itemsOf(), h.state, { live: false });
     assert.equal(again[0].action, 'refuse');
   }
 });
@@ -233,12 +239,24 @@ test('media that is not 200 image/video refuses that post only', async () => {
   const client = createClient({ apiKey: KEY, fetchImpl: server.fetchImpl, sleep: async () => {} });
   const state = { batch: 't', posts: {} };
   const logs = [];
-  const s = await runPush({ rows: planRows(items, state, {}), client, state, saveState() {}, live: false, fetchImpl: server.fetchImpl, log: (l) => logs.push(l), now: Date.now });
+  const s = await runPush({ rows: planRows(items, state, {}), clients: { main: client }, state, saveState() {}, live: false, fetchImpl: server.fetchImpl, log: (l) => logs.push(l), now: Date.now });
   assert.equal(s.refused, 3);
   assert.ok(logs.some((l) => /one\.jpg -> HTTP 404/.test(l)));
   assert.ok(logs.some((l) => /not image\/\* or video\/\*/.test(l)));
   assert.equal(s.created, 1);
   assert.equal(server.posts().length, 1);
+});
+
+test('a post whose media has not been uploaded is refused, and nothing is sent or fetched for it', async () => {
+  const { batch } = validateBatch(rawBatch());
+  const items = resolveItems(batch, { routing, accounts }); // no uploads: no URL
+  assert.ok(items.every((i) => i.media.every((m) => m.url === null)));
+  const h = harness({ items, api: () => ok('x') });
+  const s = await h.run();
+  assert.equal(s.refused, items.length);
+  assert.equal(s.created, 0);
+  assert.equal(h.server.calls.length, 0);
+  assert.ok(h.logs.some((l) => /REFUSE  p3 \/ instagram: media not uploaded: s1\.jpg, s2\.jpg, s3 x\.jpg/.test(l)), h.logs.join('\n'));
 });
 
 test('live push refuses a dueAt in the past', async () => {
@@ -269,77 +287,6 @@ test('warnings: limits, hashtags, missing Instagram media, carousel size, Linked
   assert.match(w, /d: LinkedIn does not take video mixed with images/);
 });
 
-test('compareSchema finds missing required fields, unknown fields and unknown enum values', () => {
-  const f = (name, required = false) => ({ name, defaultValue: null, type: { kind: required ? 'NON_NULL' : 'SCALAR', name: null } });
-  const en = (...v) => ({ enumValues: v.map((name) => ({ name })) });
-  const exp = expectations({ facebookTypes: ['post'] });
-  const good = {
-    CreatePostInput: { inputFields: exp.inputs.CreatePostInput.map((n) => f(n)) },
-    AssetInput: { inputFields: [f('image'), f('video')] },
-    ImageAssetInput: { inputFields: [f('url', true)] },
-    VideoAssetInput: { inputFields: [f('url', true), f('metadata')] },
-    PostInputMetaData: { inputFields: [f('instagram'), f('facebook'), f('linkedin')] },
-    InstagramPostMetadataInput: { inputFields: [f('type', true), f('shouldShareToFeed', true), f('firstComment')] },
-    FacebookPostMetadataInput: { inputFields: [f('type', true), f('firstComment')] },
-    LinkedInPostMetadataInput: { inputFields: [f('firstComment')] },
-    ShareMode: en('customScheduled', 'addToQueue'), SchedulingType: en('automatic', 'notification'),
-    PostType: en('post', 'reel', 'story', 'carousel'), PostTypeFacebook: en('post', 'reel'),
-  };
-  assert.deepEqual(compareSchema(good, exp), []);
-  const broken = structuredClone(good);
-  broken.InstagramPostMetadataInput.inputFields.push(f('audience', true));
-  broken.FacebookPostMetadataInput.inputFields = [f('type', true)];
-  broken.PostTypeFacebook = en('video');
-  delete broken.ShareMode;
-  const out = compareSchema(broken, exp).join('\n');
-  assert.match(out, /InstagramPostMetadataInput: required field "audience" is not sent/);
-  assert.match(out, /FacebookPostMetadataInput: field "firstComment" is sent but does not exist/);
-  assert.match(out, /PostTypeFacebook: value "post" is used but the enum has \[video\]/);
-  assert.match(out, /enum ShareMode not found/);
-});
-
-test('check lists orgs and channels, introspects, and saves the cache (fake Buffer)', async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'buffer-check-'));
-  const f = (name, required = false) => ({ name, defaultValue: null, type: { kind: required ? 'NON_NULL' : 'SCALAR', name: required ? null : 'String', ofType: required ? { kind: 'SCALAR', name: 'String' } : null } });
-  const types = {
-    CreatePostInput: { name: 'CreatePostInput', inputFields: ['text', 'channelId', 'schedulingType', 'mode', 'dueAt', 'assets', 'metadata', 'saveToDraft'].map((n) => f(n)) },
-    AssetInput: { name: 'AssetInput', inputFields: [{ ...f('image'), type: { kind: 'INPUT_OBJECT', name: 'ImageAssetInput' } }, { ...f('video'), type: { kind: 'INPUT_OBJECT', name: 'VideoAssetInput' } }] },
-    ImageAssetInput: { name: 'ImageAssetInput', inputFields: [f('url', true), f('altText')] },
-    VideoAssetInput: { name: 'VideoAssetInput', inputFields: [f('url', true), f('metadata')] },
-    PostInputMetaData: { name: 'PostInputMetaData', inputFields: [f('instagram'), f('facebook'), f('linkedin')] },
-    InstagramPostMetadataInput: { name: 'InstagramPostMetadataInput', inputFields: [f('type', true), f('shouldShareToFeed', true), f('firstComment')] },
-    FacebookPostMetadataInput: { name: 'FacebookPostMetadataInput', inputFields: [f('type', true), f('firstComment')] },
-    LinkedInPostMetadataInput: { name: 'LinkedInPostMetadataInput', inputFields: [f('firstComment')] },
-    ShareMode: { name: 'ShareMode', enumValues: [{ name: 'customScheduled' }] },
-    SchedulingType: { name: 'SchedulingType', enumValues: [{ name: 'automatic' }] },
-    PostType: { name: 'PostType', enumValues: ['post', 'reel', 'story', 'carousel'].map((name) => ({ name })) },
-    PostTypeFacebook: { name: 'PostTypeFacebook', enumValues: [{ name: 'post' }] },
-    Mutation: { name: 'Mutation', fields: [{ name: 'createPost' }, { name: 'deletePost' }, { name: 'login' }] },
-    Query: { name: 'Query', fields: [] },
-    Channel: { name: 'Channel', fields: [] },
-  };
-  const server = fakeServer({
-    api: (_n, call) => {
-      const q = call.body.query;
-      if (q.includes('organizations')) return new Response(JSON.stringify({ data: { account: { organizations: [{ id: 'o1', name: 'Acme savings' }] } } }));
-      if (q.includes('channels(')) return new Response(JSON.stringify({ data: { channels: [{ id: 'c1', name: 'savingspaa', displayName: 'Acme Savings', service: 'instagram', isQueuePaused: false }] } }));
-      const names = [...q.matchAll(/(t\d+): __type\(name: "([^"]+)"\)/g)];
-      return new Response(JSON.stringify({ data: Object.fromEntries(names.map(([, alias, name]) => [alias, types[name] ?? null])) }));
-    },
-  });
-  const client = createClient({ apiKey: KEY, fetchImpl: server.fetchImpl, sleep: async () => {} });
-  const out = [];
-  const r = await runCheck({ client, log: (l) => out.push(l), root });
-  const text = out.join('\n');
-  assert.deepEqual(r.mismatches, []);
-  assert.match(text, /Organizations \(1\)/);
-  assert.match(text, /"instagram": "c1"/);
-  assert.match(text, /createPost, deletePost/);
-  assert.match(text, /Alt text field on images: altText/);
-  assert.ok(!text.includes(KEY));
-  assert.ok(JSON.parse(fs.readFileSync(path.join(root, 'schema-cache.json'), 'utf8')).types.PostTypeFacebook);
-});
-
 test('status resolves an unknown record only on an exact text and dueAt match', async () => {
   const state = { batch: 't', posts: {
     p1: { instagram: { status: 'unknown', mode: 'draft', dueAt: '2026-12-01T09:00:00.000Z', text: 'Hello  world', hash: 'h' } },
@@ -349,31 +296,17 @@ test('status resolves an unknown record only on an exact text and dueAt match', 
     api: (_n, call) => new Response(JSON.stringify({ data: { posts: { edges: call.body.query.includes('[scheduled]') ? [] : [{ node: { id: 'found1', text: 'Hello world', dueAt: '2026-12-01T09:00:00.000Z' } }] } } })),
   });
   const client = createClient({ apiKey: KEY, fetchImpl: server.fetchImpl, sleep: async () => {} });
-  await runStatus({ client, orgId: 'o1', state, saveState() {}, log() {} });
+  await runStatus({ accounts: [{ name: 'main', client, orgId: 'o1' }], accountOf: () => 'main', state, saveState() {}, log() {} });
   assert.equal(state.posts.p1.instagram.status, 'created');
   assert.equal(state.posts.p1.instagram.bufferId, 'found1');
   assert.equal(state.posts.p2.instagram.status, 'unknown');
 });
 
-test('the example launch batch loads and resolves to 28 channel posts (seven posts on four channels, X included) without errors', () => {
-  const batch = loadBatch(path.join(ROOT, 'batches', 'example-launch.json'));
-  const items = resolveItems(batch, { channels, mediaBaseUrl: BASE });
+test('the example launch batch validates and resolves to 28 channel posts (seven posts on four channels, X included) without warnings', () => {
+  const { errors, batch } = validateBatch(JSON.parse(fs.readFileSync(path.join(ROOT, 'batches', 'example-launch.json'), 'utf8')), { fallbackName: 'example-launch' });
+  assert.deepEqual(errors, []);
+  const items = resolveItems(batch, { routing: { ...routing, x: { account: 'main', channelId: 'ch_x' } }, accounts });
   assert.equal(items.length, 28);
-  // Media is never committed, so a fresh clone has none; only the file-existence warning is allowed.
-  assert.equal(items.filter((i) => i.warnings.some((w) => !/local file missing|Facebook type .* is unverified/.test(w))).length, 0);
+  assert.deepEqual(items.flatMap((i) => i.warnings), []);
   assert.equal(items[0].dueAt, '2026-11-23T09:00:00.000Z');
-  assert.ok(loadState('/nonexistent/state.json', 'x').posts);
-});
-
-test('--help, -h, help and no arguments print usage and exit 0; an unknown command exits 1', () => {
-  const run = (...args) => spawnSync(process.execPath, [path.join(import.meta.dirname, 'buffer.mjs'), ...args], { encoding: 'utf8' });
-  for (const args of [['--help'], ['-h'], ['help'], []]) {
-    const r = run(...args);
-    assert.equal(r.status, 0);
-    assert.match(r.stdout, /Usage:/);
-    for (const c of ['check', 'plan', 'media', 'upload', 'push', 'status', '--live', '--yes', '--force-new']) assert.ok(r.stdout.includes(c), c);
-  }
-  const bad = run('frobnicate');
-  assert.equal(bad.status, 1);
-  assert.match(bad.stdout, /Usage:/);
 });

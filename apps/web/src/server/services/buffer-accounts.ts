@@ -27,7 +27,8 @@ const captionLimitsOf = (value: unknown): Record<string, number> => {
   return out;
 };
 
-// The same shape as the engine's loadAccountsConfig, built from the database. Keys are decrypted here and nowhere else;
+// The accounts and routing the engine's push loop takes (see packages/engine/lib/accounts.mjs), built from the database.
+// Keys are decrypted here and nowhere else;
 // never log or return the result.
 export async function loadAccountsConfig(deps: Pick<Deps, 'prisma' | 'config'>): Promise<AccountsConfig> {
   const [rows, routes] = await Promise.all([
@@ -94,7 +95,7 @@ export interface CheckResult {
   allOrganizations?: boolean;
 }
 
-// Same queries as the engine's `check` command (lib/schema.mjs). Never throws: a failure is reported in the result,
+// Read-only: the key's organisations, then each organisation's channels. Never throws: a failure is reported in the result,
 // with the key and any bearer token masked.
 export async function checkAccount(deps: Pick<Deps, 'fetchImpl' | 'config'>, account: EngineAccount): Promise<CheckResult> {
   const engine = await bufferEngine();

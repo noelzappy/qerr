@@ -1,4 +1,4 @@
-// The engine (the command-line tool's library code) and the AI library are workspace packages, @vesk/engine and
+// The engine (the design renderer and the Buffer client) and the AI library are workspace packages, @vesk/engine and
 // @vesk/ai. They are plain .mjs with no type declarations, so they are loaded with a dynamic import by name and
 // the caller casts the result to the interface it uses, kept next to the wrapper that needs it.
 import fs from 'node:fs';

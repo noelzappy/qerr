@@ -7,8 +7,7 @@ export interface EngineMedia {
   rel: string;
   kind: 'image' | 'video';
   abs: string;
-  url: string;
-  hosted: string;
+  url: string | null;
   thumbnailOffsetMs?: number;
 }
 
@@ -103,7 +102,7 @@ export interface PipelineEngine {
   root: string;
   validateBatch(raw: unknown, options: { fallbackName?: string; root: string }): { errors: string[]; batch?: EngineBatch };
   resolveItems(batch: EngineBatch, options: Record<string, unknown>): EngineItem[];
-  planRows(items: EngineItem[], state: EngineState, options: { live: boolean; forceNew: boolean }): EngineRow[];
+  planRows(items: EngineItem[], state: EngineState, options: { live: boolean }): EngineRow[];
   runPush(options: Record<string, unknown>): Promise<PushSummary>;
   runStatus(options: Record<string, unknown>): Promise<{ remote: Array<{ id: string; listedAs: string; dueAt?: string; text?: string }>; rows: unknown[][] }>;
   resolveOrg(client: Gql, configuredId: string): Promise<string>;
