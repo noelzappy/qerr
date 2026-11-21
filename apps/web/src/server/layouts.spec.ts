@@ -105,6 +105,60 @@ describe('creating and checking', () => {
   });
 });
 
+describe('the built-in layouts', () => {
+  it('lists them read only, every one but the page covers, with whether a brand may copy each and why not', async () => {
+    const api = await admin();
+    const { body } = await api.get('/api/settings/layouts');
+    const ids = body.builtins.map((b: { id: string }) => b.id);
+    expect(ids).toEqual(expect.arrayContaining(['object', 'number', 'product', 'product-side', 'text', 'text-ledger', 'stats', 'screen', 'photo']));
+    expect(ids.some((id: string) => id.startsWith('pagecover'))).toBe(false);
+    const photo = body.builtins.find((b: { id: string }) => b.id === 'photo');
+    expect(photo).toMatchObject({ template: 'photo', copyable: false });
+    expect(photo.why).toMatch(/photo page is for the built-in layouts only/);
+    expect(body.builtins.find((b: { id: string }) => b.id === 'product-side')).toMatchObject({ template: 'product', variant: 'layout is side', copyable: true, why: null });
+    expect(body.builtins.find((b: { id: string }) => b.id === 'object').definition.page).toBe('poster');
+    expect(Object.keys(body.catalogue.pages)).toEqual(['poster', 'editorial']);
+  });
+
+  it('copies one into a brand\'s own layout, switched off, under a free id; never one a brand may not use', async () => {
+    const api = await admin();
+    const a = await api.post('/api/settings/layouts', { builtin: 'object' });
+    expect(a.status).toBe(201);
+    expect(a.body.layout).toMatchObject({ slug: 'object-copy', name: 'Object (copy)', enabled: false, origin: 'builtin:object' });
+    expect(a.body.layout.definition).toMatchObject({ id: 'object-copy', page: 'poster' });
+    expect(JSON.stringify(a.body.layout.definition)).not.toMatch(/specAlign|"field":"size"/);
+    const b = await api.post('/api/settings/layouts', { builtin: 'text-ledger', name: 'Ledger page' });
+    expect(b.body.layout).toMatchObject({ slug: 'ledger-page', name: 'Ledger page' });
+    expect(b.body.layout.definition.fields.artefact.types).toEqual(['ledger']);
+    expect((await api.post('/api/settings/layouts', { builtin: 'object' })).body.layout.slug).toBe('object-copy-2');
+    const photo = await api.post('/api/settings/layouts', { builtin: 'photo' });
+    expect(photo.status).toBe(400);
+    expect(photo.body.error).toMatch(/cannot be copied: a photo page is for the built-in layouts only/);
+    expect((await api.post('/api/settings/layouts', { builtin: 'pagecover-x' })).status).toBe(404);
+    expect((await api.post('/api/settings/layouts', { builtin: 'nope' })).status).toBe(404);
+    expect((await api.post('/api/settings/layouts', { builtin: 'object', starter: 'text' })).status).toBe(400);
+    // the copy is edited like any layout; what reads a built-in template's own settings is refused
+    const def = a.body.layout.definition;
+    const head = def.blocks.findIndex((x: { type: string }) => x.type === 'headline');
+    const withAlign = { ...def, blocks: def.blocks.map((x: object, i: number) => (i === head ? { ...x, specAlign: true } : x)) };
+    const refused = await api.put(`/api/settings/layouts/${a.body.layout.id}`, { definition: withAlign });
+    expect(refused.status).toBe(400);
+    expect(refused.body.details[0].message).toMatch(/specAlign reads a setting of the built-in templates' own designs/);
+    const moved = { ...def, blocks: def.blocks.map((x: { px?: object }, i: number) => (i === head ? { ...x, px: { x: 80, y: 200, w: 920, h: 380 } } : x)) };
+    expect((await api.put(`/api/settings/layouts/${a.body.layout.id}`, { definition: moved })).status).toBe(200);
+    // switched on, it reaches the brand pack, and a post's design can use it
+    await api.patch(`/api/settings/layouts/${a.body.layout.id}`, { enabled: true });
+    expect(activeBrand().layouts.map((l: { id: string }) => l.id)).toEqual(['object-copy']);
+    const engine = await pipelineEngine();
+    expect(engine.designBlockProblems({ template: 'layout', layout: 'object-copy', headline: 'Hello', image: 'design/assets/demo/object-jar.jpg' }, { root })).toEqual([]);
+    // a definition on the photo post's page, written by hand, is refused too
+    const handPhoto = await api.post('/api/settings/layouts', { definition: { ...body0(await api.get('/api/settings/layouts'), 'photo'), id: 'my-photo' } });
+    expect(handPhoto.status).toBe(400);
+  });
+});
+
+const body0 = (res: { body: { builtins: Array<{ id: string; definition: Record<string, unknown> }> } }, id: string) => res.body.builtins.find((b) => b.id === id)!.definition;
+
 describe('changing', () => {
   it('updates, switches off and on, duplicates and deletes', async () => {
     const api = await admin();
