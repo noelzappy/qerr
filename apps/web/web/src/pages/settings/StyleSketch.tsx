@@ -1,6 +1,6 @@
 // A small sketch of posts in a brand's style: a poster with a photo, an editorial page with a card on its panel, a dark page and
 // a photo post. It is drawn in the browser from the settings and the colours the server worked out (the palette), so people
-// see what a change does before they save; the real images always come from the design engine.
+// see what a change does before they save; the real images are always made by Vesk.
 import type { CSSProperties, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { groundColours, isDarkColour, mix, type BrandSettings, type Palette } from './brand-types';
@@ -33,7 +33,7 @@ export function StyleSketch({ s, palette, logo, artwork, font, className, compac
     fontFamily: st.type.label.font === 'mono' ? 'ui-monospace, monospace' : family, fontWeight: st.type.label.weight ?? 500, letterSpacing: TRACK(st.type.label.tracking, 0.07),
     textTransform: st.type.label.case === 'upper' ? 'uppercase' : 'none', color: colour, fontSize: 7,
   });
-  // The headline's second half, as the brand's accent device sets it (the first series decides when it follows the series).
+  // The headline's second half, as the brand's accent device sets it (the first post type decides when it follows the post type).
   const device = st.type.accent === 'series' ? (s.series[0]?.accent ?? 'muted') : st.type.accent;
   const second = (dark: boolean, poster: boolean): CSSProperties => {
     const d = poster && st.type.accent === 'series' && !s.series[0] ? 'colour' : device;
@@ -134,7 +134,7 @@ function Logo({ src, colour }: { src?: string | null; colour: string }) {
   return src ? <img src={src} alt="" className="size-3 object-contain" /> : <span className="inline-block size-3 rounded-[2px]" style={{ background: colour }} />;
 }
 
-// A stand-in photograph (sky, buildings, awnings) under the brand's photo treatment, drawn the way the engine's stylesheet does it.
+// A stand-in photograph (sky, buildings, awnings) under the brand's photo treatment, drawn the way Vesk's stylesheet does it.
 function Photo({ treatment, strength, colour, shadows, highlights }: { treatment: string; strength: number; colour: string; shadows: string; highlights: string }) {
   const scene: CSSProperties = {
     position: 'absolute', inset: 0,

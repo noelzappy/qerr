@@ -61,11 +61,11 @@ export function ReferenceLayout({ reference, open, onClose }: { reference: Desig
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Use this layout</DialogTitle>
-          <DialogDescription>The AI's reading of how this reference is arranged, as a layout for your posts. Preview it with your brand before you add it; you can change it in Settings, Layouts afterwards.</DialogDescription>
+          <DialogDescription>How this reference is arranged, as a layout for your posts. Preview it before you add it.</DialogDescription>
         </DialogHeader>
         {error && <Notice tone="bad">{error}</Notice>}
         {added
-          ? <Notice tone="good" actions={<Button asChild size="sm" variant="outline"><Link to="/settings/layouts">Open Layouts</Link></Button>}>Added as <strong>{added.name}</strong> ({added.slug}). Posts and the AI can use it now.</Notice>
+          ? <Notice tone="good" actions={<span className="flex gap-2"><Button asChild size="sm" variant="outline"><Link to={`/settings/layouts/${added.id}`}>Edit this layout</Link></Button><Button asChild size="sm" variant="ghost"><Link to="/settings/layouts">Open Layouts</Link></Button></span>}>Added as <strong>{added.name}</strong> ({added.slug}). Posts and the AI can use it now.</Notice>
           : (
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
@@ -73,10 +73,10 @@ export function ReferenceLayout({ reference, open, onClose }: { reference: Desig
                 {preview?.image && <img src={preview.image} alt="Preview of the suggested layout" className="w-full rounded-md border" />}
               </div>
               <div className="flex flex-col gap-3">
-                {suggested.description && <p className="text-[13px] text-muted-foreground">{suggested.description}</p>}
-                <TextField label="Name" value={name} maxLength={40} onChange={(e) => setName(e.target.value)} />
-                <TextField label="Id" mono value={id} maxLength={40} hint="What a post's design names" onChange={(e) => setId(e.target.value)} />
-                <p className="text-[12.5px] text-muted-foreground">Fields: {Object.keys(suggested.fields ?? {}).join(', ')}</p>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                  <TextField label="Name" value={name} maxLength={40} onChange={(e) => setName(e.target.value)} hint={[suggested.description, `Fields: ${Object.keys(suggested.fields ?? {}).join(', ')}`].filter(Boolean).join(' ')} />
+                  <TextField label="Id" mono value={id} maxLength={40} hint="Used in links and by the AI; lowercase letters, digits and -" onChange={(e) => setId(e.target.value)} />
+                </div>
                 {preview?.error && <Notice tone="bad">{preview.error}</Notice>}
                 {preview && preview.warnings.length > 0 && <Notice tone="warn" title="Checks:"><Lines items={preview.warnings} /></Notice>}
                 {preview?.ok && preview.warnings.length === 0 && <Notice tone="good">The preview passed every check.</Notice>}

@@ -12,7 +12,8 @@ stylesheet are gone: everything is Tailwind utilities, the theme tokens and the 
 | `src/index.css` | Tailwind import, fonts, theme tokens (light and dark). |
 | `src/lib/utils.ts` | `cn()` for class names. |
 | `src/lib/theme.ts` | `initTheme()`, `setTheme('light' \| 'dark' \| 'system')`, `useTheme()`. |
-| `src/shell/` | `Shell` (sidebar on desktop, Sheet menu on a phone), `nav.ts` (the one navigation list), `AuthLayout`, `PasswordFields`, `ErrorBoundary`. |
+| `src/shell/` | `Shell` (sidebar on desktop, Sheet menu on a phone), `nav.ts` (the one navigation list), `CommandPalette` (Ctrl/Cmd+K), `AuthLayout`, `PasswordFields`, `ErrorBoundary`. |
+| `src/hooks/use-unsaved-guard.tsx` | `useUnsavedGuard`, `confirmDiscard`, `withoutGuard` and the dialog they share (see "Unsaved changes"). |
 | `components.json` (in `apps/web`) | shadcn config; the `@/` alias points to `web/src` (also in `vite.config.ts` and `tsconfig.web.json`). |
 
 ## Adding a shadcn component
@@ -55,14 +56,16 @@ Never use literal colours or Tailwind palette colours (`bg-green-500`).
 - Status uses `Badge` with the `success | warning | info | destructive | quiet` variants (or `secondary`, `outline`).
 - Responsive down to **360 px** with no sideways scroll; tap targets at least 44 px on a phone (`max-sm:min-h-11`).
 - Copy: sentence case, plain words. Money, dates and enums go through `lib/format.ts` and `lib/labels.ts`.
-- Navigation lives only in `shell/nav.ts`; add a route in `App.tsx` and a nav entry together.
+- Navigation lives only in `shell/nav.ts`; add a route in `App.tsx` and a nav entry together (see "Navigation, routes and the palette").
 - Do not add or change anything under `src/server`; the UI only calls the API through `src/api.ts` and `hooks.ts`.
 
 ## Panels, dialogs and confirms
 
 | Need | Use |
 | --- | --- |
-| A form to create or edit something, or a detail view with editable fields | `FormPanel` (`@/components/kit`) |
+| A small form (a team member, a Buffer account, an AI provider, a new batch) | `FormPanel variant="dialog"` (`@/components/kit`): a centred dialog on a desktop, a bottom drawer on a phone |
+| A form with many fields, or something with a live preview: a post, a fact, a picture, a layout, an upload | Its own page (`PageHeader` with `crumbs`), not a panel |
+| A side panel of options that belongs to a page (rare) | `FormPanel` (the default `variant="sheet"`) |
 | "Are you sure?" before a destructive or irreversible action | `AlertDialog`, through `ConfirmAction` (`@/components/kit`) |
 | A message or a read-only result that needs no input beyond closing it | `Dialog` |
 | The phone navigation menu | a left `Sheet` (`shell/Shell.tsx`), not a `FormPanel` |
@@ -96,7 +99,78 @@ the same anatomy in both: header (title and description), a body that scrolls, a
 - A panel always has an accessible title. Without a `description`, none is announced.
 - Mount it only while it is needed (`{editing && <FormPanel open ...>}`) or pass `open`; its contents are unmounted on close, so
   form state starts fresh each time.
-- A page can open its panel from the route (the vault: `/vault/new` and `/vault/:id` render the list with the item panel open, and
-  closing navigates back to `/vault`). Keep the panel's state in one component so a save does not re-open the panel.
+- A page can open its dialog from the route (Create: `/batches/new` and `/batches/ai-draft` render the list with the dialog open,
+  and closing navigates back to `/create`). Keep the dialog's state in one component so a save does not re-open it.
 - Images inside a panel: `max-w-full` with `object-contain` so they never exceed the panel width.
 
+
+## Interface conventions
+
+- **Field help is behind an info icon** (hover, focus or tap), through the kit `Hint`, or the `hint` prop of the kit fields with
+  `hintMode="tip"` (the default). The text is also in the page, visually hidden, for screen readers. Use `hintMode="inline"` only
+  for text that must stay on screen: a warning or a consequence.
+- **Pages start with `PageHeader`**, with `crumbs` (the kit `Breadcrumbs`) when the page is below another. A description longer
+  than about 90 characters appears only in the info icon beside the title; a short one is one muted line under it.
+- **Small forms** are `FormPanel variant="dialog"`; a form with many fields is a page.
+- **Secondary and destructive actions** sit in `MoreMenu`, so a row or a card shows its main action and one menu.
+- **On a desktop only the content area and the sidebar scroll**; the window itself does not (`shell/Shell.tsx`).
+
+## Navigation, routes and the palette
+
+- The sidebar lists **Home, Create, Facts** (`/vault`), **Pictures** (`/library`), **Publish** and **Activity**; Settings is
+  reached from the account menu, and its pages show a "Back to the app" link. There are no tabs on Create: Facts and
+  Pictures are their own pages. The addresses `/vault` and `/library` keep their names; only the words people see changed.
+- The router is `createBrowserRouter` with one catch-all route (in `main.tsx` and `App.tsx`), so the data-router features
+  (blockers, `useBlocker`) work for every page.
+- **Ctrl/Cmd+K** opens the command palette (`shell/CommandPalette.tsx`). It searches pages, actions (add a fact, upload
+  pictures, new batch...), batches, facts and pictures, and opens the one chosen.
+- The setup checklist on Home is one card. `GET /api/overview/home` returns each step as `{ key, title, detail, to, done }`,
+  and the AI step also carries `missing` (`'provider'`, `'budget'` or `null`), so the card says what is still needed.
+
+## Unsaved changes
+
+`hooks/use-unsaved-guard.tsx` is the one way an editor protects typing. Its header comment has the details:
+
+- `useUnsavedGuard(dirty, { message?, allow? })`, in the component that owns the form state: while `dirty`, leaving by a
+  link, the back button or a menu asks "Leave without saving?", and closing the tab shows the browser's own warning. `allow`
+  names moves that keep the form's state (Brand and look uses it for switching between its sections).
+- `confirmDiscard(dirty, close)` for sheets and panels: call it from every way of closing (the X, Escape, Cancel, a click
+  outside). A save that succeeds closes without asking.
+- `withoutGuard(fn)` runs a navigation that must not ask, such as the redirect after the first save of a new layout.
+- `<UnsavedGuardHost />` is rendered once, inside the router.
+
+The post editor, Brand and look and the layout editor use it, as do the other forms.
+
+## Batches, posts and their words
+
+- The batch page (`/batches/:id`) is a four-step flow: **Write, Review, Send drafts to Buffer, Go live**. Steps 1 and 2 show
+  the posts (`/batches/:id`, with `?step=write` for step 1); steps 3 and 4 show the plan, the sending and the Buffer status
+  (`/batches/:id/schedule`, and `/batches/:id/schedule?step=live` for going live). `?post=<id>` opens the batch at that post
+  (the calendar uses it). One button offers the next sensible action; "Approve all without warnings" is that button when
+  it is the next step, and sits beside the filter otherwise.
+- A post is **Writing, Approved, Draft in Buffer, Scheduled** or **Sent**. Problems are flags on top of that and never a step
+  of their own: Image could not be made, Has warnings, Needs a look, Failed to send, Deleted from Buffer, Removed. A batch is
+  **Writing, In review, Scheduled** or **Done**. The words come from `lib/labels.ts` and `batches/flow/status.ts`.
+- The batch list's import tab is "Import a batch file", marked Advanced.
+- A post is added at `/batches/:id/posts/new` and edited at `/batches/:id/posts/:postId` (`batches/PostPage.tsx`, with
+  `batches/editor/`). It is a page with breadcrumbs, not a side sheet: the form (words, date, networks, design) on the left and
+  a live preview on the right (stacked on a phone). Network choices and captions are edited here and saved with the post.
+  Designs are edited with a layout chooser, a picture picker and structured editors for figures, lists, carousel pages, tables
+  and cards; the raw design JSON is under "Advanced". The preview asks `POST /api/posts/preview-design`, waits a moment after
+  the last edit, keeps the last good picture on screen and cancels a request that a newer edit has overtaken (`api.post` takes
+  an optional `AbortSignal`; a cancelled request shows no error).
+- A post card on the batch page shows the image, title, date, one status chip (plus a problem chip when there is one), the
+  network icons, **Edit**, **Approve** and a **More** menu.
+- **New batch** and **Draft with AI** are centred dialogs over the batch list (`/batches/new`, `/batches/ai-draft`).
+- **Facts** and **Pictures**: a fact has its own page, `/vault/:id` (`/vault/new` adds one); a picture has `/library/:id`, and
+  uploading is the page `/library/upload` (`/library?upload=1` redirects there). The lists keep their filters in the URL.
+- **Settings:** Team, Buffer accounts and the AI provider forms are dialogs; Channels is one table with a row per network.
+- Brand and look has eight sections at `/settings/brand/<identity|logos|colours|type|surfaces|post-types|voice|advanced>`
+  (`#logos` still opens the Logos section). Uploads and Advanced save the moment they are done; everything else waits for
+  Save. "Series" is called "Post types". "Other currencies to flag" is a list of words; a stored pattern that the list cannot
+  show is edited under Advanced.
+- A layout opens its own page, not a side sheet: `/settings/layouts/new` (with `?from=<starter>`, `?duplicate=<layout id>`
+  or `?copy=<built-in id>`) and `/settings/layouts/:id`. Blocks are dragged and resized on a large canvas, snapped to the
+  grid's cells, or placed with the number fields or in pixels. Keyboard: arrows move the selected block, Shift+arrows resize
+  it, Escape deselects, Delete removes it. The canvas's "Real image" view is the real preview; the layout's JSON is under
+  "Advanced: JSON".

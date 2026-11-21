@@ -90,14 +90,17 @@ export const PAGE_WORDS: Record<string, string> = { first: 'on the first page of
 // What each "page" condition means for a post made with a brand's layout, for the condition's hint: a post made with the layout
 // alone is a single post; a carousel page made with it is page 1 or a later page.
 export const PAGE_CONDITION_HINT = 'A post made with this layout alone is a single post. As a page of a carousel it is page 1 or a later page (every page after the first, the last one included).';
-export const CHOICE_WORDS: Record<string, string> = { artefact: "the artefact's type", register: 'the artefact has a register card' };
-const orList = (v: ChoiceValue[]) => (v.length > 1 ? `${v.slice(0, -1).join(', ')} or ${v[v.length - 1]}` : String(v[0] ?? ''));
+export const CHOICE_WORDS: Record<string, string> = { artefact: "the table or card's type", register: 'the table or card has a member card' };
+// The engine's names for the kinds of table or card, as people read them.
+export const VALUE_WORD: Record<string, string> = { ledger: 'ledger table', passbook: 'passbook page', register: 'member card', card: 'card' };
+export const valueWord = (v: ChoiceValue): string => (v === true ? 'yes' : v === false ? 'no' : (VALUE_WORD[String(v)] ?? String(v).replace(/-/g, ' ')));
+const orList = (v: ChoiceValue[]) => { const w = v.map(valueWord); return w.length > 1 ? `${w.slice(0, -1).join(', ')} or ${w[w.length - 1]}` : String(w[0] ?? ''); };
 function choiceWords(ch: Choice): string {
   if (ch.field === 'register') {
     const yes = ch.op === 'is' ? ch.values.includes(true) : !ch.values.includes(true), no = ch.op === 'is' ? ch.values.includes(false) : !ch.values.includes(false);
-    return yes && no ? 'with or without a register card' : yes ? 'the artefact has a register card' : 'the artefact has no register card';
+    return yes && no ? 'with or without a member card' : yes ? 'the table or card has a member card' : 'the table or card has no member card';
   }
-  if (ch.field === 'artefact') return `the artefact is ${ch.op === 'not' ? 'not ' : ''}a ${orList(ch.values)}`;
+  if (ch.field === 'artefact') return `the table or card is ${ch.op === 'not' ? 'not ' : ''}a ${orList(ch.values)}`;
   return `${ch.field} is ${ch.op === 'not' ? 'not ' : ''}${orList(ch.values)}`;
 }
 // A condition in words: "sub is filled and on a single post".
@@ -218,6 +221,47 @@ export function placeAs(b: Block, by: 'slot' | 'px', l: Layout, cat: Catalogue):
   };
   const same = samePlace(b) && placeBy(b) !== 'none';
   return { ...rest, [by]: same || sizes.length <= 1 ? conv(sizes[0]) : Object.fromEntries(sizes.map((z) => [z, conv(z)])) } as Block;
+}
+
+// ---- moving and resizing a block on the canvas ----
+
+// What a drag holds: the block's body (move), an edge (n, s, e, w) or a corner.
+export type Handle = 'move' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+const clampTo = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+export const MIN_PX = 16;
+
+// A slot moved or resized by whole cells, kept inside the grid (the engine's own bounds rule still decides what is valid).
+export function dragSlot(o: Slot, h: Handle, dc: number, dr: number, g: { columns: number; rows: number }): Slot {
+  if (h === 'move') return { ...o, col: clampTo(o.col + dc, 1, Math.max(1, g.columns - o.width + 1)), row: clampTo(o.row + dr, 1, Math.max(1, g.rows - o.height + 1)) };
+  let l = o.col, r = o.col + o.width - 1, t = o.row, b = o.row + o.height - 1;
+  if (h.includes('w')) l = clampTo(l + dc, 1, r);
+  if (h.includes('e')) r = clampTo(r + dc, l, Math.max(l, g.columns));
+  if (h.includes('n')) t = clampTo(t + dr, 1, b);
+  if (h.includes('s')) b = clampTo(b + dr, t, Math.max(t, g.rows));
+  return { col: l, row: t, width: r - l + 1, height: b - t + 1 };
+}
+// A pixel rectangle moved or resized, snapped to `step` px and kept on the page.
+export function dragPx(o: Px, h: Handle, dx: number, dy: number, page: { w: number; h: number }, step = 4): Px {
+  const snap = (v: number) => Math.round(v / step) * step;
+  if (h === 'move') return { ...o, x: clampTo(snap(o.x + dx), 0, Math.max(0, page.w - o.w)), y: clampTo(snap(o.y + dy), 0, Math.max(0, page.h - o.h)) };
+  let l = o.x, r = o.x + o.w, t = o.y, b = o.y + o.h;
+  if (h.includes('w')) l = clampTo(snap(l + dx), 0, r - MIN_PX);
+  if (h.includes('e')) r = clampTo(snap(r + dx), l + MIN_PX, page.w);
+  if (h.includes('n')) t = clampTo(snap(t + dy), 0, b - MIN_PX);
+  if (h.includes('s')) b = clampTo(snap(b + dy), t + MIN_PX, page.h);
+  return { x: l, y: t, w: r - l, h: b - t };
+}
+// A place in words, as shown while a block is dragged.
+export const slotWords = (s: Slot): string => `Column ${s.col}, row ${s.row} \u00b7 ${s.width} wide, ${s.height} high`;
+export const pxWords = (p: Px): string => `Left ${p.x}, top ${p.y} \u00b7 ${p.w} wide, ${p.h} high (px)`;
+
+// ---- the id of a layout, made from its name ----
+
+export const idFromName = (name: string, max = 40): string => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, max).replace(/-+$/g, '') || 'my-layout';
+export function freeId(base: string, taken: string[], max = 40): string {
+  let id = base.slice(0, max), n = 2;
+  while (taken.includes(id)) { const tail = `-${n++}`; id = `${base.slice(0, max - tail.length)}${tail}`; }
+  return id;
 }
 
 // The page edges a slot touches on every size (where a block may bleed).

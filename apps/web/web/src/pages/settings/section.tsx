@@ -1,17 +1,16 @@
-// A block of a settings page: a heading, a line saying what it is for, and its fields. Settings pages are a column of these.
+// A block of a settings page: a title (its explanation in an info icon beside it) and its fields. Settings pages are a
+// column of these, separated by space and one hairline.
 import type { ReactNode } from 'react';
+import { Hint } from '@/components/kit/hint';
+import { PageHeader } from '@/components/kit/page-header';
+import type { Crumb } from '@/components/kit/breadcrumbs';
 import { cn } from '@/lib/utils';
 
-export function SettingsPage({ title, description, children, actions }: { title: string; description?: ReactNode; children: ReactNode; actions?: ReactNode }) {
+// `crumbs` defaults to Settings / <title>.
+export function SettingsPage({ title, description, children, actions, crumbs }: { title: string; description?: ReactNode; children: ReactNode; actions?: ReactNode; crumbs?: Crumb[] }) {
   return (
-    <div className="flex flex-col gap-8 pb-10">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-          {description && <p className="mt-1 max-w-[70ch] text-[13.5px] text-muted-foreground">{description}</p>}
-        </div>
-        {actions}
-      </header>
+    <div className="flex flex-col gap-6 pb-10">
+      <PageHeader className="mb-0" crumbs={crumbs ?? [{ label: 'Settings', to: '/settings/preferences' }, { label: title }]} title={title} description={description} actions={actions} />
       {children}
     </div>
   );
@@ -20,11 +19,11 @@ export function SettingsPage({ title, description, children, actions }: { title:
 export function Section({ id, title, description, children, className, aside }: { id?: string; title: string; description?: ReactNode; children: ReactNode; className?: string; aside?: ReactNode }) {
   const hid = id ? `${id}-title` : undefined;
   return (
-    <section id={id} aria-labelledby={hid} className={cn('flex scroll-mt-6 flex-col gap-4 border-t pt-6 first-of-type:border-t-0 first-of-type:pt-0', className)}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 id={hid} className="text-[15px] font-semibold">{title}</h2>
-          {description && <p className="mt-0.5 max-w-[70ch] text-[13px] text-muted-foreground">{description}</p>}
+    <section id={id} aria-labelledby={hid} className={cn('flex scroll-mt-6 flex-col gap-3 border-t pt-6 first-of-type:border-t-0 first-of-type:pt-0', className)}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <h2 id={hid} className="text-sm font-semibold">{title}</h2>
+          {description && <Hint about={title}>{description}</Hint>}
         </div>
         {aside}
       </div>

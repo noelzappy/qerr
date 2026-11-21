@@ -1,50 +1,74 @@
-import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+// Facts: everything the AI may use, as one list. A row opens the item's own page (/vault/:id); the filters and the page
+// number live in the address, so coming back from an item lands on the same list.
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { api } from '../api';
-import { Badge } from '@/components/ui/badge';
-import { DataList, EmptyBlock, ErrorBlock, Pager, RowsSkeleton, SelectField, TextField, useSelection, type Column } from '@/components/kit';
+import { EmptyBlock, ErrorBlock, Hint, PageHeader, Pager, RowsSkeleton, SelectBox, ToneBadge, useSelection } from '@/components/kit';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useDebounced, useDocumentTitle, useLoad } from '../hooks';
 import { formatDate } from '../lib/format';
 import { kindLabel, KIND_LABEL, VAULT_KINDS } from '../lib/labels';
-import { CreateHeader } from '../shell/CreateHeader';
+import { FilterBar } from './vault/FilterBar';
 import { VaultBulkBar } from './vault/VaultBulkBar';
-import { VaultItemPanel } from './vault/VaultItemPanel';
 import { isFileKind, type VaultItem } from './vault-types';
 
 interface Page { items: VaultItem[]; total: number; page: number; pageSize: number }
 const PAGE_SIZE = 25;
 
-const KIND_OPTIONS = [{ value: '', label: 'All kinds' }, ...VAULT_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))];
-const STATUS_OPTIONS = [{ value: '', label: 'Any status' }, { value: 'confirmed', label: 'Confirmed' }, { value: 'unconfirmed', label: 'Unconfirmed' }];
-const STALE_OPTIONS = [{ value: '', label: 'Either' }, { value: 'true', label: 'Stale only' }, { value: 'false', label: 'Not stale' }];
+const KIND_OPTIONS = VAULT_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }));
+const STATUS_OPTIONS = [{ value: 'confirmed', label: 'Confirmed' }, { value: 'unconfirmed', label: 'Unconfirmed' }];
+const STALE_OPTIONS = [{ value: 'true', label: 'Stale only' }, { value: 'false', label: 'Not stale' }];
 
-// A small picture beside a photo or screen, so the list shows what the item is. Items without a picture get a quiet box.
+// A small picture beside a photo or screen, so the list shows what the item is.
 function Thumb({ item }: { item: VaultItem }) {
   const [broken, setBroken] = useState(false);
   if (!isFileKind(item.kind)) return null;
   return (
-    <div className="size-12 flex-none overflow-hidden rounded-md border bg-muted">
+    <div className="size-9 flex-none overflow-hidden rounded-md bg-muted">
       {item.fileUrl && !broken ? <img src={item.fileUrl} alt="" loading="lazy" className="size-full object-cover" onError={() => setBroken(true)} /> : null}
     </div>
   );
 }
 
+// One status chip, and one more only when something is wrong.
+function StatusChips({ item }: { item: VaultItem }) {
+  const problems = [item.stale && 'Stale', isFileKind(item.kind) && item.problems.rights.length > 0 && 'Rights'].filter(Boolean) as string[];
+  const why = [item.stale ? item.staleReason : null, ...(isFileKind(item.kind) ? item.problems.rights : [])].filter(Boolean).join('. ');
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+      <ToneBadge tone={item.status === 'confirmed' ? 'good' : 'warn'} dot>{item.status === 'confirmed' ? 'Confirmed' : 'Unconfirmed'}</ToneBadge>
+      {problems.length > 0 && <span title={why || undefined}><ToneBadge tone="bad" dot>{problems.join(' and ')}</ToneBadge></span>}
+    </div>
+  );
+}
+
 export function Vault() {
-  useDocumentTitle('Vault');
+  useDocumentTitle('Facts');
   const navigate = useNavigate();
-  // /vault/new and /vault/:id are the same page with the item panel open over the list.
-  const { id } = useParams();
-  const [q, setQ] = useState('');
-  const [kind, setKind] = useState('');
-  const [status, setStatus] = useState('');
-  const [tag, setTag] = useState('');
-  const [stale, setStale] = useState('');
-  const [page, setPage] = useState(1);
+  const location = useLocation();
+  // The filters and the page are kept in the address (q, kind, status, tag, stale, page).
+  const [params, setParams] = useSearchParams();
+  const [q, setQ] = useState(params.get('q') ?? '');
+  const [kind, setKind] = useState(params.get('kind') ?? '');
+  const [status, setStatus] = useState(params.get('status') ?? '');
+  const [tag, setTag] = useState(params.get('tag') ?? '');
+  const [stale, setStale] = useState(params.get('stale') ?? '');
+  const [page, setPage] = useState(Math.max(1, Number(params.get('page')) || 1));
   const query = useDebounced(q.trim());
   const tagQuery = useDebounced(tag.trim());
+
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (query) next.set('q', query);
+    if (kind) next.set('kind', kind);
+    if (status) next.set('status', status);
+    if (tagQuery) next.set('tag', tagQuery);
+    if (stale) next.set('stale', stale);
+    if (page > 1) next.set('page', String(page));
+    if (next.toString() !== params.toString()) setParams(next, { replace: true });
+  }, [query, kind, status, tagQuery, stale, page, params, setParams]);
 
   const list = useLoad(() => {
     const p = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), withFileUrls: 'true' });
@@ -57,79 +81,107 @@ export function Vault() {
   }, [page, query, kind, status, tagQuery, stale]);
 
   const selection = useSelection((list.data?.items ?? []).map((i) => i.id));
-  const filtered = !!(query || kind || status || tagQuery || stale);
+  const filtered = !!(q.trim() || kind || status || tag.trim() || stale);
   const reset = () => { setQ(''); setKind(''); setStatus(''); setTag(''); setStale(''); setPage(1); };
   const onFilter = (set: (v: string) => void) => (v: string) => { set(v); setPage(1); };
 
-  const columns: Column<VaultItem>[] = [
-    {
-      key: 'title', header: 'Item', primary: true,
-      cell: (i) => (
-        <div className="flex items-center gap-3">
-          <Thumb item={i} />
-          <div className="min-w-0">
-            <Link to={`/vault/${i.id}`} className="font-semibold text-foreground underline-offset-4 hover:underline [overflow-wrap:anywhere]">{i.title}</Link>
-            {i.tags.length > 0 && <span className="block text-[13px] font-normal text-muted-foreground [overflow-wrap:anywhere]">{i.tags.map((t) => `#${t}`).join(' ')}</span>}
-          </div>
-        </div>
-      ),
-    },
-    { key: 'kind', header: 'Kind', cell: (i) => kindLabel(i.kind) },
-    {
-      key: 'status', header: 'Status',
-      cell: (i) => (
-        <div className="flex flex-wrap gap-1.5 max-md:justify-end">
-          {i.status === 'confirmed' ? <Badge variant="success">Confirmed</Badge> : <Badge variant="warning">Unconfirmed</Badge>}
-          {i.stale && <Badge variant="destructive" title={i.staleReason ?? undefined}>Stale</Badge>}
-          {isFileKind(i.kind) && i.problems.rights.length > 0 && <Badge variant="destructive" title={i.problems.rights.join('. ')}>Rights</Badge>}
-        </div>
-      ),
-    },
-    { key: 'updated', header: 'Changed', cell: (i) => <span className="whitespace-nowrap">{formatDate(i.updatedAt)}</span> },
-  ];
-
   const data = list.data;
-  const add = () => navigate('/vault/new');
+  const add = () => navigate('/vault/new', { state: { back: `${location.pathname}${location.search}` } });
+  const open = (id: string) => navigate(`/vault/${id}`, { state: { back: `${location.pathname}${location.search}` } });
+  const back = { back: `${location.pathname}${location.search}` };
+  const select = (i: VaultItem) => ({ checked: selection.isSelected(i.id), label: `Select ${i.title}`, onToggle: (range: boolean) => selection.toggle(i.id, range) });
+
   return (
     <>
-      <CreateHeader
-        description="The vault holds everything the AI may use: facts, figures, news, events, photos and screens. Only a person can mark an item confirmed."
-        actions={<Button size="sm" className="max-sm:min-h-11" onClick={add}><Plus aria-hidden="true" />Add an item</Button>}
+      <PageHeader
+        title="Facts"
+        actions={(
+          <>
+            <Hint about="Facts" className="max-sm:flex-none!">Everything the AI may use: facts, figures, news, events, photos and screens. Only a person can mark an item confirmed.</Hint>
+            <Button className="max-sm:min-h-11" onClick={add}><Plus aria-hidden="true" />Add a fact</Button>
+          </>
+        )}
       />
-      <div className="flex flex-col gap-4">
-        <Card className="p-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" role="search" aria-label="Filter the vault">
-            <TextField label="Search" type="search" placeholder="Words in the title or text" value={q} onChange={(e) => onFilter(setQ)(e.target.value)} className="sm:col-span-2 lg:col-span-2" />
-            <SelectField label="Kind" value={kind} onValueChange={onFilter(setKind)} options={KIND_OPTIONS} />
-            <SelectField label="Status" value={status} onValueChange={onFilter(setStatus)} options={STATUS_OPTIONS} />
-            <SelectField label="Out of date" value={stale} onValueChange={onFilter(setStale)} options={STALE_OPTIONS} />
-            <TextField label="Tag" placeholder="For example news" value={tag} onChange={(e) => onFilter(setTag)(e.target.value)} className="lg:col-span-2" />
-            {filtered && <div className="flex items-end"><Button variant="outline" className="max-sm:min-h-11" onClick={reset}>Clear filters</Button></div>}
-          </div>
-        </Card>
-        <Card className="gap-0 overflow-hidden p-0" aria-label="Vault items">
-          {list.loading && !data ? <RowsSkeleton rows={6} />
-            : list.error ? <ErrorBlock message={list.error} onRetry={() => void list.reload()} />
-            : data && data.items.length === 0
-              ? (
-                <EmptyBlock
-                  title={filtered ? 'Nothing matches these filters' : 'The vault is empty'}
-                  action={filtered ? <Button variant="outline" className="max-sm:min-h-11" onClick={reset}>Clear filters</Button> : <Button className="max-sm:min-h-11" onClick={add}>Add the first item</Button>}
-                >
-                  {filtered ? 'Try fewer filters or different words.' : 'Add facts, figures and photos here. Posts are written only from what is in the vault.'}
-                </EmptyBlock>
-              )
-            : data && (
-              <div aria-busy={list.loading}>
-                <DataList caption="Vault items, most recently changed first" columns={columns} rows={data.items} rowKey={(i) => i.id}
-                  select={{ isSelected: (i) => selection.isSelected(i.id), onToggle: (i, range) => selection.toggle(i.id, range), allSelected: selection.allSelected, onToggleAll: selection.toggleAll, label: (i) => i.title }} />
-                <Pager page={data.page} pageSize={data.pageSize} total={data.total} onPage={setPage} />
+      <FilterBar
+        ariaLabel="Filter your facts"
+        search={{ value: q, onChange: onFilter(setQ), placeholder: 'Search facts' }}
+        selects={[
+          { key: 'kind', label: 'Kind', allLabel: 'All kinds', value: kind, onChange: onFilter(setKind), options: KIND_OPTIONS },
+          { key: 'status', label: 'Status', allLabel: 'Any status', value: status, onChange: onFilter(setStatus), options: STATUS_OPTIONS },
+          { key: 'stale', label: 'Out of date', allLabel: 'Either', value: stale, onChange: onFilter(setStale), options: STALE_OPTIONS },
+        ]}
+        tag={{ value: tag, onChange: onFilter(setTag) }}
+        active={filtered}
+        onClear={reset}
+      />
+      <div className="overflow-hidden rounded-lg border bg-card" aria-label="Facts">
+        {list.loading && !data ? <RowsSkeleton rows={6} />
+          : list.error ? <ErrorBlock message={list.error} onRetry={() => void list.reload()} />
+          : data && data.items.length === 0
+            ? (
+              <EmptyBlock
+                title={filtered ? 'Nothing matches these filters.' : 'No facts yet.'}
+                action={filtered ? <Button variant="outline" className="max-sm:min-h-11" onClick={reset}>Clear filters</Button> : <Button className="max-sm:min-h-11" onClick={add}>Add the first fact</Button>}
+              />
+            )
+          : data && (
+            <div aria-busy={list.loading}>
+              <div className="hidden md:block">
+                <Table>
+                  <caption className="sr-only">Facts, most recently changed first</caption>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead scope="col" className="w-10 px-3.5"><SelectBox checked={selection.allSelected} label="Select all shown" onToggle={selection.toggleAll} /></TableHead>
+                      <TableHead scope="col" className="h-9 px-3.5 text-[12px] font-medium text-muted-foreground">Title</TableHead>
+                      <TableHead scope="col" className="h-9 px-3.5 text-[12px] font-medium text-muted-foreground">Kind</TableHead>
+                      <TableHead scope="col" className="h-9 px-3.5 text-[12px] font-medium text-muted-foreground">Status</TableHead>
+                      <TableHead scope="col" className="h-9 px-3.5 text-[12px] font-medium text-muted-foreground">Changed</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.items.map((i) => (
+                      <TableRow key={i.id} data-state={selection.isSelected(i.id) ? 'selected' : undefined} className="cursor-pointer" onClick={() => open(i.id)}>
+                        <TableCell className="w-10 px-3.5 py-2 align-middle" onClick={(e) => e.stopPropagation()}><SelectBox {...select(i)} /></TableCell>
+                        <TableCell className="px-3.5 py-2 align-middle whitespace-normal [overflow-wrap:anywhere]">
+                          <div className="flex items-center gap-3">
+                            <Thumb item={i} />
+                            <div className="min-w-0">
+                              <Link to={`/vault/${i.id}`} state={back} onClick={(e) => e.stopPropagation()} className="font-medium text-foreground underline-offset-4 hover:underline">{i.title}</Link>
+                              {i.tags.length > 0 && <span className="block text-[12px] font-normal text-muted-foreground">{i.tags.map((t) => `#${t}`).join(' ')}</span>}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-3.5 py-2 align-middle text-muted-foreground">{kindLabel(i.kind)}</TableCell>
+                        <TableCell className="px-3.5 py-2 align-middle"><StatusChips item={i} /></TableCell>
+                        <TableCell className="px-3.5 py-2 align-middle whitespace-nowrap text-muted-foreground">{formatDate(i.updatedAt)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
-            )}
-        </Card>
+              <div className="flex items-center gap-3 border-b px-4 py-2.5 md:hidden">
+                <SelectBox checked={selection.allSelected} label="Select all shown" onToggle={selection.toggleAll} />
+                <span className="text-[12.5px] text-muted-foreground" aria-hidden="true">Select all shown</span>
+              </div>
+              <ul className="divide-y md:hidden" aria-label="Facts, most recently changed first">
+                {data.items.map((i) => (
+                  <li key={i.id} className={`flex items-start gap-3 px-4 py-3 ${selection.isSelected(i.id) ? 'bg-muted/50' : ''}`}>
+                    <SelectBox className="mt-1" {...select(i)} />
+                    <Thumb item={i} />
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <Link to={`/vault/${i.id}`} state={back} className="font-medium text-foreground [overflow-wrap:anywhere]">{i.title}</Link>
+                      {i.tags.length > 0 && <span className="text-[12px] text-muted-foreground [overflow-wrap:anywhere]">{i.tags.map((t) => `#${t}`).join(' ')}</span>}
+                      <span className="text-[12.5px] text-muted-foreground">{kindLabel(i.kind)} · {formatDate(i.updatedAt)}</span>
+                      <StatusChips item={i} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <Pager page={data.page} pageSize={data.pageSize} total={data.total} onPage={setPage} />
+            </div>
+          )}
       </div>
-      <VaultBulkBar selection={selection} items={data?.items ?? []} noun="item" reload={list.reload} />
-      {id && <VaultItemPanel id={id} onClose={() => navigate('/vault')} onChanged={() => void list.reload()} />}
+      <VaultBulkBar selection={selection} items={data?.items ?? []} noun="fact" reload={list.reload} />
     </>
   );
 }

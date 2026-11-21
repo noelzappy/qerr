@@ -19,6 +19,7 @@
    The frame (sidebar) is a quiet grey and the page sits on it as a rounded panel, as in the reference dashboards; the one
    accent is Vesk green. Dark mode follows the system unless the person picks a theme in Settings, Preferences. */
 :root {
+  color-scheme: light;
   --radius: 0.625rem;
   --frame: #f3f3f1;
   --background: #ffffff;
@@ -41,8 +42,8 @@
   --warning: #c98a00;
   --warning-foreground: #8a5d00;
   --info: #2563c9;
-  --border: #e5e5e0;
-  --input: #d6d6d0;
+  --border: #ebebe7;
+  --input: #b9bab4;
   --ring: #2b7a46;
   --gold: #c98a00;
   --sidebar: #f3f3f1;
@@ -51,11 +52,12 @@
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #e6e6e2;
   --sidebar-accent-foreground: #1b1c1a;
-  --sidebar-border: #e5e5e0;
+  --sidebar-border: #ebebe7;
   --sidebar-ring: #2b7a46;
 }
 
 .dark {
+  color-scheme: dark;
   --frame: #121212;
   --background: #1a1a1a;
   --foreground: #ececea;
@@ -77,8 +79,8 @@
   --warning: #f2c14e;
   --warning-foreground: #f2c14e;
   --info: #7fb0ff;
-  --border: rgb(255 255 255 / 0.08);
-  --input: rgb(255 255 255 / 0.14);
+  --border: rgb(255 255 255 / 0.07);
+  --input: rgb(255 255 255 / 0.2);
   --ring: #8fd19e;
   --gold: #f2c14e;
   --sidebar: #121212;
@@ -139,6 +141,11 @@
   body {
     @apply bg-frame font-sans text-sm leading-normal text-foreground antialiased;
     font-feature-settings: 'cv11', 'ss01';
+  }
+  /* From md up the shell is a fixed frame: only <main> and the sidebar scroll, never the document. Below md the document
+     scrolls as usual under its sticky top bar. */
+  @media (min-width: 48rem) {
+    html, body, #root { height: 100%; overflow: hidden; }
   }
   button:not(:disabled), [role='button']:not(:disabled) { cursor: pointer; }
 }

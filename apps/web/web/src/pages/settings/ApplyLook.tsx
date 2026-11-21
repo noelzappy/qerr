@@ -41,20 +41,21 @@ export function ApplyLook({ reference, open, onClose, logo }: { reference: Desig
   const [data, setData] = useState<ProposalView | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [acceptError, setAcceptError] = useState('');
   useEffect(() => {
     if (!open) return;
-    setData(null); setError('');
+    setData(null); setError(''); setAcceptError('');
     api.get<ProposalView>(`/api/settings/brand/references/${reference.id}/proposal`).then(setData).catch((err) => setError(errorMessage(err)));
   }, [open, reference.id]);
 
   async function accept() {
-    setBusy(true);
+    setBusy(true); setAcceptError('');
     try {
       await api.post(`/api/settings/brand/references/${reference.id}/apply`, {});
       toast.success('The look is applied. New images use it from now on; change any part of it in Brand and look.');
       onClose();
     } catch (err) {
-      toast.error(errorMessage(err));
+      setAcceptError(errorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -66,7 +67,7 @@ export function ApplyLook({ reference, open, onClose, logo }: { reference: Desig
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Apply this look?</DialogTitle>
-          <DialogDescription>The style settings the AI proposes from {reference.fileName}, beside your brand as it is now. Nothing changes until you apply it, and you can change any part of it afterwards in Brand and look.</DialogDescription>
+          <DialogDescription>Style settings suggested from {reference.fileName}, beside your brand as it is now. Nothing changes until you apply it.</DialogDescription>
         </DialogHeader>
         {error ? <Notice tone="bad">{error}</Notice>
           : !data ? <Skeleton className="h-64" />
@@ -112,6 +113,7 @@ export function ApplyLook({ reference, open, onClose, logo }: { reference: Desig
               </details>
             </div>
           )}
+        {acceptError && <Notice tone="bad">{acceptError}</Notice>}
         <DialogFooter>
           <Button type="button" variant="ghost" onClick={onClose}>Keep my look</Button>
           <BusyButton type="button" loading={busy} disabled={!data || !diff.length} onClick={() => void accept()}>Apply this look</BusyButton>

@@ -36,7 +36,7 @@ export function BulkTagPopover({ disabled, count, onAdd }: { disabled?: boolean;
       <PopoverContent align="start" side="top" className="w-[min(20rem,calc(100vw-2rem))]">
         <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-3" aria-label="Add tags">
           <TextField label="Tags to add" placeholder="For example news" value={draft} onChange={(e) => { setDraft(e.target.value); setError(''); }}
-            hint={`Added to the ${count} selected. Separate several with commas.`} error={error} autoFocus />
+            hintMode="inline" hint={`Added to the ${count} selected. Separate several with commas.`} error={error} autoFocus />
           <Button type="submit" className="max-sm:min-h-11" disabled={busy} aria-busy={busy || undefined}>
             {busy && <Loader2 className="animate-spin" aria-hidden="true" />}Add tags
           </Button>

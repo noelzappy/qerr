@@ -4,6 +4,8 @@ import { Monitor, Moon, Sun } from 'lucide-react';
 import { useDocumentTitle } from '../../hooks';
 import { useSession } from '../../session';
 import { setTheme, themeChoice, type ThemeChoice } from '../../lib/theme';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { cn } from '@/lib/utils';
 import { Section, SettingsPage } from './section';
 
@@ -18,29 +20,27 @@ export function PreferencesPage() {
   const { me } = useSession();
   const [choice, setChoice] = useState<ThemeChoice>(themeChoice());
   return (
-    <SettingsPage title="Preferences" description="These choices are kept in this browser.">
+    <SettingsPage title="Preferences">
       <Section title="Account" description="Your name and email, as the team sees them. An admin can change your role; ask an admin for a password reset link if you need one.">
-        <dl className="grid gap-x-6 gap-y-2 text-[13.5px] sm:grid-cols-[8rem_1fr]">
+        <dl className="grid gap-x-6 gap-y-1.5 text-[13px] sm:grid-cols-[6rem_1fr]">
           <dt className="text-muted-foreground">Name</dt><dd>{me?.name || '-'}</dd>
           <dt className="text-muted-foreground">Email</dt><dd className="break-all">{me?.email}</dd>
           <dt className="text-muted-foreground">Role</dt><dd>{me?.role === 'admin' ? 'Admin' : 'Editor'}</dd>
         </dl>
       </Section>
-      <Section title="Theme">
-        <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Theme">
+      <Section title="Theme" description="Kept in this browser.">
+        <RadioGroup value={choice} onValueChange={(v) => { setTheme(v as ThemeChoice); setChoice(v as ThemeChoice); }} aria-label="Theme" className="grid gap-2 sm:grid-cols-3">
           {OPTIONS.map(({ value, label, Icon }) => (
-            <button
+            <Label
               key={value}
-              type="button"
-              role="radio"
-              aria-checked={choice === value}
-              onClick={() => { setTheme(value); setChoice(value); }}
-              className={cn('flex items-center gap-2.5 rounded-lg border p-3 text-left text-[13.5px] outline-none transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50', choice === value && 'border-primary ring-1 ring-primary')}
+              htmlFor={`theme-${value}`}
+              className={cn('flex cursor-pointer items-center gap-2.5 rounded-md border px-3 py-1.5 text-[13px] font-normal transition-colors hover:bg-muted has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50 max-sm:min-h-11', choice === value && 'border-primary ring-1 ring-primary')}
             >
+              <RadioGroupItem id={`theme-${value}`} value={value} />
               <Icon className="size-4" aria-hidden="true" /> {label}
-            </button>
+            </Label>
           ))}
-        </div>
+        </RadioGroup>
       </Section>
     </SettingsPage>
   );

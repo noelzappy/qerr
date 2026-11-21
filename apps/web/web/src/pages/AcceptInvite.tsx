@@ -7,7 +7,6 @@ import { ROLE_LABEL } from '../lib/labels';
 import { AuthLayout } from '../shell/AuthLayout';
 import { PasswordFields, passwordProblems } from '../shell/PasswordFields';
 import { Loader2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LoadingBlock, Notice, TextField } from '@/components/kit';
 import { useAppInfo } from '../app-info';
@@ -74,8 +73,8 @@ export function AcceptInvite() {
   if (!info) return <AuthLayout title="Checking your invitation"><LoadingBlock label="Checking your invitation" /></AuthLayout>;
   return (
     <AuthLayout title="Set up your account">
-      <p>You are joining the {appName} as <Badge variant="info">{ROLE_LABEL[info.role] ?? info.role}</Badge> with <strong className="break-all">{info.email}</strong>.</p>
-      <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
+      <p className="text-[13px] text-muted-foreground">Joining {appName} as {(ROLE_LABEL[info.role] ?? info.role).toLowerCase()}: <span className="break-all font-medium text-foreground">{info.email}</span></p>
+      <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-3">
         <TextField label="Your name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required error={fields.name} autoFocus />
         <PasswordFields password={password} again={again} onPassword={setPassword} onAgain={setAgain} error={fields.password} />
         {error && <Notice tone="bad">{error}</Notice>}

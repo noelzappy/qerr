@@ -58,6 +58,19 @@ describe('overview', () => {
     expect(home.body.spend).toEqual({ spentUsd: 0, monthlyBudgetUsd: null });
   });
 
+  it('the AI step says which part is missing: the provider, then the monthly budget', async () => {
+    await seed();
+    const admin = t.api(await t.signIn(await t.createUser('admin')));
+    const aiStep = async () => (await admin.get('/api/overview/home')).body.setup.find((s: { key: string }) => s.key === 'ai');
+    expect(await aiStep()).toMatchObject({ done: false, missing: 'provider' });
+
+    await t.prisma.aiProvider.create({ data: { name: 'Test', kind: 'anthropic', baseUrl: 'https://example.invalid', model: 'm', keyCipher: 'x', keyVersion: 1, keyLast4: '0000', tasks: ['draft'], enabled: true } });
+    expect(await aiStep()).toMatchObject({ done: false, missing: 'budget' });
+
+    await t.prisma.appSetting.upsert({ where: { key: 'monthlyBudgetUsd' }, update: { value: 25 }, create: { key: 'monthlyBudgetUsd', value: 25 } });
+    expect(await aiStep()).toMatchObject({ done: true, missing: null });
+  });
+
   it('the channel list says which networks are routed and how many posts are coming for each', async () => {
     const { editor } = await seed();
     const res = await t.api(await t.signIn(editor)).get('/api/overview/channels');

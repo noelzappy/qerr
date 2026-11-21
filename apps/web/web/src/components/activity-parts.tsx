@@ -2,14 +2,16 @@
 // summary of what it did (by kind), so the popover, the Activity page and the in-place strips all say the same things.
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Notice } from '@/components/kit';
-import { elapsedMs, formatElapsed, isActive, percent, progressText, runStatusLabel, STATUS_VARIANT, type ActivityRun } from '@/lib/activity';
+import { Notice, ToneBadge, type Tone } from '@/components/kit';
+import { elapsedMs, formatElapsed, isActive, percent, progressText, runStatusLabel, runTitle, type ActivityRun } from '@/lib/activity';
 import { cn } from '@/lib/utils';
 
+const STATUS_TONE: Record<string, Tone> = { queued: 'quiet', running: 'info', done: 'good', failed: 'bad', cancelled: 'quiet' };
+
+// A dot and the status word.
 export function RunStatusBadge({ run }: { run: Pick<ActivityRun, 'status'> }) {
-  return <Badge variant={STATUS_VARIANT[run.status] ?? 'quiet'}>{runStatusLabel(run.status)}</Badge>;
+  return <ToneBadge dot tone={STATUS_TONE[run.status] ?? 'quiet'}>{runStatusLabel(run.status)}</ToneBadge>;
 }
 
 // The step in words, with a bar when the run says how far it is. The bar is a real progressbar for assistive tech.
@@ -22,7 +24,7 @@ export function RunProgress({ run, now, className }: { run: ActivityRun; now: nu
       {run.status === 'running' && (
         <Progress
           value={pct}
-          aria-label={`${run.title}: ${run.progress?.step ?? 'working'}`}
+          aria-label={`${runTitle(run.title)}: ${run.progress?.step ?? 'working'}`}
           aria-valuetext={text}
           className="h-1.5"
         />
@@ -76,7 +78,7 @@ export function RunResult({ run }: { run: ActivityRun }) {
     return (
       <div className="flex flex-col gap-4">
         <p>
-          <strong>{num(r.created)}</strong> new {num(r.created) === 1 ? 'item was' : 'items were'} added to the vault as unconfirmed, and <strong>{num(r.checked)}</strong> existing {num(r.checked) === 1 ? 'item was' : 'items were'} checked.
+          <strong>{num(r.created)}</strong> new {num(r.created) === 1 ? 'item was' : 'items were'} added to Facts as unconfirmed, and <strong>{num(r.checked)}</strong> existing {num(r.checked) === 1 ? 'item was' : 'items were'} checked.
           {str(r.windowStart) && <> It looked at pages published since {str(r.windowStart)}.</>}
         </p>
         {str(r.stoppedEarly) && <Notice tone="warn" title="It stopped early.">{str(r.stoppedEarly)}</Notice>}

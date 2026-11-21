@@ -2,9 +2,9 @@
 // template or one of the brand's layouts, as pages the engine accepts.
 import { describe, expect, it } from 'vitest';
 import {
-  addPage, chooseLayout, chosenOf, layoutChoices, MAX_PAGES, movePage, ownLayoutOf, PAGE_TEMPLATES, pagesOf, removePage, withField, withPage, type LayoutBrief,
+  addPage, chooseLayout, chosenOf, MAX_PAGES, movePage, ownLayoutOf, PAGE_TEMPLATES, pageLayouts, pagesOf, removePage, withField, withPage, type LayoutBrief,
 } from '../web/src/pages/batches/design-model';
-import { TEMPLATES } from '../web/src/pages/batches/labels';
+import { LAYOUT_CATALOGUE } from '../web/src/pages/batches/editor/catalogue';
 import type { Layout } from '../web/src/pages/settings/layout-types';
 import { engineImport } from './server/engine/root.js';
 
@@ -38,15 +38,13 @@ describe('the post editor\'s carousel pages', () => {
     const e = await engine();
     expect(PAGE_TEMPLATES.map((t) => t.value).sort()).toEqual([...e.PAGE_TEMPLATES].sort());
     expect(MAX_PAGES).toBe(e.MAX_PAGES);
-    const values = layoutChoices(BRAND, 'closing', { page: true }).map((c) => c.value);
-    expect(values).toContain('layout:step');
-    expect(values).not.toContain('layout:tall');
+    // a page: the page templates only (no photo post, no carousel), and the brand's layouts that have the feed size
+    const values = PAGE_TEMPLATES.map((t) => t.value);
     expect(values).not.toContain('carousel');
     expect(values).not.toContain('photo');
-    // a post may use either layout, and the carousel
-    expect(layoutChoices(BRAND, 'cover').map((c) => c.value)).toEqual(expect.arrayContaining(['layout:step', 'layout:tall', 'carousel', ...TEMPLATES.map((t) => t.value)]));
-    // a layout since removed stays listed under its id
-    expect(layoutChoices(BRAND, 'layout:gone', { page: true })[0]).toEqual({ value: 'layout:gone', label: 'Your layout: gone' });
+    expect(pageLayouts(BRAND).map((l) => l.id)).toEqual(['step']);
+    // a post may use every layout the editor lists, the photo post and the carousel too
+    expect(LAYOUT_CATALOGUE.map((t) => t.value)).toEqual(expect.arrayContaining(['photo', 'carousel', ...values]));
   });
 
   it('makes a carousel whose pages use a brand layout, which the engine accepts', async () => {

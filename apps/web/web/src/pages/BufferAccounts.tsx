@@ -2,15 +2,15 @@ import { useState, type FormEvent } from 'react';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../api';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { BusyButton, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FormPanel, Notice, PageHeader, RowsSkeleton, TextField, type Column } from '@/components/kit';
+import { BusyButton, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FormPanel, MoreMenu, Notice, RowsSkeleton, TextField, ToneBadge, type Column } from '@/components/kit';
 import { useDocumentTitle, useLoad } from '../hooks';
 import { fieldErrors, formProblem } from '../lib/errors';
 import { dateInputValue, formatDate } from '../lib/format';
 import { networkLabel } from '../lib/labels';
+import { confirmDiscard, useUnsavedGuard } from '@/hooks/use-unsaved-guard';
+import { SettingsPage } from './settings/section';
 
 export interface BufferAccount {
   id: string; name: string; keyLast4: string; keyExpiresAt: string | null; daysLeft: number | null; expired: boolean; expiryWarning: boolean;
@@ -25,12 +25,14 @@ interface CheckResult {
 const NETWORKS = ['instagram', 'linkedin', 'facebook', 'x'] as const;
 const NAME_RULE = /^[A-Za-z0-9_-]{1,32}$/;
 const sm = 'max-sm:min-h-11';
+// One bordered container; the list's rows are separated by hairlines.
+const LIST = 'overflow-hidden rounded-lg border';
 
 function ExpiryBadge({ account }: { account: Pick<BufferAccount, 'keyExpiresAt' | 'daysLeft' | 'expired' | 'expiryWarning'> }) {
-  if (!account.keyExpiresAt) return <Badge variant="quiet">No expiry set</Badge>;
-  if (account.expired) return <Badge variant="destructive">Expired {formatDate(account.keyExpiresAt)}</Badge>;
+  if (!account.keyExpiresAt) return <span className="text-muted-foreground">No expiry set</span>;
+  if (account.expired) return <ToneBadge tone="bad" dot>Expired {formatDate(account.keyExpiresAt)}</ToneBadge>;
   const d = account.daysLeft ?? 0;
-  return <Badge variant={account.expiryWarning ? 'warning' : 'success'}>{d <= 1 ? 'Expires within a day' : `${d} days left`}</Badge>;
+  return <ToneBadge tone={account.expiryWarning ? 'warn' : 'good'} dot>{d <= 1 ? 'Expires within a day' : `${d} days left`}</ToneBadge>;
 }
 
 export function BufferAccounts() {
@@ -52,19 +54,19 @@ export function BufferAccounts() {
     {
       key: 'actions', header: 'Actions', actions: true,
       cell: (a) => (
-        <div className="flex flex-wrap justify-end gap-2 max-md:justify-start">
-          <Button variant="outline" size="sm" className={sm} onClick={() => setChecking(a)}>Check</Button>
-          <Button variant="outline" size="sm" className={sm} onClick={() => setEditing(a)}>Edit</Button>
-          <Button variant="outline" size="sm" className={sm} onClick={() => setDeleting(a)}>Delete</Button>
-        </div>
+        <MoreMenu label={`Actions for ${a.name}`} items={[
+          { label: 'Check key', onSelect: () => setChecking(a) },
+          { label: 'Edit', onSelect: () => setEditing(a) },
+          { label: 'Delete account', tone: 'danger', onSelect: () => setDeleting(a) },
+        ]} />
       ),
     },
   ];
 
   return (
     <>
-      <PageHeader title="Buffer accounts" description="Each account is one Buffer key. Keys are stored encrypted and cannot be read back: only the last four characters are shown."
-        actions={<Button className={sm} onClick={() => setEditing('new')}><Plus aria-hidden="true" />Add an account</Button>} />
+      <SettingsPage title="Buffer accounts" description="Keys are stored encrypted and cannot be shown again."
+        actions={<Button className={sm} onClick={() => setEditing('new')}><Plus aria-hidden="true" />Add an account</Button>}>
       <div className="flex flex-col gap-4">
         {expired.length > 0 && (
           <Notice tone="bad" title="A Buffer key has expired.">
@@ -76,15 +78,16 @@ export function BufferAccounts() {
             {soon.map((a) => `${a.name} (${a.daysLeft} ${a.daysLeft === 1 ? 'day' : 'days'})`).join(', ')}. Make a new key in Buffer and add it here before then.
           </Notice>
         )}
-        <Card className="gap-0 overflow-hidden p-0" aria-label="Buffer accounts">
+        <div className={LIST} aria-label="Buffer accounts">
           {list.loading && !list.data ? <RowsSkeleton rows={4} />
             : list.error ? <ErrorBlock message={list.error} onRetry={() => void list.reload()} />
-            : accounts.length === 0 ? <EmptyBlock title="No Buffer accounts yet" action={<Button className={sm} onClick={() => setEditing('new')}>Add an account</Button>}>Add the account that holds your channels, then choose its channels under Channel routing.</EmptyBlock>
+            : accounts.length === 0 ? <EmptyBlock title="No Buffer accounts yet">Add the account that holds your channels, then choose its channels under Channels.</EmptyBlock>
             : <DataList caption="Buffer accounts" columns={columns} rows={accounts} rowKey={(a) => a.id} />}
-        </Card>
+        </div>
       </div>
+      </SettingsPage>
 
-      {editing && <AccountSheet key={editing === 'new' ? 'new' : editing.id} account={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={(created) => { setEditing(null); toast.success(created ? 'Buffer account added' : 'Buffer account saved'); void list.reload(); }} />}
+      {editing && <AccountDialog key={editing === 'new' ? 'new' : editing.id} account={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={(created) => { setEditing(null); toast.success(created ? 'Buffer account added' : 'Buffer account saved'); void list.reload(); }} />}
       {checking && <CheckDialog account={checking} onClose={() => setChecking(null)} />}
 
       <ConfirmAction
@@ -106,7 +109,7 @@ export function BufferAccounts() {
   );
 }
 
-function AccountSheet({ account, onClose, onSaved }: { account: BufferAccount | null; onClose: () => void; onSaved: (created: boolean) => void }) {
+function AccountDialog({ account, onClose, onSaved }: { account: BufferAccount | null; onClose: () => void; onSaved: (created: boolean) => void }) {
   const [name, setName] = useState(account?.name ?? '');
   const [apiKey, setApiKey] = useState('');
   const [expires, setExpires] = useState(dateInputValue(account?.keyExpiresAt));
@@ -115,6 +118,11 @@ function AccountSheet({ account, onClose, onSaved }: { account: BufferAccount | 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
+
+  const initialLimits = (n: string) => (account?.captionLimits[n] ? String(account.captionLimits[n]) : '');
+  const dirty = name !== (account?.name ?? '') || apiKey !== '' || expires !== dateInputValue(account?.keyExpiresAt) || org !== (account?.organizationId ?? '') || NETWORKS.some((n) => limits[n] !== initialLimits(n));
+  useUnsavedGuard(dirty);
+  const requestClose = () => confirmDiscard(dirty && !busy, onClose);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -154,18 +162,20 @@ function AccountSheet({ account, onClose, onSaved }: { account: BufferAccount | 
   }
 
   return (
-    <FormPanel open onClose={onClose} busy={busy} title={account ? `Edit ${account.name}` : 'Add a Buffer account'}
-      description="The key is write-only: once saved it cannot be shown again."
-      footer={<><Button variant="outline" className={sm} onClick={onClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="account-form" loading={busy}>{account ? 'Save changes' : 'Add account'}</BusyButton></>}>
+    <FormPanel open variant="dialog" onClose={requestClose} busy={busy} title={account ? `Edit ${account.name}` : 'Add a Buffer account'}
+      description="The key is stored encrypted and cannot be shown again."
+      footer={<><Button variant="outline" className={sm} onClick={requestClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="account-form" loading={busy}>{account ? 'Save changes' : 'Add account'}</BusyButton></>}>
       <form id="account-form" className="flex flex-col gap-4" onSubmit={(e) => void submit(e)} noValidate>
-        <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} error={fields.name} hint="A short name you will recognise, such as main. It cannot change once posts have been sent through it." mono required autoFocus />
+        <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} error={fields.name} placeholder="main" hintMode="inline" hint="A name you will recognise. It cannot change once posts have been sent through it." mono required autoFocus />
         <TextField
           label={account ? 'New Buffer key' : 'Buffer key'} type="password" autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)} error={fields.apiKey} optional={!!account}
           placeholder={account ? `Leave blank to keep the key ending ${account.keyLast4}` : ''}
-          hint="Made in Buffer under your API settings. It is stored encrypted and never shown again." mono
+          hint="Made in Buffer under your API settings." mono
         />
-        <TextField label="Key expires on" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} error={fields.keyExpiresAt} optional hint="The app warns a week before this date." />
-        <TextField label="Buffer organisation id" value={org} onChange={(e) => setOrg(e.target.value)} error={fields.organizationId} optional mono hint="Leave blank to use every organisation this key can reach. Use Check to see the ids." />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <TextField label="Key expires on" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} error={fields.keyExpiresAt} optional hint="The app warns a week before this date." />
+          <TextField label="Buffer organisation id" value={org} onChange={(e) => setOrg(e.target.value)} error={fields.organizationId} optional mono hint="Leave blank to use every organisation this key can reach. Use Check key to see the ids." />
+        </div>
         <FieldGroup legend={<>Caption limits <span className="font-normal text-muted-foreground">(optional)</span></>} hint="The most characters a caption may have on each network. Leave blank to use the app's own limit.">
           <div className="grid gap-3 sm:grid-cols-2">
             {NETWORKS.map((n) => (
@@ -187,7 +197,7 @@ function CheckDialog({ account, onClose }: { account: BufferAccount; onClose: ()
     { key: 'name', header: 'Channel', primary: true, cell: (c) => <>{c.displayName || c.name}{c.displayName && c.displayName !== c.name && <span className="block text-[13px] font-normal text-muted-foreground">{c.name}</span>}</> },
     { key: 'net', header: 'Network', cell: (c) => (c.network ? networkLabel(c.network) : <span className="text-muted-foreground">{c.service || 'Unknown'}</span>) },
     { key: 'org', header: 'Organisation', cell: (c) => <span className="font-mono [overflow-wrap:anywhere]">{c.organizationId}</span> },
-    { key: 'paused', header: 'Queue', cell: (c) => (c.isQueuePaused ? <Badge variant="warning">Paused</Badge> : <Badge variant="success">Running</Badge>) },
+    { key: 'paused', header: 'Queue', cell: (c) => (c.isQueuePaused ? <ToneBadge tone="warn" dot>Paused</ToneBadge> : <ToneBadge tone="good" dot>Running</ToneBadge>) },
   ];
   return (
     <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
@@ -212,7 +222,7 @@ function CheckDialog({ account, onClose }: { account: BufferAccount; onClose: ()
               <div className="flex flex-col gap-1.5">
                 <h3 className="text-sm font-semibold">Channels</h3>
                 {r.channels.length === 0 ? <p className="text-muted-foreground">No channels found. Connect a channel in Buffer first.</p>
-                  : <Card className="gap-0 overflow-hidden p-0"><DataList caption="Channels this key can reach" columns={channelColumns} rows={r.channels} rowKey={(c) => c.id} /></Card>}
+                  : <div className={LIST}><DataList caption="Channels this key can reach" columns={channelColumns} rows={r.channels} rowKey={(c) => c.id} /></div>}
               </div>
             </div>
           )}

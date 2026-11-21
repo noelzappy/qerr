@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Skeleton } from '@/components/ui/skeleton';
 import { useActivity } from '@/hooks/use-activity';
 import { useNow } from '@/hooks/use-now';
-import { batchLink, isActive, runKindLabel, type ActivityRun } from '@/lib/activity';
+import { batchLink, isActive, runKindLabel, runTitle, type ActivityRun } from '@/lib/activity';
 import { cn } from '@/lib/utils';
 import { useSession } from '../session';
 
@@ -102,7 +102,7 @@ function RunRow({ run, now, onNavigate }: { run: ActivityRun; now: number; onNav
   return (
     <li className="flex flex-col gap-1.5 px-3.5 py-3">
       <div className="flex items-start justify-between gap-2">
-        <Link to={`/activity/${run.id}`} onClick={onNavigate} className="min-w-0 flex-1 rounded-sm text-sm font-medium [overflow-wrap:anywhere] outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50">{run.title}</Link>
+        <Link to={`/activity/${run.id}`} onClick={onNavigate} className="min-w-0 flex-1 rounded-sm text-sm font-medium [overflow-wrap:anywhere] outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50">{runTitle(run.title)}</Link>
         <RunStatusBadge run={run} />
       </div>
       <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{runKindLabel(run.kind)}</p>

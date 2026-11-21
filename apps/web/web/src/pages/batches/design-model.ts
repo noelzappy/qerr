@@ -1,19 +1,20 @@
-// What the post editor's design form does to a design block, as plain functions (DesignFields.tsx draws them): the layout a post
-// or a carousel page is made with (a built-in template, or one of the brand's own layouts as "layout:<id>"), and a carousel's
-// pages. The engine checks the result again when the post is saved (packages/engine/lib/design/layout.mjs postDesignProblems).
-import { TEMPLATES } from './labels';
-import type { DesignBlock } from './types';
+// What the post editor does to a design (the form in PageFields.tsx and PagesEditor.tsx draws them), as plain functions: the layout
+// a post or a carousel page is made with (a built-in layout, or one of the brand's own as "layout:<id>"), and a carousel's pages.
+// The engine checks the result again when the post is saved (packages/engine/lib/design/layout.mjs postDesignProblems).
+import { LAYOUT_CATALOGUE } from './editor/catalogue';
+import type { Json as DesignBlock, LayoutBrief } from './editor/types';
 
-// The brand's own layouts (Settings, Layouts), as GET /api/layouts lists them: what a post fills in for each.
-export interface LayoutBrief { id: string; name: string; description: string | null; sizes: string[]; fields: Array<{ name: string; kind: string; required: boolean; max: number | null; min: number | null; word: string }> }
+export type { LayoutBrief };
 
 export const LAYOUT = 'layout:';
 // The most pages a carousel takes (the engine's MAX_PAGES), and the fewest.
 export const MAX_PAGES = 10;
 export const MIN_PAGES = 2;
-// The built-in templates a carousel page may use (the engine's PAGE_TEMPLATES: every template but the photo post and the carousel).
+// The built-in layouts a carousel page may use (the engine's PAGE_TEMPLATES: every layout but the photo post and the carousel).
 const NOT_A_PAGE = ['photo', 'carousel'];
-export const PAGE_TEMPLATES = TEMPLATES.filter((t) => !NOT_A_PAGE.includes(t.value));
+export const PAGE_TEMPLATES = LAYOUT_CATALOGUE.filter((t) => !NOT_A_PAGE.includes(t.value));
+// A carousel page is drawn at the feed size, the only size of a carousel, so only a brand layout with that size can be a page.
+export const pageLayouts = (brand: LayoutBrief[]): LayoutBrief[] => brand.filter((l) => l.sizes.includes('feed'));
 // What a carousel page from one of the brand's layouts keeps besides the layout's fields: its frame and the app's vault photo id.
 const PAGE_FRAME = ['template', 'layout', 'series', 'label', 'ground', 'accent', 'vaultItemId'];
 // What belongs to the carousel and never to one of its pages.
@@ -24,16 +25,6 @@ const isObj = (v: unknown): v is DesignBlock => !!v && typeof v === 'object' && 
 
 // The value of the layout select for a design block or a page: "layout:<id>" for a brand's layout, else the template's name.
 export const chosenOf = (d: DesignBlock): string => (d.template === 'layout' ? `${LAYOUT}${text(d.layout)}` : text(d.template));
-export const labelOf = (l: LayoutBrief) => `Your layout: ${l.name}`;
-
-// The choices for a post (every template, the carousel and every brand layout) or for a carousel page (the page templates and the
-// brand layouts drawn at the feed size, the only size of a carousel). A value no choice has (a layout since removed) stays listed.
-export function layoutChoices(brand: LayoutBrief[], chosen: string, { page = false } = {}): Array<{ value: string; label: string }> {
-  const mine = brand.filter((l) => !page || l.sizes.includes('feed')).map((l) => ({ value: `${LAYOUT}${l.id}`, label: labelOf(l) }));
-  const builtin = page ? PAGE_TEMPLATES : TEMPLATES;
-  const known = [...builtin, ...mine].some((t) => t.value === chosen);
-  return [...(known ? [] : [{ value: chosen, label: chosen.replace(LAYOUT, 'Your layout: ') || 'Choose a layout' }]), ...mine, ...builtin];
-}
 
 // The brand layout a design block or page is made with, when it is one the brand has.
 export const ownLayoutOf = (d: DesignBlock, brand: LayoutBrief[]): LayoutBrief | null => (d.template === 'layout' ? brand.find((l) => l.id === d.layout) ?? null : null);
@@ -59,7 +50,7 @@ export function chooseLayout(d: DesignBlock, value: string, brand: LayoutBrief[]
 // One field of a design block or page set (an empty text or list removes it).
 export function withField(d: DesignBlock, key: string, value: unknown): DesignBlock {
   const next: DesignBlock = { ...d };
-  if (value === '' || value === undefined || (Array.isArray(value) && value.length === 0)) delete next[key];
+  if (value === '' || value === undefined || value === null || (Array.isArray(value) && value.length === 0)) delete next[key];
   else next[key] = value;
   return next;
 }

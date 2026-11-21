@@ -25,7 +25,7 @@ export function parseTags(raw: string): string[] {
   return raw.split(',').map((t) => t.trim().replace(/^#/, '')).filter(Boolean);
 }
 
-export function TagField({ tags, onChange, error, label = 'Tags', hint = 'Series and topics, for example news or the-numbers. Press Enter to add a tag; separate several with commas.' }: { tags: string[]; onChange: (t: string[]) => void; error?: string; label?: string; hint?: string }) {
+export function TagField({ tags, onChange, error, label = 'Tags', hint = 'Post types and topics, for example news or the-numbers. Press Enter to add a tag; separate several with commas.' }: { tags: string[]; onChange: (t: string[]) => void; error?: string; label?: string; hint?: string }) {
   const [draft, setDraft] = useState('');
   const [problem, setProblem] = useState('');
   function add() {

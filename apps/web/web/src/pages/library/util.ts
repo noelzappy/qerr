@@ -30,3 +30,11 @@ export function needsRights(i: Pick<VaultItem, 'licence' | 'peoplePresent' | 'co
 }
 
 export const isHttpUrl = (v: string) => /^https?:\/\//i.test(v) && URL.canParse(v);
+
+export const KIND_OPTIONS = [{ value: 'photo', label: 'Photo' }, { value: 'screen', label: 'Screen' }];
+export const LICENCE_OPTIONS = [
+  { value: '', label: 'Not recorded yet' },
+  { value: 'own', label: 'Own' },
+  { value: 'licensed', label: 'Licensed stock' },
+  { value: 'rights_to_confirm', label: 'Rights to confirm' },
+];

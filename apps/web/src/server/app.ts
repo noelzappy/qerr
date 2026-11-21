@@ -18,6 +18,7 @@ import { brandRoutes } from './routes/brand.js';
 import { overviewRoutes } from './routes/overview.js';
 import { bufferAccountsRoutes } from './routes/buffer-accounts.js';
 import { inviteRoutes } from './routes/invites.js';
+import { designPreviewRoutes } from './routes/design-preview.js';
 import { layoutRoutes } from './routes/layouts.js';
 import { layoutBriefs } from './services/layouts.js';
 import { localStorageRoutes } from './routes/local-storage.js';
@@ -152,6 +153,7 @@ export function createAppAndDeps(input: AppDeps | Deps, options: { webDir?: stri
   app.route('/api/settings', aiSettingsRoutes(deps));
   app.route('/api/vault', vaultRoutes(deps));
   app.route('/api/batches', batchesRoutes(deps));
+  app.route('/api/posts/preview-design', designPreviewRoutes(deps));
   app.route('/api/posts', reviewRoutes(deps));
   app.route('/api/schedule', scheduleRoutes(deps));
   app.route('/', localStorageRoutes(deps));

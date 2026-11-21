@@ -1,33 +1,31 @@
-// The image library: photos and screens in the vault, as a grid. The owner uploads pictures and describes them; the AI
-// reads the description (and the licence and people flags) when it chooses pictures for posts.
+// Pictures: the photos and screens in the vault, as a grid. A tile opens the picture's own page (/library/:id); uploads have
+// a page too (/library/upload). The AI reads each picture's description (and its licence and people flags) when it chooses
+// pictures for posts. The filters live in the address, and /library?q=words starts with a search.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckSquare, ImagePlus, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
-import { EmptyBlock, ErrorBlock, SelectField, TextField, useSelection } from '@/components/kit';
+import { EmptyBlock, ErrorBlock, Hint, PageHeader, useSelection } from '@/components/kit';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useDebounced, useDocumentTitle } from '../hooks';
 import { errorMessage } from '../lib/errors';
-import { CreateHeader } from '../shell/CreateHeader';
+import { FilterBar } from './vault/FilterBar';
 import { VaultBulkBar } from './vault/VaultBulkBar';
-import { ItemSheet } from './library/ItemSheet';
 import { LibraryTile } from './library/LibraryTile';
-import { UploadSheet } from './library/UploadSheet';
 import type { VaultItem } from './vault-types';
 
 interface Page { items: VaultItem[]; total: number; page: number; pageSize: number }
 const PAGE_SIZE = 48;
 
-const KIND_OPTIONS = [{ value: '', label: 'All' }, { value: 'photo', label: 'Photos' }, { value: 'screen', label: 'Screens' }];
-const STATUS_OPTIONS = [{ value: '', label: 'All' }, { value: 'confirmed', label: 'Confirmed' }, { value: 'unconfirmed', label: 'Unconfirmed' }];
+const KIND_OPTIONS = [{ value: 'photo', label: 'Photos' }, { value: 'screen', label: 'Screens' }];
+const STATUS_OPTIONS = [{ value: 'confirmed', label: 'Confirmed' }, { value: 'unconfirmed', label: 'Unconfirmed' }];
 
 const GRID = 'm-0 grid list-none grid-cols-2 gap-3 p-0 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6';
 
 function GridSkeleton() {
   return (
-    <ul className={GRID} role="status" aria-label="Loading the library">
+    <ul className={GRID} role="status" aria-label="Loading your pictures">
       {Array.from({ length: 12 }, (_, i) => (
         <li key={i} className="flex flex-col gap-2"><Skeleton className="aspect-square w-full rounded-lg" /><Skeleton className="h-4 w-2/3" /></li>
       ))}
@@ -36,13 +34,32 @@ function GridSkeleton() {
 }
 
 export function Library() {
-  useDocumentTitle('Library');
-  const [q, setQ] = useState('');
-  const [kind, setKind] = useState('');
-  const [status, setStatus] = useState('');
-  const [tag, setTag] = useState('');
+  useDocumentTitle('Pictures');
+  const location = useLocation();
+  const [params, setParams] = useSearchParams();
+  const urlQ = params.get('q') ?? '';
+  const [q, setQ] = useState(urlQ);
+  const [kind, setKind] = useState(params.get('kind') ?? '');
+  const [status, setStatus] = useState(params.get('status') ?? '');
+  const [tag, setTag] = useState(params.get('tag') ?? '');
   const query = useDebounced(q.trim());
   const tagQuery = useDebounced(tag.trim());
+
+  // A search that arrives in the address while the page is open (the command palette) replaces the box; the address the page
+  // writes itself does not.
+  const written = useRef(urlQ);
+  useEffect(() => { if (urlQ !== written.current) { written.current = urlQ; setQ(urlQ); } }, [urlQ]);
+  const redirecting = params.get('upload') === '1';
+  useEffect(() => {
+    if (redirecting) return;
+    const next = new URLSearchParams();
+    if (query) next.set('q', query);
+    if (kind) next.set('kind', kind);
+    if (status) next.set('status', status);
+    if (tagQuery) next.set('tag', tagQuery);
+    written.current = query;
+    if (next.toString() !== params.toString()) setParams(next, { replace: true });
+  }, [query, kind, status, tagQuery, params, setParams, redirecting]);
 
   const [items, setItems] = useState<VaultItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -50,8 +67,6 @@ export function Library() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [moreError, setMoreError] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [open, setOpen] = useState<VaultItem | null>(null);
   const [selecting, setSelecting] = useState(false);
   const selection = useSelection(items.map((i) => i.id));
   const seq = useRef(0);
@@ -66,7 +81,7 @@ export function Library() {
     return api.get<Page>(`/api/vault?${p.toString()}`);
   }, [kind, status, query, tagQuery]);
 
-  // Loads the first page again (filters changed, or something was added, changed or removed).
+  // Loads the first page again (filters changed, or something was changed in bulk).
   const reload = useCallback(async () => {
     const mine = ++seq.current;
     setLoading(true); setError(''); setMoreError('');
@@ -98,89 +113,74 @@ export function Library() {
     }
   }
 
-  const filtered = !!(kind || status || query || tagQuery);
+  const filtered = !!(kind || status || q.trim() || tag.trim());
   const reset = () => { setQ(''); setKind(''); setStatus(''); setTag(''); };
 
-  function changed(next: VaultItem, imageChanged: boolean) {
-    // The list answer carries a signed fileUrl that the single-item answer does not, so keep the tile's picture.
-    setItems((cur) => cur.map((i) => (i.id === next.id ? { ...next, fileUrl: i.fileUrl } : i)));
-    setOpen((cur) => (cur && cur.id === next.id ? { ...next, fileUrl: cur.fileUrl } : cur));
-    if (imageChanged) void reload();
-  }
+  if (redirecting) return <Navigate to="/library/upload" replace />;
 
-  function removed(gone: VaultItem) {
-    setOpen(null);
-    setItems((cur) => cur.filter((i) => i.id !== gone.id));
-    setTotal((t) => Math.max(0, t - 1));
-    toast.success(`"${gone.title}" deleted`, {
-      duration: 9000,
-      action: {
-        label: 'Undo',
-        onClick: () => { api.post(`/api/vault/${gone.id}/restore`).then(() => { toast.success('Picture restored'); void reload(); }).catch((e: unknown) => toast.error(errorMessage(e))); },
-      },
-    });
-  }
-
+  const back = `${location.pathname}${location.search}`;
   const toggleSelecting = () => { if (selecting) selection.clear(); setSelecting(!selecting); };
-  const selectButton = (
-    <Button variant={selecting ? 'secondary' : 'outline'} className="max-sm:min-h-11" aria-pressed={selecting} onClick={toggleSelecting}>
-      <CheckSquare aria-hidden="true" />{selecting ? 'Done selecting' : 'Select'}
-    </Button>
-  );
-  const upload = <Button className="max-sm:min-h-11" onClick={() => setUploading(true)}><ImagePlus aria-hidden="true" />Upload images</Button>;
+  const upload = <Button asChild className="max-sm:min-h-11"><Link to="/library/upload"><ImagePlus aria-hidden="true" />Upload pictures</Link></Button>;
   return (
     <>
-      <CreateHeader description="The library holds the pictures the AI may choose for posts. Describe each one: the AI reads the description when it chooses." actions={<>{items.length > 0 && selectButton}{upload}</>} />
-      <div className="flex flex-col gap-4">
-        <Card className="p-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_auto]" role="search" aria-label="Filter the library">
-            <TextField label="Search" type="search" placeholder="Words in the title or description" value={q} onChange={(e) => setQ(e.target.value)} />
-            <SelectField label="Kind" value={kind} onValueChange={setKind} options={KIND_OPTIONS} />
-            <SelectField label="Status" value={status} onValueChange={setStatus} options={STATUS_OPTIONS} />
-            <TextField label="Tag" placeholder="For example news" value={tag} onChange={(e) => setTag(e.target.value)} />
-            <div className="flex items-end"><Button variant="outline" className="max-sm:min-h-11" disabled={!filtered} onClick={reset}>Clear filters</Button></div>
-          </div>
-        </Card>
+      <PageHeader
+        title="Pictures"
+        actions={(
+          <>
+            <Hint about="Pictures" className="max-sm:flex-none!">The photos and screens the AI may choose for posts. Describe each one: the AI reads the description when it chooses.</Hint>
+            {items.length > 0 && (
+              <Button variant={selecting ? 'secondary' : 'outline'} className="max-sm:min-h-11" aria-pressed={selecting} onClick={toggleSelecting}>
+                <CheckSquare aria-hidden="true" />{selecting ? 'Done selecting' : 'Select'}
+              </Button>
+            )}
+            {upload}
+          </>
+        )}
+      />
+      <FilterBar
+        ariaLabel="Filter your pictures"
+        search={{ value: q, onChange: setQ, placeholder: 'Search pictures' }}
+        selects={[
+          { key: 'kind', label: 'Kind', allLabel: 'All kinds', value: kind, onChange: setKind, options: KIND_OPTIONS },
+          { key: 'status', label: 'Status', allLabel: 'Any status', value: status, onChange: setStatus, options: STATUS_OPTIONS },
+        ]}
+        tag={{ value: tag, onChange: setTag }}
+        active={filtered}
+        onClear={reset}
+      />
 
-        {loading && items.length === 0 ? <GridSkeleton />
-          : error ? <Card className="gap-0 p-0"><ErrorBlock message={error} onRetry={() => void reload()} /></Card>
-          : items.length === 0
-            ? (
-              <Card className="gap-0 p-0">
-                <EmptyBlock title={filtered ? 'No pictures match these filters' : 'The library is empty'}
-                  action={filtered ? <Button variant="outline" className="max-sm:min-h-11" onClick={reset}>Clear filters</Button> : upload}>
-                  {filtered ? 'Try fewer filters or different words.' : 'The library holds the pictures and screenshots the AI can use in posts. Upload an image and say what it shows, the mood, and what posts it suits. The AI reads that description to choose pictures.'}
-                </EmptyBlock>
-              </Card>
-            )
-            : (
-              <div className="flex flex-col gap-4" aria-busy={loading}>
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                  <p className="text-[13px] text-muted-foreground" aria-live="polite">Showing {items.length} of {total} {total === 1 ? 'picture' : 'pictures'}</p>
-                  {selecting && (
-                    <Button variant="outline" size="sm" className="max-sm:min-h-11" onClick={selection.toggleAll}>
-                      {selection.allSelected ? 'Deselect all shown' : `Select all shown (${items.length})`}
-                    </Button>
-                  )}
-                </div>
-                <ul className={GRID} aria-label="Pictures">
-                  {items.map((i) => <LibraryTile key={i.id} item={i} onOpen={setOpen} selecting={selecting} selected={selection.isSelected(i.id)} onToggle={(range) => selection.toggle(i.id, range)} />)}
-                </ul>
-                {moreError && <p className="text-center text-sm text-destructive" role="alert">{moreError}</p>}
-                {items.length < total && (
-                  <div className="flex justify-center">
-                    <Button variant="outline" className="max-sm:min-h-11" disabled={loadingMore} onClick={() => void loadMore()}>
-                      {loadingMore && <Loader2 className="animate-spin" aria-hidden="true" />}Load more
-                    </Button>
-                  </div>
+      {loading && items.length === 0 ? <GridSkeleton />
+        : error ? <ErrorBlock message={error} onRetry={() => void reload()} />
+        : items.length === 0
+          ? (
+            <EmptyBlock title={filtered ? 'No pictures match these filters.' : 'No pictures yet.'}
+              action={filtered ? <Button variant="outline" className="max-sm:min-h-11" onClick={reset}>Clear filters</Button> : upload} />
+          )
+          : (
+            <div className="flex flex-col gap-4" aria-busy={loading}>
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <p className="text-[12.5px] text-muted-foreground" aria-live="polite">Showing {items.length} of {total} {total === 1 ? 'picture' : 'pictures'}</p>
+                {selecting && (
+                  <Button variant="outline" size="sm" className="max-sm:min-h-11" onClick={selection.toggleAll}>
+                    {selection.allSelected ? 'Deselect all shown' : `Select all shown (${items.length})`}
+                  </Button>
                 )}
               </div>
-            )}
-      </div>
+              <ul className={GRID} aria-label="Pictures">
+                {items.map((i) => <LibraryTile key={i.id} item={i} to={`/library/${i.id}`} back={back} selecting={selecting} selected={selection.isSelected(i.id)} onToggle={(range) => selection.toggle(i.id, range)} />)}
+              </ul>
+              {moreError && <p className="text-center text-[13px] text-destructive" role="alert">{moreError}</p>}
+              {items.length < total && (
+                <div className="flex justify-center">
+                  <Button variant="outline" className="max-sm:min-h-11" disabled={loadingMore} onClick={() => void loadMore()}>
+                    {loadingMore && <Loader2 className="animate-spin" aria-hidden="true" />}Load more
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
       {selecting && <VaultBulkBar selection={selection} items={items} noun="picture" reload={reload} />}
-      {uploading && <UploadSheet onClose={() => setUploading(false)} onUploaded={(n) => { toast.success(`${n} ${n === 1 ? 'image' : 'images'} added`); void reload(); }} />}
-      {open && <ItemSheet key={open.id} item={open} onClose={() => setOpen(null)} onChanged={changed} onRemoved={removed} />}
     </>
   );
 }

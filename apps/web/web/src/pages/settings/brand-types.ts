@@ -40,18 +40,18 @@ export const ROLE_GROUPS = {
   grounds: { title: 'Page colours', keys: GROUNDS as readonly string[] },
   text: { title: 'Text', keys: ['ink', 'body', 'muted', 'inverse', 'invBody', 'mutedInv'] },
   accents: { title: 'Accents', keys: ['primary', 'gold', 'goldDeep'] },
-  surfaces: { title: 'Cards and panels', keys: ['panel', 'card', 'outline'] },
-  slabs: { title: 'Myth and fact', keys: ['myth', 'fact'] },
+  surfaces: { title: 'Panels and cards', keys: ['panel', 'card', 'outline'] },
+  slabs: { title: 'Myth and fact panels', keys: ['myth', 'fact'] },
 } as const;
 export type RoleGroup = keyof typeof ROLE_GROUPS;
 export type BrandRoles = Record<RoleGroup, Record<string, string | undefined>>;
 export const ROLE_LABEL: Record<string, string> = {
-  'grounds.light': 'Light', 'grounds.soft': 'Soft', 'grounds.cool': 'Cool', 'grounds.warm': 'Warm', 'grounds.dark': 'Dark', 'grounds.deep': 'Deep',
+  'grounds.light': 'Light page', 'grounds.soft': 'Soft page', 'grounds.cool': 'Cool page', 'grounds.warm': 'Warm page', 'grounds.dark': 'Dark page', 'grounds.deep': 'Deep page',
   'text.ink': 'Headlines on light', 'text.body': 'Body on light', 'text.muted': 'Labels on light',
   'text.inverse': 'Headlines on dark', 'text.invBody': 'Body on dark', 'text.mutedInv': 'Labels on dark',
   'accents.primary': 'Accent on light', 'accents.gold': 'Accent on dark', 'accents.goldDeep': 'Deep accent',
-  'surfaces.panel': 'Panel', 'surfaces.card': 'Card', 'surfaces.outline': 'Outline',
-  'slabs.myth': 'Myth slab', 'slabs.fact': 'Fact slab',
+  'surfaces.panel': 'Panel behind cards', 'surfaces.card': 'Card', 'surfaces.outline': 'Card outline',
+  'slabs.myth': 'Myth panel', 'slabs.fact': 'Fact panel',
 };
 export const emptyRoles = (): BrandRoles => ({ grounds: {}, text: {}, accents: {}, surfaces: {}, slabs: {} });
 
@@ -143,7 +143,7 @@ export interface DesignReference {
 export const GROUND_LABEL: Record<string, string> = { light: 'Light', soft: 'Soft', cool: 'Cool', warm: 'Warm', dark: 'Dark', deep: 'Deep' };
 export const ACCENT_LABEL: Record<string, string> = { muted: 'Second half in grey', colour: 'Second half in the accent colour', weight: 'Second half in a lighter weight', none: 'No second-half device' };
 export const LABELS: Record<string, string> = {
-  'as-typed': 'As typed', upper: 'Capitals', series: 'As each series says', ...ACCENT_LABEL,
+  'as-typed': 'As typed', upper: 'Capitals', series: 'As each post type says', ...ACCENT_LABEL,
   shadow: 'Soft shadow', outline: 'Outlined', flat: 'Flat',
   auto: 'Dots on dark pages, lines on dark posters', dots: 'Dots', grid: 'Grid', lines: 'Fine lines', artwork: 'Our artwork', dark: 'Dark pages only', all: 'Every page',
   cover: 'Fill the page', corner: 'Top right corner',

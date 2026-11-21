@@ -3,12 +3,12 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { DataList, EmptyBlock, ErrorBlock, FormPanel, Notice, PageHeader, Pager, RowsSkeleton, SelectField, SwitchField, type Column } from '@/components/kit';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { EmptyBlock, ErrorBlock, FormPanel, Notice, PageHeader, Pager, RowsSkeleton, SelectField, SwitchField } from '@/components/kit';
 import { RunProgress, RunResult, RunStatusBadge, runSummary } from '@/components/activity-parts';
 import { useActivity, useActivityRun } from '@/hooks/use-activity';
 import { useNow } from '@/hooks/use-now';
-import { batchLink, elapsedMs, formatElapsed, isActive, KIND_LABEL, runKindLabel, type ActivityRun } from '@/lib/activity';
+import { batchLink, elapsedMs, formatElapsed, isActive, KIND_LABEL, runKindLabel, runStatusLabel, runTitle, type ActivityRun } from '@/lib/activity';
 import { useDocumentTitle } from '../hooks';
 import { formatDateTime } from '../lib/format';
 
@@ -30,33 +30,25 @@ export function Activity() {
   const now = useNow(list.active.length > 0);
   const filtered = status !== 'all' || !!kind || showSystem;
 
-  const columns: Column<ActivityRun>[] = [
-    { key: 'title', header: 'What', primary: true, cell: (r) => (
-      <div className="min-w-0 md:min-w-[8rem]">
-        <Link to={`/activity/${r.id}`} className="rounded-sm font-medium outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50">{r.title}</Link>
-        <span className="block text-[13px] font-normal text-muted-foreground">{runKindLabel(r.kind)}</span>
-      </div>
-    ) },
-    { key: 'status', header: 'Status', cell: (r) => <RunStatusBadge run={r} /> },
-    { key: 'progress', header: 'Progress', cell: (r) => (isActive(r)
-      ? <RunProgress run={r} now={now} className="min-w-[7rem]" />
-      : <span className={r.status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}>{runSummary(r) || '-'}</span>) },
-    { key: 'when', header: 'Started', cell: (r) => <span className="whitespace-nowrap">{formatDateTime(r.createdAt)}{!isActive(r) && <span className="block text-[13px] text-muted-foreground">Took {formatElapsed(elapsedMs(r, now))}</span>}</span> },
-    { key: 'open', header: 'Open', actions: true, cell: (r) => <Button asChild variant="outline" size="sm" className="max-sm:min-h-11"><Link to={`/activity/${r.id}`}>Details<span className="sr-only"> of {r.title}</span></Link></Button> },
-  ];
+  const open = (r: ActivityRun) => navigate(`/activity/${r.id}`);
+  const rowKeys = (r: ActivityRun) => (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(r); } };
+  const progressCell = (r: ActivityRun) => (isActive(r)
+    ? <RunProgress run={r} now={now} className="min-w-[7rem]" />
+    : <span className={r.status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}>{runSummary(r) || '-'}</span>);
+  const started = (r: ActivityRun) => (
+    <span className="whitespace-nowrap">{formatDateTime(r.createdAt)}{!isActive(r) && <span className="text-muted-foreground"> · {formatElapsed(elapsedMs(r, now))}</span>}</span>
+  );
 
   return (
     <>
-      <PageHeader title="Activity" description="What the app is doing in the background and what it did: AI drafts, research, images, and sends to Buffer. It updates by itself." />
-      <div className="flex flex-col gap-4">
-        <Card className="p-4">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]" role="search" aria-label="Filter the activity">
-            <SelectField label="Status" value={status} onValueChange={(v) => { setStatus(v); setPage(1); }} options={STATUS_OPTIONS} />
-            <SelectField label="Kind of work" value={kind} onValueChange={(v) => { setKind(v); setPage(1); }} options={KIND_OPTIONS} />
-            <SwitchField className="self-end pb-2" label="Show automatic status checks" checked={showSystem} onCheckedChange={(v) => { setShowSystem(v); setPage(1); }} />
-          </div>
-        </Card>
-        <Card className="gap-0 overflow-hidden p-0" aria-label="Activity">
+      <PageHeader title="Activity" description="What the app is doing in the background and what it did. It updates by itself." />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-end gap-x-3 gap-y-2" role="search" aria-label="Filter the activity">
+          <SelectField className="w-40 max-sm:w-[calc(50%-0.375rem)]" label="Status" value={status} onValueChange={(v) => { setStatus(v); setPage(1); }} options={STATUS_OPTIONS} />
+          <SelectField className="w-44 max-sm:w-[calc(50%-0.375rem)]" label="Kind of work" value={kind} onValueChange={(v) => { setKind(v); setPage(1); }} options={KIND_OPTIONS} />
+          <SwitchField className="pb-1.5" label="Show automatic status checks" checked={showSystem} onCheckedChange={(v) => { setShowSystem(v); setPage(1); }} />
+        </div>
+        <div className="overflow-hidden rounded-lg border" aria-label="Activity">
           {list.loading && list.items.length === 0 && !list.error ? <RowsSkeleton rows={6} />
             : list.error && list.items.length === 0 ? <ErrorBlock message={list.error} onRetry={() => void list.reload()} />
             : list.items.length === 0 ? (
@@ -64,16 +56,46 @@ export function Activity() {
                 title={filtered ? 'Nothing matches these filters' : 'No background work yet'}
                 action={filtered ? <Button variant="outline" className="max-sm:min-h-11" onClick={() => { setStatus('all'); setKind(''); setShowSystem(false); setPage(1); }}>Clear filters</Button> : undefined}
               >
-                {filtered ? 'Clear the filters to see everything.' : 'Drafts, research, renders and sends will appear here while they run, and stay after.'}
+                {filtered ? 'Clear the filters to see everything.' : 'Drafts, images and sends appear here.'}
               </EmptyBlock>
             ) : (
               <div aria-busy={list.loading}>
                 {list.error && <div className="p-3"><Notice tone="warn">{list.error}</Notice></div>}
-                <DataList caption="Background work, newest first" columns={columns} rows={list.items} rowKey={(r) => r.id} />
+                <div className="hidden md:block">
+                  <Table>
+                    <caption className="sr-only">Background work, newest first. Select a row to open it.</caption>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        {['What', 'Status', 'Progress', 'Started'].map((h) => <TableHead key={h} scope="col" className="h-8 px-3 text-[12px] font-medium text-muted-foreground">{h}</TableHead>)}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {list.items.map((r) => (
+                        <TableRow key={r.id} tabIndex={0} role="link" aria-label={`${runTitle(r.title)}, ${runKindLabel(r.kind)}, ${runStatusLabel(r.status)}. Open`} onClick={() => open(r)} onKeyDown={rowKeys(r)} className="h-10 cursor-pointer outline-none focus-visible:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50">
+                          <TableCell className="max-w-[22rem] truncate px-3 py-0 font-medium" title={runKindLabel(r.kind)}>{runTitle(r.title)}</TableCell>
+                          <TableCell className="px-3 py-0"><RunStatusBadge run={r} /></TableCell>
+                          <TableCell className="max-w-[18rem] truncate px-3 py-0 text-[13px]">{progressCell(r)}</TableCell>
+                          <TableCell className="px-3 py-0 text-[13px]">{started(r)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <ul className="divide-y md:hidden" aria-label="Background work, newest first">
+                  {list.items.map((r) => (
+                    <li key={r.id}>
+                      <Link to={`/activity/${r.id}`} className="flex min-h-11 flex-col gap-0.5 px-3 py-2 outline-none hover:bg-muted/50 focus-visible:bg-muted/60">
+                        <span className="flex items-center justify-between gap-2"><span className="min-w-0 truncate text-[13.5px] font-medium">{runTitle(r.title)}</span><RunStatusBadge run={r} /></span>
+                        <span className="text-[12.5px]">{progressCell(r)}</span>
+                        <span className="text-[12px] text-muted-foreground">{runKindLabel(r.kind)} · {started(r)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
                 <Pager page={list.page} pageSize={list.pageSize} total={list.total} onPage={setPage} />
               </div>
             )}
-        </Card>
+        </div>
       </div>
       {id && <RunPanel id={id} onClose={() => navigate('/activity')} />}
     </>
@@ -99,7 +121,7 @@ function RunPanel({ id, onClose }: { id: string; onClose: () => void }) {
       open
       onClose={onClose}
       size="lg"
-      title={run?.title ?? 'Activity'}
+      title={run ? runTitle(run.title) : 'Activity'}
       description={run ? runKindLabel(run.kind) : 'Details of one piece of background work'}
       footer={(
         <>

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Check, RotateCcw, Trash2, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../api';
-import { BulkBar, ConfirmAction, Lines, Notice, useBulkRun, type Selection } from '@/components/kit';
+import { BulkBar, ConfirmAction, Lines, MoreMenu, Notice, useBulkRun, type Selection } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { failedResults, type BulkResult } from '@/lib/bulk';
@@ -50,14 +50,14 @@ export function PostBulkBar({ selection, posts, afterRun }: {
     report(await run(approved.map((p) => p.id), 'taken off approval', (id) => api.post(`/api/posts/${id}/unapprove`)));
   }
   async function restore() {
-    report(await run(removed.map((p) => p.id), 'restored as drafts', (id) => api.post(`/api/posts/${id}/restore`)));
+    report(await run(removed.map((p) => p.id), 'restored, back to Writing', (id) => api.post(`/api/posts/${id}/restore`)));
   }
   async function remove() {
     const results = await run(removing ?? [], 'removed', (id) => api.delete<{ inBuffer?: boolean }>(`/api/posts/${id}`));
     setRemoving(null);
     report(results);
     const inBuffer = results.filter((r) => r.ok && (r.value as { inBuffer?: boolean }).inBuffer).length;
-    if (inBuffer) toast.error(`${n(inBuffer)} already in Buffer. Delete ${inBuffer === 1 ? 'it' : 'them'} there from the Schedule tab`);
+    if (inBuffer) toast.error(`${n(inBuffer)} already in Buffer. Delete ${inBuffer === 1 ? 'it' : 'them'} there from step 3 or 4 of the batch`);
   }
 
   return (
@@ -79,9 +79,7 @@ export function PostBulkBar({ selection, posts, afterRun }: {
           </Button>
         )}
         {live.length > 0 && (
-          <Button variant="outline" className="text-destructive hover:text-destructive max-sm:min-h-11" disabled={busy} onClick={() => setRemoving(live.map((p) => p.id))}>
-            <Trash2 aria-hidden="true" />Remove{live.length !== picked.length ? ` (${live.length})` : ''}
-          </Button>
+          <MoreMenu label="More bulk actions" items={[{ label: `Remove${live.length !== picked.length ? ` (${live.length})` : ''}`, tone: 'danger', icon: <Trash2 aria-hidden="true" />, onSelect: () => setRemoving(live.map((p) => p.id)) }]} />
         )}
       </BulkBar>
 
@@ -106,7 +104,7 @@ export function PostBulkBar({ selection, posts, afterRun }: {
         <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{refusals?.length === 1 ? '1 post was not changed' : `${refusals?.length ?? 0} posts were not changed`}</DialogTitle>
-            <DialogDescription>These posts stay selected. Open each one to fix what stopped it, then try again.</DialogDescription>
+            <DialogDescription>They stay selected. Fix what stopped each one, then try again.</DialogDescription>
           </DialogHeader>
           <Notice tone="warn">
             <ul className="list-disc space-y-1 pl-[18px]">

@@ -7,16 +7,16 @@ import { VeskLogo } from './VeskLogo';
 export function AuthLayout({ title, children }: { title: string; children: ReactNode }) {
   const { brand } = useAppInfo();
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-6 bg-frame px-4 py-6" id="main">
-      <VeskLogo className="text-lg" />
-      <Card className="w-full max-w-105 gap-0 py-0">
-        <CardContent className="flex flex-col gap-5 p-6 max-sm:p-5">
-          <div className="flex items-center gap-2.5 text-[13px] text-muted-foreground">
-            {brand.logo && <img src={brand.logo} alt="" width="24" height="24" className="size-6 rounded" />}
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-frame px-4 py-6" id="main">
+      <VeskLogo className="text-base" />
+      <Card className="w-full max-w-96 gap-0 py-0 shadow-none">
+        <CardContent className="flex flex-col gap-4 p-5">
+          <div className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
+            {brand.logo && <img src={brand.logo} alt="" width="20" height="20" className="size-5 rounded" />}
             <span>{brand.name}</span>
           </div>
-          <div className="flex flex-col gap-4">
-            <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+          <div className="flex flex-col gap-3">
+            <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
             {children}
           </div>
         </CardContent>

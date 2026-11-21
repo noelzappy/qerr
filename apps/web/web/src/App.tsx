@@ -9,6 +9,7 @@ import { Publish } from './pages/Publish';
 import { BrandSettingsPage } from './pages/settings/Brand';
 import { ReferencesPage } from './pages/settings/References';
 import { LayoutsPage } from './pages/settings/Layouts';
+import { LayoutEditorRoute } from './pages/settings/layouts/EditorRoute';
 import { PreferencesPage } from './pages/settings/Preferences';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Toaster } from '@/components/ui/sonner';
@@ -18,14 +19,19 @@ import { AiSettings } from './pages/AiSettings';
 import { Audit } from './pages/Audit';
 import { BatchReview } from './pages/BatchReview';
 import { Batches } from './pages/Batches';
+import { PostPage } from './pages/batches/PostPage';
 import { BufferAccounts } from './pages/BufferAccounts';
 import { Login } from './pages/Login';
 import { ResetPassword } from './pages/ResetPassword';
 import { Routing } from './pages/Routing';
 import { Users } from './pages/Users';
 import { Library } from './pages/Library';
+import { LibraryItemPage } from './pages/library/LibraryItemPage';
+import { UploadPage } from './pages/library/UploadPage';
 import { Vault } from './pages/Vault';
+import { VaultItemPage } from './pages/vault/VaultItemPage';
 import { ErrorBoundary } from './shell/ErrorBoundary';
+import { UnsavedGuardHost } from '@/hooks/use-unsaved-guard';
 
 export function App() {
   return (
@@ -33,6 +39,7 @@ export function App() {
       <AppInfoProvider>
       <SessionProvider>
         <TooltipProvider delayDuration={200}>
+          <UnsavedGuardHost />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/accept-invite" element={<AcceptInvite />} />
@@ -48,9 +55,13 @@ export function App() {
               <Route path="/batches/ai-draft" element={<Batches />} />
               <Route path="/batches/:id" element={<BatchReview />} />
               <Route path="/batches/:id/schedule" element={<BatchReview />} />
+              <Route path="/batches/:id/posts/new" element={<PostPage />} />
+              <Route path="/batches/:id/posts/:postId" element={<PostPage />} />
               <Route path="/vault" element={<Vault />} />
-              <Route path="/vault/:id" element={<Vault />} />
+              <Route path="/vault/:id" element={<VaultItemPage />} />
               <Route path="/library" element={<Library />} />
+              <Route path="/library/upload" element={<UploadPage />} />
+              <Route path="/library/:id" element={<LibraryItemPage />} />
               <Route path="/activity" element={<Activity />} />
               <Route path="/activity/:id" element={<Activity />} />
             </Route>
@@ -58,9 +69,11 @@ export function App() {
               <Route path="/settings/preferences" element={<PreferencesPage />} />
             </Route>
             <Route element={<SettingsShell admin />}>
-              <Route path="/settings/brand" element={<BrandSettingsPage />} />
+              <Route path="/settings/brand/:section?" element={<BrandSettingsPage />} />
               <Route path="/settings/references" element={<ReferencesPage />} />
               <Route path="/settings/layouts" element={<LayoutsPage />} />
+              <Route path="/settings/layouts/new" element={<LayoutEditorRoute mode="new" />} />
+              <Route path="/settings/layouts/:id" element={<LayoutEditorRoute mode="edit" />} />
               <Route path="/settings/team" element={<Users />} />
               <Route path="/settings/accounts" element={<BufferAccounts />} />
               <Route path="/settings/channels" element={<Routing />} />

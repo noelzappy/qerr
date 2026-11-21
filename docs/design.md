@@ -608,8 +608,13 @@ has a synthetic pre-framed phone, `design/assets/demo/screen-phone.png`, for the
 
 ### Editing a layout
 
-Everything a brand's layout can say is edited visually in Settings, Layouts; the JSON view shows the same layout as the engine
-reads it, and switching between them loses nothing. The editor's controls come from `layoutCatalogue().pages` for the layout's
+Everything a brand's layout can say is edited visually in Settings, Layouts. A layout opens its own page, not a side sheet:
+`/settings/layouts/new` (optionally `?from=<starter>`, `?duplicate=<layout id>` or `?copy=<built-in id>`) and
+`/settings/layouts/:id`. Blocks are dragged and resized on a large canvas, snapped to the grid's cells, or placed with the number
+fields or in pixels. The keyboard works too: the arrow keys move the selected block, Shift with the arrows resizes it, Escape
+deselects and Delete removes it. The canvas's "Real image" view is the real preview, drawn with the brand. The layout's JSON, under
+"Advanced: JSON", shows the same layout as the engine reads it, and switching between them loses nothing. The page asks before it
+is left with changes that are not saved. The editor's controls come from `layoutCatalogue().pages` for the layout's
 kind of page, so it offers nothing the validator refuses and leaves out nothing it accepts:
 
 - **The layout**: name, id, description, kind of page (moving a layout to another page keeps what that page draws, places it as
@@ -618,8 +623,8 @@ kind of page, so it offers nothing the validator refuses and leaves out nothing 
   last; cases are added, removed and reordered (up to 4).
 - **Sizes and grids**: the sizes of a grid page, and for each its columns, rows, gutter and row gutter (or the same as the
   columns), and its margins, one for every side or one per side, never under the size's minimum.
-- **Blocks**: added from the page's block types, reordered and removed. Each block's place in grid cells (clicking two cells of
-  the sketch) or in page pixels, one place for every size or one per size; its bleed, only to the edges its slot touches; every
+- **Blocks**: added from the page's block types, reordered and removed. Each block's place in grid cells (dragged or resized on
+  the canvas, snapped to the cells) or in page pixels, one place for every size or one per size; its bleed, only to the edges its slot touches; every
   option the page takes for it, shown only when what it needs is set (a phone's `fit`, a desktop window's `tilt`, a sub line's
   `subWidth`); what it shows (a field, which is declared when picked; a label's field, fixed words or source; a window title; a
   headline's flowing sub line); and the blocks inside a slab, added, reordered and removed.
@@ -640,7 +645,7 @@ as that page of a carousel of three at the feed size). The editor's model (`apps
 editor shows and writes it back; `apps/web/src/web-layout-model.spec.ts` opens every starter, every built-in layout a brand may
 copy and every layout the catalogue lets one build that the engine accepts, and checks that nothing is left unshown and that each
 comes back deep-equal. Anything in a layout the editor could not show (only what the engine refuses for a brand) is listed above
-the editor, to be fixed in the JSON view.
+the editor, to be fixed under Advanced: JSON.
 
 ## Your own photos and screenshots
 
