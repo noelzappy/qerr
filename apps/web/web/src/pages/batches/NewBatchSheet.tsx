@@ -73,6 +73,8 @@ function CreateForm({ onClose, onState }: { onClose: () => void; onState: (s: Fo
   const { brand } = useAppInfo();
   const ZONES = zonesFor(brand.timezone);
   const [timezone, setTimezone] = useState(brand.timezone);
+  // The brand's zone can arrive after the form opens: follow it, so an untouched form is not counted as changed.
+  useEffect(() => { setTimezone(brand.timezone); }, [brand.timezone]);
   const [defaultTime, setDefaultTime] = useState('09:00');
   const [networks, setNetworks] = useState<string[]>([...NETWORKS]);
   const [periodStart, setPeriodStart] = useState('');
