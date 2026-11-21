@@ -15,6 +15,19 @@ const REQUIRED = ['name', 'website', 'tagline', 'grounds', 'text', 'accents', 's
 const RANGE = /^U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?(, ?U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?)*$/;
 const FAMILY = /^[A-Za-z0-9 _-]{1,40}$/;
 const isNum = (v, lo, hi) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
+// font.files: at most this many in all, and per role (every weight from 100 to 900, in a latin and a latin-ext file each).
+export const MAX_FONT_FILES = 64;
+export const MAX_ROLE_FONT_FILES = 18;
+// The weight a font file is declared for: one weight from 100 to 900, or a range of two ("300 700", lighter first).
+const fontWeightOk = (w) => {
+  const m = typeof w === 'string' ? /^(\d{3})(?: (\d{3}))?$/.exec(w) : null;
+  if (!m) return false;
+  const lo = Number(m[1]), hi = Number(m[2] ?? m[1]);
+  return lo >= 100 && hi <= 900 && lo <= hi;
+};
+// A font file's path: relative, a .woff2, in plain path characters, with no ".." segment (loading it checks again that it
+// stays inside the repository, see assets.mjs).
+const fontPathOk = (p) => typeof p === 'string' && p.length <= 300 && /^[A-Za-z0-9_][A-Za-z0-9_./-]*\.woff2$/.test(p) && !p.split('/').some((seg) => seg === '..' || seg === '.' || seg === '');
 
 // A shadow layer: finite numbers in sane ranges, a #rrggbb colour and an alpha from 0 to 1.
 export function shadowProblems(s, where) {
@@ -207,14 +220,20 @@ export function validateBrand(b) {
   for (const k of ['headlineWeight', 'accentWeight']) if (!Number.isInteger(f[k]) || f[k] < 100 || f[k] > 900) errors.push(`brand.json: font.${k} must be a whole number from 100 to 900`);
   if (!isNum(f.tracking, -0.1, 0.1)) errors.push('brand.json: font.tracking must be a number of em from -0.1 to 0.1');
   if (!isNum(f.leading, 0.9, 1.6)) errors.push('brand.json: font.leading must be a line height from 0.9 to 1.6');
-  if (!Array.isArray(f.files) || !f.files.length || f.files.length > 12) errors.push('brand.json: font.files must be a list of 1 to 12 font files');
-  else f.files.forEach((x, i) => {
-    if (!FONT_ROLES.includes(x?.role)) errors.push(`brand.json: font.files[${i}].role must be one of ${FONT_ROLES.join(', ')}`);
-    else if ((x.role === 'display' || x.role === 'label') && f[x.role] === undefined) errors.push(`brand.json: font.files[${i}] is a ${x.role} font, but font.${x.role} names no family for it`);
-    if (typeof x?.weight !== 'string' || !/^\d{3}( \d{3})?$/.test(x.weight)) errors.push(`brand.json: font.files[${i}].weight must look like "400" or "300 700"`);
-    if (typeof x?.file !== 'string' || !x.file.endsWith('.woff2')) errors.push(`brand.json: font.files[${i}].file must be a .woff2 path`);
-    if (typeof x?.range !== 'string' || !RANGE.test(x.range)) errors.push(`brand.json: font.files[${i}].range must be a unicode-range like "U+0000-00FF, U+20AC"`);
-  });
+  if (!Array.isArray(f.files) || !f.files.length || f.files.length > MAX_FONT_FILES) errors.push(`brand.json: font.files must be a list of 1 to ${MAX_FONT_FILES} font files`);
+  else {
+    f.files.forEach((x, i) => {
+      if (!FONT_ROLES.includes(x?.role)) errors.push(`brand.json: font.files[${i}].role must be one of ${FONT_ROLES.join(', ')}`);
+      else if ((x.role === 'display' || x.role === 'label') && f[x.role] === undefined) errors.push(`brand.json: font.files[${i}] is a ${x.role} font, but font.${x.role} names no family for it`);
+      if (!fontWeightOk(x?.weight)) errors.push(`brand.json: font.files[${i}].weight must be a weight from 100 to 900 or a range of two, lighter first, like "400" or "300 700"`);
+      if (!fontPathOk(x?.file)) errors.push(`brand.json: font.files[${i}].file must be the relative path of a .woff2 file inside the brand pack or the engine (no "..", no absolute path)`);
+      if (typeof x?.range !== 'string' || x.range.length > 2000 || !RANGE.test(x.range)) errors.push(`brand.json: font.files[${i}].range must be a unicode-range like "U+0000-00FF, U+20AC"`);
+    });
+    for (const role of FONT_ROLES) {
+      const n = f.files.filter((x) => x?.role === role).length;
+      if (n > MAX_ROLE_FONT_FILES) errors.push(`brand.json: font.files has ${n} files of role ${role}; the most for one role is ${MAX_ROLE_FONT_FILES} (every weight from 100 to 900 in two subsets)`);
+    }
+  }
   const lg = b.logos ?? {};
   if (typeof lg.full !== 'string' || typeof lg.mark !== 'string') errors.push('brand.json: logos.full and logos.mark must be paths');
   if (!Array.isArray(lg.fullSize) || lg.fullSize.length !== 2 || !lg.fullSize.every((n) => Number.isInteger(n) && n > 0 && n < 20000)) errors.push('brand.json: logos.fullSize must be [width, height] in pixels');
@@ -326,6 +345,83 @@ const CASE = { 'as-typed': 'none', upper: 'uppercase' };
 // An entry of one of these tables, or the fallback: a key that is not the table's own (even "__proto__") never picks anything.
 const pickOf = (table, key, fallback) => (typeof key === 'string' && Object.hasOwn(table, key) ? table[key] : fallback);
 
+// The weights of the type roles, as the page's variables carry them: --hw (headlines, and bold words in body text), --aw (the
+// lighter accent and big figures), --pw (poster headlines), --b-w (body text) and --l-w (labels). A display weight set in the
+// style block applies to the editorial and the poster headlines alike; without one each keeps its own (font.* and poster.*).
+// (validateBrand has checked them; a value that is not a number in range is still never copied: it falls back.)
+function typeWeights(brand) {
+  const ty = brand.style.type;
+  const weight = (v, d) => (Number.isInteger(v) && v >= 100 && v <= 900 ? v : d);
+  const dw = weight(ty.display.weight, null);
+  return {
+    hw: dw ?? brand.font.headlineWeight, pw: dw ?? brand.poster.headlineWeight, aw: dw ? Math.max(100, dw - 300) : brand.font.accentWeight,
+    bw: weight(ty.body.weight, 400), lw: weight(ty.label.weight, 500),
+  };
+}
+
+// The fixed weights the stylesheets (design/brand.css, design/layout.css) and the templates set in each role's family, besides
+// the variables above. sans (var(--font), the page's own family): plain text 400, the website and pills 500 (.purl, .pill,
+// .ly-url), tags and the brand name in a footer 600 (.tag, .ly-tag, .pmark span). display (var(--display)): the plain brand
+// name of a layout, 600 (.ly-plain). mono (var(--mono)): the labels and values of drawn figures, 400 and 500 (svg.fig .fl,
+// .fv, .fn). test-design-fonts.mjs fails when a stylesheet sets a weight that is not listed here.
+export const FIXED_ROLE_WEIGHTS = Object.freeze({ sans: [400, 500, 600], display: [600], label: [], mono: [400, 500] });
+
+const sortedUnique = (list) => [...new Set(list)].sort((a, b) => a - b);
+
+// The weights the page draws each type role at, for this brand: what a font for that role needs so that no weight is faked
+// by the browser. sans: body text (--b-w), its bold words (--hw) and the fixed weights; display: headlines (--hw), the accent
+// and big figures (--aw), poster headlines (--pw) and 600; label: --l-w; mono: the figures.
+export function roleWeights(input) {
+  const brand = input.darkGrounds ? input : normaliseBrand(input);
+  const { hw, aw, pw, bw, lw } = typeWeights(brand);
+  const F = FIXED_ROLE_WEIGHTS;
+  return { sans: sortedUnique([...F.sans, bw, hw]), display: sortedUnique([...F.display, hw, aw, pw]), label: sortedUnique([...F.label, lw]), mono: sortedUnique(F.mono) };
+}
+
+// The weights each family of the brand is drawn at: a family that fills several roles (the sans for the headlines as well, a
+// label font for the headlines) needs the weights of each.
+export function familyWeights(input) {
+  const brand = input.darkGrounds ? input : normaliseBrand(input);
+  const byRole = roleWeights(brand);
+  const familyOf = { sans: brand.font.family, mono: brand.font.mono, display: brand.font.display, label: brand.font.label };
+  const out = {};
+  for (const role of FONT_ROLES) out[familyOf[role]] = sortedUnique([...(out[familyOf[role]] ?? []), ...byRole[role]]);
+  return out;
+}
+
+// The weight of `available` that stands in for `want`: the nearest; on a tie, the one CSS font matching would take (the
+// heavier from 400 up to but not including 500, and above 500; the lighter below 400 and at 500).
+export function nearestWeight(available, want) {
+  let best = null;
+  for (const w of available) {
+    if (best === null) { best = w; continue; }
+    const d = Math.abs(w - want), bd = Math.abs(best - want);
+    if (d < bd || (d === bd && (w > best) === heavierWins(want))) best = w;
+  }
+  return best;
+}
+const heavierWins = (want) => (want >= 400 && want < 500) || want > 500;
+
+// The font-weight each of several weights of one family is declared for, so that every weight from 100 to 900 is drawn with
+// the nearest of them (nearestWeight) and never with a synthetic bold: "100 549" and "550 900" for 400 and 700. A single
+// weight is declared for all of 100 to 900.
+export function weightRanges(weights) {
+  const list = sortedUnique(weights.filter((w) => Number.isInteger(w) && w >= 100 && w <= 900));
+  const out = new Map();
+  let lo = 100;
+  list.forEach((w, i) => {
+    const next = list[i + 1];
+    let hi = 900;
+    if (next !== undefined) {
+      hi = lo;
+      for (let x = lo; x < next; x++) if (nearestWeight([w, next], x) === w) hi = x;
+    }
+    out.set(w, `${lo} ${hi}`);
+    lo = hi + 1;
+  });
+  return out;
+}
+
 // The page's variables, built from the checked numbers and colours. The style block only picks entries of the fixed tables above
 // or gives numbers in their ranges; nothing in it is copied into the CSS as it is.
 export function brandCssVars(input) {
@@ -333,12 +429,9 @@ export function brandCssVars(input) {
   const t = brand.text, a = brand.accents, s = brand.surfaces, k = brand.scale, st = brand.style, ty = st.type, deco = st.decoration, ph = st.photo;
   const grounds = GROUND_NAMES.map((n) => `--g-${n}:${brand.grounds[n]}`).join(';');
   const dotA = deco.alpha ?? brand.dots.alpha, texA = deco.alpha ?? brand.poster.texture.alpha;
-  // A display weight or tracking set in the style block applies to the editorial and the poster headlines alike; without one each
-  // keeps its own (font.* and poster.*).
-  // (validateBrand has checked them; a value that is not a number in range is still never copied: it falls back.)
-  const weight = (v, d) => (Number.isInteger(v) && v >= 100 && v <= 900 ? v : d), em = (v, d) => (isNum(v, -0.1, 0.3) ? v : d);
-  const dw = weight(ty.display.weight, null), dt = em(ty.display.tracking, null);
-  const hw = dw ?? brand.font.headlineWeight, pw = dw ?? brand.poster.headlineWeight, aw = dw ? Math.max(100, dw - 300) : brand.font.accentWeight;
+  const em = (v, d) => (isNum(v, -0.1, 0.3) ? v : d);
+  const dt = em(ty.display.tracking, null);
+  const { hw, aw, pw, bw, lw } = typeWeights(brand);
   const lt = em(ty.label.tracking, 0.07);
   return [
     grounds,
@@ -358,8 +451,8 @@ export function brandCssVars(input) {
     `--tex:${rgba(t.inverse, texA)};--tex-l:${rgba(t.ink, texA)};--tex-s:${num(brand.poster.texture.spacing)}px;--tex-a:${num(brand.poster.texture.angle)}deg`,
     `--font:'${brand.font.family}';--mono:'${brand.font.mono}';--display:'${brand.font.display}';--label:'${brand.font.label}'`,
     `--hw:${hw};--aw:${aw};--h-track:${num(dt ?? brand.font.tracking)}em;--h-lead:${num(brand.font.leading)};--h-scale:${num(isNum(ty.scale, 0.8, 1.25) ? ty.scale : 1)};--d-case:${pickOf(CASE, ty.display.case, 'none')}`,
-    `--b-w:${weight(ty.body.weight, 400)};--b-track:${num(em(ty.body.tracking, -0.006))}em;--b-case:${pickOf(CASE, ty.body.case, 'none')}`,
-    `--l-w:${weight(ty.label.weight, 500)};--l-track:${num(lt)}em;--l-track-n:${num(Math.min(lt, 0.01))}em;--l-case:${pickOf(CASE, ty.label.case, 'uppercase')}`,
+    `--b-w:${bw};--b-track:${num(em(ty.body.tracking, -0.006))}em;--b-case:${pickOf(CASE, ty.body.case, 'none')}`,
+    `--l-w:${lw};--l-track:${num(lt)}em;--l-track-n:${num(Math.min(lt, 0.01))}em;--l-case:${pickOf(CASE, ty.label.case, 'uppercase')}`,
     `--ph-k:${num(isNum(ph.strength, 0, 1) ? ph.strength : 0.5)};--ph-c:${pickOf(STYLE_COLOUR_VAR, ph.colour, 'var(--primary)')};--ph-lo:${pickOf(STYLE_COLOUR_VAR, ph.shadows, 'var(--g-dark)')};--ph-hi:${pickOf(STYLE_COLOUR_VAR, ph.highlights, 'var(--g-light)')}`,
     ...(brand.artworkSrc ? [`--art:url("${brand.artworkSrc}");--art-o:${num(isNum(deco.opacity, 0.05, 1) ? deco.opacity : 1)}`] : []),
   ].join(';');
