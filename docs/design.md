@@ -606,10 +606,12 @@ kind of page, so it offers nothing the validator refuses and leaves out nothing 
 - **Fields**: declared, required, and their limits (characters, or the least and most entries) within the catalogue's bounds,
   and the kinds of artefact one takes.
 
-The sketch follows "sketch as if" switches for what the conditions test (a field empty, a carousel page, a choice's value): the
-blocks a post would not draw in that case are hidden (the selected one dashed), conditional blocks are marked, and the page takes
-the colour that case would get. The preview draws the same case (`POST /api/settings/layouts/preview` with `empty` and
-`artefact`). The editor's model (`apps/web/web/src/pages/settings/layout-model.ts`) reads each part of the JSON into what the
+The sketch follows "sketch as if" switches for what the conditions test (a field empty, a choice's value) and for where the post
+is: a single post, or page 1, a middle page or the last page of a carousel (offered when the layout has a feed size; a middle and
+the last page are both "later" pages, told apart by the folio). The blocks a post would not draw in that case are hidden (the
+selected one dashed), conditional blocks are marked, and the page takes the colour that case would get. The preview draws the
+same case (`POST /api/settings/layouts/preview` with `empty`, `artefact` and `page`: `first`, `middle` or `last` draws the layout
+as that page of a carousel of three at the feed size). The editor's model (`apps/web/web/src/pages/settings/layout-model.ts`) reads each part of the JSON into what the
 editor shows and writes it back; `apps/web/src/web-layout-model.spec.ts` opens every starter, every built-in layout a brand may
 copy and every layout the catalogue lets one build that the engine accepts, and checks that nothing is left unshown and that each
 comes back deep-equal. Anything in a layout the editor could not show (only what the engine refuses for a brand) is listed above

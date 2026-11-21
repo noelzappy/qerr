@@ -87,6 +87,9 @@ export const choicesFor = (page: PageCatalogue, declared: string[]): string[] =>
 export function dropClause(kind: ClauseKind, c: Condition): Condition { const next = { ...c }; delete next[kind]; return next; }
 
 export const PAGE_WORDS: Record<string, string> = { first: 'on the first page of a carousel', later: 'on a later page of a carousel', single: 'on a single post (not a carousel)' };
+// What each "page" condition means for a post made with a brand's layout, for the condition's hint: a post made with the layout
+// alone is a single post; a carousel page made with it is page 1 or a later page.
+export const PAGE_CONDITION_HINT = 'A post made with this layout alone is a single post. As a page of a carousel it is page 1 or a later page (every page after the first, the last one included).';
 export const CHOICE_WORDS: Record<string, string> = { artefact: "the artefact's type", register: 'the artefact has a register card' };
 const orList = (v: ChoiceValue[]) => (v.length > 1 ? `${v.slice(0, -1).join(', ')} or ${v[v.length - 1]}` : String(v[0] ?? ''));
 function choiceWords(ch: Choice): string {
@@ -540,6 +543,18 @@ export function convertPage(l: Layout, to: string, cat: Catalogue): { layout: La
 
 export interface Scenario { empty: string[]; page: string; choices: Record<string, ChoiceValue | undefined> }
 
+// Where "sketch as if" and the preview put the layout: a post made with it alone, or a page of a carousel (page 1, a middle page or
+// the last page; the preview draws a carousel of three). A layout's "page" condition sees page 1 as "first" and every other page of
+// a carousel as "later"; the folio ("02 / 03") tells the middle page from the last. A carousel is drawn at the feed size only.
+export const SKETCH_PAGES = ['single', 'first', 'middle', 'last'] as const;
+export const SKETCH_PAGE_WORDS: Record<string, string> = { single: 'A single post', first: 'Page 1 of a carousel', middle: 'A middle page of a carousel', last: 'The last page of a carousel' };
+// The "page" condition value a place in the sketch meets.
+export const pageCondition = (p: string): string => (p === 'middle' || p === 'last' ? 'later' : p);
+// The preview request's "page" for a place in the sketch: none for a single post.
+export const previewPage = (p: string): 'first' | 'middle' | 'last' | undefined => (p === 'first' || p === 'middle' || p === 'last' ? p : p === 'later' ? 'middle' : undefined);
+// The places a layout can be sketched in: a carousel page only when it has a feed size.
+export const sketchPages = (l: Layout): string[] => (l.canvas?.feed ? [...SKETCH_PAGES] : ['single']);
+
 // The conditions a layout uses (its blocks' and its ground cases'), to offer only the switches that change something.
 export function conditionsUsed(l: Layout): Condition[] {
   const out: Condition[] = [];
@@ -559,7 +574,7 @@ export function holds(w: unknown, sc: Scenario, l: Layout, cat: Catalogue): bool
   const filled = (f: string) => !!l.fields?.[f] && !sc.empty.includes(f);
   if (cond.present !== undefined && !filled(cond.present)) return false;
   if (cond.absent !== undefined && filled(cond.absent)) return false;
-  if (cond.page !== undefined && cond.page !== sc.page) return false;
+  if (cond.page !== undefined && cond.page !== pageCondition(sc.page)) return false;
   if (cond.choice) {
     const declared = pageCatalogue(cat, l)?.conditions.choices[cond.choice.field]?.declared ?? false;
     const v = declared && !filled(cond.choice.field) ? undefined : sc.choices[cond.choice.field];
