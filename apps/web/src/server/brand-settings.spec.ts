@@ -64,9 +64,10 @@ describe('expanding the settings', () => {
     expect((b.accents as Record<string, string>).gold).toBe('#F9A825');
     expect(contrast((b.accents as Record<string, string>).primary!, '#2E7D32')).toBeLessThan(1.1);
     expect(contrastChecks(b).filter((c) => !c.ok)).toEqual([]);
-    expect((b.grounds as Record<string, string>).ink).toBe('#1B2A1E');
+    expect((b.grounds as Record<string, string>).dark).toBe('#1B2A1E');
     expect((b.radius as Record<string, number>).card).toBe(20);
-    expect(b.series).toEqual({ tips: { name: 'Garden tips', ground: 'white', accent: 'colour' }, news: { name: 'News', ground: 'tint', accent: 'muted' } });
+    // the fixture names its grounds by their older names (white, tint); the brand gets the new ones
+    expect(b.series).toEqual({ tips: { name: 'Garden tips', ground: 'light', accent: 'colour' }, news: { name: 'News', ground: 'soft', accent: 'muted' } });
     expect(b.spelling).toEqual([{ wrong: 'GlobexGarden', flags: '', right: 'Globex Garden' }]);
     expect(b.voice).toBe('Friendly and practical.');
     expect(JSON.stringify(b)).not.toContain('Acme');
@@ -95,7 +96,7 @@ describe('expanding the settings', () => {
   it('checks small text and accents too, on every ground and both myth-and-fact slabs', () => {
     const b = expandBrand(SETTINGS);
     const labels = contrastChecks(b).map((c) => c.label);
-    expect(labels).toContain('Accent words on the mint ground');
+    expect(labels).toContain('Accent words on the cool ground');
     expect(labels).toContain('Labels on the deep ground');
     expect(labels).toContain('Accent words on the fact slab');
     expect(labels).toContain('Accent words on the myth slab');

@@ -1,19 +1,23 @@
-/* Brand stylesheet. Colours, surfaces, radii, shadows and fonts are injected from the brand pack's brand.json as CSS variables
-   (--g-white, --ink, --primary, --panel, --shadow-card, --r-card, --font, --mono ...); page sizes come from lib/design/sizes.mjs
-   (--W, --H, --pad, ...). Nothing is hard-coded here: no literal colours, no font files.
-   The look: white and tint grounds, ink type, crisp white cards with a soft layered shadow.
+/* The stylesheet every brand shares. It holds the structure (where things sit, how big they are) and a style layer that is
+   driven entirely by the brand: colours, fonts, radii, shadows and the type settings arrive as CSS variables built from the
+   brand pack's checked brand.json (--g-light ... --g-deep, --ink, --primary, --panel, --display, --label ...; see brandCssVars
+   in lib/design/brand.mjs), and the style choices of its `style` block as class names on the root element (st-outline,
+   st-flat, st-ph-tint ...; see styleClasses). Page sizes come from lib/design/sizes.mjs (--W, --H, --pad, ...). Nothing is
+   hard-coded here: no literal brand colours, no font files.
    Grid: 1080 x 1350, 70 px margins, 14 px baseline unit. Line heights are whole units (label 28, body 42, headline 70/84/112). */
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:var(--W);height:var(--H);overflow:hidden;background:var(--g-white)}
+html,body{width:var(--W);height:var(--H);overflow:hidden;background:var(--g-light)}
 body{font-family:var(--font),sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
-.cv{position:relative;width:var(--W);height:var(--H);overflow:hidden;background:var(--bg,var(--g-white));font-feature-settings:"cv11","ss01"}
+.cv{position:relative;width:var(--W);height:var(--H);overflow:hidden;background:var(--bg,var(--g-light));font-feature-settings:"cv11","ss01";--dc:var(--dot-l);--tc:var(--tex-l)}
+.dark .cv{--dc:var(--dot);--tc:var(--tex)}
 .abs{position:absolute}
 .rule{position:absolute;height:1px;background:var(--hair)}
 
-/* type: headline, body and mono labels */
-/* headlines: the website's two-tone heading (its Heading component, level 2: Inter 400, line height 1.2, tracking -0.02em), a
-   statement in ink and its continuation (*...* in a spec) in the muted grey, in the same paragraph */
-.h{font-weight:var(--hw);letter-spacing:var(--h-track);color:var(--ink);text-wrap:balance;line-height:var(--h-lead)}
+/* ---- type: three roles. Display (headlines and big figures), body (sub lines, lists) and label (running heads, footers,
+   eyebrows), each with its own family, case, tracking and weight from the brand. */
+/* headlines: a statement and its continuation (*...* in a spec) in the same paragraph; how the continuation is set is the
+   page's accent style (acc-muted, acc-colour, acc-weight, acc-none) */
+.h{font-family:var(--display),var(--font),sans-serif;font-weight:var(--hw);letter-spacing:var(--h-track);text-transform:var(--d-case);color:var(--ink);text-wrap:balance;line-height:var(--h-lead)}
 .h.s84,.h.s112{margin-left:-.04em}
 .h.s70{margin-left:-.03em}
 .h.big{margin-left:-.03em;font-weight:var(--aw);white-space:nowrap;line-height:1}
@@ -21,10 +25,10 @@ body{font-family:var(--font),sans-serif;color:var(--ink);-webkit-font-smoothing:
 .acc-muted .h em{color:var(--muted)}
 .acc-colour .h em{color:var(--primary)}
 .acc-weight .h em{font-weight:var(--aw);letter-spacing:-.03em}
-.sub{font-size:32px;line-height:42px;font-weight:400;letter-spacing:-.006em;color:var(--body);text-wrap:pretty}
+.sub{font-size:32px;line-height:42px;font-weight:var(--b-w);letter-spacing:var(--b-track);text-transform:var(--b-case);color:var(--body);text-wrap:pretty}
 .sub b{font-weight:var(--hw);color:var(--ink)}
-.lbl{font-family:var(--mono),monospace;font-size:22px;line-height:28px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
-.lbl.n{text-transform:none;letter-spacing:.01em}
+.lbl{font-family:var(--label),var(--mono),monospace;font-size:22px;line-height:28px;font-weight:var(--l-w);letter-spacing:var(--l-track);text-transform:var(--l-case);color:var(--muted);white-space:nowrap}
+.lbl.n{text-transform:none;letter-spacing:var(--l-track-n)}
 .lbl.acc{color:var(--primary)}
 
 /* running head and foot */
@@ -33,14 +37,15 @@ body{font-family:var(--font),sans-serif;color:var(--ink);-webkit-font-smoothing:
 .ft{position:absolute;left:var(--pad);right:var(--pad);bottom:var(--fbot);height:34px;display:flex;justify-content:space-between;align-items:flex-end}
 .ft .logo{height:32px;display:block}
 .ft .lbl{line-height:22px}
+.ft.flip,.pbar.flip,.pcanvas .footer.flip{flex-direction:row-reverse}
+.ft .lpill{--logo-h:32px;border-radius:14px;padding:10px 16px;margin-bottom:-10px}
 
 /* photographs: a window onto the picture */
-.ph{position:absolute;overflow:hidden;background:var(--g-tint)}
+.ph{position:absolute;overflow:hidden;background:var(--g-soft)}
 .ph img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
 
-/* depth, in the website's product style: a tint panel (a flat band with a hairline top) that fills the lower part of the page,
-   and crisp white cards on it with the website's layered card shadow, a 1 px line and its card radius. Nothing is rotated,
-   textured or lit like paper. */
+/* depth: a panel (a flat band with a hairline top) that fills the lower part of the page, and cards on it. How cards, panels and
+   screens stand off the page is the brand's surface style: a layered shadow and a 1 px line (the default), an outline, or flat. */
 .panel{position:absolute;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line)}
 .obj{position:absolute}
 .obj.card{background:var(--card);border-radius:var(--r-card);box-shadow:var(--shadow-card),0 0 0 1px var(--line)}
@@ -50,8 +55,13 @@ body{font-family:var(--font),sans-serif;color:var(--ink);-webkit-font-smoothing:
 .obj .ph{position:absolute}
 .stack{position:absolute;display:flex;flex-direction:column}
 .stack>.obj{position:relative}
+.st-outline .obj.card,.st-outline .obj.flat,.st-outline .obj.photo,.st-outline .obj.photo.raised{box-shadow:0 0 0 var(--ow) var(--outline)}
+.st-outline .panel{border-top:var(--ow) solid var(--outline)}
+.st-flat .obj.card,.st-flat .obj.flat,.st-flat .obj.photo,.st-flat .obj.photo.raised{box-shadow:none}
+.st-flat .panel{border-top:0}
 
-/* hairline figures: every colour comes from a variable, through these classes */
+/* hairline figures: every colour comes from a variable, through these classes. Figures keep the mono: their columns are laid out
+   from its advance width (lib/design/figures.mjs). */
 svg.fig{position:absolute;overflow:visible}
 svg.fig text{font-family:var(--mono),monospace}
 .fl{fill:var(--muted);font-size:22px;font-weight:500;letter-spacing:1.2px}
@@ -67,45 +77,46 @@ svg.fig text{font-family:var(--mono),monospace}
 .nofill{fill:none}
 
 /* real product screens. A phone is a pre-framed capture (the phone is drawn into the transparent image by the capture tool) and
-   is shown as it is, with a drop shadow that follows its outline. A desktop screen sits in the website's window chrome: a white
-   window with the device radius, the layered device shadow and a 1 px line, and a tint title bar with three dots. The sizes of
-   both come from the template (scaled from the website's own numbers). */
+   is shown as it is, with a drop shadow that follows its outline. A desktop screen sits in a window frame: a card-coloured
+   window with the device radius, the layered device shadow and a 1 px line, and a soft title bar with three dots. The sizes of
+   both come from the template (scaled from the brand's window and phone numbers). */
 .phone{position:absolute}
 .phone img{display:block;width:100%;height:auto}
 .win{position:absolute;background:var(--card);overflow:hidden}
-.win .bar{display:flex;align-items:center;background:var(--g-tint);border-bottom:1px solid var(--line)}
+.win .bar{display:flex;align-items:center;background:var(--g-soft);border-bottom:1px solid var(--line)}
 .win .dot{display:block;flex:none;border-radius:50%;background:var(--line)}
 .win .ttl{display:block;background:var(--card);color:var(--muted);border-radius:var(--r-btn);box-shadow:0 0 0 1px var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
 .win img{display:block;width:100%;height:auto}
 .win .crop{position:relative;overflow:hidden}
 .win .crop img{max-width:none}
 
-/* poster pages (object, number, product, myth-fact, closing): one pale ground per post, or a dark one with a fine line texture;
-   large two-tone headlines (the statement in ink, the continuation in primary green, gold on dark); a small logo and the website */
-.cv.tex{background-image:repeating-linear-gradient(var(--tex-a),var(--tex) 0 1px,transparent 1px var(--tex-s))}
+/* poster pages (object, number, product, myth-fact, closing): one ground per post, a dark one with its decoration; large two-tone
+   headlines (the statement in ink, the continuation in the primary colour, the accent on dark); a small logo and the website */
 .pbar{position:absolute;z-index:3;display:flex;justify-content:space-between;align-items:center;height:40px}
 .pbar .plogo{display:block}
 .pbar .logo-inv i{background-size:auto 34px}
+.pbar .lpill{--logo-h:30px;border-radius:14px;padding:8px 14px}
 .logo-inv.logo-ink i{filter:brightness(0)}
 .purl{font-size:26px;line-height:32px;font-weight:500;letter-spacing:-.005em;color:var(--body);white-space:nowrap}
 .dark .purl,.dark .pmark span{color:var(--inv-body)}
 .pmark{position:absolute;z-index:3}
 .pmark span{font-size:28px;line-height:34px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
-.ps-h{font-weight:var(--pw);letter-spacing:var(--p-track);line-height:var(--p-lead);color:var(--ink);text-wrap:balance;margin-left:-.04em}
+.ps-h{font-family:var(--display),var(--font),sans-serif;font-weight:var(--pw);letter-spacing:var(--p-track);text-transform:var(--d-case);line-height:var(--p-lead);color:var(--ink);text-wrap:balance;margin-left:-.04em}
 .ps-h em{font-style:normal;color:var(--primary)}
 .ps-h.big{white-space:nowrap;line-height:1;letter-spacing:-.045em}
-.dark .ps-h{color:var(--g-white)}
+.dark .ps-h{color:var(--inv)}
 .dark .ps-h em{color:var(--gold)}
 .ps-sub{font-size:34px;line-height:46px;text-wrap:balance}
-/* poster sub lines are ink (they sit on pale grounds, glows and sampled photo colours); on a ground sampled from a photo, which
-   can be a mid tone, the accent is the deep green so it keeps its contrast */
+/* poster sub lines are ink (they sit on pale grounds, glows and sampled photo colours) */
 .poster .ps-sub{color:var(--ink)}
 .dark .ps-sub{color:var(--inv-body)}
-/* A poster's accent style follows its series: grey, the colour, or a lighter weight (the myth and fact slabs keep theirs). */
+/* A poster's accent style follows its series: grey, the colour, a lighter weight or none (the myth and fact slabs keep theirs). */
 .acc-muted .ps-h em{color:var(--muted)}
 .dark.acc-muted .ps-h em{color:var(--muted-inv)}
 .acc-weight .ps-h em{color:inherit;font-weight:var(--aw)}
+.acc-none .h em,.acc-none .ps-h em,.dark.acc-none .ps-h em{color:inherit;font-weight:inherit}
 [data-sampled] .ps-h em{color:var(--acc,var(--slab-myth))}
+.acc-none [data-sampled] .ps-h em{color:inherit}
 /* on a page that took the photo's colour the footer text is ink (or the light body on a dark one), not the muted body grey */
 [data-sampled] .purl{color:var(--ink)}
 .dark [data-sampled] .purl{color:var(--inv-body)}
@@ -118,21 +129,23 @@ svg.fig text{font-family:var(--mono),monospace}
 .poster .ph{background:transparent}
 .slab{position:relative;border-radius:var(--r-slab);padding:48px 56px 58px}
 .slab.myth{background:var(--slab-myth)}
-.slab.myth .ps-h{color:var(--g-white)}
+.slab.myth .ps-h{color:var(--inv)}
 .slab.fact{background:var(--slab-fact)}
 .slab.fact .ps-h{color:var(--ink)}
 .slab.fact .ps-h em{color:var(--primary)}
 .slab.myth .ps-h em{color:var(--gold)}
+.acc-none .slab .ps-h em{color:inherit}
 .slab.fact .sub{color:var(--body)}
-.tag{display:inline-block;font-size:24px;line-height:30px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:8px 20px}
-.slab.myth .tag{color:var(--g-white);background:rgba(255,255,255,.14)}
-.slab.fact .tag{color:var(--primary);background:var(--g-white)}
+.tag{display:inline-block;font-size:24px;line-height:30px;font-weight:600;letter-spacing:.08em;text-transform:var(--l-case);border-radius:999px;padding:8px 20px}
+.slab.myth .tag{color:var(--inv);background:rgba(255,255,255,.14)}
+.slab.fact .tag{color:var(--primary);background:var(--g-light)}
+.st-outline .slab.fact .tag{background:transparent;box-shadow:0 0 0 var(--ow) var(--primary)}
 .poster .glow{z-index:0}
 .poster .phone{z-index:2}
 
-/* dark closing page */
-.dark{--bg:var(--g-ink)}
-.dark .h{color:var(--g-white)}
+/* dark pages */
+.dark{--bg:var(--g-dark)}
+.dark .h{color:var(--inv)}
 .dark.acc-muted .h em{color:var(--muted-inv)}
 .dark.acc-colour .h em{color:var(--gold)}
 .dark .lbl,.dark .sub{color:var(--inv-body)}
@@ -140,24 +153,26 @@ svg.fig text{font-family:var(--mono),monospace}
 .logo-inv{display:flex;align-items:center;height:32px}
 .logo-inv i{display:block;height:32px;background-repeat:no-repeat;width:var(--lw);margin-left:var(--lm);background-size:auto 32px;background-position:var(--lx) 0;background-image:var(--logo-full);filter:brightness(0) invert(1)}
 
-/* the website's dark-band dot grid (its .dot-grid: 1 px white dots at 8% on a 24 px grid, scaled) */
-.cv.dots{background-image:radial-gradient(var(--dot) var(--dot-r),transparent var(--dot-r));background-size:var(--dot-s) var(--dot-s);background-position:calc(var(--dot-s)/2) calc(var(--dot-s)/2)}
+/* ---- decoration: the texture behind a page, on its dark grounds (or on every ground), from the brand's numbers. --dc and --tc
+   are the light-on-dark or ink-on-light version for the page's ground. */
+.cv.dots{background-image:radial-gradient(var(--dc) var(--dot-r),transparent var(--dot-r));background-size:var(--dot-s) var(--dot-s);background-position:calc(var(--dot-s)/2) calc(var(--dot-s)/2)}
+.cv.tex{background-image:repeating-linear-gradient(var(--tex-a),var(--tc) 0 1px,transparent 1px var(--tex-s))}
+.cv.grid{background-image:linear-gradient(var(--dc) 2px,transparent 2px),linear-gradient(90deg,var(--dc) 2px,transparent 2px);background-size:var(--grid-s) var(--grid-s);background-position:-1px -1px}
+/* brand artwork: the uploaded picture, behind everything on the page, filling it or in the top right corner */
+.cv.art::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background-image:var(--art);background-repeat:no-repeat;background-size:cover;background-position:center;opacity:var(--art-o)}
+.st-art-corner .cv.art::before{background-size:56% auto;background-position:right top}
 
-/* the silk ribbon: the website's hero artwork, a transparent picture placed by the template, under the text and the cards */
-.silk{position:absolute;z-index:0;pointer-events:none}
-.silk img{display:block;width:100%;height:auto}
-.silk.flip img{transform:scaleX(-1)}
-
-/* the glow a phone floats on (the website's blurred gradient behind its product mockups, in the gradient's teal, mint and sage)
-   and the fade at the foot of a cut phone (the website's mask to transparent over the last 56 px) */
+/* the glow a phone floats on (a blurred radial gradient of three of the brand's gradient stops) and the fade at the foot of a
+   cut phone (a mask to transparent over its last --fade pixels) */
 .glow{position:absolute;z-index:0;pointer-events:none;border-radius:50%;opacity:var(--glow-o);filter:blur(var(--glow-blur));
   background:radial-gradient(closest-side at 38% 34%,var(--gr-3),transparent),radial-gradient(closest-side at 64% 58%,var(--gr-2),transparent),radial-gradient(closest-side at 36% 74%,var(--gr-1),transparent)}
 .phone .cut{overflow:hidden;-webkit-mask-image:linear-gradient(to bottom,var(--ink) calc(100% - var(--fade)),transparent);mask-image:linear-gradient(to bottom,var(--ink) calc(100% - var(--fade)),transparent)}
 
-/* the website's outlined pills (band chips: 13 px, 500, primary, a 1 px line on white, fully round) and its check list
-   (CheckList: a 16 px circle in primary at 10% with a 10 px check, 15 px body text) */
+/* outlined pills (500 weight, the primary colour, a line on the card colour, fully round) and a check list (a circle in the
+   primary colour at 10% with a check, body text) */
 .pills{display:flex;flex-wrap:wrap;gap:16px}
 .pill{display:inline-block;font-size:26px;line-height:36px;font-weight:500;color:var(--primary);background:var(--card);border-radius:999px;padding:8px 24px;box-shadow:0 0 0 2px var(--line);white-space:nowrap}
+.st-outline .pill{box-shadow:0 0 0 var(--ow) var(--outline)}
 .checks{list-style:none;display:flex;flex-direction:column;gap:16px}
 .checks li{display:flex;align-items:flex-start;gap:20px;font-size:30px;line-height:45px;color:var(--body)}
 .checks .ck{flex:none;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;margin-top:6px;border-radius:50%;background:color-mix(in srgb,var(--primary) 10%,transparent)}
@@ -166,29 +181,42 @@ svg.fig text{font-family:var(--mono),monospace}
 .dark .checks .ck{background:color-mix(in srgb,var(--gr-3) 15%,transparent)}
 .dark .checks .ck svg{stroke:var(--gr-3)}
 
-/* the brand's dot map (map.json, one still frame): mint dots, the lit regions gold */
+/* the brand's dot map (map.json, one still frame): dots in a gradient stop, the lit regions in the accent */
 svg.map .md{fill:var(--gr-3)}
 svg.map .mg{fill:var(--gold)}
 svg.map .mr{fill:none;stroke:var(--gold)}
 
-/* photo posts: the photograph is untouched; the only overlays are the text scrim and (only when the URL needs it) a footer fade */
-.pcanvas{position:relative;width:var(--W);height:var(--H);overflow:hidden;background:var(--g-ink)}
+/* photo posts: the photograph as the brand treats it (untouched by default); the only other overlays are the text scrim and
+   (only when the website needs it) a footer fade */
+.pcanvas{position:relative;width:var(--W);height:var(--H);overflow:hidden;background:var(--g-dark)}
 .pcanvas>img.bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .scrim,.fade{position:absolute;left:0;right:0;z-index:1;pointer-events:none}
 svg.lines{position:absolute;inset:0;z-index:2;width:100%;height:100%;fill:none;stroke-linecap:round}
-.ptext{position:absolute;z-index:3;left:var(--pad);color:var(--g-white);text-shadow:0 2px 18px rgba(0,0,0,.3),0 1px 3px rgba(0,0,0,.2)}
-.ptext .eyebrow{font-family:var(--mono),monospace;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--g-white)}
-.ptext .h,.ptext .sub{color:var(--g-white)}
+.ptext{position:absolute;z-index:3;left:var(--pad);color:var(--inv);text-shadow:0 2px 18px rgba(0,0,0,.3),0 1px 3px rgba(0,0,0,.2)}
+.ptext .eyebrow{font-family:var(--label),var(--mono),monospace;font-weight:var(--l-w);letter-spacing:var(--l-track);text-transform:var(--l-case);color:var(--inv)}
+.ptext .h,.ptext .sub{color:var(--inv)}
 .gold{color:var(--gold)}
+.acc-none .gold{color:inherit}
 .pcanvas .footer{position:absolute;z-index:3;left:var(--pad);right:var(--pad);bottom:var(--fbot);display:flex;align-items:center;justify-content:space-between}
-.lpill{display:inline-flex;align-items:center;background:var(--g-white);border-radius:calc(var(--logo-h)*.42);padding:calc(var(--logo-h)*.36) calc(var(--logo-h)*.55)}
+.lpill{display:inline-flex;align-items:center;background:var(--pill);border-radius:calc(var(--logo-h)*.42);padding:calc(var(--logo-h)*.36) calc(var(--logo-h)*.55)}
 .lpill img{height:var(--logo-h);display:block}
-.pcanvas .footer .url{font-family:var(--mono),monospace;font-size:var(--url);font-weight:500;letter-spacing:.01em;color:var(--g-white);text-shadow:0 1px 14px rgba(0,0,0,.55)}
+.pcanvas .footer .url{font-family:var(--label),var(--mono),monospace;font-size:var(--url);font-weight:var(--l-w);letter-spacing:var(--l-track-n);color:var(--inv);text-shadow:0 1px 14px rgba(0,0,0,.55)}
+
+/* ---- photo treatment, on photographs only (.ph windows and the photo post's picture; never phone or desktop screens). A layer
+   over the picture in a brand colour (--ph-c, --ph-lo, --ph-hi name brand variables), at the strength --ph-k. The contrast
+   checks measure the treated pixels, and the photo post's scrim sits above the layer, so both still apply. */
+.st-ph-tint .ph,.st-ph-overlay .ph,.st-ph-duotone .ph,.st-ph-tint .pcanvas,.st-ph-overlay .pcanvas,.st-ph-duotone .pcanvas{isolation:isolate}
+.st-ph-tint .ph::after,.st-ph-overlay .ph::after,.st-ph-duotone .ph::after,.st-ph-tint .pcanvas::after,.st-ph-overlay .pcanvas::after,.st-ph-duotone .pcanvas::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none}
+.st-ph-tint .ph::after,.st-ph-tint .pcanvas::after{background:var(--ph-c);mix-blend-mode:color;opacity:var(--ph-k)}
+.st-ph-overlay .ph::after,.st-ph-overlay .pcanvas::after{background:var(--ph-c);opacity:var(--ph-k)}
+.st-ph-duotone .ph,.st-ph-duotone .poster .ph,.st-ph-duotone .pcanvas{background:var(--ph-hi)}
+.st-ph-duotone .ph img,.st-ph-duotone .pcanvas>img.bg{filter:grayscale(1) contrast(1.08);mix-blend-mode:multiply}
+.st-ph-duotone .ph::after,.st-ph-duotone .pcanvas::after{background:var(--ph-lo);mix-blend-mode:lighten}
 
 /* page covers (profile and cover images) */
-.pc{position:relative;width:var(--W);height:var(--H);overflow:hidden;background:var(--g-white);color:var(--ink)}
+.pc{position:relative;width:var(--W);height:var(--H);overflow:hidden;background:var(--g-light);color:var(--ink)}
 .pc .sub{color:var(--body)}
-.pc .url{font-family:var(--mono),monospace;font-weight:500;letter-spacing:.01em;color:var(--ink)}
+.pc .url{font-family:var(--label),var(--mono),monospace;font-weight:var(--l-w);letter-spacing:var(--l-track-n);color:var(--ink)}
 .pc em{font-style:normal;color:var(--primary)}
 .pc .col{position:absolute;display:flex}
 

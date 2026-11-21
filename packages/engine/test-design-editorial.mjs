@@ -74,7 +74,7 @@ test('every editorial template: a good spec passes, and each field names its pro
     [{ template: 'photo-story', headline: 'h', image: 'a.jpg', layout: 'wall' }, 'layout must be'], [{ template: 'photo-story', headline: 'h' }, 'image is required'],
     [{ template: 'closing', line: 'x'.repeat(61) }, 'line is 61'],
     [{ template: 'text', headline: 'h', series: 'nope' }, 'not in brand.json'], [{ template: 'text', headline: 'h', series: 'Bad Key' }, 'series must be a key'],
-    [{ template: 'text', headline: 'h', ground: 'red' }, 'ground must be one of'], [{ template: 'text', headline: 'h', ground: 'paper' }, 'ground must be one of white, tint, mint, gold-pale, ink, deep'], [{ template: 'text', headline: 'h', accent: 'bold' }, 'accent must be one of'],
+    [{ template: 'text', headline: 'h', ground: 'red' }, 'ground must be one of'], [{ template: 'text', headline: 'h', ground: 'paper' }, 'ground must be one of light, soft, cool, warm, dark, deep (the older names white, tint, mint, gold-pale, ink also work)'], [{ template: 'text', headline: 'h', accent: 'bold' }, 'accent must be one of'],
     [{ template: 'text', headline: 'h', label: 'x'.repeat(41) }, 'label is 41'], [{ template: 'text', headline: 'h', label: 'a\nb' }, 'one line'],
   ];
   for (const [d, frag] of bad) assert.ok(has(v(d), frag), `${JSON.stringify(d).slice(0, 80)} -> ${frag} (got ${v(d).join(' | ')})`);
@@ -133,7 +133,12 @@ test('brand file: shadows, surfaces, grounds, radii, window chrome, series and f
   assert.ok(mod((b) => { b.shadows.phone[0].spread = 4; }).some((e) => e.includes('drop shadow: spread must be 0')));
   assert.ok(mod((b) => { b.surfaces.panel = 'brown'; }).some((e) => e.includes('surfaces.panel')));
   assert.ok(mod((b) => { b.surfaces.line.alpha = -1; }).some((e) => e.includes('surfaces.line.alpha')));
-  assert.ok(mod((b) => { b.grounds.white = 'url(x)'; }).some((e) => e.includes('grounds.white')));
+  assert.ok(mod((b) => { b.grounds.light = 'url(x)'; }).some((e) => e.includes('grounds.light')));
+  // the older ground names are read as the new ones, but never both for one ground, and every ground is needed
+  assert.ok(mod((b) => { b.grounds.white = '#FFFFFF'; }).some((e) => e.includes('grounds.light and grounds.white are the same ground')));
+  assert.deepEqual(mod((b) => { b.grounds = { white: '#FFFFFF', tint: '#F5F7FB', mint: '#E8EEF9', 'gold-pale': '#FCEBE4', ink: '#14213D', deep: '#1C2D52' }; }), []);
+  assert.ok(mod((b) => { delete b.grounds.cool; }).some((e) => e.includes('grounds.cool must be a #rrggbb colour (or give it under its older name mint)')));
+  assert.ok(mod((b) => { b.grounds.white = 'url(x)'; delete b.grounds.light; }).some((e) => e.includes('grounds.white must be a #rrggbb')));
   assert.ok(mod((b) => { b.grounds.paper = '#F4F1EA'; }).some((e) => e.includes('unknown entries')));
   assert.ok(mod((b) => { b.accents.primary = 'green'; }).some((e) => e.includes('accents.primary')));
   assert.ok(mod((b) => { b.radius.card = '8px;x'; }).some((e) => e.includes('radius.card')));
@@ -143,6 +148,8 @@ test('brand file: shadows, surfaces, grounds, radii, window chrome, series and f
   assert.ok(mod((b) => { b.phone.refWidth = -1; }).some((e) => e.includes('phone.refWidth')));
   assert.ok(mod((b) => { b.series['bad key'] = { name: 'x', ground: 'white', accent: 'colour' }; }).some((e) => e.includes('series key')));
   assert.ok(mod((b) => { b.series['explainers'].ground = 'paper'; }).some((e) => e.includes('series.explainers.ground')));
+  assert.ok(mod((b) => { b.series['explainers'].ground = '__proto__'; }).some((e) => e.includes('series.explainers.ground')));
+  assert.deepEqual(mod((b) => { b.series['explainers'].ground = 'gold-pale'; }), []);
   assert.ok(mod((b) => { b.series['explainers'].accent = 'bold'; }).some((e) => e.includes('series.explainers.accent')));
   assert.ok(mod((b) => { b.series['explainers'].name = 'a\nb'; }).some((e) => e.includes('series.explainers.name')));
   assert.ok(mod((b) => { b.font.files[0].range = 'U+0000;}</style>'; }).some((e) => e.includes('range')));
@@ -155,7 +162,7 @@ test('brand file: shadows, surfaces, grounds, radii, window chrome, series and f
   const brand = loadBrand();
   const vars = brandCssVars(brand);
   // the website's own tokens (acmesavings.example globals.css), the card shadow drawn at the brand scale (2 post px per website px)
-  for (const t of ['--g-white:#FFFFFF', '--g-tint:#F5F7FB', '--g-ink:#14213D', '--ink:#14213D', '--body:#3C4A63', '--muted:#5B6880', '--primary:#2F5BB7', '--gold:#F0805F', '--gold-deep:#A8401F',
+  for (const t of ['--g-light:#FFFFFF', '--g-soft:#F5F7FB', '--g-dark:#14213D', '--ink:#14213D', '--body:#3C4A63', '--muted:#5B6880', '--primary:#2F5BB7', '--gold:#F0805F', '--gold-deep:#A8401F',
     '--panel:#F5F7FB', '--card:#FFFFFF', '--line:rgba(20,33,61,0.08)', '--r-card:16px', '--shadow-card:0px 26px 54px -10px rgba(20,33,61,0.18),0px 16px 32px -16px rgba(20,33,61,0.22)']) assert.ok(vars.includes(t), t);
   assert.deepEqual(brand.shadows.window.map((l) => [l.y, l.blur, l.spread, l.alpha]), [[30, 60, -12, 0.25], [18, 36, -18, 0.3]]);
   assert.deepEqual([brand.radius.card, brand.radius.device, brand.window.bar, brand.window.dot], [8, 12, 32, 8]);
@@ -170,7 +177,7 @@ test('contrast on the new grounds: body, labels and accents on white and tint, l
   const L = (hex) => luminance(parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16));
   const ratio = (a, b) => contrastRatio(L(a), L(b));
   const C = brand.contrast, t = brand.text, a = brand.accents;
-  for (const ground of [brand.grounds.white, brand.grounds.tint, brand.surfaces.panel, brand.surfaces.card]) {
+  for (const ground of [brand.grounds.light, brand.grounds.soft, brand.surfaces.panel, brand.surfaces.card]) {
     assert.ok(ratio(t.ink, ground) >= C.headline, `ink on ${ground}`);
     assert.ok(ratio(t.body, ground) >= C.sub, `body on ${ground}: ${ratio(t.body, ground).toFixed(2)}`);
     assert.ok(ratio(t.muted, ground) >= C.label, `muted labels on ${ground}: ${ratio(t.muted, ground).toFixed(2)}`);
@@ -178,15 +185,15 @@ test('contrast on the new grounds: body, labels and accents on white and tint, l
     assert.ok(ratio(a.goldDeep, ground) >= C.accent, `gold-deep on ${ground}`);
     assert.ok(ratio(a.gold, ground) < C.accent, 'the logo gold is too light for text on a light ground (it is only used for marks there)');
   }
-  assert.ok(ratio(brand.grounds.white, brand.grounds.ink) >= C.headline);
-  assert.ok(ratio(t.invBody, brand.grounds.ink) >= C.sub);
-  assert.ok(ratio(a.gold, brand.grounds.ink) >= C.accent);
+  assert.ok(ratio(t.inverse, brand.grounds.dark) >= C.headline);
+  assert.ok(ratio(t.invBody, brand.grounds.dark) >= C.sub);
+  assert.ok(ratio(a.gold, brand.grounds.dark) >= C.accent);
   // the stylesheet never colours text gold except on the dark page and photo posts
   const css = brand.css;
   assert.ok(!/(^|\n)\.acc-colour[^{]*\{[^}]*--gold/.test(css) && /\.dark\.acc-colour \.h em\{color:var\(--gold\)/.test(css));
   // the two-tone headline: the continuation in muted grey (light grounds) or the muted light grey (ink) reaches the accent target
-  for (const ground of [brand.grounds.white, brand.grounds.tint]) assert.ok(ratio(t.muted, ground) >= C.accent, `muted continuation on ${ground}`);
-  assert.ok(ratio(t.mutedInv, brand.grounds.ink) >= C.accent, 'muted light grey on ink');
+  for (const ground of [brand.grounds.light, brand.grounds.soft]) assert.ok(ratio(t.muted, ground) >= C.accent, `muted continuation on ${ground}`);
+  assert.ok(ratio(t.mutedInv, brand.grounds.dark) >= C.accent, 'muted light grey on the dark ground');
   assert.ok(/\.acc-muted \.h em\{color:var\(--muted\)\}/.test(css) && /\.dark\.acc-muted \.h em\{color:var\(--muted-inv\)\}/.test(css));
 });
 

@@ -7,33 +7,36 @@
 //            photo's own background decides the rest (no gradient is ever drawn): a plain top and side edge (a studio shot) becomes
 //            the page colour, exactly, so the photo runs into the page unseen; anything else (a real scene) is placed as a
 //            full-bleed band, edge to edge from its top to the page bottom, with no radius or shadow, on the ground (the series',
-//            the spec's, else mint). See objectPhoto.
+//            the spec's, else the cool ground). See objectPhoto.
 //   number   one big figure (and up to three supporting figures) over the same kind of photo.
 //   product  a website framed phone, large, on a pale ground with the website's soft glow; centred under the headline and running
 //            off the bottom, or beside it.
-//   mythFact the myth on a solid deep green slab, the fact on a pale mint slab, on a dark textured ground; the series mark at the
-//            bottom right.
+//   mythFact the myth on a solid dark slab, the fact on a pale slab, on a dark ground with its decoration; the series mark at the
+//            bottom right (top right when the logo bar is at the bottom).
 //   closing  the dark page with the tagline set large.
 //
 // Every value reaches the page through esc()/fmtE()/fmtSub(), ctx.image() or a number computed here (see common.mjs).
 import { DesignError } from '../../lib/design/errors.mjs';
-import { ACCENT_STYLES, DARK_GROUNDS, GROUND_NAMES } from '../../lib/design/tokens.mjs';
+import { GROUND_NAMES, groundName } from '../../lib/design/tokens.mjs';
 import { esc, fmtE, fmtSub, hs, px, taglineMarkup } from './common.mjs';
 import { glow, phone } from './editorial.mjs';
+import { accentOf, decorationOf, footerOf, isDark, logoPlace, photoTreated } from './style.mjs';
 import { dotMapSvg } from './map.mjs';
 
 export const POSTER = { w: 1080, h: 1350, m: 80, barTop: 60, headTop: 170, photoTop: 600, phoneTop: 620 };
 const POSITION = /^(\d{1,3}(\.\d{1,2})?)% (\d{1,3}(\.\d{1,2})?)%$/;
 
-// The ground: the spec's, else the series', else the template's default. "photo" (object and number only) means: no ground of its own, so the page
-// takes the photo's plain background, or the series' ground (else mint) when the photo is a scene.
+// The ground: the spec's, else the series', else the template's default, by its neutral name (an older name such as "mint" is
+// the same ground). "photo" (object and number only) means: no ground of its own, so the page takes the photo's plain
+// background, or the series' ground (else the cool ground) when the photo is a scene.
 function groundOf(spec, ctx, fallback, { photo = false } = {}) {
   const series = spec.series !== undefined ? ctx.brand.series[spec.series] : null;
   if (spec.series !== undefined && !series) throw new DesignError(`series "${spec.series}" is not in brand.json`);
-  const g = spec.ground ?? fallback ?? series?.ground ?? 'mint';
+  const g = spec.ground ?? fallback ?? series?.ground ?? 'cool';
   if (g === 'photo' && photo) return g;
-  if (!GROUND_NAMES.includes(g)) throw new DesignError(`ground must be one of ${GROUND_NAMES.join(', ')}${photo ? ' or photo' : ''}`);
-  return g;
+  const name = groundName(g);
+  if (!name) throw new DesignError(`ground must be one of ${GROUND_NAMES.join(', ')}${photo ? ' or photo' : ''}`);
+  return name;
 }
 
 // The small logo: the full colour logo on a light ground, the white mark and wordmark on a dark one (the full logo's wordmark,
@@ -44,11 +47,16 @@ function logo(ctx, dark, h = 34) {
   return `<span class="logo-inv${dark ? '' : ' logo-ink'}" style="height:${h}px"><img src="${B.logoMarkSrc}" alt="" style="height:${h}px"><i role="img" aria-label="${esc(B.name)}" style="height:${h}px;--lw:${px((fw - B.logos.wordmarkFrom) * k)}px;--lx:-${px(B.logos.wordmarkFrom * k)}px;--lm:${px(B.logos.markGap * k)}px"></i></span>`;
 }
 
-// The only chrome: the logo at the top left and the website (or "Swipe →" on page 1 of a carousel) at the top right.
+// The only chrome: the logo and the website (or "Swipe →" on page 1 of a carousel) in one bar, by default at the top with the
+// logo on the left. The brand's style may put the bar at the bottom, the logo on the right, the logo in a light pill, or leave
+// the website out.
 function bar(ctx, dark, { right } = {}) {
+  const style = footerOf(ctx.brand), place = logoPlace(ctx.brand, 'poster');
   let r = right;
-  if (r === undefined) r = ctx.counter?.n === 1 ? 'Swipe →' : ctx.brand.website;
-  return `<div class="pbar" style="left:${POSTER.m}px;right:${POSTER.m}px;top:${POSTER.barTop}px">${logo(ctx, dark)}${r ? `<span class="purl" data-role="foot">${esc(r)}</span>` : ''}</div>`;
+  if (r === undefined) r = ctx.counter?.n === 1 ? 'Swipe →' : style === 'none' ? '' : ctx.brand.website;
+  const mark = style === 'pill' ? `<span class="lpill"><img src="${ctx.brand.logoFullSrc}" alt="${esc(ctx.brand.name)}"></span>` : logo(ctx, dark);
+  const y = place.bottom ? POSTER.h - POSTER.barTop - 40 : POSTER.barTop;
+  return `<div class="pbar${place.right ? ' flip' : ''}" style="left:${POSTER.m}px;right:${POSTER.m}px;top:${y}px">${mark}${r ? `<span class="purl" data-role="foot">${esc(r)}</span>` : ''}</div>`;
 }
 
 // The headline (two-tone: the statement in ink, the *continuation* in primary green, or gold on a dark ground) and the sub line.
@@ -69,36 +77,37 @@ function objectPhoto(ctx, spec, { top }) {
   const [fx, fy] = fo.split(' ').map((v) => parseFloat(v) / 100);
   const zoom = Number.isFinite(Number(spec.zoom)) ? Math.min(3, Math.max(1, Number(spec.zoom))) : 1;
   const tr = zoom > 1 ? `;transform:scale(${px(zoom)});transform-origin:${fo}` : '';
-  const img = `<img data-user data-name="${esc(spec.image)}" data-fit="cover" data-sample data-fx="${px(fx)}" data-fy="${px(fy)}" src="${ctx.image(spec.image)}" alt="" style="object-position:${fo}${tr}">`;
+  // A treated photo (tint, duotone, overlay) is not what its raw pixels say, so it never lends the page its edge colour: it
+  // stays on the template's ground.
+  const sample = photoTreated(ctx.brand) ? '' : ` data-sample data-fx="${px(fx)}" data-fy="${px(fy)}"`;
+  const img = `<img data-user data-name="${esc(spec.image)}" data-fit="cover"${sample} src="${ctx.image(spec.image)}" alt="" style="object-position:${fo}${tr}">`;
   return `<div class="ph pobj" data-avoid style="--pt:${px(top)}px;--ph:${px(POSTER.h - top)}px;--pm:${POSTER.m}px">${img}</div>`;
 }
 
-// The ground a photo page starts from, and keeps when its photo is a band: the series' ground, else mint.
+// The ground a photo page starts from, and keeps when its photo is a band: the series' ground, else the cool ground.
 function sceneGround(spec, ctx) {
-  const g = spec.series !== undefined ? ctx.brand.series[spec.series]?.ground : undefined;
-  return GROUND_NAMES.includes(g) ? g : 'mint';
+  return groundName(spec.series !== undefined ? ctx.brand.series[spec.series]?.ground : undefined) ?? 'cool';
 }
 
 // The page: its ground (a token), dark type rules on a dark ground with the fine line texture. A page with a photo may still
 // change its ground and type colour in the browser, when the photo's plain background becomes the page (runtime.mjs flush()).
-// The headline's second half follows the page's accent style: the spec's own, else its series', else the colour (the poster look).
-// Only names from the fixed ACCENT_STYLES list reach the class attribute.
+// The headline's second half follows the page's accent style: the spec's own, else the brand's device, else its series', else
+// the colour (the poster look). Only names from the fixed ACCENT_STYLES list reach the class attribute.
 function posterAccent(spec, ctx) {
-  const a = spec?.accent ?? (spec?.series !== undefined ? ctx.brand.series?.[spec.series]?.accent : undefined);
-  return ACCENT_STYLES.includes(a) ? a : 'colour';
+  return accentOf(ctx.brand, { spec, series: spec?.series !== undefined ? ctx.brand.series?.[spec.series] : null, fallback: 'colour' });
 }
 
 function poster(ctx, ground, body, { flex = false, spec } = {}) {
-  const dark = DARK_GROUNDS.includes(ground);
+  const dark = isDark(ctx.brand, ground), deco = decorationOf(ctx.brand, { dark, poster: true });
   return {
-    body: `<div class="cv poster${dark ? ' tex' : ''}" style="--bg:var(--g-${ground})">${body}</div>`,
+    body: `<div class="cv poster${deco ? ` ${deco}` : ''}" style="--bg:var(--g-${ground})">${body}</div>`,
     bodyClass: `acc-${posterAccent(spec, ctx)}${dark ? ' dark' : ''}`,
     bodyAttrs: `data-editorial="1"${flex ? ' data-flex="1"' : ''}`,
   };
 }
 
 export function object(spec, ctx) {
-  const asked = groundOf(spec, ctx, 'photo', { photo: true }), g = asked === 'photo' ? sceneGround(spec, ctx) : asked, dark = DARK_GROUNDS.includes(g);
+  const asked = groundOf(spec, ctx, 'photo', { photo: true }), g = asked === 'photo' ? sceneGround(spec, ctx) : asked, dark = isDark(ctx.brand, g);
   const top = spec.photoTop ?? POSTER.photoTop;
   const body = objectPhoto(ctx, spec, { top }) + bar(ctx, dark)
     + words({ headline: spec.headline, sub: spec.sub, size: spec.size ?? 104, align: spec.align });
@@ -106,7 +115,7 @@ export function object(spec, ctx) {
 }
 
 export function number(spec, ctx) {
-  const asked = groundOf(spec, ctx, spec.image ? 'photo' : 'mint', { photo: Boolean(spec.image) }), g = asked === 'photo' ? sceneGround(spec, ctx) : asked, dark = DARK_GROUNDS.includes(g);
+  const asked = groundOf(spec, ctx, spec.image ? 'photo' : 'cool', { photo: Boolean(spec.image) }), g = asked === 'photo' ? sceneGround(spec, ctx) : asked, dark = isDark(ctx.brand, g);
   const list = spec.stats ?? [], top = spec.photoTop ?? 616;
   const big = words({ headline: spec.big, size: 168, big: true, y: 140 });
   const line = spec.line ? `<div class="abs sub ps-sub" data-role="sub" data-min="30" style="left:${POSTER.m}px;top:336px;width:900px">${fmtSub(spec.line)}</div>` : '';
@@ -117,7 +126,7 @@ export function number(spec, ctx) {
 }
 
 export function product(spec, ctx) {
-  const g = groundOf(spec, ctx, 'mint'), dark = DARK_GROUNDS.includes(g);
+  const g = groundOf(spec, ctx, 'cool'), dark = isDark(ctx.brand, g);
   const d = ctx.imageSize?.(spec.image), ratio = d && d.w > 0 ? d.h / d.w : 1354 / 660;
   let text, w, x, y;
   if ((spec.layout ?? 'center') === 'side') {
@@ -134,21 +143,21 @@ export function product(spec, ctx) {
 
 // Myth and fact as colour-blocked slabs on a dark textured ground, centred between the top bar and the series mark.
 export function mythFact(spec, ctx) {
-  const g = groundOf(spec, ctx, 'ink'), dark = DARK_GROUNDS.includes(g);
+  const g = groundOf(spec, ctx, 'dark'), dark = isDark(ctx.brand, g);
   const series = spec.series !== undefined ? ctx.brand.series[spec.series] : null;
   const mark = spec.label ?? series?.name ?? 'Myths vs facts';
   const t = 68;
   const myth = `<div class="slab myth"><span class="tag" data-role="label">Myth</span><div class="ps-h" data-role="headline" style="font-size:${hs(t)};margin-top:30px">${fmtE(spec.myth)}</div></div>`;
   const fact = `<div class="slab fact"><span class="tag" data-role="label">Fact</span><div class="ps-h" data-role="headline" style="font-size:${hs(t)};margin-top:30px">${fmtE(spec.factLead)}</div>${spec.fact ? `<div class="sub" data-role="sub" data-min="30" style="margin-top:24px">${fmtSub(spec.fact)}</div>` : ''}</div>`;
   const stack = `<div class="stack" style="left:${POSTER.m}px;top:150px;width:920px;height:1050px;gap:28px;justify-content:center">${myth}${fact}</div>`;
-  const foot = `<div class="pmark" style="right:${POSTER.m}px;bottom:62px"><span data-role="foot">${esc(mark)}</span></div>`;
+  const foot = `<div class="pmark" style="right:${POSTER.m}px;${logoPlace(ctx.brand, 'poster').bottom ? `top:${POSTER.barTop + 3}px` : 'bottom:62px'}"><span data-role="foot">${esc(mark)}</span></div>`;
   return poster(ctx, g, bar(ctx, dark) + stack + foot, { flex: true, spec });
 }
 
 const MAP = { x: 640, y: 150, w: 360, h: 450 };
 
 export function closing(spec, ctx) {
-  const g = groundOf(spec, ctx, 'deep'), dark = DARK_GROUNDS.includes(g);
+  const g = groundOf(spec, ctx, 'deep'), dark = isDark(ctx.brand, g);
   const map = spec.map ? `<svg class="fig map" style="left:${MAP.x}px;top:${MAP.y}px" width="${MAP.w}" height="${MAP.h}" viewBox="0 0 ${MAP.w} ${MAP.h}" aria-hidden="true">${dotMapSvg(ctx.brand.map, MAP.w, MAP.h)}</svg>` : '';
   const block = words({ headline: spec.headline ?? taglineMarkup(ctx.brand.tagline), sub: spec.line ?? ctx.brand.website, size: 136, y: spec.map ? 700 : 560, w: 920 });
   return poster(ctx, g, map + bar(ctx, dark, { right: '' }) + block, { spec });

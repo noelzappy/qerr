@@ -22,8 +22,8 @@ import { engineImport } from '../engine/root.js';
 import { logger, describeError } from '../log.js';
 
 interface EngineCore { ROOT: string; DEFAULT_BRAND_DIR: string; brandDir(opts?: { root?: string; env?: Record<string, string | undefined> }): string }
-interface EngineBrand { validateBrand(b: unknown): string[]; mapProblems(m: unknown): string[] }
-interface EngineTokens { GROUND_NAMES: string[]; ACCENT_STYLES: string[]; SERIES_KEY: RegExp; DARK_GROUNDS: string[] }
+interface EngineBrand { validateBrand(b: unknown): string[]; mapProblems(m: unknown): string[]; canonicalGrounds(g: unknown): Record<string, string> }
+interface EngineTokens { GROUND_NAMES: string[]; ACCENT_STYLES: string[]; SERIES_KEY: RegExp; groundName(g: unknown): string | null; isDarkColour(hex: string): boolean }
 
 const core = await engineImport<EngineCore>('core');
 const engineBrand = await engineImport<EngineBrand>('design/brand');
@@ -60,7 +60,8 @@ export const brandSettingsSchema = z.object({
   series: z.array(z.object({
     key: z.string().regex(tokens.SERIES_KEY, 'Use lowercase letters, digits and -'),
     name: line(40).pipe(z.string().min(1)),
-    ground: z.string().refine((g) => tokens.GROUND_NAMES.includes(g), `Choose one of ${tokens.GROUND_NAMES.join(', ')}`),
+    // A ground by its name, or by its older name (white, tint, mint, gold-pale, ink), which is kept as the new name.
+    ground: z.string().refine((g) => !!tokens.groundName(g), `Choose one of ${tokens.GROUND_NAMES.join(', ')}`).transform((g) => tokens.groundName(g)!),
     accent: z.string().refine((a) => tokens.ACCENT_STYLES.includes(a), `Choose one of ${tokens.ACCENT_STYLES.join(', ')}`),
   }).strict()).min(1, 'Keep at least one series').max(16)
     .refine((list) => new Set(list.map((s) => s.key)).size === list.length, 'Two series have the same key'),
@@ -134,7 +135,7 @@ export function expandBrand(s: BrandSettings, base: Json = baseBrand()): Json {
   const slabMyth = fitContrast(mix(dark, textPrimary, 0.85), [WHITE], need('headline'), BLACK);
   const darks = [ink, deep, slabMyth];
   const gold = fitContrast(accent, darks, need('accent'), WHITE);
-  b.grounds = { white: WHITE, tint: light, mint, 'gold-pale': goldPale, ink, deep };
+  b.grounds = { light: WHITE, soft: light, cool: mint, warm: goldPale, dark: ink, deep };
   b.text = {
     ink,
     body: fitContrast(mix(ink, WHITE, 0.85), lights, need('sub'), BLACK),
@@ -155,7 +156,7 @@ export function expandBrand(s: BrandSettings, base: Json = baseBrand()): Json {
   font.accentWeight = Math.max(100, s.headlineWeight - 100);
   b.font = font;
   b.poster = { ...(base.poster as Json), headlineWeight: Math.min(900, s.headlineWeight + 200), slabs: { myth: slabMyth, fact: mint }, slabRadius: r.slab };
-  b.series = Object.fromEntries(s.series.map((x) => [x.key, { name: x.name, ground: x.ground, accent: x.accent }]));
+  b.series = Object.fromEntries(s.series.map((x) => [x.key, { name: x.name, ground: tokens.groundName(x.ground) ?? x.ground, accent: x.accent }]));
   b.spelling = s.spellings.map((x) => ({ wrong: escapeRe(x.wrong), flags: '', right: x.right }));
   b.logos = { ...(base.logos as Json), wordmarkFrom: s.logo.wordmarkFrom, markGap: s.logo.markGap };
   return b;
@@ -164,7 +165,8 @@ export function expandBrand(s: BrandSettings, base: Json = baseBrand()): Json {
 // The settings that describe a brand.json as closely as the form can (used to fill the form before anything is saved).
 export function settingsFromBrand(b: Json): BrandSettings {
   const g = (o: unknown, k: string, d = '') => (isObj(o) && typeof o[k] === 'string' ? o[k] as string : d);
-  const series = isObj(b.series) ? Object.entries(b.series).map(([key, v]) => ({ key, name: g(v, 'name', key), ground: g(v, 'ground', 'white'), accent: g(v, 'accent', 'muted') })) : [];
+  const series = isObj(b.series) ? Object.entries(b.series).map(([key, v]) => ({ key, name: g(v, 'name', key), ground: tokens.groundName(g(v, 'ground', 'light')) ?? 'light', accent: g(v, 'accent', 'muted') })) : [];
+  const grounds = engineBrand.canonicalGrounds(b.grounds);
   const weight = isObj(b.font) && typeof b.font.headlineWeight === 'number' ? b.font.headlineWeight : 400;
   const radius = isObj(b.radius) && typeof b.radius.card === 'number' ? b.radius.card : 8;
   return brandSettingsSchema.parse({
@@ -172,10 +174,10 @@ export function settingsFromBrand(b: Json): BrandSettings {
     timezone: typeof b.timezone === 'string' && validZone(b.timezone) ? b.timezone : 'UTC',
     language: typeof b.language === 'string' ? b.language : 'British English',
     money: isObj(b.money) ? b.money : null,
-    colours: { primary: g(b.accents, 'primary', '#2F5BB7'), accent: g(b.accents, 'gold', '#F0805F'), dark: g(b.text, 'ink', '#14213D'), light: g(b.grounds, 'tint', '#F5F7FB') },
+    colours: { primary: g(b.accents, 'primary', '#2F5BB7'), accent: g(b.accents, 'gold', '#F0805F'), dark: g(b.text, 'ink', '#14213D'), light: g(grounds, 'soft', '#F5F7FB') },
     headlineWeight: (HEADLINE_WEIGHTS as readonly number[]).reduce((best, w) => (Math.abs(w - weight) < Math.abs(best - weight) ? w : best), 400),
     corners: radius <= 4 ? 'square' : radius >= 16 ? 'round' : 'soft',
-    series: series.length ? series : [{ key: 'posts', name: 'Posts', ground: 'white', accent: 'muted' }],
+    series: series.length ? series : [{ key: 'posts', name: 'Posts', ground: 'light', accent: 'muted' }],
     spellings: [],
     voice: typeof b.voice === 'string' ? b.voice : '',
     visualDirection: typeof b.visualDirection === 'string' ? b.visualDirection : '',
@@ -193,6 +195,15 @@ export function mergeAdvanced(target: Json, extra: Json, at = ''): Json {
     else target[k] = structuredClone(v);
   }
   return target;
+}
+
+// An Advanced fragment (or an imported pack) may name grounds by their older names (white, tint, mint, gold-pale, ink); they are
+// read as the new names so they replace the generated ground rather than sit beside it.
+export function canonicalAdvanced(extra: Json): Json {
+  if (!isObj(extra.grounds)) return extra;
+  const grounds: Json = {};
+  for (const [k, v] of Object.entries(extra.grounds)) grounds[tokens.groundName(k) ?? k] = v;
+  return { ...extra, grounds };
 }
 
 export const advancedSchema = z.object({
@@ -217,7 +228,8 @@ export interface ContrastCheck { label: string; ratio: number; needs: number; ok
 // Every pair of text and page colour the templates draw, with the ratio the design checks need (the brand's contrast
 // limits): headlines, sub lines, labels and accent words on each ground, and on the two slabs of a myth-and-fact page.
 export function contrastChecks(b: Json): ContrastCheck[] {
-  const grounds = b.grounds as Record<string, string>, text = b.text as Record<string, string>, accents = b.accents as Record<string, string>;
+  const grounds = engineBrand.canonicalGrounds(b.grounds), text = b.text as Record<string, string>, accents = b.accents as Record<string, string>;
+  const inverse = text.inverse ?? (tokens.isDarkColour(grounds.light ?? WHITE) ? WHITE : grounds.light ?? WHITE);
   const limits = b.contrast as Record<string, number>;
   const slabs = (isObj(b.poster) && isObj(b.poster.slabs) ? b.poster.slabs : {}) as Record<string, string>;
   const out: ContrastCheck[] = [];
@@ -227,12 +239,13 @@ export function contrastChecks(b: Json): ContrastCheck[] {
     out.push({ label, ratio, needs, ok: ratio >= needs });
   };
   const surfaces: Array<[string, string, boolean]> = [
-    ...tokens.GROUND_NAMES.map((g): [string, string, boolean] => [`the ${g} ground`, grounds[g]!, tokens.DARK_GROUNDS.includes(g)]),
+    // Which grounds are dark is worked out from their colours, as the engine does.
+    ...tokens.GROUND_NAMES.map((g): [string, string, boolean] => [`the ${g} ground`, grounds[g]!, !!grounds[g] && tokens.isDarkColour(grounds[g]!)]),
     ['the myth slab', slabs.myth!, true],
     ['the fact slab', slabs.fact!, false],
   ];
   for (const [where, bg, dark] of surfaces) {
-    add(`Headline on ${where}`, dark ? WHITE : text.ink!, bg, limits.headline!);
+    add(`Headline on ${where}`, dark ? inverse : text.ink!, bg, limits.headline!);
     add(`Sub line on ${where}`, dark ? text.invBody! : text.body!, bg, limits.sub!);
     add(`Labels on ${where}`, dark ? text.mutedInv! : text.muted!, bg, limits.label!);
     add(`Accent words on ${where}`, dark ? accents.gold! : accents.primary!, bg, limits.accent!);
@@ -280,7 +293,7 @@ export function currentSettings(profile: BrandProfile | null): BrandSettings {
 // The brand.json a profile makes (before the logo and font paths are set), with the Advanced fragment merged in.
 export function brandFromProfile(profile: Pick<BrandProfile, 'settings' | 'advanced' | 'logoFullWidth' | 'logoFullHeight' | 'fontFamily'>, settings: BrandSettings = brandSettingsSchema.parse(profile.settings)): Json {
   const b = expandBrand(settings);
-  if (isObj(profile.advanced)) mergeAdvanced(b, profile.advanced);
+  if (isObj(profile.advanced)) mergeAdvanced(b, canonicalAdvanced(profile.advanced));
   if (profile.logoFullWidth && profile.logoFullHeight) (b.logos as Json).fullSize = [profile.logoFullWidth, profile.logoFullHeight];
   return b;
 }

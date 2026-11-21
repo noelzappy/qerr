@@ -27,6 +27,6 @@ export function artefactPage(spec, ctx, art) {
     }
   }
   const w = size === 112 ? 940 : 900;
-  const body = panel(top) + head(ctx, spec) + textBlock({ headline: spec.headline, sub: spec.sub, size, w, subW: Math.min(820, w) }) + objects + footer(ctx);
+  const body = panel(top) + head(ctx, spec) + textBlock({ headline: spec.headline, sub: spec.sub, size, w, subW: Math.min(820, w) }) + objects + footer(ctx, { spec, onPanel: true });
   return page(ctx, spec, { body });
 }

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { shapeProblems } from './checks.mjs';
 import { LIMITS, ledgerLayout } from './figures.mjs';
 import { COVER_SIZES, DEFAULT_SIZES, SIZE_NAMES } from './sizes.mjs';
-import { ACCENT_STYLES, ALIGNS, GROUND_NAMES, POSTER_SIZES, SERIES_KEY } from './tokens.mjs';
+import { ACCENT_STYLES, ALIGNS, GROUND_ALIASES, GROUND_NAMES, POSTER_SIZES, SERIES_KEY, groundName } from './tokens.mjs';
 
 // The feed pages (one 1080 x 1350 page each, usable as pages of a carousel): first the poster pages of 2026-11-20 (one real
 // image per post, large headlines), then the earlier editorial ones, then the two that work at every size.
@@ -157,11 +157,12 @@ function checkFrame(d, where, errors, opts, { size = false } = {}) {
   checkShort(d, 'label', where, errors, 40);
   checkShort(d, 'headRight', where, errors, 30);
   const photoGround = PHOTO_GROUND_TEMPLATES.includes(d.template) && d.ground === 'photo';
-  if (d.ground !== undefined && !GROUND_NAMES.includes(d.ground) && !photoGround) errors.push(`${where}: ground must be one of ${GROUND_NAMES.join(', ')}${PHOTO_GROUND_TEMPLATES.includes(d.template) ? ' or photo' : ''}`);
+  // A ground by its name, or by its older name (white, tint, mint, gold-pale, ink), which means the same ground.
+  if (d.ground !== undefined && !groundName(d.ground) && !photoGround) errors.push(`${where}: ground must be one of ${GROUND_NAMES.join(', ')}${PHOTO_GROUND_TEMPLATES.includes(d.template) ? ' or photo' : ''} (the older names ${Object.keys(GROUND_ALIASES).join(', ')} also work)`);
   if (d.accent !== undefined && !ACCENT_STYLES.includes(d.accent)) errors.push(`${where}: accent must be one of ${ACCENT_STYLES.join(', ')}`);
   const sizes = ['object', 'product'].includes(d.template) ? POSTER_SIZES : HEADLINE_SIZES;
   if (d.size !== undefined && (!size || !sizes.includes(d.size))) errors.push(size ? `${where}: size must be one of ${sizes.join(', ')}` : `${where}: size is not used by this template`);
-  // dots: the website's dot grid on an ink page (on by default there); silk: the ribbon, on the templates that place it.
+  // dots: false takes the decoration (by default a dot grid on a dark page) off this page; silk: the dropped ribbon.
   if (d.dots !== undefined && typeof d.dots !== 'boolean') errors.push(`${where}: dots must be true or false`);
   // Dropped on 2026-11-20 after owner feedback: the ribbon read as a shaded corner, and figure captions do not belong on a post.
   if (d.silk !== undefined) errors.push(`${where}: silk is no longer used (the ribbon read as a shaded corner, not the website's wave); remove it`);
