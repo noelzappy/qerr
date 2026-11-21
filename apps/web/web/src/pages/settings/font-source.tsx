@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, Trash2 } from 'lucide-react';
 import { api } from '../../api';
 import { errorMessage } from '../../lib/errors';
-import { BusyButton, SelectField, TextField } from '@/components/kit';
+import { BusyButton, TextField } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,9 +16,11 @@ import { cn } from '@/lib/utils';
 import { GOOGLE_CATEGORY_LABEL, LICENCE_LABEL, WEIGHT_NAME, type FontRole, type FontSource, type GoogleFont } from './brand-types';
 
 const ROLE_WORD: Record<FontRole, string> = { body: 'body', display: 'headline', label: 'label' };
-// The weight a role usually wants, when the family has it (else the nearest it has).
-const PREFERRED_WEIGHT: Record<FontRole, number> = { body: 400, display: 700, label: 500 };
-const nearest = (weights: number[], want: number) => weights.reduce((best, w) => (Math.abs(w - want) < Math.abs(best - want) ? w : best), weights[0] ?? 400);
+// "300 Light, 400 Regular and 700 Bold"
+export function weightList(weights: number[]): string {
+  const named = weights.map((w) => `${w} ${WEIGHT_NAME[w] ?? ''}`.trim());
+  return named.length > 1 ? `${named.slice(0, -1).join(', ')} and ${named.at(-1)}` : (named[0] ?? '');
+}
 
 // The curated list, asked for once per page load.
 let catalogue: Promise<{ categories: string[]; fonts: GoogleFont[] }> | null = null;
@@ -38,7 +40,7 @@ function useGoogleFonts() {
 // (or when there is none or it does not load: the name is then shown in the app's font).
 function useFontPreview(src: FontSource | null, role: FontRole, version: string): string | null {
   const [family, setFamily] = useState<string | null>(null);
-  const file = src?.file ?? null, key = src ? `${src.family}|${src.google?.weight ?? ''}|${version}` : '';
+  const file = src?.file ?? null, key = src ? `${src.family}|${src.google?.weights.join(',') ?? ''}|${version}` : '';
   useEffect(() => {
     setFamily(null);
     if (!file || typeof FontFace === 'undefined') return;
@@ -52,24 +54,34 @@ function useFontPreview(src: FontSource | null, role: FontRole, version: string)
 }
 
 export function sourceText(src: FontSource): string {
-  return src.source === 'google' && src.google ? `Google Fonts, ${src.google.family} ${src.google.weight}` : 'your upload';
+  return src.source === 'google' && src.google ? `Google Fonts, ${src.google.family}` : 'your upload';
 }
 
 export function RoleFont({ role, current, version, busy, onUpload, onGoogle, onRemove }: {
   role: FontRole; current: FontSource | null; version: string; busy: string;
-  onUpload: (role: FontRole, f: File, family: string) => void; onGoogle: (role: FontRole, family: string, weight: number) => void; onRemove: (role: FontRole) => void;
+  onUpload: (role: FontRole, f: File, family: string) => void; onGoogle: (role: FontRole, family: string) => void; onRemove: (role: FontRole) => void;
 }) {
   const what = ROLE_WORD[role];
   const preview = useFontPreview(current, role, version);
   const fallback = role === 'body' ? 'Inter, the built-in font' : role === 'display' ? 'the body font' : 'the built-in mono (IBM Plex Mono)';
+  const google = current?.source === 'google' ? current.google : undefined;
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-dashed p-3">
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 flex-1 text-[12.5px] text-muted-foreground">
-          {current
-            ? <>The {what} font is <strong className="text-[15px] font-normal text-foreground" style={preview ? { fontFamily: `'${preview}', sans-serif` } : undefined}>{current.family}</strong> ({sourceText(current)}).{current.source === 'google' && ' The one weight is used for all of this role\'s text.'}</>
-            : <>No {what} font of its own yet: {role === 'body' ? 'text uses' : `${what}s use`} {fallback}.</>}
-        </p>
+        <div className="flex min-w-0 flex-1 flex-col gap-1 text-[12.5px] text-muted-foreground">
+          <p>
+            {current
+              ? <>The {what} font is <strong className="text-[15px] font-normal text-foreground" style={preview ? { fontFamily: `'${preview}', sans-serif` } : undefined}>{current.family}</strong> ({sourceText(current)}).</>
+              : <>No {what} font of its own yet: {role === 'body' ? 'text uses' : `${what}s use`} {fallback}.</>}
+          </p>
+          {google && <p data-testid={`font-weights-${role}`}>Weights added: {weightList(google.weights)}{google.weights.length > 1 ? ', each drawn as its true face' : ', used for every weight of this role'}.</p>}
+          {google && google.missing.length > 0 && (
+            <p className="flex flex-wrap items-center gap-2" role="status">
+              <span>The brand now also draws this font at {weightList(google.missing)}; until you add {google.missing.length > 1 ? 'them' : 'it'}, the nearest weight it has stands in.</span>
+              <BusyButton type="button" variant="outline" size="sm" loading={busy === `google-${role}`} onClick={() => onGoogle(role, google.family)}>Add {google.missing.join(', ')}</BusyButton>
+            </p>
+          )}
+        </div>
         {current && <Button type="button" variant="ghost" size="sm" className="shrink-0" onClick={() => onRemove(role)}><Trash2 aria-hidden="true" /> {role === 'body' ? 'Back to Inter' : 'Remove'}</Button>}
       </div>
       <Tabs defaultValue={current?.source === 'upload' ? 'upload' : 'google'}>
@@ -78,7 +90,7 @@ export function RoleFont({ role, current, version, busy, onUpload, onGoogle, onR
           <TabsTrigger value="upload">Upload a .woff2</TabsTrigger>
         </TabsList>
         <TabsContent value="google" className="mt-3">
-          <GoogleFontPicker role={role} current={current?.google ?? null} busy={busy === `google-${role}`} onUse={(family, weight) => onGoogle(role, family, weight)} />
+          <GoogleFontPicker role={role} current={google ?? null} busy={busy === `google-${role}`} onUse={(family) => onGoogle(role, family)} />
         </TabsContent>
         <TabsContent value="upload" className="mt-3">
           <UploadFont role={role} busy={busy === (role === 'body' ? 'font' : `font-${role}`)} onUpload={onUpload} />
@@ -103,11 +115,10 @@ function UploadFont({ role, busy, onUpload }: { role: FontRole; busy: boolean; o
   );
 }
 
-function GoogleFontPicker({ role, current, busy, onUse }: { role: FontRole; current: { family: string; weight: number } | null; busy: boolean; onUse: (family: string, weight: number) => void }) {
+function GoogleFontPicker({ role, current, busy, onUse }: { role: FontRole; current: { family: string; missing: number[] } | null; busy: boolean; onUse: (family: string) => void }) {
   const { data, error } = useGoogleFonts();
   const [query, setQuery] = useState('');
   const [chosen, setChosen] = useState<string>(current?.family ?? '');
-  const [weight, setWeight] = useState<number | null>(current?.weight ?? null);
   const fonts = data?.fonts ?? [];
   const font = fonts.find((g) => g.family === chosen) ?? null;
   const groups = useMemo(() => {
@@ -115,7 +126,7 @@ function GoogleFontPicker({ role, current, busy, onUse }: { role: FontRole; curr
     const shown = fonts.filter((g) => !q || g.family.toLowerCase().includes(q) || g.category.includes(q) || (GOOGLE_CATEGORY_LABEL[g.category] ?? '').toLowerCase().includes(q) || g.note.toLowerCase().includes(q));
     return (data?.categories ?? []).map((c) => ({ category: c, fonts: shown.filter((g) => g.category === c) })).filter((g) => g.fonts.length);
   }, [fonts, data, query]);
-  const pick = (g: GoogleFont) => { setChosen(g.family); setWeight(weight !== null && g.weights.includes(weight) ? weight : nearest(g.weights, PREFERRED_WEIGHT[role])); };
+  const pick = (g: GoogleFont) => setChosen(g.family);
 
   if (error) return <p className="text-[12.5px] text-destructive" role="alert">The list of Google Fonts could not be loaded: {error}</p>;
   if (!data) return <p className="text-[12.5px] text-muted-foreground">Loading the list of Google Fonts…</p>;
@@ -150,14 +161,14 @@ function GoogleFontPicker({ role, current, busy, onUse }: { role: FontRole; curr
         ))}
       </div>
       {font && (
-        <div className="flex flex-wrap items-end gap-2">
-          <SelectField className="w-48" label={`Weight of ${font.family}`} value={String(weight ?? nearest(font.weights, PREFERRED_WEIGHT[role]))} onValueChange={(v) => setWeight(Number(v))} options={font.weights.map((w) => ({ value: String(w), label: `${w} ${WEIGHT_NAME[w] ?? ''}`.trim() }))} />
-          <BusyButton type="button" size="sm" loading={busy} disabled={current?.family === font.family && current.weight === weight} onClick={() => onUse(font.family, weight ?? nearest(font.weights, PREFERRED_WEIGHT[role]))}>Use this font</BusyButton>
+        <div className="flex flex-wrap items-center gap-2">
+          <BusyButton type="button" size="sm" loading={busy} disabled={current?.family === font.family && current.missing.length === 0} onClick={() => onUse(font.family)}>Use this font</BusyButton>
+          <span className="text-[12px] text-muted-foreground">{font.family} comes in {weightList(font.weights)}.</span>
         </div>
       )}
       <p className="text-[12px] text-muted-foreground">
         {font ? <>{font.family} is free to use under the {LICENCE_LABEL[font.licence]}. </> : 'Every family here is free to use (SIL Open Font License or Apache License). '}
-        This server downloads the latin and latin-ext files once from Google Fonts and keeps them with the brand; posts and this page never load anything from Google.
+        This server downloads every weight the {ROLE_WORD[role]}s are drawn at with the saved settings (where the family lacks one, the nearest it has), in latin and latin-ext, once from Google Fonts, and keeps them with the brand; posts and this page never load anything from Google. Save a change of weight before you pick a font.
       </p>
     </div>
   );

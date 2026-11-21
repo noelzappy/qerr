@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, validHex, type BrandLook, type BrandSettings, type BrandView, type FontRole, type PaletteChange } from './brand-types';
 import { StyleSketch } from './StyleSketch';
 import { ColourRoles, LookFields, TypeFields } from './style-fields';
+import { weightList } from './font-source';
 import { measureLogo, simpleLogos } from './logo-tools';
 import { Section, SettingsPage } from './section';
 
@@ -218,15 +219,17 @@ export function BrandSettingsPage() {
     try { setView(await api.delete<BrandView>(`/api/settings/brand/font?role=${role}`)); } catch (err) { toast.error(errorMessage(err)); }
   }
 
-  // A family from the curated Google Fonts list: the server downloads it once and stores it like an upload. A headline or label
-  // font is switched on for its role there too; only that choice is copied into the form, the rest of what was typed stays.
-  async function pickGoogleFont(role: FontRole, family: string, weight: number) {
+  // A family from the curated Google Fonts list: the server downloads it once, in every weight the role is drawn at (with the
+  // saved settings), and stores it like an upload. A headline or label font is switched on for its role there too; only that
+  // choice is copied into the form, the rest of what was typed stays.
+  async function pickGoogleFont(role: FontRole, family: string) {
     setUploading(`google-${role}`);
     try {
-      const next = await api.post<BrandView>('/api/settings/brand/google-font', { role, family, weight });
+      const next = await api.post<BrandView>('/api/settings/brand/google-font', { role, family });
       setView(next);
       if (role !== 'body') setS((cur) => (cur ? { ...cur, style: { ...cur.style, type: { ...cur.style.type, [role]: { ...cur.style.type[role], font: next.settings.style.type[role].font } } } } : next.settings));
-      toast.success(`${family} ${weight} is downloaded and in use. New images use it from now on.`);
+      const weights = next.fontSources[role]?.google?.weights ?? [];
+      toast.success(`${family} is downloaded in ${weightList(weights)} and in use. New images use it from now on.`);
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -348,7 +351,7 @@ export function BrandSettingsPage() {
         <Section id="type" title="Type" description="How headlines, body text and labels are set. Leave a value empty to keep the brand's own.">
           <TypeFields
             style={s.style} onChange={(type) => set('style', { ...s.style, type })} fonts={view.fontSources} version={view.updatedAt ?? ''} busy={uploading}
-            onUpload={(role, f, fam) => void uploadFont(f, fam, role)} onGoogle={(role, fam, w) => void pickGoogleFont(role, fam, w)} onRemove={(role) => void removeFont(role)}
+            onUpload={(role, f, fam) => void uploadFont(f, fam, role)} onGoogle={(role, fam) => void pickGoogleFont(role, fam)} onRemove={(role) => void removeFont(role)}
           />
         </Section>
 
