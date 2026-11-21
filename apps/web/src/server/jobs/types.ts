@@ -12,7 +12,7 @@ export interface JobPayloads {
   // actorId owns the batch the AI drafts; the brief says what to draft (see draftBriefSchema in services/ai-jobs.ts)
   'draft-batch': { actorId: string; brief?: import('../services/ai-jobs.js').DraftBrief; activityId?: string };
   'research-run': { actorId?: string; topics?: string[]; activityId?: string };
-  'rewrite-post': { postId: string; instruction: string; actorId?: string; activityId?: string };
+  'rewrite-post': { postId: string; instruction: string; apply?: boolean; actorId?: string; activityId?: string };
   // planToken: the plan fingerprint the person confirmed; the job sends nothing if the plan has changed since.
   'send-batch': { batchId: string; mode: 'draft' | 'live'; actorId: string; planToken?: string; activityId?: string };
   // The AI describes one design reference picture (services/ai-jobs.ts)

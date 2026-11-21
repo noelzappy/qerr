@@ -6,7 +6,8 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../api';
 import { useDocumentTitle, useLoad } from '../../hooks';
-import { errorMessage, fieldErrors } from '../../lib/errors';
+import { FailureText } from '@/components/failure-text';
+import { errorMessage, fieldErrors, tidyBlocker } from '../../lib/errors';
 import { networkLabel } from '../../lib/labels';
 import { BusyButton, CheckField, EmptyBlock, FieldSet, FormProblem, Hint, LoadingBlock, MoreMenu, Notice, PageHeader, TextField, ToneBadge } from '@/components/kit';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsaved-guard';
 import { cn } from '@/lib/utils';
 import { DesignFields } from './DesignFields';
+import { RewritePostDialog } from './RewritePostDialog';
 import { CaptionFields, Counter } from './editor/CaptionFields';
 import { PreviewPane } from './editor/PreviewPane';
 import { usePreview } from './editor/usePreview';
@@ -116,6 +118,19 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
     return () => clearInterval(t);
   }, [working, reload]);
 
+  // Start again from a post as the server has it (after a save, or after the AI rewrote it).
+  function adopt(next: PostDetail) {
+    setDetail(next);
+    setRev((r) => r + 1);
+    setTitle(next.post.title);
+    const savedBase = readNetworks(next.post.networks);
+    setCaption(next.post.caption); setDate(next.post.date); setTime(next.post.time);
+    setOn(currentFlags(savedBase, batch.defaultNetworks)); setCaps(currentCaptions(savedBase)); setDesign(next.post.design ?? null);
+    setJsonError('');
+  }
+  const [rewriting, setRewriting] = useState(false);
+  const rewriteInfo = detail?.rewrite;
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     const problems: Record<string, string> = {};
@@ -144,13 +159,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
         const next = await api.patch<PostDetail>(`/api/posts/${post.id}`, body);
         const reset = post.status === 'approved' && next.post.status !== 'approved';
         toast.success(reset ? 'Saved. The approval was taken back: approve it again when you are happy' : 'Saved');
-        setDetail(next);
-        setRev((r) => r + 1);
-        setTitle(next.post.title);
-        // Start again from what was saved.
-        const savedBase = readNetworks(next.post.networks);
-        setCaption(next.post.caption); setDate(next.post.date); setTime(next.post.time);
-        setOn(currentFlags(savedBase, batch.defaultNetworks)); setCaps(currentCaptions(savedBase)); setDesign(next.post.design ?? null);
+        adopt(next);
       } else {
         const r = await api.post<{ posts: Array<{ id: string }> }>(`/api/batches/${batch.id}/posts`, {
           posts: [{ title: title.trim(), caption, date, time, networks, ...(design ? { design } : {}) }],
@@ -170,7 +179,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
   }
 
   // Where the post stands, read the way the card reads it.
-  const blockers = post?.status === 'removed' ? [] : detail?.blockers ?? [];
+  const blockers = post?.status === 'removed' ? [] : (detail?.blockers ?? []).map(tidyBlocker);
   const warnings = detail?.warnings ?? [];
   const sources = detail?.sources ?? [];
   const flow = postFlow({
@@ -206,6 +215,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
                     approved
                       ? { label: 'Take approval off', onSelect: () => void a.unapprove(), disabled: !!a.busy || busy }
                       : { label: dirty ? 'Approve (save first)' : 'Approve', onSelect: () => void a.approve(), disabled: !!a.busy || busy || dirty || blockers.length > 0 },
+                    { label: dirty ? 'Rewrite with AI (save first)' : 'Rewrite with AI', onSelect: () => setRewriting(true), disabled: !!a.busy || busy || dirty },
                     ...(post.design ? [{ label: post.renderStatus === 'none' ? 'Make the image' : 'Make the image again', onSelect: () => void a.rerender(), disabled: !!a.busy || working }] : []),
                     { label: 'Upload a file', onSelect: () => a.fileRef.current?.click(), disabled: !!a.busy },
                     { label: 'Remove', tone: 'danger' as const, onSelect: () => a.setRemoving(true), disabled: !!a.busy },
@@ -309,14 +319,31 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
             </button>
           </div>
           <div id="post-preview" className={cn('flex flex-col gap-4', !showPreview && 'max-lg:hidden')}>
+            {post && render === 'failed' && (
+              <Notice
+                tone="bad"
+                title="The image could not be made."
+                actions={post.design ? <BusyButton size="sm" variant="outline" loading={a.busy === 'render'} disabled={!!a.busy || working} onClick={() => void a.rerender()}>Make the image again</BusyButton> : undefined}
+              >
+                <FailureText text={post.renderError} />
+              </Notice>
+            )}
             <PreviewPane design={design} preview={preview} />
             {post && <SavedPictures post={post} working={working} onDrop={a.setDropping} />}
-            {post && render === 'failed' && <Notice tone="bad" title="The image could not be made.">{post.renderError ?? 'No reason was given.'} Fix the design, or choose "Make the image again" in the menu.</Notice>}
             {warnings.length > 0 && <Notice tone="warn" title="Worth a look:"><ul className="mt-1.5 list-disc space-y-1 pl-[18px]">{warnings.map((w, i) => <li key={i} className="[overflow-wrap:anywhere]">{w}</li>)}</ul></Notice>}
           </div>
         </aside>
       </div>
 
+      {post && (
+        <RewritePostDialog
+          open={rewriting}
+          onClose={() => setRewriting(false)}
+          postId={post.id}
+          unavailable={rewriteInfo && !rewriteInfo.available ? rewriteInfo.reason : null}
+          onRewritten={async () => { adopt(await api.get<PostDetail>(`/api/posts/${encodeURIComponent(post.id)}`)); }}
+        />
+      )}
       {post && <UploadInput a={a} title={post.title} />}
       {post && <PostConfirms a={a} title={post.title} />}
     </form>
