@@ -16,7 +16,7 @@ export interface Column<T> {
 }
 
 // Optional tick boxes: a column on the table, a box on each card, and "Select all shown" above the cards.
-export interface RowSelect<T> {
+interface RowSelect<T> {
   isSelected: (row: T) => boolean;
   onToggle: (row: T, range: boolean) => void;
   allSelected: boolean;

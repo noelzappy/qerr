@@ -26,7 +26,7 @@ export const patchPostInput = z.strictObject({
   sources: z.array(z.string().min(1).max(64)).max(50).optional(),
 });
 
-export const MAX_MEDIA_PER_POST = 20;
+const MAX_MEDIA_PER_POST = 20;
 export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 export async function loadPost(deps: Pick<Deps, 'prisma'>, id: string): Promise<PostWithBatch> {

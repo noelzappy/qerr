@@ -10,7 +10,7 @@ const TYPES: Record<string, string> = {
   '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.txt': 'text/plain; charset=utf-8', '.map': 'application/json',
 };
 
-export function webDir(): string {
+function webDir(): string {
   return path.join(appRoot() ?? process.cwd(), 'dist', 'web');
 }
 

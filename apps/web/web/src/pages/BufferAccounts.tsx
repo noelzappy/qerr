@@ -26,7 +26,7 @@ const NETWORKS = ['instagram', 'linkedin', 'facebook', 'x'] as const;
 const NAME_RULE = /^[A-Za-z0-9_-]{1,32}$/;
 const sm = 'max-sm:min-h-11';
 
-export function ExpiryBadge({ account }: { account: Pick<BufferAccount, 'keyExpiresAt' | 'daysLeft' | 'expired' | 'expiryWarning'> }) {
+function ExpiryBadge({ account }: { account: Pick<BufferAccount, 'keyExpiresAt' | 'daysLeft' | 'expired' | 'expiryWarning'> }) {
   if (!account.keyExpiresAt) return <Badge variant="quiet">No expiry set</Badge>;
   if (account.expired) return <Badge variant="destructive">Expired {formatDate(account.keyExpiresAt)}</Badge>;
   const d = account.daysLeft ?? 0;

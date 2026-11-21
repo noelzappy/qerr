@@ -132,7 +132,7 @@ export function Users() {
 }
 
 // What happened to the email, in words. emailFailed means mail is set up but the send failed; neither means mail is not set up.
-export function MailOutcome({ emailed, emailFailed, to }: { emailed: boolean; emailFailed: boolean; to: string }) {
+function MailOutcome({ emailed, emailFailed, to }: { emailed: boolean; emailFailed: boolean; to: string }) {
   if (emailed) return <Notice tone="good">An email with this link was sent to {to}. You can also pass the link on yourself.</Notice>;
   if (emailFailed) return <Notice tone="warn" title="Email not sent.">The email to {to} could not be sent. Copy the link below and send it to them yourself.</Notice>;
   return <Notice tone="info" title="No email is set up.">Nothing was sent. Copy the link below and send it to {to} yourself.</Notice>;

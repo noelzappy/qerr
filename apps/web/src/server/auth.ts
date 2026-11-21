@@ -15,7 +15,7 @@ import { CLIENT_IP_HEADER } from './middleware.js';
 
 export const MIN_PASSWORD_LENGTH = 10;
 export const MAX_PASSWORD_LENGTH = 128;
-export const SELF_RESET_TTL_SECONDS = 60 * 60;
+const SELF_RESET_TTL_SECONDS = 60 * 60;
 export const ADMIN_RESET_TTL_SECONDS = 24 * 60 * 60;
 
 export interface AuthInput {

@@ -5,7 +5,7 @@ import { CircleCheck, Loader2, UploadCloud, X } from 'lucide-react';
 import { api } from '@/api';
 import { Button } from '@/components/ui/button';
 import { BusyButton, FieldGroup, FormPanel, Notice, parseTags, SelectField, SwitchField, TextAreaField, TextField } from '@/components/kit';
-import { errorMessage, formProblem } from '@/lib/errors';
+import { formProblem } from '@/lib/errors';
 import { cn } from '@/lib/utils';
 import type { VaultItem } from '../vault-types';
 import { ACCEPT, fileProblem, guessKind, humaniseFileName, isHttpUrl, type Licence, type PictureKind } from './util';

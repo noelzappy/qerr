@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 import { Check, Dot } from 'lucide-react';
 import { TextField } from '@/components/kit';
 
-export const MIN_PASSWORD = 10;
-export const MAX_PASSWORD = 128;
+const MIN_PASSWORD = 10;
+const MAX_PASSWORD = 128;
 
 export function passwordProblems(password: string, again: string): string[] {
   const out: string[] = [];

@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
-export interface FieldExtras {
+interface FieldExtras {
   label: ReactNode;
   hint?: ReactNode;
   error?: string;
@@ -54,7 +54,7 @@ export function TextAreaField({ label, hint, error, optional, className, mono, .
   );
 }
 
-export interface Option { value: string; label: string }
+interface Option { value: string; label: string }
 // Radix Select cannot hold an item whose value is the empty string, so "none" travels as this word.
 const EMPTY = '__none__';
 

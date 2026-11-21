@@ -10,7 +10,7 @@ export type BulkResult<V = unknown> =
 const CONCURRENCY = 4;
 
 // Why one item was refused: the server's list of blockers when it sent one, otherwise its message.
-export function failureReasons(err: unknown): string[] {
+function failureReasons(err: unknown): string[] {
   if (err instanceof ApiError && err.blockers?.length) return err.blockers;
   return [errorMessage(err)];
 }

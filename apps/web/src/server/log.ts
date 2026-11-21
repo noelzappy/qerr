@@ -18,7 +18,6 @@ export const logger: Logger = {
   error: write('error', process.stderr),
 };
 
-export const silentLogger: Logger = { info: () => {}, warn: () => {}, error: () => {} };
 
 // Error text for logs: type and code, and a message with known secrets removed and cut short.
 export function describeError(err: unknown, secrets: string[] = []): { name: string; code?: string; message: string } {

@@ -1,5 +1,5 @@
 // Plain-words labels for the values the server uses. Pages never show a raw code.
-export const NETWORK_LABEL: Record<string, string> = { instagram: 'Instagram', linkedin: 'LinkedIn', facebook: 'Facebook', x: 'X' };
+const NETWORK_LABEL: Record<string, string> = { instagram: 'Instagram', linkedin: 'LinkedIn', facebook: 'Facebook', x: 'X' };
 export const networkLabel = (n: string) => NETWORK_LABEL[n] ?? n;
 
 export const ROLE_LABEL: Record<string, string> = { admin: 'Admin', editor: 'Editor' };
@@ -104,7 +104,7 @@ export const AUDIT_GROUPS: Array<{ value: string; label: string }> = [
   { value: 'jobs', label: 'Background jobs' },
 ];
 
-export const ENTITY_LABEL: Record<string, string> = {
+const ENTITY_LABEL: Record<string, string> = {
   invite: 'Invitation', user: 'Person', buffer_account: 'Buffer account', channel_route: 'Channel route', ai_provider: 'AI provider',
   search_setting: 'Search service', app_setting: 'Setting', research: 'Research', vault_item: 'Vault item', batch: 'Batch', post: 'Post',
 };

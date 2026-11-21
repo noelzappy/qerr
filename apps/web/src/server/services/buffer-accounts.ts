@@ -52,7 +52,7 @@ export async function clientsFor(deps: Pick<Deps, 'fetchImpl'>, cfg: AccountsCon
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-export const EXPIRY_WARNING_DAYS = 7;
+const EXPIRY_WARNING_DAYS = 7;
 
 export function expiryInfo(keyExpiresAt: Date | null, now: Date): { daysLeft: number | null; expired: boolean; expiryWarning: boolean } {
   if (!keyExpiresAt) return { daysLeft: null, expired: false, expiryWarning: false };
@@ -123,7 +123,7 @@ export async function checkAccount(deps: Pick<Deps, 'fetchImpl' | 'config'>, acc
 
 // ---- Creating an account: used by the admin page's route and by the one-time seed (seed.ts) ----------------------
 
-export const apiKeySchema = z.string().trim().min(8, 'The Buffer key looks too short').max(500).regex(/^\S+$/, 'The Buffer key cannot contain spaces');
+const apiKeySchema = z.string().trim().min(8, 'The Buffer key looks too short').max(500).regex(/^\S+$/, 'The Buffer key cannot contain spaces');
 export const expirySchema = z.union([z.iso.datetime({ offset: true }), z.iso.date()]).nullable();
 export const captionLimitsSchema = z.record(z.string(), z.number().int().min(1).max(1_000_000));
 

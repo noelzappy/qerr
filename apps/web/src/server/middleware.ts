@@ -69,7 +69,7 @@ export const requestBodyLimit: MiddlewareHandler<AppEnv> = async (c, next) => {
   })(c, next);
 };
 
-export async function currentUser(deps: Pick<Deps, 'auth'>, headers: Headers): Promise<SessionUser | null> {
+async function currentUser(deps: Pick<Deps, 'auth'>, headers: Headers): Promise<SessionUser | null> {
   const session = await deps.auth.api.getSession({ headers });
   if (!session) return null;
   const u = session.user as typeof session.user & { role?: string; disabled?: boolean };
