@@ -1,55 +1,52 @@
-// Settings, Layouts: the brand's own compositions. A layout is blocks (a headline, a photo, a colour panel ...) placed in slots on a
-// grid or at pixel rectangles, with options from fixed lists; the engine draws it with the brand's look and checks every image like
-// the built-in pages. People start from a blank layout or a starting point, edit it in the layout editor (LayoutEditor.tsx: every
-// setting a layout can have, conditions and page-colour cases included, with a sketch, the engine's verdict and a real preview) or
-// in its JSON view, and save. The server checks every layout with the engine's own validator.
+// Settings, Layouts: the brand's own page designs. A layout is blocks (a headline, a photo, a colour panel ...) placed in slots on a
+// grid or at pixel rectangles, with options from fixed lists; Vesk draws it with the brand's look and checks every image like the
+// built-in layouts. People start from a blank layout or a starting point and edit it on its own page (layouts/EditorRoute.tsx, the
+// editor in LayoutEditor.tsx); this page lists them. The server checks every layout with the engine's own validator.
 // The built-in layouts (the templates' own) are listed read only; an admin may copy one into a layout of the brand's own, on the
-// built-in poster or editorial page, where blocks sit at pixel rectangles and the page places its chrome.
+// built-in poster or editorial page, where blocks sit at pixel rectangles and the page places its own logo and footer.
 import { useMemo, useState } from 'react';
-import { Braces, Copy, LayoutTemplate, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Braces, ChevronDown, ChevronRight, Copy, LayoutTemplate, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '../../api';
 import { useDocumentTitle, useLoad } from '../../hooks';
 import { errorMessage } from '../../lib/errors';
-import { BusyButton, ConfirmAction, EmptyBlock, ErrorBlock, SelectField, ToneBadge } from '@/components/kit';
+import { BusyButton, ConfirmAction, EmptyBlock, ErrorBlock, SelectField, SwitchField, ToneBadge } from '@/components/kit';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Switch } from '@/components/ui/switch';
-import { LayoutEditor, PAGE_WORD } from './LayoutEditor';
 import { LayoutSketch } from './LayoutSketch';
 import { isBuiltPage } from './layout-model';
-import { blankLayout, type BuiltinLayout, type Catalogue, type Layout, type LayoutsResponse, type StoredLayout } from './layout-types';
+import { type BuiltinLayout, type Catalogue, type LayoutsResponse, type StoredLayout } from './layout-types';
+import { PAGE_WORD, sizeName } from './layouts/words';
 import { SettingsPage } from './section';
 
 // ---- the page ----
 
-function LayoutCard({ item, catalogue, onEdit, onToggle, onCopy, onRemove }: { item: StoredLayout; catalogue: Catalogue; onEdit: () => void; onToggle: (v: boolean) => Promise<void>; onCopy: () => Promise<void>; onRemove: () => void }) {
-  const [busy, setBusy] = useState('');
+function LayoutCard({ item, catalogue, onEdit, onToggle, onCopy, onRemove }: { item: StoredLayout; catalogue: Catalogue; onEdit: () => void; onToggle: (v: boolean) => Promise<void>; onCopy: () => void; onRemove: () => void }) {
+  const [busy, setBusy] = useState(false);
   const sizes = Object.keys(item.definition.canvas ?? {});
-  const run = (what: string, fn: () => Promise<void>) => async () => { setBusy(what); try { await fn(); } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(''); } };
+  const toggle = async (v: boolean) => { setBusy(true); try { await onToggle(v); } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); } };
   return (
     <li className="grid gap-4 rounded-lg border bg-card p-3 sm:grid-cols-[9rem_minmax(0,1fr)]">
       <LayoutSketch layout={item.definition} size={sizes.includes('feed') ? 'feed' : sizes[0]} catalogue={catalogue} showGrid={false} />
       <div className="flex min-w-0 flex-col gap-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="truncate font-medium">{item.name}</h3>
             <p className="font-mono text-[12px] text-muted-foreground">{item.slug}</p>
           </div>
-          <label className="flex items-center gap-2 text-[13px]">
-            <Switch checked={item.enabled} disabled={busy === 'toggle'} onCheckedChange={(v) => void run('toggle', () => onToggle(v))()} aria-label={`Posts and the AI can use ${item.name}`} />
-            {item.enabled ? 'In use' : 'Off'}
-          </label>
+          <SwitchField label={item.enabled ? 'In use' : 'Not in use'} hint="The AI may use layouts that are in use" checked={item.enabled} disabled={busy} onCheckedChange={(v) => void toggle(v)} />
         </div>
         {item.definition.description && <p className="text-[13px] text-muted-foreground">{item.definition.description}</p>}
         <div className="flex flex-wrap items-center gap-1.5">
-          {sizes.map((z) => <ToneBadge key={z} tone="quiet">{z}</ToneBadge>)}
+          {sizes.map((z) => <ToneBadge key={z} tone="quiet">{sizeName(z)}</ToneBadge>)}
           {isBuiltPage(item.definition) && <ToneBadge tone="quiet">{PAGE_WORD[item.definition.page!] ?? item.definition.page}</ToneBadge>}
           <span className="text-[12px] text-muted-foreground">Fields: {Object.keys(item.definition.fields ?? {}).join(', ')}</span>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={onEdit}><Pencil aria-hidden="true" /> Edit</Button>
-          <BusyButton size="sm" variant="ghost" loading={busy === 'copy'} onClick={() => void run('copy', onCopy)()}><Copy aria-hidden="true" /> Duplicate</BusyButton>
+          <Button size="sm" variant="ghost" onClick={onCopy}><Copy aria-hidden="true" /> Duplicate</Button>
           <Button size="sm" variant="ghost" onClick={onRemove}><Trash2 aria-hidden="true" /> Remove</Button>
         </div>
       </div>
@@ -57,8 +54,8 @@ function LayoutCard({ item, catalogue, onEdit, onToggle, onCopy, onRemove }: { i
   );
 }
 
-// A built-in layout: read only. Its sketch, what it is for, the variant of its template it draws, its fields; a copy to change, when a
-// brand's layout may use what it uses (else why not); and its JSON to read.
+// A built-in layout: read only. Its sketch, what it is for, its fields, and a copy to change when a brand's layout may use what it
+// uses (else why not). How a post names it, and its JSON, are under Advanced.
 function BuiltinCard({ item, catalogue, canCopy, onCopy }: { item: BuiltinLayout; catalogue: Catalogue; canCopy: boolean; onCopy: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
   const [json, setJson] = useState(false);
@@ -68,29 +65,32 @@ function BuiltinCard({ item, catalogue, canCopy, onCopy }: { item: BuiltinLayout
       <LayoutSketch layout={l} size={sizes.includes('feed') ? 'feed' : sizes[0]} catalogue={catalogue} showGrid={false} />
       <div className="flex min-w-0 flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h3 className="truncate font-medium">{l.name}</h3>
-            <p className="font-mono text-[12px] text-muted-foreground">{'{ "template": "'}{item.template}{'" }'}{item.variant ? `, when ${item.variant}` : ''}</p>
-          </div>
+          <h3 className="min-w-0 truncate font-medium">{l.name}</h3>
           <ToneBadge tone="info">Built-in</ToneBadge>
         </div>
         {l.description && <p className="text-[13px] text-muted-foreground">{l.description}</p>}
         <div className="flex flex-wrap items-center gap-1.5">
-          {sizes.map((z) => <ToneBadge key={z} tone="quiet">{z}</ToneBadge>)}
+          {sizes.map((z) => <ToneBadge key={z} tone="quiet">{sizeName(z)}</ToneBadge>)}
           <ToneBadge tone="quiet">{PAGE_WORD[l.page ?? 'grid'] ?? l.page}</ToneBadge>
           <span className="text-[12px] text-muted-foreground">Fields: {Object.keys(l.fields ?? {}).join(', ')}</span>
         </div>
-        {!item.copyable && item.why && <p className="text-[12.5px] text-muted-foreground">Not copied into a layout of your own: {item.why}.</p>}
-        <div className="flex flex-wrap gap-2">
-          {item.copyable && (
+        {!item.copyable && item.why && <p className="text-[12.5px] text-muted-foreground">This layout cannot be copied into one of your own: {item.why}.</p>}
+        {item.copyable && (
+          <div>
             <BusyButton size="sm" variant="outline" loading={busy} disabled={!canCopy}
-              onClick={async () => { setBusy(true); try { await onCopy(); } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); } }}>
+              onClick={async () => { setBusy(true); try { await onCopy(); } catch (e) { toast.error(errorMessage(e)); setBusy(false); } }}>
               <Copy aria-hidden="true" /> Duplicate to edit
             </BusyButton>
-          )}
-          <Button size="sm" variant="ghost" aria-expanded={json} onClick={() => setJson(!json)}><Braces aria-hidden="true" /> {json ? 'Hide' : 'Show'} JSON</Button>
-        </div>
-        {json && <pre className="max-h-80 overflow-auto rounded-md border bg-muted/40 p-2 font-mono text-[11.5px] leading-snug">{JSON.stringify(l, null, 2)}</pre>}
+          </div>
+        )}
+        <details className="text-[13px]" onToggle={(e) => { if (!e.currentTarget.open) setJson(false); }}>
+          <summary className="cursor-pointer text-muted-foreground">Advanced</summary>
+          <div className="mt-2 flex flex-col gap-2">
+            <p className="font-mono text-[12px] text-muted-foreground">{'{ "template": "'}{item.template}{'" }'}{item.variant ? `, when ${item.variant}` : ''}</p>
+            <div><Button size="sm" variant="ghost" aria-expanded={json} onClick={() => setJson(!json)}><Braces aria-hidden="true" /> {json ? 'Hide' : 'Show'} JSON</Button></div>
+            {json && <pre className="max-h-80 overflow-auto rounded-md border bg-muted/40 p-2 font-mono text-[11.5px] leading-snug">{JSON.stringify(l, null, 2)}</pre>}
+          </div>
+        </details>
       </div>
     </li>
   );
@@ -98,31 +98,32 @@ function BuiltinCard({ item, catalogue, canCopy, onCopy }: { item: BuiltinLayout
 
 export function LayoutsPage() {
   useDocumentTitle('Layouts');
+  const navigate = useNavigate();
   const list = useLoad(() => api.get<LayoutsResponse>('/api/settings/layouts'), []);
-  const [editing, setEditing] = useState<{ layout: Layout; stored: StoredLayout | null } | null>(null);
   const [start, setStart] = useState('blank');
   const [removing, setRemoving] = useState<StoredLayout | null>(null);
+  const [showBuiltins, setShowBuiltins] = useState(false);
+  const [search, setSearch] = useState('');
   const data = list.data;
   const items = data?.layouts ?? [];
   const starter = useMemo(() => data?.starters.find((s) => s.id === start) ?? null, [data, start]);
+  const builtins = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (data?.builtins ?? []).filter((b) => !q || [b.definition.name, b.definition.description ?? '', b.id, b.template].some((t) => t.toLowerCase().includes(q)));
+  }, [data, search]);
 
   const replace = (l: StoredLayout) => list.setData((d) => (d ? { ...d, layouts: d.layouts.some((x) => x.id === l.id) ? d.layouts.map((x) => (x.id === l.id ? l : x)) : [...d.layouts, l] } : d));
   async function copyBuiltin(b: BuiltinLayout) {
     const { layout } = await api.post<{ layout: StoredLayout }>('/api/settings/layouts', { builtin: b.id });
-    replace(layout);
-    toast.success(`Copied as ${layout.slug}; it is off until you switch it on`);
-    setEditing({ layout: structuredClone(layout.definition), stored: layout });
+    toast.success(`Copied as ${layout.slug}; it is not in use until you switch it on`);
+    navigate(`/settings/layouts/${layout.id}`);
   }
-  const freeId = (base: string) => { let id = base, n = 2; while (items.some((x) => x.slug === id)) id = `${base}-${n++}`; return id; };
-  function begin() {
-    const base = starter ? structuredClone(starter) : blankLayout();
-    setEditing({ layout: { ...base, id: freeId(base.id) }, stored: null });
-  }
+  const room = !!data && items.length < data.max;
 
   return (
     <SettingsPage
       title="Layouts"
-      description="Your own page compositions: blocks placed on a grid, drawn in your brand's look and checked like the built-in pages. A post uses one by its id; the AI is told about the layouts that are in use."
+      description="Your own page designs: blocks placed on a grid, made in your brand's look and checked like the built-in layouts. The AI may use the layouts that are in use."
     >
       {list.error && <ErrorBlock message={list.error} onRetry={() => void list.reload()} />}
       {list.loading && !data && <div className="flex flex-col gap-3"><Skeleton className="h-16" /><Skeleton className="h-40" /></div>}
@@ -132,36 +133,52 @@ export function LayoutsPage() {
             <SelectField className="min-w-60 flex-1" label="Start from" value={start} onValueChange={setStart}
               options={[{ value: 'blank', label: 'A blank layout' }, ...data.starters.map((s) => ({ value: s.id, label: `${s.name} (like the built-in ${s.id} page)` }))]}
               hint={starter?.description} />
-            <Button disabled={items.length >= data.max} onClick={begin}><Plus aria-hidden="true" /> New layout</Button>
+            <Button disabled={!room} onClick={() => navigate(start === 'blank' ? '/settings/layouts/new' : `/settings/layouts/new?from=${encodeURIComponent(start)}`)}><Plus aria-hidden="true" /> New layout</Button>
           </div>
           {items.length === 0
             ? <EmptyBlock title="No layouts yet">Start from a blank layout or one like a built-in page, change it, preview it with your brand and add it.</EmptyBlock>
             : <ul className="flex flex-col gap-3">{items.map((item) => (
               <LayoutCard key={item.id} item={item} catalogue={data.catalogue}
-                onEdit={() => setEditing({ layout: structuredClone(item.definition), stored: item })}
+                onEdit={() => navigate(`/settings/layouts/${item.id}`)}
                 onToggle={async (v) => replace((await api.patch<{ layout: StoredLayout }>(`/api/settings/layouts/${item.id}`, { enabled: v })).layout)}
-                onCopy={async () => { replace((await api.post<{ layout: StoredLayout }>(`/api/settings/layouts/${item.id}/duplicate`)).layout); toast.success('Copied; the copy is off until you switch it on'); }}
+                onCopy={() => navigate(`/settings/layouts/new?duplicate=${encodeURIComponent(item.id)}`)}
                 onRemove={() => setRemoving(item)} />
             ))}</ul>}
-          <p className="flex items-center gap-2 text-[12.5px] text-muted-foreground"><LayoutTemplate className="size-4" aria-hidden="true" /> {items.length} of {data.max} layouts. A design block uses one as {'{ "template": "layout", "layout": "<id>" }'} with the layout's fields.</p>
+          <div className="flex flex-col gap-1 text-[12.5px] text-muted-foreground">
+            <p className="flex items-center gap-2"><LayoutTemplate className="size-4" aria-hidden="true" /> {items.length} of {data.max} layouts</p>
+            <details>
+              <summary className="cursor-pointer">Advanced</summary>
+              <p className="mt-1">A design uses one of these as {'{ "template": "layout", "layout": "<id>" }'} with the layout's fields.</p>
+            </details>
+          </div>
           <section className="flex flex-col gap-3" aria-labelledby="builtin-layouts">
-            <div>
-              <h2 id="builtin-layouts" className="text-base font-semibold">Built-in layouts</h2>
-              <p className="text-[13px] text-muted-foreground">
-                The templates' own layouts, as a design names them ({'{ "template": "number" }'}): read only. Duplicate one to start a layout of
-                your own from it, on the same page, with the same blocks and pixel positions. A copy leaves out what reads a template's own
-                settings (the headline size and alignment a design gives, the phone's and photo's positions, the pills, a desktop window's
-                frame and tilt): set those in the copy itself. Page covers are not post images and are not listed.
-              </p>
-            </div>
-            <ul className="flex flex-col gap-3">
-              {data.builtins.map((b) => <BuiltinCard key={b.id} item={b} catalogue={data.catalogue} canCopy={items.length < data.max} onCopy={() => copyBuiltin(b)} />)}
-            </ul>
+            <button type="button" aria-expanded={showBuiltins} onClick={() => setShowBuiltins(!showBuiltins)}
+              className="flex w-full items-start gap-2 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+              {showBuiltins ? <ChevronDown className="mt-1 size-4 shrink-0" aria-hidden="true" /> : <ChevronRight className="mt-1 size-4 shrink-0" aria-hidden="true" />}
+              <span>
+                <span id="builtin-layouts" className="block text-base font-semibold">Built-in layouts (read only) <span className="font-normal text-muted-foreground">({data.builtins.length})</span></span>
+                <span className="block text-[13px] text-muted-foreground">
+                  The layouts Vesk comes with. Duplicate one to start a layout of your own from it, with the same blocks in the same places.
+                </span>
+              </span>
+            </button>
+            {showBuiltins && (
+              <>
+                <p className="text-[13px] text-muted-foreground">
+                  A copy leaves out what reads a built-in layout's own settings (the headline size and alignment a design gives, the phone's and
+                  photo's positions, the pills, a desktop window's frame and tilt): set those in the copy itself. Page covers are not post images
+                  and are not listed.
+                </p>
+                <div className="relative max-w-sm">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                  <Input aria-label="Search the built-in layouts" type="search" placeholder="Search by name or what it is for" className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} />
+                </div>
+                {builtins.length === 0
+                  ? <p className="text-[13px] text-muted-foreground">No built-in layout matches that.</p>
+                  : <ul className="flex flex-col gap-3">{builtins.map((b) => <BuiltinCard key={b.id} item={b} catalogue={data.catalogue} canCopy={room} onCopy={() => copyBuiltin(b)} />)}</ul>}
+              </>
+            )}
           </section>
-          {editing && (
-            <LayoutEditor initial={editing.layout} stored={editing.stored} catalogue={data.catalogue} onClose={() => setEditing(null)}
-              onSaved={(l) => { replace(l); setEditing(null); }} />
-          )}
         </>
       )}
       <ConfirmAction open={!!removing} danger title="Remove this layout?" confirmLabel="Remove"

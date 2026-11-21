@@ -4,7 +4,7 @@
 // validator accepts.
 import { describe, expect, it } from 'vitest';
 import {
-  blockControls, choicesFor, controlKeys, conditionWords, convertPage, defaultScenario, fieldsShown, fromModel, groundIn, holds, newClause, placeAs, readGround,
+  blockControls, choicesFor, dragPx, dragSlot, freeId, idFromName, pxWords, slotWords, controlKeys, conditionWords, convertPage, defaultScenario, fieldsShown, fromModel, groundIn, holds, newClause, placeAs, readGround,
   readWhen, slabCount, tidyBlock, toModel, uncovered, withPlace, withSamePlace, withSize, writeGround, writeWhen, specFor,
 } from '../web/src/pages/settings/layout-model';
 import type { Block, Catalogue, Layout } from '../web/src/pages/settings/layout-types';
@@ -97,9 +97,9 @@ describe('the layout editor model', () => {
     expect(readWhen({}).rest).toEqual(['when']);
     expect(writeWhen({})).toBeUndefined();
     expect(conditionWords(readWhen({ present: 'sub', page: 'later' }).cond)).toBe('sub is filled and on a later page of a carousel');
-    expect(conditionWords(readWhen({ field: 'artefact', not: ['ledger', 'passbook'] }).cond)).toBe('the artefact is not a ledger or passbook');
-    expect(conditionWords(readWhen({ field: 'register', is: false }).cond)).toBe('the artefact has no register card');
-    expect(conditionWords(readWhen({ field: 'register', not: false }).cond)).toBe('the artefact has a register card');
+    expect(conditionWords(readWhen({ field: 'artefact', not: ['ledger', 'passbook'] }).cond)).toBe('the table or card is not a ledger table or passbook page');
+    expect(conditionWords(readWhen({ field: 'register', is: false }).cond)).toBe('the table or card has no member card');
+    expect(conditionWords(readWhen({ field: 'register', not: false }).cond)).toBe('the table or card has a member card');
   });
 
   it('reads and writes the page colour as one ground or cases', () => {
@@ -201,5 +201,32 @@ describe('the layout editor model', () => {
     expect(choicesFor(cat.pages.grid, ['headline', 'artefact'])).toEqual(['artefact']);
     expect(choicesFor(cat.pages.editorial, ['headline'])).toEqual(['register']);
     expect(newClause('choice', {}, cat.pages.editorial, ['headline']).choice).toEqual({ field: 'register', op: 'is', values: [true], list: false });
+  });
+
+  it('moves and resizes a slot by cells and a pixel rectangle by steps, inside the grid and the page', () => {
+    const g = { columns: 12, rows: 24 };
+    const s = { col: 3, row: 4, width: 4, height: 5 };
+    expect(dragSlot(s, 'move', 2, -1, g)).toEqual({ col: 5, row: 3, width: 4, height: 5 });
+    expect(dragSlot(s, 'move', 99, 99, g)).toEqual({ col: 9, row: 20, width: 4, height: 5 });
+    expect(dragSlot(s, 'move', -99, -99, g)).toEqual({ col: 1, row: 1, width: 4, height: 5 });
+    expect(dragSlot(s, 'e', 3, 0, g)).toEqual({ col: 3, row: 4, width: 7, height: 5 });
+    expect(dragSlot(s, 'w', -2, 0, g)).toEqual({ col: 1, row: 4, width: 6, height: 5 });
+    expect(dragSlot(s, 'se', -9, -9, g)).toEqual({ col: 3, row: 4, width: 1, height: 1 });
+    expect(dragSlot(s, 'nw', 9, 9, g)).toEqual({ col: 6, row: 8, width: 1, height: 1 });
+    expect(slotWords({ col: 7, row: 4, width: 6, height: 9 })).toBe('Column 7, row 4 \u00b7 6 wide, 9 high');
+    const page = { w: 1080, h: 1350 }, p = { x: 80, y: 600, w: 920, h: 200 };
+    expect(dragPx(p, 'move', 13, -9, page)).toEqual({ x: 92, y: 592, w: 920, h: 200 });
+    expect(dragPx(p, 'move', 500, 9000, page)).toEqual({ x: 160, y: 1150, w: 920, h: 200 });
+    expect(dragPx(p, 'e', 9000, 0, page)).toEqual({ x: 80, y: 600, w: 1000, h: 200 });
+    expect(dragPx(p, 'w', 9000, 0, page).w).toBe(16);
+    expect(pxWords(p)).toBe('Left 80, top 600 \u00b7 920 wide, 200 high (px)');
+  });
+
+  it('makes an id from a name and finds a free one', () => {
+    expect(idFromName('  My new layout! ')).toBe('my-new-layout');
+    expect(idFromName('!!!')).toBe('my-layout');
+    expect(idFromName('a'.repeat(60), 10)).toBe('aaaaaaaaaa');
+    expect(freeId('quote', ['quote', 'quote-2'])).toBe('quote-3');
+    expect(freeId('quote', [])).toBe('quote');
   });
 });

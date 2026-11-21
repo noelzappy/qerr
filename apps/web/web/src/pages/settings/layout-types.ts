@@ -74,17 +74,17 @@ export interface PreviewResult { ok: boolean; image?: string; size: string; erro
 export const SIZE_LABEL: Record<string, string> = { feed: 'Feed 1080 x 1350', square: 'Square 1080 x 1080', story: 'Story 1080 x 1920', wide: 'Wide 1200 x 675' };
 export const BLOCK_LABEL: Record<string, string> = {
   headline: 'Headline', sub: 'Sub line', label: 'Label', figure: 'Big number', stats: 'Figures', list: 'List', photo: 'Photo', screen: 'Screen',
-  logo: 'Logo', website: 'Website', slab: 'Colour panel (slab)', artefact: 'Ledger, passbook or card', decoration: 'Decoration', spacer: 'Empty space',
-  bar: 'Logo bar', runhead: 'Running head', footer: 'Footer', mark: 'Series mark', slabs: 'Myth and fact slabs', labelrow: 'Label row',
-  halo: 'Glow behind the phone', footlogo: 'Footer with the logo', beside: 'Passbook beside the phone', backdrop: 'Photo behind everything',
-  scrim: 'Scrim', lines: 'Thin lines', photoFooter: 'Photo footer',
+  logo: 'Logo', website: 'Website', slab: 'Colour panel', artefact: 'Table or card', decoration: 'Decoration', spacer: 'Empty space',
+  bar: 'Logo bar', runhead: 'Top label', footer: 'Footer', mark: 'Post type mark', slabs: 'Myth and fact panels', labelrow: 'Label row',
+  halo: 'Glow behind the phone', footlogo: 'Footer with the logo', beside: 'Passbook page beside the phone', backdrop: 'Photo behind everything',
+  scrim: 'Dark fade behind the text', lines: 'Thin lines', photoFooter: 'Photo footer',
 };
 export const OPTION_LABEL: Record<string, string> = {
-  size: 'Size (px on the feed page)', style: 'Style', align: 'Alignment', valign: 'Vertical alignment', tone: 'Colour', direction: 'Direction', rules: 'Lines between',
+  size: 'Text size (px on the feed page)', style: 'Style', align: 'Alignment', valign: 'Vertical alignment', tone: 'Colour', direction: 'Direction', rules: 'Lines between',
   frame: 'Frame', device: 'Device', fit: 'Fit', glow: 'Glow behind', tilt: 'Tilted', framed: 'Capture has its own frame', variant: 'Logo', ground: 'Colour',
   radius: 'Corners', shadow: 'Shadow', padding: 'Padding (px)', gap: 'Gap between (px)', kind: 'Kind',
   shrink: 'Shrinks to fit', subWidth: 'Sub line width (px)', row: 'In a row with the phone', rule: 'Rule under it', label: 'Label beside the logo',
-  fallback: 'When the post gives none', subFallback: 'Sub line when the post gives none', from: 'Artefact from',
+  fallback: 'When the post gives none', subFallback: 'Sub line when the post gives none', from: 'Table or card from',
   titleField: 'Window title from', subField: 'Sub line under it',
 };
 export const EDGES: Edge[] = ['top', 'right', 'bottom', 'left'];

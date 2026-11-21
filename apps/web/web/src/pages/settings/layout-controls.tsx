@@ -3,12 +3,13 @@
 // a block's place on each size, its options, what it shows and the blocks inside a slab, the fields, the grid of each size, and
 // the "sketch as if" switches.
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { CheckField, FieldGroup, SelectField, SwitchField, TextField } from '@/components/kit';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import {
-  CHOICE_WORDS, blockControls, slabCount, choicesFor, blockTitle, casesToOne, clauseKinds, conditionsUsed, defaultScenario, dropClause, edgesTouched, fieldsShown,
+  CHOICE_WORDS, valueWord, blockControls, slabCount, choicesFor, blockTitle, casesToOne, clauseKinds, conditionsUsed, defaultScenario, dropClause, edgesTouched, fieldsShown,
   fullWidthPx, groundToCases, isFullWidth, newClause, pageCatalogue, placeAs, placeBy, pxOn, readGround, readWhen, samePlace, sizesOf, slotOn, specFor,
   tidyBlock, withPlace, withSamePlace, writeGround, writeWhen,
   type ClauseKind, type Condition, type Control, type GroundModel, type Scenario,
@@ -18,11 +19,11 @@ import {
   type Block, type Catalogue, type ChoiceValue, type Edge, type FieldRule, type Grid, type Layout, type OptionSpec, type PageCatalogue, type Px, type Slot, type When,
 } from './layout-types';
 
-const word = (v: string | number | boolean) => (v === true ? 'yes' : v === false ? 'no' : String(v).replace(/-/g, ' '));
+const word = (v: string | number | boolean) => valueWord(v);
 const opts = (values: Array<string | number>) => values.map((v) => ({ value: String(v), label: word(v) }));
 const num = (v: string, fallback: number) => (v.trim() === '' || !Number.isFinite(Number(v)) ? fallback : Math.round(Number(v)));
 const move = <T,>(list: T[], i: number, d: -1 | 1): T[] => { const l = [...list]; [l[i], l[i + d]] = [l[i + d], l[i]]; return l; };
-const GROUND_LABEL: Record<string, string> = { series: "The series' colour", photo: 'The photo (from the image field)' };
+const GROUND_LABEL: Record<string, string> = { series: "The post type's colour", photo: 'The photo (from the image field)' };
 
 // ---- a condition: always, or only when every clause holds ----
 
@@ -41,7 +42,7 @@ function ChoiceClause({ choice, choices, page, onChange }: { choice: NonNullable
   const list = choices.includes(choice.field) ? choices : [choice.field, ...choices];
   return (
     <div className="flex min-w-0 flex-col gap-2">
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-2 @md:grid-cols-2">
         <SelectField label="when" value={choice.field} options={list.map((n) => ({ value: n, label: CHOICE_WORDS[n] ?? n }))}
           onValueChange={(f) => onChange({ field: f, op: choice.op, values: [page.conditions.choices[f].values[0]], list: false })} />
         <SelectField label="is" value={choice.op} options={[{ value: 'is', label: 'one of' }, { value: 'not', label: 'none of' }]} onValueChange={(op) => onChange({ ...choice, op: op as 'is' | 'not' })} />
@@ -154,14 +155,14 @@ export function OptionControl({ name, spec, value, onChange }: { name: string; s
     return <TextField label={label} type="number" inputMode="numeric" min={spec.min} max={spec.max} step={spec.step} hint={`${spec.min} to ${spec.max}`} value={String(value ?? spec.default)}
       onChange={(e) => onChange(Math.min(spec.max, Math.max(spec.min, num(e.target.value, Number(value ?? spec.default)))))} />;
   }
-  return <SwitchField className="sm:mt-6" label={label} checked={(value ?? spec.default) === true} onCheckedChange={onChange} />;
+  return <SwitchField className="@md:mt-6" label={label} checked={(value ?? spec.default) === true} onCheckedChange={onChange} />;
 }
 
 // ---- where a block sits ----
 
 function NumberRow<K extends string>({ keys, labels, value, bounds, onChange }: { keys: K[]; labels: Record<K, string>; value: Record<K, number>; bounds: Record<K, [number, number]>; onChange: (v: Record<K, number>) => void }) {
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 @md:grid-cols-4">
       {keys.map((k) => (
         <TextField key={k} label={labels[k]} type="number" inputMode="numeric" min={bounds[k][0]} max={bounds[k][1]} value={String(value[k])}
           onChange={(e) => onChange({ ...value, [k]: num(e.target.value, value[k]) })} />
@@ -179,10 +180,10 @@ function PlaceEditor({ block, layout, size, setSize, catalogue, by, onChange }: 
   const slot = slotOn(block, size) ?? { col: 1, row: 1, width: 1, height: 1 }, px = pxOn(block, size) ?? { x: 80, y: 600, w: 920, h: 200 };
   const summary = (z: string) => { const s = slotOn(block, z), p = pxOn(block, z); return s ? `column ${s.col}, row ${s.row}, ${s.width} x ${s.height} cells` : p ? `${p.x}, ${p.y}, ${p.w} x ${p.h} px` : 'not placed'; };
   return (
-    <FieldGroup legend="Place" hint={how === 'slot' ? 'In grid cells, counted from 1 (width and height in cells). Or click two cells on the sketch: the first corner, then the opposite one.' : 'In page pixels from the top-left corner. Text keeps inside the page\'s minimum margins.'}>
-      <div className="grid gap-3 sm:grid-cols-2">
+    <FieldGroup legend="Place" hint={how === 'slot' ? 'Drag the block on the canvas, or type its place here. Column and row count from 1; width and height are in cells.' : 'In page pixels from the top-left corner. Drag the block on the canvas, or type its place here. Text keeps inside the page\'s minimum margins.'}>
+      <div className="grid gap-3 @md:grid-cols-2">
         {by.length > 1 && <SelectField label="Placed by" value={how} options={[{ value: 'slot', label: 'Grid cells' }, { value: 'px', label: 'Page pixels' }]} onValueChange={(v) => onChange(placeAs(block, v as 'slot' | 'px', layout, catalogue))} />}
-        {sizes.length > 1 && <SwitchField className="sm:mt-6" label="Same place on every size" checked={same} onCheckedChange={(v) => onChange(withSamePlace(block, v, size, sizes))} />}
+        {sizes.length > 1 && <SwitchField className="@md:mt-6" label="Same place on every size" checked={same} onCheckedChange={(v) => onChange(withSamePlace(block, v, size, sizes))} />}
       </div>
       {sizes.length > 1 && !same && (
         <ul className="flex flex-col gap-1 text-[13px]" aria-label="Place on each size">
@@ -198,7 +199,7 @@ function PlaceEditor({ block, layout, size, setSize, catalogue, by, onChange }: 
         ? (
           <>
             <p className="text-[13px] text-muted-foreground">The page runs this the full width of the page down to its bottom edge; set where it starts.</p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 @md:grid-cols-4">
               <TextField label="Top (px)" type="number" inputMode="numeric" min={0} max={page.h - 1} value={String(px.y)} onChange={(e) => onChange(withPlace(block, 'px', size, fullWidthPx(num(e.target.value, px.y), page), sizes))} />
             </div>
           </>
@@ -233,7 +234,7 @@ export function BlockEditor({ block, layout, size, setSize, catalogue, onChange,
       case 'bleed': {
         const touched = edgesTouched(block, layout);
         return (
-          <FieldGroup key="bleed" legend="Bleed" hint="Run past the margins to the page edge, where the slot touches the edge of the grid on every size.">
+          <FieldGroup key="bleed" legend="Run to the page edge" hint="Run past the margins to the page edge. Only where the block touches the edge of the grid on every size.">
             <div className="flex flex-wrap gap-x-5 gap-y-1">
               {c.edges.map((e: Edge) => {
                 const on = (block.bleed ?? []).includes(e);
@@ -249,11 +250,11 @@ export function BlockEditor({ block, layout, size, setSize, catalogue, onChange,
         const way = block.field !== undefined ? 'field' : block.text !== undefined ? 'text' : 'source';
         const setWay = (w: string) => { const { field: _f, text: _t, source: _s, ...rest } = block; const f = c.fields.find((x) => declared.includes(x)) ?? c.fields[0]; change(w === 'field' ? { ...rest, field: f } : w === 'text' ? { ...rest, text: 'Label' } : { ...rest, source: c.sources[0] }, w === 'field' && !declared.includes(f) ? [f] : undefined); };
         return (
-          <div key="words" className="grid gap-3 sm:grid-cols-2">
-            <SelectField label="Words" value={way} onValueChange={setWay} options={[{ value: 'field', label: 'A field of the post' }, { value: 'text', label: 'Fixed words of the layout' }, { value: 'source', label: 'The series, brand or page number' }]} />
+          <div key="words" className="grid gap-3 @md:grid-cols-2">
+            <SelectField label="Words" value={way} onValueChange={setWay} options={[{ value: 'field', label: 'A field of the post' }, { value: 'text', label: 'Fixed words of the layout' }, { value: 'source', label: 'The post type, brand or page number' }]} />
             {way === 'field' && <SelectField label="Field" value={block.field ?? ''} onValueChange={(f) => pick('field', f)} options={fieldOptions(c.fields)} />}
             {way === 'text' && <TextField label="Fixed words" value={block.text ?? ''} maxLength={c.max} hint={`One line, up to ${c.max} characters`} onChange={(e) => change({ ...block, text: e.target.value })} />}
-            {way === 'source' && <SelectField label="Shows" value={block.source ?? c.sources[0]} onValueChange={(v) => change({ ...block, source: v })} options={c.sources.map((s) => ({ value: s, label: { series: 'The series name', brand: 'The brand name', folio: 'The page number (carousels)' }[s] ?? s }))} />}
+            {way === 'source' && <SelectField label="Shows" value={block.source ?? c.sources[0]} onValueChange={(v) => change({ ...block, source: v })} options={c.sources.map((s) => ({ value: s, label: { series: 'The post type name', brand: 'The brand name', folio: 'The page number (carousels)' }[s] ?? s }))} />}
           </div>
         );
       }
@@ -269,7 +270,7 @@ export function BlockEditor({ block, layout, size, setSize, catalogue, onChange,
         </div>
       );
       case 'children': return (
-        <FieldGroup key="children" legend={block.type === 'slabs' ? 'Inside the slabs' : 'Inside the panel'} hint={block.type === 'slabs' ? 'Each headline starts the next slab (the myth, then the fact); a sub line goes in the slab before it.' : 'These flow from the top of the panel, one under the other.'}>
+        <FieldGroup key="children" legend={block.type === 'slabs' ? 'Inside the panels' : 'Inside the panel'} hint={block.type === 'slabs' ? 'Each headline starts the next panel (the myth, then the fact); a sub line goes in the panel before it.' : 'These flow from the top of the panel, one under the other.'}>
           {children.length === 0 && <p className="text-[13px] text-muted-foreground">Nothing yet.</p>}
           <ul className="flex flex-col gap-1.5">
             {children.map((ch, i) => (
@@ -287,7 +288,7 @@ export function BlockEditor({ block, layout, size, setSize, catalogue, onChange,
                 onChange={(cb, declare) => setChildren(children.map((x, k) => (k === childAt ? cb : x)), declare)} />
             </div>
           )}
-          {spec.slabs !== null && slabCount(children) > spec.slabs && <p className="text-[13px] text-destructive">These make {slabCount(children)} slabs and the page draws {spec.slabs}. Each headline starts a slab, and so does a first line that is not a headline: remove one, or move a sub line under a headline.</p>}
+          {spec.slabs !== null && slabCount(children) > spec.slabs && <p className="text-[13px] text-destructive">These make {slabCount(children)} panels and the page draws {spec.slabs}. Each headline starts a panel, and so does a first line that is not a headline: remove one, or move a sub line under a headline.</p>}
           {children.length < catalogue.limits.children && addable.length > 0 && (
             <div className="flex flex-wrap items-end gap-2">
               <SelectField className="min-w-40 flex-1" label="Add inside" value={addable.includes(childType) ? childType : addable[0]} onValueChange={setChildType} options={addable.map((t) => ({ value: t, label: BLOCK_LABEL[t] ?? t }))} />
@@ -311,11 +312,11 @@ export function BlockEditor({ block, layout, size, setSize, catalogue, onChange,
     <div className="flex flex-col gap-4">
       {!child && spec.chrome && <p className="text-[13px] text-muted-foreground">The page places this, as the brand's style says (logo placement, footer style).</p>}
       {controls.filter((c) => c.kind === 'place' || c.kind === 'bleed').map(render)}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 @md:grid-cols-2">
         {controls.filter((c) => c.kind === 'field' || c.kind === 'binding').map(render)}
       </div>
       {controls.filter((c) => c.kind === 'words').map(render)}
-      {options.length > 0 && <div className="grid gap-3 sm:grid-cols-2">{options.map(render)}</div>}
+      {options.length > 0 && <div className="grid gap-3 @md:grid-cols-2">{options.map(render)}</div>}
       {controls.filter((c) => c.kind === 'when' || c.kind === 'children').map(render)}
     </div>
   );
@@ -323,7 +324,7 @@ export function BlockEditor({ block, layout, size, setSize, catalogue, onChange,
 
 // ---- the fields a post fills in ----
 
-export function FieldsEditor({ layout, catalogue, onChange }: { layout: Layout; catalogue: Catalogue; onChange: (l: Layout) => void }) {
+export function FieldsEditor({ layout, catalogue, onChange, onRemoved }: { layout: Layout; catalogue: Catalogue; onChange: (l: Layout) => void; onRemoved?: (name: string, rule: FieldRule) => void }) {
   const [adding, setAdding] = useState('');
   const free = Object.keys(catalogue.fields).filter((f) => !layout.fields[f]);
   const shown = fieldsShown(layout, catalogue);
@@ -334,7 +335,7 @@ export function FieldsEditor({ layout, catalogue, onChange }: { layout: Layout; 
   };
   const without = (rule: FieldRule, k: keyof FieldRule) => { const { [k]: _x, ...rest } = rule; return rest; };
   return (
-    <FieldGroup legend="Fields" hint="What a post fills in for this layout, and how long it may be. Every field must be shown by exactly one block (or by blocks that are never drawn together).">
+    <FieldGroup legend="Fields a post fills in" hint="What a post fills in for this layout, and how long it may be. Every field must be shown by exactly one block (or by blocks that are never drawn together).">
       <ul className="flex flex-col gap-2">
         {Object.entries(layout.fields).map(([name, rule]) => {
           const f = catalogue.fields[name], R = f?.rules;
@@ -345,7 +346,7 @@ export function FieldsEditor({ layout, catalogue, onChange }: { layout: Layout; 
                   <p className="font-mono text-[13px]">{name}</p>
                   <p className="text-[12px] text-muted-foreground">{f?.word}{shown.includes(name) ? '' : ' · no block shows it yet'}</p>
                 </div>
-                <Button size="icon" variant="ghost" aria-label={`Remove the field ${name}`} onClick={() => set(name, null)}><Trash2 /></Button>
+                <Button size="icon" variant="ghost" aria-label={`Remove the field ${name}`} onClick={() => { set(name, null); onRemoved?.(name, rule); }}><Trash2 /></Button>
               </div>
               <div className="flex flex-wrap items-end gap-3">
                 <CheckField label="Required" checked={rule.required === true} onCheckedChange={(v) => set(name, v ? { ...rule, required: true } : without(rule, 'required'))} />
@@ -357,11 +358,11 @@ export function FieldsEditor({ layout, catalogue, onChange }: { layout: Layout; 
               </div>
               {R?.types && (
                 <div className="flex flex-col gap-1">
-                  <p className="text-[13px]">Kinds of artefact it takes <span className="text-muted-foreground">(none ticked: any)</span></p>
+                  <p className="text-[13px]">Kinds of table or card it takes <span className="text-muted-foreground">(none ticked: any)</span></p>
                   <div className="flex flex-wrap gap-x-5 gap-y-1">
                     {R.types.map((t) => {
                       const list = rule.types ?? [];
-                      return <CheckField key={t} label={t} checked={list.includes(t)} onCheckedChange={(v) => { const next = v ? R.types!.filter((x) => x === t || list.includes(x)) : list.filter((x) => x !== t); set(name, next.length ? { ...rule, types: next } : without(rule, 'types')); }} />;
+                      return <CheckField key={t} label={word(t)} checked={list.includes(t)} onCheckedChange={(v) => { const next = v ? R.types!.filter((x) => x === t || list.includes(x)) : list.filter((x) => x !== t); set(name, next.length ? { ...rule, types: next } : without(rule, 'types')); }} />;
                     })}
                   </div>
                 </div>
@@ -393,20 +394,20 @@ export function GridEditor({ layout, size, catalogue, onChange }: { layout: Layo
   const cw = S ? (S.w - m.left - m.right - (g.columns - 1) * gx) / g.columns : 0, ch = S ? (S.h - m.top - m.bottom - (g.rows - 1) * gy) / g.rows : 0;
   const oneMin = Math.max(min.top, min.right, min.bottom, min.left);
   return (
-    <FieldGroup legend={`Grid of the ${size} page`} hint={`Margins of at least ${min.top} px at the top, ${min.right} at the sides and ${min.bottom} at the bottom keep text clear of the edges. Cells are ${Math.floor(cw)} x ${Math.floor(ch)} px (at least ${G.minCell}).`}>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <FieldGroup legend={`Grid and margins (${size})`} hint={`Margins of at least ${min.top} px at the top, ${min.right} at the sides and ${min.bottom} at the bottom keep text clear of the edges. Cells are ${Math.floor(cw)} x ${Math.floor(ch)} px (at least ${G.minCell}).`}>
+      <div className="grid grid-cols-2 gap-2 @md:grid-cols-4">
         <TextField label="Columns" type="number" inputMode="numeric" min={G.columns[0]} max={G.columns[1]} value={String(g.columns)} onChange={(e) => set({ columns: clamp(num(e.target.value, g.columns), ...G.columns) })} />
         <TextField label="Rows" type="number" inputMode="numeric" min={G.rows[0]} max={G.rows[1]} value={String(g.rows)} onChange={(e) => set({ rows: clamp(num(e.target.value, g.rows), ...G.rows) })} />
-        <TextField label="Gutter (px)" type="number" inputMode="numeric" min={G.gutter[0]} max={G.gutter[1]} value={g.gutter === undefined ? '' : String(g.gutter)} placeholder="0"
+        <TextField label="Gap between columns (px)" type="number" inputMode="numeric" min={G.gutter[0]} max={G.gutter[1]} value={g.gutter === undefined ? '' : String(g.gutter)} placeholder="0"
           onChange={(e) => (e.target.value === '' ? unset('gutter') : set({ gutter: clamp(num(e.target.value, 0), ...G.gutter) }))} />
-        <TextField label="Row gutter (px)" type="number" inputMode="numeric" min={G.gutter[0]} max={G.gutter[1]} disabled={g.rowGutter === undefined} value={String(g.rowGutter ?? gx)}
+        <TextField label="Gap between rows (px)" type="number" inputMode="numeric" min={G.gutter[0]} max={G.gutter[1]} disabled={g.rowGutter === undefined} value={String(g.rowGutter ?? gx)}
           onChange={(e) => set({ rowGutter: clamp(num(e.target.value, 0), ...G.gutter) })} />
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-1">
-        <CheckField label="Rows use the same gutter" checked={g.rowGutter === undefined} onCheckedChange={(v) => (v ? unset('rowGutter') : set({ rowGutter: gx }))} />
+        <CheckField label="Rows use the same gap" checked={g.rowGutter === undefined} onCheckedChange={(v) => (v ? unset('rowGutter') : set({ rowGutter: gx }))} />
         <CheckField label="The same margin on every side" checked={one} onCheckedChange={(v) => set({ margin: v ? Math.max(oneMin, m.top, m.right, m.bottom, m.left) : { ...m } })} />
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 @md:grid-cols-4">
         {one
           ? <TextField label="Margin (px)" type="number" inputMode="numeric" min={oneMin} max={G.margin[1]} hint={`at least ${oneMin}`} value={String(g.margin)} onChange={(e) => set({ margin: clamp(num(e.target.value, Number(g.margin)), G.margin[0], G.margin[1]) })} />
           : EDGES.map((e) => <TextField key={e} label={`Margin ${e}`} type="number" inputMode="numeric" min={min[e]} max={G.margin[1]} hint={`at least ${min[e]}`} value={String(m[e])}
@@ -418,21 +419,19 @@ export function GridEditor({ layout, size, catalogue, onChange }: { layout: Layo
 
 // ---- sizes ----
 
-export function SizesEditor({ layout, size, setSize, catalogue, onToggle }: { layout: Layout; size: string; setSize: (z: string) => void; catalogue: Catalogue; onToggle: (z: string, on: boolean) => void }) {
+// The sizes a layout is drawn at: a button that opens the list of sizes to switch on or off. Each size has its own grid, and a block
+// may sit in a different place on each.
+export function SizesMenu({ layout, catalogue, onToggle }: { layout: Layout; catalogue: Catalogue; onToggle: (z: string, on: boolean) => void }) {
   const page = pageCatalogue(catalogue, layout)!, sizes = sizesOf(layout);
   return (
-    <FieldGroup legend="Sizes" hint={page.sizes.length > 1 ? 'Each size has its own grid; a block may sit in a different place on each.' : 'This page is drawn at the feed size only.'}>
-      {page.sizes.length > 1 && (
-        <div className="flex flex-wrap gap-x-5 gap-y-1">
-          {page.sizes.map((z) => <CheckField key={z} label={SIZE_LABEL[z] ?? z} checked={!!layout.canvas[z]} disabled={!!layout.canvas[z] && sizes.length === 1} onCheckedChange={(v) => onToggle(z, v)} />)}
-        </div>
-      )}
-      {sizes.length > 1 && (
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="The size being edited">
-          {sizes.map((z) => <Button key={z} size="sm" variant={z === size ? 'secondary' : 'ghost'} aria-pressed={z === size} onClick={() => setSize(z)}>{z}</Button>)}
-        </div>
-      )}
-    </FieldGroup>
+    <Popover>
+      <PopoverTrigger asChild><Button size="sm" variant="outline"><SlidersHorizontal aria-hidden="true" /> Sizes ({sizes.length})</Button></PopoverTrigger>
+      <PopoverContent align="end" className="flex w-72 flex-col gap-2">
+        <p className="text-sm font-medium">Sizes this layout is made at</p>
+        <p className="text-[13px] text-muted-foreground">{page.sizes.length > 1 ? 'Each size has its own grid; a block may sit in a different place on each.' : 'This page is made at the feed size only.'}</p>
+        {page.sizes.map((z) => <CheckField key={z} label={SIZE_LABEL[z] ?? z} checked={!!layout.canvas[z]} disabled={(!!layout.canvas[z] && sizes.length === 1) || page.sizes.length === 1} onCheckedChange={(v) => onToggle(z, v)} />)}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -458,7 +457,7 @@ export function ScenarioBar({ layout, catalogue, scenario, onChange }: { layout:
           {fields.map((f) => <CheckField key={f} label={`${f} is filled`} checked={!scenario.empty.includes(f)} onCheckedChange={(v) => onChange({ ...scenario, empty: v ? scenario.empty.filter((x) => x !== f) : [...scenario.empty, f] })} />)}
         </div>
       )}
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-2 @md:grid-cols-2">
         {pages && <SelectField label="Page" value={scenario.page} onValueChange={(p) => onChange({ ...scenario, page: p })} options={page.conditions.pages.map((p) => ({ value: p, label: { single: 'A single post', first: 'Page 1 of a carousel', later: 'A later carousel page' }[p] ?? p }))} />}
         {choices.map((n) => (
           <SelectField key={n} label={CHOICE_WORDS[n] ?? n} value={String(scenario.choices[n])} onValueChange={(v) => onChange({ ...scenario, choices: { ...scenario.choices, [n]: page.conditions.choices[n].values.find((x) => String(x) === v) } })}
