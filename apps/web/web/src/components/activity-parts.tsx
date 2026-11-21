@@ -2,14 +2,16 @@
 // summary of what it did (by kind), so the popover, the Activity page and the in-place strips all say the same things.
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Notice } from '@/components/kit';
-import { elapsedMs, formatElapsed, isActive, percent, progressText, runStatusLabel, runTitle, STATUS_VARIANT, type ActivityRun } from '@/lib/activity';
+import { Notice, ToneBadge, type Tone } from '@/components/kit';
+import { elapsedMs, formatElapsed, isActive, percent, progressText, runStatusLabel, runTitle, type ActivityRun } from '@/lib/activity';
 import { cn } from '@/lib/utils';
 
+const STATUS_TONE: Record<string, Tone> = { queued: 'quiet', running: 'info', done: 'good', failed: 'bad', cancelled: 'quiet' };
+
+// A dot and the status word.
 export function RunStatusBadge({ run }: { run: Pick<ActivityRun, 'status'> }) {
-  return <Badge variant={STATUS_VARIANT[run.status] ?? 'quiet'}>{runStatusLabel(run.status)}</Badge>;
+  return <ToneBadge dot tone={STATUS_TONE[run.status] ?? 'quiet'}>{runStatusLabel(run.status)}</ToneBadge>;
 }
 
 // The step in words, with a bar when the run says how far it is. The bar is a real progressbar for assistive tech.

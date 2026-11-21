@@ -55,7 +55,7 @@ export function ResetPassword() {
   }
   return (
     <AuthLayout title="Choose a new password">
-      <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
+      <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-3">
         <PasswordFields password={password} again={again} onPassword={setPassword} onAgain={setAgain} />
         {error && <Notice tone="bad">{error}</Notice>}
         <Button type="submit" className="w-full max-sm:min-h-11" disabled={busy}>{busy && <Loader2 className="animate-spin" aria-hidden="true" />}Change password</Button>

@@ -189,7 +189,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search or jump to"
-            className="h-12 min-w-0 flex-1 bg-transparent text-[14.5px] outline-none placeholder:text-muted-foreground"
+            className="h-11 min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-muted-foreground"
           />
         </div>
         <div className="max-h-[min(24rem,60dvh)] overflow-y-auto p-1.5">
@@ -199,7 +199,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
               if (!items.length) return null;
               return (
                 <div key={g} role="group" aria-labelledby={`${listId}-g-${g}`} className="pb-1">
-                  <div id={`${listId}-g-${g}`} className="px-2.5 pb-1 pt-2 text-[12px] font-medium text-muted-foreground">{g}</div>
+                  <div id={`${listId}-g-${g}`} className="px-2.5 pb-0.5 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">{g}</div>
                   {items.map((e) => {
                     index += 1;
                     const i = index;
@@ -212,7 +212,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                         aria-selected={i === active}
                         onMouseMove={() => setActive(i)}
                         onClick={() => choose(e)}
-                        className={cn('flex min-h-10 cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-[13.5px] max-md:min-h-11', i === active && 'bg-accent text-accent-foreground')}
+                        className={cn('flex h-9 cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-[13px] max-md:h-11', i === active && 'bg-accent text-accent-foreground')}
                       >
                         <Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                         <span className="min-w-0 flex-1 truncate">{e.label}</span>

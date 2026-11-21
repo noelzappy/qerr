@@ -18,23 +18,23 @@ export function SettingsShell({ admin = false, wide = false }: { admin?: boolean
   const sidebar = (
     <>
       <div className="flex flex-col gap-1">
-        <Link to="/home" className="flex min-h-9 items-center gap-2 rounded-md px-2 text-[13.5px] font-medium text-sidebar-foreground/80 outline-none hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 max-md:min-h-11">
+        <Link to="/home" className="flex h-8 items-center gap-2 rounded-md px-2 text-[13px] font-medium text-sidebar-foreground/75 outline-none hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 max-md:h-11">
           <ArrowLeft className="size-4" aria-hidden="true" /> Back to the app
         </Link>
-        <div className="px-2 pt-1 text-[17px] font-semibold tracking-tight">Settings</div>
+        <div className="px-2 pt-1 text-[15px] font-semibold tracking-tight">Settings</div>
       </div>
       <SearchButton />
-      <nav aria-label="Settings" className="flex flex-col gap-5">
+      <nav aria-label="Settings" className="flex flex-col gap-3">
         {SETTINGS.filter((s) => !s.adminOnly || isAdmin).map((section) => (
           <div key={section.title} className="flex flex-col gap-0.5">
-            <div className="px-2.5 pb-1 text-[12px] font-medium text-muted-foreground">{section.title}</div>
+            <div className="px-2.5 pb-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">{section.title}</div>
             {section.items.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
                 className={({ isActive }) => cn(
-                  'flex min-h-9 items-center gap-2.5 rounded-md px-2.5 text-[13.5px] font-medium text-sidebar-foreground/80 outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-[3px] focus-visible:ring-sidebar-ring/50 max-md:min-h-11',
-                  isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
+                  'flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium text-sidebar-foreground/75 outline-none transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:ring-[3px] focus-visible:ring-sidebar-ring/50 max-md:h-11',
+                  isActive && 'bg-sidebar-accent/70 text-sidebar-foreground',
                 )}
               >
                 <Icon className="size-4 shrink-0" aria-hidden="true" />

@@ -30,7 +30,7 @@ export function PasswordFields({ password, again, onPassword, onAgain, error }: 
     <>
       <TextField label="Password" type="password" value={password} onChange={(e) => onPassword(e.target.value)} autoComplete="new-password" required error={error} />
       <TextField label="Type the password again" type="password" value={again} onChange={(e) => onAgain(e.target.value)} autoComplete="new-password" required />
-      <ul className="flex flex-col gap-1 text-[13px]" aria-live="polite">
+      <ul className="flex flex-col gap-0.5 text-[12.5px]" aria-live="polite">
         <Rule ok={long}>At least {MIN_PASSWORD} characters ({password.length} so far)</Rule>
         <Rule ok={match}>Both entries match</Rule>
       </ul>

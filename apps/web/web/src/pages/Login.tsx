@@ -57,13 +57,12 @@ export function Login() {
           <Button variant="outline" onClick={() => { setForgot(false); setSent(false); }}>Back to sign in</Button>
         </>
       ) : (
-        <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-4">
-          {forgot && <p className="text-muted-foreground">Enter the email you sign in with. We will send a link that works for one hour.</p>}
-          <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required data-autofocus autoFocus />
+        <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-3">
+          <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required data-autofocus autoFocus hint={forgot ? 'We will send a link that works for one hour.' : undefined} />
           {!forgot && <TextField label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />}
           {error && <Notice tone="bad">{error}</Notice>}
           <Button type="submit" className="w-full max-sm:min-h-11" disabled={busy}>{busy && <Loader2 className="animate-spin" aria-hidden="true" />}{forgot ? 'Send reset link' : 'Sign in'}</Button>
-          <Button type="button" variant="ghost" onClick={() => { setForgot(!forgot); setError(''); setSent(false); }}>{forgot ? 'Back to sign in' : 'Forgot your password?'}</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => { setForgot(!forgot); setError(''); setSent(false); }}>{forgot ? 'Back to sign in' : 'Forgot your password?'}</Button>
         </form>
       )}
     </AuthLayout>

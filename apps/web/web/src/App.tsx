@@ -19,13 +19,17 @@ import { AiSettings } from './pages/AiSettings';
 import { Audit } from './pages/Audit';
 import { BatchReview } from './pages/BatchReview';
 import { Batches } from './pages/Batches';
+import { PostPage } from './pages/batches/PostPage';
 import { BufferAccounts } from './pages/BufferAccounts';
 import { Login } from './pages/Login';
 import { ResetPassword } from './pages/ResetPassword';
 import { Routing } from './pages/Routing';
 import { Users } from './pages/Users';
 import { Library } from './pages/Library';
+import { LibraryItemPage } from './pages/library/LibraryItemPage';
+import { UploadPage } from './pages/library/UploadPage';
 import { Vault } from './pages/Vault';
+import { VaultItemPage } from './pages/vault/VaultItemPage';
 import { ErrorBoundary } from './shell/ErrorBoundary';
 import { UnsavedGuardHost } from '@/hooks/use-unsaved-guard';
 
@@ -51,9 +55,13 @@ export function App() {
               <Route path="/batches/ai-draft" element={<Batches />} />
               <Route path="/batches/:id" element={<BatchReview />} />
               <Route path="/batches/:id/schedule" element={<BatchReview />} />
+              <Route path="/batches/:id/posts/new" element={<PostPage />} />
+              <Route path="/batches/:id/posts/:postId" element={<PostPage />} />
               <Route path="/vault" element={<Vault />} />
-              <Route path="/vault/:id" element={<Vault />} />
+              <Route path="/vault/:id" element={<VaultItemPage />} />
               <Route path="/library" element={<Library />} />
+              <Route path="/library/upload" element={<UploadPage />} />
+              <Route path="/library/:id" element={<LibraryItemPage />} />
               <Route path="/activity" element={<Activity />} />
               <Route path="/activity/:id" element={<Activity />} />
             </Route>

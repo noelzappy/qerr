@@ -1,14 +1,17 @@
 // The app's own UI kit, built from the shadcn components in components/ui: import every piece from '@/components/kit'.
 export { ToneBadge, StatusBadge, type Tone } from './badges';
+export { Breadcrumbs, type Crumb } from './breadcrumbs';
 export { BulkBar, SelectBox } from './bulk-bar';
 export { BulkTagPopover } from './bulk-tag-popover';
 export { BusyButton, Spin } from './busy-button';
 export { ConfirmAction } from './confirm-action';
 export { CopyBox } from './copy-box';
 export { DataList, Sub, type Column } from './data-list';
-export { CheckField, FieldGroup, FieldSet, SelectField, SwitchField, TextAreaField, TextField } from './fields';
+export { Hint } from './hint';
+export { CheckField, type HintMode, FieldGroup, FieldSet, SelectField, SwitchField, TextAreaField, TextField } from './fields';
 export { FormPanel } from './form-panel';
 export { FormProblem, Lines, Notice } from './notice';
+export { MoreMenu, type MoreMenuItem } from './more-menu';
 export { PageHeader } from './page-header';
 export { EmptyBlock, ErrorBlock, LoadingBlock, Pager, RowsSkeleton } from './states';
 export { TagChips, TagField, parseTags } from './tags';

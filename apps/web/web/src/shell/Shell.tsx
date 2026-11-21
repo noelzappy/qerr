@@ -25,8 +25,8 @@ import { VeskLogo } from './VeskLogo';
 const initials = (name: string, email: string) => (name || email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('') || '?';
 
 const navClass = ({ isActive }: { isActive: boolean }) => cn(
-  'flex min-h-9 items-center gap-2.5 rounded-md px-2.5 text-[13.5px] font-medium text-sidebar-foreground/80 outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-[3px] focus-visible:ring-sidebar-ring/50 max-md:min-h-11 max-md:text-[15px]',
-  isActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
+  'flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium text-sidebar-foreground/75 outline-none transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground focus-visible:ring-[3px] focus-visible:ring-sidebar-ring/50 max-md:h-11 max-md:text-[15px]',
+  isActive && 'bg-sidebar-accent/70 text-sidebar-foreground',
 );
 
 // What the sidebar shows besides the links: the channels with their upcoming posts and, for admins, the setup steps.
@@ -47,7 +47,7 @@ function useSidebarData(isAdmin: boolean) {
 export function SearchButton() {
   const palette = usePalette();
   return (
-    <Button variant="outline" className="h-9 w-full justify-start gap-2 bg-background/60 px-2.5 text-[13px] font-normal text-muted-foreground max-md:h-11" onClick={() => palette?.open()}>
+    <Button variant="outline" className="h-8 w-full justify-start gap-2 bg-transparent px-2.5 text-[13px] font-normal text-muted-foreground shadow-none max-md:h-11" onClick={() => palette?.open()}>
       <Search className="size-4" aria-hidden="true" />
       <span className="flex-1 text-left">Search</span>
       <kbd className="rounded border bg-muted px-1.5 py-0.5 font-sans text-[11px] text-muted-foreground max-md:hidden" aria-hidden="true">{shortcutLabel()}</kbd>
@@ -60,7 +60,7 @@ function NewMenu({ isAdmin }: { isAdmin: boolean }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button className="h-10 w-full rounded-full text-[14px] font-semibold"><Plus aria-hidden="true" /> New</Button>
+        <Button className="h-9 w-full rounded-full text-[13.5px] font-semibold max-md:h-11"><Plus aria-hidden="true" /> New</Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-60">
         <DropdownMenuItem onSelect={() => navigate('/batches/ai-draft')}><Sparkles aria-hidden="true" /> Draft posts with AI</DropdownMenuItem>
@@ -78,45 +78,29 @@ function Channels({ data, isAdmin }: { data: ChannelsOverview | null; isAdmin: b
   const current = new URLSearchParams(location.search).get('network');
   if (!data) return null;
   const connected = data.channels.filter((c) => c.connected);
-  const missing = data.channels.filter((c) => !c.connected);
+  if (connected.length === 0) {
+    if (!isAdmin) return null;
+    return <Link to="/settings/channels" className="rounded-md px-2.5 py-1 text-[12.5px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50">Connect channels</Link>;
+  }
   return (
-    <section aria-labelledby="channels-heading" className="flex flex-col gap-0.5">
-      <div className="flex items-center justify-between px-2.5 pb-1">
-        <h2 id="channels-heading" className="text-[12px] font-medium text-muted-foreground">Channels</h2>
-        {isAdmin && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link to="/settings/channels" className="rounded p-1 text-muted-foreground hover:bg-sidebar-accent hover:text-foreground" aria-label="Channel settings"><Settings className="size-3.5" aria-hidden="true" /></Link>
-            </TooltipTrigger>
-            <TooltipContent>Channel settings</TooltipContent>
-          </Tooltip>
-        )}
-      </div>
-      {connected.length === 0 && <p className="px-2.5 text-[12.5px] text-muted-foreground">No channel is connected yet.</p>}
-      {connected.map((c) => (
-        <Link
-          key={c.network}
-          to={`/publish?network=${c.network}`}
-          className={cn(navClass({ isActive: location.pathname === '/publish' && current === c.network }), 'gap-2')}
-        >
-          <NetworkIcon network={c.network} />
-          <span className="min-w-0 flex-1 truncate">{c.channelName || networkLabel(c.network)}<span className="sr-only"> ({networkLabel(c.network)})</span></span>
-          {c.upcoming > 0 && <span className="text-[12px] tabular-nums text-muted-foreground" aria-label={`${c.upcoming} posts coming`}>{c.upcoming}</span>}
-        </Link>
-      ))}
-      {missing.length > 0 && (
-        <div className="px-2.5 pt-3">
-          <div className="pb-1.5 text-[12px] text-muted-foreground">Connect more channels</div>
-          <div className="flex flex-wrap gap-1.5">
-            {missing.map((c) => (
-              isAdmin
-                ? <Link key={c.network} to="/settings/channels" aria-label={`Connect ${networkLabel(c.network)}`} className="rounded-md opacity-70 outline-none transition-opacity hover:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50"><NetworkIcon network={c.network} className="size-6" /></Link>
-                : <NetworkIcon key={c.network} network={c.network} className="size-6 opacity-50" label />
-            ))}
-          </div>
-        </div>
-      )}
-    </section>
+    <ul aria-label="Channels" className="flex flex-wrap items-center gap-1 px-1.5">
+      {connected.map((c) => {
+        const active = location.pathname === '/publish' && current === c.network;
+        const text = `${c.channelName || networkLabel(c.network)}: ${c.upcoming} ${c.upcoming === 1 ? 'post' : 'posts'} coming`;
+        return (
+          <li key={c.network}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link to={`/publish?network=${c.network}`} aria-label={`${networkLabel(c.network)}, ${text}`} className={cn('flex size-8 items-center justify-center rounded-md outline-none transition-colors hover:bg-sidebar-accent/60 focus-visible:ring-[3px] focus-visible:ring-ring/50 max-md:size-11', active && 'bg-sidebar-accent/70')}>
+                  <NetworkIcon network={c.network} className="size-5" />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>{text}</TooltipContent>
+            </Tooltip>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -125,12 +109,11 @@ function SetupCard({ steps }: { steps: HomeOverview['setup'] }) {
   if (!steps.length || done === steps.length) return null;
   const next = steps.find((s) => !s.done);
   return (
-    <Link to="/home" className="block rounded-lg border bg-background/60 p-3 outline-none transition-colors hover:bg-background focus-visible:ring-[3px] focus-visible:ring-ring/50">
-      <div className="text-[12.5px] font-medium">{done}/{steps.length} setup steps done</div>
-      <div className="mt-2 flex gap-1" aria-hidden="true">
-        {steps.map((s) => <span key={s.key} className={cn('h-1 flex-1 rounded-full', s.done ? 'bg-primary' : 'bg-border')} />)}
+    <Link to="/home" aria-label={`Setup ${done} of ${steps.length} done. Next: ${next?.title ?? 'continue setting up'}`} className="block rounded-md px-2.5 py-1.5 outline-none transition-colors hover:bg-sidebar-accent/60 focus-visible:ring-[3px] focus-visible:ring-ring/50">
+      <div className="truncate text-[12px] text-muted-foreground">Setup {done}/{steps.length} · Next: {next?.title ?? 'continue'}</div>
+      <div className="mt-1.5 h-0.5 overflow-hidden rounded-full bg-border" aria-hidden="true">
+        <div className="h-full rounded-full bg-primary" style={{ width: `${(done / steps.length) * 100}%` }} />
       </div>
-      <div className="mt-2 text-[12px] text-muted-foreground">Next: {next?.title ?? 'continue setting up'}</div>
     </Link>
   );
 }
@@ -187,7 +170,7 @@ function SidebarBody({ isAdmin }: { isAdmin: boolean }) {
         ))}
       </nav>
       <Channels data={channels} isAdmin={isAdmin} />
-      <div className="mt-auto flex flex-col gap-2">
+      <div className="mt-auto">
         {isAdmin && <SetupCard steps={setup} />}
       </div>
     </>
@@ -236,9 +219,9 @@ export function Frame({ sidebar, mobileTitle, children }: { sidebar: ReactNode; 
   useMoveFocusOnPageChange(location.pathname);
   return (
     <PaletteProvider>
-    <div className="min-h-dvh bg-frame md:grid md:h-dvh md:grid-cols-[15.5rem_minmax(0,1fr)]">
+    <div className="relative min-h-dvh bg-frame md:grid md:h-dvh md:grid-cols-[15.5rem_minmax(0,1fr)] md:overflow-hidden">
       <a className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:rounded-md focus:bg-foreground focus:px-3.5 focus:py-2.5 focus:text-background" href="#main">Skip to the content</a>
-      <aside className="hidden h-dvh flex-col gap-5 overflow-y-auto bg-sidebar px-3 pb-3 pt-4 text-sidebar-foreground md:flex">{sidebar}</aside>
+      <aside className="relative hidden h-dvh flex-col gap-3 overflow-y-auto bg-sidebar px-3 pb-3 pt-4 text-sidebar-foreground md:flex">{sidebar}</aside>
       <div className="flex min-w-0 flex-col md:h-dvh md:py-2 md:pr-2">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-frame px-3 md:hidden">
           <Button variant="ghost" size="icon" className="size-11" aria-label="Open the menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
@@ -248,14 +231,14 @@ export function Frame({ sidebar, mobileTitle, children }: { sidebar: ReactNode; 
           <ActivityMenu />
         </header>
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
-          <SheetContent side="left" className="w-72 gap-5 overflow-y-auto bg-sidebar p-3 pt-4 sm:max-w-72">
+          <SheetContent side="left" className="w-72 gap-3 overflow-y-auto bg-sidebar p-3 pt-4 sm:max-w-72">
             <SheetTitle className="sr-only">Menu</SheetTitle>
             <SheetDescription className="sr-only">Pages of Vesk</SheetDescription>
             {sidebar}
           </SheetContent>
         </Sheet>
-        <main id="main" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto bg-background outline-none md:rounded-xl md:border">
-          <div className="mx-auto max-w-[1440px] px-4 py-5 md:px-8 md:py-7">
+        <main id="main" tabIndex={-1} className="relative min-h-0 flex-1 overflow-y-auto bg-background outline-none md:rounded-xl md:border">
+          <div className="mx-auto max-w-[1440px] px-4 py-4 md:px-6 md:pb-8 md:pt-4">
             <ErrorBoundary resetKey={location.pathname}>{children}</ErrorBoundary>
           </div>
         </main>
