@@ -6,8 +6,12 @@
 //   PUT    /advanced              a brand.json fragment and the optional dot map, for people who know the engine's brand file
 //   POST   /logo/:which           the full logo or the mark (PNG); :which is full | mark
 //   GET    /logo/:which           the uploaded file
-//   POST   /font                  a woff2 font for headlines and text, with its family name
-//   DELETE /font                  back to the built-in font
+//   POST   /font?role=            a woff2 font with its family name: body (default: text, and headlines unless they have their
+//                                 own), display (headlines) or label (labels and footers)
+//   DELETE /font?role=            back to the built-in font for that role
+//   POST   /artwork               brand artwork for the decoration (PNG, JPEG or WebP; never SVG)
+//   GET    /artwork               the uploaded file
+//   DELETE /artwork
 //   POST   /import                a brand pack's brand.json, its two logos, its optional map.json and font, all at once
 //   GET    /references            the design references, each with a short-lived picture address
 //   POST   /references            upload a picture (and a note); the AI describes it in the background
@@ -23,13 +27,18 @@ import { badRequest, HttpError, notFound, readJson } from '../http.js';
 import { requireRole, requireUser } from '../middleware.js';
 import { enqueueTracked } from '../services/activity.js';
 import {
-  advancedSchema, baseBrand, brandFromProfile, brandProblems, brandSettingsSchema, contrastChecks, paletteChanges, currentSettings, expandBrand, mapProblems, splitPackBrand, syncBrand,
+  advancedSchema, assetsOf, baseBrand, brandFromProfile, brandProblems, brandSettingsSchema, contrastChecks, explicitRoles, paletteChanges, currentSettings, mapProblems, splitPackBrand, syncBrand,
+  type BrandAssets,
 } from '../services/brand-settings.js';
 import { privateKey } from '../storage/types.js';
 import { sniffImage } from './vault.js';
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 const MAX_FONT_BYTES = 2 * 1024 * 1024;
+const MAX_ARTWORK_BYTES = 4 * 1024 * 1024;
+const FONT_ROLES = ['body', 'display', 'label'] as const;
+// The families the engine ships; an uploaded font takes a name of its own so its files never mix with these.
+const BUILT_IN_FAMILIES = ['Inter', 'IBM Plex Mono'];
 // The browser scales a reference down before it uploads it; the AI accepts up to 5 MB per picture.
 const MAX_REFERENCE_BYTES = 5 * 1024 * 1024;
 const MAX_REFERENCES = 24;
@@ -75,24 +84,35 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     return deps.prisma.brandProfile.create({ data: { settings: currentSettings(null) as unknown as Prisma.InputJsonValue, updatedById: actorId } });
   }
 
-  // The colours posts use, the readability checks and the colours that were moved, for a brand.json. When the Advanced
-  // fragment sets the palette (an imported pack), the form's colours are not what posts use, so nothing counts as moved.
+  // The colours posts use (every role, set or made from the four colours), the readability checks (marking the pairs that use a
+  // colour people set themselves) and the derived colours that were moved, for a brand.json. When the Advanced fragment sets the
+  // palette (an imported pack), the form's colours are not what posts use, so nothing counts as moved.
   const ADVANCED_PALETTE = ['grounds', 'text', 'accents', 'surfaces'];
   function look(settings: ReturnType<typeof currentSettings>, brand: Record<string, unknown>, advanced: unknown) {
     const fromAdvanced = !!advanced && typeof advanced === 'object' && ADVANCED_PALETTE.some((k) => k in (advanced as object));
     const pick = (k: string) => (brand[k] ?? {}) as Record<string, unknown>;
+    const explicit = explicitRoles(settings);
+    const surfaces = pick('surfaces'), text = pick('text');
     return {
-      checks: contrastChecks(brand),
+      checks: contrastChecks(brand, explicit),
       changes: fromAdvanced ? [] : paletteChanges(settings, brand),
-      palette: { grounds: pick('grounds'), text: pick('text'), accents: pick('accents'), slabs: (pick('poster').slabs ?? {}) as Record<string, unknown> },
+      explicit,
+      palette: {
+        grounds: pick('grounds'), text: { ...text, inverse: text.inverse ?? '#FFFFFF' }, accents: pick('accents'), slabs: (pick('poster').slabs ?? {}) as Record<string, unknown>,
+        surfaces: { panel: surfaces.panel, card: surfaces.card, outline: surfaces.outline ?? text.ink },
+      },
     };
   }
+  const profileFields = (p: Awaited<ReturnType<typeof profile>>) => ({
+    advanced: p?.advanced ?? {}, logoFullWidth: p?.logoFullWidth ?? null, logoFullHeight: p?.logoFullHeight ?? null, fontFamily: p?.fontFamily ?? null, fontKey: p?.fontKey ?? null, assets: p?.assets ?? {},
+  });
 
   async function view() {
     const p = await profile();
     const settings = currentSettings(p);
-    const brand = p ? brandFromProfile(p, settings) : expandBrand(settings);
+    const brand = brandFromProfile({ settings, ...profileFields(p) }, settings);
     const state = await syncBrand(deps);
+    const assets = assetsOf(p?.assets);
     return {
       saved: !!p,
       settings,
@@ -102,6 +122,9 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
         fullSize: p?.logoFullWidth && p.logoFullHeight ? [p.logoFullWidth, p.logoFullHeight] : null,
       },
       font: p?.fontKey ? { family: p.fontFamily } : null,
+      // The style layer's uploads: a display font, a label font, the artwork.
+      fonts: { body: p?.fontKey ? p.fontFamily : null, display: assets.display?.family ?? null, label: assets.label?.family ?? null },
+      artwork: assets.artwork ? '/api/settings/brand/artwork' : null,
       advanced: p?.advanced ?? {},
       map: p?.map ?? null,
       ...look(settings, brand, p?.advanced),
@@ -117,7 +140,7 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
   app.post('/preview', async (c) => {
     const settings = await readJson(c, brandSettingsSchema);
     const p = await profile();
-    const brand = brandFromProfile({ settings, advanced: p?.advanced ?? {}, logoFullWidth: p?.logoFullWidth ?? null, logoFullHeight: p?.logoFullHeight ?? null, fontFamily: p?.fontFamily ?? null }, settings);
+    const brand = brandFromProfile({ settings, ...profileFields(p) }, settings);
     return c.json(look(settings, brand, p?.advanced));
   });
 
@@ -125,7 +148,7 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     const actor = c.get('user');
     const settings = await readJson(c, brandSettingsSchema);
     const existing = await profile();
-    const candidate = brandFromProfile({ settings, advanced: existing?.advanced ?? {}, logoFullWidth: existing?.logoFullWidth ?? null, logoFullHeight: existing?.logoFullHeight ?? null, fontFamily: existing?.fontFamily ?? null }, settings);
+    const candidate = brandFromProfile({ settings, ...profileFields(existing) }, settings);
     const problems = brandProblems(candidate);
     if (problems.length) throw badRequest('The brand is not valid', problems);
     if (existing?.logoFullWidth && settings.logo.wordmarkFrom >= existing.logoFullWidth) throw badRequest('The brand is not valid', ['The wordmark must start inside the logo']);
@@ -193,8 +216,17 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     return c.body(new Uint8Array(body), 200, { 'content-type': 'image/png', 'cache-control': 'private, no-store' });
   });
 
+  // Which type role a font upload is for: body (the sans: text, and headlines unless they have their own), display or label.
+  const fontRole = (q: string | undefined) => {
+    const role = q ?? 'body';
+    if (!(FONT_ROLES as readonly string[]).includes(role)) throw badRequest('The request is not valid', [{ path: 'role', message: `Choose one of ${FONT_ROLES.join(', ')}` }]);
+    return role as (typeof FONT_ROLES)[number];
+  };
+  const saveAssets = (assets: BrandAssets, actorId: string) => deps.prisma.brandProfile.update({ where: { id: 'brand' }, data: { assets: assets as Prisma.InputJsonValue, updatedById: actorId } });
+
   app.post('/font', async (c) => {
     const actor = c.get('user');
+    const role = fontRole(c.req.query('role'));
     const { file, form } = await readFile(c);
     if (file.size > MAX_FONT_BYTES) throw new HttpError(413, 'The font is larger than 2 MB');
     const family = fontFamily.safeParse(form.family);
@@ -202,21 +234,74 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     const bytes = Buffer.from(await file.arrayBuffer());
     if (!isWoff2(bytes)) throw new HttpError(415, 'The font must be a .woff2 file');
     const p = await ensureProfile(actor.id);
-    const key = privateKey('brand', 'brand.woff2');
+    const assets = assetsOf(p.assets);
+    // Each uploaded font has a family name of its own, so two files never claim the same family.
+    const others = [
+      ...(role === 'body' ? [] : BUILT_IN_FAMILIES), ...(role !== 'body' && p.fontFamily ? [p.fontFamily] : []),
+      ...(['display', 'label'] as const).filter((r) => r !== role).map((r) => assets[r]?.family).filter((f): f is string => !!f),
+    ];
+    if (others.some((f) => f.toLowerCase() === family.data.toLowerCase())) throw badRequest('The request is not valid', [{ path: 'family', message: `"${family.data}" is already the name of another font; give this one its own name` }]);
+    const key = privateKey('brand', `${role}.woff2`);
     await deps.storage.putObject(key, bytes, 'font/woff2');
-    await deps.prisma.brandProfile.update({ where: { id: 'brand' }, data: { fontKey: key, fontFamily: family.data, updatedById: actor.id } });
-    if (p.fontKey) await deps.storage.deleteObject(p.fontKey).catch(() => undefined);
-    await audit(deps, actor, 'brand.font.upload', 'brand', 'brand', { family: family.data, bytes: bytes.length });
+    const old = role === 'body' ? p.fontKey : assets[role]?.key;
+    if (role === 'body') await deps.prisma.brandProfile.update({ where: { id: 'brand' }, data: { fontKey: key, fontFamily: family.data, updatedById: actor.id } });
+    else await saveAssets({ ...assets, [role]: { key, family: family.data } }, actor.id);
+    if (old) await deps.storage.deleteObject(old).catch(() => undefined);
+    await audit(deps, actor, 'brand.font.upload', 'brand', 'brand', { role, family: family.data, bytes: bytes.length });
     return c.json(await view());
   });
 
   app.delete('/font', async (c) => {
     const actor = c.get('user');
+    const role = fontRole(c.req.query('role'));
     const p = await profile();
-    if (p?.fontKey) {
-      await deps.prisma.brandProfile.update({ where: { id: 'brand' }, data: { fontKey: null, fontFamily: null, updatedById: actor.id } });
-      await deps.storage.deleteObject(p.fontKey).catch(() => undefined);
-      await audit(deps, actor, 'brand.font.remove', 'brand', 'brand', {});
+    const assets = assetsOf(p?.assets);
+    const old = role === 'body' ? p?.fontKey : assets[role]?.key;
+    if (p && old) {
+      if (role === 'body') await deps.prisma.brandProfile.update({ where: { id: 'brand' }, data: { fontKey: null, fontFamily: null, updatedById: actor.id } });
+      else { const next = { ...assets }; delete next[role]; await saveAssets(next, actor.id); }
+      await deps.storage.deleteObject(old).catch(() => undefined);
+      await audit(deps, actor, 'brand.font.remove', 'brand', 'brand', { role });
+    }
+    return c.json(await view());
+  });
+
+  // Brand artwork for the decoration: a PNG, JPEG or WebP picture whose bytes say so. Never SVG (it can carry script) and never
+  // GIF; the engine checks the bytes again when it embeds the picture as a data: URI.
+  app.post('/artwork', async (c) => {
+    const actor = c.get('user');
+    const { file } = await readFile(c);
+    if (file.size > MAX_ARTWORK_BYTES) throw new HttpError(413, 'The artwork is larger than 4 MB');
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const kind = sniffImage(bytes);
+    if (!kind || !['image/png', 'image/jpeg', 'image/webp'].includes(kind.type)) throw new HttpError(415, 'The artwork must be a PNG, JPEG or WebP picture');
+    const p = await ensureProfile(actor.id);
+    const assets = assetsOf(p.assets);
+    const key = privateKey('brand', `artwork.${kind.ext}`);
+    await deps.storage.putObject(key, bytes, kind.type);
+    await saveAssets({ ...assets, artwork: { key, type: kind.type as 'image/png' | 'image/jpeg' | 'image/webp' } }, actor.id);
+    if (assets.artwork) await deps.storage.deleteObject(assets.artwork.key).catch(() => undefined);
+    await audit(deps, actor, 'brand.artwork.upload', 'brand', 'brand', { type: kind.type, bytes: bytes.length });
+    return c.json(await view());
+  });
+
+  app.get('/artwork', async (c) => {
+    const a = assetsOf((await profile())?.assets).artwork;
+    if (!a) throw notFound();
+    const body = await deps.storage.getObject(a.key);
+    return c.body(new Uint8Array(body), 200, { 'content-type': a.type, 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' });
+  });
+
+  app.delete('/artwork', async (c) => {
+    const actor = c.get('user');
+    const p = await profile();
+    const assets = assetsOf(p?.assets);
+    if (p && assets.artwork) {
+      const next = { ...assets };
+      delete next.artwork;
+      await saveAssets(next, actor.id);
+      await deps.storage.deleteObject(assets.artwork.key).catch(() => undefined);
+      await audit(deps, actor, 'brand.artwork.remove', 'brand', 'brand', {});
     }
     return c.json(await view());
   });
@@ -264,6 +349,12 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
       notes.push(`The pack's label font "${packFont.mono}" is not built in; labels use ${String(baseFont.mono)}.`);
       delete packFont.mono;
     }
+    for (const k of ['display', 'label'] as const) {
+      const f = (brand as { font?: Record<string, unknown> }).font?.[k];
+      if (typeof f === 'string' && f !== family && f !== packFont.mono && f !== baseFont.family && f !== baseFont.mono) notes.push(`The pack's ${k === 'display' ? 'headline' : 'label'} font "${f}" is not built in. Upload its .woff2 under Type to use it.`);
+    }
+    const packStyle = (brand as { style?: { decoration?: { kind?: unknown } } }).style;
+    if (packStyle?.decoration?.kind === 'artwork') notes.push('The pack uses brand artwork. Upload the picture under Surfaces and decoration to show it.');
     if (family && fontBytes) delete packFont.family;
     const settings = { ...split.settings, logo: { wordmarkFrom: Math.min(split.settings.logo.wordmarkFrom, fullSize.width - 1), markGap: split.settings.logo.markGap } };
     const candidate = brandFromProfile({ settings, advanced: split.advanced as Prisma.JsonValue, logoFullWidth: fullSize.width, logoFullHeight: fullSize.height, fontFamily: fontBytes ? family : null }, settings);

@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { CreateAiOptions } from './ai.js';
 import { importAiPackage } from './engine/root.js';
 import { pipelineEngine } from './engine/pipeline.js';
-import { brandState, contrast, contrastChecks, expandBrand, mergeAdvanced, mix, paletteChanges, resetBrandState, settingsFromBrand, syncBrand, baseBrand, type BrandSettings } from './services/brand-settings.js';
+import { brandSettingsSchema, brandState, contrast, contrastChecks, expandBrand, mergeAdvanced, mix, paletteChanges, resetBrandState, settingsFromBrand, syncBrand, baseBrand, type BrandSettings } from './services/brand-settings.js';
 import { renderPost } from './services/render.js';
 import { seedBatch } from './testing-desk.js';
 import { createTestApp, type TestApp } from './testing.js';
@@ -34,13 +34,15 @@ beforeEach(async () => {
 const DEMO = (f: string) => fs.readFileSync(path.join(root, 'brands', 'demo', 'logos', f));
 const INTER = () => fs.readFileSync(path.join(root, 'packages', 'engine', 'design', 'fonts', 'inter-v20-latin.woff2'));
 
-const SETTINGS: BrandSettings = {
+// Written as settings were saved before the style layer: older ground names, no roles, no style.
+const SETTINGS_BEFORE = {
   name: 'Globex Garden', website: 'globex.example', tagline: 'Grow with us.', descriptor: 'A fictional garden centre.', timezone: 'America/New_York',
   language: 'American English', money: null, colours: { primary: '#2E7D32', accent: '#F9A825', dark: '#1B2A1E', light: '#F3F7F2' },
   headlineWeight: 500, corners: 'round', series: [{ key: 'tips', name: 'Garden tips', ground: 'white', accent: 'colour' }, { key: 'news', name: 'News', ground: 'tint', accent: 'muted' }],
   spellings: [{ wrong: 'GlobexGarden', right: 'Globex Garden' }], voice: 'Friendly and practical.', visualDirection: 'Airy pages, one plant photo, lots of white.',
   logo: { wordmarkFrom: 0, markGap: 0 },
 };
+const SETTINGS: BrandSettings = brandSettingsSchema.parse(SETTINGS_BEFORE);
 
 async function admin() {
   return t.api(await t.signIn(await t.createUser('admin')));

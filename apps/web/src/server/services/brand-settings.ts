@@ -23,7 +23,11 @@ import { logger, describeError } from '../log.js';
 
 interface EngineCore { ROOT: string; DEFAULT_BRAND_DIR: string; brandDir(opts?: { root?: string; env?: Record<string, string | undefined> }): string }
 interface EngineBrand { validateBrand(b: unknown): string[]; mapProblems(m: unknown): string[]; canonicalGrounds(g: unknown): Record<string, string> }
-interface EngineTokens { GROUND_NAMES: string[]; ACCENT_STYLES: string[]; SERIES_KEY: RegExp; groundName(g: unknown): string | null; isDarkColour(hex: string): boolean }
+interface EngineTokens {
+  GROUND_NAMES: string[]; ACCENT_STYLES: string[]; SERIES_KEY: RegExp; groundName(g: unknown): string | null; isDarkColour(hex: string): boolean;
+  TYPE_CASES: string[]; ACCENT_DEVICES: string[]; SURFACES: string[]; DECORATIONS: string[]; DECORATION_ON: string[]; ARTWORK_FITS: string[];
+  PHOTO_TREATMENTS: string[]; STYLE_COLOURS: string[]; LOGO_PLACES: string[]; FOOTERS: string[];
+}
 
 const core = await engineImport<EngineCore>('core');
 const engineBrand = await engineImport<EngineBrand>('design/brand');
@@ -43,6 +47,60 @@ const validPattern = (p: string) => { try { new RegExp(p, 'i'); return true; } c
 export const CORNERS = ['square', 'soft', 'round'] as const;
 export const HEADLINE_WEIGHTS = [300, 400, 500, 600, 700] as const;
 
+// ---- the style layer in the form ----
+// The engine's own lists (lib/design/tokens.mjs), so the form can only hold what brand.json accepts.
+const list = (values: string[], what: string) => z.string().refine((v) => values.includes(v), `Choose one of ${values.join(', ')} for ${what}`);
+// The colour roles, set one by one. Each is optional: a role left out is made from the four colours (and, for text, fitted
+// for contrast); a role that is set is used exactly as it is, and the checks say whether it reads.
+export const ROLE_KEYS = {
+  grounds: tokens.GROUND_NAMES,
+  text: ['ink', 'body', 'muted', 'inverse', 'invBody', 'mutedInv'],
+  accents: ['primary', 'gold', 'goldDeep'],
+  surfaces: ['panel', 'card', 'outline'],
+  slabs: ['myth', 'fact'],
+} as const;
+type RoleGroup = keyof typeof ROLE_KEYS;
+const roleGroup = (keys: readonly string[]) => z.object(Object.fromEntries(keys.map((k) => [k, hex.optional()]))).strict().prefault({});
+export const rolesSchema = z.object({
+  grounds: roleGroup(ROLE_KEYS.grounds), text: roleGroup(ROLE_KEYS.text), accents: roleGroup(ROLE_KEYS.accents),
+  surfaces: roleGroup(ROLE_KEYS.surfaces), slabs: roleGroup(ROLE_KEYS.slabs),
+}).strict().prefault({});
+export type BrandRoles = z.infer<typeof rolesSchema>;
+
+const tracking = z.number().min(-0.1).max(0.3).nullable().default(null);
+const weight = z.number().int().min(100).max(900).nullable().default(null);
+// Where each type role's font comes from: headlines in the body font, the label font or a display font of their own; labels in
+// the built-in mono, the body font or a label font of their own. "own" needs its .woff2 uploaded (until then the default is used).
+export const DISPLAY_FONTS = ['body', 'label', 'own'] as const;
+export const LABEL_FONTS = ['mono', 'body', 'own'] as const;
+export const styleSettingsSchema = z.object({
+  type: z.object({
+    display: z.object({ font: z.enum(DISPLAY_FONTS).default('body'), case: list(tokens.TYPE_CASES, 'the case').default('as-typed'), tracking, weight }).strict().prefault({}),
+    body: z.object({ case: list(tokens.TYPE_CASES, 'the case').default('as-typed'), tracking, weight }).strict().prefault({}),
+    label: z.object({ font: z.enum(LABEL_FONTS).default('mono'), case: list(tokens.TYPE_CASES, 'the case').default('upper'), tracking, weight }).strict().prefault({}),
+    scale: z.number().min(0.8).max(1.25).default(1),
+    accent: list(tokens.ACCENT_DEVICES, 'the accent').default('series'),
+  }).strict().prefault({}),
+  surface: list(tokens.SURFACES, 'the surfaces').default('shadow'),
+  decoration: z.object({
+    kind: list(tokens.DECORATIONS, 'the decoration').default('auto'),
+    on: list(tokens.DECORATION_ON, 'where it goes').default('dark'),
+    alpha: z.number().min(0.01).max(0.4).nullable().default(null),
+    fit: list(tokens.ARTWORK_FITS, 'the artwork').default('cover'),
+    opacity: z.number().min(0.05).max(1).default(1),
+  }).strict().prefault({}),
+  photo: z.object({
+    treatment: list(tokens.PHOTO_TREATMENTS, 'the photo treatment').default('none'),
+    strength: z.number().min(0).max(1).default(0.5),
+    colour: list(tokens.STYLE_COLOURS, 'the colour').default('primary'),
+    shadows: list(tokens.STYLE_COLOURS, 'the shadows').default('dark'),
+    highlights: list(tokens.STYLE_COLOURS, 'the highlights').default('light'),
+  }).strict().prefault({}),
+  logo: list(tokens.LOGO_PLACES, 'the logo').default('auto'),
+  footer: list(tokens.FOOTERS, 'the footer').default('website'),
+}).strict().prefault({});
+export type StyleSettings = z.infer<typeof styleSettingsSchema>;
+
 export const brandSettingsSchema = z.object({
   name: line(80).pipe(z.string().min(1, 'Give the brand a name')),
   website: line(120).pipe(z.string().min(1, 'Give the website people should visit (it is printed on posts)')),
@@ -54,9 +112,12 @@ export const brandSettingsSchema = z.object({
     local: line(200).pipe(z.string().min(1)),
     foreign: z.string().trim().max(300).refine(validPattern, 'This is not a valid pattern'),
   }).nullable().default(null),
+  // The four colours every role starts from ("Start from four colours"); roles may then be set one by one.
   colours: z.object({ primary: hex, accent: hex, dark: hex, light: hex }).strict(),
+  roles: rolesSchema,
   headlineWeight: z.number().int().refine((n) => (HEADLINE_WEIGHTS as readonly number[]).includes(n), 'Choose a weight from 300 to 700'),
   corners: z.enum(CORNERS),
+  style: styleSettingsSchema,
   series: z.array(z.object({
     key: z.string().regex(tokens.SERIES_KEY, 'Use lowercase letters, digits and -'),
     name: line(40).pipe(z.string().min(1)),
@@ -73,6 +134,7 @@ export const brandSettingsSchema = z.object({
 }).strict();
 
 export type BrandSettings = z.infer<typeof brandSettingsSchema>;
+export type BrandSettingsInput = z.input<typeof brandSettingsSchema>;
 
 type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -113,53 +175,100 @@ export function baseBrand(): Json {
   return JSON.parse(fs.readFileSync(path.join(core.ROOT, core.DEFAULT_BRAND_DIR, 'brand.json'), 'utf8')) as Json;
 }
 
-// The full brand.json the settings describe. Logos and font files are filled in by the caller.
+// The full brand.json the settings describe. Logos and font files are filled in by the caller (applyAssets).
+//
+// Colours: every role starts from the four colours. A role the settings set (roles.*) is used exactly as it is. Every text
+// colour that is not set is fitted to the page colours it is set on, so the design checks pass with the brand's own colours: a
+// colour that already reads is kept exactly; one that does not is moved towards black (on light pages) or white (on dark pages)
+// only as far as it must. Which grounds are light and which dark is worked out from their colours, as the engine does.
+// paletteChanges() tells people which derived colours moved; contrastChecks() shows whether the ones they set read.
 export function expandBrand(s: BrandSettings, base: Json = baseBrand()): Json {
   const b = structuredClone(base);
   const { primary, accent, dark, light } = s.colours;
+  const R = s.roles as { [G in RoleGroup]: Record<string, string | undefined> };
   Object.assign(b, { name: s.name, website: s.website, tagline: s.tagline, timezone: s.timezone, language: s.language });
   if (s.descriptor) b.descriptor = s.descriptor; else delete b.descriptor;
   if (s.money) b.money = s.money; else delete b.money;
   for (const [k, v] of [['voice', s.voice], ['visualDirection', s.visualDirection]] as const) { if (v) b[k] = v; else delete b[k]; }
   delete b.references;
-  // Every text colour is fitted to the page colours it is set on, so the design checks pass with the brand's own colours:
-  // a colour that already reads is kept exactly; one that does not is moved towards black (on light pages) or white (on dark
-  // pages) only as far as it must. paletteChanges() tells people which colours moved.
   const limits = (isObj(base.contrast) ? base.contrast : {}) as Record<string, number>;
   const need = (k: string) => (typeof limits[k] === 'number' ? limits[k] : 4.5) + 0.1;
-  const mint = mix(primary, WHITE, 0.12), goldPale = mix(accent, WHITE, 0.14);
-  const lights = [WHITE, light, mint, goldPale];
-  const ink = fitContrast(dark, lights, need('headline'), BLACK);
-  const textPrimary = fitContrast(primary, lights, need('accent'), BLACK);
-  const deep = fitContrast(mix(dark, textPrimary, 0.78), [WHITE], need('headline'), BLACK);
-  const slabMyth = fitContrast(mix(dark, textPrimary, 0.85), [WHITE], need('headline'), BLACK);
-  const darks = [ink, deep, slabMyth];
-  const gold = fitContrast(accent, darks, need('accent'), WHITE);
-  b.grounds = { light: WHITE, soft: light, cool: mint, warm: goldPale, dark: ink, deep };
+  const isDark = (c: string) => tokens.isDarkColour(c);
+  // The page grounds people usually keep light, as set or made from the four colours.
+  const light4 = { light: R.grounds.light ?? WHITE, soft: R.grounds.soft ?? light, cool: R.grounds.cool ?? mix(primary, WHITE, 0.12), warm: R.grounds.warm ?? mix(accent, WHITE, 0.14) };
+  const lightsFirst = Object.values(light4).filter((c) => !isDark(c));
+  const ink = fitContrast(dark, lightsFirst, need('headline'), BLACK);
+  const textPrimary = R.accents.primary ?? fitContrast(primary, lightsFirst, need('accent'), BLACK);
+  const inverse = R.text.inverse ?? WHITE;
+  const groundDark = R.grounds.dark ?? ink;
+  const deep = R.grounds.deep ?? fitContrast(mix(groundDark, textPrimary, 0.78), [inverse], need('headline'), BLACK);
+  const slabMyth = R.slabs.myth ?? fitContrast(mix(groundDark, textPrimary, 0.85), [inverse], need('headline'), BLACK);
+  b.grounds = { ...light4, dark: groundDark, deep };
+  // Text is fitted to every surface it is set on: the grounds, and the two slabs of a myth-and-fact page.
+  const slabFact = R.slabs.fact ?? light4.cool;
+  const groundList = [...Object.values(b.grounds as Record<string, string>), slabFact];
+  const lights = groundList.filter((c) => !isDark(c)), darks = [...groundList.filter(isDark), slabMyth];
+  const textInk = R.text.ink ?? (R.grounds.light || R.grounds.soft || R.grounds.cool || R.grounds.warm ? fitContrast(dark, lights, need('headline'), BLACK) : ink);
   b.text = {
-    ink,
-    body: fitContrast(mix(ink, WHITE, 0.85), lights, need('sub'), BLACK),
-    muted: fitContrast(mix(ink, WHITE, 0.7), lights, need('label'), BLACK),
-    mutedInv: fitContrast(mix(WHITE, ink, 0.62), darks, need('label'), WHITE),
-    invBody: fitContrast(mix(WHITE, ink, 0.82), darks, need('sub'), WHITE),
-    hair: { color: ink, alpha: 0.12 },
+    ink: textInk,
+    body: R.text.body ?? fitContrast(mix(textInk, WHITE, 0.85), lights, need('sub'), BLACK),
+    muted: R.text.muted ?? fitContrast(mix(textInk, WHITE, 0.7), lights, need('label'), BLACK),
+    mutedInv: R.text.mutedInv ?? fitContrast(mix(WHITE, textInk, 0.62), darks, need('label'), WHITE),
+    invBody: R.text.invBody ?? fitContrast(mix(WHITE, textInk, 0.82), darks, need('sub'), WHITE),
+    hair: { color: textInk, alpha: 0.12 },
+    ...(R.text.inverse ? { inverse: R.text.inverse } : {}),
   };
-  b.accents = { gold, goldDeep: fitContrast(mix(accent, dark, 0.55), lights, need('accent'), BLACK), primary: textPrimary };
+  b.accents = {
+    gold: R.accents.gold ?? fitContrast(accent, darks, need('accent'), WHITE),
+    goldDeep: R.accents.goldDeep ?? fitContrast(mix(accent, dark, 0.55), lights, need('accent'), BLACK),
+    primary: textPrimary,
+  };
   b.gradient = { sage: mix(primary, dark, 0.7), teal: primary, mint: mix(primary, WHITE, 0.5), gold: accent, amber: mix(accent, dark, 0.85) };
-  b.surfaces = { panel: light, card: WHITE, line: { color: ink, alpha: 0.08 } };
+  b.surfaces = { panel: R.surfaces.panel ?? light, card: R.surfaces.card ?? WHITE, line: { color: textInk, alpha: 0.08 }, ...(R.surfaces.outline ? { outline: R.surfaces.outline } : {}) };
   const shadows = (isObj(base.shadows) ? base.shadows : {}) as Record<string, Array<Json>>;
-  b.shadows = Object.fromEntries(Object.entries(shadows).map(([k, layers]) => [k, layers.map((l) => ({ ...l, color: ink }))]));
+  b.shadows = Object.fromEntries(Object.entries(shadows).map(([k, layers]) => [k, layers.map((l) => ({ ...l, color: textInk }))]));
   const r = RADII[s.corners];
   b.radius = { card: r.card, device: r.device, button: r.button };
   const font = { ...(base.font as Json) };
   font.headlineWeight = s.headlineWeight;
   font.accentWeight = Math.max(100, s.headlineWeight - 100);
   b.font = font;
-  b.poster = { ...(base.poster as Json), headlineWeight: Math.min(900, s.headlineWeight + 200), slabs: { myth: slabMyth, fact: mint }, slabRadius: r.slab };
+  b.poster = { ...(base.poster as Json), headlineWeight: Math.min(900, s.headlineWeight + 200), slabs: { myth: slabMyth, fact: slabFact }, slabRadius: r.slab };
   b.series = Object.fromEntries(s.series.map((x) => [x.key, { name: x.name, ground: tokens.groundName(x.ground) ?? x.ground, accent: x.accent }]));
   b.spelling = s.spellings.map((x) => ({ wrong: escapeRe(x.wrong), flags: '', right: x.right }));
   b.logos = { ...(base.logos as Json), wordmarkFrom: s.logo.wordmarkFrom, markGap: s.logo.markGap };
+  b.style = engineStyle(s.style);
   return b;
+}
+
+// The settings' style as the engine's brand.json `style` block (only the fields the engine knows; nothing unset is written).
+// The font choices are the settings' own: applyAssets turns them into font families and files.
+export function engineStyle(st: StyleSettings): Json {
+  const role = (t: { case: string; tracking: number | null; weight: number | null }) => ({ case: t.case, ...(t.tracking !== null ? { tracking: t.tracking } : {}), ...(t.weight !== null ? { weight: t.weight } : {}) });
+  const d = st.decoration;
+  return {
+    type: { display: role(st.type.display), body: role(st.type.body), label: role(st.type.label), scale: st.type.scale, accent: st.type.accent },
+    surface: st.surface,
+    // Artwork needs its picture; applyAssets adds its path when one is uploaded, and leaves the page plain until then.
+    decoration: { kind: d.kind === 'artwork' ? 'none' : d.kind, on: d.on, fit: d.fit, opacity: d.opacity, ...(d.alpha !== null ? { alpha: d.alpha } : {}) },
+    photo: { ...st.photo },
+    logo: st.logo,
+    footer: st.footer,
+  };
+}
+
+// The engine's style block read back into the form (an imported pack's look, or the configured pack before anything is saved).
+export function styleSettingsFrom(style: unknown): StyleSettings {
+  const s = isObj(style) ? style : {};
+  const t = isObj(s.type) ? s.type : {};
+  const role = (v: unknown) => (isObj(v) ? { case: v.case, tracking: v.tracking ?? null, weight: v.weight ?? null } : {});
+  const d = isObj(s.decoration) ? s.decoration : {};
+  const parsed = styleSettingsSchema.safeParse({
+    type: { display: role(t.display), body: role(t.body), label: role(t.label), scale: t.scale, accent: t.accent },
+    surface: s.surface, decoration: { kind: d.kind === 'artwork' ? 'none' : d.kind, on: d.on, fit: d.fit, opacity: d.opacity, alpha: d.alpha ?? null },
+    photo: s.photo, logo: s.logo, footer: s.footer,
+  });
+  return parsed.success ? parsed.data : styleSettingsSchema.parse({});
 }
 
 // The settings that describe a brand.json as closely as the form can (used to fill the form before anything is saved).
@@ -177,6 +286,8 @@ export function settingsFromBrand(b: Json): BrandSettings {
     colours: { primary: g(b.accents, 'primary', '#2F5BB7'), accent: g(b.accents, 'gold', '#F0805F'), dark: g(b.text, 'ink', '#14213D'), light: g(grounds, 'soft', '#F5F7FB') },
     headlineWeight: (HEADLINE_WEIGHTS as readonly number[]).reduce((best, w) => (Math.abs(w - weight) < Math.abs(best - weight) ? w : best), 400),
     corners: radius <= 4 ? 'square' : radius >= 16 ? 'round' : 'soft',
+    roles: {},
+    style: styleSettingsFrom(b.style),
     series: series.length ? series : [{ key: 'posts', name: 'Posts', ground: 'light', accent: 'muted' }],
     spellings: [],
     voice: typeof b.voice === 'string' ? b.voice : '',
@@ -185,8 +296,9 @@ export function settingsFromBrand(b: Json): BrandSettings {
   });
 }
 
-// Deep merge of an Advanced fragment over the generated brand. Lists and plain values replace; logo and font files never do.
-const MANAGED = new Set(['logos.full', 'logos.mark', 'logos.fullSize', 'font.files', 'references']);
+// Deep merge of an Advanced fragment over the generated brand. Lists and plain values replace; logo, font and artwork files (and
+// the display and label families, which need their files) never do: they come from the uploads.
+const MANAGED = new Set(['logos.full', 'logos.mark', 'logos.fullSize', 'font.files', 'font.display', 'font.label', 'style.decoration.artwork', 'references']);
 export function mergeAdvanced(target: Json, extra: Json, at = ''): Json {
   for (const [k, v] of Object.entries(extra)) {
     const where = at ? `${at}.${k}` : k;
@@ -213,55 +325,118 @@ export const advancedSchema = z.object({
 
 // A whole brand.json (a brand pack's) split for the database: the settings the form can show, and the rest kept as the
 // Advanced fragment so the pack's exact colours, shadows, type and rules survive. Logo and font file paths are dropped.
-const IDENTITY_KEYS = ['name', 'website', 'tagline', 'descriptor', 'timezone', 'language', 'money', 'series', 'voice', 'visualDirection', 'references', 'logos'];
+// The pack's style block becomes the form's style settings (so it can be edited there), not part of the fragment.
+const IDENTITY_KEYS = ['name', 'website', 'tagline', 'descriptor', 'timezone', 'language', 'money', 'series', 'voice', 'visualDirection', 'references', 'logos', 'style'];
 export function splitPackBrand(b: Json): { settings: BrandSettings; advanced: Json } {
   const settings = settingsFromBrand(b);
   const advanced: Json = {};
   for (const [k, v] of Object.entries(b)) if (!IDENTITY_KEYS.includes(k) && !k.startsWith('_')) advanced[k] = structuredClone(v);
-  if (isObj(advanced.font)) delete (advanced.font as Json).files;
+  // The pack's font files are paths inside its folder, which an upload does not carry; the display and label families need them.
+  if (isObj(advanced.font)) for (const k of ['files', 'display', 'label']) delete (advanced.font as Json)[k];
   return { settings, advanced };
 }
 
-// The colour pairs the design checks care about most, with the ratio each needs (from the brand's contrast limits).
-export interface ContrastCheck { label: string; ratio: number; needs: number; ok: boolean }
+// The colour pairs the design checks care about most, with the ratio each needs (from the brand's contrast limits). `set` is
+// true when the text or the page colour of the pair is one people set themselves: such a colour is never adjusted, so a pair
+// that fails stays failing until they change it.
+export interface ContrastCheck { label: string; ratio: number; needs: number; ok: boolean; set?: boolean }
+
+// The roles people set themselves, as "group.key" (grounds.cool, text.ink ...).
+// (The fact slab is the cool ground unless it is set itself, so a cool ground people set is theirs on the slab too.)
+export function explicitRoles(s: Pick<BrandSettings, 'roles'>): string[] {
+  const out = Object.entries(s.roles as Record<string, Record<string, string | undefined>>).flatMap(([g, o]) => Object.entries(o).filter(([, v]) => !!v).map(([k]) => `${g}.${k}`));
+  return out.includes('grounds.cool') && !out.includes('slabs.fact') ? [...out, 'slabs.fact'] : out;
+}
 
 // Every pair of text and page colour the templates draw, with the ratio the design checks need (the brand's contrast
 // limits): headlines, sub lines, labels and accent words on each ground, and on the two slabs of a myth-and-fact page.
-export function contrastChecks(b: Json): ContrastCheck[] {
+export function contrastChecks(b: Json, explicit: string[] = []): ContrastCheck[] {
   const grounds = engineBrand.canonicalGrounds(b.grounds), text = b.text as Record<string, string>, accents = b.accents as Record<string, string>;
   const inverse = text.inverse ?? (tokens.isDarkColour(grounds.light ?? WHITE) ? WHITE : grounds.light ?? WHITE);
   const limits = b.contrast as Record<string, number>;
   const slabs = (isObj(b.poster) && isObj(b.poster.slabs) ? b.poster.slabs : {}) as Record<string, string>;
   const out: ContrastCheck[] = [];
-  const add = (label: string, fg: string, bg: string, needs: number) => {
+  const set = new Set(explicit);
+  const add = (label: string, fg: string, fgRole: string, bg: string, bgRole: string, needs: number) => {
     if (!bg || !fg) return;
     const ratio = contrast(fg, bg);
-    out.push({ label, ratio, needs, ok: ratio >= needs });
+    out.push({ label, ratio, needs, ok: ratio >= needs, ...(set.has(fgRole) || set.has(bgRole) ? { set: true } : {}) });
   };
-  const surfaces: Array<[string, string, boolean]> = [
+  const surfaces: Array<[string, string, string, boolean]> = [
     // Which grounds are dark is worked out from their colours, as the engine does.
-    ...tokens.GROUND_NAMES.map((g): [string, string, boolean] => [`the ${g} ground`, grounds[g]!, !!grounds[g] && tokens.isDarkColour(grounds[g]!)]),
-    ['the myth slab', slabs.myth!, true],
-    ['the fact slab', slabs.fact!, false],
+    ...tokens.GROUND_NAMES.map((g): [string, string, string, boolean] => [`the ${g} ground`, grounds[g]!, `grounds.${g}`, !!grounds[g] && tokens.isDarkColour(grounds[g]!)]),
+    ['the myth slab', slabs.myth!, 'slabs.myth', true],
+    ['the fact slab', slabs.fact!, 'slabs.fact', false],
   ];
-  for (const [where, bg, dark] of surfaces) {
-    add(`Headline on ${where}`, dark ? inverse : text.ink!, bg, limits.headline!);
-    add(`Sub line on ${where}`, dark ? text.invBody! : text.body!, bg, limits.sub!);
-    add(`Labels on ${where}`, dark ? text.mutedInv! : text.muted!, bg, limits.label!);
-    add(`Accent words on ${where}`, dark ? accents.gold! : accents.primary!, bg, limits.accent!);
+  for (const [where, bg, bgRole, dark] of surfaces) {
+    add(`Headline on ${where}`, dark ? inverse : text.ink!, dark ? 'text.inverse' : 'text.ink', bg, bgRole, limits.headline!);
+    add(`Sub line on ${where}`, dark ? text.invBody! : text.body!, dark ? 'text.invBody' : 'text.body', bg, bgRole, limits.sub!);
+    add(`Labels on ${where}`, dark ? text.mutedInv! : text.muted!, dark ? 'text.mutedInv' : 'text.muted', bg, bgRole, limits.label!);
+    add(`Accent words on ${where}`, dark ? accents.gold! : accents.primary!, dark ? 'accents.gold' : 'accents.primary', bg, bgRole, limits.accent!);
   }
   return out;
 }
 
-// The colours the expansion had to move for readability: what was asked for and what posts use as text.
+// The colours the expansion had to move for readability: what was asked for and what posts use as text. A role people set
+// themselves is never moved, so it is never listed here.
 export function paletteChanges(s: BrandSettings, b: Json): Array<{ colour: 'primary' | 'accent' | 'dark'; from: string; to: string }> {
   const accents = (b.accents ?? {}) as Record<string, string>, text = (b.text ?? {}) as Record<string, string>;
+  const set = new Set(explicitRoles(s));
   const out: Array<{ colour: 'primary' | 'accent' | 'dark'; from: string; to: string }> = [];
-  const add = (colour: 'primary' | 'accent' | 'dark', from: string, to: string | undefined) => { if (to && to.toUpperCase() !== from.toUpperCase()) out.push({ colour, from, to: to.toUpperCase() }); };
-  add('primary', s.colours.primary, accents.primary);
-  add('accent', s.colours.accent, accents.gold);
-  add('dark', s.colours.dark, text.ink);
+  const add = (colour: 'primary' | 'accent' | 'dark', role: string, from: string, to: string | undefined) => { if (!set.has(role) && to && to.toUpperCase() !== from.toUpperCase()) out.push({ colour, from, to: to.toUpperCase() }); };
+  add('primary', 'accents.primary', s.colours.primary, accents.primary);
+  add('accent', 'accents.gold', s.colours.accent, accents.gold);
+  add('dark', 'text.ink', s.colours.dark, text.ink);
   return out;
+}
+
+// ---- the uploaded files of the style layer ----
+
+const assetFont = z.object({ key: z.string().min(1), family: z.string().regex(/^[A-Za-z0-9 _-]{1,40}$/) }).strict();
+export const assetsSchema = z.object({
+  display: assetFont.optional(),
+  label: assetFont.optional(),
+  artwork: z.object({ key: z.string().min(1), type: z.enum(['image/png', 'image/jpeg', 'image/webp']) }).strict().optional(),
+}).strict();
+export type BrandAssets = z.infer<typeof assetsSchema>;
+export const assetsOf = (v: unknown): BrandAssets => { const p = assetsSchema.safeParse(v ?? {}); return p.success ? p.data : {}; };
+const ARTWORK_EXT: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+const PACK = `${STATE_BRAND_DIR}/__PACK__`;
+
+type AssetProfile = Pick<BrandProfile, 'fontKey' | 'fontFamily'> & { assets?: unknown };
+
+// Points the brand at the uploaded files (the body font, the display and label fonts, the artwork), by their paths in the pack
+// folder, and lists what has to be copied there. A choice whose file is not uploaded yet falls back: headlines in the body
+// font, labels in the mono, no artwork.
+export function applyAssets(b: Json, s: BrandSettings, p: AssetProfile): Array<{ name: string; key: string }> {
+  const files: Array<{ name: string; key: string }> = [];
+  const font = b.font as Json;
+  const list = () => (Array.isArray(font.files) ? font.files as Json[] : []);
+  if (p.fontKey && p.fontFamily) {
+    files.push({ name: 'fonts/brand.woff2', key: p.fontKey });
+    font.family = p.fontFamily;
+    font.files = [{ role: 'sans', weight: '100 900', file: `${PACK}/fonts/brand.woff2`, range: 'U+0000-FFFF' }, ...list().filter((f) => f.role === 'mono')];
+  }
+  const A = assetsOf(p.assets);
+  const own = (role: 'display' | 'label') => {
+    const a = A[role];
+    if (!a) return null;
+    files.push({ name: `fonts/${role}.woff2`, key: a.key });
+    font.files = [...list(), { role, weight: '100 900', file: `${PACK}/fonts/${role}.woff2`, range: 'U+0000-FFFF' }];
+    return a.family;
+  };
+  const t = s.style.type;
+  const label = t.label.font === 'own' ? own('label') : t.label.font === 'body' ? font.family as string : null;
+  if (label) font.label = label; else delete font.label;
+  const display = t.display.font === 'own' ? own('display') : t.display.font === 'label' ? (label ?? font.mono as string) : null;
+  if (display) font.display = display; else delete font.display;
+  const style = (b.style ?? {}) as Json, deco = (style.decoration ?? {}) as Json;
+  if (s.style.decoration.kind === 'artwork' && A.artwork) {
+    const name = `artwork/artwork.${ARTWORK_EXT[A.artwork.type]}`;
+    files.push({ name, key: A.artwork.key });
+    style.decoration = { ...deco, kind: 'artwork', artwork: `${PACK}/${name}` };
+  }
+  return files;
 }
 
 // ---- reading the stored brand ----------------------------------------------------------------------------------------------
@@ -291,12 +466,17 @@ export function currentSettings(profile: BrandProfile | null): BrandSettings {
 }
 
 // The brand.json a profile makes (before the logo and font paths are set), with the Advanced fragment merged in.
-export function brandFromProfile(profile: Pick<BrandProfile, 'settings' | 'advanced' | 'logoFullWidth' | 'logoFullHeight' | 'fontFamily'>, settings: BrandSettings = brandSettingsSchema.parse(profile.settings)): Json {
+// The uploaded fonts and artwork are pointed at by their paths in the pack folder (applyAssets), so the brand checked here is the
+// one that is written; `files` says what to copy into the folder.
+type ProfileFields = Pick<BrandProfile, 'settings' | 'advanced' | 'logoFullWidth' | 'logoFullHeight' | 'fontFamily'> & Partial<Pick<BrandProfile, 'fontKey' | 'assets'>>;
+export function brandAndFiles(profile: ProfileFields, settings: BrandSettings = brandSettingsSchema.parse(profile.settings)): { brand: Json; files: Array<{ name: string; key: string }> } {
   const b = expandBrand(settings);
   if (isObj(profile.advanced)) mergeAdvanced(b, canonicalAdvanced(profile.advanced));
   if (profile.logoFullWidth && profile.logoFullHeight) (b.logos as Json).fullSize = [profile.logoFullWidth, profile.logoFullHeight];
-  return b;
+  const files = applyAssets(b, settings, { fontKey: profile.fontKey ?? null, fontFamily: profile.fontFamily, assets: profile.assets });
+  return { brand: b, files };
 }
+export const brandFromProfile = (profile: ProfileFields, settings?: BrandSettings): Json => brandAndFiles(profile, settings).brand;
 
 // What is wrong with a brand.json, in the engine's words.
 export const brandProblems = (b: Json): string[] => engineBrand.validateBrand(b);
@@ -359,7 +539,6 @@ function writePack(brand: Json, files: Array<{ name: string; body: Buffer }>, fi
   return rel(final);
 }
 
-const PACK = `${STATE_BRAND_DIR}/__PACK__`;
 
 async function materialise(deps: Deps, snap: BrandSnapshot): Promise<BrandState> {
   const key = snapshotKey(snap);
@@ -379,7 +558,8 @@ async function materialise(deps: Deps, snap: BrandSnapshot): Promise<BrandState>
     };
   } else {
     const p = snap.profile;
-    brand = brandFromProfile(p);
+    const made = brandAndFiles(p);
+    brand = made.brand;
     const logos = brand.logos as Json;
     if (p.logoFullKey && p.logoMarkKey) {
       files.push({ name: 'logos/logo-full.png', body: await deps.storage.getObject(p.logoFullKey) });
@@ -390,13 +570,8 @@ async function materialise(deps: Deps, snap: BrandSnapshot): Promise<BrandState>
       // The demo logos keep the brand file valid for the AI and the checks; rendering refuses until real ones are uploaded.
       logosMissing = true;
     }
-    if (p.fontKey && p.fontFamily) {
-      files.push({ name: 'fonts/brand.woff2', body: await deps.storage.getObject(p.fontKey) });
-      const font = brand.font as Json;
-      font.family = p.fontFamily;
-      const mono = (Array.isArray(font.files) ? font.files as Json[] : []).filter((f) => f.role === 'mono');
-      font.files = [{ role: 'sans', weight: '100 900', file: `${PACK}/fonts/brand.woff2`, range: 'U+0000-FFFF' }, ...mono];
-    }
+    // The uploaded fonts (body, display, label) and the artwork, already named in the brand by applyAssets.
+    for (const f of made.files) files.push({ name: f.name, body: await deps.storage.getObject(f.key) });
     if (p.map) files.push({ name: 'map.json', body: Buffer.from(JSON.stringify(p.map)) });
   }
   if (refs.length) brand.references = refs;
