@@ -89,7 +89,9 @@ export interface Palette {
 export interface BrandLook { checks: ContrastCheck[]; changes: PaletteChange[]; palette: Palette; explicit: string[] }
 
 export type FontRole = 'body' | 'display' | 'label';
-export interface FontSource { family: string; source: 'upload' | 'google'; google?: { family: string; weight: number }; file: string }
+// A Google font: the weights it brought, and the weights the brand now draws its role at that it was stored without (the
+// nearest stored weight stands in until it is picked again).
+export interface FontSource { family: string; source: 'upload' | 'google'; google?: { family: string; weights: number[]; missing: number[] }; file: string }
 // One family of the curated Google Fonts list (GET /api/settings/brand/google-fonts; services/google-fonts.ts on the server).
 export interface GoogleFont { family: string; category: string; weights: number[]; licence: 'OFL-1.1' | 'Apache-2.0'; note: string }
 export const GOOGLE_CATEGORY_LABEL: Record<string, string> = { sans: 'Sans serif', serif: 'Serif', display: 'Display', condensed: 'Condensed', mono: 'Monospace', handwriting: 'Handwriting' };

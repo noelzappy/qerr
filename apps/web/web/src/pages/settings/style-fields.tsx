@@ -95,7 +95,7 @@ function TypeRoleFields({ title, hint, role, onChange, font }: { title: string; 
 
 export function TypeFields({ style, onChange, fonts, version, busy, onUpload, onGoogle, onRemove }: {
   style: StyleSettings; onChange: (t: StyleSettings['type']) => void; fonts: Record<FontRole, FontSource | null>; version: string;
-  busy: string; onUpload: (role: FontRole, f: File, family: string) => void; onGoogle: (role: FontRole, family: string, weight: number) => void; onRemove: (role: FontRole) => void;
+  busy: string; onUpload: (role: FontRole, f: File, family: string) => void; onGoogle: (role: FontRole, family: string) => void; onRemove: (role: FontRole) => void;
 }) {
   const t = style.type;
   const font = (role: FontRole) => <RoleFont role={role} current={fonts[role]} version={version} busy={busy} onUpload={onUpload} onGoogle={onGoogle} onRemove={onRemove} />;
