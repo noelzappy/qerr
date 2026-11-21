@@ -440,7 +440,7 @@ test('draftBatch: a good post passes, the vault photo is resolved by id, the bat
   assert.deepEqual(p.warnings, []);
   assert.deepEqual(batch.defaultNetworks, ['instagram', 'linkedin', 'facebook', 'x']);
   assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
-  assert.equal(notes.promptVersion, 'draft-9');
+  assert.equal(notes.promptVersion, 'draft-10');
   assert.equal(notes.model, 'claude-sonnet-5-5');
   assert.equal(notes.seriesMix['the-numbers'], 1);
   assert.equal(notes.usage.costUsd > 0, true);
@@ -1047,6 +1047,42 @@ test('draftBatch: a layout post is checked against the layout it names', async (
 test('draftBatch: without layouts in the brand, template "layout" is not allowed', async () => {
   const { ai } = draftWith([splitPost()]);
   await assert.rejects(ai.draftBatch(req()), (e) => e.code === 'no_valid_posts' && e.notes.rejected[0].reasons.some((r) => /template "layout" is not allowed/.test(r)));
+});
+
+// A carousel whose pages are the brand's layouts (and a poster page), as the prompt offers them.
+const layoutCarousel = (pages) => good({
+  id: '05-steps', caption: 'Swipe to see how a group keeps its record.\n\n3,900+ members saving daily.\n\n#AcmeSavings',
+  design: { template: 'carousel', series: 'the-numbers', pages: pages ?? [
+    { template: 'layout', layout: 'split', image: 'vault:ph-1', headline: 'Real money, *every day.*', sub: 'Members save at the market stall.' },
+    { template: 'layout', layout: 'figures', big: '3,900+', stats: ['3,900+|members saving daily'] },
+    { template: 'closing' },
+  ] },
+});
+
+test('draftBatch: a carousel page may be one of the brand\'s layouts, checked as a post made with it', async () => {
+  await withLayouts([SPLIT, FIGURES], async () => {
+    const { f, ai } = draftWith([layoutCarousel()]);
+    const { batch } = await ai.draftBatch(req());
+    assert.match(f.calls[0].body.system, /a carousel page may also be one of the brand's layouts/);
+    const pages = batch.posts[0].design.pages;
+    assert.deepEqual(pages.map((p) => p.template), ['layout', 'layout', 'closing']);
+    assert.equal(pages[0].image, 'design/assets/photos/street-market.jpg');
+    assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
+    const cases = [
+      [[{ template: 'layout', layout: 'nope', headline: 'x' }, { template: 'closing' }], /design page 1: layout "nope" is not one of the brand's layouts/],
+      [[{ template: 'layout', layout: 'split', image: 'vault:ph-1', headline: 'x'.repeat(61) }, { template: 'closing' }], /design page 1: headline is 61 characters; this layout takes up to 60/],
+      [[{ template: 'layout', layout: 'figures', big: '3,900+' }, { template: 'closing' }], /design page 1: stats is required by this layout/],
+      [[{ template: 'layout', layout: 'figures', big: '99.9M+', stats: ['3,900+|members saving daily'] }, { template: 'closing' }], /not found in its sources: 99\.9/],
+      [[{ template: 'layout', layout: 'split', image: 'vault:ph-1', headline: 'One' }, { template: 'layout', layout: 'split', image: 'vault:ph-1', headline: 'Two' }], /used twice in this carousel/],
+    ];
+    for (const [p, re] of cases) {
+      const { ai: one } = draftWith([layoutCarousel(p)]);
+      await assert.rejects(one.draftBatch(req()), (e) => e.code === 'no_valid_posts' && e.notes.rejected.some((r) => r.reasons.some((x) => re.test(x))), String(re));
+    }
+  });
+  // without layouts in the brand, a layout page is not allowed
+  const { ai } = draftWith([layoutCarousel()]);
+  await assert.rejects(ai.draftBatch(req()), (e) => e.code === 'no_valid_posts' && e.notes.rejected[0].reasons.some((r) => /carousel page 1 uses template "layout", which is not allowed/.test(r)));
 });
 
 const COMPOSITION = {
