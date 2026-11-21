@@ -327,6 +327,35 @@ test('editorial text is coloured for the surface it sits on: the light panel of 
   for (const rule of ['.dark .on-light .lbl,.dark .lbl.on-light{color:var(--muted)}', '.dark .on-light .sub,.dark .sub.on-light,.dark .on-light .checks li{color:var(--body)}', '.on-dark .lbl,.lbl.on-dark,.on-dark .sub,.sub.on-dark,.on-dark .checks li{color:var(--inv-body)}']) assert.ok(brand.css.includes(rule), rule);
 });
 
+test('the logo at the top of editorial pages and photo posts: the footer goes up, and the running head or the text moves out of its way', () => {
+  const tl = withStyle({ logo: 'top-left' }), tr = withStyle({ logo: 'top-right', footer: 'pill' });
+  const text = bodyOf(page(tl, { template: 'text', headline: 'h', sub: 's' }));
+  assert.match(text, /<div class="rh low"><span class="lbl" data-role="foot">Acme Savings<\/span><span class="lbl" data-role="foot">Acme Savings<\/span><\/div><div class="rh-rule low"><\/div>/);
+  assert.match(text, /<div class="ft footer up"><div><img class="logo"[^>]*><\/div><span class="lbl n" data-role="foot">/);
+  assert.match(bodyOf(page(tr, { template: 'cover', headline: 'h', image: 'a.jpg' })), /<div class="ft footer up flip"><div><span class="lpill">/);
+  // the logo alone (screen pages) goes up too
+  assert.match(bodyOf(page(tl, { template: 'screen', headline: 'h', image: 'p.png' })), /<div class="ft footer up"><div><img class="logo"/);
+  // on a dark page the footer at the top is on the ground, and the running head at the foot on the light panel
+  const dark = bodyOf(page(tl, { template: 'text', headline: 'h', ground: 'dark' }));
+  assert.match(dark, /<div class="ft footer up"><div><span class="logo-inv">/);
+  assert.match(dark, /<div class="rh low on-light">[^]*<div class="rh-rule low on-light"><\/div>/);
+  // a picture that takes the top band (photo-story's full-bleed photo) or, under a running head, the foot (a phone beside a
+  // passbook running off the bottom) keeps the chrome where it is; the side still follows the style
+  assert.match(bodyOf(page(tr, { template: 'photo-story', headline: 'h', image: 'a.jpg' })), /<div class="ft footer flip">/);
+  const beside = bodyOf(page(tl, { template: 'screen', headline: 'h', image: 'p.png', beside: { days: 31, ticked: 3, today: 4 } }));
+  assert.match(beside, /<div class="rh"><span class="lbl" data-role="label">/);
+  assert.match(beside, /<div class="ft footer"><div>/);
+  // the photo post: the footer at the top (as far from it as it sits from the bottom; under a story's top band), the text under it
+  const photo = (b, size, textAt) => TEMPLATE_FNS.photo(forSize(normaliseDesign({ template: 'photo', headline: 'h', image: 'a.jpg', textAt }), size), { size: SIZES[size], brand: b, image: () => PIXEL }).body;
+  assert.match(photo(tl, 'feed', 'top'), /<div class="ptext" id="pt" style="top:151px;max-width:880px">/);
+  assert.match(photo(tl, 'feed', 'top'), /<div class="footer up" style="top:56px"><div class="lpill">/);
+  assert.match(photo(tl, 'feed', 'bottom'), /<div class="ptext" id="pt" style="bottom:84px;max-width:880px">/);
+  assert.match(photo(tr, 'story', 'bottom'), /<div class="ptext" id="pt" style="bottom:350px;max-width:900px">[^]*<div class="footer up flip" style="top:270px">/);
+  // at the bottom (the default) nothing moves
+  assert.match(photo(brand, 'feed', 'top'), /<div class="ptext" id="pt" style="top:84px;max-width:880px">[^]*<div class="footer"><div class="lpill">/);
+  assert.match(bodyOf(page(brand, { template: 'text', headline: 'h' })), /<div class="rh">[^]*<div class="rh-rule"><\/div>[^]*<div class="ft footer">/);
+});
+
 test('style values never reach the page as they are: unchecked hostile values map to nothing', () => {
   const evil = '"></style><script>window.__pwn=1</script>';
   const raw = { ...RAW, style: { type: { display: { case: evil, tracking: evil, weight: evil }, label: { case: evil }, accent: evil, scale: evil }, surface: evil, decoration: { kind: evil, on: evil, fit: evil }, photo: { treatment: evil, colour: evil }, logo: evil, footer: evil } };
@@ -398,9 +427,12 @@ test('real render: the poster logo is measured, so a wordmark on a surface it wa
   }
 });
 
-test('real render: text on the light panel of a dark editorial page passes every check', { skip: chrome ? false : 'Google Chrome not found' }, async () => {
+test('real render: text on the light panel of a dark editorial page, and the logo at the top, pass every check', { skip: chrome ? false : 'Google Chrome not found' }, async () => {
   const dir = path.join(ROOT, 'out', 'test-style-surface');
   fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'brand.json'), JSON.stringify({ ...RAW, style: { logo: 'top-left' } }));
+  const top = loadBrand({ file: path.join(dir, 'brand.json') });
   const scene = 'packages/engine/design/assets/demo/scene-market.jpg';
   const dark = [
     { template: 'text', headline: 'Every deposit, *on record.*', sub: 'One place for the group\'s savings.', ground: 'dark' },
@@ -411,8 +443,11 @@ test('real render: text on the light panel of a dark editorial page passes every
   try {
     let i = 0;
     const run = (b, d, sizeName = 'feed') => renderImage(browser, b, { spec: normaliseDesign(d), sizeName, outFile: path.join(dir, `${i++}.png`) }, { tmpDir: path.join(dir, 'tmp') });
-    // the sub line, the website and a ledger's notes on the light panel meet their contrast targets
-    for (const d of dark) assert.deepEqual((await run(brand, d)).warnings, [], d.template);
+    // the sub line, the website and a ledger's notes on the light panel meet their contrast targets; so does the running head
+    // when the logo at the top sends it down onto the panel, and the text keeps clear of the footer at the top
+    for (const b of [brand, top]) for (const d of dark) assert.deepEqual((await run(b, d)).warnings, [], `${b.style.logo} ${d.template}`);
+    // the photo post with its footer at the top, the text at the bottom where the footer was
+    for (const size of ['feed', 'story']) assert.deepEqual((await run(top, { template: 'photo', headline: 'Market day, *every week.*', sub: 'The collector records each deposit.', image: scene, textAt: 'bottom' }, size)).warnings, [], size);
   } finally {
     browser.close();
     fs.rmSync(dir, { recursive: true, force: true });

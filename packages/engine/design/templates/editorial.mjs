@@ -20,14 +20,18 @@ export const folio = (ctx) => (ctx.counter ? `${pad2(ctx.counter.n)} / ${pad2(ct
 export const toneOf = (pageDark, surfaceDark) => (pageDark === surfaceDark ? '' : surfaceDark ? 'on-dark' : 'on-light');
 export const withTone = (cls, tone) => (tone ? `${cls} ${tone}` : cls);
 
-// The running head. `tone`: toneOf() for what it sits on.
-export const runhead = (left, right, rule = true, { tone = '' } = {}) => `<div class="${withTone('rh', tone)}">${left ? lbl(left) : '<span></span>'}${right ? lbl(right) : '<span></span>'}</div>${rule ? `<div class="${withTone('rh-rule', tone)}"></div>` : ''}`;
+// The running head: at the top, or (`low`: the brand's logo took the top, see layout-editorial.mjs) at the foot of the page with
+// its rule above it, where its labels are footer labels. `tone`: toneOf() for what it sits on.
+export const runhead = (left, right, rule = true, { low = false, tone = '' } = {}) => {
+  const role = low ? 'foot' : 'label', cls = withTone(low ? 'rh low' : 'rh', tone);
+  return `<div class="${cls}">${left ? lbl(left, '', role) : '<span></span>'}${right ? lbl(right, '', role) : '<span></span>'}</div>${rule ? `<div class="${withTone(low ? 'rh-rule low' : 'rh-rule', tone)}"></div>` : ''}`;
+};
 
 // Footer: the logo bottom-left (or right, as the brand's style says; in a light pill with footer "pill"), a label on the other
 // side ("Swipe →" on page 1 of a carousel, else the website; nothing with footer "none"). The full colour logo on a light
 // surface; on a dark one (`inverse`: the page's ground, or the panel when the footer sits on it) the mark with the wordmark in
-// white. `tone`: toneOf() for its label.
-export function footer(ctx, { label, inverse = false, tone = '' } = {}) {
+// white. `up`: at the top of the page (the brand's logo placement, see layout-editorial.mjs). `tone`: toneOf() for its label.
+export function footer(ctx, { label, inverse = false, up = false, tone = '' } = {}) {
   const B = ctx.brand, style = footerOf(B), swipe = ctx.counter?.n === 1;
   let right = label;
   if (right === undefined) right = swipe ? 'Swipe →' : style === 'none' ? '' : B.website;
@@ -36,7 +40,7 @@ export function footer(ctx, { label, inverse = false, tone = '' } = {}) {
     : inverse
       ? `<span class="logo-inv"><img src="${B.logoMarkSrc}" alt="" style="height:32px"><i role="img" aria-label="${esc(B.name)}" style="--lw:${px((fw - B.logos.wordmarkFrom) * k)}px;--lx:-${px(B.logos.wordmarkFrom * k)}px;--lm:${px(B.logos.markGap * k)}px"></i></span>`
       : `<img class="logo" src="${B.logoFullSrc}" alt="${esc(B.name)}">`;
-  const cls = withTone(`ft footer${logoPlace(B, 'editorial').right ? ' flip' : ''}`, right ? tone : '');
+  const cls = withTone(`ft footer${up ? ' up' : ''}${logoPlace(B, 'editorial').right ? ' flip' : ''}`, right ? tone : '');
   return `<div class="${cls}"><div>${logo}</div>${right ? lbl(right, '', 'foot') : ''}</div>`;
 }
 

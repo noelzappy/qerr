@@ -249,6 +249,17 @@ test('layout problems for objects, the panel and body text', () => {
   const inside = role('artbody', [{ x0: 100, y0: 700, x1: 300, y1: 730 }], { inAvoid: [0] });
   assert.deepEqual(kinds({ ...base, objs: [ob], avoid: [{ ...ob, id: 0 }], roles: [inside] }), []);
   assert.ok(kinds({ ...base, objs: [ob], avoid: [{ ...ob, id: 0 }], roles: [{ ...inside, inAvoid: [] }] }).includes('avoid'));
+  // the footer at the top (the brand's logo placement, m.header): text and objects stay under it
+  const up = { ...base, footer: null, header: { x0: 70, y0: 56, x1: 1010, y1: 100 } };
+  assert.deepEqual(kinds({ ...up, objs: [], roles: [role('headline', [{ x0: 70, y0: 90, x1: 900, y1: 140 }])] }), ['outside']);
+  assert.deepEqual(kinds({ ...base, objs: [], roles: [role('headline', [{ x0: 70, y0: 90, x1: 900, y1: 140 }])] }), []);
+  assert.deepEqual(kinds({ ...up, objs: [], roles: [role('headline', [{ x0: 70, y0: 130, x1: 900, y1: 300 }])] }), []);
+  assert.ok(kinds({ ...up, objs: [o(70, 90, 480, 400)] }).includes('objfoot'));
+  // with nothing at the foot, text stays above the size's footer band (a story's bottom band, which the app's interface covers)
+  const story = { pad: 72, top: 270, fbot: 350 }, low = role('sub', [{ x0: 72, y0: 1500, x1: 900, y1: 1700 }]);
+  const storyPage = { W: 1080, H: 1920, avoid: [], imgs: [], objs: [], panel: null, logo: null, footer: null, roles: [low] };
+  assert.deepEqual(findLayoutProblems({ ...storyPage, header: { x0: 72, y0: 270, x1: 1008, y1: 328 } }, story).map((p) => p.kind), ['outside']);
+  assert.deepEqual(findLayoutProblems({ ...storyPage, roles: [{ ...low, rects: [{ x0: 72, y0: 1400, x1: 900, y1: 1560 }] }], header: { x0: 72, y0: 270, x1: 1008, y1: 328 } }, story), []);
   assert.match(explainProblems(findLayoutProblems(straddle, S), 'feed'), /into the panel/);
   assert.match(explainProblems([{ kind: 'objoverlap', role: 'object' }], 'feed'), /two drawn objects overlap/);
 });

@@ -10,13 +10,25 @@
 import { DesignError } from './errors.mjs';
 import { BLOCKS, PAGES, SPEC_CHOICES, slotRect, whenHolds } from './layout.mjs';
 import { opt } from './layout-parts.mjs';
+import { pillHeight } from './sizes.mjs';
 import { px } from '../../design/templates/common.mjs';
-import { photoBackdrop, photoFooter, photoLines, photoPage, photoScrim, photoText } from '../../design/templates/photo.mjs';
+import { footerTop, photoBackdrop, photoFooter, photoLines, photoPage, photoScrim, photoText } from '../../design/templates/photo.mjs';
+
+// Where the text goes when the brand's logo puts the footer at the top (photo.mjs footerTop): out of the footer's way, from 40 px
+// under its pill (as the box ends 40 px above it at the bottom, sizes.mjs contentBottom) down to as far from the bottom edge as the
+// box was from the top one (a story's bottom band, which the app's interface covers, stays clear), so text set at the bottom
+// sits where the footer was. As wide as the rectangle.
+function textBox(r, ctx) {
+  const t = footerTop(ctx);
+  if (t === undefined) return r;
+  const S = ctx.size, y = t + pillHeight(S.logoH) + 40;
+  return { ...r, y, h: S.h - Math.max(r.y, S.fbot) - y };
+}
 
 // The headline box: anchored at the top of the rectangle, or (valign bottom) at its bottom edge; as wide as the rectangle. The
 // eyebrow is drawn over the headline when the block asks for it, the subField's sub line under it.
-function headline(blk, spec, ctx, r) {
-  const S = ctx.size, T = PAGES.photo.type[S.name];
+function headline(blk, spec, ctx, rect) {
+  const S = ctx.size, T = PAGES.photo.type[S.name], r = textBox(rect, ctx);
   const pos = opt(blk, 'valign') === 'bottom' ? `bottom:${px(S.h - r.y - r.h)}px` : `top:${px(r.y)}px`;
   const words = { ...spec, eyebrow: opt(blk, 'eyebrow') ? spec.eyebrow : undefined, sub: blk.subField === undefined ? undefined : spec[blk.subField], headline: spec[blk.field ?? 'headline'] };
   return `${photoText(words, { pos, maxw: px(r.w), fs: T.headline, sf: T.sub, ef: T.eyebrow, subW: T.subWidth })}\n`;
@@ -27,7 +39,7 @@ export const DRAW = {
   scrim: () => `${photoScrim()}\n`,
   lines: (blk, spec, ctx) => `${photoLines(ctx.size)}\n`,
   headline,
-  photoFooter: (blk, spec, ctx) => photoFooter(ctx),
+  photoFooter: (blk, spec, ctx) => photoFooter(ctx, { top: footerTop(ctx) }),
 };
 
 export function drawPhoto(layout, spec, ctx) {

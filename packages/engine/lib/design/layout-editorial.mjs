@@ -8,6 +8,7 @@ import { decorationHtml, drawBuiltPage, opt, place } from './layout-parts.mjs';
 import { isDarkColour } from './tokens.mjs';
 import { fmtE, fmtSub, hs, px } from '../../design/templates/common.mjs';
 import { folio, footer, runhead, toneOf, withTone } from '../../design/templates/editorial.mjs';
+import { logoPlace } from '../../design/templates/style.mjs';
 
 const fontSize = (blk, n) => (opt(blk, 'shrink') ? hs(n) : `${px(n)}px`);
 const lead = (state) => { if (state.txt) return ''; state.txt = true; return ' id="txt"'; };
@@ -24,9 +25,27 @@ const surfaceDark = (ctx, state, onPanel) => (onPanel ? isDarkColour(ctx.brand.s
 const onPanelAt = (state, y) => { const p = panelOf(state); return !!p && p.y <= y; };
 const toneIn = (ctx, state, r) => toneOf(state.frame.dark, surfaceDark(ctx, state, within(r, panelOf(state))));
 
-// The page's chrome (the feed page's, in page pixels): the running head's labels from y 56; the footer, 34 px tall, 56 px above
-// the bottom edge.
-const CHROME = { top: 56, foot: 1260 };
+// The page's chrome (the feed page's, in page pixels): the running head's labels from y 56 and its rule at y 98; the footer, 34 px
+// tall, 56 px above the bottom edge. With the brand's logo at the top they change places: the footer from y 56, and the running
+// head at the foot, its labels 56 px above the bottom edge and its rule 98 px above it, at y 1251 (brand.css .ft.up, .rh.low).
+// The page's text and pictures stay in the band between them (y 126 to 1240).
+const CHROME = { top: 56, foot: 1260, lowRule: 1251, band: { top: 126, bottom: 1240 } };
+// Whether the chrome changes places: the brand puts its logo at the top, and no picture (a photo or a screen the spec fills)
+// reaches into the band the footer would move into (above y 126: photo-story's full-bleed photo) nor, on a page with a running
+// head, into the band at the foot (below y 1240: a phone running off the bottom edge). Otherwise the footer stays at the bottom
+// and its logo follows only the side, as a poster's bar stays at the top over a photo that takes the bottom edge.
+function chromeUp(ctx, state, spec) {
+  if (state.up !== undefined) return state.up;
+  let up = !logoPlace(ctx.brand, 'editorial').bottom;
+  if (up) {
+    const filled = typeof spec.image === 'string' && spec.image !== '';
+    const pics = state.shown.filter(({ blk }) => filled && (blk.type === 'photo' || blk.type === 'screen'));
+    const head = state.shown.some(({ blk }) => blk.type === 'runhead');
+    up = !pics.some(({ r }) => r.y < CHROME.band.top || (head && r.y + r.h > CHROME.band.bottom));
+  }
+  state.up = up;
+  return up;
+}
 
 // The headline in its box (editorial.mjs textBlock): the size from the block, or the spec's own validated "size" (70, 84 or 112)
 // when the block takes it, with its class for the optical overhang. A subField's sub line flows 28 px under it in the same box,
@@ -60,17 +79,19 @@ function sub(blk, spec, ctx, r, state) {
 const decoration = (blk, spec, ctx, r, state) => (isPanel(blk) ? `<div class="panel" id="panel" style="top:${px(r.y)}px"></div>` : decorationHtml(blk, ctx, r, state.warnings));
 
 // The running head: the series' name (or the spec's label) on the left; the folio on a carousel page, else the spec's own
-// right-hand head, else the brand's name, on the right; coloured for what it sits on.
+// right-hand head, else the brand's name, on the right. At the top, or at the foot when the footer took the top (chromeUp);
+// coloured for what it sits on.
 function head(blk, spec, ctx, r, state) {
-  const tone = toneOf(state.frame.dark, surfaceDark(ctx, state, onPanelAt(state, CHROME.top)));
-  return runhead(state.frame.label, folio(ctx) ?? spec.headRight ?? ctx.brand.name, opt(blk, 'rule'), { tone });
+  const low = chromeUp(ctx, state, spec);
+  const tone = toneOf(state.frame.dark, surfaceDark(ctx, state, onPanelAt(state, low ? CHROME.lowRule : CHROME.top)));
+  return runhead(state.frame.label, folio(ctx) ?? spec.headRight ?? ctx.brand.name, opt(blk, 'rule'), { low, tone });
 }
 
-// The footer: the logo, and the website ("Swipe →" on page 1 of a carousel), as the brand's style places them. Its logo and label
-// are drawn for what they sit on: the panel when the footer lies on it, else the ground.
+// The footer: the logo, and the website ("Swipe →" on page 1 of a carousel), as the brand's style places them: at the bottom, or
+// at the top (chromeUp). Its logo and label are drawn for what they sit on: the panel when the footer lies on it, else the ground.
 function chromeFoot(ctx, state, spec, label) {
-  const dark = surfaceDark(ctx, state, onPanelAt(state, CHROME.foot));
-  return footer(ctx, { label, inverse: dark, tone: toneOf(state.frame.dark, dark) });
+  const up = chromeUp(ctx, state, spec), dark = surfaceDark(ctx, state, onPanelAt(state, up ? CHROME.top : CHROME.foot));
+  return footer(ctx, { label, inverse: dark, up, tone: toneOf(state.frame.dark, dark) });
 }
 const foot = (blk, spec, ctx, r, state) => chromeFoot(ctx, state, spec);
 

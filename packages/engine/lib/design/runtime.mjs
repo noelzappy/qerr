@@ -85,10 +85,12 @@ window.__ds = {
     const f = document.getElementById('fade');
     if (!f) return;
     if (peak <= 0) { f.style.cssText = 'display:none'; return; }
-    const fb = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fbot'));
+    // Behind the footer: from 80 px past its outer edge, at the bottom, or at the top when the brand's logo put it there (.up).
+    const up = document.querySelector('.footer.up');
+    const fb = up ? up.getBoundingClientRect().top : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fbot'));
     const ss = (e0, e1, x) => { const u = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return u * u * (3 - 2 * u); };
     const stops = Array.from({ length: 17 }, (_, i) => { const t = i / 16; return 'rgba(0,0,0,' + (peak * ss(0, 0.4, t) * (1 - ss(0.6, 1, t))).toFixed(4) + ') ' + (t * 100).toFixed(1) + '%'; }).join(',');
-    f.style.cssText = 'bottom:' + (fb - 80) + 'px;height:220px;background:linear-gradient(to top,' + stops + ')';
+    f.style.cssText = (up ? 'top:' : 'bottom:') + (fb - 80) + 'px;height:220px;background:linear-gradient(to ' + (up ? 'bottom' : 'top') + ',' + stops + ')';
   },
   // Only <path> elements with a handful of plain attributes are copied in; anything else in the string is ignored.
   setLines(svg) {
@@ -122,11 +124,15 @@ window.__ds = {
     });
     const avoid = avoidEls.map((el, k) => ({ ...box(el.getBoundingClientRect()), id: k }));
     const objs = objEls.map((el) => ({ ...box(el.getBoundingClientRect()), bleed: el.hasAttribute('data-bleed') }));
-    const ft = document.querySelector('.footer'), tb = document.getElementById('panel'), lg = document.querySelector('.ft .logo, .ft .logo-inv');
+    // The chrome at the foot (the footer; or, when the brand's logo put the footer at the top, an editorial page's running head
+    // there, from its rule) bounds the text from below; the footer at the top (.up, with its logo pill) bounds it from above.
+    const ft = document.querySelector('.footer:not(.up)') || document.querySelector('.rh-rule.low') || document.querySelector('.rh.low'), tb = document.getElementById('panel'), lg = document.querySelector('.ft .logo, .ft .logo-inv');
+    const up = document.querySelector('.footer.up');
+    const hd = up ? [...up.querySelectorAll('*')].map((e) => box(e.getBoundingClientRect())).filter((b) => b.x1 > b.x0 && b.y1 > b.y0).reduce((u, b) => ({ x0: Math.min(u.x0, b.x0), y0: Math.min(u.y0, b.y0), x1: Math.max(u.x1, b.x1), y1: Math.max(u.y1, b.y1) }), box(up.getBoundingClientRect())) : null;
     const imgs = [...document.querySelectorAll('img[data-user]')].map((i) => { const b = i.getBoundingClientRect(); return { name: i.dataset.name, nw: i.naturalWidth, nh: i.naturalHeight, rw: b.width, rh: b.height, fit: i.dataset.fit }; });
     return {
       W: innerWidth, H: innerHeight, roles, avoid, objs, imgs, flex: document.body.dataset.flex === '1',
-      footer: ft ? box(ft.getBoundingClientRect()) : null, panel: tb ? box(tb.getBoundingClientRect()) : null, logo: lg ? box(lg.getBoundingClientRect()) : null,
+      footer: ft ? box(ft.getBoundingClientRect()) : null, header: hd, panel: tb ? box(tb.getBoundingClientRect()) : null, logo: lg ? box(lg.getBoundingClientRect()) : null,
     };
   },
   async analyse(b64, rects) {

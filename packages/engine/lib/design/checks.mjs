@@ -163,7 +163,10 @@ const hit = (a, b, tol = 2) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > tol
 // footer or the logo, or lie on each other. (Text inside an object, and an artefact's own text, is judged by the object it is on.)
 export function findLayoutProblems(m, S) {
   const problems = [];
-  const lim = { x0: S.pad - 3, x1: m.W - S.pad + 3, y0: S.top - 6, y1: m.footer ? m.footer.y0 - 10 : m.H - (S.bottom ?? S.pad) + 3 };
+  // Text stays above the footer, and under it when the brand's logo put the footer at the top (m.header); then, with nothing at
+  // the foot, above the footer's band there too (a story's bottom band, which the app's interface covers).
+  const bottom = Math.max(S.bottom ?? S.pad, m.header ? S.fbot ?? 0 : 0);
+  const lim = { x0: S.pad - 3, x1: m.W - S.pad + 3, y0: m.header ? Math.max(S.top - 6, m.header.y1 + 10) : S.top - 6, y1: m.footer ? m.footer.y0 - 10 : m.H - bottom + 3 };
   const roles = m.roles.filter((r) => r.rects.length);
   const own = roles.filter((r) => !r.nested);
   for (const r of own) {
@@ -195,7 +198,7 @@ export function findLayoutProblems(m, S) {
   const objs = m.objs ?? [], who = m.flex ? 'headline' : 'object';
   objs.forEach((o, i) => {
     if (o.x0 < 0 || o.x1 > m.W || o.y0 < 0 || (!o.bleed && o.y1 > m.H)) problems.push({ kind: 'objout', role: who });
-    if (!o.bleed && m.footer && o.y1 > m.footer.y0 - 6) problems.push({ kind: 'objfoot', role: who });
+    if ((!o.bleed && m.footer && o.y1 > m.footer.y0 - 6) || (m.header && o.y0 < m.header.y1 + 6)) problems.push({ kind: 'objfoot', role: who });
     if (m.logo && hit(o, m.logo)) problems.push({ kind: 'objlogo', role: who });
     if (m.panel && o.y0 < m.panel.y0 - 2) problems.push({ kind: 'objpanel', role: who });
     for (let j = i + 1; j < objs.length; j++) if (hit(o, objs[j])) problems.push({ kind: 'objoverlap', role: who });
