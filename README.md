@@ -6,17 +6,20 @@ brand's look; people review and approve each post; and the approved posts go to 
 first. It works for any organisation without writing code: the brand, its logos, colours, voice and visual direction are
 set in the admin panel, and the team can upload design references whose style the AI learns from.
 
-Vesk is a web app (`apps/web`). Home, Create, Publish and Settings, in light and dark:
+Vesk is a web app (`apps/web`). Home, Create, Facts, Pictures, Publish, Activity and Settings, in light and dark:
 
 - **Home** shows the week, what waits for approval, the setup steps and what goes out next.
-- **Create** holds the batches on a board, with the vault and the picture library. A batch is drafted by the AI or
-  imported from a batch file; each post is reviewed, edited, re-rendered and approved one by one.
+- **Create** holds the batches. A batch is drafted by the AI or imported from a batch file; each post is written, reviewed,
+  edited, given its image again if needed and approved one by one, in a four-step flow: Write, Review, Send drafts to Buffer,
+  Go live.
+- **Facts** and **Pictures** hold what the AI may write from and the photos and screens posts may use.
+- **Activity** lists what the app does in the background: AI drafts, images, sends to Buffer.
 - **Publish** shows every planned post on a calendar or a list, per channel, and sends approved posts to Buffer.
 - **Settings** covers:
   - Brand and look: identity, logos (or a simple logo drawn from the name), colours with a live preview and contrast
-    checks, series, voice, visual direction, and the import of an existing brand pack.
+    checks, post types, voice, visual direction, and the import of an existing brand pack.
   - Design references: pictures the AI describes as style briefs that guide every draft.
-  - Layouts: the brand's own page compositions, blocks placed on a grid with a visual editor, checked and drawn by the
+  - Layouts: the brand's own page compositions, blocks dragged and resized on a canvas, each layout on its own page, checked and drawn by the
     engine like the built-in pages; posts and the AI can use them. The built-in layouts are listed too, read only, and can be
     duplicated into a layout of the brand's own on the built-in poster or editorial page.
   - The team, the Buffer accounts, the channels, the AI providers with a monthly budget, and the audit log.
@@ -116,7 +119,7 @@ setup steps on Home; each opens the page where it is done:
 2. Add a Buffer account and run Check on it (Settings, Buffer accounts).
 3. Choose the account and channel for each network (Settings, Channels).
 4. Add an AI provider and a monthly budget (Settings, AI and search).
-5. Add the team's facts to the vault.
+5. Add the team's facts to Facts.
 6. Invite the team (Settings, Team).
 7. Draft the first batch with AI, or import one (the two files in `batches/` are examples for the demo brand).
 
@@ -381,7 +384,7 @@ An npm workspaces monorepo.
 | `packages/engine/` (`@vesk/engine`) | The engine: `lib/` (batch validation, the Buffer client, the push loop, storage, the design renderer) and `design/` (brand CSS, templates, fonts and the asset folders, including the committed demo pictures in `design/assets/demo/`), and its tests. No dependencies. The app imports its modules as `@vesk/engine/<module>`, for example `@vesk/engine/batch`. |
 | `packages/ai/` (`@vesk/ai`) | Drafting, research, rewriting and design-reference analysis (`src/`, with the versioned prompts) and its tests. No third-party dependencies; it uses the engine's validators. |
 | `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default. |
-| `batches/` | Two example batch files for the demo brand, to import in the app (Create, New batch, "Import batch JSON") or to start from. |
+| `batches/` | Two example batch files for the demo brand, to import in the app (Create, New batch, the "Import a batch file" tab, marked Advanced) or to start from. |
 | `deploy/`, `Dockerfile` | The container image and the Docker Compose set-up, with `deploy/check.sh` to try it end to end. |
 | `docs/` | The documentation (below). |
 | `scripts/` | `export-public.mjs`: a public copy of the repository without private brand packs (`npm run export-public`). |

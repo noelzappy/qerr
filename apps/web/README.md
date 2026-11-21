@@ -1,6 +1,6 @@
 # Vesk web app
 
-The web app for a team that runs a brand's social media. A small team keeps a vault of confirmed facts and photos, imports or drafts a
+The web app for a team that runs a brand's social media. A small team keeps a vault of confirmed facts and photos (Facts and Pictures in the app), imports or drafts a
 month of posts, reviews and approves each one, renders its images with the design engine, and sends the approved posts
 to Buffer as drafts, then live. It is a Hono server, Postgres through Prisma, pg-boss jobs and a React web app built into
 `dist/web` and served by the same server. The engine (`packages/engine`, `@vesk/engine`) is its library: batch
@@ -55,13 +55,40 @@ Then, as an admin, follow the setup steps on Home. Each one opens the page where
 2. Add a Buffer account and run Check on it (Settings, Buffer accounts).
 3. Choose the account and channel for each network (Settings, Channels).
 4. Add an AI provider and a monthly budget (Settings, AI and search).
-5. Add the team's facts to the vault.
+5. Add the team's facts to Facts.
 6. Invite the team (Settings, Team).
 7. Draft the first batch with AI, or import one from `batches/`.
 
 With `STORAGE_DRIVER=local` the files are written under `LOCAL_STORAGE_DIR` (default `apps/web/.data/storage`, git-ignored).
 Private files are opened through signed, expiring app URLs; the public prefix is served unsigned at `/_local-public/`,
 like a public bucket. Local storage is for development and tests only. Production uses `s3`.
+
+## The web app
+
+The pages are in `web/src/pages`, the shared pieces in `web/src/components` and `web/src/shell` (see
+`web/README-ui.md` for the kit and the conventions).
+
+- **Navigation.** The sidebar is Home, Create, Facts (`/vault`), Pictures (`/library`), Publish and Activity. Create has no
+  tabs. Settings has a "Back to the app" link. Ctrl/Cmd+K opens a palette that searches pages, actions, batches, facts and
+  pictures. The router is `createBrowserRouter` with one catch-all route.
+- **Unsaved changes.** Editors use `useUnsavedGuard` and `confirmDiscard` from `web/src/hooks/use-unsaved-guard.tsx`: leaving
+  or closing with edits that are not saved asks first; a save that succeeds does not.
+- **Home.** The setup checklist is one card. `GET /api/overview/home` returns each step as `{ key, title, detail, to, done }`
+  and, on the AI step, `missing` (`'provider'`, `'budget'` or `null`).
+- **A batch** is Writing, In review, Scheduled or Done. Its page is a four-step flow: Write, Review, Send drafts to Buffer,
+  Go live. Steps 1 and 2 show the posts (`/batches/:id`); steps 3 and 4 show the plan, the sending and the Buffer status
+  (`/batches/:id/schedule`, and `/batches/:id/schedule?step=live`). `?post=<id>` opens the batch at that post; the calendar
+  uses it. The batch list's import tab is "Import a batch file", marked Advanced.
+- **A post** is Writing, Approved, Draft in Buffer, Scheduled or Sent. Problems are flags on top of that, never a step of
+  their own: Image could not be made, Has warnings, Needs a look, Failed to send, Deleted from Buffer, Removed.
+- **The post editor** has two panes with a live preview, a picture picker and structured editors for figures, lists, carousel
+  pages, tables and cards; the raw design JSON is under "Advanced". The preview calls `POST /api/posts/preview-design`
+  (`src/server/routes/design-preview.ts`, roles admin and editor): the body is `{ design, size? }`, and the answer is
+  `{ ok, image, images, size, warnings, notes }` (`ok: false` with an `error` when the design was fine but could not be
+  drawn). A design that saving would refuse is a 422 `{ error, details }`, in the same words as saving; a brand without its
+  logos is a 409. Nothing is stored, and the drawing runs under the render lock, one at a time.
+- **Layouts** open their own page, not a side sheet: `/settings/layouts/new` (optionally `?from=<starter>`,
+  `?duplicate=<layout id>` or `?copy=<built-in id>`) and `/settings/layouts/:id`. See "Settings, Layouts" below.
 
 ## The brand
 
@@ -77,8 +104,10 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
 - **Type:** case, letter spacing and weight per role (headlines, body, labels), and each role's font: built in (Inter for
   the body; headlines in the body or label font; labels in IBM Plex Mono or the body font), a family from the curated
   Google Fonts list, or a woff2 file of your own. See "Google Fonts" below.
-- **Series:** each with its page colour and headline style.
+- **Post types** (the engine's `series`): each with its page colour and headline style.
 - **Voice and visual direction:** in the team's own words, with names to spell exactly.
+
+The page has eight sections, each with its own address: `/settings/brand/<identity|logos|colours|type|surfaces|post-types|voice|advanced>` (`/settings/brand#logos`, used by the setup checklist, still opens Logos). Uploads (logos, fonts, artwork) and Advanced save the moment they are done; everything else is one form that waits for Save, and asks before it is left with changes. "Other currencies to flag" is a list of words; a stored pattern that the list cannot show is edited under Advanced.
 - **Advanced:** a `brand.json` fragment merged over the rest, a dot map, and "Import a brand pack", which moves a pack's
   `brand.json`, logos and map in at once and keeps its exact colours and rules.
 
@@ -131,11 +160,11 @@ and rendering never does. Uploading a woff2 file needs no outbound access.
 compositions: blocks placed in slots on a grid, as data the engine's layout validator checks
 (`packages/engine/lib/design/layout.mjs`; the format is in [docs/design.md](../../docs/design.md), "Your own layouts"). The
 editor covers everything a brand's layout can say, from the engine's catalogue (`layoutCatalogue().pages`) for the layout's
-kind of page: blocks placed by clicking two cells of the grid or in pixels, on every size or per size; every option, the blocks
+kind of page: blocks dragged and resized on a canvas, snapped to the grid's cells, or placed in pixels, on every size or per size; every option, the blocks
 inside a slab, the condition each block is drawn on ("Show this block": a field filled or empty, a carousel page, a choice's
 values), the page colour as one ground or cases, sizes, grids and fields. It sketches the page as it changes, "as if" a field
 were empty, on a carousel page or with a choice's value, shows the engine's verdict as you type and draws a real preview with
-the brand on request; a JSON view shows the layout as the engine reads it, and switching between them loses nothing
+the brand (the canvas's "Real image" view); the layout's JSON, under "Advanced: JSON", shows the layout as the engine reads it, and switching between them loses nothing
 (`web/src/pages/settings/layout-model.ts`, checked by `src/web-layout-model.spec.ts`; see docs/design.md, "Editing a layout"). Starting points like the built-in pages come from the engine
 (`lib/design/layout-starters.mjs`), and so do the built-in templates' own layouts, listed read only with a sketch, their variant and
 their fields: "Duplicate to edit" copies one into a layout of the brand's own (`builtinCopy`), switched off, on the built-in
