@@ -41,7 +41,7 @@ export interface AiRunContext { runId?: string; actorId?: string | null }
 
 const finite = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
-// The shape the AI package's createAI(...) takes (docs/spec/app-contract.md), keys decrypted. Only enabled providers are passed.
+// The shape the AI package's createAI(...) takes (docs/ai.md), keys decrypted. Only enabled providers are passed.
 // The budget is always passed: with no budget saved the limit is 0, so nothing is spent until an admin sets one.
 // `log` saves one ai_calls row per call the library reports (its cost is what month-to-date spend adds up); await
 // `flush()` after the calls so the last row is saved.

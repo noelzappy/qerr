@@ -5,8 +5,9 @@
 //   node apps/web/scripts/make-seed-secrets.mjs [--anthropic-env <file>] [--root <dir>] [--out <file>]
 //
 // Reads <root>/.env (Buffer keys, and optionally BRAVE_SEARCH_API_KEY / TAVILY_API_KEY / EXA_API_KEY), <root>/accounts.json
-// (account names, the variables that hold their keys, routing) and, with --anthropic-env, AI_ANTHROPIC_API_KEY from that
-// file. It prints only which parts it included, never a value. Plain Node, no dependencies.
+// (account names, the variables that hold their keys, routing; the format is in apps/web/README.md, "Seeding a new
+// deployment") and, with --anthropic-env, AI_ANTHROPIC_API_KEY from that file. Both root files are git-ignored. It prints
+// only which parts it included, never a value. Plain Node, no dependencies.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
