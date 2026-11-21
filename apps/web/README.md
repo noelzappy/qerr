@@ -70,10 +70,13 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
 - **Identity:** name, website, tagline, what the brand does, time zone, language, and an optional single currency.
 - **Logos:** the full logo and the mark, as PNGs. The page measures where the wordmark starts. "Draw a simple logo from the
   name" makes a plain pair in the browser.
-- **Colours and type:** four colours (primary, accent, dark, light), the headline weight, the corners and an optional
-  woff2 font. While people pick colours, the page asks `POST /api/settings/brand/preview` (nothing is saved). The answer
-  gives the colours posts will use, which colours were adjusted, and 32 contrast checks: headlines, sub lines, labels and
-  accent words on every page colour and on both slabs of a myth-and-fact page, against the brand's contrast limits.
+- **Colours:** four colours (primary, accent, dark, light), the headline weight and the corners. While people pick
+  colours, the page asks `POST /api/settings/brand/preview` (nothing is saved). The answer gives the colours posts will
+  use, which colours were adjusted, and 32 contrast checks: headlines, sub lines, labels and accent words on every page
+  colour and on both slabs of a myth-and-fact page, against the brand's contrast limits.
+- **Type:** case, letter spacing and weight per role (headlines, body, labels), and each role's font: built in (Inter for
+  the body; headlines in the body or label font; labels in IBM Plex Mono or the body font), a family from the curated
+  Google Fonts list, or a woff2 file of your own. See "Google Fonts" below.
 - **Series:** each with its page colour and headline style.
 - **Voice and visual direction:** in the team's own words, with names to spell exactly.
 - **Advanced:** a `brand.json` fragment merged over the rest, a dot map, and "Import a brand pack", which moves a pack's
@@ -98,6 +101,31 @@ How it reaches the engine (`src/server/services/brand-settings.ts`):
   and AI job, so several processes agree.
 - **Before the logos exist.** Images are refused until the logos are uploaded.
 - **Without a saved brand.** With no saved brand, no reference briefs and no layouts, the configured pack is used as it is.
+
+### Google Fonts
+
+An admin can give each type role (body, headlines, labels) a family from a curated list of about fifty Google Fonts
+(`src/server/services/google-fonts.ts`: sans, serif, display, condensed, mono and handwriting families, each with the
+weights it really has, its licence, SIL OFL 1.1 or Apache 2.0, and a one-line note). No API key is involved.
+
+The server downloads the font once, when the admin picks it, and stores it like an uploaded font. The browser never talks
+to Google: the render page blocks every request and embeds the stored files as `data:` URIs, and the app's own CSP allows
+fonts from the app only. The picker lists the names in the app's font; the font in force for each role is shown in its
+own face from the server's copy.
+
+| Route (admins only) | Does |
+|---|---|
+| `GET /api/settings/brand/google-fonts` | the curated list: `{ categories, fonts: [{ family, category, weights, licence, note }] }` |
+| `POST /api/settings/brand/google-font` | `{ role, family, weight }`: the family must be on the list and the weight one it offers (400 otherwise; no address is made from free text). The server asks `https://fonts.googleapis.com/css2?family=<Family>:wght@<weight>&display=swap` with a browser User-Agent, keeps the `latin` and `latin-ext` faces, downloads those woff2 files from `https://fonts.gstatic.com/` only (no redirects, 2 MB per file, the `wOF2` signature checked) and stores them with their unicode ranges. A headline or label font is switched on for its role. Audited as `brand.font.google` (family, weight, licence, subsets, bytes). Google refusing the family or weight, failing, or being unreachable gives a 502 with a plain message and nothing is stored; an oversize file gives 413. |
+| `GET /api/settings/brand/font/:role` | the stored font of a role (its latin file), for the page's preview |
+
+The one weight picked is used for everything in that role (the files are declared for weights 100 to 900, so the browser
+never draws a synthetic bold): pick a regular weight for the body. A headline device that sets the second half in a lighter
+weight shows no difference with a one-weight font.
+
+**Outbound hosts.** Only when an admin picks a Google font does the server connect to `fonts.googleapis.com` and
+`fonts.gstatic.com` (HTTPS). A deployment with an egress allowlist must allow both for the feature; nothing else needs them,
+and rendering never does. Uploading a woff2 file needs no outbound access.
 
 **Settings, Layouts** (`/api/settings/layouts`, `src/server/routes/layouts.ts`, admins only) holds the brand's own
 compositions: blocks placed in slots on a grid, as data the engine's layout validator checks

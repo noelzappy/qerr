@@ -151,7 +151,8 @@ in Settings, Buffer accounts.
 ## The brand and the design references
 
 **The brand is set in Settings, Brand and look**, and the app keeps it in its database: identity (name, website,
-tagline, what the brand does, time zone, language, currency), logos, colours and type, series, voice, visual direction,
+tagline, what the brand does, time zone, language, currency), logos, colours, type (each role's font built in, picked
+from a curated list of Google Fonts that the server downloads once, or uploaded), series, voice, visual direction,
 and an Advanced section with a `brand.json` fragment, a dot map and the import of a brand pack. While people pick
 colours, the page shows the colours posts will use and the contrast checks. Every value passes the engine's own
 `validateBrand` before it is saved. Behind the scenes the app writes the saved brand out as a pack folder under

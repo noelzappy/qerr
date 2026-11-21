@@ -42,6 +42,7 @@ const ACTIONS: Record<string, string> = {
   'brand.advanced.update': 'Changed the Advanced brand settings',
   'brand.logo.upload': 'Uploaded a logo',
   'brand.font.upload': 'Uploaded a font',
+  'brand.font.google': 'Downloaded a font from Google Fonts',
   'brand.font.remove': 'Went back to the built-in font',
   'brand.import': 'Imported a brand pack',
   'design_reference.create': 'Added a design reference',
