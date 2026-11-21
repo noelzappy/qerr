@@ -105,6 +105,7 @@ export const CASES = [
   { id: 'object-mint-deep', design: { template: 'object', headline: 'Watch the page fill.', sub: 'A sub line.', image: IMG.mint, ground: 'deep' } },
   { id: 'object-drift-photo', design: { template: 'object', headline: 'The light *drifts.*', image: IMG.drift, ground: 'photo', size: 88, photoTop: 700, focal: '50% 60%', zoom: 1.2 } },
   { id: 'object-uneven-dark', design: { template: 'object', headline: 'Two halves, *one band.*', image: IMG.uneven, ground: 'dark', accent: 'weight' } },
+  { id: 'object-jar-center-sub-120', design: { template: 'object', headline: 'Centred, *with a sub.*', sub: 'The sub line is centred under it.', image: IMG.jar, align: 'center', size: 120, series: 'news' } },
   // number (poster)
   { id: 'number-plain', design: { template: 'number', big: '14.8M+', line: 'saved by members this year', stats: ['3,900+|members saving daily', '400+|groups registered'] } },
   { id: 'number-plain-dark-3', design: { template: 'number', big: '*€* 2.4M', stats: ['120|towns', '3,900+|members', '400+|groups'], ground: 'ink', series: 'myth-vs-fact' } },
@@ -122,13 +123,21 @@ export const CASES = [
   { id: 'product-center-sub', design: { template: 'product', headline: 'Every deposit, *on record.*', sub: 'The balance updates the moment money moves.', image: IMG.phone } },
   { id: 'product-side-warm', design: { template: 'product', layout: 'side', headline: 'Record the deposit. *The balance updates.*', sub: 'Each deposit is posted as it is recorded.', image: IMG.phone, ground: 'gold-pale' } },
   { id: 'product-noglow', design: { template: 'product', headline: 'No glow.', image: IMG.phone, glow: false, size: 120, phoneTop: 700, align: 'left', ground: 'dark' } },
+  { id: 'product-side-nosub', design: { template: 'product', layout: 'side', headline: 'Beside *the phone.*', image: IMG.phone, phoneTop: 360, size: 88, align: 'center' } },
+  { id: 'product-side-noglow-deep', design: { template: 'product', layout: 'side', headline: 'Dark, *no glow.*', sub: 'The phone stands on its own.', image: IMG.phone, glow: false, ground: 'deep', accent: 'weight' } },
+  { id: 'product-center-sub-left-series', design: { template: 'product', layout: 'center', headline: 'Left, *with a sub.*', sub: 'The series gives the accent, not the ground.', image: IMG.phone, align: 'left', series: 'news' } },
+  { id: 'product-center-sub-size', design: { template: 'product', headline: 'A sub *and a size.*', sub: 'The size given wins.', image: IMG.phone, size: 76, phoneTop: 640 } },
   // myth-fact (poster)
   { id: 'myth-fact', design: { template: 'myth-fact', series: 'myth-vs-fact', myth: 'Going digital means every member needs a smartphone.', factLead: 'Members keep saving *as they do today.*', fact: 'The collector records each deposit.' } },
   { id: 'myth-fact-nofact-label', design: { template: 'myth-fact', myth: 'Records are hard to keep.', factLead: 'Every payment is *on the record.*', label: 'Busting myths', ground: 'deep' } },
+  { id: 'myth-fact-warm-series', design: { template: 'myth-fact', series: 'explainers', ground: 'warm', myth: 'Saving alone is *easier.*', factLead: 'Groups keep each other *going.*', fact: 'A group sees *every* deposit.', accent: 'muted' } },
   // closing (poster)
   { id: 'closing', design: { template: 'closing' } },
   { id: 'closing-map', design: { template: 'closing', map: true, headline: 'See you *next week.*', line: 'acmesavings.example/join' } },
   { id: 'closing-cool', design: { template: 'closing', ground: 'cool', series: 'explainers' } },
+  { id: 'closing-map-default', design: { template: 'closing', map: true } },
+  { id: 'closing-line-warm', design: { template: 'closing', line: 'Join us at the market.', ground: 'warm', accent: 'weight' } },
+  { id: 'closing-headline-dark', design: { template: 'closing', headline: 'Thank you *for saving.*', ground: 'dark', map: false } },
   // cover (editorial)
   { id: 'cover', design: { template: 'cover', headline: 'How a group *saves together.*', sub: 'Five steps, from the first deposit to the payout.', image: IMG.scene } },
   { id: 'cover-nosub-series', design: { template: 'cover', headline: 'On record, *every week.*', image: IMG.jar, series: 'news', headRight: 'Issue 4' } },
