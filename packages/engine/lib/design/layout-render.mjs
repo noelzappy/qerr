@@ -5,46 +5,46 @@
 // picked from the fixed lists of layout.mjs. Nothing a layout holds is ever written into markup or a style as it is.
 import { DesignError } from './errors.mjs';
 import { LIMITS } from './figures.mjs';
-import { BLOCKS, TYPE_SCALE, cellOf, findLayout, optionOf, slotRect } from './layout.mjs';
+import { BLOCKS, PAGES, TYPE_SCALE, cellOf, findLayout, groundCase, slotRect, whenHolds } from './layout.mjs';
+import { box, decorationHtml, opt, textureOf } from './layout-parts.mjs';
+import { drawEditorial } from './layout-editorial.mjs';
+import { drawPoster } from './layout-poster.mjs';
 import { SIZES } from './sizes.mjs';
 import { GROUND_NAMES, groundName, isDarkColour } from './tokens.mjs';
 import { esc, fmtE, fmtSub, hs, px } from '../../design/templates/common.mjs';
 import { desktopWindow, folio, glow, lbl, obj, phone, photoWindow } from '../../design/templates/editorial.mjs';
 import { ledgerSvg, passbookSvg, registerSvg, svgBox } from '../../design/templates/artefacts.mjs';
-import { dotMapSvg } from '../../design/templates/map.mjs';
 import { accentOf, decorationOf, footerOf, isDark } from '../../design/templates/style.mjs';
 
-// Only a name from the fixed list ever reaches a class attribute, whatever was passed.
-const pick = (list, v, def) => (list.includes(v) ? v : def);
-const opt = (blk, k) => { const o = BLOCKS[blk.type].options[k]; const v = optionOf(blk, k); return o?.t === 'enum' ? pick(o.list, v, o.def) : o?.t === 'bool' ? v === true : undefined; };
-const box = (r) => `left:${px(r.x)}px;top:${px(r.y)}px;width:${px(r.w)}px;height:${px(r.h)}px`;
 const CHECK = '<span class="ck" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg></span>';
 
-// The ground, accent style and series name a page uses. Ground: the spec's, else the layout's, else the series', else light.
-// Accent: the spec's, else the layout's, else the brand's style (its accent device, else the series'), else muted. Whether the
-// ground is dark comes from the brand's own colour for it.
-export function frameOf(spec, layout, brand) {
+// The ground, accent style and series name a grid page uses. Ground: the spec's, else the layout's (its first case that holds),
+// else the series', else light. Accent: the spec's, else the layout's, else the brand's style (its accent device, else the
+// series'), else muted. Whether the ground is dark comes from the brand's own colour for it.
+export function frameOf(spec, layout, brand, counter) {
   const series = spec.series !== undefined ? brand.series?.[spec.series] : null;
   if (spec.series !== undefined && !series) throw new DesignError(`series "${spec.series}" is not in brand.json (known: ${Object.keys(brand.series ?? {}).join(', ')})`);
-  const ground = groundName(spec.ground ?? (layout.ground && layout.ground !== 'series' ? layout.ground : series?.ground ?? 'light'));
+  const given = groundCase(layout, spec, counter);
+  const ground = groundName(spec.ground ?? (given && given !== 'series' ? given : series?.ground ?? 'light'));
   if (!ground) throw new DesignError(`ground must be one of ${GROUND_NAMES.join(', ')}`);
   const own = spec.accent ?? (layout.accent && layout.accent !== 'series' ? layout.accent : undefined);
   const accent = accentOf(brand, { spec: { accent: own }, series, fallback: 'muted' });
   return { ground, accent, dark: isDark(brand, ground), label: spec.label ?? series?.name ?? brand.name };
 }
 
-// The page's decoration class: the layout's own choice, or (auto) the brand's style for an editorial page on this ground.
-const TEXTURE_CLASS = { none: '', dots: 'dots', grid: 'grid', lines: 'tex' };
-const textureOf = (layout, brand, dark) => (!layout.texture || layout.texture === 'auto' ? decorationOf(brand, { dark }) : Object.hasOwn(TEXTURE_CLASS, layout.texture) ? TEXTURE_CLASS[layout.texture] : '');
-
 // The margins the fit check holds text to on a layout page: the layout's own, less a few pixels for the optical overhang of
-// large type. They are never smaller than the size's minimum margins (layout.mjs checks the grid against them).
+// large type. They are never smaller than the size's minimum margins (layout.mjs checks the grid against them). A built-in
+// page (poster, editorial) keeps its templates' reference margins (PAGES[page].fit).
 export function layoutFit(layout, sizeName) {
-  const S = SIZES[sizeName], { m } = cellOf(layout.canvas[sizeName], sizeName);
+  const S = SIZES[sizeName], page = layout.page ?? 'grid';
+  if (page !== 'grid') return { ...S, ...PAGES[page].fit };
+  const { m } = cellOf(layout.canvas[sizeName], sizeName);
   return { ...S, pad: Math.min(m.left, m.right) - 6, top: m.top - 6, bottom: m.bottom - 6 };
 }
 
 const scaled = (n, size) => Math.round(n * (TYPE_SCALE[size.name] ?? 1));
+// A size the fit loop shrinks (with every other block that shrinks), or a fixed one (shrink: false).
+const fontSize = (blk, n) => (opt(blk, 'shrink') ? hs(n) : `${px(n)}px`);
 
 // ---- text, in the flow of a cell or a slab ----
 
@@ -74,7 +74,7 @@ function flowHtml(blk, spec, ctx, frame, dark) {
     const v = spec[field];
     if (typeof v !== 'string' || !v) return '';
     const cls = opt(blk, 'style') === 'poster' ? 'ps-h' : 'h';
-    return `<div class="${cls} ly-h" data-role="headline" style="font-size:${hs(scaled(opt(blk, 'size'), S))}">${fmtE(v)}</div>`;
+    return `<div class="${cls} ly-h" data-role="headline" style="font-size:${fontSize(blk, scaled(opt(blk, 'size'), S))}">${fmtE(v)}</div>`;
   }
   if (t === 'sub') {
     const v = spec[field];
@@ -86,7 +86,7 @@ function flowHtml(blk, spec, ctx, frame, dark) {
     const v = spec[field];
     if (typeof v !== 'string' || !v) return '';
     const cls = opt(blk, 'style') === 'poster' ? 'ps-h' : 'h';
-    return `<div class="${cls} big ly-fig" data-role="stat" style="font-size:${hs(scaled(opt(blk, 'size'), S))};line-height:1">${fmtE(v)}</div>`;
+    return `<div class="${cls} big ly-fig" data-role="stat" style="font-size:${fontSize(blk, scaled(opt(blk, 'size'), S))};line-height:1">${fmtE(v)}</div>`;
   }
   if (t === 'label') {
     const v = labelText(blk, spec, ctx, frame);
@@ -105,7 +105,7 @@ function flowHtml(blk, spec, ctx, frame, dark) {
     const list = Array.isArray(spec[field]) ? spec[field] : [];
     if (!list.length) return '';
     const n = scaled(opt(blk, 'size'), S), l = scaled(30, S), row = opt(blk, 'direction') === 'row', rules = opt(blk, 'rules');
-    const items = list.map((s, i) => `<div class="ly-stat${rules && i ? ' ly-ruled' : ''}"><div class="h ly-statn" data-role="stat" style="font-size:${hs(n)}">${fmtSub(s[0])}</div><div class="sub" data-role="statlabel" data-min="${l}" style="font-size:${px(l)}px;line-height:${px(Math.round(l * 1.31))}px;margin-top:${px(scaled(8, S))}px">${fmtSub(s[1])}</div></div>`).join('');
+    const items = list.map((s, i) => `<div class="ly-stat${rules && i ? ' ly-ruled' : ''}"><div class="h ly-statn" data-role="stat" style="font-size:${fontSize(blk, n)}">${fmtSub(s[0])}</div><div class="sub" data-role="statlabel" data-min="${l}" style="font-size:${px(l)}px;line-height:${px(Math.round(l * 1.31))}px;margin-top:${px(scaled(8, S))}px">${fmtSub(s[1])}</div></div>`).join('');
     return `<div class="ly-stats ${row ? 'ly-row' : 'ly-col'}" style="gap:${px(scaled(row ? 40 : 24, S))}px">${items}</div>`;
   }
   if (t === 'list') {
@@ -186,18 +186,6 @@ function artefactHtml(blk, spec, ctx, r) {
   return obj(at.x, at.y, w, h, 'card', svgBox(pad, pad, w - 2 * pad, h - 2 * pad, passbookSvg(w - 2 * pad, h - 2 * pad, pass)));
 }
 
-function decorationHtml(blk, ctx, r, warnings) {
-  const kind = opt(blk, 'kind');
-  if (kind === 'rule') return `<div class="rule" style="left:${px(r.x)}px;top:${px(r.y + r.h / 2)}px;width:${px(r.w)}px"></div>`;
-  if (kind === 'panel') return `<div class="ly-panel" aria-hidden="true" style="${box(r)}"></div>`;
-  if (kind === 'dots') return `<div class="abs ly-dots" aria-hidden="true" style="${box(r)}"></div>`;
-  if (kind === 'texture') return `<div class="abs ly-tex" aria-hidden="true" style="${box(r)}"></div>`;
-  if (kind === 'glow') return `<div class="glow" aria-hidden="true" style="${box(r)}"></div>`;
-  if (!ctx.brand.map) { warnings.push('this brand has no dot map, so the layout\'s map was left off (add one in Settings, Brand and look, Advanced)'); return ''; }
-  const w = Math.round(r.w), h = Math.round(r.h);
-  return `<svg class="fig map" style="left:${px(r.x)}px;top:${px(r.y)}px" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">${dotMapSvg(ctx.brand.map, w, h)}</svg>`;
-}
-
 function slabHtml(blk, spec, ctx, frame, r) {
   const g = opt(blk, 'ground'), dark = g === 'panel' || g === 'card' ? isDarkColour(ctx.brand.surfaces[g]) : isDark(ctx.brand, g), pad = opt(blk, 'padding');
   const bg = g === 'panel' ? 'var(--panel)' : g === 'card' ? 'var(--card)' : `var(--g-${g})`;
@@ -213,11 +201,20 @@ function slabHtml(blk, spec, ctx, frame, r) {
 export function renderLayout(spec, ctx) {
   let layout;
   try { layout = findLayout(spec.layout, ctx.layouts ?? ctx.brand.layouts); } catch (err) { throw new DesignError(err.message); }
+  return renderLayoutWith(layout, spec, ctx);
+}
+
+// A checked layout drawn for a spec: a grid page here, a built-in page by its own drawings (layout-poster.mjs,
+// layout-editorial.mjs). The built-in templates are drawn this way from lib/design/builtin-layouts.mjs.
+export function renderLayoutWith(layout, spec, ctx) {
   const size = ctx.size.name;
   if (!layout.canvas[size]) throw new DesignError(`layout "${layout.id}" has no ${size} size`);
-  const frame = frameOf(spec, layout, ctx.brand), warnings = [];
+  if (layout.page === 'poster') return drawPoster(layout, spec, ctx);
+  if (layout.page === 'editorial') return drawEditorial(layout, spec, ctx);
+  const frame = frameOf(spec, layout, ctx.brand, ctx.counter), warnings = [];
   let under = '', media = '', text = '';
   for (const blk of layout.blocks) {
+    if (!whenHolds(blk.when, spec, ctx.counter)) continue;
     const r = slotRect(layout, blk, size);
     const t = blk.type;
     if (t === 'spacer') continue;
@@ -231,7 +228,7 @@ export function renderLayout(spec, ctx) {
       if (inner) text += `<div class="${cellClass(blk)}" data-cell style="${box(r)}">${inner}</div>`;
     }
   }
-  const texture = textureOf(layout, ctx.brand, frame.dark);
+  const texture = textureOf(layout, ctx.brand, () => decorationOf(ctx.brand, { dark: frame.dark }));
   return {
     body: `<div class="cv lyt${texture ? ` ${texture}` : ''}" style="--bg:var(--g-${frame.ground})">${under}${media}${text}</div>`,
     bodyClass: `acc-${frame.accent}${frame.dark ? ' dark' : ''}`,

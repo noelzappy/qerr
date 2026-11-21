@@ -183,6 +183,163 @@ test('bleed: only photos, slabs and decorations, only to the page edges their sl
   assert.ok(has(mod((l) => { l.blocks[3].bleed = ['bottom']; }), '"bleed" is not a known setting'));
 });
 
+// ---- the format as the built-in templates need it: pixel rectangles, conditions, ground cases, page kinds, chrome ----
+
+// A poster page and an editorial page in the shape of the built-in number and text templates, to change one thing at a time.
+const poster = () => ({
+  id: 'p', name: 'Poster', page: 'poster', ground: [{ when: { present: 'image' }, ground: 'photo' }, { ground: 'cool' }],
+  fields: { big: { required: true }, line: {}, stats: { min: 0 }, image: {} },
+  canvas: { feed: { columns: 12, rows: 15, margin: 80, gutter: 40 } },
+  blocks: [
+    { type: 'photo', px: { x: 0, y: 616, w: 1080, h: 734 }, photoTop: true },
+    { type: 'bar' },
+    { type: 'figure', field: 'big', size: 168, px: { x: 80, y: 140, w: 920, h: 180 } },
+    { type: 'sub', field: 'line', px: { x: 80, y: 336, w: 900, h: 92 } },
+    { type: 'stats', px: { x: 80, y: 448, w: 920, h: 150 } },
+  ],
+});
+const editorial = () => ({
+  id: 'e', name: 'Editorial', page: 'editorial',
+  fields: { headline: { required: true }, sub: {} },
+  canvas: { feed: { columns: 12, rows: 15, margin: 70, gutter: 20 } },
+  blocks: [
+    { type: 'decoration', kind: 'panel', px: { x: 0, y: 990, w: 1080, h: 360 } },
+    { type: 'runhead' },
+    { type: 'headline', size: 112, specSize: true, px: { x: 70, y: 154, w: 940, h: 800 } },
+    { type: 'sub', px: { x: 70, y: 1036, w: 620, h: 220 } },
+    { type: 'footer' },
+  ],
+});
+const modP = (f) => { const l = poster(); f(l); return validateLayout(l); };
+const modE = (f) => { const l = editorial(); f(l); return validateLayout(l); };
+
+test('px: a block may sit at a pixel rectangle instead of grid cells, whole numbers inside the page', () => {
+  assert.deepEqual(mod((l) => { l.blocks[1] = { type: 'headline', px: { x: 70, y: 680, w: 940, h: 240 } }; }), []);
+  assert.deepEqual(mod((l) => { l.blocks[1] = { type: 'headline', px: { feed: { x: 70, y: 680, w: 940, h: 240 } } }; }), [], 'one per size');
+  const px = (p) => mod((l) => { l.blocks[1] = { type: 'headline', px: p }; });
+  assert.ok(has(px({ x: 70.5, y: 700, w: 940, h: 240 }), 'px.x must be a whole number of pixels'));
+  assert.ok(has(px({ x: -1, y: 700, w: 940, h: 240 }), 'px.x must be a whole number of pixels from 0 to 1079'));
+  assert.ok(has(px({ x: 70, y: 700, w: 0, h: 240 }), 'px.w must be a whole number of pixels from 1 to 1080'));
+  assert.ok(has(px({ x: 600, y: 700, w: 940, h: 240 }), 'x + w is 1540, past the feed page\'s width'));
+  assert.ok(has(px({ x: 70, y: 1200, w: 940, h: 240 }), 'y + h is 1440, past the feed page\'s height'));
+  assert.ok(has(px({ x: '70', y: 700, w: 940, h: 240 }), 'px.x must be'));
+  assert.ok(has(px({ x: 70, y: 700, w: 940, h: 240, z: 1 }), '"z" is not a known setting'));
+  assert.ok(has(px('70 700 940 240'), 'px must be { "x", "y", "w", "h" }'));
+  assert.ok(has(px({ story: { x: 70, y: 700, w: 940, h: 240 } }), 'px has "story", which is not a size of this layout'));
+  assert.ok(has(px({ square: { x: 70, y: 700, w: 940, h: 240 } }), 'px has no rectangle for feed'));
+  // text keeps inside the size's minimum margins; a photo may run to the edge
+  assert.ok(has(px({ x: 10, y: 700, w: 940, h: 240 }), 'keeps inside the feed page\'s minimum margins'));
+  assert.deepEqual(mod((l) => { l.blocks[0] = { type: 'photo', px: { x: 0, y: 0, w: 1080, h: 600 } }; }), []);
+  // a slot or a px rectangle, not both; no bleed on a px rectangle (it is already in page pixels)
+  assert.ok(has(mod((l) => { l.blocks[1].px = { x: 70, y: 700, w: 940, h: 240 }; }), 'give a slot (grid cells) or px (page pixels), not both'));
+  assert.ok(has(mod((l) => { l.blocks[0] = { type: 'photo', px: { x: 0, y: 0, w: 1080, h: 600 }, bleed: ['top'] }; }), 'a px rectangle is already in page pixels'));
+  // px rectangles take part in the overlap and panel checks like slots
+  assert.ok(has(mod((l) => { l.blocks[1] = { type: 'headline', px: { x: 70, y: 300, w: 940, h: 240 } }; }), 'blocks[0] (photo) and blocks[1] (headline) overlap'));
+  assert.ok(has(mod((l) => { l.blocks.push({ type: 'decoration', kind: 'panel', px: { x: 0, y: 1000, w: 1080, h: 350 } }); }), 'blocks[2] (sub) lies across the edge of the panel'));
+  // a block inside a slab has no rectangle of its own
+  assert.ok(has(mod((l) => { l.fields.myth = {}; l.blocks.push({ type: 'slab', slot: at(1, 22, 12, 2), children: [{ type: 'headline', field: 'myth', px: { x: 70, y: 70, w: 100, h: 100 } }] }); }), 'has no slot of its own'));
+});
+
+test('when: a block drawn only when a field is filled or empty, or on some pages of a carousel', () => {
+  const w = (when, extra = (l) => l) => mod((l) => { l.blocks[2].when = when; extra(l); });
+  for (const when of [{ present: 'sub' }, { absent: 'sub' }, { page: 'first' }, { page: 'later' }, { page: 'single' }, { present: 'sub', page: 'first' }]) assert.deepEqual(w(when), [], JSON.stringify(when));
+  assert.ok(has(w({}), 'when must be an object like'));
+  assert.ok(has(w('sub'), 'when must be an object like'));
+  assert.ok(has(w({ present: 'quote' }), '"quote" is not in the layout\'s fields'));
+  assert.ok(has(w({ present: 'nope' }), 'when.present must be one of'));
+  assert.ok(has(w({ present: 'sub', absent: 'sub' }), 'a field cannot be both present and absent'));
+  assert.ok(has(w({ page: 'third' }), 'when.page must be one of single, first, later'));
+  assert.ok(has(w({ if: 'sub' }), '"if" is not a known setting'));
+  // two blocks that are never drawn together may show the same field, and may share space; otherwise they may not
+  const pair = (a, b) => mod((l) => { l.blocks[1].when = a; l.blocks.push({ type: 'headline', slot: at(1, 13, 12, 5), size: 112, when: b }); });
+  assert.deepEqual(pair({ present: 'sub' }, { absent: 'sub' }), []);
+  assert.deepEqual(pair({ page: 'first' }, { page: 'later' }), []);
+  assert.ok(has(pair({ present: 'sub' }, { present: 'sub' }), '"headline" is shown by more than one block'));
+  assert.ok(has(pair({ page: 'first' }, undefined), 'overlap on the feed grid'));
+  assert.ok(has(mod((l) => { l.fields.myth = {}; l.blocks.push({ type: 'slab', slot: at(1, 22, 12, 2), children: [{ type: 'headline', field: 'myth', when: { page: 'first' } }] }); }), 'a block inside a slab has no condition of its own'));
+});
+
+test('ground cases: the first whose condition holds, the last without one; photo on poster pages only', () => {
+  assert.deepEqual(validateLayout(poster()), []);
+  assert.deepEqual(mod((l) => { l.ground = [{ when: { present: 'sub' }, ground: 'deep' }, { ground: 'series' }]; }), []);
+  assert.ok(has(mod((l) => { l.ground = [{ when: { present: 'sub' }, ground: 'deep' }]; }), 'the last case has no "when"'));
+  assert.ok(has(mod((l) => { l.ground = [{ ground: 'deep' }, { ground: 'light' }]; }), 'needs a "when" (only the last case has none)'));
+  assert.ok(has(mod((l) => { l.ground = []; }), 'a list of 1 to 4 cases'));
+  assert.ok(has(mod((l) => { l.ground = Array.from({ length: 5 }, () => ({ when: { present: 'sub' }, ground: 'deep' })); }), 'a list of 1 to 4 cases'));
+  assert.ok(has(mod((l) => { l.ground = [{ when: { present: 'sub' }, ground: 'red' }, { ground: 'light' }]; }), 'ground[0].ground must be series or one of'));
+  assert.ok(has(mod((l) => { l.ground = [{ when: { present: 'quote' }, ground: 'deep' }, { ground: 'light' }]; }), '"quote" is not in the layout\'s fields'));
+  assert.ok(has(mod((l) => { l.ground = [{ when: { present: 'sub' }, ground: 'deep', css: 'x' }, { ground: 'light' }]; }), '"css" is not a known setting'));
+  assert.ok(has(mod((l) => { l.ground = 'photo'; }), 'ground must be series or one of'), 'a grid page has no photo ground');
+  assert.ok(has(modP((l) => { delete l.fields.image; l.blocks.shift(); }), 'a photo ground needs the image field'));
+});
+
+test('page kinds: the built-in templates\' poster and editorial pages, their chrome and what each block honours there', () => {
+  assert.deepEqual(validateLayout(editorial()), []);
+  assert.ok(has(modP((l) => { l.page = 'magazine'; }), 'page must be one of grid, poster, editorial'));
+  // chrome: no slot, on its own page only, never on a grid page (nor offered to the editor or the AI)
+  assert.ok(has(mod((l) => { l.blocks.push({ type: 'bar' }); }), 'a bar block belongs to poster pages'));
+  assert.ok(has(modE((l) => { l.blocks.push({ type: 'bar' }); }), 'a bar block belongs to poster pages'));
+  assert.ok(has(modP((l) => { l.blocks.push({ type: 'footer' }); }), 'a footer block belongs to editorial pages'));
+  assert.ok(has(modP((l) => { l.blocks[1].px = { x: 80, y: 60, w: 920, h: 40 }; }), 'a bar has no slot: the page places it'));
+  assert.ok(has(modE((l) => { l.blocks[1].rule = 'yes'; }), 'rule must be true or false'));
+  assert.deepEqual(modE((l) => { l.blocks[1].rule = false; }), []);
+  for (const t of ['bar', 'runhead', 'footer']) assert.ok(!BLOCK_TYPES.includes(t) && !(t in layoutCatalogue().blocks), t);
+  for (const o of ['specSize', 'photoTop']) assert.ok(!Object.values(layoutCatalogue().blocks).some((b) => o in b.options), o);
+  assert.ok(has(mod((l) => { l.blocks[1].specSize = true; }), 'specSize is used on poster and editorial pages only'));
+  assert.ok(has(mod((l) => { l.blocks[0].photoTop = true; }), 'photoTop is used on poster pages only'));
+  // a block a page has no drawing for, and options its drawing does not honour, are refused
+  assert.ok(has(modP((l) => { l.fields.items = {}; l.blocks.push({ type: 'list', px: { x: 80, y: 1000, w: 400, h: 100 } }); }), 'a poster page does not draw a list block'));
+  assert.ok(has(modE((l) => { l.fields.big = {}; l.blocks.push({ type: 'figure', px: { x: 70, y: 600, w: 400, h: 100 } }); }), 'an editorial page does not draw a figure block'));
+  assert.ok(has(modP((l) => { l.blocks[3].size = 36; }), 'size is not used on a poster page'));
+  assert.ok(has(modE((l) => { l.blocks[3].valign = 'bottom'; }), 'valign is not used on an editorial page'));
+  assert.ok(has(modP((l) => { l.fields.headline = {}; l.blocks.push({ type: 'headline', specSize: true, px: { x: 80, y: 1000, w: 920, h: 200 } }); }), 'specSize is not used on a poster page'));
+  assert.ok(has(modP((l) => { l.blocks[4].direction = 'column'; }), 'direction is not used on a poster page'));
+  assert.ok(has(modP((l) => { l.blocks.push({ type: 'decoration', kind: 'dots', px: { x: 0, y: 0, w: 10, h: 10 } }); }), 'a poster page draws the decorations rule, glow, map only'));
+  // the poster photo and the editorial panel run the full width to the bottom edge, from a px rectangle
+  assert.ok(has(modP((l) => { l.blocks[0].px = { x: 0, y: 616, w: 1080, h: 700 }; }), 'the photo runs the full width to the bottom edge'));
+  assert.ok(has(modP((l) => { l.blocks[0].px = { x: 80, y: 616, w: 1000, h: 734 }; }), 'the photo runs the full width'));
+  assert.ok(has(modP((l) => { delete l.blocks[0].px; l.blocks[0].slot = at(1, 9, 12, 7); }), 'the photo takes a "px" rectangle'));
+  assert.ok(has(modP((l) => { l.blocks[0].frame = 'card'; }), 'frame is not used on a poster page'));
+  assert.ok(has(modE((l) => { l.blocks[0].px = { x: 0, y: 990, w: 1080, h: 300 }; }), 'the panel runs the full width to the bottom edge'));
+  // the editorial text keeps clear of the panel's edge, as on a grid page
+  assert.ok(has(modE((l) => { l.blocks[2].px.h = 860; }), 'blocks[2] (headline) lies across the edge of the panel'));
+});
+
+test('hostile values in the new settings are refused before they could reach a page', () => {
+  for (const h of HOSTILE) {
+    const errs = [
+      modP((l) => { l.page = h; }), modP((l) => { l.ground = [{ when: { present: 'image' }, ground: h }, { ground: 'cool' }]; }), modP((l) => { l.ground = [{ when: { present: h }, ground: 'deep' }, { ground: 'cool' }]; }),
+      modP((l) => { l.blocks[2].px = { x: h, y: 140, w: 920, h: 180 }; }), modP((l) => { l.blocks[2].px = { [h]: { x: 80, y: 140, w: 920, h: 180 } }; }), modP((l) => { l.blocks[2].when = { page: h }; }),
+      modP((l) => { l.blocks[2].when = { absent: h }; }), modP((l) => { l.blocks[2].shrink = h; }), modP((l) => { l.blocks[0].photoTop = h; }), modE((l) => { l.blocks[2].specSize = h; }),
+      modE((l) => { l.blocks[1].rule = h; }), modE((l) => { l.blocks[4][h] = 1; }), modP((l) => { l.blocks.push({ type: h }); }),
+    ];
+    errs.forEach((e, i) => assert.ok(e.length > 0, `${i}: ${h}`));
+    for (const e of errs.flat()) assert.ok(!e.includes('<script>window'), e);
+  }
+  // a type that names a property every object has is not a block type
+  for (const t of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) assert.ok(has(mod((l) => { l.blocks[1].type = t; }), 'type must be one of'), t);
+});
+
+test('the page: conditions, ground cases and the shrink option on a grid page', () => {
+  const S = SIZES.feed;
+  const page = (l, spec, extra = {}) => renderLayout({ template: 'layout', layout: l.id, ...spec }, { size: S, brand, layouts: [l], image: () => PIXEL, imageSize: () => ({ w: 1800, h: 1800 }), ...extra });
+  const l = base();
+  l.blocks[2].when = { present: 'sub' };
+  l.blocks.push({ type: 'label', text: 'Swipe', slot: at(1, 22, 6, 1), when: { page: 'first' } });
+  l.ground = [{ when: { present: 'sub' }, ground: 'deep' }, { ground: 'warm' }];
+  assert.deepEqual(validateLayout(l), []);
+  const plain = page(l, { headline: 'H', image: 'a.jpg' });
+  assert.ok(!plain.body.includes('Swipe') && plain.body.includes('--bg:var(--g-warm)'));
+  const withSub = page(l, { headline: 'H', sub: 'S', image: 'a.jpg' }, { counter: { n: 1, total: 3 } });
+  assert.ok(withSub.body.includes('>Swipe<') && withSub.body.includes('--bg:var(--g-deep)') && withSub.body.includes('>S</div>'));
+  assert.ok(!page(l, { headline: 'H', sub: 'S', image: 'a.jpg' }, { counter: { n: 2, total: 3 } }).body.includes('>Swipe<'));
+  assert.ok(page(l, { headline: 'H', sub: 'S', image: 'a.jpg', ground: 'light' }).body.includes('--bg:var(--g-light)'), 'the spec\'s ground still wins');
+  // shrink: false keeps a headline out of the fit loop's scale
+  assert.match(page(base(), { headline: 'H', image: 'a.jpg' }).body, /font-size:calc\(84px\*var\(--hs,1\)/);
+  const fixed = base(); fixed.blocks[1].shrink = false;
+  assert.match(page(fixed, { headline: 'H', image: 'a.jpg' }).body, /class="h ly-h" data-role="headline" style="font-size:84px"/);
+});
+
 test('labels, slabs and screens: their own rules', () => {
   const lab = (o) => mod((l) => { l.blocks.push({ type: 'label', slot: at(1, 22, 12, 1), ...o }); });
   assert.deepEqual(lab({ text: 'Myth' }), []);

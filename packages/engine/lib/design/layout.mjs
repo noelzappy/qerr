@@ -20,6 +20,30 @@
 // The sizes a layout renders at are the keys of its canvas (from lib/design/sizes.mjs). A slot is in grid cells, 1-based, and
 // may be given per size ({ "feed": {...}, "story": {...} }). A design block for a layout is checked against the fields the layout
 // declares, with their lengths, exactly as the built-in templates check theirs.
+//
+// The same format describes the built-in templates (lib/design/builtin-layouts.mjs), which needs a few more settings, each a
+// name from a fixed list or a bounded whole number:
+//   "page": "grid" | "poster" | "editorial"     what kind of page the blocks are drawn on (default grid: the page above, drawn
+//                                               with design/layout.css). A poster or editorial page is the built-in templates'
+//                                               own page: their wrapper, type, decoration, fit margins and chrome blocks, and
+//                                               each block drawn with their markup (see PAGES).
+//   "ground": [{ "when": {...}, "ground": "photo" }, { "ground": "cool" }]   a ground chosen by the first case whose condition
+//                                               holds (the last case has none); "photo" (poster pages) is the ground a photo page
+//                                               starts from, the series' else cool, which a plain photo background replaces in
+//                                               the browser (runtime.mjs ready()).
+//   block "px": { "x", "y", "w", "h" }           a rectangle in page pixels instead of grid cells (or one per size), where a
+//                                               built-in template places something at a hand-tuned position.
+//   block "when": { "present": "sub" } | { "absent": "image" } | { "page": "first" | "later" | "single" }   the block is drawn
+//                                               only when the field is filled (or empty), or on page 1 of a carousel, a later
+//                                               page, or a post that is not a carousel. Several keys must all hold. Two blocks
+//                                               whose conditions exclude each other may show the same field and may overlap.
+//   chrome blocks (no slot: the page frame places them, following the brand's logo placement and footer style): "bar" (the
+//                                               poster's logo and website, "Swipe →" on page 1 of a carousel), "runhead" (the
+//                                               editorial running head) and "footer" (the editorial footer).
+//   options: "shrink" (headline, figure, stats: true, the default, shrinks the block with the fit loop, together with every
+//                                               other block that shrinks; false keeps its size), "specSize"
+//                                               (headline: the spec's own validated "size" replaces the block's), "photoTop"
+//                                               (a poster photo: the spec's validated "photoTop" moves its top edge).
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, brandFile } from '../core.mjs';
@@ -83,33 +107,86 @@ export const SLAB_GROUNDS = [...GROUND_NAMES, 'panel', 'card'];
 export const TEXTURES = ['auto', 'none', 'dots', 'grid', 'lines'];
 export const LABEL_SOURCES = ['series', 'brand', 'folio'];
 
-// canon: a reader that turns an older spelling into a listed name (a ground alias into its neutral name).
+// The kinds of page a layout draws on (its "page"): grid (a brand's own layout, drawn with design/layout.css), or the built-in
+// templates' poster or editorial page (see the header and PAGES).
+export const PAGE_KINDS = ['grid', 'poster', 'editorial'];
+const BUILT_PAGES = ['poster', 'editorial'];
+export const PAGE_CONDITIONS = ['single', 'first', 'later'];
+const WHEN_KEYS = ['present', 'absent', 'page'];
+export const MAX_GROUND_CASES = 4;
+
+// canon: a reader that turns an older spelling into a listed name (a ground alias into its neutral name). pages: the page kinds
+// an option (or a block type) is used on, when not all of them (the editor and the AI see only what a grid page takes).
 const e = (list, def, canon) => ({ t: 'enum', list, def, canon });
 const b = (def) => ({ t: 'bool', def });
+const on = (pages, o) => ({ ...o, pages });
 const ALIGN = e(ALIGNS, 'left');
 const VALIGN = e(VALIGNS, 'top');
+const SHRINK = b(true);
 
 // Every block type, the field kinds it can show, the field it shows by default and its options (each from a fixed list).
-// bleed: photos, slabs and decorations may run over the margins to the page edges their slot touches.
+// bleed: photos, slabs and decorations may run over the margins to the page edges their slot touches. chrome: a part of the page
+// frame with no slot of its own (the page places it). text: a block whose words must stay inside the size's minimum margins.
 export const BLOCKS = {
-  headline: { kinds: TEXTUAL, field: 'headline', child: true, options: { size: e(HEADLINE_PX, 84), style: e(['editorial', 'poster'], 'editorial'), align: ALIGN, valign: VALIGN } },
-  sub: { kinds: TEXTUAL, field: 'sub', child: true, options: { size: e(SUB_PX, 32), align: ALIGN, valign: VALIGN } },
-  label: { kinds: ['short'], field: null, child: true, options: { style: e(['mono', 'tag', 'plain'], 'mono'), tone: e(['muted', 'accent'], 'muted'), size: e(LABEL_PX, 22), align: ALIGN, valign: VALIGN } },
-  figure: { kinds: ['short'], field: 'big', child: true, options: { size: e(FIGURE_PX, 168), style: e(['editorial', 'poster'], 'editorial'), align: ALIGN, valign: VALIGN } },
-  stats: { kinds: ['stats'], field: 'stats', child: true, options: { direction: e(['row', 'column'], 'row'), size: e(STAT_PX, 64), rules: b(false), align: ALIGN, valign: VALIGN } },
-  list: { kinds: ['items'], field: 'items', child: true, options: { style: e(['checks', 'pills', 'bullets'], 'checks'), align: ALIGN, valign: VALIGN } },
-  photo: { kinds: ['image'], field: 'image', options: { frame: e(['none', 'card', 'raised'], 'none') }, bleed: true },
+  headline: { kinds: TEXTUAL, field: 'headline', child: true, text: true, options: { size: e(HEADLINE_PX, 84), style: e(['editorial', 'poster'], 'editorial'), align: ALIGN, valign: VALIGN, shrink: SHRINK, specSize: on(BUILT_PAGES, b(false)) } },
+  sub: { kinds: TEXTUAL, field: 'sub', child: true, text: true, options: { size: e(SUB_PX, 32), align: ALIGN, valign: VALIGN } },
+  label: { kinds: ['short'], field: null, child: true, text: true, options: { style: e(['mono', 'tag', 'plain'], 'mono'), tone: e(['muted', 'accent'], 'muted'), size: e(LABEL_PX, 22), align: ALIGN, valign: VALIGN } },
+  figure: { kinds: ['short'], field: 'big', child: true, text: true, options: { size: e(FIGURE_PX, 168), style: e(['editorial', 'poster'], 'editorial'), align: ALIGN, valign: VALIGN, shrink: SHRINK } },
+  stats: { kinds: ['stats'], field: 'stats', child: true, text: true, options: { direction: e(['row', 'column'], 'row'), size: e(STAT_PX, 64), rules: b(false), align: ALIGN, valign: VALIGN, shrink: SHRINK } },
+  list: { kinds: ['items'], field: 'items', child: true, text: true, options: { style: e(['checks', 'pills', 'bullets'], 'checks'), align: ALIGN, valign: VALIGN } },
+  photo: { kinds: ['image'], field: 'image', options: { frame: e(['none', 'card', 'raised'], 'none'), photoTop: on(['poster'], b(false)) }, bleed: true },
   screen: { kinds: ['image'], field: 'image', options: { device: e(['phone', 'desktop'], 'phone'), fit: e(['contain', 'crop'], 'contain'), glow: b(true), tilt: b(false), framed: b(false), align: e(ALIGNS, 'center'), valign: e(VALIGNS, 'center') } },
-  logo: { kinds: [], field: null, child: true, options: { variant: e(['auto', 'full', 'solid', 'pill', 'mark'], 'auto'), size: e(LOGO_PX, 34), align: ALIGN, valign: VALIGN } },
-  website: { kinds: [], field: null, child: true, options: { size: e(WEBSITE_PX, 26), align: ALIGN, valign: VALIGN } },
+  logo: { kinds: [], field: null, child: true, text: true, options: { variant: e(['auto', 'full', 'solid', 'pill', 'mark'], 'auto'), size: e(LOGO_PX, 34), align: ALIGN, valign: VALIGN } },
+  website: { kinds: [], field: null, child: true, text: true, options: { size: e(WEBSITE_PX, 26), align: ALIGN, valign: VALIGN } },
   slab: { kinds: [], field: null, options: { ground: e(SLAB_GROUNDS, 'panel', (v) => groundName(v) ?? v), radius: e(['none', 'card', 'slab'], 'none'), shadow: b(false), padding: e(PAD_PX, 48), gap: e(GAP_PX, 24), align: ALIGN, valign: VALIGN }, bleed: true, children: true },
   artefact: { kinds: ['artefact'], field: 'artefact', options: { align: ALIGN, valign: VALIGN } },
   decoration: { kinds: [], field: null, options: { kind: e(['rule', 'panel', 'dots', 'texture', 'glow', 'map'], 'rule') }, bleed: true, under: true },
   spacer: { kinds: [], field: null, options: {} },
+  // the built-in pages' chrome
+  bar: { kinds: [], field: null, options: {}, chrome: true, pages: ['poster'] },
+  runhead: { kinds: [], field: null, options: { rule: b(true) }, chrome: true, pages: ['editorial'] },
+  footer: { kinds: [], field: null, options: {}, chrome: true, pages: ['editorial'] },
 };
-export const BLOCK_TYPES = Object.keys(BLOCKS);
-const BASE_KEYS = ['type', 'slot', 'field'];
-const LAYOUT_KEYS = ['id', 'name', 'description', 'ground', 'accent', 'texture', 'fields', 'canvas', 'blocks'];
+const usedOn = (x, page) => !x.pages || x.pages.includes(page);
+// The block types a brand's own (grid) layout can use: what the layout editor and the AI are offered.
+export const BLOCK_TYPES = Object.keys(BLOCKS).filter((t) => usedOn(BLOCKS[t], 'grid'));
+export const ALL_BLOCK_TYPES = Object.keys(BLOCKS);
+
+// What a built-in page draws (lib/design/layout-poster.mjs, layout-editorial.mjs): for each block type it has a drawing for,
+// the options that drawing honours (any other option of the type is refused on that page), the decoration kinds it draws, and
+// the margins its fit check holds text to (the templates' reference margins). A grid page draws every block type with every
+// option. Phase 2 of the conversion adds to these lists as it converts more templates (see testlib/CONVERTING.md): one line per
+// block type, so that parallel changes merge.
+export const PAGES = {
+  poster: {
+    draws: {
+      photo: ['photoTop'],
+      bar: [],
+      headline: ['size', 'style', 'align', 'shrink'],
+      figure: ['size', 'style', 'align', 'shrink'],
+      sub: ['align'],
+      stats: ['size', 'shrink'],
+      decoration: ['kind'],
+      spacer: [],
+    },
+    decorations: ['rule', 'glow', 'map'],
+    fit: { pad: 62, top: 46 },
+  },
+  editorial: {
+    draws: {
+      decoration: ['kind'],
+      runhead: ['rule'],
+      headline: ['size', 'style', 'align', 'shrink', 'specSize'],
+      sub: ['align'],
+      footer: [],
+      spacer: [],
+    },
+    decorations: ['panel', 'rule', 'glow', 'map'],
+    fit: { pad: 62, top: 46 },
+  },
+};
+const BASE_KEYS = ['type', 'slot', 'px', 'field', 'when'];
+const LAYOUT_KEYS = ['id', 'name', 'description', 'page', 'ground', 'accent', 'texture', 'fields', 'canvas', 'blocks'];
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
@@ -153,8 +230,10 @@ export function cellOf(g, size) {
   return { w: (S.w - m.left - m.right - (g.columns - 1) * gx) / g.columns, h: (S.h - m.top - m.bottom - (g.rows - 1) * gy) / g.rows, gx, gy, m };
 }
 
-// A block's rectangle on the page for one size: the slot's cells, and the page edges it bleeds to.
+// A block's rectangle on the page for one size: the slot's cells, and the page edges it bleeds to; or its pixel rectangle.
 export function slotRect(layout, block, size) {
+  const p = pxFor(block.px, size);
+  if (p) { const r = { x: p.x, y: p.y, w: p.w, h: p.h }; return { ...r, inner: { ...r } }; }
   const g = layout.canvas[size], c = cellOf(g, size), s = slotFor(block.slot, size), S = SIZES[size];
   let x = c.m.left + (s.col - 1) * (c.w + c.gx), y = c.m.top + (s.row - 1) * (c.h + c.gy);
   let w = s.width * c.w + (s.width - 1) * c.gx, h = s.height * c.h + (s.height - 1) * c.gy;
@@ -169,6 +248,91 @@ export function slotRect(layout, block, size) {
 }
 
 const slotFor = (slot, size) => (isObj(slot) && 'col' in slot ? slot : slot?.[size]);
+const pxFor = (p, size) => (isObj(p) && 'x' in p ? p : isObj(p) ? p[size] : undefined);
+
+// A pixel rectangle: whole numbers, inside the page of that size.
+function onePxProblems(p, size, where, errors) {
+  if (!isObj(p)) return errors.push(`${where} must be { "x": 70, "y": 154, "w": 940, "h": 300 } (in page pixels)`);
+  unknownKeys(p, ['x', 'y', 'w', 'h'], where, errors);
+  const S = SIZES[size], before = errors.length;
+  for (const [k, lo, hi] of [['x', 0, S.w - 1], ['y', 0, S.h - 1], ['w', 1, S.w], ['h', 1, S.h]]) if (!isInt(p[k], lo, hi)) errors.push(`${where}.${k} must be a whole number of pixels from ${lo} to ${hi}`);
+  if (errors.length > before) return;
+  if (p.x + p.w > S.w) errors.push(`${where}: x + w is ${p.x + p.w}, past the ${size} page's width of ${S.w}`);
+  if (p.y + p.h > S.h) errors.push(`${where}: y + h is ${p.y + p.h}, past the ${size} page's height of ${S.h}`);
+}
+
+function pxProblems(p, sizes, where, errors) {
+  if (isObj(p) && 'x' in p) { for (const z of sizes) onePxProblems(p, z, `${where}.px`, errors); return; }
+  if (!isObj(p)) return errors.push(`${where}.px must be { "x", "y", "w", "h" } in page pixels, or one per size`);
+  for (const k of Object.keys(p)) if (!sizes.includes(k)) errors.push(`${where}.px has "${clip(k)}", which is not a size of this layout (${sizes.join(', ')})`);
+  for (const z of sizes) {
+    if (p[z] === undefined) errors.push(`${where}.px has no rectangle for ${z}`);
+    else onePxProblems(p[z], z, `${where}.px.${z}`, errors);
+  }
+}
+
+// ---- conditions: a block (or a ground) that applies only when a field is filled or empty, or on some pages of a carousel ----
+// A value counts as filled when it is a non-empty text, a non-empty list, an object, a number or true.
+export const filled = (v) => (typeof v === 'string' ? v !== '' : Array.isArray(v) ? v.length > 0 : v !== undefined && v !== null && v !== false);
+const pageOf = (counter) => (!counter ? 'single' : counter.n === 1 ? 'first' : 'later');
+
+// Whether a (checked) condition holds for a spec, on a page (ctx.counter: { n, total } on a carousel page).
+export function whenHolds(when, spec, counter) {
+  if (when === undefined) return true;
+  if (when.present !== undefined && !filled(spec?.[when.present])) return false;
+  if (when.absent !== undefined && filled(spec?.[when.absent])) return false;
+  if (when.page !== undefined && pageOf(counter) !== when.page) return false;
+  return true;
+}
+
+// fields: the field names a condition may name (a layout's declared fields).
+export function whenProblems(when, fields, where) {
+  if (!isObj(when) || !Object.keys(when).length) return [`${where} must be an object like { "present": "sub" }, { "absent": "image" } or { "page": "first" }`];
+  const errors = [];
+  unknownKeys(when, WHEN_KEYS, where, errors);
+  for (const k of ['present', 'absent']) {
+    if (when[k] === undefined) continue;
+    if (typeof when[k] !== 'string' || !FIELDS[when[k]]) errors.push(`${where}.${k} must be one of ${FIELD_NAMES.join(', ')} (got ${show(when[k])})`);
+    else if (!fields.includes(when[k])) errors.push(`${where}.${k}: "${when[k]}" is not in the layout's fields; declare it there first`);
+  }
+  if (when.present !== undefined && when.present === when.absent) errors.push(`${where}: a field cannot be both present and absent`);
+  if (when.page !== undefined && !PAGE_CONDITIONS.includes(when.page)) errors.push(`${where}.page must be one of ${PAGE_CONDITIONS.join(', ')}`);
+  return errors;
+}
+
+// Two (checked) conditions that can never hold together: one needs a field the other needs empty, or they name different pages.
+export function exclusive(a, b) {
+  if (!a || !b) return false;
+  const one = (x, y) => (x.present !== undefined && x.present === y.absent);
+  return one(a, b) || one(b, a) || (a.page !== undefined && b.page !== undefined && a.page !== b.page);
+}
+
+// The layout's ground for a spec: its "ground" (a name, "series" or "photo"), or the first of its cases whose condition holds.
+export function groundCase(layout, spec, counter) {
+  const g = layout.ground;
+  if (!Array.isArray(g)) return g;
+  return g.find((c) => whenHolds(c.when, spec, counter))?.ground;
+}
+const GROUND_WORDS = (page) => `series${page === 'poster' ? ', photo' : ''} or one of ${GROUND_NAMES.join(', ')}`;
+function groundProblems(l, page, where, errors) {
+  const one = (v, w) => {
+    if (v === 'series' || groundName(v)) return;
+    if (v === 'photo' && page === 'poster') { if (!isObj(l.fields) || !l.fields.image) errors.push(`${w}: a photo ground needs the image field`); return; }
+    errors.push(`${w} must be ${GROUND_WORDS(page)}`);
+  };
+  if (!Array.isArray(l.ground)) return one(l.ground, `${where}: ground`);
+  if (!l.ground.length || l.ground.length > MAX_GROUND_CASES) return errors.push(`${where}: ground must be a ground or a list of 1 to ${MAX_GROUND_CASES} cases like { "when": { "present": "image" }, "ground": "photo" }`);
+  l.ground.forEach((c, i) => {
+    const w = `${where}: ground[${i}]`;
+    if (!isObj(c)) return errors.push(`${w} must be an object like { "when": { "present": "image" }, "ground": "photo" }`);
+    unknownKeys(c, ['when', 'ground'], w, errors);
+    one(c.ground, `${w}.ground`);
+    const last = i === l.ground.length - 1;
+    if (last && c.when !== undefined) errors.push(`${w}: the last case has no "when" (it is the ground when no other case holds)`);
+    if (!last && c.when === undefined) errors.push(`${w} needs a "when" (only the last case has none)`);
+    if (c.when !== undefined) errors.push(...whenProblems(c.when, isObj(l.fields) ? Object.keys(l.fields) : [], `${w}.when`));
+  });
+}
 
 function oneSlotProblems(s, g, where, errors) {
   if (!isObj(s)) return errors.push(`${where} must be { "col": 1, "row": 1, "width": 6, "height": 4 } (in grid cells)`);
@@ -190,12 +354,31 @@ function slotProblems(slot, layout, sizes, where, errors) {
   }
 }
 
-function optionProblems(block, spec, where, errors) {
+function optionProblems(block, spec, where, errors, page) {
   for (const [k, o] of Object.entries(spec.options)) {
     const v = block[k];
     if (v === undefined) continue;
+    if (!usedOn(o, page)) { errors.push(`${where}.${k} is used on ${o.pages.join(' and ')} pages only`); continue; }
     if (o.t === 'enum' && !o.list.includes(o.canon ? o.canon(v) : v)) errors.push(`${where}.${k} must be one of ${o.list.join(', ')} (got ${show(v)})`);
     if (o.t === 'bool' && typeof v !== 'boolean') errors.push(`${where}.${k} must be true or false`);
+  }
+}
+
+// What a block on a built-in (poster or editorial) page may not do: those pages draw each block as the templates do, from the
+// top of its rectangle down, in the page's own type, with the options PAGES lists, and some only in a given place.
+const aPage = (page) => (/^[aeiou]/.test(page) ? `an ${page} page` : `a ${page} page`);
+
+function builtPageProblems(blk, layout, sizes, where, errors, page) {
+  const P = PAGES[page], honoured = Object.hasOwn(P.draws, blk.type) ? P.draws[blk.type] : null;
+  if (!honoured) return errors.push(`${where}: ${aPage(page)} does not draw a ${blk.type} block (it draws ${Object.keys(P.draws).join(', ')})`);
+  for (const k of Object.keys(BLOCKS[blk.type].options)) if (blk[k] !== undefined && !honoured.includes(k)) errors.push(`${where}.${k} is not used on ${aPage(page)} (a ${blk.type} there takes ${honoured.join(', ') || 'no options'})`);
+  if (blk.type === 'decoration' && !P.decorations.includes(optionOf(blk, 'kind'))) errors.push(`${where}: ${aPage(page)} draws the decorations ${P.decorations.join(', ')} only`);
+  // The poster photo runs full width to the bottom edge (it bleeds off the page); the editorial panel fills the page from its top.
+  const full = (blk.type === 'photo' && page === 'poster') || (blk.type === 'decoration' && optionOf(blk, 'kind') === 'panel' && page === 'editorial');
+  if (full && blk.px === undefined) errors.push(`${where}: on ${aPage(page)} the ${blk.type === 'photo' ? 'photo' : 'panel'} takes a "px" rectangle`);
+  if (full && blk.px !== undefined) for (const z of sizes) {
+    const p = pxFor(blk.px, z), S = SIZES[z];
+    if (isObj(p) && isInt(p.x, 0, S.w) && (p.x !== 0 || p.w !== S.w || p.y + p.h !== S.h)) errors.push(`${where}.px: on ${aPage(page)} the ${blk.type === 'photo' ? 'photo' : 'panel'} runs the full width to the bottom edge (x 0, w ${S.w}, y + h ${S.h} at ${z})`);
   }
 }
 
@@ -203,17 +386,33 @@ function optionProblems(block, spec, where, errors) {
 export const optionOf = (block, k) => { const o = BLOCKS[block.type].options[k]; const v = block[k] ?? o?.def; return o?.canon ? o.canon(v) : v; };
 
 // One block (or one child of a slab). Returns the fields it shows.
-function blockProblems(blk, layout, sizes, where, errors, { child = false } = {}) {
+function blockProblems(blk, layout, sizes, where, errors, { child = false, page = 'grid' } = {}) {
   if (!isObj(blk)) { errors.push(`${where} must be an object like { "type": "headline", "slot": { ... } }`); return []; }
-  const spec = BLOCKS[blk.type];
+  const spec = Object.hasOwn(BLOCKS, blk.type) ? BLOCKS[blk.type] : null;
   if (!spec) { errors.push(`${where}.type must be one of ${BLOCK_TYPES.join(', ')} (got ${show(blk.type)})`); return []; }
+  if (!usedOn(spec, page)) { errors.push(`${where}: a ${blk.type} block belongs to ${spec.pages.join(' and ')} pages (set the layout's "page"), not to ${aPage(page)}`); return []; }
   if (child && !spec.child) { errors.push(`${where}: a ${blk.type} cannot go inside a slab (a slab holds ${BLOCK_TYPES.filter((t) => BLOCKS[t].child).join(', ')})`); return []; }
   const keys = [...BASE_KEYS, ...Object.keys(spec.options), ...(spec.bleed ? ['bleed'] : []), ...(spec.children ? ['children'] : []), ...(blk.type === 'label' ? ['text', 'source'] : []), ...(blk.type === 'screen' ? ['titleField'] : [])];
   unknownKeys(blk, keys, where, errors);
-  optionProblems(blk, spec, where, errors);
+  optionProblems(blk, spec, where, errors, page);
+  if (blk.when !== undefined) errors.push(...whenProblems(blk.when, isObj(layout.fields) ? Object.keys(layout.fields) : [], `${where}.when`));
+  if (page !== 'grid') builtPageProblems(blk, layout, sizes, where, errors, page);
   if (child) {
-    if (blk.slot !== undefined) errors.push(`${where}: a block inside a slab has no slot of its own (it flows in the slab)`);
+    if (blk.slot !== undefined || blk.px !== undefined) errors.push(`${where}: a block inside a slab has no slot of its own (it flows in the slab)`);
     if (blk.valign !== undefined) errors.push(`${where}: a block inside a slab has no valign (set it on the slab)`);
+    if (blk.when !== undefined) errors.push(`${where}: a block inside a slab has no condition of its own (set "when" on the slab)`);
+  } else if (spec.chrome) {
+    if (blk.slot !== undefined || blk.px !== undefined) errors.push(`${where}: a ${blk.type} has no slot: the page places it (following the brand's logo placement)`);
+  } else if (blk.px !== undefined) {
+    if (blk.slot !== undefined) errors.push(`${where}: give a slot (grid cells) or px (page pixels), not both`);
+    if (blk.bleed !== undefined) errors.push(`${where}.bleed: a px rectangle is already in page pixels; run it to the page edge instead of bleeding`);
+    pxProblems(blk.px, sizes, where, errors);
+    // words stay inside the size's minimum margins (a story keeps clear of the Instagram interface)
+    if (spec.text) for (const z of sizes) {
+      const p = pxFor(blk.px, z), M = MIN_MARGINS[z], S = SIZES[z];
+      if (!isObj(p) || ![p.x, p.y, p.w, p.h].every(Number.isInteger)) continue;
+      if (p.x < M.left || p.y < M.top || p.x + p.w > S.w - M.right || p.y + p.h > S.h - M.bottom) errors.push(`${where}.px: a ${blk.type} keeps inside the ${z} page's minimum margins (${M.top} ${M.right} ${M.bottom} ${M.left} px) so its text stays clear of the edge`);
+    }
   } else slotProblems(blk.slot, layout, sizes, where, errors);
   // What it shows: a declared field (by default the block type's own), a fixed text of the layout, or a fixed source.
   const used = [];
@@ -252,13 +451,17 @@ function blockProblems(blk, layout, sizes, where, errors, { child = false } = {}
   if (spec.children) {
     if (blk.children === undefined) blk = { ...blk, children: [] };
     if (!Array.isArray(blk.children) || blk.children.length > MAX_CHILDREN) errors.push(`${where}.children must be a list of up to ${MAX_CHILDREN} blocks`);
-    else blk.children.forEach((c, i) => used.push(...blockProblems(c, layout, sizes, `${where}.children[${i}]`, errors, { child: true })));
+    else blk.children.forEach((c, i) => used.push(...blockProblems(c, layout, sizes, `${where}.children[${i}]`, errors, { child: true, page })));
   }
   return used;
 }
 
-const overlaps = (a, b) => a.col < b.col + b.width && b.col < a.col + a.width && a.row < b.row + b.height && b.row < a.row + a.height;
-const inside = (a, b) => a.col >= b.col && a.row >= b.row && a.col + a.width <= b.col + b.width && a.row + a.height <= b.row + b.height;
+// Rectangles in page pixels (a grid slot's cells, without its bleed, or a px rectangle). Cells that do not share a cell never
+// overlap here either: they are a gutter apart (or touch, with no gutter), and a tolerance of half a pixel absorbs rounding.
+const TOL = 0.5;
+const overlaps = (a, b) => Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > TOL && Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y) > TOL;
+const inside = (a, b) => a.x >= b.x - TOL && a.y >= b.y - TOL && a.x + a.w <= b.x + b.w + TOL && a.y + a.h <= b.y + b.h + TOL;
+const boxOf = (l, blk, z) => slotRect(l, blk, z).inner;
 
 // Every problem with one layout, as plain sentences. Empty when it can be used.
 export function validateLayout(l, where = 'layout') {
@@ -269,7 +472,9 @@ export function validateLayout(l, where = 'layout') {
   unknownKeys(l, LAYOUT_KEYS, where, errors);
   if (!oneLine(l.name, 40)) errors.push(`${where}: name must be one line of up to 40 characters`);
   if (l.description !== undefined && (typeof l.description !== 'string' || l.description.length > 300)) errors.push(`${where}: description must be a text of up to 300 characters`);
-  if (l.ground !== undefined && l.ground !== 'series' && !groundName(l.ground)) errors.push(`${where}: ground must be series or one of ${GROUND_NAMES.join(', ')}`);
+  if (l.page !== undefined && !PAGE_KINDS.includes(l.page)) errors.push(`${where}: page must be one of ${PAGE_KINDS.join(', ')}`);
+  const page = PAGE_KINDS.includes(l.page) ? l.page : 'grid';
+  if (l.ground !== undefined) groundProblems(l, page, where, errors);
   if (l.accent !== undefined && l.accent !== 'series' && !ACCENT_STYLES.includes(l.accent)) errors.push(`${where}: accent must be series or one of ${ACCENT_STYLES.join(', ')}`);
   if (l.texture !== undefined && !TEXTURES.includes(l.texture)) errors.push(`${where}: texture must be one of ${TEXTURES.join(', ')}`);
   // fields
@@ -301,24 +506,27 @@ export function validateLayout(l, where = 'layout') {
   // blocks
   if (!Array.isArray(l.blocks) || !l.blocks.length || l.blocks.length > MAX_BLOCKS) { errors.push(`${where}: blocks must be a list of 1 to ${MAX_BLOCKS} blocks`); return errors; }
   const used = [];
-  l.blocks.forEach((blk, i) => used.push(...blockProblems(blk, l, sizes, `${where}: blocks[${i}]`, errors)));
+  l.blocks.forEach((blk, i) => used.push(...blockProblems(blk, l, sizes, `${where}: blocks[${i}]`, errors, { page }).map((name) => ({ name, i, when: blk?.when }))));
   if (errors.length) return errors;
-  const twice = used.filter((f, i) => used.indexOf(f) !== i);
-  for (const f of new Set(twice)) errors.push(`${where}: "${f}" is shown by more than one block; show each field once`);
-  if (isObj(l.fields)) for (const f of Object.keys(l.fields)) if (FIELDS[f] && !used.includes(f)) errors.push(`${where}: fields.${f} is declared but no block shows it`);
+  // A field is shown once, or by blocks that are never drawn together (their conditions exclude each other).
+  const twice = used.filter((u, k) => used.some((v, j) => j < k && v.name === u.name && (v.i === u.i || !exclusive(v.when, u.when))));
+  for (const f of new Set(twice.map((u) => u.name))) errors.push(`${where}: "${f}" is shown by more than one block; show each field once`);
+  if (isObj(l.fields)) for (const f of Object.keys(l.fields)) if (FIELDS[f] && !used.some((u) => u.name === f)) errors.push(`${where}: fields.${f} is declared but no block shows it`);
   const shows = (t) => l.blocks.some((x) => x.type === t || (x.children ?? []).some((c) => c.type === t));
   if (!['headline', 'figure', 'sub'].some(shows) && !l.blocks.some((x) => x.type === 'label' || (x.children ?? []).some((c) => c.type === 'label'))) errors.push(`${where}: a layout needs at least one block of text (a headline, figure, sub line or label)`);
   // Blocks may not lie on each other (text never runs over a picture or another text); decorations lie under everything.
+  // Chrome blocks have no slot (the page places them); blocks that are never drawn together may share space.
   for (const z of sizes) {
-    const placed = l.blocks.map((x, i) => ({ i, s: slotFor(x.slot, z), under: BLOCKS[x.type].under })).filter((p) => !p.under);
+    const placed = l.blocks.map((x, i) => ({ i, s: BLOCKS[x.type].chrome ? null : boxOf(l, x, z), under: BLOCKS[x.type].under, when: x.when })).filter((p) => !p.under && p.s);
     for (let a = 0; a < placed.length; a++) for (let c = a + 1; c < placed.length; c++) {
+      if (exclusive(placed[a].when, placed[c].when)) continue;
       if (overlaps(placed[a].s, placed[c].s)) errors.push(`${where}: blocks[${placed[a].i}] (${l.blocks[placed[a].i].type}) and blocks[${placed[c].i}] (${l.blocks[placed[c].i].type}) overlap on the ${z} grid; give each its own cells (put text on a colour panel with a slab and its children)`);
     }
     // A block on the tint panel lies wholly on it or wholly off it, never across its edge.
     l.blocks.forEach((p, i) => {
       if (p.type !== 'decoration' || optionOf(p, 'kind') !== 'panel') return;
-      const ps = slotFor(p.slot, z);
-      placed.forEach((q) => { if (overlaps(q.s, ps) && !inside(q.s, ps)) errors.push(`${where}: blocks[${q.i}] (${l.blocks[q.i].type}) lies across the edge of the panel (blocks[${i}]) on the ${z} grid; put it wholly on the panel or wholly off it`); });
+      const ps = boxOf(l, p, z);
+      placed.forEach((q) => { if (!exclusive(p.when, q.when) && overlaps(q.s, ps) && !inside(q.s, ps)) errors.push(`${where}: blocks[${q.i}] (${l.blocks[q.i].type}) lies across the edge of the panel (blocks[${i}]) on the ${z} grid; put it wholly on the panel or wholly off it`); });
     });
   }
   return errors;
@@ -472,16 +680,20 @@ export function sampleDesign(l, { size } = {}) {
   return d;
 }
 
-// What the layout editor and the AI are told: every block type, its options and the fields, as plain data.
+// The options of a block type that a grid page (a brand's own layout) takes; the others belong to the built-in pages.
+export const gridOptions = (type) => Object.entries(BLOCKS[type].options).filter(([, o]) => usedOn(o, 'grid'));
+
+// What the layout editor and the AI are told: every block type of a grid page, its options and the fields, as plain data. The
+// built-in pages' chrome and options (lib/design/builtin-layouts.mjs) are not offered there.
 export function layoutCatalogue() {
   return {
     sizes: Object.fromEntries(SIZE_NAMES.map((z) => [z, { w: SIZES[z].w, h: SIZES[z].h, minMargins: MIN_MARGINS[z] }])),
     grid: GRID_LIMITS,
     grounds: GROUND_NAMES, darkGrounds: DARK_GROUNDS, accents: ACCENT_STYLES, textures: TEXTURES,
     fields: Object.fromEntries(Object.entries(FIELDS).map(([k, f]) => [k, { ...f }])),
-    blocks: Object.fromEntries(Object.entries(BLOCKS).map(([k, s]) => [k, {
+    blocks: Object.fromEntries(BLOCK_TYPES.map((k) => [k, BLOCKS[k]]).map(([k, s]) => [k, {
       kinds: s.kinds, field: s.field, child: !!s.child, bleed: !!s.bleed, children: !!s.children, under: !!s.under,
-      options: Object.fromEntries(Object.entries(s.options).map(([o, v]) => [o, v.t === 'enum' ? { type: 'enum', values: v.list, default: v.def } : { type: 'bool', default: v.def }])),
+      options: Object.fromEntries(gridOptions(k).map(([o, v]) => [o, v.t === 'enum' ? { type: 'enum', values: v.list, default: v.def } : { type: 'bool', default: v.def }])),
     }])),
     labelSources: LABEL_SOURCES,
     limits: { layouts: MAX_LAYOUTS, blocks: MAX_BLOCKS, children: MAX_CHILDREN },
