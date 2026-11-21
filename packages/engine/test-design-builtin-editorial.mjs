@@ -19,6 +19,9 @@ import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs'
 import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
+// The built-in layouts' own format (lib/design/builtin-layouts.mjs validates them so): what is for them only is allowed here;
+// test-design-layout-builtin.mjs checks what a brand's own layout may use.
+const validateBuiltin = (l, where) => validateLayout(l, where, { builtin: true });
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const demo = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
@@ -51,7 +54,7 @@ function same(s, msg = JSON.stringify(s).slice(0, 140)) {
 }
 
 test('cover, stats and photo-story are drawn from their layouts, each variant from its own', () => {
-  for (const list of Object.values(LAYOUTS)) for (const v of list) assert.deepEqual(validateLayout(v.layout), [], v.layout.id);
+  for (const list of Object.values(LAYOUTS)) for (const v of list) assert.deepEqual(validateBuiltin(v.layout), [], v.layout.id);
   assert.equal(builtinLayoutFor({ template: 'cover', headline: 'h', image: 'a.jpg' }).id, 'cover');
   assert.equal(builtinLayoutFor({ template: 'stats', big: '1' }).id, 'stats');
   assert.equal(builtinLayoutFor({ template: 'photo-story', headline: 'h', image: 'a.jpg' }).id, 'photo-story');
@@ -126,7 +129,7 @@ const fig = (o = {}) => ({ type: 'figure', px: { x: 70, y: 140, w: 940, h: 180 }
 const row = (o = {}) => ({ type: 'stats', px: { x: 70, y: 448, w: 940, h: 150 }, ...o });
 const pic = (o = {}) => ({ type: 'photo', px: { x: 0, y: 616, w: 1080, h: 588 }, ...o });
 const labels = (o = {}) => ({ type: 'labelrow', px: { x: 70, y: 1220, w: 940, h: 40 }, ...o });
-const check = (...blocks) => validateLayout(page(blocks));
+const check = (...blocks) => validateBuiltin(page(blocks));
 const drawn = (l, spec, counter) => renderLayoutWith(l, forSize(normaliseDesign(spec), 'feed'), ctxOf(demo, counter)).body;
 
 test('the editorial page draws a photo, a figure, figures and the label row, with options from fixed lists only', () => {
@@ -154,8 +157,8 @@ test('the editorial page draws a photo, a figure, figures and the label row, wit
   assert.ok(has(check(fig(), labels({ rule: true })), '"rule" is not a known setting'));
   assert.ok(has(check(fig(), labels({ px: { x: 10, y: 1000, w: 940, h: 40 } })), 'keeps inside the feed page\'s minimum margins'));
   assert.ok(has(check(fig(), labels({ px: undefined })), '.slot is required'));
-  assert.ok(has(validateLayout({ ...page([fig(), labels()]), page: 'poster' }), 'a labelrow block belongs to editorial pages'));
-  assert.ok(has(validateLayout({ ...page([{ type: 'labelrow', slot: { col: 1, row: 1, width: 12, height: 1 } }, { type: 'figure', slot: { col: 1, row: 3, width: 12, height: 3 } }]), page: undefined }), 'a labelrow block belongs to editorial pages'));
+  assert.ok(has(validateBuiltin({ ...page([fig(), labels()]), page: 'poster' }), 'a labelrow block belongs to editorial pages'));
+  assert.ok(has(validateBuiltin({ ...page([{ type: 'labelrow', slot: { col: 1, row: 1, width: 12, height: 1 } }, { type: 'figure', slot: { col: 1, row: 3, width: 12, height: 3 } }]), page: undefined }), 'a labelrow block belongs to editorial pages'));
   // the editor and the AI are never offered it
   assert.ok(!BLOCK_TYPES.includes('labelrow') && !('labelrow' in layoutCatalogue().blocks));
   // blocks still may not lie on each other unless their conditions exclude each other

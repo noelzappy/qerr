@@ -6,11 +6,14 @@
 //   packages/engine/design/assets/demo/object-jar.jpg      a studio-style object on a plain ground (runs into the page colour)
 //   packages/engine/design/assets/demo/scene-market.jpg    a busy scene (placed as a full-bleed band)
 //   packages/engine/design/assets/demo/screen-desk.png     a desktop app screen, window content only (the tool draws the chrome)
+//   packages/engine/design/assets/demo/screen-phone.png    a pre-framed phone capture (transparent around a drawn phone and its
+//                                                          app screen), for the layouts that show a phone (drawn without Chrome)
 //   brands/demo/map.json                                   an invented island in three regions, for the dot map
 import fs from 'node:fs';
 import path from 'node:path';
 import { ENGINE_DIR, ROOT } from '../../packages/engine/lib/core.mjs';
 import { Browser, NO_CHROME, findChrome } from '../../packages/engine/lib/design/chrome.mjs';
+import { pngBytes } from '../../packages/engine/testlib/png.mjs';
 
 const NAVY = '#14213D', CORAL = '#E8603C', SKY = '#3D6FD1', PALE = '#F3EEE6';
 const font = (f) => `data:font/woff2;base64,${fs.readFileSync(path.join(ENGINE_DIR, 'design', 'fonts', f)).toString('base64')}`;
@@ -57,7 +60,38 @@ function islandMap() {
   };
 }
 
+// A pre-framed phone capture, 660 x 1354 like the website's: transparent outside a rounded dark frame, and in it a pale app screen
+// with a navy header, a balance card, a coral progress bar and a few list rows (no words, no real amount).
+const hex = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+function phoneCapture() {
+  const W = 660, H = 1354;
+  const inRound = (x, y, x0, y0, x1, y1, r) => {
+    if (x < x0 || y < y0 || x >= x1 || y >= y1) return false;
+    const cx = Math.min(Math.max(x, x0 + r), x1 - r), cy = Math.min(Math.max(y, y0 + r), y1 - r);
+    return (x - cx) ** 2 + (y - cy) ** 2 <= r * r;
+  };
+  const box = (x, y, x0, y0, x1, y1) => x >= x0 && x < x1 && y >= y0 && y < y1;
+  return pngBytes(W, H, (x, y) => {
+    if (!inRound(x, y, 4, 4, W - 4, H - 4, 84)) return [0, 0, 0, 0];
+    if (!inRound(x, y, 28, 28, W - 28, H - 28, 62)) return [...hex('#1B1F24'), 255];
+    if (inRound(x, y, 250, 44, 410, 82, 19)) return [...hex('#1B1F24'), 255];
+    if (inRound(x, y, 70, 200, W - 70, 420, 28)) return [...(box(x, y, 110, 250, 380, 290) ? hex(NAVY) : box(x, y, 110, 320, 300, 350) ? hex('#9AA3B5') : [255, 255, 255]), 255];
+    if (box(x, y, 28, 28, W - 28, 300)) return [...hex(NAVY), 255];
+    if (inRound(x, y, 70, 470, W - 70, 500, 15)) return [...hex(x < 70 + (W - 140) * 0.68 ? CORAL : '#E4DED4'), 255];
+    for (let i = 0; i < 6; i++) {
+      const top = 560 + i * 110;
+      if (box(x, y, 70, top + 100, W - 70, top + 102)) return [...hex('#E4DED4'), 255];
+      if (inRound(x, y, 70, top + 20, 130, top + 80, 30)) return [...hex(i % 2 ? SKY : CORAL), 255];
+      if (box(x, y, 160, top + 30, 380, top + 50)) return [...hex(NAVY), 255];
+      if (box(x, y, 160, top + 60, 300, top + 74)) return [...hex('#9AA3B5'), 255];
+      if (box(x, y, 470, top + 36, W - 70, top + 58)) return [...hex(NAVY), 255];
+    }
+    return [...hex(PALE), 255];
+  }, { alpha: true });
+}
+
 async function main() {
+  fs.writeFileSync(out('packages/engine/design/assets/demo/screen-phone.png'), phoneCapture());
   const map = islandMap();
   fs.writeFileSync(out('brands/demo/map.json'), `{\n  "_source": ${JSON.stringify(map._source)},\n  "grid": ${JSON.stringify(map.grid)},\n  "lit": ${JSON.stringify(map.lit)},\n  "regions": [\n${map.regions.map((r) => `    ${JSON.stringify(r)}`).join(',\n')}\n  ]\n}\n`);
   const chromePath = findChrome();

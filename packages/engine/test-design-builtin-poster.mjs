@@ -16,6 +16,9 @@ import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs'
 import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
+// The built-in layouts' own format (lib/design/builtin-layouts.mjs validates them so): what is for them only is allowed here;
+// test-design-layout-builtin.mjs checks what a brand's own layout may use.
+const validateBuiltin = (l, where) => validateLayout(l, where, { builtin: true });
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const demo = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
@@ -148,8 +151,8 @@ test('the poster page\'s new block types and options: valid, invalid and hostile
       { type: 'mark' },
     ],
   });
-  const mod = (f) => { const l = poster(); f(l); return validateLayout(l); };
-  assert.deepEqual(validateLayout(poster()), []);
+  const mod = (f) => { const l = poster(); f(l); return validateBuiltin(l); };
+  assert.deepEqual(validateBuiltin(poster()), []);
   // fixed lists and flags only
   for (const v of ['brand', 'yes', 'Auto', ...H, 1, true, null, {}, []]) {
     assert.ok(has(mod((l) => { l.blocks[1].label = v; }), 'label must be one of auto, none'), String(v));
@@ -174,11 +177,11 @@ test('the poster page\'s new block types and options: valid, invalid and hostile
   assert.ok(has(mod((l) => { l.blocks[4].device = 'desktop'; }), 'device is not used on a poster page'));
   // the poster headline's own options are not honoured on an editorial page nor offered on a grid page (nor to the editor or the AI)
   const editorial = { id: 'e', name: 'E', page: 'editorial', fields: { headline: {} }, canvas: { feed: { columns: 12, rows: 15, margin: 70 } }, blocks: [{ type: 'headline', px: { x: 70, y: 154, w: 940, h: 300 } }] };
-  for (const [k, v] of [['specAlign', true], ['fallback', 'tagline']]) assert.ok(has(validateLayout({ ...editorial, blocks: [{ ...editorial.blocks[0], [k]: v }] }), `${k} is used on poster pages only`), k);
+  for (const [k, v] of [['specAlign', true], ['fallback', 'tagline']]) assert.ok(has(validateBuiltin({ ...editorial, blocks: [{ ...editorial.blocks[0], [k]: v }] }), `${k} is used on poster pages only`), k);
   const grid = { id: 'g', name: 'G', fields: { headline: {} }, canvas: { feed: { columns: 12, rows: 15, margin: 70 } }, blocks: [{ type: 'headline', slot: { col: 1, row: 1, width: 12, height: 4 } }] };
-  for (const [k, v] of [['specAlign', true], ['fallback', 'tagline'], ['subFallback', 'website']]) assert.ok(has(validateLayout({ ...grid, blocks: [{ ...grid.blocks[0], [k]: v }] }), `${k} is used on poster pages only`), k);
-  assert.ok(has(validateLayout({ ...grid, blocks: [...grid.blocks, { type: 'mark' }] }), 'a mark block belongs to poster pages'));
-  assert.ok(has(validateLayout({ ...grid, blocks: [...grid.blocks, { type: 'slabs', slot: { col: 1, row: 6, width: 12, height: 4 } }] }), 'a slabs block belongs to poster pages'));
+  for (const [k, v] of [['specAlign', true], ['fallback', 'tagline'], ['subFallback', 'website']]) assert.ok(has(validateBuiltin({ ...grid, blocks: [{ ...grid.blocks[0], [k]: v }] }), `${k} is used on poster pages only`), k);
+  assert.ok(has(validateBuiltin({ ...grid, blocks: [...grid.blocks, { type: 'mark' }] }), 'a mark block belongs to poster pages'));
+  assert.ok(has(validateBuiltin({ ...grid, blocks: [...grid.blocks, { type: 'slabs', slot: { col: 1, row: 6, width: 12, height: 4 } }] }), 'a slabs block belongs to poster pages'));
   for (const t of ['slabs', 'mark']) assert.ok(!BLOCK_TYPES.includes(t) && !(t in layoutCatalogue().blocks), t);
   for (const o of ['specAlign', 'fallback', 'subFallback', 'label', 'phoneTop']) assert.ok(!Object.values(layoutCatalogue().blocks).some((b) => o in b.options), o);
 });
@@ -197,7 +200,7 @@ test('the new drawings escape what they show and take only validated numbers', (
       { type: 'mark' },
     ],
   };
-  assert.deepEqual(validateLayout(l), []);
+  assert.deepEqual(validateBuiltin(l), []);
   for (const h of H) {
     const spec = { template: 'layout', headline: h, line: h, myth: h, factLead: h, fact: h, label: h, image: 'a.png', align: h, phoneTop: h, size: h };
     const out = renderLayoutWith(l, spec, ctxOf({ ...demo, tagline: h, website: h }));

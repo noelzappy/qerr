@@ -19,6 +19,9 @@ import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs'
 import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
+// The built-in layouts' own format (lib/design/builtin-layouts.mjs validates them so): what is for them only is allowed here;
+// test-design-layout-builtin.mjs checks what a brand's own layout may use.
+const validateBuiltin = (l, where) => validateLayout(l, where, { builtin: true });
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const demo = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
@@ -100,12 +103,12 @@ const photoLayout = (head = {}, more = {}) => ({
   ],
   ...more,
 });
-const mod = (f, head) => { const l = photoLayout(head); f(l); return validateLayout(l); };
+const mod = (f, head) => { const l = photoLayout(head); f(l); return validateBuiltin(l); };
 
 test('the photo page\'s block types and options: valid, invalid and hostile', () => {
-  assert.deepEqual(validateLayout(photoLayout()), []);
-  assert.deepEqual(validateLayout(photoLayout({ valign: 'bottom' })), []);
-  assert.deepEqual(validateLayout(photoLayout({ eyebrow: false, subField: undefined }, { fields: { headline: {}, image: {} } })), []);
+  assert.deepEqual(validateBuiltin(photoLayout()), []);
+  assert.deepEqual(validateBuiltin(photoLayout({ valign: 'bottom' })), []);
+  assert.deepEqual(validateBuiltin(photoLayout({ eyebrow: false, subField: undefined }, { fields: { headline: {}, image: {} } })), []);
   for (const v of ['yes', 1, null, {}, '"><x']) assert.ok(has(mod(() => {}, { eyebrow: v }), 'eyebrow must be true or false'), String(v));
   for (const v of ['middle', 'BOTTOM', 1, '"><x']) assert.ok(has(mod(() => {}, { valign: v }), 'valign must be one of'), String(v));
   // the photo page sets its own type and width; what it does not draw is refused
@@ -126,8 +129,8 @@ test('the photo page\'s block types and options: valid, invalid and hostile', ()
   assert.deepEqual(mod((l) => { l.blocks[3].when = { field: 'textAt', is: 'top' }; l.blocks.push({ type: 'headline', when: { field: 'textAt', not: 'top' }, valign: 'bottom', subField: 'sub', px: { x: 70, y: 84, w: 880, h: 1115 } }); }), []);
   // a brand's own (grid) layout cannot use any of it, and the editor and the AI are not offered it
   const grid = { id: 'g', name: 'G', fields: { headline: {}, image: {} }, canvas: { feed: { columns: 12, rows: 15, margin: 70 } }, blocks: [{ type: 'headline', slot: { col: 1, row: 1, width: 12, height: 4 }, eyebrow: true }, { type: 'backdrop', slot: { col: 1, row: 5, width: 12, height: 4 } }] };
-  assert.ok(has(validateLayout(grid), 'eyebrow is used on photo pages only'));
-  assert.ok(has(validateLayout(grid), 'a backdrop block belongs to photo pages'));
+  assert.ok(has(validateBuiltin(grid), 'eyebrow is used on photo pages only'));
+  assert.ok(has(validateBuiltin(grid), 'a backdrop block belongs to photo pages'));
   for (const t of ['backdrop', 'scrim', 'lines', 'photoFooter']) assert.ok(!BLOCK_TYPES.includes(t) && !(t in layoutCatalogue().blocks), t);
   assert.ok(!('eyebrow' in layoutCatalogue().blocks.headline.options));
 });
@@ -191,22 +194,22 @@ const coverLayout = (blk = {}, more = {}) => ({
 });
 
 test('the cover page: its sizes, its block types and options, valid, invalid and hostile', () => {
-  assert.deepEqual(validateLayout(coverLayout()), []);
-  assert.deepEqual(validateLayout(coverLayout({ arrange: 'row', align: 'left', logo: 16, size: 200, subSize: 80, urlSize: 60, gap: 0, subGap: 120, urlGap: 0, subWidth: 1200 })), []);
-  assert.deepEqual(validateLayout(coverLayout({}, { canvas: { profile: { columns: 1, rows: 1, margin: 0 } }, blocks: [{ type: 'coverMark', px: { x: 250, y: 250, w: 580, h: 580 } }] })), []);
+  assert.deepEqual(validateBuiltin(coverLayout()), []);
+  assert.deepEqual(validateBuiltin(coverLayout({ arrange: 'row', align: 'left', logo: 16, size: 200, subSize: 80, urlSize: 60, gap: 0, subGap: 120, urlGap: 0, subWidth: 1200 })), []);
+  assert.deepEqual(validateBuiltin(coverLayout({}, { canvas: { profile: { columns: 1, rows: 1, margin: 0 } }, blocks: [{ type: 'coverMark', px: { x: 250, y: 250, w: 580, h: 580 } }] })), []);
   for (const [k, bad, msg] of [['arrange', 'grid', 'arrange must be one of column, row'], ['align', 'right', 'align must be one of center, left'], ['logo', 161, 'logo must be a whole number from 16 to 160'], ['size', 23, 'size must be a whole number from 24 to 200'], ['subWidth', 99.5, 'subWidth must be a whole number from 100 to 1200'], ['gap', '"><x', 'gap must be a whole number from 0 to 160'], ['urlGap', -1, 'urlGap must be a whole number'], ['subSize', null, 'subSize must be a whole number']]) {
-    assert.ok(has(validateLayout(coverLayout({ [k]: bad })), msg), `${k} ${bad}`);
+    assert.ok(has(validateBuiltin(coverLayout({ [k]: bad })), msg), `${k} ${bad}`);
   }
   // only a cover page is drawn at the cover sizes, and a cover page only at them
-  assert.ok(has(validateLayout(coverLayout({}, { canvas: { feed: { columns: 1, rows: 1, margin: 48 } } })), 'canvas has an unknown size "feed" (sizes of a cover page: profile, facebook, linkedin, x)'));
-  assert.ok(has(validateLayout(photoLayout({}, { canvas: { facebook: { columns: 1, rows: 1, margin: 24 } } })), 'canvas has an unknown size "facebook"'));
-  assert.ok(has(validateLayout(coverLayout({ px: { x: 0, y: 62, w: 1640, h: 600 } })), 'past the facebook page\'s height of 624'));
+  assert.ok(has(validateBuiltin(coverLayout({}, { canvas: { feed: { columns: 1, rows: 1, margin: 48 } } })), 'canvas has an unknown size "feed" (sizes of a cover page: profile, facebook, linkedin, x)'));
+  assert.ok(has(validateBuiltin(photoLayout({}, { canvas: { facebook: { columns: 1, rows: 1, margin: 24 } } })), 'canvas has an unknown size "facebook"'));
+  assert.ok(has(validateBuiltin(coverLayout({ px: { x: 0, y: 62, w: 1640, h: 600 } })), 'past the facebook page\'s height of 624'));
   // the cover's words are the brand's: no field needed there, and its blocks show none
-  assert.ok(has(validateLayout(coverLayout({ field: 'headline' }, { fields: { headline: {} } })), 'a coverWords shows no field'));
-  assert.ok(has(validateLayout({ ...photoLayout(), fields: {} }), 'fields must name at least one field'));
+  assert.ok(has(validateBuiltin(coverLayout({ field: 'headline' }, { fields: { headline: {} } })), 'a coverWords shows no field'));
+  assert.ok(has(validateBuiltin({ ...photoLayout(), fields: {} }), 'fields must name at least one field'));
   // a cover page draws its own blocks only, and nobody else draws them
-  assert.ok(has(validateLayout(coverLayout({}, { blocks: [{ type: 'headline', px: { x: 100, y: 100, w: 400, h: 100 } }], fields: { headline: {} } })), 'a cover page does not draw a headline block'));
-  assert.ok(has(validateLayout(photoLayout({}, { blocks: [...photoLayout().blocks, { type: 'coverMark', px: { x: 0, y: 0, w: 10, h: 10 } }] })), 'a coverMark block belongs to cover pages'));
+  assert.ok(has(validateBuiltin(coverLayout({}, { blocks: [{ type: 'headline', px: { x: 100, y: 100, w: 400, h: 100 } }], fields: { headline: {} } })), 'a cover page does not draw a headline block'));
+  assert.ok(has(validateBuiltin(photoLayout({}, { blocks: [...photoLayout().blocks, { type: 'coverMark', px: { x: 0, y: 0, w: 10, h: 10 } }] })), 'a coverMark block belongs to cover pages'));
   for (const t of ['coverMark', 'coverWords']) assert.ok(!BLOCK_TYPES.includes(t) && !(t in layoutCatalogue().blocks), t);
   // drawn only at a cover size
   assert.throws(() => renderLayoutWith({ ...coverLayout(), canvas: { feed: {} } }, { template: 'pagecover', kind: 'x' }, ctxOf(demo, 'feed')), /drawn at the cover sizes only/);

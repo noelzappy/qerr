@@ -17,6 +17,9 @@ import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs'
 import { markupFixture } from './testlib/markup-fixture.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
 
+// The built-in layouts' own format (lib/design/builtin-layouts.mjs validates them so): what is for them only is allowed here;
+// test-design-layout-builtin.mjs checks what a brand's own layout may use.
+const validateBuiltin = (l, where) => validateLayout(l, where, { builtin: true });
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const demo = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
@@ -70,7 +73,7 @@ test('each artefact page is drawn from its own layout, and every one of them is 
   for (const [k, s] of Object.entries(KINDS)) {
     const l = builtinLayoutFor({ headline: 'h', ...s });
     assert.equal(l?.id, IDS[k], k);
-    assert.deepEqual(validateLayout(l), [], k);
+    assert.deepEqual(validateBuiltin(l), [], k);
   }
   // a text page without an artefact is the editorial group's; an artefact of no known type (validateDesign refuses it) has no
   // layout, and is refused
@@ -188,14 +191,14 @@ const page = (art = {}, extra = {}) => ({
 });
 
 test('the artefact block takes "from" on the editorial page only, from its fixed list', () => {
-  for (const from of ['field', 'ledger', 'passbook']) assert.deepEqual(validateLayout(page({ from })), [], from);
-  for (const from of ['nope', '', 1, true, null, {}, ['ledger'], ...HOSTILE, '__proto__', 'constructor']) assert.ok(has(validateLayout(page({ from })), '.from must be one of field, ledger, passbook'), JSON.stringify(from));
+  for (const from of ['field', 'ledger', 'passbook']) assert.deepEqual(validateBuiltin(page({ from })), [], from);
+  for (const from of ['nope', '', 1, true, null, {}, ['ledger'], ...HOSTILE, '__proto__', 'constructor']) assert.ok(has(validateBuiltin(page({ from })), '.from must be one of field, ledger, passbook'), JSON.stringify(from));
   // align and valign are a grid page's: the editorial page places the cards from the rectangle's top-left
-  assert.ok(has(validateLayout(page({ align: 'center' })), 'align is not used on an editorial page'));
+  assert.ok(has(validateBuiltin(page({ align: 'center' })), 'align is not used on an editorial page'));
   // a grid page has no "from" (its artefact is always the field), and a poster page draws no artefact
   const grid = { id: 'g', name: 'Grid', fields: { headline: {}, artefact: {} }, canvas: { feed: { columns: 12, rows: 15, margin: 70, gutter: 20 } }, blocks: [{ type: 'headline', slot: { col: 1, row: 1, width: 12, height: 3 } }, { type: 'artefact', from: 'ledger', slot: { col: 1, row: 5, width: 12, height: 10 } }] };
-  assert.ok(has(validateLayout(grid), '.from is used on editorial pages only'));
-  assert.ok(has(validateLayout(page({}, { page: 'poster', blocks: [{ type: 'headline', px: { x: 80, y: 170, w: 920, h: 300 } }, { type: 'artefact', px: { x: 80, y: 600, w: 920, h: 600 } }] })), 'a poster page does not draw a artefact block'));
+  assert.ok(has(validateBuiltin(grid), '.from is used on editorial pages only'));
+  assert.ok(has(validateBuiltin(page({}, { page: 'poster', blocks: [{ type: 'headline', px: { x: 80, y: 170, w: 920, h: 300 } }, { type: 'artefact', px: { x: 80, y: 600, w: 920, h: 600 } }] })), 'a poster page does not draw a artefact block'));
   // the editor and the AI are not offered it
   assert.ok(BLOCK_TYPES.includes('artefact'));
   assert.equal(layoutCatalogue().blocks.artefact.options.from, undefined);

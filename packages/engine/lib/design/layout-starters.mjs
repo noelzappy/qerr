@@ -1,6 +1,9 @@
-// Starting points for a brand's own layouts: compositions like the built-in templates, written as layout data
-// (lib/design/layout.mjs). Settings, Layouts offers them to copy and change; they are never used by a post as they are.
-// Each one is checked by the same validator as a brand's own (test-design-layout.mjs).
+// Starting points for a brand's own layouts: compositions like the built-in templates, written as layout data on the grid page
+// (lib/design/layout.mjs), and copies of the built-in layouts themselves (builtinCopy). Settings, Layouts offers both to copy and
+// change; they are never used by a post as they are. Each one is checked by the same validator as a brand's own
+// (test-design-layout.mjs, test-design-layout-builtin.mjs).
+import { BUILTIN } from './builtin-layouts.mjs';
+import { BLOCKS, BRAND_PAGE_KINDS, SPEC_CHOICES, builtinPageWhy, validateLayout, whenHolds } from './layout.mjs';
 
 // The editorial page's grid: 12 columns and 24 rows of about 52 px inside the reference margins (70 px at the sides, 56 px at
 // the top and bottom, where the running head and the footer sit).
@@ -119,3 +122,89 @@ export function starterCopy(id, { newId, name } = {}) {
   if (!s) return null;
   return { ...structuredClone(s), id: newId ?? s.id, name: name ?? s.name };
 }
+
+// ---- the built-in layouts, as a brand may see and copy them ----
+
+// A built-in variant's condition at the registry, in words ("artefact is ledger", "layout is not center, side or print").
+const words = (v) => (Array.isArray(v) ? (v.length > 1 ? `${v.slice(0, -1).join(', ')} or ${v[v.length - 1]}` : String(v[0])) : String(v));
+export function variantWords(when) {
+  if (!when) return null;
+  const parts = [];
+  if (when.field !== undefined) parts.push(when.is !== undefined ? `${when.field} is ${words(when.is)}` : `${when.field} is not ${words(when.not)}`);
+  if (when.present !== undefined) parts.push(`${when.present} is filled`);
+  if (when.absent !== undefined) parts.push(`${when.absent} is empty`);
+  if (when.page !== undefined) parts.push(`on a ${when.page} page`);
+  return parts.join(', ');
+}
+
+// Why a built-in layout cannot be copied into a brand's own, or null when it can.
+function copyBlocked(layout) {
+  const page = layout.page ?? 'grid';
+  if (!BRAND_PAGE_KINDS.includes(page)) return `a ${page} page is for the built-in layouts only: ${builtinPageWhy(page)}`;
+  const own = (layout.blocks ?? []).find((b) => BLOCKS[b.type]?.builtin);
+  if (own) return `its ${own.type} block draws a setting of the built-in template's own designs (the spec's ${own.type}), which a design for a brand's layout does not have`;
+  return null;
+}
+
+// Every built-in layout but the page covers (they are not post images), in the registry's order: what Settings, Layouts lists.
+export function builtinLayouts() {
+  const out = [];
+  for (const [template, list] of Object.entries(BUILTIN)) {
+    if (template === 'pagecover') continue;
+    for (const v of list) {
+      const blocked = copyBlocked(v.layout);
+      out.push({ template, variant: variantWords(v.when), copyable: !blocked, why: blocked, layout: v.layout });
+    }
+  }
+  return out;
+}
+
+// A condition settled for a brand's layout: a choice a brand's design cannot set (anything but the artefact and its register
+// card) always reads its default there, so the condition either always holds (its choice part goes) or never does (drop).
+function settle(when) {
+  if (!when || when.field === undefined || SPEC_CHOICES[when.field]?.brand) return { when };
+  const holds = whenHolds(when.is !== undefined ? { field: when.field, is: when.is } : { field: when.field, not: when.not }, {});
+  if (!holds) return { drop: true };
+  const { field: _f, is: _i, not: _n, ...rest } = when;
+  return { when: Object.keys(rest).length ? rest : undefined };
+}
+const withWhen = (o, when) => { const { when: _w, ...rest } = o; return when ? { ...rest, when } : rest; };
+
+// A block without the options that read the built-in templates' own design settings (an artefact drawn "from" the spec is then
+// drawn from the layout's artefact field).
+function plainBlock(b) {
+  const out = { ...b };
+  for (const [k, o] of Object.entries(BLOCKS[b.type]?.options ?? {})) if (o.builtin || o.builtinValues?.includes(out[k])) delete out[k];
+  if (Array.isArray(b.children)) out.children = b.children.map(plainBlock);
+  return out;
+}
+
+// A copy of a built-in layout as a brand's own layout under a new id and name, ready to be changed: the same page, blocks and
+// rectangles, with every condition on a built-in template's own settings settled to what a brand's design reads (the default
+// size, alignment, glow ...), the options that read those settings left out, and the artefact (of the variant's type) taken
+// from the layout's artefact field. null when there is no such layout or it cannot be copied (builtinLayouts says why).
+export function builtinCopy(id, { newId, name } = {}) {
+  const entry = builtinLayouts().find((b) => b.layout.id === id);
+  if (!entry || !entry.copyable) return null;
+  const src = structuredClone(entry.layout), when = BUILTIN[entry.template].find((v) => v.layout.id === id)?.when;
+  const l = { ...src, id: newId ?? `${src.id}-copy`, name: name ?? `${src.name.slice(0, 33)} (copy)` };
+  l.blocks = src.blocks.flatMap((b) => { const s = settle(b.when); return s.drop ? [] : [withWhen(plainBlock(b), s.when)]; });
+  if (Array.isArray(src.ground)) {
+    const cases = [];
+    for (const c of src.ground) {
+      const s = settle(c.when);
+      if (s.drop) continue;
+      cases.push(withWhen(c, s.when));
+      if (!s.when) break;
+    }
+    l.ground = cases.length === 1 ? cases[0].ground : cases;
+  }
+  // the artefact's type: the variant's (a text page's ledger, register card or passbook), or the template's own (from the spec)
+  const from = src.blocks.map((b) => b.from).find((f) => f === 'ledger' || f === 'passbook');
+  const type = from ?? (when?.field === 'artefact' && typeof when.is === 'string' ? when.is : when?.field === 'register' && when.is === true ? 'passbook' : null);
+  if (type && l.fields.artefact) l.fields = { ...l.fields, artefact: { ...l.fields.artefact, types: [type] } };
+  return l;
+}
+
+// Every copyable built-in layout's copy is a valid brand layout (test-design-layout-builtin.mjs checks it): the problems, if any.
+export const builtinCopyProblems = () => builtinLayouts().filter((b) => b.copyable).flatMap((b) => validateLayout(builtinCopy(b.layout.id), `copy of ${b.layout.id}`));

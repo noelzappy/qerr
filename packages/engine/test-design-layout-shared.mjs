@@ -86,12 +86,16 @@ test('the flowing sub line is drawn exactly as the templates\' textBlock and wor
 });
 
 test('conditions on the artefact\'s type and on the templates\' fixed options: values from fixed lists only', () => {
-  const w = (when, page) => whenProblems(when, ['headline', 'sub', 'artefact'], 'w', { page });
+  const w = (when, page) => whenProblems(when, ['headline', 'sub', 'artefact'], 'w', { page, builtin: true });
   for (const when of [{ field: 'artefact', is: 'ledger' }, { field: 'artefact', is: ['ledger', 'register'] }, { field: 'artefact', not: 'passbook' }, { field: 'artefact', is: 'passbook', present: 'sub' }]) assert.deepEqual(w(when, 'grid'), [], JSON.stringify(when));
   for (const when of [{ field: 'layout', is: 'side' }, { field: 'device', is: 'desktop' }, { field: 'glow', is: false }, { field: 'map', is: true }, { field: 'size', is: [70, 84] }, { field: 'align', not: 'center' }, { field: 'register', is: true }, { field: 'textAt', is: 'bottom', page: 'first' }]) {
     assert.deepEqual(w(when, 'editorial'), [], JSON.stringify(when));
     assert.deepEqual(whenProblems(when, FIELD_NAMES, 'registry'), [], JSON.stringify(when));
     assert.ok(has(w(when, 'grid'), 'field must be one of artefact on a grid page'), JSON.stringify(when));
+    // a brand's own poster or editorial layout may test the artefact's type and its register card only (its design has no others)
+    const brand = whenProblems(when, ['headline', 'sub', 'artefact'], 'w', { page: 'editorial' });
+    if (SPEC_CHOICES[when.field].brand) assert.deepEqual(brand, [], JSON.stringify(when));
+    else assert.ok(has(brand, 'field must be one of artefact, register on a brand\'s own layout'), JSON.stringify(when));
   }
   assert.ok(has(w({ field: 'colour', is: 'red' }, 'poster'), 'field must be one of artefact, register'));
   assert.ok(has(w({ field: 'artefact', is: 'poster' }, 'poster'), 'is must be one of ledger, passbook, register'));
@@ -146,9 +150,10 @@ test('conditions on the same choice that let no value through together exclude e
   // in a layout: two headlines that are never drawn together may show the same field and the same space
   const l = poster({ when: { field: 'layout', is: 'side' } });
   l.blocks.push({ type: 'headline', size: 88, px: { x: 80, y: 170, w: 920, h: 400 }, subField: 'sub', when: { field: 'layout', not: 'side' } });
-  assert.deepEqual(validateLayout(l), []);
+  assert.deepEqual(validateLayout(l, undefined, { builtin: true }), []);
+  assert.ok(has(validateLayout(l), 'on a brand\'s own layout'), 'a brand\'s layout cannot test a template\'s own layout');
   l.blocks[2].when = { field: 'layout', not: 'center' };
-  assert.ok(has(validateLayout(l), 'overlap'));
+  assert.ok(has(validateLayout(l, undefined, { builtin: true }), 'overlap'));
   const variants = draw(poster({ when: { field: 'layout', is: 'side' } }), { template: 'product', headline: 'H', layout: 'side' });
   assert.ok(variants.includes('>H</div>'));
   assert.ok(!draw(poster({ when: { field: 'layout', is: 'side' } }), { template: 'product', headline: 'H' }).includes('>H</div>'));

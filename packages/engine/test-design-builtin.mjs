@@ -44,7 +44,7 @@ const pages = CASES.flatMap((c) => {
 
 test('every built-in layout is a valid layout, registered under a real template, its variants reachable', () => {
   assert.deepEqual(builtinProblems(), []);
-  for (const [t, list] of Object.entries(BUILTIN)) for (const v of list) assert.deepEqual(validateLayout(v.layout), [], t);
+  for (const [t, list] of Object.entries(BUILTIN)) for (const v of list) assert.deepEqual(validateLayout(v.layout, 'layout', { builtin: true }), [], t);
   assert.equal(builtinLayoutFor({ template: 'number', big: '1' }).id, 'number');
   assert.equal(builtinLayoutFor({ template: 'text', headline: 'h' }).id, 'text');
   // every template has its layouts, and the template names are the engine's (lib/design/spec.mjs) less the carousel

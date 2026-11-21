@@ -33,7 +33,7 @@ export function builtinProblems() {
       const where = `built-in layouts: ${t}[${i}]`;
       if (v.when !== undefined) errors.push(...whenProblems(v.when, FIELD_NAMES, `${where}.when`));
       else if (i < list.length - 1) errors.push(`${where} has no "when", so the variants after it are never used`);
-      errors.push(...validateLayout(v.layout, where));
+      errors.push(...validateLayout(v.layout, where, { builtin: true }));
       ids.push(v.layout?.id);
     });
   }
