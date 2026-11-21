@@ -439,7 +439,7 @@ function Advanced({ view, onSaved }: { view: BrandView; onSaved: (v: BrandView) 
 
 // A brand pack folder (brand.json, logos/logo-full.png, logos/logo-mark.png, optional map.json) moved in at once.
 function ImportPack({ onSaved }: { onSaved: (v: BrandView) => void }) {
-  const [files, setFiles] = useState<Record<string, File | null>>({ brand: null, full: null, mark: null, map: null });
+  const [files, setFiles] = useState<Record<string, File | null>>({ brand: null, full: null, mark: null, map: null, font: null });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [lines, setLines] = useState<string[]>([]);
@@ -449,9 +449,10 @@ function ImportPack({ onSaved }: { onSaved: (v: BrandView) => void }) {
     try {
       const form = new FormData();
       for (const [k, f] of Object.entries(files)) if (f) form.set(k, f, f.name);
-      onSaved(await api.upload<BrandView>('/api/settings/brand/import', form));
-      toast.success('The brand pack is imported.');
-      setFiles({ brand: null, full: null, mark: null, map: null });
+      const next = await api.upload<BrandView & { notes?: string[] }>('/api/settings/brand/import', form);
+      onSaved(next);
+      toast.success('The brand pack is imported.', next.notes?.length ? { description: next.notes.join(' '), duration: 12000 } : undefined);
+      setFiles({ brand: null, full: null, mark: null, map: null, font: null });
     } catch (err) {
       setError(errorMessage(err));
       if (err instanceof ApiError && Array.isArray(err.details)) setLines((err.details as unknown[]).map((d) => (typeof d === 'string' ? d : JSON.stringify(d))));
@@ -474,6 +475,7 @@ function ImportPack({ onSaved }: { onSaved: (v: BrandView) => void }) {
         {row('map', 'map.json', 'application/json,.json', true)}
         {row('full', 'logos/logo-full.png', 'image/png')}
         {row('mark', 'logos/logo-mark.png', 'image/png')}
+        {row('font', 'The headline and text font (.woff2)', '.woff2,font/woff2', true)}
       </div>
       <div className="mt-3 flex flex-col gap-3">
         <FormProblem error={error} lines={lines} />

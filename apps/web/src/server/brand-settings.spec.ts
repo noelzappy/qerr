@@ -249,6 +249,26 @@ describe('importing a brand pack', () => {
     expect((await t.prisma.auditLog.findFirstOrThrow({ where: { action: 'brand.import' } })).detail).toMatchObject({ name: 'Acme Savings', map: true });
   });
 
+  it('keeps a pack\'s own font when its .woff2 comes with it, and says so plainly when it does not', async () => {
+    const api = await admin();
+    const pack = JSON.parse(PACK('brand.json').toString('utf8'));
+    pack.font.family = 'Brand Grotesk';
+    pack.font.mono = 'Brand Mono';
+    const files = { brand: Buffer.from(JSON.stringify(pack)), full: PACK('logos/logo-full.png'), mark: PACK('logos/logo-mark.png') };
+    const without = await api.post('/api/settings/brand/import', form(files));
+    expect(without.status).toBe(200);
+    expect(without.body.notes.join(' ')).toMatch(/"Brand Grotesk".*Upload its \.woff2/);
+    expect(without.body.notes.join(' ')).toMatch(/"Brand Mono"/);
+    // Not a family name pointing at another font's files: the built-in font, under its own name.
+    expect(activeBrand().font.family).toBe('Inter');
+    expect(activeBrand().font.mono).toBe('IBM Plex Mono');
+    const withFont = await api.post('/api/settings/brand/import', form({ ...files, font: INTER() }));
+    expect(withFont.body.font).toEqual({ family: 'Brand Grotesk' });
+    expect(withFont.body.notes.join(' ')).not.toMatch(/Grotesk/);
+    expect(activeBrand().font.family).toBe('Brand Grotesk');
+    expect(activeBrand().font.files[0].file).toBe(`${process.env.BRAND_DIR}/fonts/brand.woff2`);
+  });
+
   it('refuses a pack the engine would refuse, or logos that are not PNG, and changes nothing', async () => {
     const api = await admin();
     const bad = JSON.parse(PACK('brand.json').toString('utf8'));

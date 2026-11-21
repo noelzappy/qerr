@@ -8,7 +8,7 @@
 //   GET    /logo/:which           the uploaded file
 //   POST   /font                  a woff2 font for headlines and text, with its family name
 //   DELETE /font                  back to the built-in font
-//   POST   /import                a brand pack's brand.json, its two logos and its optional map.json, all at once
+//   POST   /import                a brand pack's brand.json, its two logos, its optional map.json and font, all at once
 //   GET    /references            the design references, each with a short-lived picture address
 //   POST   /references            upload a picture (and a note); the AI describes it in the background
 //   PATCH  /references/:id        the note, the brief and whether drafts use it
@@ -23,7 +23,7 @@ import { badRequest, HttpError, notFound, readJson } from '../http.js';
 import { requireRole, requireUser } from '../middleware.js';
 import { enqueueTracked } from '../services/activity.js';
 import {
-  advancedSchema, brandFromProfile, brandProblems, brandSettingsSchema, contrastChecks, paletteChanges, currentSettings, expandBrand, mapProblems, splitPackBrand, syncBrand,
+  advancedSchema, baseBrand, brandFromProfile, brandProblems, brandSettingsSchema, contrastChecks, paletteChanges, currentSettings, expandBrand, mapProblems, splitPackBrand, syncBrand,
 } from '../services/brand-settings.js';
 import { privateKey } from '../storage/types.js';
 import { sniffImage } from './vault.js';
@@ -228,7 +228,7 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     let form: Record<string, unknown>;
     try { form = await c.req.parseBody(); } catch { throw new HttpError(400, 'Send the files as multipart form data'); }
     const file = (k: string) => (form[k] instanceof File ? form[k] as File : null);
-    const brandFile = file('brand'), full = file('full'), mark = file('mark'), mapFile = file('map');
+    const brandFile = file('brand'), full = file('full'), mark = file('mark'), mapFile = file('map'), fontUpload = file('font');
     if (!brandFile || !full || !mark) throw badRequest('Send brand.json, the full logo and the mark');
     if (brandFile.size > 512 * 1024 || (mapFile && mapFile.size > 512 * 1024)) throw new HttpError(413, 'brand.json and map.json must be under 512 KB');
     if (full.size > MAX_LOGO_BYTES || mark.size > MAX_LOGO_BYTES) throw new HttpError(413, 'Each logo must be under 2 MB');
@@ -243,22 +243,47 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     if (map !== null) { const bad = mapProblems(map); if (bad.length) throw badRequest('The map is not valid', bad); }
     let split: ReturnType<typeof splitPackBrand>;
     try { split = splitPackBrand(brand as Record<string, unknown>); } catch { throw badRequest('The brand.json could not be read into the settings'); }
+    // The pack's font files are paths inside its folder, which the upload does not carry. Its headline and text font comes
+    // in as an optional .woff2 ("font"); without it the brand keeps Inter, and the answer says so. A label font other than
+    // the built-in IBM Plex Mono is dropped the same way.
+    const base = baseBrand(), baseFont = (base.font ?? {}) as Record<string, unknown>;
+    const packFont = (split.advanced.font ?? {}) as Record<string, unknown>;
+    const notes: string[] = [];
+    let fontBytes: Buffer | null = null;
+    const family = typeof packFont.family === 'string' ? packFont.family : null;
+    if (fontUpload) {
+      if (fontUpload.size > MAX_FONT_BYTES) throw new HttpError(413, 'The font is larger than 2 MB');
+      fontBytes = Buffer.from(await fontUpload.arrayBuffer());
+      if (!isWoff2(fontBytes)) throw new HttpError(415, 'The font must be a .woff2 file');
+      if (!family || !fontFamily.safeParse(family).success) throw badRequest('The pack\'s font.family is not a usable name');
+    } else if (family && family !== baseFont.family) {
+      delete packFont.family;
+      notes.push(`The pack uses the font "${family}". Upload its .woff2 file to use it; posts use ${String(baseFont.family)} until then.`);
+    }
+    if (typeof packFont.mono === 'string' && packFont.mono !== baseFont.mono) {
+      notes.push(`The pack's label font "${packFont.mono}" is not built in; labels use ${String(baseFont.mono)}.`);
+      delete packFont.mono;
+    }
+    if (family && fontBytes) delete packFont.family;
     const settings = { ...split.settings, logo: { wordmarkFrom: Math.min(split.settings.logo.wordmarkFrom, fullSize.width - 1), markGap: split.settings.logo.markGap } };
-    const candidate = brandFromProfile({ settings, advanced: split.advanced as Prisma.JsonValue, logoFullWidth: fullSize.width, logoFullHeight: fullSize.height, fontFamily: null }, settings);
+    const candidate = brandFromProfile({ settings, advanced: split.advanced as Prisma.JsonValue, logoFullWidth: fullSize.width, logoFullHeight: fullSize.height, fontFamily: fontBytes ? family : null }, settings);
     const after = brandProblems(candidate);
     if (after.length) throw badRequest('The brand is not valid after the import', after);
     const before = await profile();
     const fullKey = privateKey('brand', 'logo-full.png'), markKey = privateKey('brand', 'logo-mark.png');
     await deps.storage.putObject(fullKey, fullBytes, 'image/png');
     await deps.storage.putObject(markKey, markBytes, 'image/png');
+    const fontKey = fontBytes ? privateKey('brand', 'brand.woff2') : null;
+    if (fontKey && fontBytes) await deps.storage.putObject(fontKey, fontBytes, 'font/woff2');
     const data = {
       settings: settings as unknown as Prisma.InputJsonValue, advanced: split.advanced as Prisma.InputJsonValue, map: (map ?? null) as unknown as Prisma.InputJsonValue,
       logoFullKey: fullKey, logoFullWidth: fullSize.width, logoFullHeight: fullSize.height, logoMarkKey: markKey, updatedById: actor.id,
+      fontKey, fontFamily: fontKey ? family : null,
     };
     await deps.prisma.brandProfile.upsert({ where: { id: 'brand' }, create: data, update: data });
-    for (const old of [before?.logoFullKey, before?.logoMarkKey]) if (old) await deps.storage.deleteObject(old).catch(() => undefined);
-    await audit(deps, actor, 'brand.import', 'brand', 'brand', { name: settings.name, series: settings.series.length, map: map !== null, advancedKeys: Object.keys(split.advanced).length });
-    return c.json(await view());
+    for (const old of [before?.logoFullKey, before?.logoMarkKey, before?.fontKey]) if (old) await deps.storage.deleteObject(old).catch(() => undefined);
+    await audit(deps, actor, 'brand.import', 'brand', 'brand', { name: settings.name, series: settings.series.length, map: map !== null, font: !!fontKey, advancedKeys: Object.keys(split.advanced).length });
+    return c.json({ ...(await view()), notes });
   });
 
   // ---- design references ----
