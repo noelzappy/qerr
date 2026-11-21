@@ -46,9 +46,14 @@ docker exec "$app" id -u | grep -vx 0
 echo "== 4. Chromium starts headless"
 docker exec "$app" /usr/local/bin/chromium-container --version
 
-echo "== 5. the engine renders one text page"
-docker exec "$app" sh -c \
-  'cd /srv/social && node packages/engine/design.mjs text --headline "Save together,\n*see every step.*" --sub "Container render test." --out out/check.jpg && ls -l out/check.jpg && head -c 3 out/check.jpg | od -An -tx1'
+echo "== 5. the engine renders one text page (the render job's own entry point)"
+docker exec -w /srv/social "$app" node --input-type=module -e '
+import { renderDesignBlock } from "./packages/engine/lib/design-render.mjs";
+const r = await renderDesignBlock({ design: { template: "text", headline: "Save together,\n*see every step.*", sub: "Container render test." }, postId: "check", outDir: "out" });
+if (!r.ok) { console.error(r.error); process.exit(1); }
+for (const f of r.files) console.log(`${f.file} ${f.w}x${f.h}`);
+'
+docker exec "$app" sh -c 'ls -l /srv/social/out/check-feed.jpg && head -c 3 /srv/social/out/check-feed.jpg | od -An -tx1'
 
 echo "== 6. migrations, /healthz and the health check"
 s=""
