@@ -446,7 +446,11 @@ for the demo brand and two style variants, before and after, and compares the pi
   headline blocks with exclusive conditions on `textAt`, the bottom one anchored at the foot of its rectangle with `"valign":
   "bottom"`) holding the eyebrow (`"eyebrow": true`), the headline and its `subField` sub line, and the footer with the logo in
   its pill (`photoFooter`). The type sizes per size are the page's own (`PAGES.photo.type`), the fit margins the size's.
-  The page covers are still drawn by their function.
+  The page covers (**`pagecover`**) are drawn from one layout per kind (`{ "field": "kind", "is": "facebook" }`), on a
+  `"page": "cover"` (`lib/design/layout-cover.mjs`) whose canvas names the cover sizes (`profile`, `facebook`, `linkedin`,
+  `x`) instead of the post sizes: the brand's mark centred in its rectangle (`coverMark`), or the brand's logo, tagline,
+  descriptor and website in a box filling it (`coverWords`: a column, centred or set left, or a row, with the sizes and gaps
+  as bounded whole numbers). A cover's words are all the brand's, so its layout declares no field.
 
 The format gained what the built-ins need; every new value is a name from a fixed list or a bounded whole number, checked by
 `validateLayout` like the rest:

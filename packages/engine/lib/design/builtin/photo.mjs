@@ -2,7 +2,8 @@
 // per template: a list of { when?, layout }, the first whose condition holds drawing the page; a spec that matches none is
 // drawn by the template function.
 //
-// Converted: photo (every size; "page": "photo", drawn by lib/design/layout-photo.mjs). Still drawn by its function: pagecover.
+// Converted: photo (every size; "page": "photo", drawn by lib/design/layout-photo.mjs) and pagecover (one layout per kind;
+// "page": "cover", drawn by lib/design/layout-cover.mjs).
 
 // The headline box per size: from the size's top margin (a few px lower on feed, 20 px lower on a story) down to the top of the
 // footer's free space (sizes.mjs contentBottom), as wide as the template's text measure, from the size's own left margin
@@ -38,6 +39,29 @@ const PHOTO = {
   ],
 };
 
+// The page covers: profile picture and cover images for the social pages, one layout per kind (the kind is the size), all on the
+// white ground and all the brand's words. A cover's canvas names its own cover size; its grid goes unused.
+const cover = (id, name, description, size, blocks) => ({ id, name, description, page: 'cover', fields: {}, canvas: { [size]: { columns: 1, rows: 1, margin: 0, gutter: 0 } }, blocks });
+const COVERS = {
+  // the brand's mark, 580 px high, in the middle of the square
+  profile: cover('pagecover-profile', 'Profile picture', 'The brand\'s mark in the middle of the square.', 'profile', [
+    { type: 'coverMark', px: { x: 250, y: 250, w: 580, h: 580 } },
+  ]),
+  // the logo, tagline, descriptor and website centred in a column over the full width
+  facebook: cover('pagecover-facebook', 'Facebook cover', 'The logo, tagline, descriptor and website centred in a column.', 'facebook', [
+    { type: 'coverWords', logo: 66, size: 104, subSize: 34, urlSize: 28, gap: 34, subGap: 24, urlGap: 20, px: { x: 0, y: 62, w: 1640, h: 500 } },
+  ]),
+  // in a row right of the profile picture's place: the logo, the tagline, and the descriptor over the website at the right end
+  linkedin: cover('pagecover-linkedin', 'LinkedIn cover', 'The logo, tagline, and descriptor over the website, in a row.', 'linkedin', [
+    { type: 'coverWords', arrange: 'row', logo: 48, size: 76, subSize: 30, urlSize: 24, gap: 56, urlGap: 10, subWidth: 420, px: { x: 560, y: 20, w: 1606, h: 270 } },
+  ]),
+  // a column set left, right of the profile picture's place
+  x: cover('pagecover-x', 'X header', 'The logo, tagline, descriptor and website in a column, set left.', 'x', [
+    { type: 'coverWords', align: 'left', logo: 48, size: 80, subSize: 29, urlSize: 24, gap: 24, subGap: 16, urlGap: 10, px: { x: 440, y: 105, w: 970, h: 290 } },
+  ]),
+};
+
 export const LAYOUTS = {
   photo: [{ layout: PHOTO }],
+  pagecover: Object.entries(COVERS).map(([kind, layout]) => ({ when: { field: 'kind', is: kind }, layout })),
 };

@@ -7,6 +7,7 @@ import { DesignError } from './errors.mjs';
 import { LIMITS } from './figures.mjs';
 import { BLOCKS, PAGES, TYPE_SCALE, cellOf, findLayout, groundCase, slotRect, whenHolds } from './layout.mjs';
 import { box, decorationHtml, opt, textureOf } from './layout-parts.mjs';
+import { drawCover } from './layout-cover.mjs';
 import { drawEditorial } from './layout-editorial.mjs';
 import { drawPhoto } from './layout-photo.mjs';
 import { drawPoster } from './layout-poster.mjs';
@@ -214,6 +215,7 @@ export function renderLayoutWith(layout, spec, ctx) {
   if (layout.page === 'poster') return drawPoster(layout, spec, ctx);
   if (layout.page === 'editorial') return drawEditorial(layout, spec, ctx);
   if (layout.page === 'photo') return drawPhoto(layout, spec, ctx);
+  if (layout.page === 'cover') return drawCover(layout, spec, ctx);
   const frame = frameOf(spec, layout, ctx.brand, ctx.counter), warnings = [];
   let under = '', media = '', text = '';
   for (const blk of layout.blocks) {

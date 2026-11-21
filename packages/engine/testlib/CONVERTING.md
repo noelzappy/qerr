@@ -198,6 +198,12 @@ the table (for example `closing`'s default text, `region`) is a shared change: a
   accent device is the body's `acc-none`), so it draws its blocks with its own loop rather than `drawBuiltPage`, which would
   refuse an unknown series the function ignores. Blocks carry their own line breaks, so the markup matches when the blocks
   keep the template's order: backdrop, scrim, lines, text, footer.
+  The page covers needed what the format did not have: a `when` on the cover's `kind` (the only thing that tells the four
+  apart; added to `SPEC_CHOICES` in a `shared:` commit), a canvas of cover sizes (only on a `cover` page, with no minimum
+  margins: the fit check holds the words to the size's own), and leave to declare no field and show no text block (a page
+  with `words: 'brand'` in `PAGES`, also shared). Their quirks are kept: `left:0` without a unit, `align-items` and
+  `justify-content` written in a different order in the centred and the left column, the row's descriptor and website in an
+  unstyled `margin-left:auto` box.
 
 ## Pre-existing issues seen in the baseline (not part of the conversion)
 

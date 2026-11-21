@@ -1,7 +1,8 @@
 // node --test   (the photo group of the built-in templates as layouts, lib/design/builtin/photo.mjs: the full-bleed photo post
 // at every size is drawn from its layout, by lib/design/layout-photo.mjs, and the page is exactly the one its function drew,
 // for fields filled, empty and hostile, text at the top, the bottom or per size, every style variant and every size; and the
-// photo page's block types and options are checked like the rest of the format. No Chrome: the pixel comparison is
+// photo page's block types and options are checked like the rest of the format. The page covers likewise: one layout per kind,
+// drawn by lib/design/layout-cover.mjs at the cover sizes, the same page as their function's. No Chrome: the pixel comparison is
 // testlib/template-baseline.mjs, see testlib/CONVERTING.md.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +13,7 @@ import { builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
 import { BLOCK_TYPES, exclusive, layoutCatalogue, validateLayout, whenHolds, whenProblems } from './lib/design/layout.mjs';
 import { layoutFit, renderLayoutWith } from './lib/design/layout-render.mjs';
 import { preparePage } from './lib/design/render.mjs';
-import { SIZES, SIZE_NAMES } from './lib/design/sizes.mjs';
+import { COVER_SIZES, SIZES, SIZE_NAMES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
 import { LEGACY_FNS, TEMPLATE_FNS } from './design/templates/index.mjs';
 import { STYLES } from './testlib/template-baseline.mjs';
@@ -142,4 +143,57 @@ test('a condition on a page cover\'s kind: one of the cover sizes, unset on any 
   assert.equal(whenHolds({ field: 'kind', not: 'facebook' }, { template: 'text' }), true);
   assert.equal(exclusive({ field: 'kind', is: 'x' }, { field: 'kind', is: 'profile' }), true);
   assert.equal(exclusive({ field: 'kind', is: 'x' }, { field: 'kind', not: 'profile' }), false);
+});
+
+// ---- the page covers ----
+const KINDS = Object.keys(COVER_SIZES);
+const coverCtx = (brand, kind) => ({ size: COVER_SIZES[kind], brand, image: () => PIXEL, imageSize: () => null });
+
+test('each page cover is drawn from its own layout, exactly as its function drew it, for every look and hostile brand words', () => {
+  for (const kind of KINDS) {
+    const p = preparePage({ ...demo }, { spec: { template: 'pagecover', kind }, sizeName: kind });
+    assert.equal(p.layout?.id, `pagecover-${kind}`);
+    assert.equal(layoutFit(p.layout, kind), COVER_SIZES[kind]);
+  }
+  const looks = Object.values(brands);
+  for (const h of H) looks.push({ ...demo, tagline: `${h}, ${h}`, descriptor: `${h}.`, website: h, logoFullSrc: PIXEL, logoMarkSrc: PIXEL });
+  looks.push({ ...demo, tagline: 'No comma here', descriptor: 'No full stop' });
+  for (const brand of looks) {
+    for (const kind of KINDS) {
+      const spec = { template: 'pagecover', kind };
+      assert.deepEqual(parts(TEMPLATE_FNS.pagecover(spec, coverCtx(brand, kind))), parts(LEGACY_FNS.pagecover(spec, coverCtx(brand, kind))), `${kind} ${brand.tagline}`);
+      assert.ok(!/<script|<img src=x|<\/style>/.test(TEMPLATE_FNS.pagecover(spec, coverCtx(brand, kind)).body), kind);
+    }
+  }
+  // a kind that slipped past the validator matches no layout, and the function draws it (an empty page), as before
+  for (const kind of ['feed', '__proto__', undefined]) assert.equal(builtinLayoutFor({ template: 'pagecover', kind }), null, String(kind));
+});
+
+const coverLayout = (blk = {}, more = {}) => ({
+  id: 'c', name: 'Cover', page: 'cover', fields: {},
+  canvas: { facebook: { columns: 1, rows: 1, margin: 0, gutter: 0 } },
+  blocks: [{ type: 'coverWords', px: { x: 0, y: 62, w: 1640, h: 500 }, ...blk }],
+  ...more,
+});
+
+test('the cover page: its sizes, its block types and options, valid, invalid and hostile', () => {
+  assert.deepEqual(validateLayout(coverLayout()), []);
+  assert.deepEqual(validateLayout(coverLayout({ arrange: 'row', align: 'left', logo: 16, size: 200, subSize: 80, urlSize: 60, gap: 0, subGap: 120, urlGap: 0, subWidth: 1200 })), []);
+  assert.deepEqual(validateLayout(coverLayout({}, { canvas: { profile: { columns: 1, rows: 1, margin: 0 } }, blocks: [{ type: 'coverMark', px: { x: 250, y: 250, w: 580, h: 580 } }] })), []);
+  for (const [k, bad, msg] of [['arrange', 'grid', 'arrange must be one of column, row'], ['align', 'right', 'align must be one of center, left'], ['logo', 161, 'logo must be a whole number from 16 to 160'], ['size', 23, 'size must be a whole number from 24 to 200'], ['subWidth', 99.5, 'subWidth must be a whole number from 100 to 1200'], ['gap', '"><x', 'gap must be a whole number from 0 to 160'], ['urlGap', -1, 'urlGap must be a whole number'], ['subSize', null, 'subSize must be a whole number']]) {
+    assert.ok(has(validateLayout(coverLayout({ [k]: bad })), msg), `${k} ${bad}`);
+  }
+  // only a cover page is drawn at the cover sizes, and a cover page only at them
+  assert.ok(has(validateLayout(coverLayout({}, { canvas: { feed: { columns: 1, rows: 1, margin: 48 } } })), 'canvas has an unknown size "feed" (sizes of a cover page: profile, facebook, linkedin, x)'));
+  assert.ok(has(validateLayout(photoLayout({}, { canvas: { facebook: { columns: 1, rows: 1, margin: 24 } } })), 'canvas has an unknown size "facebook"'));
+  assert.ok(has(validateLayout(coverLayout({ px: { x: 0, y: 62, w: 1640, h: 600 } })), 'past the facebook page\'s height of 624'));
+  // the cover's words are the brand's: no field needed there, and its blocks show none
+  assert.ok(has(validateLayout(coverLayout({ field: 'headline' }, { fields: { headline: {} } })), 'a coverWords shows no field'));
+  assert.ok(has(validateLayout({ ...photoLayout(), fields: {} }), 'fields must name at least one field'));
+  // a cover page draws its own blocks only, and nobody else draws them
+  assert.ok(has(validateLayout(coverLayout({}, { blocks: [{ type: 'headline', px: { x: 100, y: 100, w: 400, h: 100 } }], fields: { headline: {} } })), 'a cover page does not draw a headline block'));
+  assert.ok(has(validateLayout(photoLayout({}, { blocks: [...photoLayout().blocks, { type: 'coverMark', px: { x: 0, y: 0, w: 10, h: 10 } }] })), 'a coverMark block belongs to cover pages'));
+  for (const t of ['coverMark', 'coverWords']) assert.ok(!BLOCK_TYPES.includes(t) && !(t in layoutCatalogue().blocks), t);
+  // drawn only at a cover size
+  assert.throws(() => renderLayoutWith({ ...coverLayout(), canvas: { feed: {} } }, { template: 'pagecover', kind: 'x' }, ctxOf(demo, 'feed')), /drawn at the cover sizes only/);
 });

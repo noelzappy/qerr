@@ -26,7 +26,8 @@
 //   "page": "grid" | "poster" | "editorial"     what kind of page the blocks are drawn on (default grid: the page above, drawn
 //                                               with design/layout.css). A poster or editorial page is the built-in templates'
 //                                               own page: their wrapper, type, decoration, fit margins and chrome blocks, and
-//                                               each block drawn with their markup (see PAGES).
+//                                               each block drawn with their markup (see PAGES). "photo" (the full-bleed photo
+//                                               post) and "cover" (the page covers, at the cover sizes) are the same for theirs.
 //   "ground": [{ "when": {...}, "ground": "photo" }, { "ground": "cool" }]   a ground chosen by the first case whose condition
 //                                               holds (the last case has none); "photo" (poster pages) is the ground a photo page
 //                                               starts from, the series' else cool, which a plain photo background replaces in
@@ -69,6 +70,14 @@ export const MIN_MARGINS = {
   wide: { top: 28, right: 36, bottom: 28, left: 36 },
   story: { top: 250, right: 48, bottom: 320, left: 48 },
 };
+// A page cover ("page": "cover") is drawn at the cover sizes (sizes.mjs COVER_SIZES), and only a cover page is: its canvas names
+// them instead of the post sizes. Its words are the brand's, set in boxes the layout places anywhere on the page (the fit check
+// holds them to the cover size's own margins when it is drawn), so its grid has no minimum margins.
+const COVER_NAMES = Object.keys(COVER_SIZES);
+const COVER_MIN_MARGINS = Object.fromEntries(COVER_NAMES.map((z) => [z, { top: 0, right: 0, bottom: 0, left: 0 }]));
+const SIZE_OF = { ...SIZES, ...COVER_SIZES };
+const MIN_OF = { ...MIN_MARGINS, ...COVER_MIN_MARGINS };
+const sizeNamesOf = (page) => (page === 'cover' ? COVER_NAMES : SIZE_NAMES);
 // Type sizes are given for the feed page; the other sizes scale them.
 export const TYPE_SCALE = { feed: 1, square: 0.9, story: 1, wide: 0.6 };
 const EDGES = ['top', 'right', 'bottom', 'left'];
@@ -197,6 +206,12 @@ export const BLOCKS = {
   scrim: { kinds: [], field: null, options: {}, chrome: true, pages: ['photo'] },
   lines: { kinds: [], field: null, options: {}, chrome: true, pages: ['photo'] },
   photoFooter: { kinds: [], field: null, options: {}, chrome: true, pages: ['photo'] },
+  // the page covers: the brand's mark centred on its rectangle (as high as it), and the brand's logo (logo px high), tagline
+  // (size), descriptor (subSize) and website (urlSize) in a box: a column, centred or set left, with gap, subGap and urlGap
+  // above the tagline, the descriptor and the website; or a row, gap apart, the descriptor (subWidth wide) and the website
+  // pushed to its right end, urlGap apart.
+  coverMark: { kinds: [], field: null, options: {}, pages: ['cover'] },
+  coverWords: { kinds: [], field: null, pages: ['cover'], options: { arrange: e(['column', 'row'], 'column'), align: e(['center', 'left'], 'center'), logo: n(16, 160, 48), size: n(24, 200, 80), subSize: n(16, 80, 30), urlSize: n(16, 60, 24), gap: n(0, 160, 24), subGap: n(0, 120, 16), urlGap: n(0, 120, 10), subWidth: n(100, 1200, 420) } },
   // (end of photo group)
 };
 
@@ -286,6 +301,17 @@ export const PAGES = {
       square: { headline: 88, sub: 30, eyebrow: 20, subWidth: 800 },
     },
   },
+  // A social page's cover or profile picture (lib/design/layout-cover.mjs), at the cover sizes, on the white ground: its words
+  // are all the brand's (words: "brand": no field, no text block needed). The fit check holds them to the size's own margins.
+  cover: {
+    draws: {
+      coverMark: [],
+      coverWords: ['arrange', 'align', 'logo', 'size', 'subSize', 'urlSize', 'gap', 'subGap', 'urlGap', 'subWidth'],
+    },
+    decorations: [],
+    fit: null,
+    words: 'brand',
+  },
 };
 // Options a phase 2 group lets a built-in page honour on a block type it already draws: [page, type, option], in the group's own
 // section (a new block type's drawing gets its own line in PAGES above, in the group's section there).
@@ -330,7 +356,7 @@ function gridProblems(g, size, where, errors) {
   const m = marginsOf(g.margin);
   if (!m) errors.push(`${where}.margin must be a whole number of pixels or { "top", "right", "bottom", "left" } (each from ${L.margin[0]} to ${L.margin[1]})`);
   else {
-    const min = MIN_MARGINS[size];
+    const min = MIN_OF[size];
     for (const k of EDGES) if (m[k] < min[k]) errors.push(`${where}.margin.${k} is ${m[k]} px; a ${size} page needs at least ${min[k]} px so text stays clear of the edge${size === 'story' ? ' and the story interface' : ''}`);
   }
   if (errors.length > before) return;
@@ -347,7 +373,7 @@ function marginsOf(m) {
 
 // The size of one cell of a (checked) grid, in page pixels.
 export function cellOf(g, size) {
-  const S = SIZES[size], m = marginsOf(g.margin), gx = g.gutter ?? 0, gy = g.rowGutter ?? gx;
+  const S = SIZE_OF[size], m = marginsOf(g.margin), gx = g.gutter ?? 0, gy = g.rowGutter ?? gx;
   return { w: (S.w - m.left - m.right - (g.columns - 1) * gx) / g.columns, h: (S.h - m.top - m.bottom - (g.rows - 1) * gy) / g.rows, gx, gy, m };
 }
 
@@ -355,7 +381,7 @@ export function cellOf(g, size) {
 export function slotRect(layout, block, size) {
   const p = pxFor(block.px, size);
   if (p) { const r = { x: p.x, y: p.y, w: p.w, h: p.h }; return { ...r, inner: { ...r } }; }
-  const g = layout.canvas[size], c = cellOf(g, size), s = slotFor(block.slot, size), S = SIZES[size];
+  const g = layout.canvas[size], c = cellOf(g, size), s = slotFor(block.slot, size), S = SIZE_OF[size];
   let x = c.m.left + (s.col - 1) * (c.w + c.gx), y = c.m.top + (s.row - 1) * (c.h + c.gy);
   let w = s.width * c.w + (s.width - 1) * c.gx, h = s.height * c.h + (s.height - 1) * c.gy;
   const inner = { x, y, w, h };
@@ -375,7 +401,7 @@ const pxFor = (p, size) => (isObj(p) && 'x' in p ? p : isObj(p) ? p[size] : unde
 function onePxProblems(p, size, where, errors) {
   if (!isObj(p)) return errors.push(`${where} must be { "x": 70, "y": 154, "w": 940, "h": 300 } (in page pixels)`);
   unknownKeys(p, ['x', 'y', 'w', 'h'], where, errors);
-  const S = SIZES[size], before = errors.length;
+  const S = SIZE_OF[size], before = errors.length;
   for (const [k, lo, hi] of [['x', 0, S.w - 1], ['y', 0, S.h - 1], ['w', 1, S.w], ['h', 1, S.h]]) if (!isInt(p[k], lo, hi)) errors.push(`${where}.${k} must be a whole number of pixels from ${lo} to ${hi}`);
   if (errors.length > before) return;
   if (p.x + p.w > S.w) errors.push(`${where}: x + w is ${p.x + p.w}, past the ${size} page's width of ${S.w}`);
@@ -529,7 +555,7 @@ function builtPageProblems(blk, layout, sizes, where, errors, page) {
   const full = (blk.type === 'photo' && page === 'poster') || (blk.type === 'decoration' && optionOf(blk, 'kind') === 'panel' && page === 'editorial');
   if (full && blk.px === undefined) errors.push(`${where}: on ${aPage(page)} the ${blk.type === 'photo' ? 'photo' : 'panel'} takes a "px" rectangle`);
   if (full && blk.px !== undefined) for (const z of sizes) {
-    const p = pxFor(blk.px, z), S = SIZES[z];
+    const p = pxFor(blk.px, z), S = SIZE_OF[z];
     if (isObj(p) && isInt(p.x, 0, S.w) && (p.x !== 0 || p.w !== S.w || p.y + p.h !== S.h)) errors.push(`${where}.px: on ${aPage(page)} the ${blk.type === 'photo' ? 'photo' : 'panel'} runs the full width to the bottom edge (x 0, w ${S.w}, y + h ${S.h} at ${z})`);
   }
 }
@@ -561,7 +587,7 @@ function blockProblems(blk, layout, sizes, where, errors, { child = false, page 
     pxProblems(blk.px, sizes, where, errors);
     // words stay inside the size's minimum margins (a story keeps clear of the Instagram interface)
     if (spec.text) for (const z of sizes) {
-      const p = pxFor(blk.px, z), M = MIN_MARGINS[z], S = SIZES[z];
+      const p = pxFor(blk.px, z), M = MIN_OF[z], S = SIZE_OF[z];
       if (!isObj(p) || ![p.x, p.y, p.w, p.h].every(Number.isInteger)) continue;
       if (p.x < M.left || p.y < M.top || p.x + p.w > S.w - M.right || p.y + p.h > S.h - M.bottom) errors.push(`${where}.px: a ${blk.type} keeps inside the ${z} page's minimum margins (${M.top} ${M.right} ${M.bottom} ${M.left} px) so its text stays clear of the edge`);
     }
@@ -656,14 +682,15 @@ export function validateLayout(l, where = 'layout') {
     if (F.kind === 'artefact' && f.types !== undefined && (!Array.isArray(f.types) || !f.types.length || f.types.some((t) => !ARTEFACT_TYPES.includes(t)))) errors.push(`${w}.types must be a list from ${ARTEFACT_TYPES.join(', ')}`);
   }
   // canvas
-  if (!isObj(l.canvas) || !Object.keys(l.canvas).length) { errors.push(`${where}: canvas must have a grid for at least one size (${SIZE_NAMES.join(', ')})`); return errors; }
+  const names = sizeNamesOf(page);
+  if (!isObj(l.canvas) || !Object.keys(l.canvas).length) { errors.push(`${where}: canvas must have a grid for at least one size (${names.join(', ')})`); return errors; }
   const before = errors.length;
   for (const [size, g] of Object.entries(l.canvas)) {
-    if (!SIZE_NAMES.includes(size)) errors.push(`${where}: canvas has an unknown size "${clip(size)}" (sizes: ${SIZE_NAMES.join(', ')})`);
+    if (!names.includes(size)) errors.push(`${where}: canvas has an unknown size "${clip(size)}" (sizes${page === 'cover' ? ' of a cover page' : ''}: ${names.join(', ')})`);
     else gridProblems(g, size, `${where}: canvas.${size}`, errors);
   }
   if (errors.length > before) return errors;
-  const sizes = SIZE_NAMES.filter((z) => l.canvas[z]);
+  const sizes = names.filter((z) => l.canvas[z]);
   // blocks
   if (!Array.isArray(l.blocks) || !l.blocks.length || l.blocks.length > MAX_BLOCKS) { errors.push(`${where}: blocks must be a list of 1 to ${MAX_BLOCKS} blocks`); return errors; }
   const used = [];
