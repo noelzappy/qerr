@@ -1,0 +1,74 @@
+/* Layouts as data (lib/design/layout-render.mjs): the classes a brand's own layouts are drawn with, placed after the brand
+   stylesheet. Like brand.css it holds no colour, font or size of its own: every colour is a brand variable (--ink, --body,
+   --primary, --g-*, --panel ...), and every position and size is written by the renderer from validated numbers. */
+
+/* a block's cell: the text in it flows from the top, the middle or the bottom, aligned left, centre or right */
+.ly-cell{position:absolute;display:flex;flex-direction:column;min-width:0}
+.ly-v-top{justify-content:flex-start}
+.ly-v-center{justify-content:center}
+.ly-v-bottom{justify-content:flex-end}
+.ly-a-left{text-align:left}
+.ly-a-center{text-align:center}
+.ly-a-right{text-align:right}
+.ly-a-center .ly-h,.ly-a-right .ly-h,.ly-a-center .ly-fig,.ly-a-right .ly-fig{margin-left:0}
+.ly-a-center .ly-row{justify-content:center}
+.ly-a-right .ly-row{justify-content:flex-end}
+.ly-a-center .pills{justify-content:center}
+.ly-a-right .pills{justify-content:flex-end}
+.ly-line{display:block;min-width:0}
+
+/* type the built-in pages do not have */
+.ly-plain{display:inline-block;font-weight:600;letter-spacing:-.01em;color:var(--ink);white-space:nowrap}
+.ly-plain.ly-acc{color:var(--primary)}
+.dark .ly-plain{color:var(--g-white)}
+.dark .ly-plain.ly-acc{color:var(--gold)}
+.ly-tag{display:inline-block;font-weight:600;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:8px 20px;white-space:nowrap;color:var(--primary);background:var(--g-white);box-shadow:0 0 0 1px var(--line)}
+.dark .ly-tag{color:var(--g-white);background:rgba(255,255,255,.14);box-shadow:none}
+.ly-url{display:inline-block;font-weight:500;letter-spacing:-.005em;color:var(--body);white-space:nowrap}
+.dark .ly-url{color:var(--inv-body)}
+.ly-logo{display:inline-block;vertical-align:top}
+.ly-logo.logo-inv{display:inline-flex}
+
+/* figures: in a row (sharing the width) or a column (optionally ruled) */
+.ly-stats{display:flex;min-width:0}
+.ly-stats.ly-row{flex-direction:row}
+.ly-stats.ly-row .ly-stat{flex:1 1 0;min-width:0}
+.ly-stats.ly-col{flex-direction:column}
+.ly-stat.ly-ruled{border-top:1px solid var(--hair);padding-top:24px}
+.ly-statn{font-weight:var(--aw);line-height:1.1;white-space:nowrap}
+
+/* lists: the website's check list and pills (brand.css), or plain bullets in the primary colour */
+.ly-checks,.ly-bullets{list-style:none;display:flex;flex-direction:column;gap:16px}
+.ly-checks li{text-align:left}
+.ly-bullets li{position:relative;padding-left:1.1em;color:var(--body)}
+.ly-bullets li::before{content:"";position:absolute;left:0;top:.6em;width:.38em;height:.38em;border-radius:50%;background:var(--primary)}
+.dark .ly-bullets li{color:var(--inv-body)}
+.dark .ly-bullets li::before{background:var(--gold)}
+
+/* a slab: a colour panel (a ground, the panel tint or the card white) holding its own column of text */
+.ly-slab{background:var(--ly-bg)}
+.ly-r-card{border-radius:var(--r-card)}
+.ly-r-slab{border-radius:var(--r-slab)}
+.ly-shadow{box-shadow:var(--shadow-card),0 0 0 1px var(--line)}
+.ly-stack{position:absolute}
+/* the type on a slab follows the slab's own colour, not the page's (these win over brand.css's .dark rules) */
+.cv .ly-light .h,.cv .ly-light .ps-h,.cv .ly-light .ly-plain{color:var(--ink)}
+.cv .ly-light .sub,.cv .ly-light .ly-url,.cv .ly-light .ly-bullets li,.cv .ly-light .checks li{color:var(--body)}
+.cv .ly-light .lbl{color:var(--muted)}
+.cv .ly-light .lbl.acc,.cv .ly-light .ly-plain.ly-acc{color:var(--primary)}
+.cv .ly-light .ly-tag{color:var(--primary);background:var(--g-white);box-shadow:0 0 0 1px var(--line)}
+.acc-muted .cv .ly-light .h em,.acc-muted .cv .ly-light .ps-h em{color:var(--muted)}
+.acc-colour .cv .ly-light .h em,.acc-colour .cv .ly-light .ps-h em{color:var(--primary)}
+.acc-weight .cv .ly-light .h em,.acc-weight .cv .ly-light .ps-h em{color:inherit}
+.cv .ly-dark .h,.cv .ly-dark .ps-h,.cv .ly-dark .ly-plain{color:var(--g-white)}
+.cv .ly-dark .sub,.cv .ly-dark .ly-url,.cv .ly-dark .lbl,.cv .ly-dark .ly-bullets li,.cv .ly-dark .checks li{color:var(--inv-body)}
+.cv .ly-dark .lbl.acc,.cv .ly-dark .ly-plain.ly-acc{color:var(--gold)}
+.cv .ly-dark .ly-tag{color:var(--g-white);background:rgba(255,255,255,.14);box-shadow:none}
+.acc-muted .cv .ly-dark .h em,.acc-muted .cv .ly-dark .ps-h em{color:var(--muted-inv)}
+.acc-colour .cv .ly-dark .h em,.acc-colour .cv .ly-dark .ps-h em{color:var(--gold)}
+.acc-weight .cv .ly-dark .h em,.acc-weight .cv .ly-dark .ps-h em{color:inherit}
+
+/* decorations: the tint panel (a flat band with a hairline top, as on the editorial pages), the website's dot grid and the posters' line texture, in a slot */
+.ly-panel{position:absolute;background:var(--panel);border-top:1px solid var(--line)}
+.ly-dots{background-image:radial-gradient(var(--dot) var(--dot-r),transparent var(--dot-r));background-size:var(--dot-s) var(--dot-s);background-position:calc(var(--dot-s)/2) calc(var(--dot-s)/2)}
+.ly-tex{background-image:repeating-linear-gradient(var(--tex-a),var(--tex) 0 1px,transparent 1px var(--tex-s))}

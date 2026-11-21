@@ -11,10 +11,15 @@ import { detectConverter } from './design/convert.mjs';
 import { lintText, textFieldsOf } from './design/lint.mjs';
 import { DesignError, renderImage, renderPdf } from './design/render.mjs';
 import { normaliseDesign, outputFiles, pdfFile, validateDesign } from './design/spec.mjs';
+import { layoutDesignProblems, loadLayouts, normaliseLayoutDesign } from './design/layout.mjs';
 
 // Every problem with a design block, as the batch validator would list them. No Chrome needed.
-export function designBlockProblems(design, { root = ROOT } = {}) {
-  const errors = validateDesign(design, 'design', { series: loadSeries({ root }) });
+// A { template: "layout" } block is checked against the layout it names: one of `layouts` when given (a preview of layouts that
+// are not saved yet), else one of the brand's (brand.json "layouts").
+export function designBlockProblems(design, { root = ROOT, layouts } = {}) {
+  const series = loadSeries({ root });
+  if (design?.template === 'layout') return layoutDesignProblems(design, 'design', { series, layouts: layouts ?? loadLayouts({ root }) });
+  const errors = validateDesign(design, 'design', { series });
   if (design?.template === 'pagecover') errors.push('design: page-cover makes profile and cover images, not post images, so it cannot be used in a batch');
   return errors;
 }
@@ -23,15 +28,17 @@ const brandWarnings = (spec, brand) => [...new Set(spec.sizes.flatMap((s) => lin
 
 // -> { ok, files: [{ size, slide, file, abs, w, h }], warnings, notes, pdf?, error? }
 // `only` limits the sizes rendered (a list of size names). `outDir` is resolved against root; `stem` overrides the file name stem.
-export async function renderDesignBlock({ root = ROOT, design, postId, outDir, stem, only, log = () => {} } = {}) {
+// `layouts` replaces the brand's layouts for this render (the layout editor's preview).
+export async function renderDesignBlock({ root = ROOT, design, postId, outDir, stem, only, layouts, log = () => {} } = {}) {
   const fail = (error, extra = {}) => ({ ok: false, files: [], warnings: [], notes: [], error, ...extra });
   let spec, brand;
   try {
-    const problems = designBlockProblems(design, { root });
+    const problems = designBlockProblems(design, { root, layouts });
     if (problems.length) return fail(problems.join('; '));
     if (!outDir) return fail('outDir is required');
-    spec = normaliseDesign(design);
     brand = loadBrand({ root });
+    if (layouts) brand = { ...brand, layouts };
+    spec = design.template === 'layout' ? normaliseLayoutDesign(design, brand.layouts) : normaliseDesign(design);
   } catch (e) {
     if (e instanceof DesignError) return fail(e.message);
     throw e;

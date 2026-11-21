@@ -1,6 +1,7 @@
 // Assembles one page: a restrictive Content-Security-Policy, brand variables, the fonts and brand.css inline, the template's
 // body and the in-page runtime. The page is self-contained (data: URIs only) and may not load anything from anywhere.
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import { brandCssVars } from './brand.mjs';
 import { RUNTIME } from './runtime.mjs';
 import { esc } from '../../design/templates/common.mjs';
@@ -12,7 +13,12 @@ export const cspFor = (nonce) => `default-src 'none'; img-src data:; font-src da
 // One @font-face per font file; the family names and unicode-ranges were validated when the brand file was loaded.
 export const fontFaceCss = (brand) => brand.fontFaces.map((f) => `@font-face{font-family:"${f.family}";src:url("${f.src}") format("woff2");font-weight:${f.weight};font-style:normal;unicode-range:${f.range}}`).join('');
 
-export function buildPage({ brand, size, body, bodyClass = '', bodyAttrs = '' }) {
+// The engine's own extra stylesheets, by name: a template asks for one (sheet: 'layout') and gets this fixed file, placed after
+// the brand's. Nothing from a spec, a batch or the brand file is ever a stylesheet.
+const SHEETS = { layout: fs.readFileSync(new URL('../../design/layout.css', import.meta.url), 'utf8') };
+
+export function buildPage({ brand, size, body, bodyClass = '', bodyAttrs = '', sheet }) {
+  const extra = Object.hasOwn(SHEETS, sheet ?? '') ? `<style>${SHEETS[sheet]}</style>` : '';
   const nonce = crypto.randomBytes(16).toString('base64');
   const vars = `--W:${size.w}px;--H:${size.h}px;--pad:${size.pad}px;--top:${size.top}px;--fbot:${size.fbot}px;--logo-h:${size.logoH}px;--url:${size.url}px;--hs:1;${brandCssVars(brand)}`;
   return `<!doctype html><html lang="en" data-family="${esc(brand.font.family)}" data-mono="${esc(brand.font.mono)}"><head><meta charset="utf-8">
@@ -20,7 +26,7 @@ export function buildPage({ brand, size, body, bodyClass = '', bodyAttrs = '' })
 <title>${esc(brand.name)} post</title>
 <style>:root{${vars}}</style>
 <style>${fontFaceCss(brand)}</style>
-<style>${brand.css}</style></head>
+<style>${brand.css}</style>${extra}</head>
 <body class="${esc(bodyClass)}" ${bodyAttrs}>${body}<script nonce="${nonce}">${RUNTIME}</script></body></html>`;
 }
 

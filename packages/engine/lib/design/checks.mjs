@@ -163,7 +163,7 @@ const hit = (a, b, tol = 2) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > tol
 // footer or the logo, or lie on each other. (Text inside an object, and an artefact's own text, is judged by the object it is on.)
 export function findLayoutProblems(m, S) {
   const problems = [];
-  const lim = { x0: S.pad - 3, x1: m.W - S.pad + 3, y0: S.top - 6, y1: m.footer ? m.footer.y0 - 10 : m.H - S.pad + 3 };
+  const lim = { x0: S.pad - 3, x1: m.W - S.pad + 3, y0: S.top - 6, y1: m.footer ? m.footer.y0 - 10 : m.H - (S.bottom ?? S.pad) + 3 };
   const roles = m.roles.filter((r) => r.rects.length);
   const own = roles.filter((r) => !r.nested);
   for (const r of own) {
@@ -172,6 +172,13 @@ export function findLayoutProblems(m, S) {
     const over = { bottom: u.y1 - lim.y1, top: lim.y0 - u.y0, right: u.x1 - lim.x1, left: lim.x0 - u.x0 };
     for (const [edge, px] of Object.entries(over)) if (px > 1) problems.push({ kind: 'outside', role: r.role, text: r.text, edge, px: Math.round(px) });
     if (r.overX > 1) problems.push({ kind: 'wide', role: r.role, text: r.text, px: Math.round(r.overX) });
+    // A layout's text stays in its own cell (its slot on the grid): text that runs out of it is too long for the slot.
+    if (r.cell) {
+      const out = { bottom: u.y1 - r.cell.y1, top: r.cell.y0 - u.y0, right: u.x1 - r.cell.x1, left: r.cell.x0 - u.x0 };
+      const tol = { bottom: 3, top: 3, right: 6, left: 6 };
+      const [edge, px] = Object.entries(out).sort((a, b) => b[1] - a[1])[0];
+      if (px > tol[edge]) problems.push({ kind: 'cell', role: r.role, text: r.text, edge, px: Math.round(px) });
+    }
     if ((m.avoid ?? []).some((a) => !(r.inAvoid ?? []).includes(a.id) && r.rects.some((q) => overlap(q, a)))) problems.push({ kind: 'avoid', role: r.role, text: r.text });
     if (r.min && r.size < r.min) problems.push({ kind: 'small', role: r.role, text: r.text, size: Math.round(r.size), min: r.min });
     if (m.panel && !r.onpanel && !(r.inAvoid ?? []).length) {
@@ -205,6 +212,7 @@ export function explainProblems(problems, sizeName, lengths = {}) {
       return `the ${w(p.role)} ("${p.text}") runs ${p.px} px ${where}`;
     }
     if (p.kind === 'wide') return `the ${w(p.role)} ("${p.text}") is ${p.px} px wider than its box`;
+    if (p.kind === 'cell') return `the ${w(p.role)} ("${p.text}") runs ${p.px} px out of the ${p.edge} of its slot`;
     if (p.kind === 'panel') return `the ${w(p.role)} ("${p.text}") runs ${p.px} px into the panel`;
     if (p.kind === 'small') return `the ${w(p.role)} ("${p.text}") is ${p.size} px, under the ${p.min} px minimum for body text`;
     if (p.kind === 'objout') return 'a drawn object runs off the page';

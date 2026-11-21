@@ -34,10 +34,10 @@ export function lintText(fields, sizeName, brand) {
 }
 
 // Collects the text fields of a normalised spec (a carousel has one set per page): every text that appears in the image.
-const TEXT_KEYS = ['headline', 'sub', 'eyebrow', 'label', 'headRight', 'caption', 'title', 'big', 'line', 'myth', 'factLead', 'fact'];
+const TEXT_KEYS = ['headline', 'sub', 'eyebrow', 'label', 'headRight', 'caption', 'title', 'big', 'line', 'myth', 'factLead', 'fact', 'quote', 'note'];
 function fieldsOfOne(o) {
   const out = TEXT_KEYS.filter((k) => typeof o[k] === 'string').map((k) => ({ field: k, text: o[k] }));
-  for (const k of ['pills', 'checks']) (Array.isArray(o[k]) ? o[k] : []).forEach((t, i) => out.push({ field: `${k.slice(0, -1)} ${i + 1}`, text: t }));
+  for (const k of ['pills', 'checks', 'items']) (Array.isArray(o[k]) ? o[k] : []).forEach((t, i) => out.push({ field: `${k.slice(0, -1)} ${i + 1}`, text: t }));
   (o.stats ?? []).forEach((s, i) => out.push({ field: `stat ${i + 1} number`, text: s[0] }, { field: `stat ${i + 1} label`, text: s[1] }));
   const art = o.artefact ?? (o.columns || o.register || o.rows ? o : null);
   if (art) {
