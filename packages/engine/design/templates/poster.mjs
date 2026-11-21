@@ -8,13 +8,16 @@
 //            the page colour, exactly, so the photo runs into the page unseen; anything else (a real scene) is placed as a
 //            full-bleed band, edge to edge from its top to the page bottom, with no radius or shadow, on the ground (the series',
 //            the spec's, else the cool ground). See objectPhoto.
-//   number   one big figure (and up to three supporting figures) over the same kind of photo. Drawn from its layout
-//            (lib/design/builtin/poster.mjs); the function below is unused and goes when every poster is converted.
+//   number   one big figure (and up to three supporting figures) over the same kind of photo.
 //   product  a website framed phone, large, on a pale ground with the website's soft glow; centred under the headline and running
 //            off the bottom, or beside it.
 //   mythFact the myth on a solid dark slab, the fact on a pale slab, on a dark ground with its decoration; the series mark at the
 //            bottom right (top right when the logo bar is at the bottom).
 //   closing  the dark page with the tagline set large.
+//
+// Every poster is now drawn from its layout (lib/design/builtin/poster.mjs, drawn by lib/design/layout-poster.mjs). The template
+// functions below (object, number, product, mythFact, closing) are unused, kept as the reference the tests compare the layouts
+// with, and go when every template is converted; bar, words and objectPhoto are still used by the layout drawings.
 //
 // Every value reaches the page through esc()/fmtE()/fmtSub(), ctx.image() or a number computed here (see common.mjs).
 import { DesignError } from '../../lib/design/errors.mjs';
@@ -112,6 +115,7 @@ function poster(ctx, ground, body, { flex = false, spec } = {}) {
   };
 }
 
+// Unused: drawn from its layout (lib/design/builtin/poster.mjs).
 export function object(spec, ctx) {
   const asked = groundOf(spec, ctx, 'photo', { photo: true }), g = asked === 'photo' ? sceneGround(spec, ctx) : asked, dark = isDark(ctx.brand, g);
   const top = spec.photoTop ?? POSTER.photoTop;
@@ -120,6 +124,7 @@ export function object(spec, ctx) {
   return poster(ctx, g, body, { spec });
 }
 
+// Unused: drawn from its layout (lib/design/builtin/poster.mjs).
 export function number(spec, ctx) {
   const asked = groundOf(spec, ctx, spec.image ? 'photo' : 'cool', { photo: Boolean(spec.image) }), g = asked === 'photo' ? sceneGround(spec, ctx) : asked, dark = isDark(ctx.brand, g);
   const list = spec.stats ?? [], top = spec.photoTop ?? 616;
@@ -131,6 +136,7 @@ export function number(spec, ctx) {
   return poster(ctx, g, pic + bar(ctx, dark, { bottomTaken: Boolean(pic) }) + big + line + stats, { spec });
 }
 
+// Unused: drawn from its layouts (lib/design/builtin/poster.mjs: product, and product-side for layout "side").
 export function product(spec, ctx) {
   const g = groundOf(spec, ctx, 'cool'), dark = isDark(ctx.brand, g);
   const d = ctx.imageSize?.(spec.image), ratio = d && d.w > 0 ? d.h / d.w : 1354 / 660;
@@ -149,6 +155,7 @@ export function product(spec, ctx) {
 }
 
 // Myth and fact as colour-blocked slabs on a dark textured ground, centred between the top bar and the series mark.
+// Unused: drawn from its layout (lib/design/builtin/poster.mjs).
 export function mythFact(spec, ctx) {
   const g = groundOf(spec, ctx, 'dark'), dark = isDark(ctx.brand, g);
   const series = spec.series !== undefined ? ctx.brand.series[spec.series] : null;
@@ -163,6 +170,7 @@ export function mythFact(spec, ctx) {
 
 const MAP = { x: 640, y: 150, w: 360, h: 450 };
 
+// Unused: drawn from its layout (lib/design/builtin/poster.mjs).
 export function closing(spec, ctx) {
   const g = groundOf(spec, ctx, 'deep'), dark = isDark(ctx.brand, g);
   const map = spec.map ? `<svg class="fig map" style="left:${MAP.x}px;top:${MAP.y}px" width="${MAP.w}" height="${MAP.h}" viewBox="0 0 ${MAP.w} ${MAP.h}" aria-hidden="true">${dotMapSvg(ctx.brand.map, MAP.w, MAP.h)}</svg>` : '';

@@ -430,8 +430,18 @@ converted yet is still drawn by its function in `design/templates/`. `testlib/te
 for the demo brand and two style variants, before and after, and compares the pictures and the page markup (see
 `packages/engine/testlib/CONVERTING.md`). By group:
 
-- Poster (`lib/design/builtin/poster.mjs`): **`number`** is drawn from its layout; `object`, `product`, `myth-fact` and
-  `closing` by their functions.
+- Poster (`lib/design/builtin/poster.mjs`): **`number`**, **`object`**, **`product`** (two layouts: `product` centred, and
+  `product-side` for `"layout": "side"`), **`myth-fact`** and **`closing`** are drawn from their layouts. The spec's headline
+  `size` picks one of several headline blocks by a condition on `size`; the spec's `align` reaches a headline that takes
+  `specAlign`. The poster page also draws a `screen` block (the pre-framed phone; `phoneTop` moves it to the spec's validated
+  `phoneTop`), and a `glow` decoration on a page with a phone is that phone's glow, sized from the picture's own ratio. New for
+  the poster page only: `slabs` (myth-fact's colour-blocked myth and fact slabs, stacked and centred; each headline child starts
+  the next slab, and the page is marked as flowing), the chrome block `mark` (the series mark opposite the logo bar: the spec's
+  `label`, else the series' name, else "Myths vs facts"), the bar's `label` (`auto` or `none`), and a headline's `fallback`
+  (`tagline`: the brand's tagline when the spec has no headline) and `subFallback` (`website`: the brand's website when the spec
+  has no sub line), as the closing page sets them. A poster page with the dot map refuses a brand without one, as `closing` did.
+  The `bar` block stays at the top, as the templates' bar does, when the page shows a photo block or a phone whose full height
+  reaches the bar's low place.
 
 - Artefacts (`lib/design/builtin/artefacts.mjs`): **`ledger`**, **`passbook`** (on its own, and with a register card) and a
   **`text`** page with an artefact (one layout per type: ledger, register card, passbook page, passbook page with its register

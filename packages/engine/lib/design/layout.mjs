@@ -182,6 +182,12 @@ export const BLOCKS = {
   footer: { kinds: [], field: null, options: {}, chrome: true, pages: ['editorial'] },
   // Block types a phase 2 group adds go in its own section below (testlib/CONVERTING.md), so parallel changes merge.
   // -- poster group --
+  // myth-fact's colour-blocked slabs, stacked and centred in the rectangle: each headline child starts the next slab (the myth's,
+  // then the fact's, each with its fixed tag), a sub line child goes in the slab before it.
+  slabs: { kinds: [], field: null, options: {}, text: true, children: true, pages: ['poster'] },
+  // the series mark opposite the poster's logo bar (bottom right, or top right when the bar is at the bottom): the spec's label,
+  // else the series' name, else "Myths vs facts".
+  mark: { kinds: [], field: null, options: {}, chrome: true, pages: ['poster'] },
   // (end of poster group)
   // -- artefacts group --
   // (end of artefacts group)
@@ -206,6 +212,17 @@ export const BLOCKS = {
 // two groups never edit the same line. Merged into BLOCKS here; a name given twice is a mistake and stops the engine loading.
 const ADDED_OPTIONS = [
   // -- poster group --
+  // A headline takes the spec's own validated align (left or center) instead of the block's when the spec gives one (object,
+  // product); its size follows the spec's through conditions on "size" (a "when" tests one choice, so align cannot be one too).
+  ['headline', 'specAlign', on(['poster'], b(false))],
+  // A headline with nothing to show takes the brand's tagline (two-tone, as on the closing page), and its subField's sub line the
+  // brand's website (the closing page's defaults).
+  ['headline', 'fallback', on(['poster'], e(['none', 'tagline'], 'none'))],
+  ['headline', 'subFallback', on(['poster'], e(['none', 'website'], 'none'))],
+  // The bar's label beside the logo: auto (the website, or "Swipe →" on page 1 of a carousel) or none (the closing page).
+  ['bar', 'label', on(['poster'], e(['auto', 'none'], 'auto'))],
+  // A poster phone's top edge moves to the spec's validated phoneTop (product).
+  ['screen', 'phoneTop', on(['poster'], b(false))],
   // (end of poster group)
   // -- artefacts group --
   // where the artefact an editorial page draws is: the block's field (a text page's artefact), or the spec itself, as the
@@ -251,6 +268,9 @@ export const PAGES = {
       decoration: ['kind'],
       spacer: [],
       // -- poster group --
+      screen: ['phoneTop'],
+      slabs: [],
+      mark: [],
       // (end of poster group)
     },
     decorations: ['rule', 'glow', 'map'],
@@ -288,6 +308,10 @@ export const PAGES = {
 // section (a new block type's drawing gets its own line in PAGES above, in the group's section there).
 const ADDED_HONOURS = [
   // -- poster group --
+  ['poster', 'headline', 'specAlign'],
+  ['poster', 'headline', 'fallback'],
+  ['poster', 'headline', 'subFallback'],
+  ['poster', 'bar', 'label'],
   // (end of poster group)
   // -- artefacts group --
   // (end of artefacts group)
