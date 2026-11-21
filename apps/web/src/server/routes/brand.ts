@@ -17,6 +17,8 @@
 //   POST   /references            upload a picture (and a note); the AI describes it in the background
 //   PATCH  /references/:id        the note, the brief and whether drafts use it
 //   POST   /references/:id/analyse  ask the AI again
+//   GET    /references/:id/proposal  the style settings the AI proposes, beside the ones in force (nothing is saved)
+//   POST   /references/:id/apply     accept them: the proposal applied over the settings in force, checked and saved
 //   DELETE /references/:id
 import { Hono } from 'hono';
 import type { Prisma } from '@prisma/client';
@@ -27,7 +29,7 @@ import { badRequest, HttpError, notFound, readJson } from '../http.js';
 import { requireRole, requireUser } from '../middleware.js';
 import { enqueueTracked } from '../services/activity.js';
 import {
-  advancedSchema, assetsOf, baseBrand, brandFromProfile, brandProblems, brandSettingsSchema, contrastChecks, explicitRoles, paletteChanges, currentSettings, mapProblems, splitPackBrand, syncBrand,
+  advancedSchema, applyProposal, assetsOf, baseBrand, brandFromProfile, proposalOf, brandProblems, brandSettingsSchema, contrastChecks, explicitRoles, paletteChanges, currentSettings, mapProblems, splitPackBrand, syncBrand,
   type BrandAssets,
 } from '../services/brand-settings.js';
 import { privateKey } from '../storage/types.js';
@@ -435,6 +437,37 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     const row = await deps.prisma.designReference.update({ where: { id: r.id }, data: { status: 'pending', error: null } });
     await analyse(actor.id, r);
     return c.json({ reference: await publicReference(row) });
+  });
+
+  // "Apply this look": the settings in force and the same settings with the reference's proposal applied, each with its colours
+  // and checks, side by side. Nothing is saved here. The proposal is checked again on the way out (proposalOf).
+  async function proposed(id: string) {
+    const r = await reference(id);
+    const proposal = proposalOf(r.analysis);
+    if (!proposal) throw new HttpError(409, 'This reference has no style proposal. Ask the AI to describe it again.');
+    const p = await profile();
+    const current = currentSettings(p);
+    let next: ReturnType<typeof currentSettings>;
+    try { next = applyProposal(current, proposal); } catch { throw new HttpError(409, 'The proposal does not fit the brand settings. Ask the AI to describe it again.'); }
+    return { r, p, proposal, current, next };
+  }
+
+  app.get('/references/:id/proposal', async (c) => {
+    const { p, proposal, current, next } = await proposed(c.req.param('id'));
+    const lookOf = (s: typeof current) => look(s, brandFromProfile({ settings: s, ...profileFields(p) }, s), p?.advanced);
+    return c.json({ proposal, current: { settings: current, ...lookOf(current) }, proposed: { settings: next, ...lookOf(next) } });
+  });
+
+  // Accepting it: the proposal applied over the settings in force now, checked by the engine like any save.
+  app.post('/references/:id/apply', async (c) => {
+    const actor = c.get('user');
+    const { r, p, next } = await proposed(c.req.param('id'));
+    const problems = brandProblems(brandFromProfile({ settings: next, ...profileFields(p) }, next));
+    if (problems.length) throw badRequest('The brand is not valid with this look', problems);
+    const json = next as unknown as Prisma.InputJsonValue;
+    await deps.prisma.brandProfile.upsert({ where: { id: 'brand' }, create: { settings: json, updatedById: actor.id }, update: { settings: json, updatedById: actor.id } });
+    await audit(deps, actor, 'brand.reference.apply', 'design_reference', r.id, { fileName: r.fileName, firstSave: !p });
+    return c.json(await view());
   });
 
   app.delete('/references/:id', async (c) => {

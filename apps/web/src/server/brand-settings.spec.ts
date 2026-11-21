@@ -344,6 +344,57 @@ describe('design references', () => {
     const again = await api.post(`/api/settings/brand/references/${ref.id}/analyse`, {});
     expect(again.body.reference.status).toBe('pending');
   });
+
+  const PROPOSAL = {
+    colours: { light: '#0b0b0f', soft: '#111117', cool: '#16161e', warm: '#1b1b24', dark: '#000000', deep: '#0d0d13', ink: '#f4f4f6', body: '#d6d6de', muted: '#b4b4c2', inverse: '#ffffff', primary: '#39ff88', accent: '#39ff88' },
+    display: { case: 'upper', tracking: 0.01, weight: 700 }, label: { case: 'upper', tracking: 0.12, font: 'mono' },
+    accent: 'colour', surface: 'outline', decoration: { kind: 'grid', on: 'all' }, photo: { treatment: 'duotone', strength: 0.8 },
+  };
+
+  it('proposes a look from a reference: shown beside the settings in force, saved only when an admin accepts it', async () => {
+    const api = await withProvider();
+    fake.fetch = async () => new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'respond', input: { ...STYLE, proposal: PROPOSAL } }], usage: { input_tokens: 10, output_tokens: 10 }, stop_reason: 'tool_use' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    await upload(api, '/api/settings/brand/references', 'neon.png', DEMO('logo-mark.png'));
+    await t.jobs.drain(t.deps);
+    const ref = (await api.get('/api/settings/brand/references')).body.references[0];
+    expect(ref.analysis.proposal).toMatchObject({ surface: 'outline', colours: { light: '#0B0B0F', primary: '#39FF88' } });
+    // the preview: both sets of settings with their colours and checks; nothing is saved
+    const view = await api.get(`/api/settings/brand/references/${ref.id}/proposal`);
+    expect(view.status).toBe(200);
+    expect(view.body.current.settings.style.surface).toBe('shadow');
+    expect(view.body.proposed.settings.roles.grounds).toMatchObject({ light: '#0B0B0F', dark: '#000000' });
+    expect(view.body.proposed.settings.roles.accents).toMatchObject({ primary: '#39FF88', gold: '#39FF88' });
+    expect(view.body.proposed.settings.style).toMatchObject({ surface: 'outline', decoration: { kind: 'grid', on: 'all' }, photo: { treatment: 'duotone', strength: 0.8 }, type: { accent: 'colour', display: { case: 'upper', tracking: 0.01, weight: 700 }, label: { case: 'upper', font: 'mono' } } });
+    expect(view.body.proposed.palette.grounds.light).toBe('#0B0B0F');
+    expect(view.body.proposed.explicit).toContain('grounds.light');
+    expect(view.body.proposed.settings.name).toBe('Acme Savings');
+    expect(await t.prisma.brandProfile.count()).toBe(0);
+    const editor = t.api(await t.signIn(await t.createUser('editor')));
+    expect((await editor.post(`/api/settings/brand/references/${ref.id}/apply`, {})).status).toBe(403);
+    expect((await editor.get(`/api/settings/brand/references/${ref.id}/proposal`)).status).toBe(403);
+    // accepting: saved, audited, and the engine reads the new look
+    const applied = await api.post(`/api/settings/brand/references/${ref.id}/apply`, {});
+    expect(applied.status).toBe(200);
+    expect(applied.body.settings.style.surface).toBe('outline');
+    expect(activeBrand().style).toMatchObject({ surface: 'outline', decoration: { kind: 'grid', on: 'all' }, type: { display: { case: 'upper' } } });
+    expect(activeBrand().grounds.light).toBe('#0B0B0F');
+    expect((await t.prisma.auditLog.findFirstOrThrow({ where: { action: 'brand.reference.apply' } })).detail).toMatchObject({ fileName: 'neon.png', firstSave: true });
+  });
+
+  it('never shows or applies a proposal that does not pass the settings\' own checks', async () => {
+    const api = await admin();
+    const make = (analysis: unknown) => t.prisma.designReference.create({ data: { fileKey: 'brand/x/ref.png', fileName: 'ref.png', contentType: 'image/png', size: 1, status: 'ready', brief: 'b', analysis: analysis as never } });
+    const hostile = [
+      { ...PROPOSAL, surface: '"></style><script>alert(1)</script>' }, { ...PROPOSAL, colours: { light: 'url(x)' } }, { ...PROPOSAL, decoration: { kind: 'artwork' } },
+      { ...PROPOSAL, display: { case: 'upper', tracking: 9 } }, { ...PROPOSAL, extra: 1 }, { ...PROPOSAL, colours: { __proto__: '#000000', neon: '#00FF00' } },
+    ];
+    for (const proposal of [...hostile, undefined]) {
+      const r = await make({ ...STYLE, ...(proposal ? { proposal } : {}) });
+      expect((await api.get(`/api/settings/brand/references/${r.id}/proposal`)).status, JSON.stringify(proposal)).toBe(409);
+      expect((await api.post(`/api/settings/brand/references/${r.id}/apply`, {})).status).toBe(409);
+    }
+    expect(await t.prisma.brandProfile.count()).toBe(0);
+  });
 });
 
 describe('sync', () => {

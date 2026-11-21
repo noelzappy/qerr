@@ -439,6 +439,58 @@ export function applyAssets(b: Json, s: BrandSettings, p: AssetProfile): Array<{
   return files;
 }
 
+// ---- what a design reference proposes ----
+//
+// The AI looks at a reference and proposes concrete style settings (packages/ai/src/reference.mjs PROPOSAL_SCHEMA). Its answer
+// is untrusted: it is checked again here, against the same lists, before it is stored, shown or applied. A proposal only ever
+// changes the colour roles and the style; it is applied over the settings in force only when an admin accepts it.
+const PROPOSAL_COLOURS = [...tokens.GROUND_NAMES, 'ink', 'body', 'muted', 'inverse', 'primary', 'accent'];
+const caseOf = z.string().refine((v) => tokens.TYPE_CASES.includes(v));
+export const proposalSchema = z.object({
+  colours: z.object(Object.fromEntries(PROPOSAL_COLOURS.map((k) => [k, hex.optional()]))).strict(),
+  display: z.object({ case: caseOf, tracking: z.number().min(-0.1).max(0.3).optional(), weight: z.number().int().min(100).max(900).optional() }).strict(),
+  label: z.object({ case: caseOf, tracking: z.number().min(-0.1).max(0.3).optional(), font: z.enum(['mono', 'body']).optional() }).strict(),
+  accent: z.string().refine((v) => tokens.ACCENT_DEVICES.includes(v) && v !== 'series'),
+  surface: z.string().refine((v) => tokens.SURFACES.includes(v)),
+  decoration: z.object({ kind: z.string().refine((v) => tokens.DECORATIONS.includes(v) && v !== 'artwork'), on: z.string().refine((v) => tokens.DECORATION_ON.includes(v)).optional() }).strict(),
+  photo: z.object({ treatment: z.string().refine((v) => tokens.PHOTO_TREATMENTS.includes(v)), strength: z.number().min(0).max(1).optional() }).strict(),
+}).strict();
+export type StyleProposal = z.infer<typeof proposalSchema>;
+
+// The checked proposal of an analysis, or null (an older analysis, or one whose proposal does not pass).
+export function proposalOf(analysis: unknown): StyleProposal | null {
+  if (!isObj(analysis) || analysis.proposal === undefined) return null;
+  const p = proposalSchema.safeParse(analysis.proposal);
+  return p.success ? p.data : null;
+}
+
+const COLOUR_ROLE: Record<string, [RoleGroup, string]> = {
+  ...Object.fromEntries(tokens.GROUND_NAMES.map((g) => [g, ['grounds', g] as [RoleGroup, string]])),
+  ink: ['text', 'ink'], body: ['text', 'body'], muted: ['text', 'muted'], inverse: ['text', 'inverse'], primary: ['accents', 'primary'], accent: ['accents', 'gold'],
+};
+
+// The settings with a proposal applied: the colours it names become set roles (the others keep what they were), and the type,
+// accent device, surface, decoration and photo treatment it names replace the current ones. The result is parsed by the
+// settings schema again, so it can only hold what the form could.
+export function applyProposal(s: BrandSettings, p: StyleProposal): BrandSettings {
+  const roles = structuredClone(s.roles) as Record<RoleGroup, Record<string, string | undefined>>;
+  for (const [k, v] of Object.entries(p.colours)) if (v && COLOUR_ROLE[k]) { const [g, key] = COLOUR_ROLE[k]; roles[g][key] = v; }
+  const t = s.style.type;
+  const style = {
+    ...s.style,
+    type: {
+      ...t,
+      display: { ...t.display, case: p.display.case, tracking: p.display.tracking ?? t.display.tracking, weight: p.display.weight ?? t.display.weight },
+      label: { ...t.label, case: p.label.case, tracking: p.label.tracking ?? t.label.tracking, font: p.label.font ?? (t.label.font === 'own' ? 'own' : t.label.font) },
+      accent: p.accent,
+    },
+    surface: p.surface,
+    decoration: { ...s.style.decoration, kind: p.decoration.kind, on: p.decoration.on ?? s.style.decoration.on },
+    photo: { ...s.style.photo, treatment: p.photo.treatment, strength: p.photo.strength ?? s.style.photo.strength },
+  };
+  return brandSettingsSchema.parse({ ...s, roles, style });
+}
+
 // ---- reading the stored brand ----------------------------------------------------------------------------------------------
 
 export interface BrandSnapshot {
