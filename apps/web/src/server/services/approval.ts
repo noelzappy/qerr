@@ -34,7 +34,7 @@ export async function routingForPlanning(deps: Pick<Deps, 'prisma'>) {
   };
 }
 
-// A folder that does not exist: the engine only needs a path to build items, and warns about the missing files, which we drop.
+// A folder that does not exist: the engine only needs a path to build items; nothing is read from it here.
 export const NO_MEDIA_ROOT = path.join(os.tmpdir(), 'vesk-no-media');
 
 export async function staleFigureDays(deps: Pick<Deps, 'prisma'>): Promise<number | undefined> {
