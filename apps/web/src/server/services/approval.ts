@@ -21,7 +21,7 @@ export interface ApprovalReport {
 const HARD = [/^caption is \d+ characters/, /^Instagram needs media/];
 
 // The routing and caption limits the engine needs to judge a post, without any key.
-export async function routingForPlanning(deps: Pick<Deps, 'prisma'>) {
+async function routingForPlanning(deps: Pick<Deps, 'prisma'>) {
   const [accounts, routes] = await Promise.all([
     deps.prisma.bufferAccount.findMany({ select: { name: true, captionLimits: true } }),
     deps.prisma.channelRoute.findMany({ include: { account: { select: { name: true } } } }),
@@ -35,9 +35,9 @@ export async function routingForPlanning(deps: Pick<Deps, 'prisma'>) {
 }
 
 // A folder that does not exist: the engine only needs a path to build items; nothing is read from it here.
-export const NO_MEDIA_ROOT = path.join(os.tmpdir(), 'vesk-no-media');
+const NO_MEDIA_ROOT = path.join(os.tmpdir(), 'vesk-no-media');
 
-export async function staleFigureDays(deps: Pick<Deps, 'prisma'>): Promise<number | undefined> {
+async function staleFigureDays(deps: Pick<Deps, 'prisma'>): Promise<number | undefined> {
   const row = await deps.prisma.appSetting.findUnique({ where: { key: 'staleFigureDays' } });
   return typeof row?.value === 'number' ? row.value : undefined;
 }

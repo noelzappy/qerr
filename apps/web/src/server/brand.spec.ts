@@ -32,13 +32,13 @@ describe('the brand pack in the web app', () => {
   it('APP_NAME and MAIL_FROM_NAME override the names taken from the brand', () => {
     expect(testConfig().appName).toBe('Vesk');
     expect(testConfig().mailFromName).toBe(brandInfo().name);
-    const named = testConfig({ APP_NAME: 'Studio desk', MAIL_FROM_NAME: 'Studio' });
-    expect(named.appName).toBe('Studio desk');
+    const named = testConfig({ APP_NAME: 'Studio hub', MAIL_FROM_NAME: 'Studio' });
+    expect(named.appName).toBe('Studio hub');
     expect(named.mailFromName).toBe('Studio');
   });
 
   it('reads a brand file: series in order, an unknown time zone falls back to UTC, a logo outside the repository is ignored', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sd-brand-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-brand-'));
     try {
       const file = path.join(dir, 'brand.json');
       fs.writeFileSync(file, JSON.stringify({ name: 'Studio', website: 'studio.example', tagline: 'Hello.', timezone: 'Mars/Base', series: { b: { name: 'Bee' }, a: {} }, logos: { mark: '/etc/passwd.png' } }));

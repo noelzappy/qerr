@@ -112,7 +112,7 @@ export function createLimits(now: () => Date = () => new Date()): Limits {
 }
 
 // The longest wait among the buckets that are full, or null when none is.
-export function blockedFor(checks: Array<[RateLimiter, string]>): number | null {
+function blockedFor(checks: Array<[RateLimiter, string]>): number | null {
   let wait: number | null = null;
   for (const [limiter, key] of checks) {
     const gate = limiter.check(key);

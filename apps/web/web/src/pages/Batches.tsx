@@ -15,10 +15,10 @@ import { cn } from '@/lib/utils';
 import { AiDraftSheet } from './batches/AiDraftSheet';
 import { BATCH_STATUS } from './batches/labels';
 import { NewBatchSheet } from './batches/NewBatchSheet';
-import { DataRows, EmptyState, ErrorState, SkeletonRows, StatusBadge, Sub, ToneBadge, type Column } from './batches/parts';
+import { DataList, EmptyBlock, ErrorBlock, RowsSkeleton, StatusBadge, Sub, ToneBadge, type Column } from '@/components/kit';
 import type { BatchStatus, BatchView } from './batches/types';
 import { periodLabel } from './batches/util';
-import { CreateHeader } from './kit/create-tabs';
+import { CreateHeader } from '../shell/CreateHeader';
 
 const COLUMNS: Array<{ status: BatchStatus; hint: string }> = [
   { status: 'draft', hint: 'Being written and checked' },
@@ -129,18 +129,18 @@ export function Batches() {
         )}
         description="A batch is a month or a campaign of posts. Review each post, approve it, then send the approved ones to Buffer."
       />
-      {list.loading && !data ? (view === 'board' ? <div className="flex gap-3">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-72 w-72 shrink-0 rounded-lg" />)}</div> : <SkeletonRows rows={5} />)
-        : list.error ? <ErrorState message={list.error} onRetry={() => void list.reload()} />
+      {list.loading && !data ? (view === 'board' ? <div className="flex gap-3">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-72 w-72 shrink-0 rounded-lg" />)}</div> : <RowsSkeleton rows={5} shape="lines" />)
+        : list.error ? <ErrorBlock message={list.error} onRetry={() => void list.reload()} />
         : data && data.length === 0 ? (
           <Card className="p-0">
-            <EmptyState title="There are no batches yet" action={<div className="flex flex-wrap justify-center gap-2"><Button onClick={() => navigate('/batches/ai-draft')}><Sparkles aria-hidden="true" /> Draft posts with AI</Button><Button variant="outline" onClick={() => navigate('/batches/new')}>Start a batch by hand</Button></div>}>
+            <EmptyBlock title="There are no batches yet" action={<div className="flex flex-wrap justify-center gap-2"><Button onClick={() => navigate('/batches/ai-draft')}><Sparkles aria-hidden="true" /> Draft posts with AI</Button><Button variant="outline" onClick={() => navigate('/batches/new')}>Start a batch by hand</Button></div>}>
               Let the AI draft a month of posts from your vault, or start a batch by hand. Posts are reviewed here before anything goes to Buffer.
-            </EmptyState>
+            </EmptyBlock>
           </Card>
         )
         : data && (view === 'board'
           ? <Board rows={data} onNew={() => navigate('/batches/new')} />
-          : <Card className={cn('gap-0 overflow-hidden p-0')} role="region" aria-label="Batches"><DataRows caption="Batches, newest first" columns={columns} rows={data} rowKey={(b) => b.id} /></Card>)}
+          : <Card className={cn('gap-0 overflow-hidden p-0')} role="region" aria-label="Batches"><DataList fit="container" caption="Batches, newest first" columns={columns} rows={data} rowKey={(b) => b.id} /></Card>)}
       <NewBatchSheet open={creating} onClose={closeSheet} />
       <AiDraftSheet open={drafting} onClose={closeSheet} />
     </>

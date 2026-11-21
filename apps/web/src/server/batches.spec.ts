@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { seedBatch } from './testing-desk.js';
+import { seedBatch } from './testing-batches.js';
 import { createTestApp, type TestApp } from './testing.js';
 
 let t: TestApp;

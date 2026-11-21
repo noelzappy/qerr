@@ -7,22 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Notice } from '@/components/notice';
+import { BusyButton, CheckField, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FormPanel, Notice, PageHeader, SelectField, TagChips, TextField, type Column } from '@/components/kit';
 import { RunProgress, RunStatusBadge, runSummary } from '@/components/activity-parts';
 import { useActivity } from '@/hooks/use-activity';
 import { useNow } from '@/hooks/use-now';
 import { isActive } from '@/lib/activity';
-import { TextField } from '@/components/text-field';
 import { useDocumentTitle, useLoad } from '../hooks';
 import { errorMessage, fieldErrors, formProblem } from '../lib/errors';
 import { PROVIDER_KIND_LABEL, SEARCH_KIND_LABEL, TASK_LABEL } from '../lib/labels';
-import { ConfirmAction } from './kit/confirm-action';
-import { DataList, type Col } from './kit/data-list';
-import { CheckField, FieldGroup, SelectField } from './kit/fields';
-import { FormPanel } from '@/components/form-panel';
-import { PageHeader } from './kit/page-header';
-import { BusyButton, EmptyBlock, ErrorBlock } from './kit/states';
-import { TagChips } from './kit/tags';
 
 interface Provider { id: string; name: string; kind: 'anthropic' | 'openai-compatible'; baseUrl: string; model: string; keyLast4: string; tasks: string[]; enabled: boolean; inputPricePerMTok: number | null; outputPricePerMTok: number | null }
 interface Settings {
@@ -71,7 +63,7 @@ export function AiSettings() {
 function Providers({ providers, onChanged }: { providers: Provider[]; onChanged: () => void }) {
   const [editing, setEditing] = useState<Provider | 'new' | null>(null);
   const [deleting, setDeleting] = useState<Provider | null>(null);
-  const columns: Col<Provider>[] = [
+  const columns: Column<Provider>[] = [
     { key: 'name', header: 'Name', primary: true, cell: (p) => <>{p.name}<span className="block text-[13px] font-normal text-muted-foreground">{PROVIDER_KIND_LABEL[p.kind]}</span></> },
     { key: 'model', header: 'Model', cell: (p) => <span className="font-mono [overflow-wrap:anywhere]">{p.model}</span> },
     { key: 'tasks', header: 'Used for', cell: (p) => p.tasks.map((t) => TASK_LABEL[t] ?? t).join(', ') },
@@ -92,11 +84,11 @@ function Providers({ providers, onChanged }: { providers: Provider[]; onChanged:
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 p-5 max-sm:p-4">
         <div className="min-w-0 flex-1 basis-72">
           <CardTitle className="text-lg">AI providers</CardTitle>
-          <CardDescription className="mt-0.5">Each provider is used for the tasks you tick. The desk tries enabled providers in the order they were added.</CardDescription>
+          <CardDescription className="mt-0.5">Each provider is used for the tasks you tick. The app tries enabled providers in the order they were added.</CardDescription>
         </div>
         <Button className={sm} onClick={() => setEditing('new')}><Plus aria-hidden="true" />Add a provider</Button>
       </CardHeader>
-      {providers.length === 0 ? <EmptyBlock title="No AI provider yet">Add one to let the desk draft batches, rewrite posts and run research.</EmptyBlock>
+      {providers.length === 0 ? <EmptyBlock title="No AI provider yet">Add one to let the app draft batches, rewrite posts and run research.</EmptyBlock>
         : <DataList caption="AI providers" columns={columns} rows={providers} rowKey={(p) => p.id} />}
       {editing && <ProviderSheet key={editing === 'new' ? 'new' : editing.id} provider={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={(created) => { setEditing(null); toast.success(created ? 'AI provider added' : 'AI provider saved'); onChanged(); }} />}
       <ConfirmAction
@@ -104,7 +96,7 @@ function Providers({ providers, onChanged }: { providers: Provider[]; onChanged:
         title="Delete this AI provider?"
         message={<>The provider <strong>{deleting?.name}</strong> and its stored key will be deleted. This cannot be undone.</>}
         confirmLabel="Delete provider"
-        destructive
+        danger
         onCancel={() => setDeleting(null)}
         onConfirm={async () => {
           const p = deleting!;
@@ -164,7 +156,7 @@ function ProviderSheet({ provider, onClose, onSaved }: { provider: Provider | nu
 
   return (
     <FormPanel open onClose={onClose} busy={busy} title={provider ? `Edit ${provider.name}` : 'Add an AI provider'}
-      footer={<><Button variant="outline" className={sm} onClick={onClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="provider-form" busy={busy}>{provider ? 'Save changes' : 'Add provider'}</BusyButton></>}>
+      footer={<><Button variant="outline" className={sm} onClick={onClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="provider-form" loading={busy}>{provider ? 'Save changes' : 'Add provider'}</BusyButton></>}>
       <form id="provider-form" className="flex flex-col gap-4" onSubmit={(e) => void submit(e)} noValidate>
         <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} error={fields.name} required autoFocus hint="Only for you, such as Claude main." />
         <SelectField label="Kind" value={kind} onValueChange={(v) => setKind(v as Provider['kind'])} options={KIND_OPTIONS} error={fields.kind} />
@@ -225,7 +217,7 @@ function SearchCard({ search, onChanged }: { search: Settings['search']; onChang
           <TextField label={search ? 'New key' : 'Key'} type="password" autoComplete="off" mono value={apiKey} onChange={(e) => setApiKey(e.target.value)} error={fields.apiKey} optional={!!search}
             placeholder={search ? `Leave blank to keep the key ending ${search.keyLast4}` : ''} hint="Stored encrypted. It cannot be shown again." />
           {error && <Notice tone="bad">{error}</Notice>}
-          <div><BusyButton type="submit" busy={busy}>Save search service</BusyButton></div>
+          <div><BusyButton type="submit" loading={busy}>Save search service</BusyButton></div>
         </form>
       </CardContent>
     </Card>
@@ -269,7 +261,7 @@ function BudgetCard({ budget, onChanged }: { budget: Settings['budget']; onChang
             {budget.monthlyBudgetUsd === null && <>. No budget is set yet, so the AI will not run until you set one.</>}
             {budget.unpricedCalls > 0 && <>. {budget.unpricedCalls} {budget.unpricedCalls === 1 ? 'call' : 'calls'} this month had no price, so {budget.unpricedCalls === 1 ? 'it is' : 'they are'} not counted. Add the provider's prices above.</>}
           </p>
-          <div><BusyButton type="submit" busy={busy}>Save budget</BusyButton></div>
+          <div><BusyButton type="submit" loading={busy}>Save budget</BusyButton></div>
         </form>
       </CardContent>
     </Card>
@@ -331,7 +323,7 @@ function TopicsCard({ topics, ready, onChanged }: { topics: string[]; ready: boo
           <CardTitle className="text-lg">Research topics</CardTitle>
           <CardDescription className="mt-0.5">What the weekly research looks for. Everything it finds goes into the vault as unconfirmed, for a person to check.</CardDescription>
         </div>
-        <BusyButton variant="outline" busy={running || working} disabled={dirty} title={dirty ? 'Save your changes first' : undefined} onClick={() => void runNow()}>Run research now</BusyButton>
+        <BusyButton variant="outline" loading={running || working} disabled={dirty} title={dirty ? 'Save your changes first' : undefined} onClick={() => void runNow()}>Run research now</BusyButton>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 p-0">
         {!ready && <Notice tone="info" title="Research is not ready yet.">It needs an enabled AI provider ticked for research, and a search service with a key.</Notice>}
@@ -356,7 +348,7 @@ function TopicsCard({ topics, ready, onChanged }: { topics: string[]; ready: boo
           </section>
         )}
         <div className="flex flex-wrap gap-2.5">
-          <BusyButton busy={busy} disabled={!dirty} onClick={() => void save()}>Save topics</BusyButton>
+          <BusyButton loading={busy} disabled={!dirty} onClick={() => void save()}>Save topics</BusyButton>
           {dirty && <Button variant="ghost" className={sm} onClick={() => { setList(topics); setError(''); }}>Undo changes</Button>}
         </div>
       </CardContent>

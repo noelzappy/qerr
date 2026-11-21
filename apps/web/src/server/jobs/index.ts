@@ -6,7 +6,7 @@ import { handlerFor } from './handlers.js';
 import { JOB_NAMES, type EnqueueOptions, type JobName, type JobPayloads, type Jobs } from './types.js';
 
 export * from './types.js';
-export { handlers, handlerFor } from './handlers.js';
+export { handlers } from './handlers.js';
 
 interface QueueSetting {
   // pg-boss queue policy: 'short' keeps at most one waiting job per singletonKey

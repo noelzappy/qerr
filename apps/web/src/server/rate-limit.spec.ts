@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadConfig } from './config.js';
-import { clientIp } from './middleware.js';
+import { CLIENT_IP_HEADER, clientIp } from './middleware.js';
 import { RateLimiter } from './rate-limit.js';
 import { createTestApp, TEST_ORIGIN, testConfig, type TestApp } from './testing.js';
 
@@ -62,7 +62,7 @@ describe('sign-in', () => {
     for (let i = 0; i < 5; i++) await signIn(u.email, 'wrong password!!', spoof(i));
     expect((await signIn(u.email, u.password, spoof(99))).status).toBe(429);
     // a header that only the caller could write is ignored too
-    expect((await post('/api/auth/sign-in/email', { email: u.email, password: u.password }, spoof(100), { 'x-sd-client-ip': '203.0.113.200' })).status).toBe(429);
+    expect((await post('/api/auth/sign-in/email', { email: u.email, password: u.password }, spoof(100), { [CLIENT_IP_HEADER]: '203.0.113.200' })).status).toBe(429);
   });
 
   it('limits different emails from one address per address', async () => {
@@ -146,7 +146,7 @@ describe('invites', () => {
 describe("Better Auth sees the trusted address", () => {
   it('records the trusted hop on the session, not a spoofed header', async () => {
     const u = await t.createUser('editor');
-    const res = await post('/api/auth/sign-in/email', { email: u.email, password: u.password }, `1.2.3.4, ${TRUSTED}`, { 'x-sd-client-ip': '9.9.9.9' });
+    const res = await post('/api/auth/sign-in/email', { email: u.email, password: u.password }, `1.2.3.4, ${TRUSTED}`, { [CLIENT_IP_HEADER]: '9.9.9.9' });
     expect(res.status).toBe(200);
     const session = await t.prisma.session.findFirstOrThrow({ where: { userId: u.id } });
     expect(session.ipAddress).toBe(TRUSTED);

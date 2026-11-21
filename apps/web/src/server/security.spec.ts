@@ -157,15 +157,15 @@ describe('request handling', () => {
 
 describe('the web app', () => {
   it('serves the built files, falls back to index.html for pages and never serves outside the folder', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'desk-web-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-web-'));
     fs.mkdirSync(path.join(dir, 'assets'));
-    fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><title>desk</title>');
+    fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><title>vesk</title>');
     fs.writeFileSync(path.join(dir, 'assets', 'app.js'), 'console.log(1)');
     const web = await createTestApp({ webDir: dir });
     try {
       const page = await web.app.request('/batches/abc');
       expect(page.status).toBe(200);
-      expect(await page.text()).toContain('<title>desk</title>');
+      expect(await page.text()).toContain('<title>vesk</title>');
       expect(page.headers.get('content-security-policy')).toContain("script-src 'self'");
       const js = await web.app.request('/assets/app.js');
       expect(js.headers.get('content-type')).toContain('javascript');

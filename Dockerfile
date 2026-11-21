@@ -36,7 +36,7 @@ ENV CHROME_PATH=/usr/local/bin/chromium-container \
     NODE_ENV=production \
     PORT=3000
 
-WORKDIR /srv/social
+WORKDIR /srv/vesk
 
 # The workspaces as they are in the repository: the root manifest, the packages (the engine and its design/ folder with
 # the templates and fonts; the AI library), the brand packs (brands/, chosen with BRAND_DIR) and the web app. node_modules keeps its @vesk/* links, which are
@@ -62,4 +62,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/srv/social/deploy/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/srv/vesk/deploy/entrypoint.sh"]

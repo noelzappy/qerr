@@ -5,16 +5,13 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { RunProgress, RunResult, RunStatusBadge } from '@/components/activity-parts';
 import { Button } from '@/components/ui/button';
-import { Notice } from '@/components/notice';
+import { BusyButton, CheckField, FieldSet, FormPanel, FormProblem, Notice, TextField } from '@/components/kit';
 import { useActivityRun } from '@/hooks/use-activity';
 import { useNow } from '@/hooks/use-now';
 import { isActive } from '@/lib/activity';
 import { errorMessage, fieldErrors } from '../../lib/errors';
 import { networkLabel } from '../../lib/labels';
 import { toast } from 'sonner';
-import { FormPanel } from '@/components/form-panel';
-import { TextField } from '@/components/text-field';
-import { BusyButton, CheckField, FieldSet, FormProblem } from './parts';
 import { NETWORKS } from './labels';
 
 // The first and last day of next month, as the form's starting point.

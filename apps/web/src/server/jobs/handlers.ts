@@ -12,10 +12,6 @@ export type Handlers = { [N in JobName as CamelName<N>]: JobHandler<N> };
 
 type CamelName<S extends string> = S extends `${infer A}-${infer B}` ? `${A}${Capitalize<CamelName<B>>}` : S;
 
-const notBuilt = (name: string) => async () => {
-  throw new Error(`The ${name} job is not built yet`);
-};
-
 // refresh-sweep: look for batches with live or draft deliveries and queue a status refresh for each.
 // Each check makes its own run when its job starts, so the list only shows checks that really ran.
 async function refreshSweep(deps: Deps, payload: { activityId?: string } = {}): Promise<void> {

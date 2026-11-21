@@ -1,21 +1,16 @@
-// Activity: everything the desk does in the background (AI drafts, research, image renders, sends to Buffer, status
+// Activity: everything the app does in the background (AI drafts, research, image renders, sends to Buffer, status
 // checks), what it is doing now and what happened. A table on a desktop, cards on a phone; a run opens in a read-only panel.
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { FormPanel } from '@/components/form-panel';
-import { Notice } from '@/components/notice';
+import { DataList, EmptyBlock, ErrorBlock, FormPanel, Notice, PageHeader, Pager, RowsSkeleton, SelectField, SwitchField, type Column } from '@/components/kit';
 import { RunProgress, RunResult, RunStatusBadge, runSummary } from '@/components/activity-parts';
 import { useActivity, useActivityRun } from '@/hooks/use-activity';
 import { useNow } from '@/hooks/use-now';
 import { batchLink, elapsedMs, formatElapsed, isActive, KIND_LABEL, runKindLabel, type ActivityRun } from '@/lib/activity';
 import { useDocumentTitle } from '../hooks';
 import { formatDateTime } from '../lib/format';
-import { DataList, type Col } from './kit/data-list';
-import { SelectField, SwitchField } from './kit/fields';
-import { PageHeader } from './kit/page-header';
-import { EmptyBlock, ErrorBlock, Pager, RowsSkeleton } from './kit/states';
 
 const PAGE_SIZE = 25;
 const STATUS_OPTIONS = [
@@ -35,7 +30,7 @@ export function Activity() {
   const now = useNow(list.active.length > 0);
   const filtered = status !== 'all' || !!kind || showSystem;
 
-  const columns: Col<ActivityRun>[] = [
+  const columns: Column<ActivityRun>[] = [
     { key: 'title', header: 'What', primary: true, cell: (r) => (
       <div className="min-w-0 md:min-w-[8rem]">
         <Link to={`/activity/${r.id}`} className="rounded-sm font-medium outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50">{r.title}</Link>
@@ -52,7 +47,7 @@ export function Activity() {
 
   return (
     <>
-      <PageHeader title="Activity" description="What the desk is doing in the background and what it did: AI drafts, research, images, and sends to Buffer. It updates by itself." />
+      <PageHeader title="Activity" description="What the app is doing in the background and what it did: AI drafts, research, images, and sends to Buffer. It updates by itself." />
       <div className="flex flex-col gap-4">
         <Card className="p-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]" role="search" aria-label="Filter the activity">

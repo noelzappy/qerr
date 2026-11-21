@@ -1,7 +1,6 @@
 // Small helpers for the batch pages: server problem lists, dates in words, and "only when it is on screen".
 import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../api';
-import { errorMessage } from '../../lib/errors';
 
 // Every line of a 400 or 422 answer. The server sends either plain strings or { path, message } objects.
 export function detailLines(err: unknown): string[] {
@@ -16,7 +15,6 @@ export function detailLines(err: unknown): string[] {
   }).filter(Boolean);
 }
 
-export const problemText = (err: unknown) => errorMessage(err);
 
 const dayFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const shortDayFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });

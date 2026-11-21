@@ -11,7 +11,7 @@
 //
 // What is faked: Buffer and every other outbound call (t.fetchCalls and t.setFetch), jobs (t.jobs records, t.jobs.drain
 // runs them), mail (t.mailer.sent), storage (in memory, t.storage.objects) and the clock (t.now / t.setNow).
-// Use them through t.deps, which is what createApp was given and what job handlers take.
+// Use them through t.deps, which is what createAppAndDeps was given and what job handlers take.
 //
 // The database: TEST_DB_NAME (default vesk_test) on TEST_DATABASE_ADMIN_URL (default the vesk-test-pg
 // container on 127.0.0.1:55440). Use your own name when several agents run at once. Run vitest with file parallelism off.
@@ -22,17 +22,17 @@ import pg from 'pg';
 import { createAppAndDeps } from './app.js';
 import { loadConfig, type AppConfig } from './config.js';
 import { createPrisma } from './db.js';
-import type { Deps, Role } from './deps.js';
+import type { Role } from './deps.js';
 import { appRoot } from './engine/root.js';
 import { createFakeJobs, type FakeJobs } from './jobs/fake.js';
 import { createFakeMailer } from './mail.js';
 import { createMemoryStorage } from './storage/memory.js';
 
 const ADMIN_URL = process.env.TEST_DATABASE_ADMIN_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55440/postgres';
-export const TEST_DB_NAME = process.env.TEST_DB_NAME ?? 'vesk_test';
-export const TEST_APP_URL = 'http://localhost:3000';
+const TEST_DB_NAME = process.env.TEST_DB_NAME ?? 'vesk_test';
+const TEST_APP_URL = 'http://localhost:3000';
 export const TEST_ORIGIN = TEST_APP_URL;
-export const TEST_PASSWORD = 'correct horse battery';
+const TEST_PASSWORD = 'correct horse battery';
 
 function urlFor(dbName: string): string {
   const u = new URL(ADMIN_URL);
@@ -42,7 +42,7 @@ function urlFor(dbName: string): string {
 export const testDatabaseUrl = (): string => urlFor(TEST_DB_NAME);
 
 // Creates the database if it is missing and applies migrations when some are pending.
-export async function ensureTestDatabase(): Promise<string> {
+async function ensureTestDatabase(): Promise<string> {
   if (!/^[a-z0-9_]+$/.test(TEST_DB_NAME)) throw new Error('TEST_DB_NAME may only contain a-z, 0-9 and _');
   const admin = new pg.Client({ connectionString: ADMIN_URL });
   await admin.connect();
@@ -73,7 +73,7 @@ export async function ensureTestDatabase(): Promise<string> {
   return testDatabaseUrl();
 }
 
-export async function truncateAll(): Promise<void> {
+async function truncateAll(): Promise<void> {
   const db = new pg.Client({ connectionString: testDatabaseUrl() });
   await db.connect();
   try {

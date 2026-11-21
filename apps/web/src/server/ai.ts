@@ -1,6 +1,6 @@
-// The seam to the @vesk/ai workspace package. When the package is absent the stub has the same signatures and says
-// plainly that AI is not installed. Nothing else in the app imports the package directly.
-import { importAiPackage } from './engine/root.js';
+// The seam to the @vesk/ai workspace package: the types the app uses and loadAI(), which the specs replace with a fake.
+// Nothing else in the app imports the package directly.
+import { aiImport } from './engine/root.js';
 
 export interface AiProviderInput {
   id: string; kind: 'anthropic' | 'openai-compatible'; baseUrl: string; model: string; apiKey: string; tasks: string[];
@@ -39,21 +39,10 @@ export interface AI {
 }
 
 export interface AiModule {
-  installed: boolean;
   createAI(options: CreateAiOptions): AI;
 }
 
-const notInstalled = async (): Promise<never> => {
-  throw new Error('AI not installed yet');
-};
-
-export const stubAiModule: AiModule = {
-  installed: false,
-  createAI: () => ({ draftBatch: notInstalled, research: notInstalled, rewrite: notInstalled, analyseReference: notInstalled }),
-};
-
 export async function loadAI(): Promise<AiModule> {
-  const mod = await importAiPackage<{ createAI: AiModule['createAI'] }>();
-  if (!mod) return stubAiModule;
-  return { installed: true, createAI: mod.createAI };
+  const { createAI } = await aiImport<AiModule>();
+  return { createAI };
 }

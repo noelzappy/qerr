@@ -22,10 +22,10 @@ export interface UseActivityOptions {
   enabled?: boolean;
 }
 
-export const FAST_MS = 3000;
-export const SLOW_MS = 30_000;
+const FAST_MS = 3000;
+const SLOW_MS = 30_000;
 
-export function activityUrl(f: ActivityFilter): string {
+function activityUrl(f: ActivityFilter): string {
   const q = new URLSearchParams();
   if (f.status) q.set('status', f.status);
   if (f.kind) q.set('kind', f.kind);

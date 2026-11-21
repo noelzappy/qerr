@@ -6,20 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Notice } from '@/components/notice';
-import { TextField } from '@/components/text-field';
+import { BusyButton, CheckField, ConfirmAction, CopyBox, DataList, EmptyBlock, ErrorBlock, FormPanel, Notice, PageHeader, RowsSkeleton, SelectField, TextField, type Column } from '@/components/kit';
 import { useLoad, useDocumentTitle } from '../hooks';
 import { fieldErrors, formProblem } from '../lib/errors';
 import { formatDate } from '../lib/format';
 import { ROLE_LABEL } from '../lib/labels';
 import { useSession } from '../session';
-import { ConfirmAction } from './kit/confirm-action';
-import { CopyBox } from './kit/copy-box';
-import { DataList, type Col } from './kit/data-list';
-import { CheckField, SelectField } from './kit/fields';
-import { FormPanel } from '@/components/form-panel';
-import { PageHeader } from './kit/page-header';
-import { BusyButton, EmptyBlock, ErrorBlock, RowsSkeleton } from './kit/states';
 
 interface UserRow { id: string; email: string; name: string; role: 'admin' | 'editor'; disabled: boolean; createdAt: string }
 interface InviteRow { id: string; email: string; role: 'admin' | 'editor'; state: 'open' | 'accepted' | 'revoked' | 'expired'; expiresAt: string; createdAt: string }
@@ -41,7 +33,7 @@ export function Users() {
   const [resetFor, setResetFor] = useState<UserRow | null>(null);
   const [revokeFor, setRevokeFor] = useState<InviteRow | null>(null);
 
-  const userColumns: Col<UserRow>[] = [
+  const userColumns: Column<UserRow>[] = [
     { key: 'who', header: 'Person', primary: true, cell: (u) => <><span>{u.name || u.email}</span><span className="block text-[13px] font-normal text-muted-foreground [overflow-wrap:anywhere]">{u.email}</span></> },
     { key: 'role', header: 'Role', cell: (u) => <Badge variant={u.role === 'admin' ? 'info' : 'quiet'}>{ROLE_LABEL[u.role]}</Badge> },
     { key: 'status', header: 'Status', cell: (u) => (u.disabled ? <Badge variant="destructive">Disabled</Badge> : <Badge variant="success">Active</Badge>) },
@@ -59,7 +51,7 @@ export function Users() {
       ),
     },
   ];
-  const inviteColumns: Col<InviteRow>[] = [
+  const inviteColumns: Column<InviteRow>[] = [
     { key: 'email', header: 'Email', primary: true, cell: (i) => <span className="[overflow-wrap:anywhere]">{i.email}</span> },
     { key: 'role', header: 'Role', cell: (i) => <Badge variant={i.role === 'admin' ? 'info' : 'quiet'}>{ROLE_LABEL[i.role]}</Badge> },
     { key: 'state', header: 'State', cell: (i) => (i.state === 'expired' ? <Badge variant="warning">Expired</Badge> : <Badge variant="info">Waiting</Badge>) },
@@ -107,7 +99,7 @@ export function Users() {
           ? <>{toggleFor?.email} will be able to sign in again.</>
           : <>{toggleFor?.email} will be signed out everywhere at once and will not be able to sign in until you enable the account again. Their work stays in place.</>}
         confirmLabel={toggleFor?.disabled ? 'Enable account' : 'Disable account'}
-        destructive={!toggleFor?.disabled}
+        danger={!toggleFor?.disabled}
         onCancel={() => setToggleFor(null)}
         onConfirm={async () => {
           const u = toggleFor!;
@@ -123,7 +115,7 @@ export function Users() {
         title={revokeFor?.state === 'open' ? 'Withdraw this invitation?' : 'Remove this invitation?'}
         message={<>The link sent to {revokeFor?.email} will stop working. You can invite them again at any time.</>}
         confirmLabel={revokeFor?.state === 'open' ? 'Withdraw invitation' : 'Remove invitation'}
-        destructive
+        danger
         onCancel={() => setRevokeFor(null)}
         onConfirm={async () => {
           const i = revokeFor!;
@@ -140,7 +132,7 @@ export function Users() {
 }
 
 // What happened to the email, in words. emailFailed means mail is set up but the send failed; neither means mail is not set up.
-export function MailOutcome({ emailed, emailFailed, to }: { emailed: boolean; emailFailed: boolean; to: string }) {
+function MailOutcome({ emailed, emailFailed, to }: { emailed: boolean; emailFailed: boolean; to: string }) {
   if (emailed) return <Notice tone="good">An email with this link was sent to {to}. You can also pass the link on yourself.</Notice>;
   if (emailFailed) return <Notice tone="warn" title="Email not sent.">The email to {to} could not be sent. Copy the link below and send it to them yourself.</Notice>;
   return <Notice tone="info" title="No email is set up.">Nothing was sent. Copy the link below and send it to {to} yourself.</Notice>;
@@ -182,7 +174,7 @@ function InviteSheet({ open, onClose, onDone }: { open: boolean; onClose: () => 
       busy={busy}
       footer={result
         ? <Button className={sm} onClick={close}>Done</Button>
-        : <><Button variant="outline" className={sm} onClick={close} disabled={busy}>Cancel</Button><BusyButton type="submit" form="invite-form" busy={busy}>Make invitation</BusyButton></>}
+        : <><Button variant="outline" className={sm} onClick={close} disabled={busy}>Cancel</Button><BusyButton type="submit" form="invite-form" loading={busy}>Make invitation</BusyButton></>}
     >
       {result ? (
         <div className="flex flex-col gap-4">
@@ -222,7 +214,7 @@ function RoleSheet({ user, onClose, onDone }: { user: UserRow; onClose: () => vo
   }
   return (
     <FormPanel open size="sm" title="Change role" description={user.email} onClose={onClose} busy={busy}
-      footer={<><Button variant="outline" className={sm} onClick={onClose} disabled={busy}>Cancel</Button><BusyButton busy={busy} disabled={role === user.role} onClick={() => void save()}>Save role</BusyButton></>}>
+      footer={<><Button variant="outline" className={sm} onClick={onClose} disabled={busy}>Cancel</Button><BusyButton loading={busy} disabled={role === user.role} onClick={() => void save()}>Save role</BusyButton></>}>
       <div className="flex flex-col gap-4">
         <SelectField label="Role" value={role} onValueChange={(v) => setRole(v as 'editor' | 'admin')} options={ROLE_OPTIONS} />
         {error && <Notice tone="bad">{error}</Notice>}
@@ -249,7 +241,7 @@ function ResetSheet({ user, onClose }: { user: UserRow; onClose: () => void }) {
   }
   return (
     <FormPanel open size="sm" title="Password reset link" description={user.email} onClose={close} busy={busy}
-      footer={result ? <Button className={sm} onClick={close}>Done</Button> : <><Button variant="outline" className={sm} onClick={close} disabled={busy}>Cancel</Button><BusyButton busy={busy} onClick={() => void make()}>Make link</BusyButton></>}>
+      footer={result ? <Button className={sm} onClick={close}>Done</Button> : <><Button variant="outline" className={sm} onClick={close} disabled={busy}>Cancel</Button><BusyButton loading={busy} onClick={() => void make()}>Make link</BusyButton></>}>
       {result ? (
         <div className="flex flex-col gap-4">
           {send ? <MailOutcome emailed={result.emailed} emailFailed={result.emailFailed} to={user.email} /> : <Notice tone="info">The link was made and not emailed. Pass it on yourself.</Notice>}

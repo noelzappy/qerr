@@ -187,7 +187,7 @@ async function writeRun(deps: Pick<Deps, 'prisma'>, batchId: string, run: RunRec
   await deps.prisma.appSetting.upsert({ where: { key: settingKey(batchId) }, create: { key: settingKey(batchId), value }, update: { value } });
 }
 
-export async function lastRun(deps: Pick<Deps, 'prisma'>, batchId: string): Promise<RunRecord | null> {
+async function lastRun(deps: Pick<Deps, 'prisma'>, batchId: string): Promise<RunRecord | null> {
   const row = await deps.prisma.appSetting.findUnique({ where: { key: settingKey(batchId) } });
   return (row?.value as unknown as RunRecord | undefined) ?? null;
 }
@@ -197,7 +197,7 @@ export async function lastRun(deps: Pick<Deps, 'prisma'>, batchId: string): Prom
 // Every line passes through the masker with every account key, and a Bearer token is masked whatever its value.
 export const maskLines = (mask: (text: string, secrets?: string[]) => string, lines: string[], secrets: string[]): string[] => lines.map((l) => mask(l, secrets));
 
-export const sendTitle = (batchTitle: string, mode: Mode) => `Send batch ${batchTitle} to Buffer${mode === 'live' ? ' (live)' : ' as drafts'}`;
+const sendTitle = (batchTitle: string, mode: Mode) => `Send batch ${batchTitle} to Buffer${mode === 'live' ? ' (live)' : ' as drafts'}`;
 export const refreshTitle = (batchTitle?: string) => (batchTitle ? `Buffer status check: ${batchTitle}` : 'Buffer status check');
 
 export function sendBatch(deps: Deps, payload: { batchId: string; mode: Mode; actorId: string; planToken?: string; activityId?: string }): Promise<void> {

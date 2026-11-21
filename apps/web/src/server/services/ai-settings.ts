@@ -6,11 +6,11 @@ import type { Deps } from '../deps.js';
 import { badRequest } from '../http.js';
 import { SETTING_BUDGET, setSetting } from './ai-config.js';
 
-export const TASKS = ['draft', 'research', 'rewrite'] as const;
+const TASKS = ['draft', 'research', 'rewrite'] as const;
 const DEFAULT_ANTHROPIC_URL = 'https://api.anthropic.com';
 
 // https only, except for a model server on this machine. No credentials or fragments in the address.
-export function checkBaseUrl(raw: string): string {
+function checkBaseUrl(raw: string): string {
   let u: URL;
   try { u = new URL(raw); } catch { throw badRequest('The request is not valid', [{ path: 'baseUrl', message: 'Enter a full address such as https://api.example.com' }]); }
   const local = ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname);

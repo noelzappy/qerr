@@ -51,7 +51,7 @@ const cap = (text: unknown, n: number) => String(text ?? '').slice(0, n);
 
 // The AI library's notes for a research run, cut to a size that is safe to keep: what it searched, read and skipped
 // (pages dropped as too old included) and what it dropped, with no keys and no page text.
-export function researchNotes(notes: unknown): Record<string, unknown> {
+function researchNotes(notes: unknown): Record<string, unknown> {
   const n = (notes ?? {}) as Record<string, unknown>;
   const topics = Array.isArray(n.topics) ? n.topics : [];
   const dropped = Array.isArray(n.dropped) ? n.dropped : [];

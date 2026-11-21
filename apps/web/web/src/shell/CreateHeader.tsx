@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { Lightbulb } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { CREATE_TABS } from '../../shell/nav';
+import { CREATE_TABS } from './nav';
 
 export function CreateHeader({ actions, description }: { actions?: ReactNode; description?: ReactNode }) {
   return (

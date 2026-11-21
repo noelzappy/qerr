@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { loadAI, stubAiModule } from './ai.js';
+import { loadAI } from './ai.js';
 import { handlers, JOB_NAMES, createBossJobs } from './jobs/index.js';
 import { createTestApp, testDatabaseUrl, type TestApp } from './testing.js';
 
@@ -46,11 +46,7 @@ describe('pg-boss', () => {
 });
 
 describe('AI seam', () => {
-  it('uses a stub that says so until @vesk/ai is installed', async () => {
-    const ai = stubAiModule.createAI({ providers: [] });
-    await expect(ai.draftBatch({ vault: [], series: {}, period: {}, count: 1, channels: [], brand: {}, timezone: 'UTC' })).rejects.toThrow('AI not installed yet');
-    await expect(ai.research({ topics: [], vault: [] })).rejects.toThrow('AI not installed yet');
-    await expect(ai.rewrite({ post: {}, instruction: '', vault: [] })).rejects.toThrow('AI not installed yet');
+  it('loads the AI library', async () => {
     const loaded = await loadAI();
     expect(typeof loaded.createAI).toBe('function');
   });

@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Link, Navigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useSession } from '../session';
-import { LoadingBlock } from '../pages/kit/states';
+import { LoadingBlock } from '@/components/kit';
 import { ActivityProvider } from './activity';
 import { SETTINGS } from './nav';
 import { AccountMenu, AdminsOnly, Frame } from './Shell';

@@ -1,8 +1,8 @@
 // Small rules the library shares: which files are accepted, what a file name suggests, and when a picture needs attention.
 import type { VaultItem } from '../vault-types';
 
-export const MAX_FILE = 15 * 1024 * 1024;
-export const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_FILE = 15 * 1024 * 1024;
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 export const ACCEPT = IMAGE_TYPES.join(',');
 
 export type PictureKind = 'photo' | 'screen';

@@ -21,7 +21,7 @@ export class CryptoError extends Error {
   }
 }
 
-export function decodeKey(value: string | Buffer): Buffer {
+function decodeKey(value: string | Buffer): Buffer {
   const key = typeof value === 'string' ? Buffer.from(value.trim(), 'base64') : value;
   if (key.length !== KEY_BYTES) throw new CryptoError(`An encryption key must be ${KEY_BYTES} bytes (base64 of 32 random bytes)`);
   return key;

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { networkLabel } from '../lib/labels';
 import { postState, type OverviewPost } from '../lib/overview';
-import { ToneBadge } from '../pages/batches/parts';
+import { ToneBadge } from '@/components/kit';
 import { NetworkIcon } from './network-icon';
 
 const dayFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });

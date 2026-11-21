@@ -1,4 +1,4 @@
-// createApp(deps): the whole HTTP surface. Every outside dependency comes in through deps, so tests build an app
+// createAppAndDeps(deps): the whole HTTP surface. Every outside dependency comes in through deps, so tests build an app
 // with a fake Buffer (fetchImpl), a memory or local storage, a fake job queue and a fake mailer.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -168,7 +168,6 @@ export function createAppAndDeps(input: AppDeps | Deps, options: { webDir?: stri
   return { app, deps };
 }
 
-export const createApp = (input: AppDeps | Deps, options?: { webDir?: string }): Hono<AppEnv> => createAppAndDeps(input, options).app;
 
 async function emailFrom(req: Request): Promise<string> {
   try {

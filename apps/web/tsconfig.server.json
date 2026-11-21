@@ -17,5 +17,5 @@
     "rootDir": "src/server"
   },
   "include": ["src/server/**/*.ts"],
-  "exclude": ["src/server/**/*.spec.ts", "src/server/testing.ts", "src/server/testing-desk.ts"]
+  "exclude": ["src/server/**/*.spec.ts", "src/server/testing.ts", "src/server/testing-batches.ts"]
 }

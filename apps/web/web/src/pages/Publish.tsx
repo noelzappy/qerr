@@ -14,7 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { networkLabel } from '../lib/labels';
 import { postState, type OverviewPost } from '../lib/overview';
-import { ErrorBlock } from './kit/states';
+import { ErrorBlock } from '@/components/kit';
 
 type View = 'week' | 'month' | 'list';
 

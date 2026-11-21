@@ -49,7 +49,7 @@ async function quietly<T>(deps: Deps, what: string, fn: () => Promise<T>): Promi
   }
 }
 
-export async function createRun(deps: Deps, kind: JobName, meta: RunMeta, status: 'queued' | 'running' = 'queued'): Promise<ActivityRun | null> {
+async function createRun(deps: Deps, kind: JobName, meta: RunMeta, status: 'queued' | 'running' = 'queued'): Promise<ActivityRun | null> {
   const row = await quietly(deps, 'create', () => deps.prisma.activityRun.create({
     data: {
       kind, status, title: meta.title.slice(0, 300), actorId: meta.actorId ?? null, batchId: meta.batchId ?? null, postId: meta.postId ?? null,

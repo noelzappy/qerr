@@ -1,19 +1,23 @@
 // What a list shows while it has nothing to show: loading skeletons, an empty explanation, an error with a retry, and paging.
-import type { ComponentProps, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export function RowsSkeleton({ rows = 5 }: { rows?: number }) {
+// Rows of grey bars while a list loads. `columns` (the default) is shaped like a table row; `lines` is one bar of
+// varying width per row, for lists whose rows are mostly one line of text.
+export function RowsSkeleton({ rows = 5, shape = 'columns' }: { rows?: number; shape?: 'columns' | 'lines' }) {
   return (
     <div className="flex flex-col gap-3 p-4" role="status" aria-label="Loading">
-      {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className="flex items-center gap-4">
-          <Skeleton className="h-4 w-1/3" />
-          <Skeleton className="h-4 flex-1" />
-          <Skeleton className="h-4 w-16 max-sm:hidden" />
-        </div>
-      ))}
+      {Array.from({ length: rows }, (_, i) => (shape === 'lines'
+        ? <Skeleton key={i} className="h-5" style={{ width: `${95 - ((i * 17) % 40)}%` }} />
+        : (
+          <div key={i} className="flex items-center gap-4">
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-4 w-16 max-sm:hidden" />
+          </div>
+        )))}
     </div>
   );
 }
@@ -43,7 +47,7 @@ export function ErrorBlock({ message, onRetry, title = 'This could not be loaded
     <div className="flex flex-col items-center gap-2.5 px-5 py-11 text-center text-muted-foreground" role="alert">
       <h3 className="text-base font-semibold text-destructive">{title}</h3>
       <p className="max-w-[46ch]">{message}</p>
-      {onRetry && <Button variant="outline" className="max-sm:min-h-11" onClick={onRetry}>Try again</Button>}
+      {onRetry && <Button type="button" variant="outline" className="max-sm:min-h-11" onClick={onRetry}>Try again</Button>}
     </div>
   );
 }
@@ -61,15 +65,5 @@ export function Pager({ page, pageSize, total, onPage }: { page: number; pageSiz
         <Button variant="outline" size="sm" className="max-sm:min-h-11" disabled={page >= pages} onClick={() => onPage(page + 1)}>Next</Button>
       </div>
     </nav>
-  );
-}
-
-// A button that shows a spinner and blocks double clicks while its work runs.
-export function BusyButton({ busy, children, ...rest }: { busy?: boolean } & ComponentProps<typeof Button>) {
-  return (
-    <Button {...rest} disabled={rest.disabled || busy} aria-busy={busy || undefined} className={`max-sm:min-h-11 ${rest.className ?? ''}`}>
-      {busy && <Loader2 className="animate-spin" aria-hidden="true" />}
-      {children}
-    </Button>
   );
 }

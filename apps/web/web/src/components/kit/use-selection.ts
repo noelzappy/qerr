@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // The ids from `from` to `to` inclusive, in list order (either direction). Empty when either is not in the list.
-export function idsBetween(ids: readonly string[], from: string, to: string): string[] {
+function idsBetween(ids: readonly string[], from: string, to: string): string[] {
   const a = ids.indexOf(from);
   const b = ids.indexOf(to);
   if (a < 0 || b < 0) return [];

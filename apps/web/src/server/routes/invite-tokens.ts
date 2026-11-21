@@ -3,10 +3,10 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { Invite } from '@prisma/client';
 import type { Deps, Role } from '../deps.js';
 
-export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export const hashToken = (token: string): string => createHash('sha256').update(token).digest('hex');
-export const inviteLink = (config: Deps['config'], token: string) => `${config.appUrl}/accept-invite?token=${encodeURIComponent(token)}`;
+const inviteLink = (config: Deps['config'], token: string) => `${config.appUrl}/accept-invite?token=${encodeURIComponent(token)}`;
 
 export async function createInvite(
   deps: Pick<Deps, 'prisma' | 'config' | 'now'>,
