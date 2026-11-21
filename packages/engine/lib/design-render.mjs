@@ -44,6 +44,16 @@ export async function renderDesignBlock({ root = ROOT, design, postId, outDir, s
     if (!files.length) return fail(`none of the sizes ${only.join(', ')} is in this design (it makes ${spec.sizes.join(', ')})`);
   }
   const warnings = brandWarnings(spec, brand);
+  // A brand without a dot map (the usual case for a brand set up in the web app) still gets its closing page: the map is left
+  // off and the post carries a warning, instead of the whole post failing. The command line keeps refusing, so a pack author
+  // sees the missing map.json at once.
+  if (!brand.map) {
+    const pages = spec.template === 'carousel' ? spec.pages : [spec];
+    if (pages.some((p) => p?.map)) {
+      for (const p of pages) if (p?.map) p.map = false;
+      warnings.push('this brand has no dot map, so the map was left off the closing page (add one in Settings, Brand and look, Advanced)');
+    }
+  }
   const notes = [];
   const chrome = findChrome();
   if (!chrome) return fail(NO_CHROME, { warnings });

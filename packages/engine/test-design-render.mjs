@@ -33,6 +33,25 @@ test('an invalid block returns ok:false with the errors and renders nothing', as
   } finally { fs.rmSync(out, { recursive: true, force: true }); }
 });
 
+test('a brand without a dot map gets its closing page without the map and a warning, not a failure', async () => {
+  const pack = fs.mkdtempSync(path.join(ROOT, 'out', 'test-pack-'));
+  const before = { BRAND_DIR: process.env.BRAND_DIR, CHROME_PATH: process.env.CHROME_PATH };
+  try {
+    fs.copyFileSync(path.join(ROOT, 'brands', 'demo', 'brand.json'), path.join(pack, 'brand.json'));
+    process.env.BRAND_DIR = path.relative(ROOT, pack);
+    process.env.CHROME_PATH = '/nonexistent/chrome';
+    const design = { template: 'carousel', sizes: ['feed'], pages: [{ template: 'text', headline: 'Hello' }, { template: 'closing', map: true }] };
+    const r = await renderDesignBlock({ root: ROOT, design, postId: 'p', outDir: 'out/test-no-map' });
+    // Chrome is missing on purpose: the check happens before any page is drawn, and the warning is already there.
+    assert.equal(r.ok, false);
+    assert.ok(r.warnings.some((w) => /no dot map, so the map was left off/.test(w)), r.warnings.join('\n'));
+    assert.equal(design.pages[1].map, true, 'the caller\'s design is not changed');
+  } finally {
+    for (const [k, v] of Object.entries(before)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+    fs.rmSync(pack, { recursive: true, force: true });
+  }
+});
+
 test('real render of the first example post design', { skip: findChrome() ? false : 'Google Chrome not found' }, async () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'ss-dr-'));
   try {
