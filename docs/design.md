@@ -435,8 +435,14 @@ for the demo brand and two style variants, before and after, and compares the pi
 
 - Artefacts (`lib/design/builtin/artefacts.mjs`): `ledger`, `passbook` and a `text` page with an artefact by their functions.
 
-- Editorial (`lib/design/builtin/editorial.mjs`): **`text`** without an artefact is drawn from its layout; `cover`, `stats` and
-  `photo-story` by their functions.
+- Editorial (`lib/design/builtin/editorial.mjs`): **`text`** without an artefact, **`cover`**, **`stats`** and **`photo-story`**
+  are drawn from their layouts (photo-story as two variants, `panel` and `print`, chosen by a `when` on its `layout`). For them
+  the editorial page also draws a `photo` (`frame`: `none` a photo window, as the stats band and the panel story's photo;
+  `card` the cover's card; `raised` the print story's card on the panel), the stats page's big `figure` (`size`, `shrink`; the
+  box is the figure itself, and it is not the page's `#txt`), its `stats` (`direction` `row`: each number in bold over its label,
+  side by side, 50 px apart; `column`: rows a third of the rectangle apart, numbers in the headline type at `size`, a hairline
+  between them with `rules`; `shrink`) and a `labelrow` (built-in editorial pages only: the series' name or the spec's `label`
+  and, on a carousel page, the folio, at the two ends of its rectangle).
 
 - Screen (`lib/design/builtin/screen.mjs`): `screen` by its function.
 

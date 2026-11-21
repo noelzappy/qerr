@@ -188,6 +188,17 @@ the table (for example `closing`'s default text, `region`) is a shared change: a
   conditions. The first variant whose `when` holds is drawn; a spec that matches none falls back to the function.
 - **`ensureValid`.** The registry validates every built-in layout the first time one is used and throws a plain `Error` naming
   each problem; `test-design-builtin.mjs` checks the same with `builtinProblems()`.
+- **Editorial group (cover, stats, photo-story).** The editorial page now draws `photo` (`frame`), `figure`, `stats` and the
+  new `labelrow`, each with the editorial markup, which is not the poster's: the stats figure is a bare `abs h big` box with its
+  line height set and *no* `#txt` (the stats page has none, so `editorialFigure` never calls `lead`); a `row` of stats is bold
+  numbers over labels in the sub style (`size` unused), a `column` is the ruled rows (its style keeps the template's trailing
+  `;` on the first row). A rule decoration is drawn across the middle of its rectangle, so stats' rule at `top:420px` is
+  `y: 419, h: 2`. photo-story's default variant is `{ field: 'layout', not: ['center', 'side', 'print'] }` (unset or panel), so
+  a layout it does not take still goes to the function, as `(spec.layout ?? 'panel') === 'panel'` decided. Two blocks with
+  `present`/`absent: 'image'` share the stats field and the space under the line. `test-design-layout.mjs` asserted that an
+  editorial page draws no `figure`; it now tests the refusal with a `slab` (a shared change). Imports a group needs in a
+  shared page file go in its own section under names of its own (`import * as editorialKit ...`), so two groups importing the
+  same helper do not declare it twice when their branches merge.
 
 ## Pre-existing issues seen in the baseline (not part of the conversion)
 
