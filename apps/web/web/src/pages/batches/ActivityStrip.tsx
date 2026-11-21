@@ -5,9 +5,7 @@ import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useActivity } from '@/hooks/use-activity';
-import { isActive, percent, type ActivityRun } from '@/lib/activity';
-
-const FAILURE_WINDOW_MS = 10 * 60_000;
+import { isActive, percent, recentFailures, type ActivityRun } from '@/lib/activity';
 
 export function BatchActivityStrip({ batchId, onSettled }: { batchId: string; onSettled: () => void }) {
   const { items, active } = useActivity({ batchId, status: 'all', pageSize: 100 });
@@ -28,8 +26,7 @@ export function BatchActivityStrip({ batchId, onSettled }: { batchId: string; on
   const renderDone = wave.filter((r) => !isActive(r)).length;
   const send = items.find((r) => r.kind === 'send-batch' && isActive(r));
 
-  const cutoff = Date.now() - FAILURE_WINDOW_MS;
-  const failures = items.filter((r) => r.status === 'failed' && (r.kind === 'render-post' || r.kind === 'send-batch') && Date.parse(r.finishedAt ?? r.createdAt) >= cutoff);
+  const failures = recentFailures(items, Date.now());
 
   if (!wave.length && !send && !failures.length) return null;
 

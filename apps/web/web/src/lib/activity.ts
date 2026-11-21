@@ -75,3 +75,11 @@ export function elapsedMs(r: Pick<ActivityRun, 'status' | 'createdAt' | 'started
 
 // Where a run's batch is, when it has one that still exists.
 export const batchLink = (r: Pick<ActivityRun, 'batchId'>) => (r.batchId ? `/batches/${r.batchId}` : null);
+
+// The render and send runs of a batch that failed in the last ten minutes and were not started again since (the same post
+// rendered again, the batch sent again): what the batch page lists as "jobs failed".
+export const FAILURE_WINDOW_MS = 10 * 60_000;
+export function recentFailures(items: ActivityRun[], now: number): ActivityRun[] {
+  const retried = (r: ActivityRun) => items.some((x) => x.id !== r.id && x.kind === r.kind && (r.kind !== 'render-post' || x.postId === r.postId) && Date.parse(x.createdAt) > Date.parse(r.createdAt));
+  return items.filter((r) => r.status === 'failed' && (r.kind === 'render-post' || r.kind === 'send-batch') && Date.parse(r.finishedAt ?? r.createdAt) >= now - FAILURE_WINDOW_MS && !retried(r));
+}
