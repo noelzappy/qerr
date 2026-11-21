@@ -122,7 +122,8 @@ When the brand pack's `brand.json` has `layouts` (made in the web app's Settings
 `description`, `sizes`, the `fields` it takes (`required`, what each is, `maxChars` for a text, `min` and `max` for a list) and
 the kind of vault `picture` it shows. No geometry reaches the model: it fills a layout in, it never draws one. The draft prompt
 (from `draft-9`) explains `{ "template": "layout", "layout": "<id>", ...fields }` and tells the model to prefer a layout whose
-description fits an idea. A layout the engine's validator does not accept is never offered.
+description fits an idea; from `draft-10` a carousel page may be such a layout too (one with a `feed` size, without `sizes` of its
+own), drawn with its place in the carousel. A layout the engine's validator does not accept is never offered.
 
 ## How drafting works
 
@@ -132,8 +133,9 @@ description fits an idea. A layout the engine's validator does not accept is nev
    call fails with `invalid_output`.
 3. Each post goes through `postcheck.mjs`:
    - template must be a poster template, `carousel`, `photo`, or `layout` with one of the brand's own layouts (when it has
-     some; never `pagecover`), and the design passes the engine's `validateDesign`, or for a layout `layoutDesignProblems`:
-     the layout must exist and be valid, and the post fills in exactly its declared fields within their lengths. A layout's
+     some; never `pagecover`); a carousel's pages are poster pages or, when the brand has layouts, `layout` pages. The design
+     passes the engine's `postDesignProblems`: `validateDesign`, and for a layout post or page `layoutDesignProblems`: the
+     layout must exist and be valid, and the post or page fills in exactly its declared fields within their lengths. A layout's
      picture must be a vault item of the kind it shows (a `screen` item for a screen block, else a `photo` item);
    - images are written as `vault:<id>` and replaced by that item's `file`; any other path, URL or non-photo item is rejected;
    - every number in the captions and image text must appear in the cited `sources` (so `85,000+` matches "more than

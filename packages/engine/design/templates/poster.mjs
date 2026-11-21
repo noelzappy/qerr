@@ -5,7 +5,7 @@
 //
 // Every value reaches the page through esc()/fmtE()/fmtSub(), ctx.image() or a number computed here (see common.mjs).
 import { esc, px } from './common.mjs';
-import { footerOf, logoPlace, photoTreated } from './style.mjs';
+import { footerOf, logoPlace } from './style.mjs';
 
 export const POSTER = { w: 1080, h: 1350, m: 80, barTop: 60 };
 const POSITION = /^(\d{1,3}(\.\d{1,2})?)% (\d{1,3}(\.\d{1,2})?)%$/;
@@ -45,9 +45,8 @@ export function objectPhoto(ctx, spec, { top }) {
   const [fx, fy] = fo.split(' ').map((v) => parseFloat(v) / 100);
   const zoom = Number.isFinite(Number(spec.zoom)) ? Math.min(3, Math.max(1, Number(spec.zoom))) : 1;
   const tr = zoom > 1 ? `;transform:scale(${px(zoom)});transform-origin:${fo}` : '';
-  // A treated photo (tint, duotone, overlay) is not what its raw pixels say, so it never lends the page its edge colour: it
-  // stays on the page's ground.
-  const sample = photoTreated(ctx.brand) ? '' : ` data-sample data-fx="${px(fx)}" data-fy="${px(fy)}"`;
-  const img = `<img data-user data-name="${esc(spec.image)}" data-fit="cover"${sample} src="${ctx.image(spec.image)}" alt="" style="object-position:${fo}${tr}">`;
+  // A treated photo (tint, duotone, overlay) is judged and lends its colour as the treatment draws it: the page applies the
+  // brand's treatment to the pixels it reads (lib/design/treatment.mjs) before it decides.
+  const img = `<img data-user data-name="${esc(spec.image)}" data-fit="cover" data-sample data-fx="${px(fx)}" data-fy="${px(fy)}" src="${ctx.image(spec.image)}" alt="" style="object-position:${fo}${tr}">`;
   return `<div class="ph pobj" data-avoid style="--pt:${px(top)}px;--ph:${px(POSTER.h - top)}px;--pm:${POSTER.m}px">${img}</div>`;
 }

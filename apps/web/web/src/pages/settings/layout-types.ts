@@ -69,7 +69,8 @@ export interface StoredLayout { id: string; slug: string; name: string; definiti
 // A built-in layout (read only): its template, the variant it draws ("layout is side"), and whether a brand may copy it.
 export interface BuiltinLayout { id: string; template: string; variant: string | null; copyable: boolean; why: string | null; definition: Layout }
 export interface LayoutsResponse { layouts: StoredLayout[]; starters: Layout[]; builtins: BuiltinLayout[]; catalogue: Catalogue; max: number }
-export interface PreviewResult { ok: boolean; image?: string; size: string; error?: string; warnings: string[]; notes: string[] }
+// page: the carousel page it was drawn as (first, middle or last), when not a single post.
+export interface PreviewResult { ok: boolean; image?: string; size: string; page?: 'first' | 'middle' | 'last'; error?: string; warnings: string[]; notes: string[] }
 
 export const SIZE_LABEL: Record<string, string> = { feed: 'Feed 1080 x 1350', square: 'Square 1080 x 1080', story: 'Story 1080 x 1920', wide: 'Wide 1200 x 675' };
 export const BLOCK_LABEL: Record<string, string> = {

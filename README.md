@@ -156,8 +156,9 @@ in Settings, Buffer accounts.
 
 **The brand is set in Settings, Brand and look**, and the app keeps it in its database: identity (name, website,
 tagline, what the brand does, time zone, language, currency), logos, colours, type (each role's font built in, picked
-from a curated list of Google Fonts that the server downloads once, or uploaded), series, voice, visual direction,
-and an Advanced section with a `brand.json` fragment, a dot map and the import of a brand pack. While people pick
+from a curated list of Google Fonts that the server downloads once in every weight the role uses, or uploaded), series,
+voice, visual direction, and an Advanced section with a `brand.json` fragment, a dot map and the import of a brand
+pack. While people pick
 colours, the page shows the colours posts will use and the contrast checks. Every value passes the engine's own
 `validateBrand` before it is saved. Behind the scenes the app writes the saved brand out as a pack folder under
 `state/brand/` and points the engine at it, so the renders and the AI read the same brand. Images are refused until the

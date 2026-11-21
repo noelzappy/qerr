@@ -24,7 +24,10 @@ import { logger, describeError } from '../log.js';
 import { MAX_LAYOUTS, layoutsForBrand, mergeLayouts } from './layouts.js';
 
 interface EngineCore { ROOT: string; DEFAULT_BRAND_DIR: string; brandDir(opts?: { root?: string; env?: Record<string, string | undefined> }): string }
-interface EngineBrand { validateBrand(b: unknown): string[]; mapProblems(m: unknown): string[]; canonicalGrounds(g: unknown): Record<string, string> }
+interface EngineBrand {
+  validateBrand(b: unknown): string[]; mapProblems(m: unknown): string[]; canonicalGrounds(g: unknown): Record<string, string>;
+  familyWeights(b: unknown): Record<string, number[]>; nearestWeight(available: readonly number[], want: number): number | null; weightRanges(weights: readonly number[]): Map<number, string>;
+}
 interface EngineTokens {
   GROUND_NAMES: string[]; ACCENT_STYLES: string[]; SERIES_KEY: RegExp; groundName(g: unknown): string | null; isDarkColour(hex: string): boolean;
   TYPE_CASES: string[]; ACCENT_DEVICES: string[]; SURFACES: string[]; DECORATIONS: string[]; DECORATION_ON: string[]; ARTWORK_FITS: string[];
@@ -394,15 +397,27 @@ export function paletteChanges(s: BrandSettings, b: Json): Array<{ colour: 'prim
 
 // ---- the uploaded files of the style layer ----
 
-// A font of a type role. An uploaded font is one file (`key`) for every character; a font from Google Fonts is its latin file
-// (`key`, also files[0]) and, when Google has one, its latin-ext file, each with the unicode-range Google gave it, and `source`
-// says which family and weight it is (services/google-fonts.ts).
+// A font of a type role. An uploaded font is one file (`key`) for every character and weight. A font from Google Fonts is its
+// files, each with the unicode-range Google gave it, its subset and the weights it draws (`key` is the latin file of the weight
+// nearest to 400, for the page's preview), and `source` says which family and weights it is (services/google-fonts.ts). A Google
+// font stored before fonts came in several weights has one weight (`source.weight`) and its latin and latin-ext files without
+// subset or weights; it is still read, and drawn for every weight as before.
 const FONT_RANGE = /^U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?(, ?U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?)*$/;
+export const FONT_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
+const weightList = z.array(z.number().int().refine((w) => (FONT_WEIGHTS as readonly number[]).includes(w), 'a weight from 100 to 900 in hundreds'))
+  .min(1).max(FONT_WEIGHTS.length).refine((l) => l.every((w, i) => i === 0 || w > l[i - 1]!), 'weights in ascending order, each once');
+const fontFile = z.object({ key: z.string().min(1), range: z.string().max(2000).regex(FONT_RANGE), subset: z.enum(['latin', 'latin-ext']).optional(), weights: weightList.optional() }).strict();
 const assetFont = z.object({
   key: z.string().min(1),
   family: z.string().regex(/^[A-Za-z0-9 _-]{1,40}$/),
-  files: z.array(z.object({ key: z.string().min(1), range: z.string().max(2000).regex(FONT_RANGE) }).strict()).min(1).max(2).optional(),
-  source: z.object({ kind: z.literal('google'), family: z.string().regex(/^[A-Za-z0-9 ]{1,40}$/), weight: z.number().int().min(100).max(900) }).strict().optional(),
+  // at most every weight in two subsets
+  files: z.array(fontFile).min(1).max(FONT_WEIGHTS.length * 2).optional()
+    // either every file says its subset and weights, or none does (the older one-weight Google font)
+    .refine((l) => !l || l.every((x) => !!x.weights && !!x.subset) || l.every((x) => !x.weights && !x.subset), 'every file with its subset and weights, or none')
+    // a weight is drawn by one file per subset
+    .refine((l) => !l || new Set(l.flatMap((x) => (x.weights ?? []).map((w) => `${x.subset}:${w}`))).size === l.reduce((n, x) => n + (x.weights?.length ?? 0), 0), 'each weight once per subset'),
+  source: z.object({ kind: z.literal('google'), family: z.string().regex(/^[A-Za-z0-9 ]{1,40}$/), weight: z.number().int().min(100).max(900).optional(), weights: weightList.optional() }).strict()
+    .refine((s) => s.weight !== undefined || s.weights !== undefined, 'the weight or weights of the font').optional(),
 }).strict();
 export type AssetFont = z.infer<typeof assetFont>;
 export const assetsSchema = z.object({
@@ -417,10 +432,36 @@ export type BrandAssets = z.infer<typeof assetsSchema>;
 export const assetsOf = (v: unknown): BrandAssets => { const p = assetsSchema.safeParse(v ?? {}); return p.success ? p.data : {}; };
 // Every stored file of a role's font, for removing them all when it is replaced.
 export const fontFileKeys = (a: AssetFont | undefined | null): string[] => (a ? [...new Set([a.key, ...(a.files ?? []).map((x) => x.key)])] : []);
-// The files of a role's font in the pack: `stem`.woff2 for one file, `stem`-latin.woff2 and `stem`-latin-ext.woff2 for two.
-const packFonts = (stem: string, a: Pick<AssetFont, 'key' | 'files'>): Array<{ name: string; key: string; range: string }> => {
-  if (!a.files?.length) return [{ name: `fonts/${stem}.woff2`, key: a.key, range: 'U+0000-FFFF' }];
-  return a.files.map((x, i) => ({ name: `fonts/${stem}-${i === 0 ? 'latin' : 'latin-ext'}.woff2`, key: x.key, range: x.range }));
+// The weights a role's font brings (a Google font's; an upload says nothing about its weights).
+export const storedWeights = (a: Pick<AssetFont, 'files' | 'source'>): number[] =>
+  a.source?.weights ?? [...new Set((a.files ?? []).flatMap((x) => x.weights ?? []))].sort((x, y) => x - y);
+// The weights the brand draws a family at (the engine's familyWeights: every role the family fills).
+export const familyWeightsOf = (b: Json, family: string): number[] => engineBrand.familyWeights(b)[family] ?? [];
+// Of the weights a family has, those that draw `wanted`: the weight itself, or the nearest it has.
+export const nearestWeights = (available: readonly number[], wanted: readonly number[]): number[] =>
+  [...new Set(wanted.map((w) => engineBrand.nearestWeight(available, w)).filter((w): w is number => w !== null))].sort((x, y) => x - y);
+
+// The files of a role's font in the pack, each with the font-weight it is declared for. One file (an upload): `stem`.woff2, for
+// every weight ("100 900"), so a variable font draws each weight and a static one is never made bold by the browser. An older
+// one-weight Google font: `stem`-latin.woff2 and `stem`-latin-ext.woff2, also for every weight. A Google font with its weights:
+// `stem`-<weight>-<subset>.woff2 for each file, declared for the weights it is the nearest to (the engine's weightRanges), so
+// every weight is drawn with the true face nearest to it; a variable file that draws several weights covers all of theirs.
+const packFonts = (stem: string, a: Pick<AssetFont, 'key' | 'files'>): Array<{ name: string; key: string; range: string; weight: string }> => {
+  if (!a.files?.length) return [{ name: `fonts/${stem}.woff2`, key: a.key, range: 'U+0000-FFFF', weight: '100 900' }];
+  if (!a.files.every((x) => x.weights?.length && x.subset)) return a.files.map((x, i) => ({ name: `fonts/${stem}-${i === 0 ? 'latin' : 'latin-ext'}.woff2`, key: x.key, range: x.range, weight: '100 900' }));
+  const all = [...new Set(a.files.flatMap((x) => x.weights!))].sort((x, y) => x - y);
+  const declared = engineBrand.weightRanges(all);
+  const bound = (w: number, i: 0 | 1) => Number(declared.get(w)!.split(' ')[i]);
+  return a.files.flatMap((x) => {
+    const name = `fonts/${stem}-${x.weights![0]}-${x.subset}.woff2`;
+    // the file's weights in runs of neighbours (of all the font's weights), one declaration per run
+    const runs: number[][] = [];
+    for (const w of x.weights!) {
+      const last = runs.at(-1);
+      if (last && all.indexOf(w) === all.indexOf(last.at(-1)!) + 1) last.push(w); else runs.push([w]);
+    }
+    return runs.map((run) => ({ name, key: x.key, range: x.range, weight: `${bound(run[0]!, 0)} ${bound(run.at(-1)!, 1)}` }));
+  });
 };
 // The body font as stored: the Google files and source when assets.body describes the profile's fontKey, else one uploaded file.
 export const bodyFont = (p: AssetProfile): AssetFont | null => {
@@ -440,22 +481,22 @@ export function applyAssets(b: Json, s: BrandSettings, p: AssetProfile): Array<{
   const files: Array<{ name: string; key: string }> = [];
   const font = b.font as Json;
   const list = () => (Array.isArray(font.files) ? font.files as Json[] : []);
-  // Each file is used for every weight of its role ("100 900"): an uploaded font may be variable, and a Google font is the one
-  // weight the admin picked, so the browser never draws a synthetic bold or a fallback instead.
+  // Each file under the weights packFonts declares it for, so the browser never draws a synthetic bold or a fallback instead.
+  const copy = (mine: Array<{ name: string; key: string }>) => { for (const x of mine) if (!files.some((f) => f.name === x.name)) files.push({ name: x.name, key: x.key }); };
   const body = bodyFont(p);
   if (body) {
     const own = packFonts('brand', body);
-    for (const x of own) files.push({ name: x.name, key: x.key });
+    copy(own);
     font.family = body.family;
-    font.files = [...own.map((x) => ({ role: 'sans', weight: '100 900', file: `${PACK}/${x.name}`, range: x.range })), ...list().filter((f) => f.role === 'mono')];
+    font.files = [...own.map((x) => ({ role: 'sans', weight: x.weight, file: `${PACK}/${x.name}`, range: x.range })), ...list().filter((f) => f.role === 'mono')];
   }
   const A = assetsOf(p.assets);
   const own = (role: 'display' | 'label') => {
     const a = A[role];
     if (!a) return null;
     const mine = packFonts(role, a);
-    for (const x of mine) files.push({ name: x.name, key: x.key });
-    font.files = [...list(), ...mine.map((x) => ({ role, weight: '100 900', file: `${PACK}/${x.name}`, range: x.range }))];
+    copy(mine);
+    font.files = [...list(), ...mine.map((x) => ({ role, weight: x.weight, file: `${PACK}/${x.name}`, range: x.range }))];
     return a.family;
   };
   const t = s.style.type;

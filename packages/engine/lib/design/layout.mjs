@@ -59,7 +59,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, brandFile } from '../core.mjs';
-import { ARTEFACT_TYPES, DEVICES, HEADLINE_SIZES as SPEC_HEADLINE_SIZES, IMAGE_EXT, LAYOUTS as STORY_LAYOUTS, MAX_STATS, NETWORKS, PRODUCT_LAYOUTS, SCRIMS, focalToCss, parseSizes, parseStat, validateDesign } from './spec.mjs';
+import { ARTEFACT_TYPES, DEVICES, HEADLINE_SIZES as SPEC_HEADLINE_SIZES, IMAGE_EXT, LAYOUTS as STORY_LAYOUTS, MAX_STATS, NETWORKS, PRODUCT_LAYOUTS, SCRIMS, focalToCss, normaliseDesign, parseSizes, parseStat, validateDesign } from './spec.mjs';
 import { COVER_SIZES, SIZES, SIZE_NAMES } from './sizes.mjs';
 import { ACCENT_STYLES, ALIGNS as SPEC_ALIGNS, DARK_GROUNDS, GROUND_ALIASES, GROUND_NAMES, POSTER_SIZES, SERIES_KEY, groundName } from './tokens.mjs';
 
@@ -375,7 +375,8 @@ export const PAGES = {
     },
   },
   // A social page's cover or profile picture (lib/design/layout-cover.mjs), at the cover sizes, on the white ground: its words
-  // are all the brand's (words: "brand": no field, no text block needed). The fit check holds them to the size's own margins.
+  // are all the brand's (words: "brand": no field, no text block needed). The fit check holds them to the size's own margins
+  // and to their box; the renderer sets the tagline smaller, then over two lines, to fit (render.mjs fitCover).
   cover: {
     draws: {
       coverMark: [],
@@ -957,6 +958,39 @@ export function normaliseLayoutDesign(d, layouts) {
   if (d.stats) spec.stats = d.stats.map(parseStat);
   return spec;
 }
+
+// ---- a carousel page drawn from one of the brand's layouts ----
+// A carousel's page may be { "template": "layout", "layout": "<id>", ...that layout's fields }, beside (or instead of) the
+// built-in page templates. It is checked exactly as a single post made with that layout (layoutDesignProblems) and drawn with its
+// place in the carousel (the renderer's counter { n, total }), so the layout's "page" conditions and the folio hold. A carousel
+// is drawn at the feed size, so the layout needs a feed canvas; sizes, the file name and the network sizes are the carousel's.
+const CAROUSEL_OWN = ['sizes', 'name', 'networkSizes'];
+export function layoutPageProblems(p, where = 'page', opts = {}) {
+  if (!isObj(p)) return [`${where}: must be an object`];
+  const errors = CAROUSEL_OWN.filter((k) => p[k] !== undefined).map((k) => `${where}: ${k} is set on the carousel, not on one of its pages`);
+  const rest = Object.fromEntries(Object.entries(p).filter(([k]) => !CAROUSEL_OWN.includes(k)));
+  const l = Array.isArray(opts.layouts) ? opts.layouts.find((x) => isObj(x) && x.id === p.layout) : undefined;
+  if (l && isObj(l.canvas) && !l.canvas.feed) return [...errors, `${where}: layout "${clip(l.id)}" has no feed size, and a carousel page is drawn at the feed size (1080 x 1350)`];
+  return [...errors, ...layoutDesignProblems(rest, where, opts)];
+}
+
+// Every problem with a post's design block: a brand layout's against the fields it declares, the built-in templates' with the
+// templates' validator, and a carousel's pages either way. opts: { series, layouts } of the brand.
+export function postDesignProblems(d, where = 'design', opts = {}) {
+  if (isObj(d) && d.template === 'layout') return layoutDesignProblems(d, where, opts);
+  return validateDesign(d, where, { ...opts, layoutPage: (p, w) => layoutPageProblems(p, w, opts) });
+}
+
+// A post's design block with defaults filled in and what needs parsing parsed: a layout's, or the built-in templates' with a
+// carousel's layout pages normalised as their layout's (at the carousel's sizes). Call postDesignProblems first.
+export function normalisePostDesign(d, layouts) {
+  if (d.template === 'layout') return normaliseLayoutDesign(d, layouts);
+  const spec = normaliseDesign(d);
+  if (spec.template === 'carousel') spec.pages = spec.pages.map((p) => (p.template === 'layout' ? { ...normaliseLayoutDesign(p, layouts), sizes: spec.sizes } : p));
+  return spec;
+}
+// Whether a design block needs the brand's layouts to be checked: a layout post, or a carousel with a layout page.
+export const usesLayouts = (d) => isObj(d) && (d.template === 'layout' || (Array.isArray(d.pages) && d.pages.some((p) => isObj(p) && p.template === 'layout')));
 
 // Sample words for each field, for previews of a layout before any post uses it.
 export const SAMPLE = {

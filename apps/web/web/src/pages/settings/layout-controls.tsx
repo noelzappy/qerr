@@ -10,9 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import {
-  CHOICE_WORDS, valueWord, blockControls, slabCount, choicesFor, blockTitle, casesToOne, clauseKinds, conditionsUsed, defaultScenario, dropClause, edgesTouched, fieldsShown,
+  CHOICE_WORDS, PAGE_CONDITION_HINT, SKETCH_PAGE_WORDS, valueWord, blockControls, slabCount, choicesFor, blockTitle, casesToOne, clauseKinds, conditionsUsed, defaultScenario, dropClause, edgesTouched, fieldsShown,
   fullWidthPx, groundToCases, isFullWidth, newClause, pageCatalogue, placeAs, placeBy, pxOn, readGround, readWhen, samePlace, sizesOf, slotOn, specFor,
-  tidyBlock, withPlace, withSamePlace, writeGround, writeWhen,
+  sketchPages, tidyBlock, withPlace, withSamePlace, writeGround, writeWhen,
   type ClauseKind, type Condition, type Control, type GroundModel, type Scenario,
 } from './layout-model';
 import {
@@ -80,7 +80,7 @@ export function ConditionEditor({ when, onChange, page, declared, legend = 'Show
           {k === 'absent' && <SelectField label="when this field is empty" value={cond.absent ?? ''} options={fieldsFor(cond.present)} onValueChange={(f) => set({ ...cond, absent: f })} />}
           {k === 'page' && (
             <SelectField label="on" value={cond.page ?? ''} options={page.conditions.pages.map((p) => ({ value: p, label: PAGE_CHOICE[p] ?? p }))} onValueChange={(p) => set({ ...cond, page: p })}
-              hint="A post made with a layout is one image: it counts as a single post." />
+              hint={PAGE_CONDITION_HINT} />
           )}
           {k === 'choice' && cond.choice && <ChoiceClause choice={cond.choice} choices={choices} page={page} onChange={(choice) => set({ ...cond, choice })} />}
         </div>
@@ -439,19 +439,20 @@ export function SizesMenu({ layout, catalogue, onToggle }: { layout: Layout; cat
 
 // ---- sketch as if ----
 
-// The switches that change what the layout draws: each field a condition names (filled or empty), the carousel page, and the
-// value of each choice a condition tests.
+// The switches that change what the layout draws: where the post is (a single post, or page 1, a middle page or the last page of a
+// carousel), each field a condition names (filled or empty), and the value of each choice a condition tests. The preview draws the
+// same case.
 export function ScenarioBar({ layout, catalogue, scenario, onChange }: { layout: Layout; catalogue: Catalogue; scenario: Scenario; onChange: (s: Scenario) => void }) {
   const page = pageCatalogue(catalogue, layout);
+  if (!page) return null;
   const used = conditionsUsed(layout);
-  if (!page || !used.length) return null;
   const fields = [...new Set(used.flatMap((c) => [c.present, c.absent, c.choice && page.conditions.choices[c.choice.field]?.declared ? c.choice.field : undefined]).filter((f): f is string => !!f && !!layout.fields[f]))];
-  const pages = used.some((c) => c.page !== undefined);
+  const places = sketchPages(layout);
   const choices = [...new Set(used.flatMap((c) => (c.choice ? [c.choice.field] : [])))].filter((n) => page.conditions.choices[n]);
   return (
     <div className="flex flex-col gap-2" role="group" aria-label="Sketch as if">
       <div className="flex items-center gap-2">
-        <p className="flex flex-1 items-center gap-1 text-[13px] font-medium">Sketch as if <Hint about="Sketch as if">Blocks a post would not draw in this case are hidden (the selected one is shown dashed). The preview draws a single post with these fields empty.</Hint></p>
+        <p className="flex flex-1 items-center gap-1 text-[13px] font-medium">Sketch as if <Hint about="Sketch as if">Blocks a post would not draw in this case are hidden (the selected one is shown dashed). The preview draws the same case: a single post, or that page of a carousel of three (at the feed size), with these fields empty.</Hint></p>
         <Button size="sm" variant="ghost" onClick={() => onChange(defaultScenario(layout))}>Reset</Button>
       </div>
       {fields.length > 0 && (
@@ -460,7 +461,9 @@ export function ScenarioBar({ layout, catalogue, scenario, onChange }: { layout:
         </div>
       )}
       <div className="grid gap-2 @xs:grid-cols-2">
-        {pages && <SelectField label="Page" value={scenario.page} onValueChange={(p) => onChange({ ...scenario, page: p })} options={page.conditions.pages.map((p) => ({ value: p, label: { single: 'A single post', first: 'Page 1 of a carousel', later: 'A later carousel page' }[p] ?? p }))} />}
+        <SelectField label="Drawn as" value={places.includes(scenario.page) ? scenario.page : 'single'} onValueChange={(p) => onChange({ ...scenario, page: p })}
+          options={places.map((p) => ({ value: p, label: SKETCH_PAGE_WORDS[p] ?? p }))}
+          hint={places.length > 1 ? 'A single post, or page 1, a middle page or the last page of a carousel of three.' : 'A carousel page is drawn at the feed size; give the layout a feed size to use it in a carousel.'} />
         {choices.map((n) => (
           <SelectField key={n} label={CHOICE_WORDS[n] ?? n} value={String(scenario.choices[n])} onValueChange={(v) => onChange({ ...scenario, choices: { ...scenario.choices, [n]: page.conditions.choices[n].values.find((x) => String(x) === v) } })}
             options={page.conditions.choices[n].values.map((v) => ({ value: String(v), label: word(v) }))} />

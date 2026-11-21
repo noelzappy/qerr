@@ -8,9 +8,9 @@ import { LayoutChooser } from './LayoutChooser';
 import { ListEditor } from './ListEditor';
 import { PicturePicker } from './PicturePicker';
 import { StatsEditor } from './StatsEditor';
+import { chooseLayout, chosenOf, ownLayoutOf, withField } from '../design-model';
 import { FIELD_LABEL, TEMPLATE_FIELDS, type FieldSpec, type Json, type LayoutBrief } from './types';
 
-const LAYOUT = 'layout:';
 const text = (v: unknown) => (typeof v === 'string' ? v : '');
 
 export interface SeriesOption { key: string; name: string }
@@ -29,20 +29,12 @@ interface Props {
 
 export function PageFields({ design, onChange, brandLayouts, series, disabled, inCarousel, frameOnly }: Props) {
   const d = design;
-  const chosen = d.template === 'layout' ? `${LAYOUT}${text(d.layout)}` : text(d.template);
-  const ownLayout = d.template === 'layout' ? brandLayouts.find((l) => l.id === d.layout) ?? null : null;
+  const chosen = chosenOf(d);
+  const ownLayout = ownLayoutOf(d, brandLayouts);
 
-  function setField(key: string, value: unknown) {
-    const next: Json = { ...d };
-    if (value === '' || value === undefined || value === null || (Array.isArray(value) && value.length === 0)) delete next[key];
-    else next[key] = value;
-    onChange(next);
-  }
-
-  function choose(v: string) {
-    if (!v.startsWith(LAYOUT)) { const { layout: _drop, ...rest } = d; onChange({ ...rest, template: v }); return; }
-    onChange({ ...d, template: 'layout', layout: v.slice(LAYOUT.length) });
-  }
+  const setField = (key: string, value: unknown) => onChange(withField(d, key, value));
+  // A page made with one of the brand's layouts keeps only that layout's fields and its frame; the engine refuses anything else.
+  const choose = (v: string) => onChange(chooseLayout(d, v, brandLayouts, { page: !!inCarousel }));
 
   function setPicture(next: { image?: string; vaultItemId?: string }) {
     const out: Json = { ...d };
@@ -105,7 +97,7 @@ export function PageFields({ design, onChange, brandLayouts, series, disabled, i
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <LayoutChooser value={chosen} onChange={choose} brandLayouts={brandLayouts} disabled={disabled} allowCarousel={!inCarousel} />
+      <LayoutChooser value={chosen} onChange={choose} brandLayouts={brandLayouts} disabled={disabled} page={!!inCarousel} />
       {!frameOnly && ownLayout?.description && <p className="text-[13px] text-muted-foreground">{ownLayout.description}</p>}
       {!frameOnly && ownLayout && ownLayout.fields.map(brand)}
       {specs?.map(builtIn)}

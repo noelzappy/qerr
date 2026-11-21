@@ -16,7 +16,7 @@ import { GROUND_ALIASES, GROUND_NAMES, STYLE_DEFAULTS, groundName, isDarkColour 
 import { TEMPLATE_FNS } from './lib/design/builtin-layouts.mjs';
 import { hs } from './design/templates/common.mjs';
 import { bar } from './design/templates/poster.mjs';
-import { pngBytes } from './testlib/png.mjs';
+import { decodePng, pngBytes } from './testlib/png.mjs';
 
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
@@ -82,7 +82,7 @@ test('which grounds are dark is worked out from their colours, so any ground can
   // on a light one; the logo pill is light even when the light ground is not
   assert.match(page(neon, { template: 'stats', big: '1' }), /<div class="ft footer"><div><span class="logo-inv">/);
   assert.match(page(brand, { template: 'stats', big: '1', ground: 'dark' }), /<div class="ft footer"><div><span class="logo-inv">/);
-  assert.match(page(brand, { template: 'text', headline: 'h', ground: 'dark' }), /<div class="ft footer"><div><img class="logo"/, 'on the light panel');
+  assert.match(page(brand, { template: 'text', headline: 'h', ground: 'dark' }), /<div class="ft footer on-light"><div><img class="logo"/, 'on the light panel');
   assert.match(page(brand, { template: 'stats', big: '1' }), /<div class="ft footer"><div><img class="logo"/);
   assert.ok(brandCssVars(neon).includes('--pill:#FFFFFF') && brandCssVars(brand).includes('--pill:#FFFFFF'));
   assert.ok(brandCssVars(withStyle(undefined, { grounds: { ...RAW.grounds, light: '#FBF6EE' } })).includes('--pill:#FBF6EE'));
@@ -246,12 +246,13 @@ test('brand artwork: only a PNG, JPEG or WebP picture inside the repository is e
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('photo treatment: on photographs only, from brand colour variables; a treated poster photo is not sampled for the page colour', () => {
+test('photo treatment: on photographs only, from brand colour variables; a treated poster photo is still sampled for the page colour', () => {
   for (const [t, c] of [['tint', 'st-ph-tint'], ['duotone', 'st-ph-duotone'], ['overlay', 'st-ph-overlay']]) {
     const b = withStyle({ photo: { treatment: t, colour: 'accent', shadows: 'deep', highlights: 'cool', strength: 0.35 } });
     const h = page(b, { template: 'object', headline: 'h', image: 'a.jpg', ground: 'photo' });
     assert.equal(htmlClass(h), c);
-    assert.ok(!bodyOf(h).includes('data-sample'), t);
+    // the page reads the photo as the treatment draws it (runtime.mjs applies treatment.mjs to the strips it reads)
+    assert.ok(bodyOf(h).includes('data-sample data-fx="0.5" data-fy="0.5"'), t);
     assert.ok(brandCssVars(b).includes('--ph-k:0.35;--ph-c:var(--gold);--ph-lo:var(--g-deep);--ph-hi:var(--g-cool)'), t);
   }
   assert.ok(bodyOf(page(brand, { template: 'object', headline: 'h', image: 'a.jpg' })).includes('data-sample'));
@@ -269,7 +270,7 @@ test('logo and footer: the poster bar at the top or the bottom, the logo on eith
   // myth-fact moves its series mark to the top when the bar is at the bottom
   assert.match(page(br, { template: 'myth-fact', myth: 'm', factLead: 'f' }), /<div class="pmark" style="right:80px;top:63px">/);
   assert.match(page(withStyle({ logo: 'top-right' }), obj), /<div class="pbar flip" style="left:80px;right:80px;top:60px">/);
-  // editorial pages and photo posts keep their footer at the bottom and follow the side
+  // with the logo at the bottom, editorial pages and photo posts keep their footer there and follow the side
   assert.match(page(br, { template: 'text', headline: 'h' }), /<div class="ft footer flip">/);
   assert.match(page(br, { template: 'photo', headline: 'h', image: 'a.jpg' }), /<div class="footer flip">/);
   const pill = withStyle({ footer: 'pill' });
@@ -303,6 +304,57 @@ test('a bottom logo bar goes to the top on poster pages whose photo or phone tak
   // pages with nothing at the bottom keep the brand's bar
   assert.match(page(bl, { template: 'myth-fact', myth: 'm', factLead: 'f' }), bottom());
   assert.match(page(bl, { template: 'closing' }), bottom());
+});
+
+const LEDGER = { columns: [{ label: 'Day' }, { label: 'Paid in', align: 'end' }], rows: [['01', '10.00'], ['02', '12.50']], notes: ['n1'] };
+
+test('editorial text is coloured for the surface it sits on: the light panel of a dark page, a dark panel of a light one', () => {
+  // a dark page: the sub line, the footer and a ledger's notes sit on the light panel; the running head on the dark ground
+  const dark = bodyOf(page(brand, { template: 'text', headline: 'h', sub: 's', ground: 'dark' }));
+  assert.match(dark, /<div class="abs sub on-light" data-role="sub" data-min="30" data-onpanel /);
+  assert.match(dark, /<div class="ft footer on-light"><div><img class="logo"/);
+  assert.match(dark, /<div class="rh"><span class="lbl" data-role="label">/);
+  assert.match(bodyOf(page(brand, { template: 'ledger', headline: 'h', ground: 'dark', ...LEDGER })), /<span class="lbl n on-light" data-role="label" data-onpanel>n1<\/span>/);
+  // the footer's logo alone needs no tone class (its logo is drawn for the panel already)
+  assert.match(bodyOf(page(brand, { template: 'screen', device: 'desktop', headline: 'h', image: 'd.png', ground: 'dark' })), /<div class="ft footer"><div><img class="logo"/);
+  // a light page with the light panel: nothing changes
+  assert.doesNotMatch(bodyOf(page(brand, { template: 'text', headline: 'h', sub: 's' })), /on-light|on-dark/);
+  // a dark panel on a light page: the text on it takes the dark surface's colours, the footer the light logo
+  const deep = withStyle(undefined, { surfaces: { ...RAW.surfaces, panel: RAW.grounds.dark ?? RAW.grounds.ink } });
+  const onDark = bodyOf(page(deep, { template: 'text', headline: 'h', sub: 's' }));
+  assert.match(onDark, /<div class="abs sub on-dark"/);
+  assert.match(onDark, /<div class="ft footer on-dark"><div><span class="logo-inv">/);
+  // and the stylesheet colours them as a page of that tone
+  for (const rule of ['.dark .on-light .lbl,.dark .lbl.on-light{color:var(--muted)}', '.dark .on-light .sub,.dark .sub.on-light,.dark .on-light .checks li{color:var(--body)}', '.on-dark .lbl,.lbl.on-dark,.on-dark .sub,.sub.on-dark,.on-dark .checks li{color:var(--inv-body)}']) assert.ok(brand.css.includes(rule), rule);
+});
+
+test('the logo at the top of editorial pages and photo posts: the footer goes up, and the running head or the text moves out of its way', () => {
+  const tl = withStyle({ logo: 'top-left' }), tr = withStyle({ logo: 'top-right', footer: 'pill' });
+  const text = bodyOf(page(tl, { template: 'text', headline: 'h', sub: 's' }));
+  assert.match(text, /<div class="rh low"><span class="lbl" data-role="foot">Acme Savings<\/span><span class="lbl" data-role="foot">Acme Savings<\/span><\/div><div class="rh-rule low"><\/div>/);
+  assert.match(text, /<div class="ft footer up"><div><img class="logo"[^>]*><\/div><span class="lbl n" data-role="foot">/);
+  assert.match(bodyOf(page(tr, { template: 'cover', headline: 'h', image: 'a.jpg' })), /<div class="ft footer up flip"><div><span class="lpill">/);
+  // the logo alone (screen pages) goes up too
+  assert.match(bodyOf(page(tl, { template: 'screen', headline: 'h', image: 'p.png' })), /<div class="ft footer up"><div><img class="logo"/);
+  // on a dark page the footer at the top is on the ground, and the running head at the foot on the light panel
+  const dark = bodyOf(page(tl, { template: 'text', headline: 'h', ground: 'dark' }));
+  assert.match(dark, /<div class="ft footer up"><div><span class="logo-inv">/);
+  assert.match(dark, /<div class="rh low on-light">[^]*<div class="rh-rule low on-light"><\/div>/);
+  // a picture that takes the top band (photo-story's full-bleed photo) or, under a running head, the foot (a phone beside a
+  // passbook running off the bottom) keeps the chrome where it is; the side still follows the style
+  assert.match(bodyOf(page(tr, { template: 'photo-story', headline: 'h', image: 'a.jpg' })), /<div class="ft footer flip">/);
+  const beside = bodyOf(page(tl, { template: 'screen', headline: 'h', image: 'p.png', beside: { days: 31, ticked: 3, today: 4 } }));
+  assert.match(beside, /<div class="rh"><span class="lbl" data-role="label">/);
+  assert.match(beside, /<div class="ft footer"><div>/);
+  // the photo post: the footer at the top (as far from it as it sits from the bottom; under a story's top band), the text under it
+  const photo = (b, size, textAt) => TEMPLATE_FNS.photo(forSize(normaliseDesign({ template: 'photo', headline: 'h', image: 'a.jpg', textAt }), size), { size: SIZES[size], brand: b, image: () => PIXEL }).body;
+  assert.match(photo(tl, 'feed', 'top'), /<div class="ptext" id="pt" style="top:151px;max-width:880px">/);
+  assert.match(photo(tl, 'feed', 'top'), /<div class="footer up" style="top:56px"><div class="lpill">/);
+  assert.match(photo(tl, 'feed', 'bottom'), /<div class="ptext" id="pt" style="bottom:84px;max-width:880px">/);
+  assert.match(photo(tr, 'story', 'bottom'), /<div class="ptext" id="pt" style="bottom:350px;max-width:900px">[^]*<div class="footer up flip" style="top:270px">/);
+  // at the bottom (the default) nothing moves
+  assert.match(photo(brand, 'feed', 'top'), /<div class="ptext" id="pt" style="top:84px;max-width:880px">[^]*<div class="footer"><div class="lpill">/);
+  assert.match(bodyOf(page(brand, { template: 'text', headline: 'h' })), /<div class="rh">[^]*<div class="rh-rule"><\/div>[^]*<div class="ft footer">/);
 });
 
 test('style values never reach the page as they are: unchecked hostile values map to nothing', () => {
@@ -351,6 +403,63 @@ test('real render: a styled brand (black and neon, outlined, grid, condensed cap
   }
 });
 
+test('real render: a treated poster photo lends the page the colour it is drawn in, and the type is picked against that', { skip: chrome ? false : 'Google Chrome not found' }, async () => {
+  const dir = path.join(ROOT, 'out', 'test-style-treated');
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  const JAR = 'packages/engine/design/assets/demo/object-jar.jpg', MARKET = 'packages/engine/design/assets/demo/scene-market.jpg';
+  // Each treatment with the demo brand's colours, and the colour Chrome draws the jar's plain background (rgb(243, 239, 230)) in.
+  // The demo's overlay at its default strength (its primary at 0.5) is a mid blue that neither ink nor white type reaches 7:1 on,
+  // so that page keeps its ground and the photo is a band; a lighter overlay becomes the page.
+  const runs = [
+    { t: 'none', photo: { treatment: 'none' }, drawn: [243, 239, 230], scene: 'band' },
+    { t: 'tint', photo: { treatment: 'tint' }, drawn: [238, 239, 243], scene: 'band' },
+    // in grey the market's sky and its buildings near the top are one tone, so as drawn its edge is plain
+    { t: 'duotone', photo: { treatment: 'duotone' }, drawn: [248, 248, 248], scene: 'page' },
+    { t: 'overlay', photo: { treatment: 'overlay' }, drawn: [145, 165, 207], low: true, scene: 'band' },
+    { t: 'overlay', photo: { treatment: 'overlay', strength: 0.3 }, drawn: [184, 195, 216], scene: 'band' },
+  ];
+  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });
+  try {
+    for (const [n, { t, photo, drawn, low, scene }] of runs.entries()) {
+      fs.writeFileSync(path.join(dir, 'brand.json'), JSON.stringify({ ...RAW, style: { photo } }));
+      const b = loadBrand({ file: path.join(dir, 'brand.json') });
+      const as = t === 'none' ? '' : ` with the ${t} treatment`;
+      const cases = [
+        [{ template: 'object', headline: 'Every euro, *on record.*', sub: 'One place for savings.', image: JAR, ground: 'photo' }, 600],
+        [{ template: 'number', big: '*€* 14.8M+', line: 'processed', stats: ['3,900+|members saving daily', '400+|organisations registered'], image: JAR, ground: 'photo' }, 616],
+      ];
+      for (const [d, top] of cases) {
+        const out = path.join(dir, `${n}-${d.template}.png`);
+        const r = await renderImage(browser, b, { spec: normaliseDesign(d), sizeName: 'feed', outFile: out }, { tmpDir: path.join(dir, 'tmp') });
+        const what = `${t} ${JSON.stringify(photo)} ${d.template}`;
+        const rgb = `rgb(${drawn.join(', ')})`;
+        const note = low ? `photo background is plain (${rgb}${as}), but no type colour reaches 7:1 on it (at best 6.4:1): the photo is placed as a full-bleed band on the ground` : `photo background is plain (${rgb}${as}, drift 0.0): the page takes its colour and the photo runs into it`;
+        assert.ok(r.notes.includes(note), `${what}: ${r.notes.join('\n')}`);
+        // every check passed on the page as drawn (no warning: contrast, fit)
+        assert.deepEqual(r.warnings, [], what);
+        for (const k of ['headline', 'sub', 'label']) if (r.ratios[k] !== undefined) assert.ok(r.ratios[k] >= b.contrast[k], `${what} ${k} ${r.ratios[k]}`);
+        // the photo is drawn in that colour just under its top edge; the page above it is the same colour (no seam), or, when the
+        // type could not be read on it, the page's own ground (cool for a photo ground without a series)
+        const png = decodePng(fs.readFileSync(out)), at = (x, y) => [...png.data.slice((y * png.w + x) * 4, (y * png.w + x) * 4 + 3)];
+        const ground = [1, 3, 5].map((k) => parseInt(b.grounds.cool.slice(k, k + 2), 16));
+        for (const x of [40, 540, 1040]) {
+          const page = at(x, top - 12), pic = at(x, top + 12), want = low ? ground : drawn;
+          const near = (u, v) => u.every((c, j) => Math.abs(c - v[j]) <= 2);
+          assert.ok(near(pic, drawn) && near(page, want), `${what} at x ${x}: page ${page} (want ${want}), photo ${pic} (want ${drawn})`);
+        }
+      }
+      // a scene judged as it is drawn: still a band under tint and overlay; under duotone the market's grey edge is plain
+      const r = await renderImage(browser, b, { spec: normaliseDesign({ template: 'object', headline: 'Save *together.*', image: MARKET, ground: 'photo' }), sizeName: 'feed', outFile: path.join(dir, `${n}-scene.png`) }, { tmpDir: path.join(dir, 'tmp') });
+      assert.ok(r.notes.some((x) => x.startsWith(scene === 'band' ? `photo background is not plain${as} (` : `photo background is plain (`) && x.includes(as)), `${t} scene: ${r.notes.join('\n')}`);
+      assert.deepEqual(r.warnings, [], `${t} scene`);
+    }
+  } finally {
+    browser.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('real render: the poster logo is measured, so a wordmark on a surface it was not drawn for gives a contrast warning', { skip: chrome ? false : 'Google Chrome not found' }, async () => {
   const dir = path.join(ROOT, 'out', 'test-style-logo');
   fs.rmSync(dir, { recursive: true, force: true });
@@ -371,6 +480,33 @@ test('real render: the poster logo is measured, so a wordmark on a surface it wa
     assert.ok(ground.ratios.label >= brand.contrast.label, JSON.stringify(ground.ratios));
   } finally {
     delete TEMPLATE_FNS['test-logo-surface'];
+    browser.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('real render: text on the light panel of a dark editorial page, and the logo at the top, pass every check', { skip: chrome ? false : 'Google Chrome not found' }, async () => {
+  const dir = path.join(ROOT, 'out', 'test-style-surface');
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'brand.json'), JSON.stringify({ ...RAW, style: { logo: 'top-left' } }));
+  const top = loadBrand({ file: path.join(dir, 'brand.json') });
+  const scene = 'packages/engine/design/assets/demo/scene-market.jpg';
+  const dark = [
+    { template: 'text', headline: 'Every deposit, *on record.*', sub: 'One place for the group\'s savings.', ground: 'dark' },
+    { template: 'ledger', headline: 'The week, *on one page.*', sub: 'Every deposit in a row.', ground: 'dark', ...LEDGER },
+    { template: 'photo-story', layout: 'print', headline: 'Market day, *together.*', image: scene, ground: 'dark' },
+  ];
+  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });
+  try {
+    let i = 0;
+    const run = (b, d, sizeName = 'feed') => renderImage(browser, b, { spec: normaliseDesign(d), sizeName, outFile: path.join(dir, `${i++}.png`) }, { tmpDir: path.join(dir, 'tmp') });
+    // the sub line, the website and a ledger's notes on the light panel meet their contrast targets; so does the running head
+    // when the logo at the top sends it down onto the panel, and the text keeps clear of the footer at the top
+    for (const b of [brand, top]) for (const d of dark) assert.deepEqual((await run(b, d)).warnings, [], `${b.style.logo} ${d.template}`);
+    // the photo post with its footer at the top, the text at the bottom where the footer was
+    for (const size of ['feed', 'story']) assert.deepEqual((await run(top, { template: 'photo', headline: 'Market day, *every week.*', sub: 'The collector records each deposit.', image: scene, textAt: 'bottom' }, size)).warnings, [], size);
+  } finally {
     browser.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }

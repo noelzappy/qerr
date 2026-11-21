@@ -101,7 +101,8 @@ templates, `photo` and `page-cover`) follows one system:
   unicode ranges.
 - **Frame.** 70 px margins. A running head (series label on the left, "02 / 07" or the brand name on the right, a hairline
   rule), the full colour logo bottom-left and a mono label bottom-right ("Swipe ->" on page 1 of a carousel, otherwise the
-  website).
+  website). The brand's logo placement (`style.logo`) may put the logo on the right, or the footer at the top and the running
+  head at the foot.
 - **Grounds.** A fixed list of names (`white`, `tint`, `mint`, `gold-pale`, `ink`, `deep`), each a colour in `grounds`; the
   editorial pages use `white`, `tint` and `ink` (the closing and emphasis page). A page picks one with `ground`, or gets its
   series' ground. An ink page carries a dot grid (`dots` in `brand.json`: the demo draws 1 px white dots at 8% on a 24 px
@@ -114,6 +115,9 @@ templates, `photo` and `page-cover`) follows one system:
   are **white cards** (`surfaces.card`) on it with the card shadow (`shadows.card`; the demo: `0 13px 27px -5px` and
   `0 8px 16px -8px` in ink at 18% and 22%), a 1 px line (`surfaces.line`) and the card radius (`radius.card`, the demo 8 px).
   Nothing is rotated, textured or lit like paper. The myth card is flat (line, no shadow) so the fact card stands above it.
+  Text takes its colour from the surface it sits on, not from the page's ground: on an ink page the sub line, the footer (its
+  logo and website), a ledger's notes and a running head on the light panel are set as on a light page (and text on a dark
+  panel of a light page as on a dark one), so they meet the contrast targets on what is really behind them.
   Photos: scenes with people are full-bleed panels; an inset photo has the card radius and a line; a news photo is a raised
   card on the panel.
 - **Scale.** The tokens are in the brand's website pixels. A post is drawn at `scale` post pixels per website pixel (the
@@ -182,8 +186,11 @@ cards, and only a small logo and the website. Rules:
     its width, the sides within 8 of the top): the page takes the photo's edge colour, so the photo runs into it unseen.
     When the light drifts along the edge the page follows it column by column (twelve exact colours), because one flat
     colour would show a band; when it does not drift the page is one flat colour. A named ground is overridden, a dark
-    texture is dropped, and the type turns white or ink, whichever has the better contrast on the page. This is what
-    `ground: "photo"` means. The demo's `object-jar.jpg` is drawn to be this kind.
+    texture is dropped, and the type turns white or ink, whichever has the better contrast on the page. If neither reaches the
+    page's strictest text contrast (`contrast.headline`, `sub` and `label`) on that colour, the page keeps its ground and the
+    photo is placed as a band, as for a scene, and the tool notes why. This is what `ground: "photo"` means. The demo's
+    `object-jar.jpg` is drawn to be this kind. With a photo treatment (`style.photo`) all of this is judged on the photo as
+    treated.
   - **a scene** (people, a street, a market, hard shadows): the photo is a full-bleed band, like the photo on `stats`: edge
     to edge (left 0, full width), no radius, no shadow, no side margins, from `photoTop` to the bottom edge of the page, on
     the ground: the spec's, else the series', else mint. A scene photo is never centred or inset. The demo's
@@ -289,7 +296,9 @@ The closing page is a poster page now (the dark textured ground, the tagline lar
 ### `carousel`: pages with a PDF
 
 `{ "template": "carousel", "series": "explainers", "pages": [ ... ] }`: 2 to 10 `pages`, each any of `cover`, `text`, `ledger`,
-`passbook`, `myth-fact`, `stats`, `screen`, `photo-story`, `closing` (a page may override the carousel's `series` or `label`).
+`passbook`, `myth-fact`, `stats`, `screen`, `photo-story`, `closing` (a page may override the carousel's `series` or `label`),
+or one of the brand's own layouts (`{ "template": "layout", "layout": "<id>", ...that layout's fields }`, see "Your own layouts";
+built-in pages and layout pages mix freely).
 Each page gets the series label and the folio ("01 / 07") in its running head; page 1 says "Swipe ->" in the footer, the others the
 website. File names: `<name>-1.jpg`, `<name>-2.jpg` ... and **`<name>.pdf`**, a PDF of the pages for LinkedIn documents, one page per
 image, each exactly 1080 x 1350 CSS px (810 x 1012.5 pt), no margins, written only when every page was made. Chrome snaps a printed
@@ -302,7 +311,7 @@ yet.
 What it makes: your photograph fills the whole image. Behind the text only, a neutral black gradient eases from a
 solid strength down to nothing, so the picture is untouched everywhere else. On top: an optional mono eyebrow, a white Inter
 headline (words in asterisks turn brand gold), a white sub line, the brand's logo pill at the bottom left and its website in mono
-at the bottom right. Optional thin white and gold arcs and a corner bracket add a little brand motion. Works at every size.
+at the bottom right (the brand's logo placement may swap the sides, or put both at the top and the text under them). Optional thin white and gold arcs and a corner bracket add a little brand motion. Works at every size.
 
 | Field | Meaning |
 | --- | --- |
@@ -326,6 +335,21 @@ the footer. If nothing fits it draws none and says so.
 from the brand file's tagline, description and website. They are not post images, so a batch or a post refuses the template; the
 web app has no page that makes them yet.
 
+The words are set at the sizes their layout gives them (`size`, `subSize`, `urlSize`), and every word (the logo, the tagline,
+the descriptor and the website, which never breaks over two lines) must lie inside its box (the `coverWords` rectangle) and inside
+the cover size's margins, whichever is tighter on each side. When they do not (upper-case display type is wider, a tagline can be
+long, the X header's 970 px box is narrower than its 80 px tagline in the demo's words; in a row, a wide tagline squeezes the
+descriptor and website out of the box), the renderer (`fitCover` in `lib/design/render.mjs`, `findCoverProblems` in
+`lib/design/checks.mjs`) sets the tagline smaller in steps of 7% down to 62% of its layout size (the headlines' floor), on one line;
+then, if it still does not fit, balanced over at most two lines, again from its full size down to 62%. The descriptor and the
+website keep their sizes, like body text everywhere (the descriptor already wraps in its box). The first setting that fits is
+used, with a note ("tagline set at 87% of the layout's size to fit the x cover"), and a warning below 70%. A cover whose words fit
+none of these is refused, and nothing is written: "The brand's words do not fit the x cover even with the tagline set from 80 px
+down to 50 px, on one line and wrapped over 2 lines: the words stand 9 px taller than the 290 px of their box. Shorten the brand's
+tagline, descriptor or website (Settings, Brand and look); a cover never draws clipped words." With the demo's words every cover
+fits in every style; with upper-case display type the Facebook cover's tagline is set at 93% and the LinkedIn and X taglines at
+75%.
+
 ### What was removed
 
 The old green look is gone: the `card` template, the old `stats` and `screen` looks, the carousel slide kinds `title`, `step` and
@@ -346,7 +370,16 @@ Content-Security-Policy. Admins make them in **Settings, Layouts**; the enabled 
 A post uses one with `{ "template": "layout", "layout": "<id>", ...fields }`. The block is checked against the fields that
 layout declares, with their lengths, exactly as a built-in template checks its own, plus the frame keys `sizes`, `name`,
 `networkSizes`, `series`, `label`, `ground`, `accent`, and `focal` and `zoom` when it shows a picture. Anything else is
-refused with the field named. A layout page is a single image (not a carousel page).
+refused with the field named.
+
+A carousel page may be drawn from a layout too: `{ "template": "carousel", "pages": [{ "template": "layout", "layout": "<id>",
+...fields }, ...] }`. The page is checked exactly as a single post made with that layout (`layoutPageProblems`, then
+`layoutDesignProblems`), except that `sizes`, `name` and `networkSizes` belong to the carousel and are refused on a page, and the
+layout needs a `feed` canvas (a carousel is drawn at the feed size). `postDesignProblems` and `normalisePostDesign` (in
+`layout.mjs`) check and normalise any post's design this way; the batch validator, the render job and the AI's checks use them.
+Each page is drawn with its place in the carousel (`{ n, total }`), so its `page` conditions hold: `first` on page 1, `later` on
+every other page, `single` never; the ground cases follow the same conditions, and a label with `"source": "folio"` reads
+"02 / 05". A post made with a layout alone is a single post.
 
 ```json
 {
@@ -490,7 +523,9 @@ By group:
   `"page": "cover"` (`lib/design/layout-cover.mjs`) whose canvas names the cover sizes (`profile`, `facebook`, `linkedin`,
   `x`) instead of the post sizes: the brand's mark centred in its rectangle (`coverMark`), or the brand's logo, tagline,
   descriptor and website in a box filling it (`coverWords`: a column, centred or set left, or a row, with the sizes and gaps
-  as bounded whole numbers). A cover's words are all the brand's, so its layout declares no field.
+  as bounded whole numbers). A cover's words are all the brand's, so its layout declares no field. They are held to their box
+  and the size's margins; the tagline shrinks (to 62%) and wraps (to two lines) to fit, or the cover is refused (see
+  "`page-cover`" above).
 
 The format gained what the built-ins need; every new value is a name from a fixed list or a bounded whole number, checked by
 `validateLayout` like the rest:
@@ -518,8 +553,9 @@ The format gained what the built-ins need; every new value is a name from a fixe
   ground, else `cool`; a plain photo background then replaces it in the browser, as on the poster templates.
 - **Chrome blocks** with no slot, placed by the page and the brand's style (logo placement, footer style, "Swipe →" on page 1
   of a carousel): `bar` (the poster's logo and website), `runhead` (the editorial running head: the series or the spec's
-  `label`, and the folio, the spec's `headRight` or the brand's name; `rule`) and `footer` (the editorial footer, its logo drawn
-  for the panel when the page has one).
+  `label`, and the folio, the spec's `headRight` or the brand's name; `rule`) and `footer` (the editorial footer, its logo and
+  label drawn for what they sit on: the panel when it lies on it, else the ground). With the brand's logo at the top the
+  `footer` and the `runhead` change places (see `style.logo` under "The brand file").
 - **Options**: `shrink` (headline, figure, stats; default true: the block shrinks with every other such block in the fit loop;
   false keeps its size), `specSize` (a headline takes the spec's own validated `size`), `photoTop` (a poster photo's top edge
   moves to the spec's validated `photoTop`), and a headline's `subField` with `subWidth` (100 to 1080 px, default 820): that
@@ -593,16 +629,19 @@ kind of page, so it offers nothing the validator refuses and leaves out nothing 
   `subWidth`); what it shows (a field, which is declared when picked; a label's field, fixed words or source; a window title; a
   headline's flowing sub line); and the blocks inside a slab, added, reordered and removed.
 - **Show this block**: always, or only when every clause holds: a field is filled, a field is empty, on page 1 of a carousel, a
-  later page or a single post (a post made with a layout is one image, so it is always a single post), or a choice is (or is not)
+  later page or a single post (a post made with a layout alone is a single post; a carousel page made with it is page 1 or a
+  later page), or a choice is (or is not)
   one of chosen values: the artefact's type once the layout declares an artefact, and on a poster or editorial page its register
   card. The block list says when each block is drawn ("Sub line, when sub is filled").
 - **Fields**: declared, required, and their limits (characters, or the least and most entries) within the catalogue's bounds,
   and the kinds of artefact one takes.
 
-The sketch follows "sketch as if" switches for what the conditions test (a field empty, a carousel page, a choice's value): the
-blocks a post would not draw in that case are hidden (the selected one dashed), conditional blocks are marked, and the page takes
-the colour that case would get. The preview draws the same case (`POST /api/settings/layouts/preview` with `empty` and
-`artefact`). The editor's model (`apps/web/web/src/pages/settings/layout-model.ts`) reads each part of the JSON into what the
+The sketch follows "sketch as if" switches for what the conditions test (a field empty, a choice's value) and for where the post
+is: a single post, or page 1, a middle page or the last page of a carousel (offered when the layout has a feed size; a middle and
+the last page are both "later" pages, told apart by the folio). The blocks a post would not draw in that case are hidden (the
+selected one dashed), conditional blocks are marked, and the page takes the colour that case would get. The preview draws the
+same case (`POST /api/settings/layouts/preview` with `empty`, `artefact` and `page`: `first`, `middle` or `last` draws the layout
+as that page of a carousel of three at the feed size). The editor's model (`apps/web/web/src/pages/settings/layout-model.ts`) reads each part of the JSON into what the
 editor shows and writes it back; `apps/web/src/web-layout-model.spec.ts` opens every starter, every built-in layout a brand may
 copy and every layout the catalogue lets one build that the engine accepts, and checks that nothing is left unshown and that each
 comes back deep-equal. Anything in a layout the editor could not show (only what the engine refuses for a brand) is listed above
@@ -686,7 +725,7 @@ the post and the image is kept.
 
 | Check | How | What happens |
 | --- | --- | --- |
-| **Text fits** | Chrome measures the real text lines: inside the margins and above the footer, no text on text, no text on a photo, screenshot or on an object it does not belong to (text inside its own card is fine), body text at least 30 px, text not straddling the panel's edge, single-line numbers not wider than their box. Drawn objects must stay inside the page (a phone may run off the bottom), above the footer, clear of the logo, on the panel, and not overlap each other | The headline (and big numbers) shrink in steps down to 62% of the brand size. A long headline (more than 24 characters) starts a little smaller. If it still does not fit, or the sub line does not fit, the image **fails** with: "The text does not fit the feed format: ... Shorten the text ..." and nothing is written. Shrinking below 70% adds a warning. |
+| **Text fits** | Chrome measures the real text lines: inside the margins and clear of the footer (above it, or under it when the brand's logo placement puts it at the top), no text on text, no text on a photo, screenshot or on an object it does not belong to (text inside its own card is fine), body text at least 30 px, text not straddling the panel's edge, single-line numbers not wider than their box. Drawn objects must stay inside the page (a phone may run off the bottom), clear of the footer and the logo, on the panel, and not overlap each other | The headline (and big numbers) shrink in steps down to 62% of the brand size. A long headline (more than 24 characters) starts a little smaller. If it still does not fit, or the sub line does not fit, the image **fails** with: "The text does not fit the feed format: ... Shorten the text ..." and nothing is written. Shrinking below 70% adds a warning. |
 | **Contrast** | The page is rendered with all text hidden; the pixels behind each text line are read. The worst case counts: the brightest part for light text (95th percentile, so a single speck does not decide), the darkest for dark text. Needs, on photo posts: headline and big numbers 3:1, sub line and eyebrow 4.5:1, website 3:1. On every other page (`brand.json` `contrast`): headline, big numbers, sub and body 7:1, labels, the footer label, the poster logo's wordmark and the accent phrase 4.5:1, an artefact's labels 4.5:1 and the words written on it 7:1. Text inside artefacts (SVG text) is measured the same way | On photo posts the black scrim is raised in 0.05 steps (cap 0.65) before anything else; a weak website line gets a soft black fade behind the footer (cap 0.5). Anything still below the target is a warning with the measured ratio. `"scrim": "none"` switches the automatic fix off (it still warns). |
 | **Enlargement** | The shown size of every supplied image against its real pixel size | Above 1.3x: a warning naming the file, its size and the width it would need. |
 | **Pixel size** | The captured image and the saved file are read back | A mismatch fails the image. |
@@ -736,12 +775,28 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
 - **Fonts by role.** `font.family` is the sans (body text, and headlines unless they have their own), `font.mono` the mono
   (figures in drawn artefacts, and labels unless they have their own). Optional `font.display` (headlines) and `font.label`
   (running heads, footers, eyebrows, the website) name a family: the sans, the mono, or one with files of role `display` or
-  `label` in `font.files` (roles: `sans`, `mono`, `display`, `label`; each file a `.woff2` with its weight and unicode
-  range). A name with no files is refused. In the web app (Settings, Brand and look, Type) each role's font is built in,
-  a woff2 upload (one file declared for every character), or a family from a curated list of Google Fonts that the server
-  downloads once and stores: its `latin` and `latin-ext` files, each listed in `font.files` with the unicode range Google
-  gave it (as the demo pack lists Inter), declared for weights `100 900` so the one weight picked is used throughout the role.
-  The engine sees only files in the pack folder; nothing is fetched while a page is rendered.
+  `label` in `font.files` (roles: `sans`, `mono`, `display`, `label`; each file a `.woff2` with the weight it is declared
+  for, `"400"` or a range such as `"300 700"`, from 100 to 900, and its unicode range). Each file is its own `@font-face`
+  rule with that `font-weight`. A file's path is relative, inside the repository, with no `..`; a brand has at most 64
+  files, 18 per role. A name with no files is refused.
+- **Weights by role.** The page draws each role at these weights (`roleWeights` in `lib/design/brand.mjs`): body text
+  (`sans`) at the body weight (`style.type.body.weight`, default 400), its bold words at the headline weight, and 400, 500
+  (website, pills) and 600 (tags); headlines (`display`) at the headline weight (`font.headlineWeight` or
+  `style.type.display.weight`), the lighter accent and big figures at `font.accentWeight` (or the display weight minus
+  300), poster headlines at `poster.headlineWeight` (or the display weight) and 600 (a layout's plain brand name); labels
+  at the label weight (`style.type.label.weight`, default 500); the mono of drawn figures at 400 and 500. A family that
+  fills several roles (the sans for headlines too) is drawn at the weights of each (`familyWeights`).
+  `test-design-fonts.mjs` fails when a stylesheet sets a weight this list does not know.
+- **Fonts in the web app.** In Settings, Brand and look, Type, each role's font is built in, a woff2 upload (one file
+  declared for every character and every weight, `100 900`), or a family from a curated list of Google Fonts that the
+  server downloads once and stores: every weight the brand draws that role's family at (with the saved settings), or,
+  where the family lacks one, the nearest it has; each weight's `latin` and `latin-ext` files, listed in `font.files` with
+  the unicode range Google gave them (as the demo pack lists Inter). Each file is declared for the weights it is the
+  nearest to (`weightRanges`: with 400 and 700, `100 549` and `550 900`), so every weight is drawn with the true face
+  nearest to it and the browser never makes a synthetic bold. A variable family's one file is declared for all the
+  weights it draws. A Google font saved before fonts came in several weights keeps its one weight, declared `100 900`;
+  Settings lists the weights the brand now uses that it lacks, and picking it again adds them. The engine sees only files
+  in the pack folder; nothing is fetched while a page is rendered.
 - **`style`** (optional; without it a brand looks exactly as before). Every field is optional, a value from a fixed list or
   a number in range (`styleProblems`); the stylesheet takes only table entries and checked numbers, and the page root only
   fixed class names (`styleClasses`):
@@ -760,12 +815,33 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
   - `photo`: `treatment` `none` (default), `tint`, `duotone` or `overlay`, on photographs only (never phone or desktop
     screens), with `colour`, `shadows` and `highlights` naming brand colours (`primary`, `accent`, `ink`, `inverse` or a
     ground) and `strength` (0 to 1). The contrast checks measure the treated pixels, and the photo post's scrim sits above
-    the treatment. A treated poster photo does not lend the page its edge colour (it stays on its ground).
-  - `logo`: `auto` (default), `top-left`, `top-right`, `bottom-left`, `bottom-right`. Posters move their logo bar, except on
-    pages whose photo or phone runs to the bottom edge (`object`, `number` with a photo, `product` when the phone reaches the
-    bar): there the bar stays at the top, on the ground its logo is drawn for, and follows only the side. Editorial
-    pages and photo posts keep the logo in their footer and follow the side. `footer`: `website` (default), `pill` (the logo
-    on a light pill, and the website) or `none` (the logo alone; page 1 of a carousel still says "Swipe").
+    the treatment. A treated poster photo is judged, and lends the page its edge colour, as the treatment draws it: the page
+    applies the same treatment to the pixels it reads (`lib/design/treatment.mjs`) before it decides, so the page, the photo
+    and the type picked against the page agree. With the demo colours, a tinted or duotone `object-jar.jpg` takes the page,
+    and in duotone so does `scene-market.jpg`, whose sky and buildings turn one grey; the overlay at strength 0.5 does not
+    (see the contrast rule under Object photos).
+  - `logo`: `auto` (default: each page's own place, the top left of a poster, the bottom left of an editorial page and a
+    photo post), `top-left`, `top-right`, `bottom-left`, `bottom-right`. It places the logo a page draws itself, and only
+    that: the poster's logo bar, the editorial footer (also the footer with the logo alone on `screen` pages) and the photo
+    post's footer. A logo a layout places as a block stays where its layout puts it: a grid page's `logo` block (a brand's
+    own layout) and the page covers' logos.
+    - **Posters** move their logo bar to the top or the bottom (`myth-fact`'s series mark goes to the other edge), except on
+      pages whose photo or phone runs to the bottom edge (`object`, `number` with a photo, `product` when the phone reaches
+      the bar): there the bar stays at the top, on the ground its logo is drawn for, and follows only the side.
+    - **Editorial pages** with the logo at the top swap their chrome: the footer (the logo and the website) takes the running
+      head's place at the top, and the running head goes to the foot of the page, its rule above it, where its labels count
+      as footer labels. A page whose picture reaches into the band at the top (above y 126: `photo-story`'s full-bleed photo)
+      or, on a page with a running head, into the band at the foot (below y 1240: the phone beside a passbook on `screen`,
+      which runs off the bottom edge) keeps its footer at the bottom and follows only the side.
+    - **Photo posts** with the logo at the top put the footer there, as far from the top edge as it sits from the bottom one
+      (in a story, at the top margin, under the band the app's interface covers), and move the text out of its way: it starts
+      40 px under the footer's pill and runs down to as far from the bottom edge as it was from the top (in a story, above the
+      bottom band), so text set at the bottom (`textAt`) sits where the footer was. The footer fade, when the website needs
+      it, follows the footer.
+    - The fit check holds text and drawn objects clear of the footer wherever it is.
+
+    `footer`: `website` (default), `pill` (the logo on a light pill, and the website) or `none` (the logo alone; page 1 of a
+    carousel still says "Swipe").
 - **`timezone`** (optional): an IANA time zone such as `Europe/London`. The AI drafts in it and the web app shows it; a batch
   still names its own.
 - **`money`** (optional): `{ "local": "...", "foreign": "..." }`. `local` is one sentence on what the brand's money is (the
@@ -783,7 +859,9 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
   moved.
 - Poster photos: the plain-or-scene call is made from three strips of pixels, calibrated on one brand's photo library
   (`EDGE_LIMITS` in `lib/design/edge.mjs`, checked on real files by `test-design-edge.mjs` when they are present). A photo near a limit (a pale desk with a soft shadow
-  at the top) can go either way: look at every image, and move the crop with `focal` if it matters. A card always shows the whole
+  at the top) can go either way: look at every image, and move the crop with `focal` if it matters. A treated photo is judged
+  on its treated pixels with the same limits, which were calibrated on untreated photos; a treatment that greys a scene (a
+  duotone) can make its edge plain. A card always shows the whole
   crop; a plain photo's page colour can fall outside the brand palette (the engine notes it).
 - The poster templates were tuned on one launch set only (ten images); other photos may need `photoTop`, `focal` or `zoom`.
 - The example batches (`batches/example-launch.json`, `batches/example-editorial.json`) are format examples for the demo brand,

@@ -50,7 +50,7 @@ export function TypeSection({ ctx }: { ctx: BrandCtx }) {
       <TypeFields
         style={s.style} headlineWeight={s.headlineWeight} fonts={view.fontSources} version={view.updatedAt ?? ''} busy={ctx.busy}
         onChange={(type, headline) => ctx.update((cur) => ({ ...cur, style: { ...cur.style, type }, ...(headline !== undefined ? { headlineWeight: headline } : {}) }))}
-        onUpload={(role, f, fam) => ctx.uploadFont(f, fam, role)} onGoogle={(role, fam, w) => ctx.pickGoogleFont(role, fam, w)} onRemove={(role) => ctx.askRemoveFont(role)}
+        onUpload={(role, f, fam) => ctx.uploadFont(f, fam, role)} onGoogle={(role, fam) => ctx.pickGoogleFont(role, fam)} onRemove={(role) => ctx.askRemoveFont(role)}
       />
     </Section>
   );

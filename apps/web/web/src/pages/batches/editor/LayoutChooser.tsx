@@ -2,21 +2,27 @@
 import { useId } from 'react';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { pageLayouts, PAGE_TEMPLATES } from '../design-model';
 import { LAYOUT_CATALOGUE, LAYOUT_GROUPS } from './catalogue';
 import type { LayoutBrief } from './types';
 
-export function LayoutChooser({ value, onChange, brandLayouts, disabled, allowCarousel = true, error }: {
+// page: the layout of one page of a carousel, so only what a page can be (the page layouts, and the brand's layouts that have the
+// feed size, the only size of a carousel).
+export function LayoutChooser({ value, onChange, brandLayouts, disabled, page = false, error }: {
   value: string;
   onChange: (next: string) => void;
   brandLayouts: LayoutBrief[];
   disabled?: boolean;
-  allowCarousel?: boolean;
+  page?: boolean;
   error?: string;
 }) {
   const id = useId();
   const builtIn = LAYOUT_CATALOGUE.find((l) => l.value === value);
   const own = value.startsWith('layout:') ? brandLayouts.find((l) => `layout:${l.id}` === value) : undefined;
-  const known = Boolean(builtIn) || Boolean(own);
+  const builtInChoices = page ? PAGE_TEMPLATES : LAYOUT_CATALOGUE;
+  const ownChoices = page ? pageLayouts(brandLayouts) : brandLayouts;
+  // A value no choice has (a layout since removed, or one a page cannot use) stays listed, under its id.
+  const known = builtInChoices.some((l) => l.value === value) || ownChoices.some((l) => `layout:${l.id}` === value);
   const purpose = builtIn?.purpose ?? (own ? own.description || 'One of your own layouts' : '');
   const describedBy = [purpose ? `${id}-purpose` : '', error ? `${id}-error` : ''].filter(Boolean).join(' ') || undefined;
 
@@ -36,16 +42,16 @@ export function LayoutChooser({ value, onChange, brandLayouts, disabled, allowCa
           'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
         )}
       >
-        {!known && value !== '' && <option value={value}>{value}</option>}
+        {!known && value !== '' && <option value={value}>{value.replace('layout:', 'Your layout: ')}</option>}
         {value === '' && <option value="" disabled>Choose a layout</option>}
-        {LAYOUT_GROUPS.filter((g) => g !== 'Carousel' || allowCarousel || value === 'carousel').map((g) => (
+        {LAYOUT_GROUPS.filter((g) => builtInChoices.some((l) => l.group === g)).map((g) => (
           <optgroup key={g} label={g}>
-            {LAYOUT_CATALOGUE.filter((l) => l.group === g).map((l) => <option key={l.value} value={l.value}>{l.name}</option>)}
+            {builtInChoices.filter((l) => l.group === g).map((l) => <option key={l.value} value={l.value}>{l.name}</option>)}
           </optgroup>
         ))}
-        {brandLayouts.length > 0 && (
+        {ownChoices.length > 0 && (
           <optgroup label="Your layouts">
-            {brandLayouts.map((l) => <option key={l.id} value={`layout:${l.id}`}>{l.description ? `${l.name}: ${l.description}` : l.name}</option>)}
+            {ownChoices.map((l) => <option key={l.id} value={`layout:${l.id}`}>{l.description ? `${l.name}: ${l.description}` : l.name}</option>)}
           </optgroup>
         )}
       </select>

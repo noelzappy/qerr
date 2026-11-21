@@ -29,7 +29,7 @@ import { BlockEditor, FieldsEditor, ScenarioBar, SizesMenu } from './layout-cont
 import { LayoutSketch, type SketchEdit } from './LayoutSketch';
 import {
   blockTitle, conditionsUsed, convertPage, defaultScenario, editableShape, fieldsShown, freeId, fullWidthPx, idFromName, isBuiltPage, isFullWidth, pageCatalogue,
-  pageKind, pxOn, sizesOf, specFor, uncovered, withPlace, withSize, type Scenario,
+  pageKind, previewPage, pxOn, sizesOf, sketchPages, SKETCH_PAGE_WORDS, specFor, uncovered, withPlace, withSize, type Scenario,
 } from './layout-model';
 import { BLOCK_LABEL, type Block, type Catalogue, type Layout, type PreviewResult, type StoredLayout } from './layout-types';
 import { PageSettings } from './layouts/PageSettings';
@@ -172,8 +172,10 @@ export function LayoutEditor({ initial, stored, catalogue, takenIds, onSaved }: 
     setTab('canvas');
     const empty = scenario.empty.filter((f) => layout.fields[f]);
     const artefact = layout.fields.artefact && typeof scenario.choices.artefact === 'string' ? scenario.choices.artefact : undefined;
+    // as that page of a carousel, when the sketch shows one (a carousel page is drawn at the feed size)
+    const page = sketchPages(layout).includes(scenario.page) ? previewPage(scenario.page) : undefined;
     const of = current;
-    try { setPreview({ of, result: await api.post<PreviewResult>('/api/settings/layouts/preview', { definition: layout, size, ...(empty.length ? { empty } : {}), ...(artefact ? { artefact } : {}) }) }); }
+    try { setPreview({ of, result: await api.post<PreviewResult>('/api/settings/layouts/preview', { definition: layout, size, ...(empty.length ? { empty } : {}), ...(artefact ? { artefact } : {}), ...(page ? { page } : {}) }) }); }
     catch (e) { setPreview({ of, result: { ok: false, size, error: errorMessage(e), warnings: problemsOf(e), notes: [] } }); }
     finally { setBusy(''); }
   }
@@ -264,7 +266,7 @@ export function LayoutEditor({ initial, stored, catalogue, takenIds, onSaved }: 
           : (
             <div className="relative grid place-items-center overflow-hidden rounded-md border bg-muted/30" style={{ aspectRatio: `${S.w} / ${S.h}` }}>
               {shownPreview?.result.image
-                ? <img src={shownPreview.result.image} alt={`The real image at ${size} size`} className="size-full object-contain" />
+                ? <img src={shownPreview.result.image} alt={`The real image at ${size} size${shownPreview.result.page ? `, as ${(SKETCH_PAGE_WORDS[shownPreview.result.page] ?? '').toLowerCase()}` : ''}`} className="size-full object-contain" />
                 : (
                   <div className="flex flex-col items-center gap-3 p-6 text-center text-[13px] text-muted-foreground">
                     <ImageIcon className="size-8" aria-hidden="true" />
@@ -281,9 +283,9 @@ export function LayoutEditor({ initial, stored, catalogue, takenIds, onSaved }: 
         {shownPreview && shownPreview.result.warnings.length > 0 && <div className="max-h-44 overflow-y-auto"><Notice tone="warn" title="Checks:"><Lines items={shownPreview.result.warnings} /></Notice></div>}
         {shownPreview?.result.ok && shownPreview.result.warnings.length === 0 && !stale && <Notice tone="good">The image passed every check.</Notice>}
       </div>
-      {hasConditions && (
+      {(hasConditions || sketchPages(layout).length > 1) && (
         <details>
-          <summary className="cursor-pointer text-[13px] font-medium text-muted-foreground hover:text-foreground">Sketch as if (for blocks with a condition)</summary>
+          <summary className="cursor-pointer text-[13px] font-medium text-muted-foreground hover:text-foreground">Sketch as if</summary>
           <div className="mt-2"><ScenarioBar layout={layout} catalogue={catalogue} scenario={scenario} onChange={setScenario} /></div>
         </details>
       )}

@@ -4,11 +4,10 @@ import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, Trash2 } from 'luc
 import { Notice } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { layoutName } from './catalogue';
+import { MAX_PAGES, MIN_PAGES, chosenOf } from '../design-model';
 import { PageFields, type SeriesOption } from './PageFields';
 import type { Json, LayoutBrief } from './types';
 
-const MIN_PAGES = 2;
-const MAX_PAGES = 10;
 const asObject = (v: unknown): Json => (v && typeof v === 'object' && !Array.isArray(v) ? (v as Json) : {});
 
 interface Props {
@@ -17,11 +16,6 @@ interface Props {
   brandLayouts: LayoutBrief[];
   series: SeriesOption[];
   disabled?: boolean;
-}
-
-function layoutValue(page: Json): string {
-  if (page.template === 'layout') return `layout:${typeof page.layout === 'string' ? page.layout : ''}`;
-  return typeof page.template === 'string' ? page.template : '';
 }
 
 export function PagesEditor({ pages, onChange, brandLayouts, series, disabled }: Props) {
@@ -69,7 +63,7 @@ export function PagesEditor({ pages, onChange, brandLayouts, series, disabled }:
     const id = fresh();
     setIds([...shownIds, id]);
     setOpen((cur) => new Set(cur).add(id));
-    onChange([...list, { template: 'text' }]);
+    onChange([...list, { template: 'closing' }]); // a closing page needs no words of its own
     setFocusId(id);
   }
   function edit(i: number, next: Json) {
@@ -87,7 +81,7 @@ export function PagesEditor({ pages, onChange, brandLayouts, series, disabled }:
         const id = shownIds[i]!;
         const isOpen = open.has(id);
         const n = i + 1;
-        const name = layoutName(layoutValue(page));
+        const name = layoutName(chosenOf(page));
         return (
           <section key={id} className="rounded-lg border" aria-label={`Page ${n}`}>
             <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">

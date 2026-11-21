@@ -156,7 +156,7 @@ export function LayoutsPage() {
         </>
       )}
       <ConfirmAction open={!!removing} danger title="Remove this layout?" confirmLabel="Remove"
-        message={<>The layout <strong>{removing?.name}</strong> ({removing?.slug}) is removed. Posts that use it keep it: it cannot be removed while one does.</>}
+        message={<>The layout <strong>{removing?.name}</strong> ({removing?.slug}) is removed. It cannot be removed while a post, or a page of a carousel, uses it.</>}
         onCancel={() => setRemoving(null)}
         onConfirm={async () => {
           await api.delete(`/api/settings/layouts/${removing!.id}`);

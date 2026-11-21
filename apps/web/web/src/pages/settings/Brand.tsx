@@ -161,13 +161,14 @@ export function BrandSettingsPage() {
     }
   }
 
-  // A family from the curated Google Fonts list: the server downloads it once and stores it like an upload. A headline or label
-  // font is switched on for its role there too; only that choice is copied into the form, the rest of what was typed stays.
-  async function pickGoogleFont(role: FontRole, family: string, weight: number) {
+  // A family from the curated Google Fonts list: the server downloads it once, in every weight the role is drawn at (with the
+  // saved settings), and stores it like an upload. A headline or label font is switched on for its role there too; only that
+  // choice is copied into the form, the rest of what was typed stays.
+  async function pickGoogleFont(role: FontRole, family: string) {
     const key = `font-google-${role}`;
     setUploading(`google-${role}`); status.clear(key);
     try {
-      const next = await api.post<BrandView>('/api/settings/brand/google-font', { role, family, weight });
+      const next = await api.post<BrandView>('/api/settings/brand/google-font', { role, family });
       setView(next);
       if (role !== 'body') setS((cur) => (cur ? { ...cur, style: { ...cur.style, type: { ...cur.style.type, [role]: { ...cur.style.type[role], font: next.settings.style.type[role].font } } } } : next.settings));
       status.markSaved(key);
@@ -197,7 +198,7 @@ export function BrandSettingsPage() {
     s, view, look, fields, set, update, logoUrl, busy: uploading, applyView: apply,
     artworkUrl: view.artwork ? `${view.artwork}?b=${artBust}` : null,
     uploadLogo: (w, f, n) => void uploadLogo(w, f, n), drawSimple: () => void drawSimple(),
-    uploadFont: (f, fam, role) => void uploadFont(f, fam, role), pickGoogleFont: (r, fam, w) => void pickGoogleFont(r, fam, w),
+    uploadFont: (f, fam, role) => void uploadFont(f, fam, role), pickGoogleFont: (r, fam) => void pickGoogleFont(r, fam),
     askRemoveFont: setRemovingFont, uploadArtwork: (f) => void uploadArtwork(f), askRemoveArtwork: () => setRemovingArtwork(true),
   };
   const showLook = SECTIONS.find((x) => x.id === section)!.look;

@@ -53,7 +53,7 @@ export interface BrandCtx {
   uploadLogo: (which: 'full' | 'mark', file: Blob, name?: string) => void;
   drawSimple: () => void;
   uploadFont: (file: File, family: string, role: FontRole) => void;
-  pickGoogleFont: (role: FontRole, family: string, weight: number) => void;
+  pickGoogleFont: (role: FontRole, family: string) => void;
   askRemoveFont: (role: FontRole) => void;
   uploadArtwork: (file: File) => void;
   askRemoveArtwork: () => void;

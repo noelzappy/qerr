@@ -83,29 +83,43 @@ export function mergeLayouts(stored: Json[], existing: unknown): Json[] {
   return [...stored, ...rest].slice(0, MAX_LAYOUTS);
 }
 
-export interface PreviewResult { ok: boolean; image?: string; size: string; error?: string; warnings: string[]; notes: string[] }
+export interface PreviewResult { ok: boolean; image?: string; size: string; page?: CarouselPlace; error?: string; warnings: string[]; notes: string[] }
+
+// Where in a carousel a preview draws a layout as a page: page 1, a middle page or the last page of a carousel of three, so the
+// layout's "page" conditions, ground cases and folio are those a real carousel page gets (first; later; later).
+export const CAROUSEL_PLACES = ['first', 'middle', 'last'] as const;
+export type CarouselPlace = (typeof CAROUSEL_PLACES)[number];
+const PREVIEW_PAGES = 3;
+const slideOf = (p: CarouselPlace) => (p === 'first' ? 0 : p === 'middle' ? 1 : PREVIEW_PAGES - 1);
 
 // One layout drawn with sample words (or the words given) at one size, through the engine's renderer and every one of its
 // checks, as a JPEG data URL. Runs under the render lock (one Chrome at a time); nothing is stored.
 // empty: fields of the layout left out of the sample (as a post that leaves them empty); artefact: the sample artefact's type.
-export async function previewLayout(deps: Deps, definition: Json, opts: { size?: string; sample?: Json; empty?: string[]; artefact?: string; lock: <T>(fn: () => Promise<T>) => Promise<T> }): Promise<PreviewResult> {
+// page: draw it as that page of a carousel (at the feed size, the only size of a carousel) instead of a single post.
+export async function previewLayout(deps: Deps, definition: Json, opts: { size?: string; sample?: Json; empty?: string[]; artefact?: string; page?: CarouselPlace; lock: <T>(fn: () => Promise<T>) => Promise<T> }): Promise<PreviewResult> {
   const engine = await pipelineEngine();
   const { layout } = await layoutEngine();
   const sizes = isObj(definition.canvas) ? Object.keys(definition.canvas) : [];
-  const size = opts.size && sizes.includes(opts.size) ? opts.size : (sizes.includes('feed') ? 'feed' : sizes[0] ?? 'feed');
-  const design: Json = { ...layout.sampleDesign(definition, { size, artefact: opts.artefact }), ...(opts.sample ?? {}), template: 'layout', layout: definition.id, sizes: [size] };
+  const place = opts.page;
+  if (place && !sizes.includes('feed')) return { ok: false, size: 'feed', page: place, error: 'A carousel page is drawn at the feed size, and this layout has no feed size; add one to use it in a carousel', warnings: [], notes: [] };
+  const size = place ? 'feed' : opts.size && sizes.includes(opts.size) ? opts.size : (sizes.includes('feed') ? 'feed' : sizes[0] ?? 'feed');
+  const one: Json = { ...layout.sampleDesign(definition, { size, artefact: opts.artefact }), ...(opts.sample ?? {}), template: 'layout', layout: definition.id, sizes: [size] };
   const fields = isObj(definition.fields) ? Object.keys(definition.fields) : [];
-  for (const f of opts.empty ?? []) if (fields.includes(f)) delete design[f];
+  for (const f of opts.empty ?? []) if (fields.includes(f)) delete one[f];
+  // As a carousel page: the same words on every page of a carousel of three, and only the page asked for is drawn.
+  const { sizes: _sizes, ...page } = one;
+  const design: Json = place ? { template: 'carousel', pages: Array.from({ length: PREVIEW_PAGES }, () => page) } : one;
   const dir = path.join(engine.root, 'out', 'layout-preview', randomUUID());
   return opts.lock(async () => {
     try {
-      const r = await engine.renderDesignBlock({ root: engine.root, design, layouts: [definition], postId: 'preview', stem: 'preview', outDir: path.relative(engine.root, dir) });
-      if (!r.ok) return { ok: false, size, error: r.error ?? 'The preview could not be made', warnings: r.warnings, notes: r.notes };
+      const r = await engine.renderDesignBlock({ root: engine.root, design, layouts: [definition], postId: 'preview', stem: 'preview', outDir: path.relative(engine.root, dir), ...(place ? { slides: [slideOf(place)] } : {}) });
+      const at = place ? { page: place } : {};
+      if (!r.ok) return { ok: false, size, ...at, error: r.error ?? 'The preview could not be made', warnings: r.warnings, notes: r.notes };
       const body = await fs.readFile(r.files[0].abs);
-      return { ok: true, size, image: `data:image/jpeg;base64,${body.toString('base64')}`, warnings: r.warnings, notes: r.notes };
+      return { ok: true, size, ...at, image: `data:image/jpeg;base64,${body.toString('base64')}`, warnings: r.warnings, notes: r.notes };
     } catch (err) {
       logger.error('layout.preview_failed', describeError(err));
-      return { ok: false, size, error: 'The preview could not be made because of an unexpected error', warnings: [], notes: [] };
+      return { ok: false, size, ...(place ? { page: place } : {}), error: 'The preview could not be made because of an unexpected error', warnings: [], notes: [] };
     } finally {
       await fs.rm(dir, { recursive: true, force: true });
     }

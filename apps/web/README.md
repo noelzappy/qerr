@@ -84,7 +84,8 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
 - **The post page** replaces the old side sheet: a post is added at `/batches/:id/posts/new` and edited at
   `/batches/:id/posts/:postId`, a page with breadcrumbs, the form on the left and a live preview on the right. Network choices
   and captions are edited there and saved with the post. It has a picture picker and structured editors for figures, lists, carousel
-  pages, tables and cards; the raw design JSON is under "Advanced". The post card on the batch page shows the image, title, date,
+  pages, tables and cards; a carousel's pages are listed one by one, each made with a built-in page layout or one of the brand's
+  own layouts that has the feed size, whose fields the page then shows (`web/src/pages/batches/design-model.ts`); the raw design JSON is under "Advanced". The post card on the batch page shows the image, title, date,
   one status chip (plus a problem chip when there is one), the network icons, Edit, Approve and a More menu. The preview calls `POST /api/posts/preview-design`
   (`src/server/routes/design-preview.ts`, roles admin and editor): the body is `{ design, size? }`, and the answer is
   `{ ok, image, images, size, warnings, notes }` (`ok: false` with an `error` when the design was fine but could not be
@@ -113,7 +114,10 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
   colour and on both slabs of a myth-and-fact page, against the brand's contrast limits.
 - **Type:** case, letter spacing and weight per role (headlines, body, labels), and each role's font: built in (Inter for
   the body; headlines in the body or label font; labels in IBM Plex Mono or the body font), a family from the curated
-  Google Fonts list, or a woff2 file of your own. See "Google Fonts" below.
+  Google Fonts list (in every weight the role is drawn at), or a woff2 file of your own. See "Google Fonts" below.
+- **Logo placement and photo look** (Surfaces and photos): where the logo sits (it moves on posters, editorial pages and photo posts, with what
+  shares its edge; a layout's own logo block stays where the layout puts it) and the photo treatment, whose colour is judged on the
+  photo as treated. See "The brand file" in [docs/design.md](../../docs/design.md).
 - **Post types** (the engine's `series`): each with its page colour and headline style.
 - **Voice and visual direction:** in the team's own words, with names to spell exactly.
 
@@ -155,12 +159,16 @@ own face from the server's copy.
 | Route (admins only) | Does |
 |---|---|
 | `GET /api/settings/brand/google-fonts` | the curated list: `{ categories, fonts: [{ family, category, weights, licence, note }] }` |
-| `POST /api/settings/brand/google-font` | `{ role, family, weight }`: the family must be on the list and the weight one it offers (400 otherwise; no address is made from free text). The server asks `https://fonts.googleapis.com/css2?family=<Family>:wght@<weight>&display=swap` with a browser User-Agent, keeps the `latin` and `latin-ext` faces, downloads those woff2 files from `https://fonts.gstatic.com/` only (no redirects, 2 MB per file, the `wOF2` signature checked) and stores them with their unicode ranges. A headline or label font is switched on for its role. Audited as `brand.font.google` (family, weight, licence, subsets, bytes). Google refusing the family or weight, failing, or being unreachable gives a 502 with a plain message and nothing is stored; an oversize file gives 413. |
-| `GET /api/settings/brand/font/:role` | the stored font of a role (its latin file), for the page's preview |
+| `POST /api/settings/brand/google-font` | `{ role, family }` (and an optional `weight`, which older pages send: it must be one the family offers and is brought as well): the family must be on the list (no address is made from free text). The server works out the weights the brand draws that role's family at with the saved settings (the engine's `familyWeights`, see [docs/design.md](../../docs/design.md), "Weights by role") and, for each, the weight the family has or the nearest it has; asks `https://fonts.googleapis.com/css2?family=<Family>:wght@<w1>;<w2>;...&display=swap` once with a browser User-Agent; keeps each weight's `latin` and `latin-ext` faces; downloads each distinct woff2 file once from `https://fonts.gstatic.com/` only (no redirects, 2 MB per file and 8 MB for all files of a pick, at most nine weights, the `wOF2` signature checked) and stores them with their unicode ranges and weights. A headline or label font is switched on for its role. Audited as `brand.font.google` (family, weights, licence, files, subsets, bytes). Google refusing the family or a weight, failing, or being unreachable gives a 502 with a plain message and nothing is stored; an oversize file or pick gives 413. |
+| `GET /api/settings/brand/font/:role` | the stored font of a role (the latin file of its regular weight, or the nearest), for the page's preview |
 
-The one weight picked is used for everything in that role (the files are declared for weights 100 to 900, so the browser
-never draws a synthetic bold): pick a regular weight for the body. A headline device that sets the second half in a lighter
-weight shows no difference with a one-weight font.
+Each stored weight is its own `@font-face` rule, declared for the weights it is the nearest to, so bold text in that role
+is drawn with the family's true bold (or the nearest weight it has) and the browser never draws a synthetic bold. The
+brand view's `fontSources.<role>.google` says `{ family, weights, missing }`: the weights brought, and the weights the brand
+now draws the role at that the font was stored without (after the headline weight changed, or for a Google font saved
+with one weight before fonts came in several). The form lists both; picking the font again adds the missing ones, and until
+then the nearest stored weight stands in. Change the weights and save before picking a font. An uploaded font stays one
+file, declared for every weight.
 
 **Outbound hosts.** Only when an admin picks a Google font does the server connect to `fonts.googleapis.com` and
 `fonts.gstatic.com` (HTTPS). A deployment with an egress allowlist must allow both for the feature; nothing else needs them,
@@ -173,7 +181,7 @@ editor covers everything a brand's layout can say, from the engine's catalogue (
 kind of page: blocks dragged and resized on a canvas, snapped to the grid's cells, or placed in pixels, on every size or per size; every option, the blocks
 inside a slab, the condition each block is drawn on ("Show this block": a field filled or empty, a carousel page, a choice's
 values), the page colour as one ground or cases, sizes, grids and fields. It sketches the page as it changes, "as if" a field
-were empty, on a carousel page or with a choice's value, shows the engine's verdict as you type and draws a real preview with
+were empty, as a single post or as page 1, a middle page or the last page of a carousel, or with a choice's value, shows the engine's verdict as you type and draws a real preview of that case with
 the brand (the canvas's "Real image" view); the layout's JSON, under "Advanced: JSON", shows the layout as the engine reads it, and switching between them loses nothing
 (`web/src/pages/settings/layout-model.ts`, checked by `src/web-layout-model.spec.ts`; see docs/design.md, "Editing a layout"). Starting points like the built-in pages come from the engine
 (`lib/design/layout-starters.mjs`), and so do the built-in templates' own layouts, listed read only with a sketch, their variant and
@@ -190,12 +198,12 @@ as `layouts` on every sync (one that no longer passes is left out and logged), w
 | `GET /api/settings/layouts` | the layouts, the starting points, the built-in layouts (`builtins`: read only, each with `template`, `variant`, `copyable` and `why` not) and the engine's catalogue (`catalogue.pages`: every kind of page a brand's layout may use, with its blocks, options, fields, conditions and grounds) |
 | `POST /api/settings/layouts` | add one: `{ definition, origin? }`, `{ starter, name? }` (a copy of a starting point under a free id) or `{ builtin, name? }` (a copy of a built-in layout under a free id, switched off; 400 with the reason for one a brand may not use) |
 | `POST /api/settings/layouts/validate` | `{ problems }` for a definition, nothing stored |
-| `POST /api/settings/layouts/preview` | `{ definition, size?, sample?, empty?, artefact? }`: one image drawn with sample words (`empty`: fields left empty; `artefact`: the sample artefact's type) through the renderer and every check, under the render lock, as a JPEG data URL; nothing stored |
-| `PUT /api/settings/layouts/:id` | replace the definition; a new id is refused while a post uses the old one |
+| `POST /api/settings/layouts/preview` | `{ definition, size?, sample?, empty?, artefact?, page? }`: one image drawn with sample words (`empty`: fields left empty; `artefact`: the sample artefact's type; `page`: `first`, `middle` or `last` draws it as that page of a carousel of three, at the feed size) through the renderer and every check, under the render lock, as a JPEG data URL; nothing stored |
+| `PUT /api/settings/layouts/:id` | replace the definition; a new id is refused while a post (or a carousel page) uses the old one |
 | `PATCH /api/settings/layouts/:id` | `enabled`, `position` |
 | `POST /api/settings/layouts/:id/duplicate` | a copy under a free id, switched off |
-| `DELETE /api/settings/layouts/:id` | refused while a post's design names it |
-| `GET /api/layouts` | any signed-in person: the layouts of the brand in force and the fields each takes, for the post editor |
+| `DELETE /api/settings/layouts/:id` | refused while a post's design, or a page of a carousel, names it |
+| `GET /api/layouts` | any signed-in person: the layouts of the brand in force and the fields each takes, for the post editor (a post, or a carousel page, made with one; the editor lists a carousel's pages one by one, and a page may use a layout with a feed size) |
 
 A design reference's analysis may suggest a layout (`analysis.composition`); it is checked by the same validator before it
 is stored, and "Use this layout" on the reference previews it with the brand before an admin adds it.

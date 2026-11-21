@@ -80,7 +80,7 @@ function TypeRoleFields({ title, hint, role, onChange, font, weight, fontFile }:
   return (
     <fieldset className="mt-5 flex min-w-0 flex-col gap-3 first:mt-0">
       <legend className="mb-2 flex items-center gap-1 text-[13.5px] font-semibold">{title}<Hint about={title}>{hint}</Hint></legend>
-      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         {font}
         <SelectField label="Case" value={role.case} onValueChange={(v) => onChange({ ...role, case: v as TypeRole['case'] })} options={optionsOf(TYPE_CASES)} />
         <NumberField
@@ -98,7 +98,7 @@ export function TypeFields({ style, headlineWeight, onChange, fonts, version, bu
   style: StyleSettings; headlineWeight: number;
   // `headline` is given when the brand's headline weight changes with the type settings, in one step.
   onChange: (t: StyleSettings['type'], headline?: number) => void; fonts: Record<FontRole, FontSource | null>; version: string;
-  busy: string; onUpload: (role: FontRole, f: File, family: string) => void; onGoogle: (role: FontRole, family: string, weight: number) => void; onRemove: (role: FontRole) => void;
+  busy: string; onUpload: (role: FontRole, f: File, family: string) => void; onGoogle: (role: FontRole, family: string) => void; onRemove: (role: FontRole) => void;
 }) {
   const t = style.type;
   const font = (role: FontRole) => <RoleFont role={role} current={fonts[role]} version={version} busy={busy} onUpload={onUpload} onGoogle={onGoogle} onRemove={onRemove} />;
@@ -132,7 +132,7 @@ export function TypeFields({ style, headlineWeight, onChange, fonts, version, bu
         fontFile={t.label.font === 'own' ? font('label') : undefined}
         font={<SelectField label="Font" value={t.label.font} onValueChange={(v) => onChange({ ...t, label: { ...t.label, font: v as typeof t.label.font } })} options={optionsOf(LABEL_FONTS)} />}
       />
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <NumberField
           label="Headline size" hint="Makes every headline bigger or smaller. 1 is normal; 1.1 is a tenth bigger. Long headlines are still shrunk to fit."
           min={0.8} max={1.25} value={t.scale} onChange={(v) => onChange({ ...t, scale: v ?? 1 })}
@@ -191,7 +191,7 @@ export function LookFields({ style, onChange, artwork, busy, onArtwork, onRemove
         </>}
       </div>
       <div className="grid gap-3 md:grid-cols-2">
-        <SelectField label="Logo" hint="Posters put their logo bar at the top or the bottom; other pages keep it in the footer and follow the side." value={style.logo} onValueChange={(v) => set('logo', v as StyleSettings['logo'])} options={[{ value: 'auto', label: 'As each page is laid out' }, ...optionsOf(LOGO_PLACES.filter((x) => x !== 'auto'))]} />
+        <SelectField label="Logo" hint="Moves the logo on posters, editorial pages and photo posts, with what shares its edge; a page whose picture takes that edge keeps its logo where it is and follows the side. A layout's own logo block stays where the layout puts it." value={style.logo} onValueChange={(v) => set('logo', v as StyleSettings['logo'])} options={[{ value: 'auto', label: 'As each page is laid out' }, ...optionsOf(LOGO_PLACES.filter((x) => x !== 'auto'))]} />
         <SelectField label="Beside the logo" value={style.footer} onValueChange={(v) => set('footer', v as StyleSettings['footer'])} options={optionsOf(FOOTERS, 'footer')} />
       </div>
     </div>

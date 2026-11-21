@@ -3,9 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { buildPage, buildPrintPage } from './page.mjs';
-import { COVER_SIZES, SIZES } from './sizes.mjs';
+import { COVER_SIZES, SIZES, pillHeight } from './sizes.mjs';
 import { forSize } from './spec.mjs';
-import { SCALABLE, autoLines, contrastRatio, explainProblems, findLayoutProblems, imageSize, linesToSvg, luminance, upscaleWarning } from './checks.mjs';
+import { SCALABLE, autoLines, contrastRatio, explainCoverProblems, explainProblems, findCoverProblems, findLayoutProblems, imageSize, linesToSvg, luminance, upscaleWarning } from './checks.mjs';
 import { convertToJpeg } from './convert.mjs';
 import { hasAlpha, readImageBytes, sniff } from './assets.mjs';
 import { DesignError } from './errors.mjs';
@@ -60,6 +60,39 @@ export function preparePage(brand, job) {
   return { S, spec, layout, out };
 }
 
+// A page cover's words are the brand's, set at its layout's sizes. When they leave their box or the size's margins (upper-case
+// glyphs are wider, a tagline can be long, a box narrow), the tagline is set smaller, step by step down to MIN_SCALE of its size
+// on one line, then again from its full size balanced over two lines (findCoverProblems allows no more). The descriptor and the
+// website keep their sizes, like body text everywhere. Words that fit none of these are refused, never drawn clipped.
+// -> { m, k, wrap, size } at the first setting that fits.
+async function fitCover(page, S, sizeName) {
+  let layoutProblems = [], coverProblems = [], size = 0;
+  for (const wrap of [false, true]) {
+    for (let k = 1; ; k = Math.max(MIN_SCALE, +(k * 0.93).toFixed(3))) {
+      await page.evaluate(`window.__ds.setCoverScale(${k}, ${wrap})`);
+      const m = await page.evaluate('window.__ds.measure()');
+      const boxes = await page.evaluate('window.__ds.coverBoxes()');
+      layoutProblems = findLayoutProblems(m, S);
+      coverProblems = findCoverProblems(boxes, S);
+      if (!layoutProblems.length && !coverProblems.length) return { m, k, wrap };
+      if (k === 1) size ||= boxes.flatMap((b) => b.words).find((w) => w.role === 'headline')?.size ?? 0;
+      if (k <= MIN_SCALE) break;
+    }
+  }
+  if (!coverProblems.length) throw new DesignError(explainProblems(layoutProblems, sizeName));
+  throw new DesignError(explainCoverProblems(coverProblems, sizeName, size ? { size, min: Math.round(size * MIN_SCALE) } : {}));
+}
+
+// What the page decided about a poster photo's background (runtime.mjs ready()). A treated photo is judged, and lends its colour,
+// as the treatment draws it.
+function sampleNote(s) {
+  const as = s.treatment ? ` with the ${s.treatment} treatment` : '';
+  if (s.untreatable) return 'the photo treatment\'s colours could not be read: the photo is placed as a full-bleed band';
+  if (s.lowContrast) return `photo background is plain (rgb(${s.rgb.join(', ')})${as}), but no type colour reaches ${s.need}:1 on it (at best ${(Math.floor(s.lowContrast * 10) / 10).toFixed(1)}:1): the photo is placed as a full-bleed band on the ground`;
+  if (s.uniform) return `photo background is plain (rgb(${s.rgb.join(', ')})${as}, drift ${s.drift.toFixed(1)}): the page takes its colour and the photo runs into it`;
+  return `photo background is not plain${as} (grain ${s.grain.toFixed(1)}, edge drift ${s.drift.toFixed(1)}, sides ${s.shift.toFixed(1)}): the photo is placed as a full-bleed band`;
+}
+
 // job: { spec, sizeName, outFile, counter?, layouts? } (see preparePage).
 export async function renderImage(browser, brand, job, { tmpDir, converter, quality = 92, log = () => {} } = {}) {
   const { sizeName, outFile } = job;
@@ -77,41 +110,48 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
   const page = await browser.page(S.w, S.h);
   try {
     await page.setContent(html);
-    const ready = await page.evaluate('window.__ds.ready()');
+    // A plain photo background becomes the page only if the type can be read on it at the strictest text contrast the page needs.
+    const flushNeed = Math.max(...['headline', 'sub', 'label'].map((k) => Number(need(k)) || 0));
+    const ready = await page.evaluate(`window.__ds.ready(${JSON.stringify({ text: flushNeed })})`);
     if (ready.broken.length) throw new DesignError(`image could not be loaded: ${ready.broken.join(', ')} (is the path right, and is it a valid image?)`);
     if (ready.unframed.length) throw new DesignError(unframedPhone(ready.unframed[0], 'its corners are not transparent, so it is a screenshot without a phone around it'));
-    for (const s of ready.sampled ?? []) {
-      notes.push(s.uniform
-        ? `photo background is plain (rgb(${s.rgb.join(', ')}), drift ${s.drift.toFixed(1)}): the page takes its colour and the photo runs into it`
-        : `photo background is not plain (grain ${s.grain.toFixed(1)}, edge drift ${s.drift.toFixed(1)}, sides ${s.shift.toFixed(1)}): the photo is placed as a full-bleed band`);
-    }
+    for (const s of ready.sampled ?? []) notes.push(sampleNote(s));
     if (!ready.fontOk) warnings.push(`the ${brand.font.family} font did not load; the text uses a fallback font`);
     let peak = 0;
     if (isPhoto && spec.scrim !== 'none') peak = spec.scrimPeak ?? brand.photo.scrimStart;
     if (isPhoto) await page.evaluate(`window.__ds.setScrim(${Number(peak) || 0})`);
 
-    // 1. Fit: shrink headlines and big numbers step by step; anything else that overflows is the owner's text to shorten.
-    // Long headlines start smaller (the brand sizes suit about 24 characters); the loop below shrinks further only if it must.
-    const chars = [...String(spec.headline ?? spec.title ?? '').replace(/\*|\\n|\n/g, '')].length;
-    const start = !(isPhoto || spec.template === 'pagecover') || chars <= 24 ? 1 : +Math.max(0.6, Math.sqrt(24 / chars)).toFixed(3);
-    let scale = start, m, problems;
-    if (start < 1) await page.evaluate(`window.__ds.setScale(${start})`);
-    for (;;) {
-      m = await page.evaluate('window.__ds.measure()');
-      problems = findLayoutProblems(m, Sfit);
-      if (!problems.length) break;
-      // A smaller headline also helps text under it that runs into the panel, the footer or a picture: it moves up with it.
-      const hasHeadline = m.roles.some((r) => r.role === 'headline' && r.rects.length);
-      const scalable = problems.some((p) => SCALABLE.has(p.role) || SCALABLE.has(p.other) || (hasHeadline && PUSHED.has(p.kind)));
-      if (!scalable || scale <= MIN_SCALE) {
-        const hl = m.roles.find((r) => r.role === 'headline')?.text.length;
-        throw new DesignError(explainProblems(problems, sizeName, { headline: spec.headline ? String(spec.headline).replace(/\*|\\n/g, '').length : hl }));
+    // 1. Fit. A page cover: its tagline (fitCover). Any other page: shrink headlines and big numbers step by step; anything else
+    // that overflows is the owner's text to shorten.
+    let m, problems, scale = 1;
+    if (layout?.page === 'cover') {
+      const fit = await fitCover(page, Sfit, sizeName);
+      m = fit.m;
+      if (fit.k < 1 || fit.wrap) notes.push(`tagline set at ${Math.round(fit.k * 100)}% of the layout's size${fit.wrap ? ' over two lines' : ''} to fit the ${sizeName} cover`);
+      if (fit.k < 0.7) warnings.push(`the tagline had to be shrunk to ${Math.round(fit.k * 100)}% to fit the ${sizeName} cover; a shorter tagline reads better`);
+    } else {
+      // Long headlines start smaller (the brand sizes suit about 24 characters); the loop below shrinks further only if it must.
+      const chars = [...String(spec.headline ?? spec.title ?? '').replace(/\*|\\n|\n/g, '')].length;
+      const start = !isPhoto || chars <= 24 ? 1 : +Math.max(0.6, Math.sqrt(24 / chars)).toFixed(3);
+      scale = start;
+      if (start < 1) await page.evaluate(`window.__ds.setScale(${start})`);
+      for (;;) {
+        m = await page.evaluate('window.__ds.measure()');
+        problems = findLayoutProblems(m, Sfit);
+        if (!problems.length) break;
+        // A smaller headline also helps text under it that runs into the panel, the footer or a picture: it moves up with it.
+        const hasHeadline = m.roles.some((r) => r.role === 'headline' && r.rects.length);
+        const scalable = problems.some((p) => SCALABLE.has(p.role) || SCALABLE.has(p.other) || (hasHeadline && PUSHED.has(p.kind)));
+        if (!scalable || scale <= MIN_SCALE) {
+          const hl = m.roles.find((r) => r.role === 'headline')?.text.length;
+          throw new DesignError(explainProblems(problems, sizeName, { headline: spec.headline ? String(spec.headline).replace(/\*|\\n/g, '').length : hl }));
+        }
+        scale = +(scale * 0.93).toFixed(3);
+        await page.evaluate(`window.__ds.setScale(${scale})`);
       }
-      scale = +(scale * 0.93).toFixed(3);
-      await page.evaluate(`window.__ds.setScale(${scale})`);
+      if (scale < 1) notes.push(`headline set at ${Math.round(scale * 100)}% of the brand size to fit`);
+      if (scale < 0.7) warnings.push(`the headline had to be shrunk to ${Math.round(scale * 100)}%; a shorter headline reads better`);
     }
-    if (scale < 1) notes.push(`headline set at ${Math.round(scale * 100)}% of the brand size to fit`);
-    if (scale < 0.7) warnings.push(`the headline had to be shrunk to ${Math.round(scale * 100)}%; a shorter headline reads better`);
 
     // 2. Upscaling of supplied images.
     for (const im of m.imgs) {
@@ -163,8 +203,16 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
         const text = m.roles.filter((r) => ['headline', 'sub', 'eyebrow'].includes(r.role)).flatMap((r) => r.rects);
         const atTop = (spec.textAtResolved ?? 'top') === 'top';
         const u = text.reduce((a, r) => ({ y0: Math.min(a.y0, r.y0), y1: Math.max(a.y1, r.y1) }), { y0: Infinity, y1: -Infinity });
-        const zone = atTop ? { y0: u.y1 + 30, y1: m.footer.y0 - 20 } : { y0: S.top + 10, y1: u.y0 - 30 };
-        const res = autoLines({ W: S.w, H: S.h, avoid: [...text, m.footer], zone, seed: `${spec.headline}|${sizeName}` });
+        // The band beside the text, above where the footer sits at the bottom; the lines keep clear of the footer wherever it is.
+        // With the footer at the top (m.header, the brand's logo placement) the band above the text starts under it, or, when
+        // nothing fits there, at the top margin as usual (the lines still keep clear of the footer).
+        const foot = m.footer ? m.footer.y0 : S.h - S.fbot - pillHeight(S.logoH);
+        const zones = atTop ? [{ y0: u.y1 + 30, y1: foot - 20 }] : [...(m.header ? [m.header.y1 + 20] : []), S.top + 10].map((y0) => ({ y0, y1: u.y0 - 30 }));
+        let res;
+        for (const zone of zones) {
+          res = autoLines({ W: S.w, H: S.h, avoid: [...text, m.footer, m.header].filter(Boolean), zone, seed: `${spec.headline}|${sizeName}` });
+          if (res.shapes.length) break;
+        }
         shapes = res.shapes;
         if (res.note) warnings.push(res.note);
       }

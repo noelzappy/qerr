@@ -11,8 +11,9 @@
 //   DELETE /font?role=            back to the built-in font for that role
 //   GET    /font/:role            the stored font of a role (its latin file), for the page's preview; :role is body | display | label
 //   GET    /google-fonts          the curated Google Fonts the type roles can use (family, category, weights, licence, note)
-//   POST   /google-font           { role, family, weight }: download that family and weight from Google Fonts once and store it as
-//                                 the role's font, like an upload (services/google-fonts.ts)
+//   POST   /google-font           { role, family }: download that family from Google Fonts once, in every weight the role is drawn
+//                                 at (or the nearest it has), and store it as the role's font, like an upload
+//                                 (services/google-fonts.ts)
 //   POST   /artwork               brand artwork for the decoration (PNG, JPEG or WebP; never SVG)
 //   GET    /artwork               the uploaded file
 //   DELETE /artwork
@@ -34,7 +35,7 @@ import { requireRole, requireUser } from '../middleware.js';
 import { enqueueTracked } from '../services/activity.js';
 import {
   advancedSchema, applyProposal, assetsOf, baseBrand, bodyFont, brandFromProfile, fontFileKeys, proposalOf, brandProblems, brandSettingsSchema, contrastChecks, explicitRoles, paletteChanges, currentSettings, mapProblems, splitPackBrand, syncBrand,
-  type AssetFont, type BrandAssets,
+  familyWeightsOf, nearestWeights, storedWeights, type AssetFont, type BrandAssets,
 } from '../services/brand-settings.js';
 import { fetchGoogleFont, findGoogleFont, GOOGLE_FONT_CATEGORIES, GOOGLE_FONTS, GoogleFontError } from '../services/google-fonts.js';
 import { privateKey } from '../storage/types.js';
@@ -61,14 +62,15 @@ export function pngSize(buf: Buffer): { width: number; height: number } | null {
 const isWoff2 = (buf: Buffer) => buf.length > 48 && buf.toString('latin1', 0, 4) === 'wOF2';
 
 const fontFamily = z.string().trim().regex(/^[A-Za-z0-9 _-]{1,40}$/, 'Use letters, digits, spaces, _ and - (up to 40)');
-// Only a family of the curated list, at a weight it offers: no address is ever made from what the browser sent.
+// Only a family of the curated list: no address is ever made from what the browser sent. The weights are the ones the role is
+// drawn at (worked out on the server); `weight`, which older pages send, must be one the family offers and is brought as well.
 const googleFontBody = z.object({
   role: z.enum(FONT_ROLES),
   family: z.string().max(60).refine((f) => !!findGoogleFont(f), 'Choose a family from the list'),
-  weight: z.number().int(),
+  weight: z.number().int().optional(),
 }).strict().superRefine((b, ctx) => {
   const g = findGoogleFont(b.family);
-  if (g && !g.weights.includes(b.weight)) ctx.addIssue({ code: 'custom', path: ['weight'], message: `${g.family} comes in ${g.weights.join(', ')}` });
+  if (g && b.weight !== undefined && !g.weights.includes(b.weight)) ctx.addIssue({ code: 'custom', path: ['weight'], message: `${g.family} comes in ${g.weights.join(', ')}` });
 });
 // What a role's font is called on the page when its own name is taken (by the built-in fonts or another role's font).
 const ROLE_SUFFIX = { body: 'Body', display: 'Headline', label: 'Label' } as const;
@@ -125,10 +127,18 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     advanced: p?.advanced ?? {}, logoFullWidth: p?.logoFullWidth ?? null, logoFullHeight: p?.logoFullHeight ?? null, fontFamily: p?.fontFamily ?? null, fontKey: p?.fontKey ?? null, assets: p?.assets ?? {},
   });
 
-  const fontSource = (role: (typeof FONT_ROLES)[number], a: AssetFont | null | undefined) => (a ? {
-    family: a.family, source: a.source ? 'google' as const : 'upload' as const, ...(a.source ? { google: { family: a.source.family, weight: a.source.weight } } : {}),
-    file: `/api/settings/brand/font/${role}`,
-  } : null);
+  // A Google font says which weights it brought and, when the brand now draws its family at a weight the family has but the
+  // font was stored without (the headline weight changed, or it was stored with one weight only), which ones picking it again
+  // would add; until then the nearest stored weight stands in.
+  const fontSource = (role: (typeof FONT_ROLES)[number], a: AssetFont | null | undefined, brand: Record<string, unknown>) => {
+    if (!a) return null;
+    const file = `/api/settings/brand/font/${role}`;
+    if (!a.source) return { family: a.family, source: 'upload' as const, file };
+    const weights = storedWeights(a).length ? storedWeights(a) : [a.source.weight!];
+    const offered = findGoogleFont(a.source.family)?.weights ?? weights;
+    const missing = nearestWeights(offered, familyWeightsOf(brand, a.family)).filter((w) => !weights.includes(w));
+    return { family: a.family, source: 'google' as const, google: { family: a.source.family, weights, missing }, file };
+  };
 
   async function view() {
     const p = await profile();
@@ -148,7 +158,7 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
       // The style layer's uploads: a display font, a label font, the artwork.
       fonts: { body: p?.fontKey ? p.fontFamily : null, display: assets.display?.family ?? null, label: assets.label?.family ?? null },
       // Where each role's font came from, and the address of its file for the page's preview.
-      fontSources: Object.fromEntries(FONT_ROLES.map((r) => [r, fontSource(r, r === 'body' ? (p ? bodyFont(p) : null) : assets[r])])),
+      fontSources: Object.fromEntries(FONT_ROLES.map((r) => [r, fontSource(r, r === 'body' ? (p ? bodyFont(p) : null) : assets[r], brand)])),
       artwork: assets.artwork ? '/api/settings/brand/artwork' : null,
       advanced: p?.advanced ?? {},
       map: p?.map ?? null,
@@ -311,37 +321,53 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
 
   app.get('/google-fonts', (c) => c.json({ categories: GOOGLE_FONT_CATEGORIES, fonts: GOOGLE_FONTS }));
 
-  // A family of the curated list at one of its weights, downloaded from Google Fonts once (services/google-fonts.ts) and stored
-  // like an uploaded font: the latin file and, when Google has one, the latin-ext file, each with its unicode-range. A headline or
-  // label font is switched on for its role ("own"); the rest of the saved settings stay as they are. Nothing is stored unless
-  // every file arrived and the brand with it passes the engine's checks.
+  // A family of the curated list, downloaded from Google Fonts once (services/google-fonts.ts) and stored like an uploaded font:
+  // every weight the brand draws the role's family at (the engine's familyWeights, with the settings as they will be), or the
+  // nearest the family has, each in its latin file and, when Google has one, its latin-ext file, with their unicode-ranges. A
+  // headline or label font is switched on for its role ("own"); the rest of the saved settings stay as they are. Nothing is
+  // stored unless every file arrived and the brand with it passes the engine's checks.
   app.post('/google-font', async (c) => {
     const actor = c.get('user');
     const body = await readJson(c, googleFontBody);
     const g = findGoogleFont(body.family)!;
     const role = body.role;
+    // What the brand will be with this font: worked out before anything is downloaded or stored.
+    const plan = (p: Awaited<ReturnType<typeof profile>>, entry: (family: string) => AssetFont) => {
+      const assets = assetsOf(p?.assets);
+      // The family name on the page: Google's, unless the built-in fonts or another role's font already use it.
+      const taken = [
+        ...(role === 'body' ? [] : BUILT_IN_FAMILIES), ...(role !== 'body' && p?.fontKey && p.fontFamily ? [p.fontFamily] : []),
+        ...(['display', 'label'] as const).filter((r) => r !== role).map((r) => assets[r]?.family).filter((f): f is string => !!f),
+      ].map((f) => f.toLowerCase());
+      const family = taken.includes(g.family.toLowerCase()) ? `${g.family} ${ROLE_SUFFIX[role]}` : g.family;
+      const font = entry(family);
+      const nextAssets: BrandAssets = { ...assets, [role]: font };
+      const settings = currentSettings(p);
+      const nextSettings = role === 'body' ? settings : { ...settings, style: { ...settings.style, type: { ...settings.style.type, [role]: { ...settings.style.type[role], font: 'own' } } } };
+      const fontFields = role === 'body' ? { fontKey: font.key, fontFamily: family } : { fontKey: p?.fontKey ?? null, fontFamily: p?.fontFamily ?? null };
+      const candidate = brandFromProfile({ ...profileFields(p), ...fontFields, settings: nextSettings as unknown as Prisma.JsonValue, assets: nextAssets as Prisma.JsonValue }, nextSettings);
+      return { assets, family, nextAssets, nextSettings, fontFields, candidate };
+    };
+    const draft = plan(await profile(), (family) => ({ key: 'planned', family, files: [{ key: 'planned', range: 'U+0000-00FF', subset: 'latin', weights: [400] }], source: { kind: 'google', family: g.family, weights: [400] } }));
+    // The weights the role is drawn at, each as the family has it or the nearest it has; and the one an older page asked for.
+    const drawn = familyWeightsOf(draft.candidate, draft.family);
+    const weights = nearestWeights(g.weights, [...(drawn.length ? drawn : [400]), ...(body.weight !== undefined ? [body.weight] : [])]);
     let files: Awaited<ReturnType<typeof fetchGoogleFont>>;
     try {
-      files = await fetchGoogleFont(deps.fetchImpl, g, body.weight);
+      files = await fetchGoogleFont(deps.fetchImpl, g, weights);
     } catch (e) {
       if (e instanceof GoogleFontError) throw new HttpError(e.status, e.message);
       throw e;
     }
+    const stored = files.map((x) => ({ key: privateKey('brand', `${role}-${x.weights[0]}-${x.subset}.woff2`), range: x.range, subset: x.subset, weights: x.weights, bytes: x.bytes }))
+      .sort((a, b) => a.weights[0]! - b.weights[0]! || (a.subset === 'latin' ? -1 : 1));
+    // The preview shows the latin file of the weight nearest to 400.
+    const regular = nearestWeights(weights, [400])[0]!;
+    const preview = stored.find((x) => x.subset === 'latin' && x.weights.includes(regular))!;
     const p = await ensureProfile(actor.id);
-    const assets = assetsOf(p.assets);
-    // The family name on the page: Google's, unless the built-in fonts or another role's font already use it.
-    const taken = [
-      ...(role === 'body' ? [] : BUILT_IN_FAMILIES), ...(role !== 'body' && p.fontKey && p.fontFamily ? [p.fontFamily] : []),
-      ...(['display', 'label'] as const).filter((r) => r !== role).map((r) => assets[r]?.family).filter((f): f is string => !!f),
-    ].map((f) => f.toLowerCase());
-    const family = taken.includes(g.family.toLowerCase()) ? `${g.family} ${ROLE_SUFFIX[role]}` : g.family;
-    const stored = files.map((x) => ({ key: privateKey('brand', `${role}-${x.subset}.woff2`), range: x.range, bytes: x.bytes }));
-    const entry: AssetFont = { key: stored[0]!.key, family, files: stored.map((x) => ({ key: x.key, range: x.range })), source: { kind: 'google', family: g.family, weight: body.weight } };
-    const nextAssets: BrandAssets = { ...assets, [role]: entry };
-    const settings = currentSettings(p);
-    const nextSettings = role === 'body' ? settings : { ...settings, style: { ...settings.style, type: { ...settings.style.type, [role]: { ...settings.style.type[role], font: 'own' } } } };
-    const fontFields = role === 'body' ? { fontKey: entry.key, fontFamily: family } : { fontKey: p.fontKey, fontFamily: p.fontFamily };
-    const candidate = brandFromProfile({ ...p, ...fontFields, settings: nextSettings as unknown as Prisma.JsonValue, assets: nextAssets as Prisma.JsonValue }, nextSettings);
+    const { assets, family, nextAssets, nextSettings, fontFields, candidate } = plan(p, (fam) => ({
+      key: preview.key, family: fam, files: stored.map((x) => ({ key: x.key, range: x.range, subset: x.subset, weights: x.weights })), source: { kind: 'google', family: g.family, weights },
+    }));
     const problems = brandProblems(candidate);
     if (problems.length) throw badRequest('The brand is not valid with this font', problems);
     const old = fontFileKeys(role === 'body' ? bodyFont(p) : assets[role]);
@@ -352,7 +378,8 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     });
     for (const k of old) await deps.storage.deleteObject(k).catch(() => undefined);
     await audit(deps, actor, 'brand.font.google', 'brand', 'brand', {
-      role, family: g.family, weight: body.weight, licence: g.licence, source: 'fonts.googleapis.com', subsets: files.map((x) => x.subset), bytes: files.reduce((n, x) => n + x.bytes.length, 0),
+      role, family: g.family, name: family, weights, licence: g.licence, source: 'fonts.googleapis.com', files: files.length,
+      subsets: [...new Set(files.map((x) => x.subset))], bytes: files.reduce((n, x) => n + x.bytes.length, 0),
     });
     return c.json(await view());
   });
