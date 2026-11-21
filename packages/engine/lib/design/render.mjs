@@ -12,7 +12,8 @@ import { hasAlpha, readImageBytes, sniff } from './assets.mjs';
 import { DesignError } from './errors.mjs';
 import { pdfPages, snapMediaBox } from './pdf.mjs';
 import { findLayout, layoutUsesPhone } from './layout.mjs';
-import { layoutFit, renderLayout } from './layout-render.mjs';
+import { layoutFit, renderLayout, renderLayoutWith } from './layout-render.mjs';
+import { builtinLayoutFor } from './builtin-layouts.mjs';
 
 export { DesignError };
 
@@ -43,8 +44,9 @@ export function preparePage(brand, job) {
   if (spec.template === 'layout') {
     try { layout = findLayout(spec.layout, layouts); } catch (err) { throw new DesignError(err.message); }
     if (!layout.canvas[sizeName]) throw new DesignError(`layout "${layout.id}" has no ${sizeName} size`);
-  }
-  const tpl = layout ? renderLayout : TEMPLATE_FNS[spec.template];
+  } else layout = builtinLayoutFor(spec, job.counter);
+  // A built-in template is drawn from its layout (lib/design/builtin-layouts.mjs) when it has one for this spec, else by its function.
+  const tpl = spec.template === 'layout' ? renderLayout : layout ? (s, c) => renderLayoutWith(layout, s, c) : TEMPLATE_FNS[spec.template];
   // Pictures are read and checked here, once, and embedded; templates only ever see the resulting data: URIs.
   const images = new Map(), dims = new Map();
   if (spec.image !== undefined) {
@@ -67,7 +69,8 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
   const THRESHOLD_KEY = isPhoto ? PHOTO_KEY : EDITORIAL_KEY;
   const need = (key) => (isPhoto ? brand.photo.minContrast[key] : brand.contrast[key]);
   warnings.push(...(out.warnings ?? []));
-  // The editorial pages keep the reference margins (70 px, a few px of optical overhang on the headline); a layout keeps its own.
+  // The editorial pages keep the reference margins (70 px, a few px of optical overhang on the headline); a layout keeps its own
+  // (a built-in layout's page, its templates' reference margins).
   const Sfit = layout ? layoutFit(layout, sizeName) : isPhoto || COVER_SIZES[sizeName] ? S : { ...S, pad: 62, top: 46 };
   fs.mkdirSync(tmpDir, { recursive: true });
   const page = await browser.page(S.w, S.h);
