@@ -4,11 +4,13 @@
 // The browser never talks to Google. The list comes from the server; picking a family asks the server to download it once and
 // store it with the brand; the font in force is previewed from the server's own copy (the app's CSP allows fonts from itself
 // only).
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Search, Trash2 } from 'lucide-react';
 import { api } from '../../api';
 import { errorMessage } from '../../lib/errors';
 import { BusyButton, SelectField, TextField } from '@/components/kit';
+import { FileField } from './brand/fields';
+import { SavedNote, useUploadStatus } from './brand/status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -61,15 +63,18 @@ export function RoleFont({ role, current, version, busy, onUpload, onGoogle, onR
 }) {
   const what = ROLE_WORD[role];
   const preview = useFontPreview(current, role, version);
-  const fallback = role === 'body' ? 'Inter, the built-in font' : role === 'display' ? 'the body font' : 'the built-in mono (IBM Plex Mono)';
+  const fallback = role === 'body' ? 'Inter, the built-in font' : role === 'display' ? 'the body font' : 'the built-in monospaced font (IBM Plex Mono)';
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-dashed p-3">
       <div className="flex items-start justify-between gap-2">
-        <p className="min-w-0 flex-1 text-[12.5px] text-muted-foreground">
-          {current
-            ? <>The {what} font is <strong className="text-[15px] font-normal text-foreground" style={preview ? { fontFamily: `'${preview}', sans-serif` } : undefined}>{current.family}</strong> ({sourceText(current)}).{current.source === 'google' && ' The one weight is used for all of this role\'s text.'}</>
-            : <>No {what} font of its own yet: {role === 'body' ? 'text uses' : `${what}s use`} {fallback}.</>}
-        </p>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] text-muted-foreground">
+            {current
+              ? <>In use for {what === 'body' ? 'body text' : `${what}s`}: <strong className="text-foreground">{current.family}</strong> ({sourceText(current)}).{current.source === 'google' && ' The one weight is used for all of this text.'}</>
+              : <>No {what} font of its own yet: {role === 'body' ? 'text uses' : `${what}s use`} {fallback}.</>}
+          </p>
+          {current && <p className="mt-1 text-[17px] leading-snug" style={preview ? { fontFamily: `'${preview}', sans-serif` } : undefined} aria-label={`Sample in ${current.family}`}>Save together, see every step.</p>}
+        </div>
         {current && <Button type="button" variant="ghost" size="sm" className="shrink-0" onClick={() => onRemove(role)}><Trash2 aria-hidden="true" /> {role === 'body' ? 'Back to Inter' : 'Remove'}</Button>}
       </div>
       <Tabs defaultValue={current?.source === 'upload' ? 'upload' : 'google'}>
@@ -89,45 +94,65 @@ export function RoleFont({ role, current, version, busy, onUpload, onGoogle, onR
 }
 
 function UploadFont({ role, busy, onUpload }: { role: FontRole; busy: boolean; onUpload: (role: FontRole, f: File, family: string) => void }) {
-  const input = useRef<HTMLInputElement>(null);
   const [family, setFamily] = useState('');
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-[12.5px] text-muted-foreground">A .woff2 file you are licensed to use, up to 2 MB, with a name of its own.</p>
-      <div className="flex flex-wrap items-end gap-2">
-        <TextField label="Font name" className="w-56" value={family} onChange={(e) => setFamily(e.target.value)} placeholder={{ body: 'Brand Sans', display: 'Brand Display', label: 'Brand Label' }[role]} maxLength={40} />
-        <input ref={input} type="file" accept=".woff2,font/woff2" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(role, f, family.trim() || f.name.replace(/\.[^.]*$/, '').replace(/[^A-Za-z0-9 _-]+/g, ' ').trim().slice(0, 40) || 'Brand'); e.target.value = ''; }} />
-        <BusyButton type="button" variant="outline" size="sm" loading={busy} onClick={() => input.current?.click()}>Upload .woff2</BusyButton>
-      </div>
+    <div className="flex flex-col gap-3">
+      <TextField
+        label="Font name" optional className="max-w-xs" value={family} onChange={(e) => setFamily(e.target.value)} maxLength={40}
+        hint="Leave empty to use the file's name." placeholder={{ body: 'Brand Sans', display: 'Brand Display', label: 'Brand Label' }[role]}
+      />
+      <FileField
+        label=".woff2 file" accept=".woff2,font/woff2" busy={busy} buttonLabel="Choose a .woff2 file" statusKey={`font-upload-${role}`} immediate
+        hint="A font file you are licensed to use, up to 2 MB."
+        onFile={(f) => onUpload(role, f, family.trim() || f.name.replace(/\.[^.]*$/, '').replace(/[^A-Za-z0-9 _-]+/g, ' ').trim().slice(0, 40) || 'Brand')}
+      />
     </div>
   );
 }
 
 function GoogleFontPicker({ role, current, busy, onUse }: { role: FontRole; current: { family: string; weight: number } | null; busy: boolean; onUse: (family: string, weight: number) => void }) {
   const { data, error } = useGoogleFonts();
+  const status = useUploadStatus(`font-google-${role}`);
   const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<string>('');
   const [chosen, setChosen] = useState<string>(current?.family ?? '');
   const [weight, setWeight] = useState<number | null>(current?.weight ?? null);
   const fonts = data?.fonts ?? [];
   const font = fonts.find((g) => g.family === chosen) ?? null;
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const shown = fonts.filter((g) => !q || g.family.toLowerCase().includes(q) || g.category.includes(q) || (GOOGLE_CATEGORY_LABEL[g.category] ?? '').toLowerCase().includes(q) || g.note.toLowerCase().includes(q));
+    const shown = fonts.filter((g) => (!category || g.category === category) && (!q || g.family.toLowerCase().includes(q) || g.category.includes(q) || (GOOGLE_CATEGORY_LABEL[g.category] ?? '').toLowerCase().includes(q) || g.note.toLowerCase().includes(q)));
     return (data?.categories ?? []).map((c) => ({ category: c, fonts: shown.filter((g) => g.category === c) })).filter((g) => g.fonts.length);
-  }, [fonts, data, query]);
+  }, [fonts, data, query, category]);
   const pick = (g: GoogleFont) => { setChosen(g.family); setWeight(weight !== null && g.weights.includes(weight) ? weight : nearest(g.weights, PREFERRED_WEIGHT[role])); };
 
-  if (error) return <p className="text-[12.5px] text-destructive" role="alert">The list of Google Fonts could not be loaded: {error}</p>;
-  if (!data) return <p className="text-[12.5px] text-muted-foreground">Loading the list of Google Fonts…</p>;
+  if (error) return <p className="text-[13px] text-destructive" role="alert">The list of Google Fonts could not be loaded: {error}</p>;
+  if (!data) return <p className="text-[13px] text-muted-foreground">Loading the list of Google Fonts…</p>;
   const listId = `google-fonts-${role}`;
+  const chip = (value: string, label: string) => (
+    <button
+      key={value || 'all'} type="button" aria-pressed={category === value} onClick={() => setCategory(value)}
+      className={cn('rounded-full border px-3 py-1 text-[13px] outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-9', category === value && 'border-primary bg-primary/10 font-medium text-primary')}
+    >{label}</button>
+  );
   return (
     <div className="flex flex-col gap-3">
       <div className="relative max-w-sm">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name or style (serif, condensed...)" aria-label="Search the Google Fonts" aria-controls={listId} className="pl-8" />
       </div>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Show only">
+        {chip('', 'All')}
+        {data.categories.map((c) => chip(c, GOOGLE_CATEGORY_LABEL[c] ?? c))}
+      </div>
       <div id={listId} role="listbox" aria-label={`Google Fonts for the ${ROLE_WORD[role]}s`} className="max-h-72 overflow-y-auto rounded-md border">
-        {groups.length === 0 && <p className="p-3 text-[12.5px] text-muted-foreground">No family matches “{query}”.</p>}
+        {current && (
+          <div className="border-b bg-accent/40 px-3 py-2">
+            <div className="text-[11.5px] font-semibold tracking-wide text-muted-foreground uppercase">In use now</div>
+            <div className="text-[13.5px] font-medium">{current.family} <span className="font-normal text-muted-foreground">weight {current.weight}</span></div>
+          </div>
+        )}
+        {groups.length === 0 && <p className="p-3 text-[13px] text-muted-foreground">No family matches{query ? <> “{query}”</> : ''}.</p>}
         {groups.map((group) => (
           <div key={group.category} role="group" aria-label={GOOGLE_CATEGORY_LABEL[group.category] ?? group.category}>
             <div className="sticky top-0 z-[1] border-b bg-muted/95 px-3 py-1 text-[11.5px] font-semibold tracking-wide text-muted-foreground uppercase backdrop-blur">{GOOGLE_CATEGORY_LABEL[group.category] ?? group.category}</div>
@@ -140,24 +165,27 @@ function GoogleFontPicker({ role, current, busy, onUse }: { role: FontRole; curr
                 >
                   <span className="flex w-full items-baseline justify-between gap-2">
                     <span className="text-[13.5px] font-medium">{g.family}{current?.family === g.family && <span className="font-normal text-muted-foreground"> (in use)</span>}</span>
-                    <span className="shrink-0 text-[11.5px] text-muted-foreground">{g.weights.length === 1 ? '1 weight' : `${g.weights.length} weights`}</span>
+                    <span className="shrink-0 text-[12px] text-muted-foreground">{g.weights.length === 1 ? '1 weight' : `${g.weights.length} weights`}</span>
                   </span>
-                  <span className="text-[12px] text-muted-foreground">{g.note}</span>
+                  <span className="text-[12.5px] text-muted-foreground">{g.note}</span>
                 </button>
               );
             })}
           </div>
         ))}
       </div>
+      <p className="text-[12.5px] text-muted-foreground">A font shows a sample line once it is in use: Vesk keeps fonts on this server and never loads them from Google while you browse.</p>
       {font && (
         <div className="flex flex-wrap items-end gap-2">
           <SelectField className="w-48" label={`Weight of ${font.family}`} value={String(weight ?? nearest(font.weights, PREFERRED_WEIGHT[role]))} onValueChange={(v) => setWeight(Number(v))} options={font.weights.map((w) => ({ value: String(w), label: `${w} ${WEIGHT_NAME[w] ?? ''}`.trim() }))} />
           <BusyButton type="button" size="sm" loading={busy} disabled={current?.family === font.family && current.weight === weight} onClick={() => onUse(font.family, weight ?? nearest(font.weights, PREFERRED_WEIGHT[role]))}>Use this font</BusyButton>
+          {status.saved && <SavedNote className="pb-1.5" />}
         </div>
       )}
-      <p className="text-[12px] text-muted-foreground">
+      {status.error && <p className="text-[13px] font-medium text-destructive" role="alert">{status.error}</p>}
+      <p className="text-[12.5px] text-muted-foreground">
         {font ? <>{font.family} is free to use under the {LICENCE_LABEL[font.licence]}. </> : 'Every family here is free to use (SIL Open Font License or Apache License). '}
-        This server downloads the latin and latin-ext files once from Google Fonts and keeps them with the brand; posts and this page never load anything from Google.
+        Choosing a font downloads it once from Google Fonts to this server and saves it straight away; posts and this page never load anything from Google.
       </p>
     </div>
   );
