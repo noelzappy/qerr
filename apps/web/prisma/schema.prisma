@@ -446,3 +446,27 @@ model DesignReference {
   @@index([createdAt])
   @@map("design_references")
 }
+
+// A brand's own composition (Settings, Layouts): blocks placed in slots on a grid, as data the engine's layout validator checks
+// (packages/engine/lib/design/layout.mjs). The enabled ones are written into the brand pack's brand.json "layouts", where a
+// post's design names one ({ "template": "layout", "layout": "<slug>" }) and the AI is told about them.
+model BrandLayout {
+  id          String   @id @default(uuid())
+  // The layout's id in brand.json and in a design block: lowercase letters, digits and -, equal to definition.id
+  slug        String   @unique
+  name        String
+  // The layout as the engine reads it, checked by validateLayout before it is stored
+  definition  Json
+  // Where it started: 'blank', 'starter:<id>', 'copy:<slug>' or 'reference:<id>'
+  origin      String   @default("blank")
+  // Only enabled layouts reach the brand pack (and so posts and the AI)
+  enabled     Boolean  @default(true)
+  position    Int      @default(0)
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([position])
+  @@map("brand_layouts")
+}

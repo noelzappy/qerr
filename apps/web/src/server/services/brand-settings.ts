@@ -1,25 +1,27 @@
 // The brand people set in Settings, and how the design engine and the AI library get it.
 //
 // The engine and the AI library read a brand pack folder (BRAND_DIR: brand.json, logos, optional map.json and prompts). The web
-// app keeps the brand in the database instead (BrandProfile, DesignReference) and writes it out as a pack folder under
-// state/brand/<hash>/ whenever it changes, then points BRAND_DIR at that folder. syncBrand() does this; it runs at start, after
-// every change and before every job that renders or calls the AI, so several app processes converge on the same folder.
+// app keeps the brand in the database instead (BrandProfile, DesignReference, BrandLayout) and writes it out as a pack folder
+// under state/brand/<hash>/ whenever it changes, then points BRAND_DIR at that folder. syncBrand() does this; it runs at start,
+// after every change and before every job that renders or calls the AI, so several app processes converge on the same folder.
 //
-//   no BrandProfile row, no reference briefs   -> the configured pack (BRAND_DIR, default brands/demo) is used as it is
-//   no row, reference briefs                   -> a copy of the configured pack with the briefs added
-//   a row                                      -> a pack made from the settings (expandBrand) over the demo pack's layout values
+//   no BrandProfile row, no reference briefs, no layouts -> the configured pack (BRAND_DIR, default brands/demo) as it is
+//   no row, reference briefs or layouts                  -> a copy of the configured pack with the briefs and layouts added
+//   a row                                                -> a pack made from the settings (expandBrand) over the demo pack's values
+// The enabled layouts of Settings, Layouts go into brand.json "layouts" in every case (services/layouts.ts).
 //
 // People never write markup here: every value is checked by the engine's own validateBrand before it is used, and the engine
 // builds its CSS from the checked numbers.
 import { createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { BrandProfile, DesignReference } from '@prisma/client';
+import type { BrandLayout, BrandProfile, DesignReference } from '@prisma/client';
 import { z } from 'zod';
 import { readBrandInfo, setBrandInfo } from '../brand.js';
 import type { Deps } from '../deps.js';
 import { engineImport } from '../engine/root.js';
 import { logger, describeError } from '../log.js';
+import { MAX_LAYOUTS, layoutsForBrand, mergeLayouts } from './layouts.js';
 
 interface EngineCore { ROOT: string; DEFAULT_BRAND_DIR: string; brandDir(opts?: { root?: string; env?: Record<string, string | undefined> }): string }
 interface EngineBrand { validateBrand(b: unknown): string[]; mapProblems(m: unknown): string[]; canonicalGrounds(g: unknown): Record<string, string> }
@@ -496,14 +498,17 @@ export function applyProposal(s: BrandSettings, p: StyleProposal): BrandSettings
 export interface BrandSnapshot {
   profile: BrandProfile | null;
   references: DesignReference[];
+  // The enabled layouts of Settings, Layouts, in order (services/layouts.ts)
+  layouts: BrandLayout[];
 }
 
 export async function loadSnapshot(deps: Deps): Promise<BrandSnapshot> {
-  const [profile, references] = await Promise.all([
+  const [profile, references, layouts] = await Promise.all([
     deps.prisma.brandProfile.findUnique({ where: { id: 'brand' } }),
     deps.prisma.designReference.findMany({ where: { enabled: true, status: 'ready', brief: { not: null } }, orderBy: { createdAt: 'asc' }, take: 24 }),
+    deps.prisma.brandLayout.findMany({ where: { enabled: true }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }], take: MAX_LAYOUTS }),
   ]);
-  return { profile, references };
+  return { profile, references, layouts };
 }
 
 const briefs = (refs: DesignReference[]) => refs.map((r) => (r.brief ?? '').trim()).filter(Boolean).map((s) => s.slice(0, 2000));
@@ -548,7 +553,7 @@ export interface BrandState {
 let state: BrandState = { dir: CONFIGURED_BRAND_DIR, logosMissing: false, source: 'pack', key: 'pack' };
 export const brandState = (): BrandState => state;
 
-const snapshotKey = (s: BrandSnapshot) => JSON.stringify([s.profile?.updatedAt?.toISOString() ?? null, s.references.map((r) => [r.id, r.updatedAt.toISOString()])]);
+const snapshotKey = (s: BrandSnapshot) => JSON.stringify([s.profile?.updatedAt?.toISOString() ?? null, s.references.map((r) => [r.id, r.updatedAt.toISOString()]), s.layouts.map((l) => [l.id, l.updatedAt.toISOString()])]);
 
 function point(next: BrandState): void {
   process.env.BRAND_DIR = next.dir;
@@ -595,13 +600,14 @@ function writePack(brand: Json, files: Array<{ name: string; body: Buffer }>, fi
 async function materialise(deps: Deps, snap: BrandSnapshot): Promise<BrandState> {
   const key = snapshotKey(snap);
   const refs = briefs(snap.references);
-  if (!snap.profile && !refs.length) return { dir: CONFIGURED_BRAND_DIR, logosMissing: false, source: 'pack', key };
+  const layouts = await layoutsForBrand(deps, snap.layouts);
+  if (!snap.profile && !refs.length && !layouts.length) return { dir: CONFIGURED_BRAND_DIR, logosMissing: false, source: 'pack', key };
   const files: Array<{ name: string; body: Buffer }> = [];
   let brand: Json;
   let logosMissing = false;
   let fill: (dir: string) => void = () => {};
   if (!snap.profile) {
-    // The configured pack with the briefs added: its logos stay where they are, its map and prompts are copied.
+    // The configured pack with the briefs and layouts added: its logos stay where they are, its map and prompts are copied.
     const from = path.join(core.ROOT, CONFIGURED_BRAND_DIR);
     brand = JSON.parse(fs.readFileSync(path.join(from, 'brand.json'), 'utf8')) as Json;
     fill = (dir) => {
@@ -627,6 +633,8 @@ async function materialise(deps: Deps, snap: BrandSnapshot): Promise<BrandState>
     if (p.map) files.push({ name: 'map.json', body: Buffer.from(JSON.stringify(p.map)) });
   }
   if (refs.length) brand.references = refs;
+  // The layouts of Settings, Layouts, ahead of any the pack already had (checked again by validateBrand just below).
+  if (layouts.length) brand.layouts = mergeLayouts(layouts, brand.layouts);
   const problems = brandProblems(brand);
   if (problems.length) throw new Error(`The saved brand is not valid: ${problems.join('; ')}`);
   const dir = writePack(brand, files, fill);

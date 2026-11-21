@@ -109,7 +109,7 @@ export interface PipelineEngine {
   createClient(options: { apiKey: string; fetchImpl?: typeof fetch }): Gql;
   planUploads(options: { batch: EngineBatch; items: EngineItem[]; prefix: string; publicBaseUrl: string }): UploadPlanEntry[];
   runUpload(options: Record<string, unknown>): Promise<{ uploaded: number; skipped: number; notPublic: number; stopped: string | null }>;
-  designBlockProblems(design: unknown, options: { root: string }): string[];
+  designBlockProblems(design: unknown, options: { root: string; layouts?: unknown[] }): string[];
   renderDesignBlock(options: Record<string, unknown>): Promise<RenderResult>;
   findChrome(): string | null;
   deletePost(client: Gql, bufferId: string): Promise<{ ok: true } | { ok: false; message: string }>;
