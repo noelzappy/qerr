@@ -52,7 +52,8 @@ function stats(blk, spec, ctx, r) {
 }
 
 // The photo, full width from the top of its rectangle to the bottom edge (or from the spec's validated photoTop). Whether its
-// plain background becomes the page is decided in the browser from its pixels (runtime.mjs ready(); not for a treated photo).
+// plain background becomes the page is decided in the browser from its pixels, as the brand's photo treatment draws them
+// (runtime.mjs ready()).
 function photo(blk, spec, ctx, r) {
   if (typeof spec.image !== 'string' || !spec.image) return '';
   const top = opt(blk, 'photoTop') && isInt(spec.photoTop, 300, 960) ? spec.photoTop : r.y;

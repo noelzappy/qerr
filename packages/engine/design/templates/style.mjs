@@ -38,4 +38,3 @@ export function logoPlace(brand, kind) {
 // What sits beside the logo: 'website' (the default), 'pill' (the logo in a light pill, and the website) or 'none'.
 export const footerOf = (brand) => styled(brand).style.footer;
 export const surfaceOf = (brand) => styled(brand).style.surface;
-export const photoTreated = (brand) => styled(brand).style.photo.treatment !== 'none';

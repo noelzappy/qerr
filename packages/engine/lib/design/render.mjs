@@ -60,6 +60,16 @@ export function preparePage(brand, job) {
   return { S, spec, layout, out };
 }
 
+// What the page decided about a poster photo's background (runtime.mjs ready()). A treated photo is judged, and lends its colour,
+// as the treatment draws it.
+function sampleNote(s) {
+  const as = s.treatment ? ` with the ${s.treatment} treatment` : '';
+  if (s.untreatable) return 'the photo treatment\'s colours could not be read: the photo is placed as a full-bleed band';
+  if (s.lowContrast) return `photo background is plain (rgb(${s.rgb.join(', ')})${as}), but no type colour reaches ${s.need}:1 on it (at best ${(Math.floor(s.lowContrast * 10) / 10).toFixed(1)}:1): the photo is placed as a full-bleed band on the ground`;
+  if (s.uniform) return `photo background is plain (rgb(${s.rgb.join(', ')})${as}, drift ${s.drift.toFixed(1)}): the page takes its colour and the photo runs into it`;
+  return `photo background is not plain${as} (grain ${s.grain.toFixed(1)}, edge drift ${s.drift.toFixed(1)}, sides ${s.shift.toFixed(1)}): the photo is placed as a full-bleed band`;
+}
+
 // job: { spec, sizeName, outFile, counter?, layouts? } (see preparePage).
 export async function renderImage(browser, brand, job, { tmpDir, converter, quality = 92, log = () => {} } = {}) {
   const { sizeName, outFile } = job;
@@ -77,14 +87,12 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
   const page = await browser.page(S.w, S.h);
   try {
     await page.setContent(html);
-    const ready = await page.evaluate('window.__ds.ready()');
+    // A plain photo background becomes the page only if the type can be read on it at the strictest text contrast the page needs.
+    const flushNeed = Math.max(...['headline', 'sub', 'label'].map((k) => Number(need(k)) || 0));
+    const ready = await page.evaluate(`window.__ds.ready(${JSON.stringify({ text: flushNeed })})`);
     if (ready.broken.length) throw new DesignError(`image could not be loaded: ${ready.broken.join(', ')} (is the path right, and is it a valid image?)`);
     if (ready.unframed.length) throw new DesignError(unframedPhone(ready.unframed[0], 'its corners are not transparent, so it is a screenshot without a phone around it'));
-    for (const s of ready.sampled ?? []) {
-      notes.push(s.uniform
-        ? `photo background is plain (rgb(${s.rgb.join(', ')}), drift ${s.drift.toFixed(1)}): the page takes its colour and the photo runs into it`
-        : `photo background is not plain (grain ${s.grain.toFixed(1)}, edge drift ${s.drift.toFixed(1)}, sides ${s.shift.toFixed(1)}): the photo is placed as a full-bleed band`);
-    }
+    for (const s of ready.sampled ?? []) notes.push(sampleNote(s));
     if (!ready.fontOk) warnings.push(`the ${brand.font.family} font did not load; the text uses a fallback font`);
     let peak = 0;
     if (isPhoto && spec.scrim !== 'none') peak = spec.scrimPeak ?? brand.photo.scrimStart;

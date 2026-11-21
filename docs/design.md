@@ -182,8 +182,11 @@ cards, and only a small logo and the website. Rules:
     its width, the sides within 8 of the top): the page takes the photo's edge colour, so the photo runs into it unseen.
     When the light drifts along the edge the page follows it column by column (twelve exact colours), because one flat
     colour would show a band; when it does not drift the page is one flat colour. A named ground is overridden, a dark
-    texture is dropped, and the type turns white or ink, whichever has the better contrast on the page. This is what
-    `ground: "photo"` means. The demo's `object-jar.jpg` is drawn to be this kind.
+    texture is dropped, and the type turns white or ink, whichever has the better contrast on the page. If neither reaches the
+    page's strictest text contrast (`contrast.headline`, `sub` and `label`) on that colour, the page keeps its ground and the
+    photo is placed as a band, as for a scene, and the tool notes why. This is what `ground: "photo"` means. The demo's
+    `object-jar.jpg` is drawn to be this kind. With a photo treatment (`style.photo`) all of this is judged on the photo as
+    treated.
   - **a scene** (people, a street, a market, hard shadows): the photo is a full-bleed band, like the photo on `stats`: edge
     to edge (left 0, full width), no radius, no shadow, no side margins, from `photoTop` to the bottom edge of the page, on
     the ground: the spec's, else the series', else mint. A scene photo is never centred or inset. The demo's
@@ -755,7 +758,11 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
   - `photo`: `treatment` `none` (default), `tint`, `duotone` or `overlay`, on photographs only (never phone or desktop
     screens), with `colour`, `shadows` and `highlights` naming brand colours (`primary`, `accent`, `ink`, `inverse` or a
     ground) and `strength` (0 to 1). The contrast checks measure the treated pixels, and the photo post's scrim sits above
-    the treatment. A treated poster photo does not lend the page its edge colour (it stays on its ground).
+    the treatment. A treated poster photo is judged, and lends the page its edge colour, as the treatment draws it: the page
+    applies the same treatment to the pixels it reads (`lib/design/treatment.mjs`) before it decides, so the page, the photo
+    and the type picked against the page agree. With the demo colours, a tinted or duotone `object-jar.jpg` takes the page,
+    and in duotone so does `scene-market.jpg`, whose sky and buildings turn one grey; the overlay at strength 0.5 does not
+    (see the contrast rule under Object photos).
   - `logo`: `auto` (default), `top-left`, `top-right`, `bottom-left`, `bottom-right`. Posters move their logo bar, except on
     pages whose photo or phone runs to the bottom edge (`object`, `number` with a photo, `product` when the phone reaches the
     bar): there the bar stays at the top, on the ground its logo is drawn for, and follows only the side. Editorial
@@ -778,7 +785,9 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
   moved.
 - Poster photos: the plain-or-scene call is made from three strips of pixels, calibrated on one brand's photo library
   (`EDGE_LIMITS` in `lib/design/edge.mjs`, checked on real files by `test-design-edge.mjs` when they are present). A photo near a limit (a pale desk with a soft shadow
-  at the top) can go either way: look at every image, and move the crop with `focal` if it matters. A card always shows the whole
+  at the top) can go either way: look at every image, and move the crop with `focal` if it matters. A treated photo is judged
+  on its treated pixels with the same limits, which were calibrated on untreated photos; a treatment that greys a scene (a
+  duotone) can make its edge plain. A card always shows the whole
   crop; a plain photo's page colour can fall outside the brand palette (the engine notes it).
 - The poster templates were tuned on one launch set only (ten images); other photos may need `photoTop`, `focal` or `zoom`.
 - The example batches (`batches/example-launch.json`, `batches/example-editorial.json`) are format examples for the demo brand,

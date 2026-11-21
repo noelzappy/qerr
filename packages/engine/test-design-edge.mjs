@@ -6,6 +6,8 @@ import fs from 'node:fs';
 import { Browser, findChrome } from './lib/design/chrome.mjs';
 import { EDGE_LIMITS, classifyEdge } from './lib/design/edge.mjs';
 import { RUNTIME } from './lib/design/runtime.mjs';
+import { TREATED, treatPixels } from './lib/design/treatment.mjs';
+import { PHOTO_TREATMENTS } from './lib/design/tokens.mjs';
 import { brandFile, repoPath } from './lib/core.mjs';
 
 // A strip of w x h pixels, each colour from fn(x, y), as RGBA bytes.
@@ -48,6 +50,44 @@ test('an empty strip is never uniform', () => {
 test('the page script carries the same decision as this module (one source)', () => {
   assert.ok(RUNTIME.includes(classifyEdge.toString()));
   assert.ok(RUNTIME.includes(JSON.stringify(EDGE_LIMITS)));
+  // and the same photo treatment, applied to the strips before they are judged
+  assert.ok(RUNTIME.includes(treatPixels.toString()));
+  assert.ok(RUNTIME.includes(`const TREATED = ${JSON.stringify(TREATED)};`));
+  assert.match(RUNTIME, /return treatPixels\(g\.getImageData\(0, 0, c\.width, c\.height\)\.data, treat\);/);
+});
+
+// The demo brand's colours: primary #2F5BB7 (the treatment colour), dark #14213D (shadows), light #FFFFFF (highlights).
+const treatOf = (treatment, extra = {}) => ({ treatment, strength: 0.5, colour: [47, 91, 183], shadows: [20, 33, 61], highlights: [255, 255, 255], ...extra });
+const treated = (r, t) => ({ ...r, top: treatPixels(r.top, t), left: treatPixels(r.left, t), right: treatPixels(r.right, t) });
+
+test('a treated photo lends the page the colour it is drawn in, for every treatment the style offers', () => {
+  assert.deepEqual(TREATED, PHOTO_TREATMENTS.filter((t) => t !== 'none'));
+  // The demo's object-jar.jpg: a plain background of rgb(243, 239, 230). The expected colours are what Chrome draws for it with
+  // brand.css's treatment layers and the demo brand (read from real renders of the object poster, just under the photo's top).
+  const jar = regions(() => [243, 239, 230], () => [243, 239, 230]);
+  const drawn = { none: [243, 239, 230], tint: [238, 239, 243], duotone: [248, 248, 248], overlay: [145, 165, 207] };
+  for (const t of PHOTO_TREATMENTS) {
+    const e = classifyEdge(treated(jar, treatOf(t)));
+    assert.equal(e.uniform, true, t);
+    assert.deepEqual(e.rgb, drawn[t], t);
+    assert.ok(e.columns.every((c) => c.join() === drawn[t].join()), t);
+  }
+  // duotone with other brand colours: the highlights carry the light end, the shadows hold up the dark end (strength is unused)
+  assert.deepEqual(classifyEdge(treated(jar, treatOf('duotone', { highlights: [252, 235, 228], strength: 0.1 }))).rgb, [245, 229, 222]);
+  assert.deepEqual([...treatPixels([5, 5, 5, 255], treatOf('duotone'))], [20, 33, 61, 255]);
+  // the strength scales tint and overlay: none at 0, the whole colour at 1 (overlay); a tint keeps the photo's lightness
+  assert.deepEqual([...treatPixels([243, 239, 230, 255], treatOf('overlay', { strength: 0 }))], [243, 239, 230, 255]);
+  assert.deepEqual([...treatPixels([243, 239, 230, 255], treatOf('overlay', { strength: 1 }))], [47, 91, 183, 255]);
+  assert.deepEqual([...treatPixels([243, 239, 230, 255], treatOf('tint', { strength: 0 }))], [243, 239, 230, 255]);
+  const full = [...treatPixels([120, 120, 120, 255], treatOf('tint', { strength: 1 }))];
+  assert.ok(Math.abs(0.3 * full[0] + 0.59 * full[1] + 0.11 * full[2] - 120) < 1 && full[2] > full[0], String(full));
+  // alpha is kept, no treatment leaves the pixels as they are, and an unknown one is no treatment
+  assert.equal(treatPixels([1, 2, 3, 77], treatOf('overlay'))[3], 77);
+  const raw = [9, 8, 7, 255];
+  for (const t of [null, undefined, treatOf('none'), treatOf('sepia'), treatOf('__proto__')]) assert.equal(treatPixels(raw, t), raw);
+  // the treatment is applied pixel by pixel before the edge is judged: a scene stays a scene under a tint
+  const sky = regions(() => [200, 215, 230], () => [60, 90, 50]);
+  assert.equal(classifyEdge(treated(sky, treatOf('tint'))).uniform, false);
 });
 
 // ---- the real photos of the library, in Chrome, read the way the page reads them (full width, 750 px tall, focal centre) ----
