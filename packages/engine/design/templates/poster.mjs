@@ -62,7 +62,7 @@ export function bar(ctx, dark, { right } = {}) {
 }
 
 // The headline (two-tone: the statement in ink, the *continuation* in primary green, or gold on a dark ground) and the sub line.
-function words({ headline, sub, size, y = POSTER.headTop, x = POSTER.m, w = 920, subW = 820, align = 'left', big = false }) {
+export function words({ headline, sub, size, y = POSTER.headTop, x = POSTER.m, w = 920, subW = 820, align = 'left', big = false }) {
   const center = align === 'center';
   const h = `<div class="ps-h${big ? ' big' : ''}" data-role="${big ? 'stat' : 'headline'}" style="font-size:${hs(size)}">${fmtE(headline)}</div>`;
   const s = sub ? `<div class="sub ps-sub" data-role="sub" data-min="30" style="margin-top:28px;max-width:${subW}px${center ? ';margin-left:auto;margin-right:auto' : ''}">${fmtSub(sub)}</div>` : '';

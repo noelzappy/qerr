@@ -12,11 +12,17 @@ import { accentOf, decorationOf, isDark } from '../../design/templates/style.mjs
 
 // Only a name from the fixed list ever reaches a class attribute, whatever was passed.
 export const pick = (list, v, def) => (list.includes(v) ? v : def);
-export const opt = (blk, k) => { const o = BLOCKS[blk.type].options[k]; const v = optionOf(blk, k); return o?.t === 'enum' ? pick(o.list, v, o.def) : o?.t === 'bool' ? v === true : undefined; };
+export const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+export const opt = (blk, k) => {
+  const o = BLOCKS[blk.type].options[k], v = optionOf(blk, k);
+  if (o?.t === 'enum') return pick(o.list, v, o.def);
+  if (o?.t === 'bool') return v === true;
+  if (o?.t === 'int') return isInt(v, o.min, o.max) ? v : o.def;
+  return undefined;
+};
 export const box = (r) => `left:${px(r.x)}px;top:${px(r.y)}px;width:${px(r.w)}px;height:${px(r.h)}px`;
 // A rectangle's place and width, for text that runs down from its top (the built-in pages' text boxes).
 export const place = (r) => `left:${px(r.x)}px;top:${px(r.y)}px;width:${px(r.w)}px`;
-export const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 
 // The decorations: a hairline rule across the middle of the slot, the tint panel, the dot grid or the line texture (these two
 // need design/layout.css), the glow or the brand's dot map.
