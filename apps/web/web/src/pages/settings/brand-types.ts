@@ -1,4 +1,5 @@
 // The shapes of /api/settings/brand (see apps/web/src/server/routes/brand.ts and services/brand-settings.ts).
+import type { Layout } from './layout-types';
 
 // The style layer: every value is one of the engine's fixed lists (packages/engine/lib/design/tokens.mjs) or a number in range;
 // the server checks them again with the engine's own validateBrand.
@@ -118,7 +119,7 @@ export interface DesignReference {
   size: number;
   note: string;
   status: 'pending' | 'analysing' | 'ready' | 'failed';
-  analysis: { summary: string; palette: Array<{ hex: string; role: string }>; typography: string; layout: string; imagery: string; mood: string; avoid: string; proposal?: StyleProposal } | null;
+  analysis: { summary: string; palette: Array<{ hex: string; role: string }>; typography: string; layout: string; imagery: string; mood: string; avoid: string; proposal?: StyleProposal; composition?: Layout } | null;
   brief: string | null;
   error: string | null;
   enabled: boolean;

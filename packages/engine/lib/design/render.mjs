@@ -11,6 +11,8 @@ import { convertToJpeg } from './convert.mjs';
 import { hasAlpha, readImageBytes, sniff } from './assets.mjs';
 import { DesignError } from './errors.mjs';
 import { pdfPages, snapMediaBox } from './pdf.mjs';
+import { findLayout, layoutUsesPhone } from './layout.mjs';
+import { layoutFit, renderLayout } from './layout-render.mjs';
 
 export { DesignError };
 
@@ -24,31 +26,39 @@ const PUSHED = new Set(['panel', 'outside', 'avoid']);
 const parseRgb = (c) => { const m = c.match(/[\d.]+/g).map(Number); return luminance(m[0], m[1], m[2]); };
 
 // A phone screen is always a pre-framed capture: the tool never draws a phone around a plain screenshot.
-const isPhoneScreen = (spec) => (spec.template === 'screen' && (spec.device ?? 'phone') === 'phone') || spec.template === 'product';
+const isPhoneScreen = (spec, layout) => (spec.template === 'screen' && (spec.device ?? 'phone') === 'phone') || spec.template === 'product' || (layout ? layoutUsesPhone(layout) : false);
 const unframedPhone = (file, why) => `screen: "${file}" is not a pre-framed phone capture (${why}). Use a pre-framed phone capture: a transparent PNG or WebP with the phone already drawn around the screen, like the website's public/screens/<name>-phone-660.webp (see design/assets/screens/SOURCES.md). The tool does not draw phones. For a desktop screenshot use "device": "desktop".`;
 
-// job: { spec (one image: template + fields), sizeName, outFile, counter? }
+// job: { spec (one image: template + fields), sizeName, outFile, counter?, layouts? }. A { template: "layout" } spec is drawn from
+// the layout it names: one of job.layouts (a preview of layouts not saved yet), else of the brand's own (brand.json "layouts").
 export async function renderImage(browser, brand, job, { tmpDir, converter, quality = 92, log = () => {} } = {}) {
   const { sizeName, outFile } = job;
   const S = SIZES[sizeName] ?? COVER_SIZES[sizeName];
   const spec = forSize(job.spec, sizeName);
-  const tpl = TEMPLATE_FNS[spec.template];
+  const layouts = job.layouts ?? brand.layouts;
+  let layout = null;
+  if (spec.template === 'layout') {
+    try { layout = findLayout(spec.layout, layouts); } catch (err) { throw new DesignError(err.message); }
+    if (!layout.canvas[sizeName]) throw new DesignError(`layout "${layout.id}" has no ${sizeName} size`);
+  }
+  const tpl = layout ? renderLayout : TEMPLATE_FNS[spec.template];
   const warnings = [], notes = [];
   // Pictures are read and checked here, once, and embedded; templates only ever see the resulting data: URIs.
   const images = new Map(), dims = new Map();
   if (spec.image !== undefined) {
     const { type, buf } = readImageBytes(spec.image, { root: brand.root });
-    if (isPhoneScreen(spec) && hasAlpha(buf) === false) throw new DesignError(unframedPhone(spec.image, 'it has no transparency, so it is a plain screenshot'));
+    if (isPhoneScreen(spec, layout) && hasAlpha(buf) === false) throw new DesignError(unframedPhone(spec.image, 'it has no transparency, so it is a plain screenshot'));
     images.set(spec.image, `data:${type};base64,${buf.toString('base64')}`);
     dims.set(spec.image, imageSize(buf));
   }
-  const out = tpl(spec, { size: S, brand, counter: job.counter, image: (p) => images.get(p) ?? (() => { throw new DesignError(`image not loaded: ${p}`); })(), imageSize: (p) => dims.get(p) ?? null });
+  const out = tpl(spec, { size: S, brand, counter: job.counter, layouts, image: (p) => images.get(p) ?? (() => { throw new DesignError(`image not loaded: ${p}`); })(), imageSize: (p) => dims.get(p) ?? null });
   const html = buildPage({ brand, size: S, ...out });
   const isPhoto = spec.template === 'photo';
   const THRESHOLD_KEY = isPhoto ? PHOTO_KEY : EDITORIAL_KEY;
   const need = (key) => (isPhoto ? brand.photo.minContrast[key] : brand.contrast[key]);
-  // The editorial pages keep the reference margins (70 px, a few px of optical overhang on the headline).
-  const Sfit = isPhoto || COVER_SIZES[sizeName] ? S : { ...S, pad: 62, top: 46 };
+  warnings.push(...(out.warnings ?? []));
+  // The editorial pages keep the reference margins (70 px, a few px of optical overhang on the headline); a layout keeps its own.
+  const Sfit = layout ? layoutFit(layout, sizeName) : isPhoto || COVER_SIZES[sizeName] ? S : { ...S, pad: 62, top: 46 };
   fs.mkdirSync(tmpDir, { recursive: true });
   const page = await browser.page(S.w, S.h);
   try {

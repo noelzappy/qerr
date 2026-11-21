@@ -6,6 +6,7 @@ import { CLASSIC_NETWORKS, LIMITS, NETWORKS } from './networks.mjs';
 import { captionLimitFor } from './accounts.mjs';
 import { validateBatchDesigns } from './design/batch.mjs';
 import { loadSeries } from './design/brand.mjs';
+import { loadLayouts } from './design/layout.mjs';
 
 export { NETWORKS, CLASSIC_NETWORKS, LIMITS };
 export const DEFAULT_FACEBOOK_TYPE = 'post';
@@ -93,7 +94,7 @@ export function validateBatch(raw, { fallbackName = 'batch', root = ROOT } = {})
       posts.push({ id: p.id, title: p.title ?? p.id, date, time, dueAt: zonedToUtcIso(date, time, raw.timezone), networks });
     }
   });
-  errors.push(...validateBatchDesigns(raw.posts, { series: loadSeries({ root }) }));
+  errors.push(...validateBatchDesigns(raw.posts, { series: loadSeries({ root }), layouts: loadLayouts({ root }) }));
   if (errors.length) return { errors };
   const mediaRootRel = raw.mediaRoot;
   return { errors, batch: { name, timezone: raw.timezone, defaultTime: raw.defaultTime, mediaRootRel, mediaRoot: path.resolve(root, mediaRootRel), posts } };

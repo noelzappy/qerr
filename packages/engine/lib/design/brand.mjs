@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, brandFile, repoPath } from '../core.mjs';
+import { validateLayouts } from './layout.mjs';
 import { readBrandAsset, readBrandImage } from './assets.mjs';
 import {
   ACCENT_DEVICES, ACCENT_STYLES, ARTWORK_FITS, DECORATION_ON, DECORATIONS, FONT_ROLES, FOOTERS, GRADIENT_NAMES, GROUND_ALIASES, GROUND_NAMES, HEX, LOGO_PLACES,
@@ -229,6 +230,8 @@ export function validateBrand(b) {
   for (const r of b.spelling ?? []) {
     try { new RegExp(r.wrong, r.flags ?? ''); } catch { errors.push(`brand.json: spelling rule "${r.wrong}" is not a valid pattern`); }
   }
+  // The brand's own compositions (layouts as data, lib/design/layout.mjs): each checked in full, ids unique.
+  errors.push(...validateLayouts(b.layouts));
   return errors;
 }
 

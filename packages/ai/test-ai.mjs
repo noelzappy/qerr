@@ -440,7 +440,7 @@ test('draftBatch: a good post passes, the vault photo is resolved by id, the bat
   assert.deepEqual(p.warnings, []);
   assert.deepEqual(batch.defaultNetworks, ['instagram', 'linkedin', 'facebook', 'x']);
   assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
-  assert.equal(notes.promptVersion, 'draft-8');
+  assert.equal(notes.promptVersion, 'draft-9');
   assert.equal(notes.model, 'claude-sonnet-5-5');
   assert.equal(notes.seriesMix['the-numbers'], 1);
   assert.equal(notes.usage.costUsd > 0, true);
@@ -924,7 +924,7 @@ test('analyseReference: the picture goes to Anthropic as an image part, uses the
   assert.equal(out.analysis.palette[0].hex, '#F5F1EA');
   assert.match(out.brief, /^Quiet pages with one large headline\. Palette: #F5F1EA background, #1A1A1A headline\./);
   assert.match(out.brief, /The team likes: the calm layout$/);
-  assert.equal(out.notes.promptVersion, 'reference-2');
+  assert.equal(out.notes.promptVersion, 'reference-3');
   assert.equal(logs[0].task, 'reference');
 });
 
@@ -973,4 +973,112 @@ test('analyseReference: a proposal outside the lists or ranges is refused, never
     const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
     await assert.rejects(ai.analyseReference({ image: { mediaType: 'image/png', data: PNG_B64 } }), (e) => e.code === 'invalid_output', JSON.stringify(proposal));
   }
+});
+
+// ---------- the brand's own layouts ----------
+const LAYOUT_GRID = { columns: 12, rows: 24, margin: { top: 56, right: 70, bottom: 56, left: 70 }, gutter: 20, rowGutter: 0 };
+const SPLIT = {
+  id: 'split', name: 'Photo beside text', description: 'A photo on the left, the headline and a sub line on the right.',
+  fields: { image: { required: true }, headline: { required: true, max: 60 }, sub: { max: 110 } }, canvas: { feed: LAYOUT_GRID },
+  blocks: [{ type: 'photo', slot: { col: 1, row: 1, width: 6, height: 24 }, bleed: ['top', 'left', 'bottom'] }, { type: 'headline', slot: { col: 7, row: 4, width: 6, height: 9 }, size: 64 }, { type: 'sub', slot: { col: 7, row: 14, width: 6, height: 6 } }],
+};
+const FIGURES = {
+  id: 'figures', name: 'Figures', fields: { big: { required: true }, stats: { min: 1, max: 2 } }, canvas: { feed: LAYOUT_GRID },
+  blocks: [{ type: 'figure', slot: { col: 1, row: 3, width: 12, height: 4 } }, { type: 'stats', slot: { col: 1, row: 8, width: 12, height: 4 } }],
+};
+
+// Runs fn with BRAND_DIR pointing at a copy of the demo pack whose brand.json has these layouts.
+async function withLayouts(layouts, fn) {
+  const { ROOT } = await import('@vesk/engine/core');
+  const path = await import('node:path');
+  fs.mkdirSync(path.join(ROOT, 'out'), { recursive: true });
+  const dir = fs.mkdtempSync(path.join(ROOT, 'out', 'test-ai-layouts-'));
+  const prev = process.env.BRAND_DIR;
+  try {
+    const brand = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
+    fs.writeFileSync(path.join(dir, 'brand.json'), JSON.stringify({ ...brand, layouts }));
+    process.env.BRAND_DIR = path.relative(ROOT, dir);
+    return await fn();
+  } finally {
+    if (prev === undefined) delete process.env.BRAND_DIR; else process.env.BRAND_DIR = prev;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+const splitPost = (design = {}) => good({ id: '02-split', design: { template: 'layout', layout: 'split', image: 'vault:ph-1', headline: 'Real money, *every day.*', sub: 'Members save at the market stall.', ...design } });
+
+test('draftBatch: the brand\'s layouts are offered with their fields, and a post that fills one in passes the engine\'s checks', async () => {
+  await withLayouts([SPLIT, FIGURES, { ...SPLIT, id: 'broken', blocks: [] }], async () => {
+    const { f, ai } = draftWith([splitPost()]);
+    const { batch } = await ai.draftBatch(req());
+    const content = f.calls[0].body.messages[0].content;
+    const sent = JSON.parse(content.slice(content.indexOf('\n\n{') + 2));
+    assert.deepEqual(sent.layouts.map((l) => l.id), ['split', 'figures'], 'an invalid layout is never offered');
+    assert.deepEqual(sent.layouts[0].fields.headline, { required: true, what: 'the headline (*accent phrase* and \\n line breaks allowed)', maxChars: 60 });
+    assert.deepEqual(sent.layouts[1].fields.stats, { required: true, what: 'figures like "3,900+|members"', min: 1, max: 2 });
+    assert.equal(sent.layouts[0].picture, 'a vault photo item');
+    assert.ok(!JSON.stringify(sent.layouts).includes('"slot"'), 'no geometry reaches the model');
+    assert.match(f.calls[0].body.system, /`layout`: one of the brand's own layouts/);
+    assert.equal(batch.posts.length, 1);
+    assert.equal(batch.posts[0].design.template, 'layout');
+    assert.equal(batch.posts[0].design.image, 'design/assets/photos/street-market.jpg');
+    assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
+  });
+});
+
+test('draftBatch: a layout post is checked against the layout it names', async () => {
+  await withLayouts([SPLIT, FIGURES], async () => {
+    const cases = [
+      [splitPost({ layout: 'nope' }), /layout "nope" is not one of the brand's layouts/],
+      [splitPost({ quote: 'Extra' }), /quote is not used by layout "split"/],
+      [splitPost({ headline: 'x'.repeat(61) }), /headline is 61 characters; this layout takes up to 60/],
+      [splitPost({ headline: undefined }), /headline is required by this layout/],
+      [splitPost({ image: 'vault:fig-1' }), /not a photo or screen/],
+      [good({ id: '03-figs', design: { template: 'layout', layout: 'figures', big: '14.8M+', stats: ['3,900+|members saving daily', '400+|organisations', '1|x'] } }), /stats needs 1 to 2 entries/],
+      [good({ id: '04-figs', design: { template: 'layout', layout: 'figures', big: '99.9M+', stats: ['3,900+|members saving daily'] } }), /not found in its sources: 99\.9/],
+    ];
+    for (const [post, re] of cases) {
+      const { ai } = draftWith([post]);
+      await assert.rejects(ai.draftBatch(req()), (e) => e.code === 'no_valid_posts' && e.notes.rejected.some((r) => r.reasons.some((x) => re.test(x))), String(re));
+    }
+  });
+});
+
+test('draftBatch: without layouts in the brand, template "layout" is not allowed', async () => {
+  const { ai } = draftWith([splitPost()]);
+  await assert.rejects(ai.draftBatch(req()), (e) => e.code === 'no_valid_posts' && e.notes.rejected[0].reasons.some((r) => /template "layout" is not allowed/.test(r)));
+});
+
+const COMPOSITION = {
+  name: 'Split', description: 'A photo beside the headline.', ground: 'light', texture: 'none',
+  fields: { image: { required: true }, headline: { required: true, max: 60 } },
+  grid: LAYOUT_GRID,
+  blocks: [{ type: 'photo', slot: { col: 1, row: 1, width: 6, height: 24 }, bleed: ['top', 'left', 'bottom'] }, { type: 'headline', slot: { col: 7, row: 4, width: 6, height: 9 }, size: 64 }, { type: 'logo', slot: { col: 7, row: 24, width: 6, height: 1 } }],
+};
+
+test('analyseReference: a proposed composition comes back as a layout the engine accepts, or not at all', async () => {
+  const run = async (composition) => createAI({ providers: [anthropic], fetch: fakeFetch(anthropicOk({ ...STYLE, proposal: PROPOSAL, composition })), now: NOW, prices: PRICES, sleep: noSleep }).analyseReference({ image: { mediaType: 'image/png', data: PNG_B64 } });
+  const ok = await run(COMPOSITION);
+  assert.equal(ok.analysis.composition.id, 'from-reference');
+  assert.deepEqual(ok.analysis.composition.canvas, { feed: LAYOUT_GRID });
+  assert.equal(ok.notes.compositionProblems, undefined);
+  // well formed but not a usable layout (blocks on each other): dropped, with the engine's reasons in the notes
+  const overlap = await run({ ...COMPOSITION, blocks: [...COMPOSITION.blocks, { type: 'sub', slot: { col: 7, row: 6, width: 6, height: 4 } }], fields: { ...COMPOSITION.fields, sub: {} } });
+  assert.equal(overlap.analysis.composition, undefined);
+  assert.ok(overlap.notes.compositionProblems.some((p) => /overlap on the feed grid/.test(p)));
+  assert.equal(overlap.analysis.proposal.surface, 'outline', 'the rest of the analysis is kept');
+});
+
+test('analyseReference: a composition outside the engine\'s lists is refused by the schema', async () => {
+  const bad = [
+    { ...COMPOSITION, css: 'body{}' }, { ...COMPOSITION, blocks: [{ type: 'html', slot: COMPOSITION.blocks[0].slot }] },
+    { ...COMPOSITION, blocks: [{ ...COMPOSITION.blocks[1], style: 'color:red' }] }, { ...COMPOSITION, grid: { ...LAYOUT_GRID, columns: 99 } },
+    { ...COMPOSITION, blocks: [{ ...COMPOSITION.blocks[1], onclick: 'x' }] }, { ...COMPOSITION, fields: { colour: {} } },
+  ];
+  for (const composition of bad) {
+    const f = fakeFetch(anthropicOk({ ...STYLE, composition }), anthropicOk({ ...STYLE, composition }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    await assert.rejects(ai.analyseReference({ image: { mediaType: 'image/png', data: PNG_B64 } }), (e) => e.code === 'invalid_output', JSON.stringify(composition).slice(0, 80));
+  }
+  assert.match(loadPrompt('reference').text, /`composition` \(optional\): a layout for the feed page/);
 });

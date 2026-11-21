@@ -116,6 +116,7 @@ window.__ds = {
         overX: svg ? 0 : el.scrollWidth - el.clientWidth, text: (el.innerText ?? el.textContent).trim().replace(/\s+/g, ' ').slice(0, 50),
         size: parseFloat(cs.fontSize), min: +(el.dataset.min || 0), nested: !!(el.parentElement && el.parentElement.closest('[data-role]')),
         onpanel: el.hasAttribute('data-onpanel'), inAvoid: avoidEls.map((a, k) => (a.contains(el) ? k : -1)).filter((k) => k >= 0),
+        cell: el.closest('[data-cell]') ? box(el.closest('[data-cell]').getBoundingClientRect()) : null,
       };
     });
     const avoid = avoidEls.map((el, k) => ({ ...box(el.getBoundingClientRect()), id: k }));

@@ -3,6 +3,7 @@ import { ROOT, brandFile, readJson, validTimeZone } from '@vesk/engine/core';
 import { AIError } from './errors.mjs';
 import { NETWORKS } from '@vesk/engine/networks';
 import { normaliseVault } from './vault.mjs';
+import { FIELDS, layoutSizes, optionOf, validateLayout } from '@vesk/engine/design/layout';
 
 export function readBrand({ root = ROOT, override } = {}) {
   const b = readJson(brandFile('brand.json', { root }), null);
@@ -23,11 +24,30 @@ export const brandBrief = (b) => ({
   references: Array.isArray(b.references) ? b.references.filter((r) => typeof r === 'string' && r.trim()).slice(0, 24) : [],
 });
 
+// The brand's own layouts (brand.json "layouts") that pass the engine's validator; an invalid one is never offered.
+export const brandLayouts = (b) => (Array.isArray(b?.layouts) ? b.layouts.filter((l) => validateLayout(l).length === 0) : []);
+
+// The vault kind a layout's picture must be: a screen item for a phone or desktop screen block, else a photo item.
+export const layoutImageKind = (l) => ((l?.blocks ?? []).some((x) => x.type === 'screen') ? 'screen' : (l?.blocks ?? []).some((x) => x.type === 'photo') ? 'photo' : null);
+
+// What the model is told about each layout: its id, name and description, its sizes, the fields it takes (required or not, how
+// long) and what kind of picture it shows. No geometry: the model fills a layout in, it never draws one.
+export const layoutBriefs = (b) => brandLayouts(b).map((l) => ({
+  id: l.id, name: l.name, ...(l.description ? { description: l.description } : {}), sizes: layoutSizes(l),
+  fields: Object.fromEntries(Object.entries(l.fields).map(([k, f]) => {
+    const F = FIELDS[k];
+    const required = f.required === true || (['stats', 'items'].includes(F.kind) && (f.min ?? 0) > 0);
+    const limit = ['text', 'short'].includes(F.kind) ? { maxChars: f.max ?? F.max } : ['stats', 'items'].includes(F.kind) ? { min: Math.max(required ? 1 : 0, f.min ?? 0), max: f.max ?? F.max } : {};
+    return [k, { required, what: F.word, ...limit, ...(F.kind === 'artefact' && f.types ? { types: f.types } : {}) }];
+  })),
+  ...(layoutImageKind(l) ? { picture: layoutImageKind(l) === 'screen' ? ((l.blocks.find((x) => x.type === 'screen') && optionOf(l.blocks.find((x) => x.type === 'screen'), 'device') === 'desktop') ? 'a vault screen item (a desktop screenshot)' : 'a vault screen item (a framed phone capture)') : 'a vault photo item' } : {}),
+}));
+
 export function makeCtx({ vault, channels, period = null, brand, now, seriesKeys }) {
   const items = normaliseVault(vault);
   const byId = new Map(items.map((i) => [i.id, i]));
   const byFile = new Map(items.filter((i) => typeof i.file === 'string' && i.file).map((i) => [i.file, i]));
-  return { items, byId, byFile, channels, period, brand, now, seriesKeys: seriesKeys ?? Object.keys(brand.series ?? {}), takenIds: new Set() };
+  return { items, byId, byFile, channels, period, brand, now, seriesKeys: seriesKeys ?? Object.keys(brand.series ?? {}), layouts: brandLayouts(brand), takenIds: new Set() };
 }
 
 export function parseChannels(channels, fallback = ['instagram', 'linkedin', 'facebook']) {

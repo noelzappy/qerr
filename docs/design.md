@@ -333,6 +333,92 @@ The old green look is gone: the `card` template, the old `stats` and `screen` lo
 went too: the `paper` and `stone` grounds, the table and its grain, rotated sheets (`rotate`), the flat-print and paper shadows, the
 CSS phone body (`statusFill`) and the `onTable` and `bodyStrong` text colours. `photo` and `page-cover` stay, restyled.
 
+## Your own layouts
+
+A brand can add its own compositions without a developer: **layouts as data** (`packages/engine/lib/design/layout.mjs`). A
+layout is blocks placed in slots on a grid. It holds no markup, CSS or address: only numbers in bounds and names from fixed
+lists, checked by `validateLayout`. The engine draws it (`lib/design/layout-render.mjs`) with the same helpers and escaping as the
+built-in templates, in the brand's style layer (grounds, type roles, accent device, surfaces, decoration, photo treatment, logo
+pill), and checks every image exactly like a built-in page: the fit loop, contrast, enlargement, pixel size, under the same
+Content-Security-Policy. Admins make them in **Settings, Layouts**; the enabled ones are written into the brand pack's
+`brand.json` as `layouts`, which `validateBrand` checks with the same validator.
+
+A post uses one with `{ "template": "layout", "layout": "<id>", ...fields }`. The block is checked against the fields that
+layout declares, with their lengths, exactly as a built-in template checks its own, plus the frame keys `sizes`, `name`,
+`networkSizes`, `series`, `label`, `ground`, `accent`, and `focal` and `zoom` when it shows a picture. Anything else is
+refused with the field named. A layout page is a single image (not a carousel page).
+
+```json
+{
+  "id": "split", "name": "Photo beside text", "description": "A photo on the left, the text on the right.",
+  "ground": "series", "accent": "series", "texture": "auto",
+  "fields": { "image": { "required": true }, "headline": { "required": true, "max": 60 }, "sub": { "max": 110 } },
+  "canvas": { "feed": { "columns": 12, "rows": 24, "margin": { "top": 56, "right": 70, "bottom": 56, "left": 70 }, "gutter": 20, "rowGutter": 0 } },
+  "blocks": [
+    { "type": "photo", "slot": { "col": 1, "row": 1, "width": 6, "height": 24 }, "bleed": ["top", "left", "bottom"] },
+    { "type": "headline", "slot": { "col": 7, "row": 4, "width": 6, "height": 9 }, "size": 64, "valign": "bottom" },
+    { "type": "sub", "slot": { "col": 7, "row": 14, "width": 6, "height": 6 } }
+  ]
+}
+```
+
+- **`id`**: lowercase letters, digits and `-`, up to 40. **`name`**: one line, up to 40; **`description`**: up to 300. Neither
+  is ever placed in an image; they are for people and the AI.
+- **`ground`**: `series` (the default: the series' ground, else `light`) or a ground name (older names are read as the new
+  ones). **`accent`**: `series` (the brand's style) or `muted`, `colour`, `weight`, `none`. **`texture`**: `auto` (the brand's
+  decoration for an editorial page), `none`, `dots`, `grid`, `lines`.
+- **`canvas`**: one grid per size the layout is drawn at (`feed`, `square`, `story`, `wide`): `columns` 1 to 24, `rows` 1 to 36,
+  `gutter` and `rowGutter` 0 to 80 px, `margin` a number or `{ top, right, bottom, left }` up to 600 px. Margins have a minimum
+  per size (feed and square 40 at the top and bottom, 48 at the sides; wide 28 and 36; story 250 at the top and 320 at the bottom,
+  clear of the story interface), and every cell must be at least 16 px. Text never leaves the margins.
+- **`fields`**: what a post fills in, from a fixed catalogue: texts `headline`, `sub`, `quote`, `myth`, `factLead`, `fact` (up to
+  220 characters), `line` (120), one-line `big`, `label`, `title` (40), `eyebrow` (60), `note` (80); lists `stats` (up to 3
+  `"number|label"`) and `items` (up to 6 points of 48 characters); `image`; `artefact` (a ledger, passbook or register card,
+  checked by the built-in artefact rules; `types` may narrow it). Each takes `required`, and `max` (texts, up to the cap) or
+  `min` and `max` (lists). Every declared field must be shown by exactly one block.
+- **`blocks`** (up to 24, drawn back to front): each has a `type` and a `slot` `{ col, row, width, height }` in grid cells counted
+  from 1 (or one slot per size, `{ "feed": {...}, "story": {...} }`), and options from fixed lists:
+
+| type | shows | options |
+| --- | --- | --- |
+| `headline` | a text field (default `headline`) | `size` 56 to 136 px, `style` `editorial` or `poster`, `align`, `valign` |
+| `sub` | a text field (default `sub`) | `size` 30 to 44 px, `align`, `valign` |
+| `label` | a short field, fixed `text` of the layout (up to 40), or `source` `series`, `brand`, `folio` | `style` `mono`, `tag`, `plain`; `tone` `muted`, `accent`; `size` 22 to 28 |
+| `figure` | a short field (default `big`) | `size` 96 to 240 px, `style`, `align`, `valign` |
+| `stats` | `stats` | `direction` `row` or `column`, `size` 48 to 84, `rules` |
+| `list` | `items` | `style` `checks`, `pills`, `bullets` |
+| `photo` | `image` | `frame` `none`, `card`, `raised`; `bleed` |
+| `screen` | `image` | `device` `phone` (a pre-framed capture, refused otherwise) or `desktop`; `fit` `contain` or `crop` (phone), `glow`, `tilt` and `framed` (desktop), `titleField` |
+| `logo` | the brand's logo | `variant` `auto`, `full`, `solid`, `pill`, `mark`; `size` 24 to 48 |
+| `website` | the brand's website | `size` 22 to 30 |
+| `slab` | a colour panel holding up to 6 `children` (text blocks without slots) | `ground` (a ground, `panel` or `card`), `radius` `none`, `card`, `slab`; `shadow`; `padding`; `gap`; `bleed` |
+| `artefact` | `artefact` | `align`, `valign` (refused when the card does not fit its slot) |
+| `decoration` | nothing | `kind` `rule`, `panel`, `dots`, `texture`, `glow`, `map`; `bleed`; lies under everything |
+| `spacer` | nothing | reserves cells |
+
+  `align` is `left`, `center` or `right`; `valign` `top`, `center` or `bottom`. Only `photo`, `slab` and `decoration` may
+  `bleed`, and only to the page edges their slot touches. Blocks other than decorations may not overlap (put text on a colour
+  with a `slab`), and a block on a `panel` decoration lies wholly on it or wholly off it. Text sizes are for the feed page; the
+  other sizes scale them (square 0.9, wide 0.6).
+
+**How it stays safe.** Every value is checked before it is stored (Settings, Layouts), again when the brand pack is written
+(`validateBrand`), and again when a page is drawn. Names reach class attributes only after a lookup in their fixed list;
+positions and sizes are numbers computed from the checked grid; spec words go through `esc()`/`fmtE()`/`fmtSub()`; pictures
+through `ctx.image()`. The layout classes are a fixed engine stylesheet (`design/layout.css`, no colour or font of its own) that a
+page asks for by name (`buildPage({ sheet: 'layout' })`), never a stylesheet from a layout. `test-design-layout.mjs` feeds hostile
+text through every block type and every field, and hostile values through every setting of a layout.
+
+**Checks.** On top of the built-in checks, a layout's text must stay inside its own slot: text that runs out of it is a fit
+problem ("the sub line runs 40 px out of the bottom of its slot"); a headline or a big figure is shrunk first, other text must be
+shortened. The fit check holds text to the layout's own margins.
+
+**Starting points.** `lib/design/layout-starters.mjs` writes compositions like the built-in `text`, `stats`, `photo-story`,
+`cover` and `myth-fact` pages (and a split and a quotation page) as layout data. Settings, Layouts offers them to copy and
+change. They are close to the built-ins but not pixel-identical: the built-in templates keep their hand-written functions, because
+they position things on exact pixels that no grid of up to 24 x 36 cells reproduces, and some carry behaviour a block cannot
+express (the poster photo that takes its page colour from its own top edge, the panel that text and cards must sit on, the
+carousel's "Swipe" footer and running head).
+
 ## Your own photos and screenshots
 
 - **In the vault.** Upload photos and screens to the vault in the app, with their source, their licence, whether
@@ -438,7 +524,7 @@ The brand file is `brand.json` in the brand pack that `BRAND_DIR` names (default
 packs" in the README). It holds the name, website, tagline, descriptor, grounds, text colours, accents, surfaces, scale,
 radii, shadows, window chrome, phone slot, series, fonts, logo paths, spelling rules, length guidance, the contrast targets
 of the editorial pages and the photo thresholds (scrim start and cap, footer fade cap, minimum contrasts, enlargement
-limit). The tokens become CSS variables; `packages/engine/design/brand.css` and the templates use the variables, not
+limit), and optionally the brand's own `layouts` (see "Your own layouts"). The tokens become CSS variables; `packages/engine/design/brand.css` and the templates use the variables, not
 literals. Every value is checked when the file is loaded (`validateBrand` in `packages/engine/lib/design/brand.mjs`), and a
 wrong one is refused with a list of every problem. A brand saved in Settings, Brand and look is written out as this file
 (see [apps/web/README.md](../apps/web/README.md), "The brand").

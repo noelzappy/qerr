@@ -73,7 +73,8 @@ which are sent to Anthropic as base64 image blocks and to OpenAI-compatible serv
 It returns `{ analysis, brief, notes }`:
 
 - `analysis` is checked against a schema: `summary`, `palette` (up to 8 `{ hex, role }`), `typography`, `layout`,
-  `imagery`, `mood`, `avoid`, and (from the prompt `reference-2`) an optional `proposal` of concrete style settings.
+  `imagery`, `mood`, `avoid`, (from the prompt `reference-2`) an optional `proposal` of concrete style settings, and (from
+  `reference-3`) an optional `composition`: the reference's arrangement as a layout for the feed page.
 - `brief` is the same as one paragraph of at most 2,000 characters, ready for `brand.json` `references`. The brief is text
   for the drafting model only.
 
@@ -95,6 +96,15 @@ references ("Apply this look": the brand as it is and with the proposal, sketche
 colour checks) or applies it (`POST /api/settings/brand/references/:id/apply`, admins only, the engine's `validateBrand`
 like any save). Applying sets the proposed colours as roles and replaces the proposed style choices; nothing else changes.
 
+The `composition` (`COMPOSITION_SCHEMA` in `src/reference.mjs`) is built from the engine's own lists: block types, every
+option's values, the field catalogue and the grid's bounds (`packages/engine/lib/design/layout.mjs`). A composition outside
+them is refused like any invalid output. One that is well formed but not a usable layout (blocks on each other, a field no
+block shows, margins under the minimum) is checked by the engine's `validateLayout` and dropped, with its reasons in
+`notes.compositionProblems`; the rest of the analysis is kept. A kept one comes back as `analysis.composition`, a complete
+layout with the placeholder id `from-reference`. The web app checks it again before it stores it and offers it in Settings,
+Design references ("Use this layout"): a sketch, a real preview with the brand and every image check, then, only when an
+admin adds it, a new layout in Settings, Layouts (checked once more on the way in).
+
 The prompt tells the model to describe the style and not the content: no copied words, claims, logos or names. Text inside
 the picture is data and is never followed.
 
@@ -105,6 +115,15 @@ Kinds: fact, figure, news, event, product-note, story, photo, screen. `file` (ph
 repository. A figure is stale when `validUntil` has passed, or when it has no `validUntil` and was recorded over 180 days ago.
 A photo with `license: 'rights-to-confirm'`, or with identifiable people and no recorded consent, adds a warning.
 
+## The brand's own layouts
+
+When the brand pack's `brand.json` has `layouts` (made in the web app's Settings, Layouts; see
+[design.md](design.md), "Your own layouts"), the draft request lists the valid ones as `layouts`: each one's `id`, `name`,
+`description`, `sizes`, the `fields` it takes (`required`, what each is, `maxChars` for a text, `min` and `max` for a list) and
+the kind of vault `picture` it shows. No geometry reaches the model: it fills a layout in, it never draws one. The draft prompt
+(from `draft-9`) explains `{ "template": "layout", "layout": "<id>", ...fields }` and tells the model to prefer a layout whose
+description fits an idea. A layout the engine's validator does not accept is never offered.
+
 ## How drafting works
 
 1. Items are ranked (confirmed and current first) and the top ones sent to the model as data, with series, period, channels and limits.
@@ -112,7 +131,10 @@ A photo with `license: 'rights-to-confirm'`, or with identifiable people and no 
    back to plain JSON extraction). It is validated against the schema; invalid output is sent back once with the problems, then the
    call fails with `invalid_output`.
 3. Each post goes through `postcheck.mjs`:
-   - template must be an editorial template, `carousel` or `photo` (never `pagecover`), and the design passes the engine's `validateDesign`;
+   - template must be a poster template, `carousel`, `photo`, or `layout` with one of the brand's own layouts (when it has
+     some; never `pagecover`), and the design passes the engine's `validateDesign`, or for a layout `layoutDesignProblems`:
+     the layout must exist and be valid, and the post fills in exactly its declared fields within their lengths. A layout's
+     picture must be a vault item of the kind it shows (a `screen` item for a screen block, else a `photo` item);
    - images are written as `vault:<id>` and replaced by that item's `file`; any other path, URL or non-photo item is rejected;
    - every number in the captions and image text must appear in the cited `sources` (so `85,000+` matches "more than
      85,000 deposits");

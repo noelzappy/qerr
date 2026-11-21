@@ -4,7 +4,7 @@
 // (colours, type, surfaces, decoration, photo treatment); "Apply this look" shows them beside the brand as it is and saves them
 // only when an admin accepts.
 import { useEffect, useRef, useState } from 'react';
-import { ImagePlus, Loader2, Palette, RefreshCw, Trash2 } from 'lucide-react';
+import { ImagePlus, LayoutTemplate, Loader2, Palette, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../api';
 import { useDocumentTitle, useLoad } from '../../hooks';
@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { ApplyLook } from './ApplyLook';
+import { ReferenceLayout } from './ReferenceLayout';
 import type { DesignReference } from './brand-types';
 import { shrinkImage } from './logo-tools';
 import { SettingsPage } from './section';
@@ -30,6 +31,7 @@ function ReferenceCard({ r, onChange, onRemove }: { r: DesignReference; onChange
   const [brief, setBrief] = useState(r.brief ?? '');
   const [busy, setBusy] = useState('');
   const [applying, setApplying] = useState(false);
+  const [composing, setComposing] = useState(false);
   useEffect(() => setBrief(r.brief ?? ''), [r.brief]);
   const working = r.status === 'pending' || r.status === 'analysing';
   async function patch(body: Record<string, unknown>, what: string) {
@@ -80,12 +82,14 @@ function ReferenceCard({ r, onChange, onRemove }: { r: DesignReference; onChange
         <div className="flex flex-wrap gap-2">
           {brief.trim() && brief !== (r.brief ?? '') && <BusyButton size="sm" loading={busy === 'brief'} onClick={() => void patch({ brief: brief.trim() }, 'brief')}>Save the brief</BusyButton>}
           {r.status === 'ready' && r.analysis?.proposal && <Button size="sm" onClick={() => setApplying(true)}><Palette aria-hidden="true" /> Apply this look</Button>}
+          {r.status === 'ready' && r.analysis?.composition && <Button size="sm" variant="outline" onClick={() => setComposing(true)}><LayoutTemplate aria-hidden="true" /> Use this layout</Button>}
           <BusyButton size="sm" variant="outline" loading={busy === 'again'} disabled={working} onClick={() => void again()}><RefreshCw aria-hidden="true" /> Describe again</BusyButton>
           <Button size="sm" variant="ghost" onClick={onRemove}><Trash2 aria-hidden="true" /> Remove</Button>
         </div>
         {r.status === 'ready' && r.analysis && !r.analysis.proposal && <p className="text-[12px] text-muted-foreground">Describe it again to get style settings you can apply to your brand.</p>}
       </div>
       {r.analysis?.proposal && <ApplyLook reference={r} open={applying} onClose={() => setApplying(false)} />}
+      {r.analysis?.composition && <ReferenceLayout reference={r} open={composing} onClose={() => setComposing(false)} />}
     </li>
   );
 }

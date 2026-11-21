@@ -1,7 +1,7 @@
 // The one place the navigation is defined. Add a page here (and a <Route> in App.tsx) or it has no menu entry.
 //   MAIN      the sidebar's pages, as in the reference dashboards: Home, Create, Publish, Activity
 //   SETTINGS  the settings pages, in groups; admin-only groups are hidden from editors
-import { Activity, Cable, History, House, Image, Lightbulb, CalendarDays, Palette, Route, SlidersHorizontal, Sparkles, Users, type LucideIcon } from 'lucide-react';
+import { Activity, Cable, History, House, Image, LayoutTemplate, Lightbulb, CalendarDays, Palette, Route, SlidersHorizontal, Sparkles, Users, type LucideIcon } from 'lucide-react';
 
 export interface NavItem { to: string; label: string; icon: LucideIcon; end?: boolean }
 export interface NavSection { title: string; adminOnly?: boolean; items: NavItem[] }
@@ -28,6 +28,7 @@ export const SETTINGS: NavSection[] = [
     items: [
       { to: '/settings/brand', label: 'Brand and look', icon: Palette },
       { to: '/settings/references', label: 'Design references', icon: Image },
+      { to: '/settings/layouts', label: 'Layouts', icon: LayoutTemplate },
     ],
   },
   {

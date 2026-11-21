@@ -3,7 +3,7 @@
 import { ROOT } from '@vesk/engine/core';
 import { validateBatch } from '@vesk/engine/batch';
 import { AIError } from './errors.mjs';
-import { brandBrief, checkTimezone, makeCtx, parseChannels, parsePeriod, readBrand } from './context.mjs';
+import { brandBrief, checkTimezone, layoutBriefs, makeCtx, parseChannels, parsePeriod, readBrand } from './context.mjs';
 import { reporter } from './progress.mjs';
 import { checkPost } from './postcheck.mjs';
 import { loadPrompt } from './prompts.mjs';
@@ -71,6 +71,8 @@ export async function draftBatch(rt, input = {}) {
     today: now.toISOString().slice(0, 10), period: per, postCount: n, channels: chans, timezone: tz, defaultTime: '09:00',
     brand: brandBrief(brand), tagline: brand.tagline, website: brand.website,
     series: wanted.map((k) => ({ key: k, name: brand.series[k].name })),
+    // The brand's own layouts (Settings, Layouts), when it has some: what each is for and the fields it takes.
+    ...(layoutBriefs(brand).length ? { layouts: layoutBriefs(brand) } : {}),
     vault: [...facts.map((i) => forPrompt(i, opts)), ...pictures.map((i) => forPromptMedia(i))],
   };
   const meter = rt.newMeter();
