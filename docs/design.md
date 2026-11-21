@@ -396,6 +396,9 @@ refused with the field named. A layout page is a single image (not a carousel pa
 | `decoration` | nothing | `kind` `rule`, `panel`, `dots`, `texture`, `glow`, `map`; `bleed`; lies under everything |
 | `spacer` | nothing | reserves cells |
 
+  `headline`, `figure` and `stats` also take `shrink` (default true: the fit loop shrinks them together; false keeps the size),
+  and every block may take `when` and `px` (see "The built-in templates as layouts" below).
+
   `align` is `left`, `center` or `right`; `valign` `top`, `center` or `bottom`. Only `photo`, `slab` and `decoration` may
   `bleed`, and only to the page edges their slot touches. Blocks other than decorations may not overlap (put text on a colour
   with a `slab`), and a block on a `panel` decoration lies wholly on it or wholly off it. Text sizes are for the feed page; the
@@ -414,10 +417,46 @@ shortened. The fit check holds text to the layout's own margins.
 
 **Starting points.** `lib/design/layout-starters.mjs` writes compositions like the built-in `text`, `stats`, `photo-story`,
 `cover` and `myth-fact` pages (and a split and a quotation page) as layout data. Settings, Layouts offers them to copy and
-change. They are close to the built-ins but not pixel-identical: the built-in templates keep their hand-written functions, because
-they position things on exact pixels that no grid of up to 24 x 36 cells reproduces, and some carry behaviour a block cannot
-express (the poster photo that takes its page colour from its own top edge, the panel that text and cards must sit on, the
-carousel's "Swipe" footer and running head).
+change. They are close to the built-ins but not pixel-identical: a grid of up to 24 x 36 cells cannot place things on the
+built-ins' exact pixels, and a grid page has none of their own behaviour.
+
+### The built-in templates as layouts
+
+The built-in templates are being re-expressed in the same format, so that one renderer draws every page. A design that names a
+template (`{ "template": "number", ... }`) is still written and checked exactly as before (`validateDesign`); when a layout is
+registered for its template in `lib/design/builtin-layouts.mjs` (one file per template group under `lib/design/builtin/`), the
+page is drawn from that layout instead of the template's function, and it is the same image, pixel for pixel. Converted so far:
+**`number`** and **`text`** without an artefact. The others, and a text page with an artefact, are still drawn by their
+functions in `design/templates/`. `testlib/template-baseline.mjs` renders every template, for the demo brand and two style
+variants, before and after, and compares the pictures and the page markup (see `packages/engine/testlib/CONVERTING.md`).
+
+The format gained what the built-ins need; every new value is a name from a fixed list or a bounded whole number, checked by
+`validateLayout` like the rest:
+
+- **`page`**: `grid` (the default, a brand's own layout as above), `poster` or `editorial`. A poster or editorial page is the
+  built-in templates' own page: their wrapper, type, decoration (`texture: auto` is the posters' line texture or the editorial
+  dots, off with a spec's `dots: false`), accent (the colour on posters, muted on editorial pages) and fit margins, and each block
+  drawn with their markup, from the top of its rectangle down, in the order listed. `PAGES` in `layout.mjs` lists the block types
+  each page draws and the options each honours there; anything else is refused. A poster's photo and an editorial page's tint
+  panel run the full width to the bottom edge.
+- **`px`**: a block may give `{ "x", "y", "w", "h" }` in page pixels (whole numbers inside the page, or one per size) instead of a
+  `slot`. Text keeps inside the size's minimum margins. The overlap and panel checks treat it like a slot.
+- **`when`**: a block may be drawn only when a declared field is filled (`{ "present": "sub" }`) or empty (`{ "absent":
+  "image" }`), or only on page 1 of a carousel, a later page or a single post (`{ "page": "first" | "later" | "single" }`);
+  several keys must all hold. Blocks whose conditions exclude each other may show the same field and share space.
+- **`ground`** may be a list of up to 4 cases, `[{ "when": { "present": "image" }, "ground": "photo" }, { "ground": "cool" }]`,
+  the first that holds being used (only the last has no `when`). On a poster page `photo` starts the page from the series'
+  ground, else `cool`; a plain photo background then replaces it in the browser, as on the poster templates.
+- **Chrome blocks** with no slot, placed by the page and the brand's style (logo placement, footer style, "Swipe →" on page 1
+  of a carousel): `bar` (the poster's logo and website), `runhead` (the editorial running head: the series or the spec's
+  `label`, and the folio, the spec's `headRight` or the brand's name; `rule`) and `footer` (the editorial footer, its logo drawn
+  for the panel when the page has one).
+- **Options**: `shrink` (headline, figure, stats; default true: the block shrinks with every other such block in the fit loop;
+  false keeps its size), `specSize` (a headline takes the spec's own validated `size`) and `photoTop` (a poster photo's top edge
+  moves to the spec's validated `photoTop`).
+
+The chrome blocks, `specSize` and `photoTop` belong to the built-in pages: Settings, Layouts and the AI's compositions are
+offered only what a grid page takes (`layoutCatalogue`).
 
 ## Your own photos and screenshots
 

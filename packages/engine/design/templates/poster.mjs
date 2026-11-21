@@ -8,7 +8,8 @@
 //            the page colour, exactly, so the photo runs into the page unseen; anything else (a real scene) is placed as a
 //            full-bleed band, edge to edge from its top to the page bottom, with no radius or shadow, on the ground (the series',
 //            the spec's, else the cool ground). See objectPhoto.
-//   number   one big figure (and up to three supporting figures) over the same kind of photo.
+//   number   one big figure (and up to three supporting figures) over the same kind of photo. Drawn from its layout
+//            (lib/design/builtin/poster.mjs); the function below is unused and goes when every poster is converted.
 //   product  a website framed phone, large, on a pale ground with the website's soft glow; centred under the headline and running
 //            off the bottom, or beside it.
 //   mythFact the myth on a solid dark slab, the fact on a pale slab, on a dark ground with its decoration; the series mark at the
@@ -47,10 +48,11 @@ function logo(ctx, dark, h = 34) {
   return `<span class="logo-inv${dark ? '' : ' logo-ink'}" style="height:${h}px"><img src="${B.logoMarkSrc}" alt="" style="height:${h}px"><i role="img" aria-label="${esc(B.name)}" style="height:${h}px;--lw:${px((fw - B.logos.wordmarkFrom) * k)}px;--lx:-${px(B.logos.wordmarkFrom * k)}px;--lm:${px(B.logos.markGap * k)}px"></i></span>`;
 }
 
-// The only chrome: the logo and the website (or "Swipe →" on page 1 of a carousel) in one bar, by default at the top with the
+// The only chrome (also drawn for the built-in layouts' "bar" block, lib/design/layout-poster.mjs): the logo and the website (or
+// "Swipe →" on page 1 of a carousel) in one bar, by default at the top with the
 // logo on the left. The brand's style may put the bar at the bottom, the logo on the right, the logo in a light pill, or leave
 // the website out.
-function bar(ctx, dark, { right } = {}) {
+export function bar(ctx, dark, { right } = {}) {
   const style = footerOf(ctx.brand), place = logoPlace(ctx.brand, 'poster');
   let r = right;
   if (r === undefined) r = ctx.counter?.n === 1 ? 'Swipe →' : style === 'none' ? '' : ctx.brand.website;
@@ -67,12 +69,13 @@ function words({ headline, sub, size, y = POSTER.headTop, x = POSTER.m, w = 920,
   return `<div class="abs" id="txt" style="left:${px(x)}px;top:${px(y)}px;width:${px(w)}px;text-align:${center ? 'center' : 'left'}">${h}${s}</div>`;
 }
 
-// The object photo: full width from `top` to the bottom edge (it bleeds off the page), cropped around the focal point. Whether it
+// The object photo (also a poster page's photo block, lib/design/layout-poster.mjs): full width from `top` to the bottom edge
+// (it bleeds off the page), cropped around the focal point. Whether it
 // stays that way is decided in the page from the photo's own pixels (lib/design/edge.mjs, window.__ds.ready): when its top and
 // side edges are one plain colour the page takes exactly that colour and the photo runs into it with no fade, no gradient and no
 // blend; otherwise the wrapper gets the class "band" and the photo is a full-bleed band (left 0, full width, no radius, no shadow)
 // from its top to the bottom edge, on the template's ground, like the stats page's photo. Either way the wrapper is the avoid zone for text, and nothing here depends on the mode.
-function objectPhoto(ctx, spec, { top }) {
+export function objectPhoto(ctx, spec, { top }) {
   const fo = POSITION.test(spec.focalCss ?? '') ? spec.focalCss : '50% 50%';
   const [fx, fy] = fo.split(' ').map((v) => parseFloat(v) / 100);
   const zoom = Number.isFinite(Number(spec.zoom)) ? Math.min(3, Math.max(1, Number(spec.zoom))) : 1;

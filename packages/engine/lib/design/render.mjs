@@ -12,7 +12,8 @@ import { hasAlpha, readImageBytes, sniff } from './assets.mjs';
 import { DesignError } from './errors.mjs';
 import { pdfPages, snapMediaBox } from './pdf.mjs';
 import { findLayout, layoutUsesPhone } from './layout.mjs';
-import { layoutFit, renderLayout } from './layout-render.mjs';
+import { layoutFit, renderLayout, renderLayoutWith } from './layout-render.mjs';
+import { builtinLayoutFor } from './builtin-layouts.mjs';
 
 export { DesignError };
 
@@ -29,10 +30,13 @@ const parseRgb = (c) => { const m = c.match(/[\d.]+/g).map(Number); return lumin
 const isPhoneScreen = (spec, layout) => (spec.template === 'screen' && (spec.device ?? 'phone') === 'phone') || spec.template === 'product' || (layout ? layoutUsesPhone(layout) : false);
 const unframedPhone = (file, why) => `screen: "${file}" is not a pre-framed phone capture (${why}). Use a pre-framed phone capture: a transparent PNG or WebP with the phone already drawn around the screen, like the website's public/screens/<name>-phone-660.webp (see design/assets/screens/SOURCES.md). The tool does not draw phones. For a desktop screenshot use "device": "desktop".`;
 
-// job: { spec (one image: template + fields), sizeName, outFile, counter?, layouts? }. A { template: "layout" } spec is drawn from
+// The page of one image before Chrome sees it: the size, the spec for that size, the layout it is drawn from (if any) and the
+// template's output { body, bodyClass, bodyAttrs, sheet?, warnings? }. Pictures are read and checked here. No Chrome; the
+// template baseline harness (testlib/template-baseline.mjs) compares this markup between two versions of the code.
+// job: { spec (one image: template + fields), sizeName, counter?, layouts? }. A { template: "layout" } spec is drawn from
 // the layout it names: one of job.layouts (a preview of layouts not saved yet), else of the brand's own (brand.json "layouts").
-export async function renderImage(browser, brand, job, { tmpDir, converter, quality = 92, log = () => {} } = {}) {
-  const { sizeName, outFile } = job;
+export function preparePage(brand, job) {
+  const { sizeName } = job;
   const S = SIZES[sizeName] ?? COVER_SIZES[sizeName];
   const spec = forSize(job.spec, sizeName);
   const layouts = job.layouts ?? brand.layouts;
@@ -40,9 +44,9 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
   if (spec.template === 'layout') {
     try { layout = findLayout(spec.layout, layouts); } catch (err) { throw new DesignError(err.message); }
     if (!layout.canvas[sizeName]) throw new DesignError(`layout "${layout.id}" has no ${sizeName} size`);
-  }
-  const tpl = layout ? renderLayout : TEMPLATE_FNS[spec.template];
-  const warnings = [], notes = [];
+  } else layout = builtinLayoutFor(spec, job.counter);
+  // A built-in template is drawn from its layout (lib/design/builtin-layouts.mjs) when it has one for this spec, else by its function.
+  const tpl = spec.template === 'layout' ? renderLayout : layout ? (s, c) => renderLayoutWith(layout, s, c) : TEMPLATE_FNS[spec.template];
   // Pictures are read and checked here, once, and embedded; templates only ever see the resulting data: URIs.
   const images = new Map(), dims = new Map();
   if (spec.image !== undefined) {
@@ -52,12 +56,21 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
     dims.set(spec.image, imageSize(buf));
   }
   const out = tpl(spec, { size: S, brand, counter: job.counter, layouts, image: (p) => images.get(p) ?? (() => { throw new DesignError(`image not loaded: ${p}`); })(), imageSize: (p) => dims.get(p) ?? null });
+  return { S, spec, layout, out };
+}
+
+// job: { spec, sizeName, outFile, counter?, layouts? } (see preparePage).
+export async function renderImage(browser, brand, job, { tmpDir, converter, quality = 92, log = () => {} } = {}) {
+  const { sizeName, outFile } = job;
+  const { S, spec, layout, out } = preparePage(brand, job);
+  const warnings = [], notes = [];
   const html = buildPage({ brand, size: S, ...out });
   const isPhoto = spec.template === 'photo';
   const THRESHOLD_KEY = isPhoto ? PHOTO_KEY : EDITORIAL_KEY;
   const need = (key) => (isPhoto ? brand.photo.minContrast[key] : brand.contrast[key]);
   warnings.push(...(out.warnings ?? []));
-  // The editorial pages keep the reference margins (70 px, a few px of optical overhang on the headline); a layout keeps its own.
+  // The editorial pages keep the reference margins (70 px, a few px of optical overhang on the headline); a layout keeps its own
+  // (a built-in layout's page, its templates' reference margins).
   const Sfit = layout ? layoutFit(layout, sizeName) : isPhoto || COVER_SIZES[sizeName] ? S : { ...S, pad: 62, top: 46 };
   fs.mkdirSync(tmpDir, { recursive: true });
   const page = await browser.page(S.w, S.h);

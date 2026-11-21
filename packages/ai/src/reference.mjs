@@ -6,7 +6,7 @@
 // number in range or a name from the engine's own lists) and cut to size; the web app checks the proposal again.
 import { ROOT } from '@vesk/engine/core';
 import { ACCENT_DEVICES, ACCENT_STYLES, DECORATION_ON, DECORATIONS, GROUND_NAMES, PHOTO_TREATMENTS, SURFACES, TYPE_CASES } from '@vesk/engine/design/tokens';
-import { BLOCKS, BLOCK_TYPES, FIELDS, FIELD_NAMES, GRID_LIMITS, LABEL_SOURCES, MAX_BLOCKS, MAX_CHILDREN, TEXTURES, validateLayout } from '@vesk/engine/design/layout';
+import { BLOCKS, BLOCK_TYPES, FIELDS, FIELD_NAMES, GRID_LIMITS, LABEL_SOURCES, MAX_BLOCKS, MAX_CHILDREN, TEXTURES, gridOptions, validateLayout } from '@vesk/engine/design/layout';
 import { AIError } from './errors.mjs';
 import { loadPrompt } from './prompts.mjs';
 import { IMAGE_MEDIA_TYPES } from './providers.mjs';
@@ -46,8 +46,9 @@ export const PROPOSAL_SCHEMA = {
 const int = (min, max) => ({ type: 'integer', minimum: min, maximum: max });
 const SLOT = { type: 'object', required: ['col', 'row', 'width', 'height'], additionalProperties: false, properties: { col: int(1, GRID_LIMITS.columns[1]), row: int(1, GRID_LIMITS.rows[1]), width: int(1, GRID_LIMITS.columns[1]), height: int(1, GRID_LIMITS.rows[1]) } };
 const OPTION_PROPS = {};
-for (const spec of Object.values(BLOCKS)) {
-  for (const [k, o] of Object.entries(spec.options)) {
+// Only what a brand's own (grid) layout takes: the built-in pages' chrome and options are not offered.
+for (const type of BLOCK_TYPES) {
+  for (const [k, o] of gridOptions(type)) {
     if (o.t === 'bool') OPTION_PROPS[k] = { type: 'boolean' };
     else OPTION_PROPS[k] = { enum: [...new Set([...(OPTION_PROPS[k]?.enum ?? []), ...o.list])] };
   }
