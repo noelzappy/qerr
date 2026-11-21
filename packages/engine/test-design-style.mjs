@@ -263,7 +263,7 @@ test('logo and footer: the poster bar at the top or the bottom, the logo on eith
   const obj = { template: 'object', headline: 'h', image: 'a.jpg' };
   assert.match(page(brand, obj), /<div class="pbar" style="left:80px;right:80px;top:60px"><span class="logo-inv/);
   const br = withStyle({ logo: 'bottom-right' });
-  assert.match(page(br, obj), /<div class="pbar flip" style="left:80px;right:80px;top:1250px">/);
+  assert.match(page(br, { template: 'number', big: '1' }), /<div class="pbar flip" style="left:80px;right:80px;top:1250px">/);
   // myth-fact moves its series mark to the top when the bar is at the bottom
   assert.match(page(br, { template: 'myth-fact', myth: 'm', factLead: 'f' }), /<div class="pmark" style="right:80px;top:63px">/);
   assert.match(page(withStyle({ logo: 'top-right' }), obj), /<div class="pbar flip" style="left:80px;right:80px;top:60px">/);
@@ -279,6 +279,28 @@ test('logo and footer: the poster bar at the top or the bottom, the logo on eith
   assert.ok(!page(none, { template: 'photo', headline: 'h', image: 'a.jpg' }).includes('data-role="url"'));
   // a carousel still says Swipe on its first page
   assert.match(page(none, obj, { counter: { n: 1, total: 3 } }), /data-role="foot">Swipe →</);
+});
+
+test('a bottom logo bar goes to the top on poster pages whose photo or phone takes the bottom edge', () => {
+  const bl = withStyle({ logo: 'bottom-left' }), br = withStyle({ logo: 'bottom-right' });
+  const top = (flip = '') => new RegExp(`<div class="pbar${flip}" style="left:80px;right:80px;top:60px">`);
+  const bottom = (flip = '') => new RegExp(`<div class="pbar${flip}" style="left:80px;right:80px;top:1250px">`);
+  // the object photo always bleeds off the bottom; the side the brand chose is kept
+  assert.match(page(bl, { template: 'object', headline: 'h', image: 'a.jpg' }), top());
+  assert.match(page(br, { template: 'object', headline: 'h', image: 'a.jpg' }), top(' flip'));
+  // number: with a photo the bar goes up, without one it stays where the brand put it
+  assert.match(page(bl, { template: 'number', big: '52', image: 'a.jpg' }), top());
+  assert.match(page(bl, { template: 'number', big: '52' }), bottom());
+  // product: the centred phone runs off the bottom; a phone beside the headline only when it reaches the bar
+  const tall = { imageSize: () => ({ w: 660, h: 1354 }) };
+  assert.match(page(bl, { template: 'product', headline: 'h', image: 'p.png' }, tall), top());
+  assert.match(page(bl, { template: 'product', headline: 'h', image: 'p.png', layout: 'side', phoneTop: 700 }, tall), top());
+  assert.match(page(bl, { template: 'product', headline: 'h', image: 'p.png', layout: 'side' }, { imageSize: () => ({ w: 660, h: 1000 }) }), bottom());
+  // the first page of a carousel: "Swipe →" goes up with the bar
+  assert.match(page(bl, { template: 'object', headline: 'h', image: 'a.jpg' }, { counter: { n: 1, total: 3 } }), /top:60px"><span class="logo-inv[^]*?data-role="foot">Swipe →</);
+  // pages with nothing at the bottom keep the brand's bar
+  assert.match(page(bl, { template: 'myth-fact', myth: 'm', factLead: 'f' }), bottom());
+  assert.match(page(bl, { template: 'closing' }), bottom());
 });
 
 test('style values never reach the page as they are: unchecked hostile values map to nothing', () => {

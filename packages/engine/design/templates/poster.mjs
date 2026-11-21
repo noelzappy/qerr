@@ -51,13 +51,15 @@ function logo(ctx, dark, h = 34) {
 // The only chrome (also drawn for the built-in layouts' "bar" block, lib/design/layout-poster.mjs): the logo and the website (or
 // "Swipe →" on page 1 of a carousel) in one bar, by default at the top with the
 // logo on the left. The brand's style may put the bar at the bottom, the logo on the right, the logo in a light pill, or leave
-// the website out.
-export function bar(ctx, dark, { right } = {}) {
+// the website out. `bottomTaken`: a photo or phone runs to the bottom edge, under where a bottom bar would be. The bar's logo is
+// drawn for the page's ground, not for a picture, so there it stays at the top, on the ground (the side still follows the style).
+export const BAR_LOW = POSTER.h - POSTER.barTop - 40;
+export function bar(ctx, dark, { right, bottomTaken = false } = {}) {
   const style = footerOf(ctx.brand), place = logoPlace(ctx.brand, 'poster');
   let r = right;
   if (r === undefined) r = ctx.counter?.n === 1 ? 'Swipe →' : style === 'none' ? '' : ctx.brand.website;
   const mark = style === 'pill' ? `<span class="lpill"><img src="${ctx.brand.logoFullSrc}" alt="${esc(ctx.brand.name)}"></span>` : logo(ctx, dark);
-  const y = place.bottom ? POSTER.h - POSTER.barTop - 40 : POSTER.barTop;
+  const y = place.bottom && !bottomTaken ? BAR_LOW : POSTER.barTop;
   return `<div class="pbar${place.right ? ' flip' : ''}" style="left:${POSTER.m}px;right:${POSTER.m}px;top:${y}px">${mark}${r ? `<span class="purl" data-role="foot">${esc(r)}</span>` : ''}</div>`;
 }
 
@@ -112,7 +114,7 @@ function poster(ctx, ground, body, { flex = false, spec } = {}) {
 export function object(spec, ctx) {
   const asked = groundOf(spec, ctx, 'photo', { photo: true }), g = asked === 'photo' ? sceneGround(spec, ctx) : asked, dark = isDark(ctx.brand, g);
   const top = spec.photoTop ?? POSTER.photoTop;
-  const body = objectPhoto(ctx, spec, { top }) + bar(ctx, dark)
+  const body = objectPhoto(ctx, spec, { top }) + bar(ctx, dark, { bottomTaken: true })
     + words({ headline: spec.headline, sub: spec.sub, size: spec.size ?? 104, align: spec.align });
   return poster(ctx, g, body, { spec });
 }
@@ -125,7 +127,7 @@ export function number(spec, ctx) {
   const step = (920 + 40) / Math.max(1, list.length);
   const stats = list.map((s, i) => `<div class="abs" style="left:${px(POSTER.m + i * step)}px;top:448px;width:${px(step - 40)}px"><div class="ps-h" data-role="stat" style="font-size:${hs(64)}">${fmtSub(s[0])}</div><div class="sub ps-sub" data-role="statlabel" data-min="30" style="margin-top:6px">${fmtSub(s[1])}</div></div>`).join('');
   const pic = spec.image ? objectPhoto(ctx, spec, { top }) : '';
-  return poster(ctx, g, pic + bar(ctx, dark) + big + line + stats, { spec });
+  return poster(ctx, g, pic + bar(ctx, dark, { bottomTaken: Boolean(pic) }) + big + line + stats, { spec });
 }
 
 export function product(spec, ctx) {
@@ -141,7 +143,8 @@ export function product(spec, ctx) {
     text = words({ headline: spec.headline, sub: spec.sub, size: spec.size ?? (spec.sub ? 88 : 104), align: spec.align ?? 'center' });
   }
   const halo = spec.glow === false ? '' : glow(ctx, { x, y: y + 40, w, h: Math.min(POSTER.h - y, w * ratio) });
-  return poster(ctx, g, halo + bar(ctx, dark) + text + phone(ctx, spec, { w, at: { x, y } }), { spec });
+  // The phone is drawn at its full height from y; when it reaches the bar's place at the bottom, the bar stays at the top.
+  return poster(ctx, g, halo + bar(ctx, dark, { bottomTaken: y + w * ratio > BAR_LOW }) + text + phone(ctx, spec, { w, at: { x, y } }), { spec });
 }
 
 // Myth and fact as colour-blocked slabs on a dark textured ground, centred between the top bar and the series mark.

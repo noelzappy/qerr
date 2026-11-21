@@ -54,7 +54,8 @@ function photo(blk, spec, ctx, r) {
 
 export const DRAW = {
   photo,
-  bar: (blk, spec, ctx, r, state) => bar(ctx, state.frame.dark),
+  // A photo block draws to the bottom edge (objectPhoto), so with one on the page the bar stays at the top, as in poster.mjs.
+  bar: (blk, spec, ctx, r, state) => bar(ctx, state.frame.dark, { bottomTaken: typeof spec.image === 'string' && spec.image !== '' && state.shown.some(({ blk: b }) => b.type === 'photo') }),
   headline: (blk, spec, ctx, r, state) => words(blk, spec, r, state, { big: false }),
   figure: (blk, spec, ctx, r, state) => words(blk, spec, r, state, { big: true }),
   sub,
