@@ -2,7 +2,7 @@
 // design/templates/poster.mjs for the functions they replace). One entry per template: a list of { when?, layout }, the first
 // whose condition holds drawing the page; a spec that matches none is drawn by the template function (not converted yet).
 //
-// Converted: number, object, product (centre and side). Still drawn by their functions: myth-fact, closing (phase 2,
+// Converted: number, object, product (centre and side), myth-fact. Still drawn by its function: closing (phase 2,
 // testlib/CONVERTING.md).
 
 const CANVAS = { feed: { columns: 12, rows: 15, margin: 80, gutter: 40 } };
@@ -96,8 +96,30 @@ const PRODUCT_SIDE = {
   ],
 };
 
+// myth-fact: the myth on a solid slab and the fact (its headline and the optional explanation) on a pale one, centred between the
+// top bar and the series mark, on the dark ground with the posters' texture.
+const MYTH_FACT = {
+  id: 'myth-fact',
+  name: 'Myth and fact',
+  description: 'The myth and the fact as colour-blocked slabs on a dark ground, with the series mark.',
+  page: 'poster',
+  ground: 'dark',
+  fields: { myth: { required: true, max: 220 }, factLead: { required: true, max: 220 }, fact: { max: 220 } },
+  canvas: CANVAS,
+  blocks: [
+    { type: 'bar' },
+    {
+      type: 'slabs',
+      px: { x: 80, y: 150, w: 920, h: 1050 },
+      children: [{ type: 'headline', field: 'myth', size: 68 }, { type: 'headline', field: 'factLead', size: 68 }, { type: 'sub', field: 'fact' }],
+    },
+    { type: 'mark' },
+  ],
+};
+
 export const LAYOUTS = {
   object: [{ layout: OBJECT }],
   number: [{ layout: NUMBER }],
   product: [{ when: { field: 'layout', is: 'side' }, layout: PRODUCT_SIDE }, { layout: PRODUCT }],
+  'myth-fact': [{ layout: MYTH_FACT }],
 };

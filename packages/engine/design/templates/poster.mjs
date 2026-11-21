@@ -147,6 +147,7 @@ export function product(spec, ctx) {
 }
 
 // Myth and fact as colour-blocked slabs on a dark textured ground, centred between the top bar and the series mark.
+// Unused: drawn from its layout (lib/design/builtin/poster.mjs).
 export function mythFact(spec, ctx) {
   const g = groundOf(spec, ctx, 'dark'), dark = isDark(ctx.brand, g);
   const series = spec.series !== undefined ? ctx.brand.series[spec.series] : null;
