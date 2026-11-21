@@ -21,7 +21,8 @@ const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const demo = loadBrand();
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
 const brands = Object.fromEntries(Object.entries(STYLES).map(([k, style]) => [k, style ? { ...demo, ...normaliseBrand({ ...RAW, style }) } : demo]));
-const CONVERTED = ['number', 'text'];
+// The templates with layouts registered (lib/design/builtin/*.mjs): a group that converts one needs no change here.
+const CONVERTED = Object.keys(BUILTIN);
 const ctxOf = (brand, counter, dims = { w: 1800, h: 1800 }) => ({ size: SIZES.feed, brand, counter, image: () => PIXEL, imageSize: () => dims });
 const parts = (o) => ({ body: o.body, bodyClass: o.bodyClass ?? '', bodyAttrs: o.bodyAttrs ?? '', sheet: o.sheet ?? '' });
 
@@ -37,9 +38,8 @@ test('every built-in layout is a valid layout, registered under a real template,
   for (const [t, list] of Object.entries(BUILTIN)) for (const v of list) assert.deepEqual(validateLayout(v.layout), [], t);
   assert.equal(builtinLayoutFor({ template: 'number', big: '1' }).id, 'number');
   assert.equal(builtinLayoutFor({ template: 'text', headline: 'h' }).id, 'text');
-  // a text page with an artefact, and the templates not converted yet, are still drawn by their functions
-  assert.equal(builtinLayoutFor({ template: 'text', headline: 'h', artefact: { type: 'register' } }), null);
-  for (const t of ['object', 'product', 'myth-fact', 'closing', 'cover', 'ledger', 'passbook', 'stats', 'screen', 'photo-story', 'photo', 'pagecover', 'layout', 'carousel', 'constructor', '__proto__']) assert.equal(builtinLayoutFor({ template: t }), null, t);
+  // the templates not converted yet are still drawn by their functions; so is anything that is not a template
+  for (const t of [...Object.keys(LEGACY_FNS).filter((x) => !CONVERTED.includes(x)), 'layout', 'carousel', 'constructor', '__proto__', 'toString']) assert.equal(builtinLayoutFor({ template: t }), null, t);
   assert.equal(builtinLayoutFor(null), null);
 });
 
@@ -102,5 +102,6 @@ test('the renderer draws a converted template from its layout, with the template
   assert.equal(p.layout.id, 'text');
   assert.deepEqual({ pad: layoutFit(p.layout, 'feed').pad, top: layoutFit(p.layout, 'feed').top }, { pad: 62, top: 46 });
   assert.equal(preparePage(brand, { spec: normaliseDesign({ template: 'number', big: '1' }), sizeName: 'feed' }).layout.id, 'number');
-  assert.equal(preparePage(brand, { spec: normaliseDesign({ template: 'text', headline: 'h', artefact: { type: 'register', title: 'T', rows: [['a', '1']] } }), sizeName: 'feed' }).layout, null);
+  // a template that is not converted has no layout (the closing page, while it is drawn by its function)
+  if (!CONVERTED.includes('closing')) assert.equal(preparePage(brand, { spec: normaliseDesign({ template: 'closing' }), sizeName: 'feed' }).layout, null);
 });

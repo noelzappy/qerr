@@ -18,14 +18,17 @@ const isPanel = (blk) => blk.type === 'decoration' && opt(blk, 'kind') === 'pane
 const panelOf = (state) => state.shown.find((s) => isPanel(s.blk))?.r ?? null;
 const within = (r, p) => !!p && r.x >= p.x && r.y >= p.y && r.x + r.w <= p.x + p.w && r.y + r.h <= p.y + p.h;
 
-// The headline in its box (editorial.mjs textBlock without a sub line): the size from the block, or the spec's own validated
-// "size" (70, 84 or 112) when the block takes it, with its class for the optical overhang.
+// The headline in its box (editorial.mjs textBlock): the size from the block, or the spec's own validated "size" (70, 84 or 112)
+// when the block takes it, with its class for the optical overhang. A subField's sub line flows 28 px under it in the same box,
+// subWidth wide, so it moves up as the fit loop shrinks the headline.
 function headline(blk, spec, ctx, r, state) {
   const v = spec[blk.field ?? 'headline'];
   if (typeof v !== 'string' || !v) return '';
   const size = opt(blk, 'specSize') && HEADLINE_PX.includes(spec.size) ? spec.size : opt(blk, 'size');
   const cls = opt(blk, 'style') === 'poster' ? 'ps-h' : `h s${size}`;
-  return `<div class="abs"${lead(state)} style="${place(r)}${alignOf(blk)}"><div class="${cls}" data-role="headline" style="font-size:${fontSize(blk, size)};max-width:${px(r.w)}px">${fmtE(v)}</div></div>`;
+  const s = blk.subField === undefined ? undefined : spec[blk.subField];
+  const flow = typeof s === 'string' && s ? `<div class="sub" data-role="sub" data-min="30" style="margin-top:28px;max-width:${px(opt(blk, 'subWidth'))}px">${fmtSub(s)}</div>` : '';
+  return `<div class="abs"${lead(state)} style="${place(r)}${alignOf(blk)}"><div class="${cls}" data-role="headline" style="font-size:${fontSize(blk, size)};max-width:${px(r.w)}px">${fmtE(v)}</div>${flow}</div>`;
 }
 
 // A sub line on its own; on the panel when its rectangle lies on it (the fit check then does not count the panel's edge).
@@ -46,6 +49,13 @@ const head = (blk, spec, ctx, r, state) => runhead(state.frame.label, folio(ctx)
 // for what it sits on: the panel when the page has one, else the ground.
 const foot = (blk, spec, ctx, r, state) => footer(ctx, { inverse: panelOf(state) ? isDarkColour(ctx.brand.surfaces.panel) : state.frame.dark });
 
+// -- artefacts group: drawings of new block types go here --
+// (end of artefacts group)
+// -- editorial group: drawings of new block types go here --
+// (end of editorial group)
+// -- screen group: drawings of new block types go here --
+// (end of screen group)
+
 export const DRAW = {
   decoration,
   runhead: head,
@@ -53,6 +63,12 @@ export const DRAW = {
   sub,
   footer: foot,
   spacer: () => '',
+  // -- artefacts group --
+  // (end of artefacts group)
+  // -- editorial group --
+  // (end of editorial group)
+  // -- screen group --
+  // (end of screen group)
 };
 
 // The page around the blocks: editorial.mjs page().

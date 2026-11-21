@@ -425,10 +425,22 @@ built-ins' exact pixels, and a grid page has none of their own behaviour.
 The built-in templates are being re-expressed in the same format, so that one renderer draws every page. A design that names a
 template (`{ "template": "number", ... }`) is still written and checked exactly as before (`validateDesign`); when a layout is
 registered for its template in `lib/design/builtin-layouts.mjs` (one file per template group under `lib/design/builtin/`), the
-page is drawn from that layout instead of the template's function, and it is the same image, pixel for pixel. Converted so far:
-**`number`** and **`text`** without an artefact. The others, and a text page with an artefact, are still drawn by their
-functions in `design/templates/`. `testlib/template-baseline.mjs` renders every template, for the demo brand and two style
-variants, before and after, and compares the pictures and the page markup (see `packages/engine/testlib/CONVERTING.md`).
+page is drawn from that layout instead of the template's function, and it is the same image, pixel for pixel. What is not
+converted yet is still drawn by its function in `design/templates/`. `testlib/template-baseline.mjs` renders every template,
+for the demo brand and two style variants, before and after, and compares the pictures and the page markup (see
+`packages/engine/testlib/CONVERTING.md`). By group:
+
+- Poster (`lib/design/builtin/poster.mjs`): **`number`** is drawn from its layout; `object`, `product`, `myth-fact` and
+  `closing` by their functions.
+
+- Artefacts (`lib/design/builtin/artefacts.mjs`): `ledger`, `passbook` and a `text` page with an artefact by their functions.
+
+- Editorial (`lib/design/builtin/editorial.mjs`): **`text`** without an artefact is drawn from its layout; `cover`, `stats` and
+  `photo-story` by their functions.
+
+- Screen (`lib/design/builtin/screen.mjs`): `screen` by its function.
+
+- Photo (`lib/design/builtin/photo.mjs`): `photo` and the page covers by their functions.
 
 The format gained what the built-ins need; every new value is a name from a fixed list or a bounded whole number, checked by
 `validateLayout` like the rest:
@@ -443,7 +455,13 @@ The format gained what the built-ins need; every new value is a name from a fixe
   `slot`. Text keeps inside the size's minimum margins. The overlap and panel checks treat it like a slot.
 - **`when`**: a block may be drawn only when a declared field is filled (`{ "present": "sub" }`) or empty (`{ "absent":
   "image" }`), or only on page 1 of a carousel, a later page or a single post (`{ "page": "first" | "later" | "single" }`);
-  several keys must all hold. Blocks whose conditions exclude each other may show the same field and share space.
+  several keys must all hold. Blocks whose conditions exclude each other may show the same field and share space. A
+  condition may also test one choice from a fixed table (`SPEC_CHOICES`): `{ "field": "artefact", "is": "ledger" }` (the
+  artefact's type; the only choice a grid page may test, and only a declared artefact), and on the built-in pages the
+  templates' own options and flags (`register`, `beside`, `pills`, `checks`, `layout`, `device`, `align`, `size`, `textAt`,
+  `scrim`, `map`, `fade`, `tilt`, `framed`, `glow`, `dots`), with `is` or `not` and a value or a list of values from that
+  choice's list. Where every template has the same default it is filled in (a device is a phone unless it says desktop);
+  where they differ the value is read as given, and an unset value matches no `is`, only a `not`.
 - **`ground`** may be a list of up to 4 cases, `[{ "when": { "present": "image" }, "ground": "photo" }, { "ground": "cool" }]`,
   the first that holds being used (only the last has no `when`). On a poster page `photo` starts the page from the series'
   ground, else `cool`; a plain photo background then replaces it in the browser, as on the poster templates.
@@ -452,10 +470,12 @@ The format gained what the built-ins need; every new value is a name from a fixe
   `label`, and the folio, the spec's `headRight` or the brand's name; `rule`) and `footer` (the editorial footer, its logo drawn
   for the panel when the page has one).
 - **Options**: `shrink` (headline, figure, stats; default true: the block shrinks with every other such block in the fit loop;
-  false keeps its size), `specSize` (a headline takes the spec's own validated `size`) and `photoTop` (a poster photo's top edge
-  moves to the spec's validated `photoTop`).
+  false keeps its size), `specSize` (a headline takes the spec's own validated `size`), `photoTop` (a poster photo's top edge
+  moves to the spec's validated `photoTop`), and a headline's `subField` with `subWidth` (100 to 1080 px, default 820): that
+  sub line flows 28 px under the headline in the same box, as the templates set a headline and its sub line, so it moves up
+  when the fit loop shrinks the headline.
 
-The chrome blocks, `specSize` and `photoTop` belong to the built-in pages: Settings, Layouts and the AI's compositions are
+The chrome blocks, `specSize`, `photoTop`, `subField` and `subWidth` belong to the built-in pages: Settings, Layouts and the AI's compositions are
 offered only what a grid page takes (`layoutCatalogue`).
 
 ## Your own photos and screenshots

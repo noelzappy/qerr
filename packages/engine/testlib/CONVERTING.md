@@ -34,23 +34,69 @@ notes. Old designs (`{ "template": "stats", ... }`) keep working unchanged: they
 | screen | `screen` (phone, beside, fade, desktop) | `builtin/screen.mjs` | `layout-editorial.mjs` |
 | photo | `photo` (every size), `pagecover` | `builtin/photo.mjs` | a new `layout-photo.mjs` (and probably `layout-cover.mjs`) |
 
-Several groups add lines to the same shared lists: `BLOCKS` and `PAGES` in `layout.mjs`, `DRAW` in `layout-editorial.mjs`. Add
-your lines; never reformat, reorder or rename what is there. Each drawing is its own function plus one line in `DRAW`; each
-honoured option one entry in its `PAGES` line. A merge conflict in those lists is additive: keep both sides.
+## Who edits what (so that the group branches merge without conflicts)
 
-**Do the shared extensions first** (one small change, merged before the groups start, or by the first group with the others
-rebasing on it), because almost every group needs them:
+Each group edits **only** the places below. Every shared list has one section per group, between `// -- <group> group --` and
+`// (end of <group> group)`: put your lines inside your own section, just before its end line, and never edit, reorder or
+reformat anything outside it. Sections are separated by unchanged lines, so git merges the branches cleanly.
 
-1. **A headline with its sub line flowing under it.** `textBlock({ headline, sub, subW })` (editorial) and `words({ headline,
-   sub, subW, align })` (poster) put the sub line inside the headline's `#txt` box, 28 px under it, with its own `max-width`
-   (and `margin-left:auto;margin-right:auto` when centred). Used by object, product, closing, cover, photo-story, screen and the
-   artefact pages. Suggested: headline options `subField` (a declared text field, checked like `titleField`) and `subWidth` (a
-   bounded whole number of pixels, which needs a new option kind `{ t: 'int', min, max }` in `optionProblems`).
-2. **Conditions the remaining templates branch on.** `when` knows `present`, `absent` (declared fields) and `page`. Still needed:
-   the artefact's type (`artefactPage`: ledger, register, passbook, passbook with a register), a flag (`closing`'s `map`,
-   `screen`'s `fade`, `glow`), and a fixed spec option (`product`'s `layout: side`, `photo-story`'s `layout: print`, `screen`'s
-   `device`). Add each as a key from a fixed list whose value is a fixed list (for example `{ "is": { "layout": "side" } }` with
-   the allowed spec keys and values listed in `layout.mjs`), never a free expression.
+| file | every group | only its owner |
+| --- | --- | --- |
+| `lib/design/builtin/<group>.mjs` | its own file, freely | |
+| `lib/design/layout.mjs` | its section in `BLOCKS` (new block types), `ADDED_OPTIONS` (`[type, name, option]`: a new option on a block type that exists), `ADDED_HONOURS` (`[page, type, option]`: a page honours one more option of a block type it already draws) and `PAGES.<page>.draws` (a page draws a block type it did not) | photo: `PAGE_KINDS`, a new `PAGES.photo` / `PAGES.cover` entry, the canvas size rules for page covers |
+| `lib/design/layout-poster.mjs` | | poster: everything (the `words`, `sub`, `stats`, `photo` drawings included) |
+| `lib/design/layout-editorial.mjs` | its sections: new drawing functions above `DRAW`, and their lines in `DRAW` | screen: the existing `headline` drawing (the flowing pills and check list, textBlock's `flow`); nobody else changes the existing drawings |
+| `lib/design/layout-photo.mjs`, `layout-cover.mjs` (new) | | photo |
+| `lib/design/layout-render.mjs` | | photo: the dispatch in `renderLayoutWith` and `layoutFit` for its new page kinds |
+| `lib/design/layout-parts.mjs` | nothing | |
+| `design/templates/<template>.mjs` | its own templates' files: export a helper (output unchanged), comment the function as unused | poster: `poster.mjs`; artefacts: `artefactPage.mjs`, `artefacts.mjs`, `ledger.mjs`, `passbook.mjs`, `text.mjs`; editorial: `cover.mjs`, `stats.mjs`, `photo-story.mjs`; screen: `screen.mjs`; photo: `photo.mjs`, `pagecover.mjs`. `editorial.mjs` (shared helpers): export only, no change of output |
+| `testlib/template-baseline.mjs` | new cases at the end of its own templates' part of `CASES` (before the carousels), added **before** it takes its baseline | |
+| tests | a new file `test-design-builtin-<group>.mjs` (its fields filled, empty and hostile, against `LEGACY_FNS`, as in `test-design-builtin.mjs`; its new options, valid, invalid and hostile) | |
+| `docs/design.md` | its own bullet under "The built-in templates as layouts" (the bullets are separated by blank lines) | |
+| `packages/engine/testlib/CONVERTING.md` | its own gotchas, as a new bullet at the end of "Gotchas" | |
+
+Nobody edits `lib/design/builtin-layouts.mjs`, `design/templates/index.mjs`, `lib/design/render.mjs`, `lib/design/spec.mjs`,
+`test-design-builtin.mjs` (it compares every registered template with its function by itself), `test-design-layout.mjs` or
+`test-design-layout-shared.mjs`. A change you need there is a shared change: ask the coordinator.
+
+## The shared extensions (in place)
+
+**1. A headline with its sub line flowing under it** (`textBlock({ headline, sub, subW })` on editorial pages, `words({
+headline, sub, subW, align })` on posters). Give the headline block `subField` (a declared text field) and `subWidth` (the
+sub line's `max-width`, a whole number of pixels from 100 to 1080, default 820):
+
+```js
+{ type: 'headline', size: 84, subField: 'sub', subWidth: 900, px: { x: 70, y: 896, w: 940, h: 300 } }       // cover
+{ type: 'headline', size: 104, align: 'center', subField: 'sub', px: { x: 80, y: 170, w: 920, h: 400 } }    // object
+```
+
+The sub line is drawn inside the headline's `#txt` box, 28 px under it (`margin-top`), `max-width` the `subWidth`, centred
+under a centred poster headline: byte for byte the templates' markup (`test-design-layout-shared.mjs` compares it with
+`textBlock` and `words`). Since it is in the same box it moves up as the fit loop shrinks the headline, as today. The field
+counts as shown by that block. Built-in pages only. Not drawn yet: textBlock's `pills` and `checks` (screen) and `flow` (the
+phone row): the screen group adds them to the editorial headline drawing.
+
+**2. Conditions on the artefact's type, flags and fixed spec options.** Besides `present`, `absent` and `page`, a `when` may
+test one choice from the fixed table `SPEC_CHOICES` in `layout.mjs`:
+
+```js
+{ field: 'artefact', is: 'ledger' }            // the artefact's type: ledger, passbook, register
+{ field: 'register', is: true }                // a passbook with a register card (spec.register or spec.artefact.register)
+{ field: 'layout', is: 'side' }                // product center|side, photo-story panel|print (as given: unset matches no "is")
+{ field: 'layout', not: 'side' }               // ... so the default variant is "not side" (unset included)
+{ field: 'size', is: [70, 84] }                // the spec's headline size, as given
+{ field: 'device', is: 'desktop' }             // phone (default) or desktop
+{ field: 'glow', is: false }                   // flags with their templates' defaults: glow, dots default true; map, fade, tilt, framed false
+{ field: 'textAt', is: 'bottom' }              // the photo post's, per size resolved (default top); also scrim (default black)
+{ field: 'beside', is: true }                  // presence: beside, pills, checks
+{ field: 'artefact', is: 'passbook', present: 'sub', page: 'first' }   // several keys: all must hold
+```
+
+`is` and `not` take one value or a list of them; every value must be in the choice's list, and a choice must be in the table.
+Two conditions on the same choice that let no value through together exclude each other (so their blocks may share a field
+and space). On a grid page (a brand's own layout) only `artefact` may be tested, and only when declared; the registry
+variants (`LAYOUTS = { text: [{ when: { field: 'artefact', is: 'ledger' }, layout }] }`) may test any choice. A choice not in
+the table (for example `closing`'s default text, `region`) is a shared change: ask the coordinator.
 
 ## The recipe
 
@@ -71,8 +117,10 @@ rebasing on it), because almost every group needs them:
    models.
 4. **Add the drawings your blocks need** to the page file: reproduce the template's markup byte for byte, by calling the
    template's helper where there is one (export it from the template file without changing its output, as `bar` and
-   `objectPhoto` were). Add the block type and its honoured options to `PAGES[page].draws`. New options go into `BLOCKS` (fixed
-   list or bounded number; wrap a built-in-only one in `on(BUILT_PAGES, ...)` so the editor and the AI never see it).
+   `objectPhoto` were). All of it in your sections (see "Who edits what"): a new block type's line in `PAGES[page].draws`
+   with its honoured options; one more honoured option of a drawn type in `ADDED_HONOURS`; a new option in `ADDED_OPTIONS`
+   (`e(list, def)`, `b(def)` or `n(min, max, def)`: a fixed list, a flag or a bounded whole number; wrap a built-in-only one
+   in `on(BUILT_PAGES, ...)` so the editor and the AI never see it).
 5. **Compare the markup, without Chrome**, until there is no difference:
    ```sh
    node packages/engine/testlib/template-baseline.mjs markup base --only cover,stats,photo-story
@@ -88,12 +136,13 @@ rebasing on it), because almost every group needs them:
    notes) differs; `--diff` writes red-marked difference pictures to `out/template-baseline/after/diff/`. `sheet` writes contact
    sheets (`out/template-baseline/after/sheet-<only>-<style>-<n>.png`) to look at with an image viewer. Everything under `out/`
    is git-ignored; never commit an image.
-7. **Tests.** Add your templates to `CONVERTED` in `test-design-builtin.mjs` (and their fields, grounds and options to the
-   specs there), and new valid, invalid and hostile cases for every new option or block type to `test-design-layout.mjs`.
-   `test-design-security.mjs` runs hostile text through `TEMPLATE_FNS`, so it covers your layouts once they are registered.
-   Then `npm test` and `npm run typecheck --workspace @vesk/web`.
+7. **Tests.** `test-design-builtin.mjs` compares every registered template's markup with its function's for every harness
+   case, style and carousel page by itself. In your own `test-design-builtin-<group>.mjs`, compare your templates with
+   `LEGACY_FNS` for fields filled, empty and hostile, every ground and accent and option they take, and the errors they raise;
+   and test each new block type and option (valid, invalid, hostile). `test-design-security.mjs` runs hostile text through
+   `TEMPLATE_FNS`, so it covers your layouts once registered. Then `npm test` and `npm run typecheck --workspace @vesk/web`.
 8. **Leave the function in place, unused** (phase 2 removes them all at the end), and say so in its comment and in your
-   group file's "Converted:" line. Update `docs/design.md` ("The built-in templates as layouts").
+   group file's "Converted:" line. Update your bullet in `docs/design.md` ("The built-in templates as layouts").
 
 ## Rules for the drawings (rule 11)
 

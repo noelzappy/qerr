@@ -13,14 +13,17 @@ const fontSize = (blk, n) => (opt(blk, 'shrink') ? hs(n) : `${px(n)}px`);
 // The poster's lead text box (the first headline or figure drawn) is #txt, which stands above the photo (brand.css).
 const lead = (state) => { if (state.txt) return ''; state.txt = true; return ' id="txt"'; };
 
-// A headline or a big figure in its box, as poster.mjs words() sets one without a sub line: text-align always written. On a
-// poster page the type is the posters' unless the block asks for the editorial style.
+// A headline or a big figure in its box, as poster.mjs words() sets one: text-align always written. On a poster page the type is
+// the posters' unless the block asks for the editorial style. A headline with a subField has that sub line flowing 28 px under it
+// in the same box (subWidth wide, centred under a centred headline), so it moves up as the fit loop shrinks the headline.
 function words(blk, spec, r, state, { big }) {
   const v = spec[blk.field ?? (big ? 'big' : 'headline')];
   if (typeof v !== 'string' || !v) return '';
-  const size = opt(blk, 'size'), editorial = blk.style !== undefined && opt(blk, 'style') === 'editorial';
+  const size = opt(blk, 'size'), editorial = blk.style !== undefined && opt(blk, 'style') === 'editorial', align = opt(blk, 'align');
   const cls = editorial ? (big ? 'h big' : `h s${size}`) : (big ? 'ps-h big' : 'ps-h');
-  return `<div class="abs"${lead(state)} style="${place(r)};text-align:${opt(blk, 'align')}"><div class="${cls}" data-role="${big ? 'stat' : 'headline'}" style="font-size:${fontSize(blk, size)}">${fmtE(v)}</div></div>`;
+  const s = big || blk.subField === undefined ? undefined : spec[blk.subField];
+  const flow = typeof s === 'string' && s ? `<div class="sub ps-sub" data-role="sub" data-min="30" style="margin-top:28px;max-width:${px(opt(blk, 'subWidth'))}px${align === 'center' ? ';margin-left:auto;margin-right:auto' : ''}">${fmtSub(s)}</div>` : '';
+  return `<div class="abs"${lead(state)} style="${place(r)};text-align:${align}"><div class="${cls}" data-role="${big ? 'stat' : 'headline'}" style="font-size:${fontSize(blk, size)}">${fmtE(v)}</div>${flow}</div>`;
 }
 
 // A sub line on its own (number's line under the figure): the box carries the role, in the posters' sub style.
@@ -46,6 +49,9 @@ function photo(blk, spec, ctx, r) {
   return objectPhoto(ctx, spec, { top });
 }
 
+// -- poster group: drawings of new block types go here --
+// (end of poster group)
+
 export const DRAW = {
   photo,
   bar: (blk, spec, ctx, r, state) => bar(ctx, state.frame.dark),
@@ -55,6 +61,8 @@ export const DRAW = {
   stats,
   decoration: (blk, spec, ctx, r, state) => decorationHtml(blk, ctx, r, state.warnings),
   spacer: () => '',
+  // -- poster group --
+  // (end of poster group)
 };
 
 // The page around the blocks: poster.mjs poster().

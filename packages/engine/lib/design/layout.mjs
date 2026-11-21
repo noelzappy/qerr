@@ -37,19 +37,23 @@
 //                                               only when the field is filled (or empty), or on page 1 of a carousel, a later
 //                                               page, or a post that is not a carousel. Several keys must all hold. Two blocks
 //                                               whose conditions exclude each other may show the same field and may overlap.
+//                                               { "field": "artefact", "is": "ledger" } (or "not", a value or a list) tests one
+//                                               choice of SPEC_CHOICES: the artefact's type, and on built-in pages the templates'
+//                                               own options and flags.
 //   chrome blocks (no slot: the page frame places them, following the brand's logo placement and footer style): "bar" (the
 //                                               poster's logo and website, "Swipe →" on page 1 of a carousel), "runhead" (the
 //                                               editorial running head) and "footer" (the editorial footer).
 //   options: "shrink" (headline, figure, stats: true, the default, shrinks the block with the fit loop, together with every
 //                                               other block that shrinks; false keeps its size), "specSize"
 //                                               (headline: the spec's own validated "size" replaces the block's), "photoTop"
-//                                               (a poster photo: the spec's validated "photoTop" moves its top edge).
+//                                               (a poster photo: the spec's validated "photoTop" moves its top edge), "subField"
+//                                               and "subWidth" (a headline's sub line flowing under it in the same box).
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, brandFile } from '../core.mjs';
-import { ARTEFACT_TYPES, IMAGE_EXT, MAX_STATS, NETWORKS, focalToCss, parseSizes, parseStat, validateDesign } from './spec.mjs';
+import { ARTEFACT_TYPES, DEVICES, HEADLINE_SIZES as SPEC_HEADLINE_SIZES, IMAGE_EXT, LAYOUTS as STORY_LAYOUTS, MAX_STATS, NETWORKS, PRODUCT_LAYOUTS, SCRIMS, focalToCss, parseSizes, parseStat, validateDesign } from './spec.mjs';
 import { SIZES, SIZE_NAMES } from './sizes.mjs';
-import { ACCENT_STYLES, DARK_GROUNDS, GROUND_NAMES, SERIES_KEY, groundName } from './tokens.mjs';
+import { ACCENT_STYLES, ALIGNS as SPEC_ALIGNS, DARK_GROUNDS, GROUND_NAMES, POSTER_SIZES, SERIES_KEY, groundName } from './tokens.mjs';
 
 export const LAYOUT_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 export const MAX_LAYOUTS = 40;
@@ -112,13 +116,42 @@ export const LABEL_SOURCES = ['series', 'brand', 'folio'];
 export const PAGE_KINDS = ['grid', 'poster', 'editorial'];
 const BUILT_PAGES = ['poster', 'editorial'];
 export const PAGE_CONDITIONS = ['single', 'first', 'later'];
-const WHEN_KEYS = ['present', 'absent', 'page'];
+const WHEN_KEYS = ['present', 'absent', 'page', 'field', 'is', 'not'];
+const BOOL = [true, false];
+
+// What a condition { "field": <name>, "is": <value or list> } (or "not") may test besides the declared fields: the artefact's
+// type, and the built-in templates' own fixed options and flags, each with the fixed list of values it can have. read() gives a
+// spec's value: with the template's default filled in where every template has the same one (a phone is the default device), the
+// value as given where they differ (product's layout defaults to center, photo-story's to panel); an unset value (unset: true)
+// matches no "is", only a "not". Only "artefact" (a declared field) may be tested on a grid page; the rest are settings of the
+// built-in templates' designs, which a brand's own layout does not take.
+export const SPEC_CHOICES = {
+  artefact: { values: ARTEFACT_TYPES, read: (s) => (isObj(s?.artefact) ? s.artefact.type : undefined), unset: true, grid: true },
+  register: { values: BOOL, read: (s) => isObj(s?.register) || isObj(s?.artefact?.register) },
+  beside: { values: BOOL, read: (s) => isObj(s?.beside) },
+  pills: { values: BOOL, read: (s) => filled(s?.pills) },
+  checks: { values: BOOL, read: (s) => filled(s?.checks) },
+  layout: { values: [...PRODUCT_LAYOUTS, ...STORY_LAYOUTS], read: (s) => s?.layout, unset: true },
+  device: { values: DEVICES, read: (s) => s?.device ?? 'phone' },
+  align: { values: SPEC_ALIGNS, read: (s) => s?.align, unset: true },
+  size: { values: [...new Set([...SPEC_HEADLINE_SIZES, ...POSTER_SIZES])].sort((x, y) => x - y), read: (s) => s?.size, unset: true },
+  textAt: { values: ['top', 'bottom'], read: (s) => s?.textAtResolved ?? (typeof s?.textAt === 'string' ? s.textAt : 'top') },
+  scrim: { values: SCRIMS, read: (s) => s?.scrim ?? 'black' },
+  map: { values: BOOL, read: (s) => s?.map === true },
+  fade: { values: BOOL, read: (s) => s?.fade === true },
+  tilt: { values: BOOL, read: (s) => s?.tilt === true },
+  framed: { values: BOOL, read: (s) => s?.framed === true },
+  glow: { values: BOOL, read: (s) => s?.glow !== false },
+  dots: { values: BOOL, read: (s) => s?.dots !== false },
+};
+export const CHOICE_NAMES = Object.keys(SPEC_CHOICES);
 export const MAX_GROUND_CASES = 4;
 
 // canon: a reader that turns an older spelling into a listed name (a ground alias into its neutral name). pages: the page kinds
 // an option (or a block type) is used on, when not all of them (the editor and the AI see only what a grid page takes).
 const e = (list, def, canon) => ({ t: 'enum', list, def, canon });
 const b = (def) => ({ t: 'bool', def });
+const n = (min, max, def) => ({ t: 'int', min, max, def });
 const on = (pages, o) => ({ ...o, pages });
 const ALIGN = e(ALIGNS, 'left');
 const VALIGN = e(VALIGNS, 'top');
@@ -128,7 +161,7 @@ const SHRINK = b(true);
 // bleed: photos, slabs and decorations may run over the margins to the page edges their slot touches. chrome: a part of the page
 // frame with no slot of its own (the page places it). text: a block whose words must stay inside the size's minimum margins.
 export const BLOCKS = {
-  headline: { kinds: TEXTUAL, field: 'headline', child: true, text: true, options: { size: e(HEADLINE_PX, 84), style: e(['editorial', 'poster'], 'editorial'), align: ALIGN, valign: VALIGN, shrink: SHRINK, specSize: on(BUILT_PAGES, b(false)) } },
+  headline: { kinds: TEXTUAL, field: 'headline', child: true, text: true, options: { size: e(HEADLINE_PX, 84), style: e(['editorial', 'poster'], 'editorial'), align: ALIGN, valign: VALIGN, shrink: SHRINK, specSize: on(BUILT_PAGES, b(false)), subWidth: on(BUILT_PAGES, n(100, 1080, 820)) } },
   sub: { kinds: TEXTUAL, field: 'sub', child: true, text: true, options: { size: e(SUB_PX, 32), align: ALIGN, valign: VALIGN } },
   label: { kinds: ['short'], field: null, child: true, text: true, options: { style: e(['mono', 'tag', 'plain'], 'mono'), tone: e(['muted', 'accent'], 'muted'), size: e(LABEL_PX, 22), align: ALIGN, valign: VALIGN } },
   figure: { kinds: ['short'], field: 'big', child: true, text: true, options: { size: e(FIGURE_PX, 168), style: e(['editorial', 'poster'], 'editorial'), align: ALIGN, valign: VALIGN, shrink: SHRINK } },
@@ -146,7 +179,37 @@ export const BLOCKS = {
   bar: { kinds: [], field: null, options: {}, chrome: true, pages: ['poster'] },
   runhead: { kinds: [], field: null, options: { rule: b(true) }, chrome: true, pages: ['editorial'] },
   footer: { kinds: [], field: null, options: {}, chrome: true, pages: ['editorial'] },
+  // Block types a phase 2 group adds go in its own section below (testlib/CONVERTING.md), so parallel changes merge.
+  // -- poster group --
+  // (end of poster group)
+  // -- artefacts group --
+  // (end of artefacts group)
+  // -- editorial group --
+  // (end of editorial group)
+  // -- screen group --
+  // (end of screen group)
+  // -- photo group --
+  // (end of photo group)
 };
+
+// Options a phase 2 group adds to a block type that is already there: [type, name, option], in the group's own section, so that
+// two groups never edit the same line. Merged into BLOCKS here; a name given twice is a mistake and stops the engine loading.
+const ADDED_OPTIONS = [
+  // -- poster group --
+  // (end of poster group)
+  // -- artefacts group --
+  // (end of artefacts group)
+  // -- editorial group --
+  // (end of editorial group)
+  // -- screen group --
+  // (end of screen group)
+  // -- photo group --
+  // (end of photo group)
+];
+for (const [type, name, o] of ADDED_OPTIONS) {
+  if (!Object.hasOwn(BLOCKS, type) || Object.hasOwn(BLOCKS[type].options, name)) throw new Error(`layout.mjs: the option ${type}.${name} is added twice or to an unknown block type`);
+  BLOCKS[type].options[name] = o;
+}
 const usedOn = (x, page) => !x.pages || x.pages.includes(page);
 // The block types a brand's own (grid) layout can use: what the layout editor and the AI are offered.
 export const BLOCK_TYPES = Object.keys(BLOCKS).filter((t) => usedOn(BLOCKS[t], 'grid'));
@@ -162,12 +225,14 @@ export const PAGES = {
     draws: {
       photo: ['photoTop'],
       bar: [],
-      headline: ['size', 'style', 'align', 'shrink'],
+      headline: ['size', 'style', 'align', 'shrink', 'subWidth'],
       figure: ['size', 'style', 'align', 'shrink'],
       sub: ['align'],
       stats: ['size', 'shrink'],
       decoration: ['kind'],
       spacer: [],
+      // -- poster group --
+      // (end of poster group)
     },
     decorations: ['rule', 'glow', 'map'],
     fit: { pad: 62, top: 46 },
@@ -176,15 +241,40 @@ export const PAGES = {
     draws: {
       decoration: ['kind'],
       runhead: ['rule'],
-      headline: ['size', 'style', 'align', 'shrink', 'specSize'],
+      headline: ['size', 'style', 'align', 'shrink', 'specSize', 'subWidth'],
       sub: ['align'],
       footer: [],
       spacer: [],
+      // -- artefacts group --
+      // (end of artefacts group)
+      // -- editorial group --
+      // (end of editorial group)
+      // -- screen group --
+      // (end of screen group)
     },
     decorations: ['panel', 'rule', 'glow', 'map'],
     fit: { pad: 62, top: 46 },
   },
 };
+// Options a phase 2 group lets a built-in page honour on a block type it already draws: [page, type, option], in the group's own
+// section (a new block type's drawing gets its own line in PAGES above, in the group's section there).
+const ADDED_HONOURS = [
+  // -- poster group --
+  // (end of poster group)
+  // -- artefacts group --
+  // (end of artefacts group)
+  // -- editorial group --
+  // (end of editorial group)
+  // -- screen group --
+  // (end of screen group)
+  // -- photo group --
+  // (end of photo group)
+];
+for (const [page, type, name] of ADDED_HONOURS) {
+  const list = PAGES[page]?.draws?.[type];
+  if (!list || list.includes(name) || !Object.hasOwn(BLOCKS[type]?.options ?? {}, name)) throw new Error(`layout.mjs: ${page} ${type}.${name} is honoured twice, or is not an option of a block that page draws`);
+  list.push(name);
+}
 const BASE_KEYS = ['type', 'slot', 'px', 'field', 'when'];
 const LAYOUT_KEYS = ['id', 'name', 'description', 'page', 'ground', 'accent', 'texture', 'fields', 'canvas', 'blocks'];
 
@@ -276,18 +366,34 @@ function pxProblems(p, sizes, where, errors) {
 export const filled = (v) => (typeof v === 'string' ? v !== '' : Array.isArray(v) ? v.length > 0 : v !== undefined && v !== null && v !== false);
 const pageOf = (counter) => (!counter ? 'single' : counter.n === 1 ? 'first' : 'later');
 
+const listOf = (v) => (Array.isArray(v) ? v : [v]);
+const choiceOf = (name) => (typeof name === 'string' && Object.hasOwn(SPEC_CHOICES, name) ? SPEC_CHOICES[name] : null);
+// The values of a choice that a (checked) { field, is | not } condition lets through; undefined stands for an unset value.
+function matched(when) {
+  const c = choiceOf(when.field), all = [...c.values, ...(c.unset ? [undefined] : [])];
+  return when.is !== undefined ? listOf(when.is) : all.filter((v) => !listOf(when.not).includes(v));
+}
+
 // Whether a (checked) condition holds for a spec, on a page (ctx.counter: { n, total } on a carousel page).
 export function whenHolds(when, spec, counter) {
   if (when === undefined) return true;
   if (when.present !== undefined && !filled(spec?.[when.present])) return false;
   if (when.absent !== undefined && filled(spec?.[when.absent])) return false;
   if (when.page !== undefined && pageOf(counter) !== when.page) return false;
+  if (when.field !== undefined) {
+    const c = choiceOf(when.field);
+    if (!c) return false;
+    const hit = listOf(when.is ?? when.not).includes(c.read(spec));
+    if (when.is !== undefined ? !hit : hit) return false;
+  }
   return true;
 }
 
-// fields: the field names a condition may name (a layout's declared fields).
-export function whenProblems(when, fields, where) {
-  if (!isObj(when) || !Object.keys(when).length) return [`${where} must be an object like { "present": "sub" }, { "absent": "image" } or { "page": "first" }`];
+// fields: the field names a condition may name (a layout's declared fields). page: the kind of page the layout draws on; on a grid
+// page a { field, is } condition may test only the type of a declared artefact. Without a page (the registry of built-in
+// layouts) every choice may be tested.
+export function whenProblems(when, fields, where, { page } = {}) {
+  if (!isObj(when) || !Object.keys(when).length) return [`${where} must be an object like { "present": "sub" }, { "absent": "image" }, { "page": "first" } or { "field": "artefact", "is": "ledger" }`];
   const errors = [];
   unknownKeys(when, WHEN_KEYS, where, errors);
   for (const k of ['present', 'absent']) {
@@ -297,14 +403,28 @@ export function whenProblems(when, fields, where) {
   }
   if (when.present !== undefined && when.present === when.absent) errors.push(`${where}: a field cannot be both present and absent`);
   if (when.page !== undefined && !PAGE_CONDITIONS.includes(when.page)) errors.push(`${where}.page must be one of ${PAGE_CONDITIONS.join(', ')}`);
+  if (when.field === undefined) {
+    if (when.is !== undefined || when.not !== undefined) errors.push(`${where}: "is" and "not" need a "field" (one of ${CHOICE_NAMES.join(', ')})`);
+    return errors;
+  }
+  const c = choiceOf(when.field), grid = page === 'grid';
+  const allowed = grid ? CHOICE_NAMES.filter((n) => SPEC_CHOICES[n].grid) : CHOICE_NAMES;
+  if (!c || !allowed.includes(when.field)) return [...errors, `${where}.field must be one of ${allowed.join(', ')}${grid ? ' on a grid page' : ''} (got ${show(when.field)})`];
+  if (FIELDS[when.field] && page !== undefined && !fields.includes(when.field)) errors.push(`${where}.field: "${when.field}" is not in the layout's fields; declare it there first`);
+  if ((when.is === undefined) === (when.not === undefined)) return [...errors, `${where}: give "is" or "not" (not both) with "field"`];
+  const k = when.is !== undefined ? 'is' : 'not', vals = listOf(when[k]);
+  if (!vals.length || vals.length > c.values.length || vals.some((v) => !c.values.includes(v)) || new Set(vals).size !== vals.length) errors.push(`${where}.${k} must be one of ${c.values.join(', ')}, or a list of them (got ${show(when[k])})`);
   return errors;
 }
 
-// Two (checked) conditions that can never hold together: one needs a field the other needs empty, or they name different pages.
+// Two (checked) conditions that can never hold together: one needs a field the other needs empty, they name different pages, or
+// they let through no common value of the same choice.
 export function exclusive(a, b) {
   if (!a || !b) return false;
   const one = (x, y) => (x.present !== undefined && x.present === y.absent);
-  return one(a, b) || one(b, a) || (a.page !== undefined && b.page !== undefined && a.page !== b.page);
+  if (one(a, b) || one(b, a) || (a.page !== undefined && b.page !== undefined && a.page !== b.page)) return true;
+  if (a.field !== undefined && a.field === b.field && choiceOf(a.field)) { const m = matched(b); return !matched(a).some((v) => m.includes(v)); }
+  return false;
 }
 
 // The layout's ground for a spec: its "ground" (a name, "series" or "photo"), or the first of its cases whose condition holds.
@@ -330,7 +450,7 @@ function groundProblems(l, page, where, errors) {
     const last = i === l.ground.length - 1;
     if (last && c.when !== undefined) errors.push(`${w}: the last case has no "when" (it is the ground when no other case holds)`);
     if (!last && c.when === undefined) errors.push(`${w} needs a "when" (only the last case has none)`);
-    if (c.when !== undefined) errors.push(...whenProblems(c.when, isObj(l.fields) ? Object.keys(l.fields) : [], `${w}.when`));
+    if (c.when !== undefined) errors.push(...whenProblems(c.when, isObj(l.fields) ? Object.keys(l.fields) : [], `${w}.when`, { page }));
   });
 }
 
@@ -361,6 +481,7 @@ function optionProblems(block, spec, where, errors, page) {
     if (!usedOn(o, page)) { errors.push(`${where}.${k} is used on ${o.pages.join(' and ')} pages only`); continue; }
     if (o.t === 'enum' && !o.list.includes(o.canon ? o.canon(v) : v)) errors.push(`${where}.${k} must be one of ${o.list.join(', ')} (got ${show(v)})`);
     if (o.t === 'bool' && typeof v !== 'boolean') errors.push(`${where}.${k} must be true or false`);
+    if (o.t === 'int' && !isInt(v, o.min, o.max)) errors.push(`${where}.${k} must be a whole number from ${o.min} to ${o.max}`);
   }
 }
 
@@ -392,10 +513,10 @@ function blockProblems(blk, layout, sizes, where, errors, { child = false, page 
   if (!spec) { errors.push(`${where}.type must be one of ${BLOCK_TYPES.join(', ')} (got ${show(blk.type)})`); return []; }
   if (!usedOn(spec, page)) { errors.push(`${where}: a ${blk.type} block belongs to ${spec.pages.join(' and ')} pages (set the layout's "page"), not to ${aPage(page)}`); return []; }
   if (child && !spec.child) { errors.push(`${where}: a ${blk.type} cannot go inside a slab (a slab holds ${BLOCK_TYPES.filter((t) => BLOCKS[t].child).join(', ')})`); return []; }
-  const keys = [...BASE_KEYS, ...Object.keys(spec.options), ...(spec.bleed ? ['bleed'] : []), ...(spec.children ? ['children'] : []), ...(blk.type === 'label' ? ['text', 'source'] : []), ...(blk.type === 'screen' ? ['titleField'] : [])];
+  const keys = [...BASE_KEYS, ...Object.keys(spec.options), ...(spec.bleed ? ['bleed'] : []), ...(spec.children ? ['children'] : []), ...(blk.type === 'label' ? ['text', 'source'] : []), ...(blk.type === 'screen' ? ['titleField'] : []), ...(blk.type === 'headline' ? ['subField'] : [])];
   unknownKeys(blk, keys, where, errors);
   optionProblems(blk, spec, where, errors, page);
-  if (blk.when !== undefined) errors.push(...whenProblems(blk.when, isObj(layout.fields) ? Object.keys(layout.fields) : [], `${where}.when`));
+  if (blk.when !== undefined) errors.push(...whenProblems(blk.when, isObj(layout.fields) ? Object.keys(layout.fields) : [], `${where}.when`, { page }));
   if (page !== 'grid') builtPageProblems(blk, layout, sizes, where, errors, page);
   if (child) {
     if (blk.slot !== undefined || blk.px !== undefined) errors.push(`${where}: a block inside a slab has no slot of its own (it flows in the slab)`);
@@ -437,6 +558,14 @@ function blockProblems(blk, layout, sizes, where, errors, { child = false, page 
     }
     for (const k of ['tilt', 'framed']) if (blk[k] !== undefined && optionOf(blk, 'device') !== 'desktop') errors.push(`${where}.${k} is only used with "device": "desktop"`);
     if (blk.fit !== undefined && optionOf(blk, 'device') !== 'phone') errors.push(`${where}.fit is only used with "device": "phone"`);
+  }
+  // A headline's sub line flowing under it in the same box (the templates' textBlock and words), on the built-in pages.
+  if (blk.type === 'headline') {
+    if (blk.subField !== undefined) {
+      if (page === 'grid') errors.push(`${where}.subField is used on poster and editorial pages only (on a grid page, give the sub line its own block)`);
+      else if (child) errors.push(`${where}.subField: a headline inside a slab has no sub line of its own`);
+      else bind(blk.subField, TEXTUAL, 'subField');
+    } else if (blk.subWidth !== undefined) errors.push(`${where}.subWidth is only used with subField`);
   }
   if (blk.bleed !== undefined) {
     if (!Array.isArray(blk.bleed) || blk.bleed.length > 4 || blk.bleed.some((x) => !EDGES.includes(x)) || new Set(blk.bleed).size !== blk.bleed.length) errors.push(`${where}.bleed must be a list of page edges from ${EDGES.join(', ')}`);
