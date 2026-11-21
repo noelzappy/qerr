@@ -14,6 +14,7 @@ import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, normaliseDesign, validateDesign } from './lib/design/spec.mjs';
 import { GROUND_ALIASES, GROUND_NAMES, STYLE_DEFAULTS, groundName, isDarkColour } from './lib/design/tokens.mjs';
 import { TEMPLATE_FNS } from './design/templates/index.mjs';
+import { bar, words } from './design/templates/poster.mjs';
 import { pngBytes } from './testlib/png.mjs';
 
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
@@ -263,7 +264,7 @@ test('logo and footer: the poster bar at the top or the bottom, the logo on eith
   const obj = { template: 'object', headline: 'h', image: 'a.jpg' };
   assert.match(page(brand, obj), /<div class="pbar" style="left:80px;right:80px;top:60px"><span class="logo-inv/);
   const br = withStyle({ logo: 'bottom-right' });
-  assert.match(page(br, obj), /<div class="pbar flip" style="left:80px;right:80px;top:1250px">/);
+  assert.match(page(br, { template: 'number', big: '1' }), /<div class="pbar flip" style="left:80px;right:80px;top:1250px">/);
   // myth-fact moves its series mark to the top when the bar is at the bottom
   assert.match(page(br, { template: 'myth-fact', myth: 'm', factLead: 'f' }), /<div class="pmark" style="right:80px;top:63px">/);
   assert.match(page(withStyle({ logo: 'top-right' }), obj), /<div class="pbar flip" style="left:80px;right:80px;top:60px">/);
@@ -279,6 +280,28 @@ test('logo and footer: the poster bar at the top or the bottom, the logo on eith
   assert.ok(!page(none, { template: 'photo', headline: 'h', image: 'a.jpg' }).includes('data-role="url"'));
   // a carousel still says Swipe on its first page
   assert.match(page(none, obj, { counter: { n: 1, total: 3 } }), /data-role="foot">Swipe →</);
+});
+
+test('a bottom logo bar goes to the top on poster pages whose photo or phone takes the bottom edge', () => {
+  const bl = withStyle({ logo: 'bottom-left' }), br = withStyle({ logo: 'bottom-right' });
+  const top = (flip = '') => new RegExp(`<div class="pbar${flip}" style="left:80px;right:80px;top:60px">`);
+  const bottom = (flip = '') => new RegExp(`<div class="pbar${flip}" style="left:80px;right:80px;top:1250px">`);
+  // the object photo always bleeds off the bottom; the side the brand chose is kept
+  assert.match(page(bl, { template: 'object', headline: 'h', image: 'a.jpg' }), top());
+  assert.match(page(br, { template: 'object', headline: 'h', image: 'a.jpg' }), top(' flip'));
+  // number: with a photo the bar goes up, without one it stays where the brand put it
+  assert.match(page(bl, { template: 'number', big: '52', image: 'a.jpg' }), top());
+  assert.match(page(bl, { template: 'number', big: '52' }), bottom());
+  // product: the centred phone runs off the bottom; a phone beside the headline only when it reaches the bar
+  const tall = { imageSize: () => ({ w: 660, h: 1354 }) };
+  assert.match(page(bl, { template: 'product', headline: 'h', image: 'p.png' }, tall), top());
+  assert.match(page(bl, { template: 'product', headline: 'h', image: 'p.png', layout: 'side', phoneTop: 700 }, tall), top());
+  assert.match(page(bl, { template: 'product', headline: 'h', image: 'p.png', layout: 'side' }, { imageSize: () => ({ w: 660, h: 1000 }) }), bottom());
+  // the first page of a carousel: "Swipe →" goes up with the bar
+  assert.match(page(bl, { template: 'object', headline: 'h', image: 'a.jpg' }, { counter: { n: 1, total: 3 } }), /top:60px"><span class="logo-inv[^]*?data-role="foot">Swipe →</);
+  // pages with nothing at the bottom keep the brand's bar
+  assert.match(page(bl, { template: 'myth-fact', myth: 'm', factLead: 'f' }), bottom());
+  assert.match(page(bl, { template: 'closing' }), bottom());
 });
 
 test('style values never reach the page as they are: unchecked hostile values map to nothing', () => {
@@ -322,6 +345,31 @@ test('real render: a styled brand (black and neon, outlined, grid, condensed cap
     assert.ok(r.ratios.headline >= d.photo.minContrast.headline, JSON.stringify(r));
     assert.ok(!r.warnings.some((w) => /low contrast/.test(w)), r.warnings.join('\n'));
   } finally {
+    browser.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('real render: the poster logo is measured, so a wordmark on a surface it was not drawn for gives a contrast warning', { skip: chrome ? false : 'Google Chrome not found' }, async () => {
+  const dir = path.join(ROOT, 'out', 'test-style-logo');
+  fs.rmSync(dir, { recursive: true, force: true });
+  // A page made for this test: the real bar (white wordmark, drawn for the dark ground) over a pale box, or on the ground itself.
+  TEMPLATE_FNS['test-logo-surface'] = (spec, ctx) => ({
+    body: `<div class="cv poster" style="--bg:var(--g-deep)">${spec.pale ? '<div class="abs" style="left:0;top:0;width:1080px;height:220px;background:var(--g-warm)"></div>' : ''}${bar(ctx, true, { right: '' })}${words({ headline: 'Save together.', size: 104, y: 400 })}</div>`,
+    bodyClass: 'acc-colour dark', bodyAttrs: 'data-editorial="1"',
+  });
+  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });
+  try {
+    const run = (pale) => renderImage(browser, brand, { spec: { template: 'test-logo-surface', pale }, sizeName: 'feed', outFile: path.join(dir, `${pale ? 'pale' : 'ground'}.png`) }, { tmpDir: path.join(dir, 'tmp') });
+    const pale = await run(true);
+    assert.ok(pale.warnings.some((w) => /^low contrast: the logo text is \d+\.\d:1 against the surface behind it \(needs 4\.5:1\)$/.test(w)), pale.warnings.join('\n'));
+    assert.ok(pale.ratios.label < 2, JSON.stringify(pale.ratios));
+    // on the ground it was drawn for it passes, and it never stops a render (no fit problem for the logo)
+    const ground = await run(false);
+    assert.deepEqual(ground.warnings, []);
+    assert.ok(ground.ratios.label >= brand.contrast.label, JSON.stringify(ground.ratios));
+  } finally {
+    delete TEMPLATE_FNS['test-logo-surface'];
     browser.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }

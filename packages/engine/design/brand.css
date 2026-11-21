@@ -96,7 +96,7 @@ svg.fig text{font-family:var(--mono),monospace}
 .pbar .plogo{display:block}
 .pbar .logo-inv i{background-size:auto 34px}
 .pbar .lpill{--logo-h:30px;border-radius:14px;padding:8px 14px}
-.logo-inv.logo-ink i{filter:brightness(0)}
+.logo-inv.logo-ink i{filter:brightness(0);color:#000}
 .purl{font-size:26px;line-height:32px;font-weight:500;letter-spacing:-.005em;color:var(--body);white-space:nowrap}
 .dark .purl,.dark .pmark span{color:var(--inv-body)}
 .pmark{position:absolute;z-index:3}
@@ -150,8 +150,9 @@ svg.fig text{font-family:var(--mono),monospace}
 .dark.acc-colour .h em{color:var(--gold)}
 .dark .lbl,.dark .sub{color:var(--inv-body)}
 .dark .rh-rule{background:var(--inv-body);opacity:.25}
+/* the wordmark is the full logo cut and filtered to white (or black, logo-ink); its color says the same, for the contrast check */
 .logo-inv{display:flex;align-items:center;height:32px}
-.logo-inv i{display:block;height:32px;background-repeat:no-repeat;width:var(--lw);margin-left:var(--lm);background-size:auto 32px;background-position:var(--lx) 0;background-image:var(--logo-full);filter:brightness(0) invert(1)}
+.logo-inv i{display:block;height:32px;background-repeat:no-repeat;width:var(--lw);margin-left:var(--lm);background-size:auto 32px;background-position:var(--lx) 0;background-image:var(--logo-full);filter:brightness(0) invert(1);color:#fff}
 
 /* ---- decoration: the texture behind a page, on its dark grounds (or on every ground), from the brand's numbers. --dc and --tc
    are the light-on-dark or ink-on-light version for the page's ground. */

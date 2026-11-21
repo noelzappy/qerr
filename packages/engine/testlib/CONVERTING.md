@@ -191,6 +191,10 @@ the table (for example `closing`'s default text, `region`) is a shared change: a
 
 ## Pre-existing issues seen in the baseline (not part of the conversion)
 
-- With the logo at the bottom (`style.logo` `bottom-left`/`bottom-right`), the poster bar sits over the photo of `number` and
-  `object` and over the phone of `product`; on a dark ground with a treated photo the white wordmark is unreadable there, and no
-  check measures the logo's contrast. Reproduce it as it is; fix it separately.
+- Fixed since (2026-11-21): with the logo at the bottom (`style.logo` `bottom-left`/`bottom-right`), the poster bar sat over the
+  photo of `number` and `object` and over the phone of `product`, white on a pale treated photo or into the phone's frame. Now
+  `bar(ctx, dark, { bottomTaken })` keeps the bar at the top when a photo or phone reaches the bottom: `object` always, `number`
+  with a photo, `product` when the phone's full height reaches `BAR_LOW`, and the layout `bar` block when a photo block is drawn.
+  A converted `object` or `product` (a phone block) must make the same decision in `layout-poster.mjs`'s `bar` drawing, or its
+  markup will differ from the function's. The wordmark is also measured now (`data-role="logo"`, the label target, a warning
+  only), so a logo left over a picture shows up in the baseline's warnings.

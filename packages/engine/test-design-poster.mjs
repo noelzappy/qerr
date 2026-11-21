@@ -56,7 +56,7 @@ test('poster pages: only a small logo and the website, the two-tone headline, th
   const page = html({ template: 'object', headline: 'Every euro, *on record.*', image: 'a.jpg', ground: 'mint' });
   // "mint" is the older name of the cool ground
   assert.match(page, /<div class="cv poster" style="--bg:var\(--g-cool\)">/);
-  assert.match(page, /<div class="pbar"[^>]*><span class="logo-inv logo-ink" style="height:34px"><img src="data:image\/png;base64,[^"]+" alt="" style="height:34px"><i role="img" aria-label="Acme Savings"[^>]*><\/i><\/span><span class="purl" data-role="foot">acmesavings\.example<\/span><\/div>/);
+  assert.match(page, /<div class="pbar"[^>]*><span class="logo-inv logo-ink" style="height:34px"><img src="data:image\/png;base64,[^"]+" alt="" style="height:34px"><i data-role="logo" role="img" aria-label="Acme Savings"[^>]*><\/i><\/span><span class="purl" data-role="foot">acmesavings\.example<\/span><\/div>/);
   assert.match(page, /<div class="ps-h" data-role="headline" style="font-size:calc\(104px\*var\(--hs,1\)\*var\(--h-scale,1\)\)">Every euro, <em data-role="accent">on record\.<\/em><\/div>/);
   assert.ok(!/class="(rh|rh-rule|ft footer|silk|panel)"/.test(page), 'no running head, rule, footer row, silk or panel');
   // page 1 of a carousel says Swipe instead of the website
