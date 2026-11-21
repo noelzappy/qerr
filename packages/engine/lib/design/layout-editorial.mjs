@@ -59,6 +59,48 @@ const foot = (blk, spec, ctx, r, state) => footer(ctx, { inverse: panelOf(state)
 // -- artefacts group: drawings of new block types go here --
 // (end of artefacts group)
 // -- editorial group: drawings of new block types go here --
+// (Imported under names of their own, so they never clash with another group's imports.)
+import * as editorialKit from '../../design/templates/editorial.mjs';
+import { MAX_STATS as EDITORIAL_MAX_STATS } from './spec.mjs';
+
+// A photo in its rectangle (cover, stats, photo-story), by its frame: "none" a photo window, as the stats page's band and
+// photo-story's panel are drawn; "card" the photo with the card radius and a 1 px line (cover); "raised" that card raised
+// (photo-story's print, on the panel). Nothing without a photo.
+function editorialPhoto(blk, spec, ctx, r) {
+  if (typeof spec.image !== 'string' || !spec.image) return '';
+  const frame = opt(blk, 'frame');
+  if (frame === 'none') return editorialKit.photoWindow(ctx, spec, { x: r.x, y: r.y, w: r.w, h: r.h, avoid: true });
+  return editorialKit.obj(r.x, r.y, r.w, r.h, frame === 'raised' ? 'photo raised' : 'photo', editorialKit.photoWindow(ctx, spec, { x: 0, y: 0, w: r.w, h: r.h }));
+}
+
+// The big figure (stats.mjs): the box is the figure itself, its line height its size. It is not the page's #txt (the stats page
+// has none).
+function editorialFigure(blk, spec, ctx, r) {
+  const v = spec[blk.field ?? 'big'];
+  if (typeof v !== 'string' || !v) return '';
+  const size = fontSize(blk, opt(blk, 'size'));
+  return `<div class="abs h big" data-role="stat" style="${place(r)};font-size:${size};line-height:${size}">${fmtE(v)}</div>`;
+}
+
+// Up to three figures (stats.mjs). "row": side by side across the rectangle, 50 px apart, each its number in bold over its label,
+// in the sub style (the stats page over a photo; `size` is not used). "column": rows a third of the rectangle's height apart, each
+// number in the headline type at `size` over its label, with a hairline above every row but the first when `rules` is on.
+function editorialStats(blk, spec, ctx, r) {
+  const list = Array.isArray(spec[blk.field ?? 'stats']) ? spec[blk.field ?? 'stats'] : [];
+  if (opt(blk, 'direction') === 'row') {
+    const gap = 50, step = (r.w + gap) / Math.max(1, list.length);
+    return list.map((s, i) => `<div class="abs sub" data-role="statlabel" data-min="30" style="left:${px(r.x + i * step)}px;top:${px(r.y)}px;width:${px(step - gap)}px"><b>${fmtSub(s[0])}</b><br>${fmtSub(s[1])}</div>`).join('');
+  }
+  const pitch = r.h / EDITORIAL_MAX_STATS, size = opt(blk, 'size'), rules = opt(blk, 'rules');
+  return list.map((s, i) => `<div class="abs" style="${place({ x: r.x, y: r.y + i * pitch, w: r.w })};${rules && i ? 'border-top:1px solid var(--hair);padding-top:24px' : ''}"><div class="h s${size}" data-role="stat" style="font-size:${fontSize(blk, size)}">${fmtSub(s[0])}</div><div class="sub" data-role="statlabel" data-min="30" style="margin-top:8px">${fmtSub(s[1])}</div></div>`).join('');
+}
+
+// The label row (photo-story's panel page): the series' name (or the spec's label) at the left end of the rectangle and, on a
+// carousel page, the folio at the right end.
+function labelRow(blk, spec, ctx, r, state) {
+  const f = folio(ctx);
+  return `<div class="abs" style="left:${px(r.x)}px;right:${px(ctx.size.w - r.x - r.w)}px;top:${px(r.y)}px;display:flex;justify-content:space-between">${editorialKit.lbl(state.frame.label)}${f ? editorialKit.lbl(f) : ''}</div>`;
+}
 // (end of editorial group)
 // -- screen group: drawings of new block types go here --
 // The screen template's page (design/templates/screen.mjs): a pre-framed phone in a row with the text, faded out under the text
@@ -128,6 +170,10 @@ export const DRAW = {
   // -- artefacts group --
   // (end of artefacts group)
   // -- editorial group --
+  photo: editorialPhoto,
+  figure: editorialFigure,
+  stats: editorialStats,
+  labelrow: labelRow,
   // (end of editorial group)
   // -- screen group --
   screen: screenBlock,
