@@ -415,6 +415,10 @@ text through every block type and every field, and hostile values through every 
 problem ("the sub line runs 40 px out of the bottom of its slot"); a headline or a big figure is shrunk first, other text must be
 shortened. The fit check holds text to the layout's own margins.
 
+**The built-in layouts.** Settings, Layouts also lists every built-in template's layouts (below, "The built-in templates as
+layouts"), read only, with a sketch, the variant each one draws and its fields; the page covers are not post images and are not
+listed. An admin may duplicate one into a layout of the brand's own and change it (see "Starting from a built-in layout").
+
 **Starting points.** `lib/design/layout-starters.mjs` writes compositions like the built-in `text`, `stats`, `photo-story`,
 `cover` and `myth-fact` pages (and a split and a quotation page) as layout data. Settings, Layouts offers them to copy and
 change. They are close to the built-ins but not pixel-identical: a grid of up to 24 x 36 cells cannot place things on the
@@ -422,13 +426,15 @@ built-ins' exact pixels, and a grid page has none of their own behaviour.
 
 ### The built-in templates as layouts
 
-The built-in templates are being re-expressed in the same format, so that one renderer draws every page. A design that names a
-template (`{ "template": "number", ... }`) is still written and checked exactly as before (`validateDesign`); when a layout is
-registered for its template in `lib/design/builtin-layouts.mjs` (one file per template group under `lib/design/builtin/`), the
-page is drawn from that layout instead of the template's function, and it is the same image, pixel for pixel. What is not
-converted yet is still drawn by its function in `design/templates/`. `testlib/template-baseline.mjs` renders every template,
-for the demo brand and two style variants, before and after, and compares the pictures and the page markup (see
-`packages/engine/testlib/CONVERTING.md`). By group:
+Every built-in template is expressed in the same format, so one renderer draws every page. A design that names a template
+(`{ "template": "number", ... }`) is still written and checked exactly as before (`validateDesign`), and is drawn from the first
+of its template's layouts whose condition holds (`lib/design/builtin-layouts.mjs`, one file per template group under
+`lib/design/builtin/`). The layouts were written to make, pixel for pixel, the images the hand-written template functions made;
+those functions are gone (`design/templates/` keeps only the drawing helpers the pages call). A design no layout takes (one
+`validateDesign` refuses) is refused. The tests hold the layouts to the markup the functions drew (a sha256 of every page,
+`packages/engine/testlib/builtin-markup.json`), and `testlib/template-baseline.mjs` renders every template, for the demo brand
+and two style variants, to compare two versions of the code picture by picture (see `packages/engine/testlib/CONVERTING.md`).
+By group:
 
 - Poster (`lib/design/builtin/poster.mjs`): **`number`**, **`object`**, **`product`** (two layouts: `product` centred, and
   `product-side` for `"layout": "side"`), **`myth-fact`** and **`closing`** are drawn from their layouts. The spec's headline
@@ -487,7 +493,8 @@ for the demo brand and two style variants, before and after, and compares the pi
 The format gained what the built-ins need; every new value is a name from a fixed list or a bounded whole number, checked by
 `validateLayout` like the rest:
 
-- **`page`**: `grid` (the default, a brand's own layout as above), `poster` or `editorial`. A poster or editorial page is the
+- **`page`**: `grid` (the default, a brand's own layout as above), `poster` or `editorial` (a brand's layout may use these too, at
+  the feed size; see "Starting from a built-in layout"), and for the built-in layouts only `photo` and `cover`. A poster or editorial page is the
   built-in templates' own page: their wrapper, type, decoration (`texture: auto` is the posters' line texture or the editorial
   dots, off with a spec's `dots: false`), accent (the colour on posters, muted on editorial pages) and fit margins, and each block
   drawn with their markup, from the top of its rectangle down, in the order listed. `PAGES` in `layout.mjs` lists the block types
@@ -517,8 +524,41 @@ The format gained what the built-ins need; every new value is a name from a fixe
   sub line flows 28 px under the headline in the same box, as the templates set a headline and its sub line, so it moves up
   when the fit loop shrinks the headline.
 
-The chrome blocks, `specSize`, `photoTop`, `subField` and `subWidth` belong to the built-in pages: Settings, Layouts and the AI's compositions are
-offered only what a grid page takes (`layoutCatalogue`).
+The chrome blocks, `specSize`, `photoTop`, `subField` and `subWidth` belong to the built-in pages. The AI's compositions are
+offered only what a grid page takes (`layoutCatalogue().blocks`); Settings, Layouts also gets each built-in page a brand may use
+(`layoutCatalogue().pages`: its block types and the options it honours there, less what is for the built-in layouts only).
+
+### Starting from a built-in layout
+
+An admin duplicates a built-in layout in Settings, Layouts ("Duplicate to edit"); the copy is a layout of the brand's own, on the
+same page (`"page": "poster"` or `"editorial"`), with the same blocks, pixel rectangles and look, switched off until it is switched
+on, and edited like any layout: its rectangles in pixels in the editor, its options from the page's own lists, its conditions and
+ground cases in the JSON view, with the engine's verdict as you type and a real preview with the brand. A post then uses it as
+`{ "template": "layout", "layout": "<id>", ...fields }`.
+
+**What a brand may customise.** Everything those pages draw is a name from a fixed list, a flag or a bounded whole number that
+`validateLayout` checks, and every drawing takes text only through the escaping functions and numbers only from checked values, so
+a brand's layout may use the poster and editorial pages with their blocks (the logo bar, running head, footer, series mark,
+label row, myth and fact slabs, the glow behind a phone, the headline's flowing sub line) and options. What it may not use is
+what reads a setting of the built-in templates' own designs: a design for a brand's layout carries only the layout's fields and
+the page frame (`series`, `label`, `ground`, `accent`), never a template's `size`, `align`, `photoTop`, `phoneTop`, pills and
+checks, a desktop window's `framed`, `tilt` and `region`, a ledger's columns or a passbook's days. So these are for the built-in
+layouts only (`validateLayout(l, where, { builtin: true })`, as `lib/design/builtin-layouts.mjs` checks them), and a brand's
+layout is refused them: the options `specSize`, `specAlign`, `photoTop`, `phoneTop`, `lists` and `specWindow`, an artefact
+`"from": "ledger"` or `"passbook"` (a brand's layout takes its artefact from its `artefact` field), the `beside` card, and
+conditions on any choice but the artefact's type and its register card. Two kinds of page are for the built-in layouts only as
+well: `photo` (the renderer raises the photo post's scrim, places its thin lines and holds its text to the photo contrast targets
+from the photo template's own `textAt`, `scrim` and `lines`, which a brand's design does not have) and `cover` (page covers are
+made from the brand for its social profiles, never for a post). The poster and editorial pages are drawn at the feed size only.
+
+**The copy** (`builtinCopy` in `lib/design/layout-starters.mjs`) settles each condition on a template's own setting to what a
+brand's design reads (the default headline size and alignment, the glow on, no map, text at the top): a block that would then
+never be drawn is left out, and the condition of one that always would is dropped; it leaves out the options above, and takes
+the artefact of the variant's type from the layout's `artefact` field (`"types": ["ledger"]` for a ledger page). Every built-in
+layout can be copied except the phone beside a passbook (its card is the design's own `beside`) and the photo post; the list says
+why. `test-design-layout-builtin.mjs` checks that every copy is a valid brand layout, that what is for the built-in layouts only
+is refused, that hostile values are refused and hostile words drawn escaped, and renders every copy with the demo brand (which
+has a synthetic pre-framed phone, `design/assets/demo/screen-phone.png`, for the previews of the layouts that show a phone).
 
 ## Your own photos and screenshots
 
@@ -533,7 +573,8 @@ offered only what a grid page takes (`layoutCatalogue`).
   deployment use the vault.
 - **Screenshots** can show real names and amounts: use test or demo data (an invented organisation, fake phone numbers),
   or blur anything real first.
-- **The demo pictures** are in `packages/engine/design/assets/demo/`: `object-jar.jpg`, `scene-market.jpg` and `screen-desk.png`,
+- **The demo pictures** are in `packages/engine/design/assets/demo/`: `object-jar.jpg`, `scene-market.jpg`, `screen-desk.png` and
+  `screen-phone.png` (a pre-framed phone capture),
   synthetic drawings made by `brands/demo/make-assets.mjs` (no photograph, no real person, place or amount). They are committed
   so the example batches render on a fresh install; use them as `design/assets/demo/<file>`.
 - **Size.** Give photos at least 1500 px on the long side. The engine measures how much each image is enlarged and warns
