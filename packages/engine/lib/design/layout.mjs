@@ -52,7 +52,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, brandFile } from '../core.mjs';
 import { ARTEFACT_TYPES, DEVICES, HEADLINE_SIZES as SPEC_HEADLINE_SIZES, IMAGE_EXT, LAYOUTS as STORY_LAYOUTS, MAX_STATS, NETWORKS, PRODUCT_LAYOUTS, SCRIMS, focalToCss, parseSizes, parseStat, validateDesign } from './spec.mjs';
-import { SIZES, SIZE_NAMES } from './sizes.mjs';
+import { COVER_SIZES, SIZES, SIZE_NAMES } from './sizes.mjs';
 import { ACCENT_STYLES, ALIGNS as SPEC_ALIGNS, DARK_GROUNDS, GROUND_NAMES, POSTER_SIZES, SERIES_KEY, groundName } from './tokens.mjs';
 
 export const LAYOUT_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
@@ -144,6 +144,7 @@ export const SPEC_CHOICES = {
   framed: { values: BOOL, read: (s) => s?.framed === true },
   glow: { values: BOOL, read: (s) => s?.glow !== false },
   dots: { values: BOOL, read: (s) => s?.dots !== false },
+  kind: { values: Object.keys(COVER_SIZES), read: (s) => s?.kind, unset: true },
 };
 export const CHOICE_NAMES = Object.keys(SPEC_CHOICES);
 export const MAX_GROUND_CASES = 4;
@@ -636,8 +637,9 @@ export function validateLayout(l, where = 'layout') {
   if (l.ground !== undefined) groundProblems(l, page, where, errors);
   if (l.accent !== undefined && l.accent !== 'series' && !ACCENT_STYLES.includes(l.accent)) errors.push(`${where}: accent must be series or one of ${ACCENT_STYLES.join(', ')}`);
   if (l.texture !== undefined && !TEXTURES.includes(l.texture)) errors.push(`${where}: texture must be one of ${TEXTURES.join(', ')}`);
-  // fields
-  if (!isObj(l.fields) || !Object.keys(l.fields).length) errors.push(`${where}: fields must name at least one field the layout shows, like { "headline": { "required": true } }`);
+  // fields (a page whose words are all the brand's, PAGES[page].words "brand", may declare none and show no text block)
+  const brandWords = PAGES[page]?.words === 'brand';
+  if (!isObj(l.fields) || (!brandWords && !Object.keys(l.fields).length)) errors.push(`${where}: fields must name at least one field the layout shows, like { "headline": { "required": true } }`);
   else for (const [name, f] of Object.entries(l.fields)) {
     const w = `${where}: fields.${clip(name)}`, F = FIELDS[name];
     if (!F) { errors.push(`${w} is not a known field (known: ${FIELD_NAMES.join(', ')})`); continue; }
@@ -672,7 +674,7 @@ export function validateLayout(l, where = 'layout') {
   for (const f of new Set(twice.map((u) => u.name))) errors.push(`${where}: "${f}" is shown by more than one block; show each field once`);
   if (isObj(l.fields)) for (const f of Object.keys(l.fields)) if (FIELDS[f] && !used.some((u) => u.name === f)) errors.push(`${where}: fields.${f} is declared but no block shows it`);
   const shows = (t) => l.blocks.some((x) => x.type === t || (x.children ?? []).some((c) => c.type === t));
-  if (!['headline', 'figure', 'sub'].some(shows) && !l.blocks.some((x) => x.type === 'label' || (x.children ?? []).some((c) => c.type === 'label'))) errors.push(`${where}: a layout needs at least one block of text (a headline, figure, sub line or label)`);
+  if (!brandWords && !['headline', 'figure', 'sub'].some(shows) && !l.blocks.some((x) => x.type === 'label' || (x.children ?? []).some((c) => c.type === 'label'))) errors.push(`${where}: a layout needs at least one block of text (a headline, figure, sub line or label)`);
   // Blocks may not lie on each other (text never runs over a picture or another text); decorations lie under everything.
   // Chrome blocks have no slot (the page places them); blocks that are never drawn together may share space.
   for (const z of sizes) {

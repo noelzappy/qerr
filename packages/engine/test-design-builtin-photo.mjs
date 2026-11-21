@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import { brandFile } from './lib/core.mjs';
 import { loadBrand, normaliseBrand } from './lib/design/brand.mjs';
 import { builtinLayoutFor } from './lib/design/builtin-layouts.mjs';
-import { BLOCK_TYPES, layoutCatalogue, validateLayout } from './lib/design/layout.mjs';
+import { BLOCK_TYPES, exclusive, layoutCatalogue, validateLayout, whenHolds, whenProblems } from './lib/design/layout.mjs';
 import { layoutFit, renderLayoutWith } from './lib/design/layout-render.mjs';
 import { preparePage } from './lib/design/render.mjs';
 import { SIZES, SIZE_NAMES } from './lib/design/sizes.mjs';
@@ -129,4 +129,17 @@ test('a photo page draws hostile text only escaped, and its numbers only from th
   // a layout that has no rectangle for a size is refused there, as any layout
   const spec = forSize(normaliseDesign({ template: 'photo', headline: 'h', image: 'a.jpg' }), 'story');
   assert.throws(() => renderLayoutWith(photoLayout(), spec, ctxOf(demo, 'story')), /has no story size/);
+});
+
+test('a condition on a page cover\'s kind: one of the cover sizes, unset on any other design, never on a grid page', () => {
+  assert.deepEqual(whenProblems({ field: 'kind', is: 'profile' }, []), []);
+  assert.deepEqual(whenProblems({ field: 'kind', not: ['x', 'linkedin'] }, []), []);
+  for (const v of ['feed', 'Profile', '"><x', 1, null]) assert.ok(whenProblems({ field: 'kind', is: v }, []).some((e) => e.includes('.is must be one of profile, facebook, linkedin, x')), String(v));
+  assert.ok(whenProblems({ field: 'kind', is: 'x' }, [], 'w', { page: 'grid' }).some((e) => e.includes('field must be one of artefact on a grid page')));
+  assert.equal(whenHolds({ field: 'kind', is: 'facebook' }, { template: 'pagecover', kind: 'facebook' }), true);
+  assert.equal(whenHolds({ field: 'kind', is: 'facebook' }, { template: 'pagecover', kind: 'x' }), false);
+  assert.equal(whenHolds({ field: 'kind', is: 'facebook' }, { template: 'text' }), false);
+  assert.equal(whenHolds({ field: 'kind', not: 'facebook' }, { template: 'text' }), true);
+  assert.equal(exclusive({ field: 'kind', is: 'x' }, { field: 'kind', is: 'profile' }), true);
+  assert.equal(exclusive({ field: 'kind', is: 'x' }, { field: 'kind', not: 'profile' }), false);
 });

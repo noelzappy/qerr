@@ -465,7 +465,7 @@ The format gained what the built-ins need; every new value is a name from a fixe
   condition may also test one choice from a fixed table (`SPEC_CHOICES`): `{ "field": "artefact", "is": "ledger" }` (the
   artefact's type; the only choice a grid page may test, and only a declared artefact), and on the built-in pages the
   templates' own options and flags (`register`, `beside`, `pills`, `checks`, `layout`, `device`, `align`, `size`, `textAt`,
-  `scrim`, `map`, `fade`, `tilt`, `framed`, `glow`, `dots`), with `is` or `not` and a value or a list of values from that
+  `scrim`, `map`, `fade`, `tilt`, `framed`, `glow`, `dots`, and a page cover's `kind`), with `is` or `not` and a value or a list of values from that
   choice's list. Where every template has the same default it is filled in (a device is a phone unless it says desktop);
   where they differ the value is read as given, and an unset value matches no `is`, only a `not`.
 - **`ground`** may be a list of up to 4 cases, `[{ "when": { "present": "image" }, "ground": "photo" }, { "ground": "cool" }]`,
