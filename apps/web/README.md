@@ -97,7 +97,32 @@ How it reaches the engine (`src/server/services/brand-settings.ts`):
   under `state/brand/<hash>/` and points `BRAND_DIR` at it. It runs at start, after every change, and before every render
   and AI job, so several processes agree.
 - **Before the logos exist.** Images are refused until the logos are uploaded.
-- **Without a saved brand.** With no saved brand and no reference briefs, the configured pack is used as it is.
+- **Without a saved brand.** With no saved brand, no reference briefs and no layouts, the configured pack is used as it is.
+
+**Settings, Layouts** (`/api/settings/layouts`, `src/server/routes/layouts.ts`, admins only) holds the brand's own
+compositions: blocks placed in slots on a grid, as data the engine's layout validator checks
+(`packages/engine/lib/design/layout.mjs`; the format is in [docs/design.md](../../docs/design.md), "Your own layouts"). The
+editor places a block by clicking two cells of the grid, offers each block's options from the engine's catalogue, sketches
+the page as it changes, shows the engine's verdict as you type and draws a real preview with the brand on request; a JSON
+view shows the layout as the engine reads it. Starting points like the built-in pages come from the engine
+(`lib/design/layout-starters.mjs`). Layouts are stored in `brand_layouts`; the enabled ones go into the pack's `brand.json`
+as `layouts` on every sync (one that no longer passes is left out and logged), where a post's design names one
+(`{ "template": "layout", "layout": "<id>", ...fields }`) and the AI is told about them.
+
+| Route | Does |
+|---|---|
+| `GET /api/settings/layouts` | the layouts, the starting points and the engine's catalogue of blocks, options and fields |
+| `POST /api/settings/layouts` | add one: `{ definition, origin? }` or `{ starter, name? }` (a copy of a starting point under a free id) |
+| `POST /api/settings/layouts/validate` | `{ problems }` for a definition, nothing stored |
+| `POST /api/settings/layouts/preview` | `{ definition, size?, sample? }`: one image drawn with sample words through the renderer and every check, under the render lock, as a JPEG data URL; nothing stored |
+| `PUT /api/settings/layouts/:id` | replace the definition; a new id is refused while a post uses the old one |
+| `PATCH /api/settings/layouts/:id` | `enabled`, `position` |
+| `POST /api/settings/layouts/:id/duplicate` | a copy under a free id, switched off |
+| `DELETE /api/settings/layouts/:id` | refused while a post's design names it |
+| `GET /api/layouts` | any signed-in person: the layouts of the brand in force and the fields each takes, for the post editor |
+
+A design reference's analysis may suggest a layout (`analysis.composition`); it is checked by the same validator before it
+is stored, and "Use this layout" on the reference previews it with the brand before an admin adds it.
 
 The public routes:
 
