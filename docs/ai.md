@@ -1,15 +1,24 @@
 # The AI library (`packages/ai/`, `@vesk/ai`)
 
 No third-party dependencies, Node 20+, `fetch` only. It depends on the engine workspace (`@vesk/engine`) for the batch and design validators. It is the only way the Vesk web app talks to a model or a search
-provider. Interface: `docs/spec/app-contract.md`.
+provider. Its interface:
 
 ```js
 import { createAI } from '@vesk/ai';
-const ai = createAI({ providers, search, budget, log, prices });
+const ai = createAI({ providers, search, budget, log, prices });            // config from the app's settings, keys already decrypted
 await ai.draftBatch({ vault, series, period, count, channels, brand, timezone }); // -> { batch, notes }
 await ai.research({ topics, vault, since });                                       // -> { items, checks, notes }
 await ai.rewrite({ post, instruction, vault, channels });                          // -> post (with post.notes)
+await ai.analyseReference({ image, note });                                        // -> { analysis, brief, notes }
 ```
+
+- `draftBatch` returns `batch`, the engine's batch JSON (see [batch-format.md](batch-format.md)) with a `design` block on
+  each post, every post carrying `sources: [vaultItemId]` and `warnings: [string]`.
+- `research` returns `items: [{ kind, title, body, sourceUrls, foundAt, status: 'unconfirmed' }]` and
+  `checks: [{ vaultItemId, verdict, sourceUrls, note }]`.
+- `rewrite` returns the post in the same shape as one post of `draftBatch`.
+- All of it is untrusted output, validated against the batch format and the design spec validators before it is
+  returned (see "Safety rules").
 
 ## Configuration
 

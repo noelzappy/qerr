@@ -17,7 +17,7 @@ beforeAll(async () => {
 afterAll(() => t.close());
 beforeEach(() => t.reset());
 
-// The same example the command-line tool ships, so the two cannot drift apart.
+// The example batch the repository ships in batches/, so the file and the renderer cannot drift apart.
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 // design/assets/... lives in the engine package.
 const ENGINE_PACKAGE = path.join(REPO_ROOT, 'packages', 'engine');

@@ -4,22 +4,19 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { ROOT } from './lib/core.mjs';
 import { validateBatch } from './lib/batch.mjs';
 import { loadBrand } from './lib/design/brand.mjs';
-import { applyFills, planBatchDesign, stemOf } from './lib/design/batch.mjs';
+import { stemOf } from './lib/design/batch.mjs';
 import { autoLines, arcPoints, contrastRatio, explainProblems, findLayoutProblems, imageSize, luminance, upscaleFactor, upscaleWarning, worstContrast } from './lib/design/checks.mjs';
 import { Browser, findChrome } from './lib/design/chrome.mjs';
 import http from 'node:http';
 import { buildPage } from './lib/design/page.mjs';
 import { TEMPLATE_FNS } from './design/templates/index.mjs';
 import { detectConverter } from './lib/design/convert.mjs';
-import { parseDesignArgs, specFromFlags } from './lib/design/flags.mjs';
 import { lintText } from './lib/design/lint.mjs';
-import { runDesign } from './lib/design/cli.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { pngBytes } from './testlib/png.mjs';
+import { renderSpec } from './testlib/render.mjs';
 import { focalToCss, normaliseDesign, outputFiles, parseStat, pdfFile, validateDesign } from './lib/design/spec.mjs';
 
 const brand = loadBrand();
@@ -58,49 +55,6 @@ test('parseStat, focal points and normalising', () => {
   assert.deepEqual(n.sizes, ['feed']);
 });
 
-test('flag parsing: values, repeats, booleans, line breaks and unknown flags', () => {
-  const { flags, pos, errors } = parseDesignArgs(['--stat', 'a|b', '--stat', 'c|d', '--headline', 'One\\nTwo', '--no-lines', '--sizes', 'feed,wide', 'x.json']);
-  assert.deepEqual(errors, []);
-  assert.deepEqual(pos, ['x.json']);
-  const spec = specFromFlags('photo', { ...flags, image: 'p.jpg', 'text-at': 'bottom', 'scrim-peak': '0.4', focal: '60% 40%' });
-  assert.equal(spec.headline, 'One\nTwo');
-  assert.deepEqual(spec.stats, ['a|b', 'c|d']);
-  assert.equal(spec.lines, false);
-  assert.equal(spec.sizes, 'feed,wide');
-  assert.equal(spec.textAt, 'bottom');
-  assert.equal(spec.scrimPeak, 0.4);
-  assert.deepEqual(validateDesign({ ...spec, template: 'photo', stats: undefined }), []);
-  const scr = parseDesignArgs(['--device', 'desktop', '--framed', '--title', 'Passbooks', '--tilt', '--region', '0.75', '--image', 'd.webp', '--headline', 'h']);
-  assert.deepEqual(scr.errors, []);
-  const desk = specFromFlags('screen', scr.flags);
-  assert.deepEqual([desk.device, desk.framed, desk.title, desk.tilt, desk.region], ['desktop', true, 'Passbooks', true, 0.75]);
-  assert.deepEqual(validateDesign(desk), []);
-  const ph = parseDesignArgs(['--image', 'p.webp', '--headline', 'h', '--pill', 'Read-only by design', '--check', 'Two-person approval', '--check', 'Audited', '--fade', '--no-glow']);
-  assert.deepEqual(ph.errors, []);
-  const phs = specFromFlags('screen', ph.flags);
-  assert.deepEqual([phs.pills, phs.checks, phs.fade, phs.glow], [['Read-only by design'], ['Two-person approval', 'Audited'], true, false]);
-  assert.deepEqual(validateDesign(phs), []);
-  const cl = specFromFlags('closing', parseDesignArgs(['--map', '--no-dots']).flags);
-  assert.deepEqual([cl.map, cl.dots], [true, false]);
-  assert.deepEqual(validateDesign(cl), []);
-  const ob = parseDesignArgs(['--image', 'a.jpg', '--headline', 'h', '--ground', 'photo', '--align', 'center', '--size', '120', '--photo-top', '640']);
-  assert.deepEqual(ob.errors, []);
-  const obs = specFromFlags('object', ob.flags);
-  assert.deepEqual([obs.ground, obs.align, obs.size, obs.photoTop], ['photo', 'center', 120, 640]);
-  assert.deepEqual(validateDesign(obs), []);
-  const pr = specFromFlags('product', parseDesignArgs(['--image', 'p.webp', '--headline', 'h', '--layout', 'side', '--phone-top', '400']).flags);
-  assert.deepEqual([pr.layout, pr.phoneTop], ['side', 400]);
-  assert.deepEqual(validateDesign(pr), []);
-  // the silk ribbon and figure captions are gone (owner, 2026-11-20)
-  assert.deepEqual(parseDesignArgs(['--silk']).errors, ['unknown flag --silk']);
-  assert.deepEqual(parseDesignArgs(['--caption', 'Fig. x']).errors, ['unknown flag --caption']);
-  assert.deepEqual(parseDesignArgs(['--status-fill', '#F0F0F4']).errors, ['unknown flag --status-fill']);
-  assert.deepEqual(parseDesignArgs(['--bogus']).errors, ['unknown flag --bogus']);
-  assert.deepEqual(parseDesignArgs(['--image']).errors, ['--image needs a value']);
-  assert.deepEqual(parseDesignArgs(['--image', '--headline', 'x']).errors, ['--image needs a value']);
-  assert.throws(() => specFromFlags('carousel', { spec: '/nonexistent/spec.json' }), /spec file not found/);
-});
-
 test('file naming: one image per size, per slide, and the stem rules', () => {
   const s = (o) => normaliseDesign({ template: 'photo', image: 'a.jpg', headline: 'x', ...o });
   assert.deepEqual(outputFiles(s({}), { stem: '01-x' }).map((f) => f.file), ['01-x-feed.jpg']);
@@ -114,35 +68,6 @@ test('file naming: one image per size, per slide, and the stem rules', () => {
 });
 
 const rawBatch = (posts) => ({ name: 't', timezone: 'UTC', defaultTime: '09:00', mediaRoot: 'media/t', posts: posts.map((p, i) => ({ id: `0${i + 1}-p`, date: '2026-12-01', caption: 'Hello', ...p })) });
-
-test('batch design block: media is filled in when absent and never overwritten when set', () => {
-  const raw = rawBatch([
-    { design: photo({ sizes: ['feed', 'wide'], networkSizes: { linkedin: 'wide' } }) },
-    { media: ['hand-made.jpg'], design: photo() },
-    { design: { template: 'carousel', pages: [{ template: 'text', headline: 'a' }, { template: 'closing' }] } },
-    { caption: 'no design' },
-  ]);
-  assert.deepEqual(validateBatch(raw).errors, []);
-  const plan = planBatchDesign(raw, { root: ROOT });
-  assert.equal(plan.jobs.length, 3);
-  assert.equal(plan.jobs[0].dir, path.join(ROOT, 'media', 't'));
-  assert.deepEqual(plan.jobs[0].files.map((f) => f.file), ['01-p-feed.jpg', '01-p-wide.jpg']);
-  assert.ok(plan.warnings.some((w) => w.includes('02-p') && w.includes('does not list')));
-  const out = applyFills(raw, plan.fills);
-  assert.deepEqual(out.posts[0].media, ['01-p-feed.jpg']);
-  assert.deepEqual(out.posts[0].networks.linkedin.media, ['01-p-wide.jpg']);
-  assert.deepEqual(out.posts[1].media, ['hand-made.jpg']);
-  assert.deepEqual(out.posts[2].media, ['03-p-1.jpg', '03-p-2.jpg']);
-  assert.equal(out.posts[3].media, undefined);
-  assert.deepEqual(Object.keys(out.posts[0]).slice(0, 4), ['id', 'date', 'caption', 'media']);
-  // applying twice, or after the owner set media, changes nothing
-  assert.deepEqual(applyFills(out, planBatchDesign(out, { root: ROOT }).fills), out);
-  const handSet = { ...raw, posts: raw.posts.map((p) => ({ ...p, media: p.media ?? ['mine.jpg'] })) };
-  assert.deepEqual(applyFills(handSet, plan.fills).posts.map((p) => p.media), handSet.posts.map((p) => p.media));
-  // --out-dir renders elsewhere; --only limits the posts
-  assert.equal(planBatchDesign(raw, { root: ROOT, outDir: 'media/preview' }).jobs[0].dir, path.join(ROOT, 'media', 'preview'));
-  assert.equal(planBatchDesign(raw, { root: ROOT, only: '03-p' }).jobs.length, 1);
-});
 
 test('batch validation reports design block errors, and pagecover is refused in a batch', () => {
   const r = validateBatch(rawBatch([{ design: { template: 'photo', headline: 'x' } }, { design: { template: 'pagecover', kind: 'x' } }]));
@@ -248,93 +173,43 @@ test('image sizes are read from the bytes; Chrome is found through CHROME_PATH; 
   assert.equal(detectConverter({ probe: () => false }), null);
 });
 
-test('design --help works on its own and through buffer.mjs; unknown flags and commands exit 1', () => {
-  const run = (file, ...args) => spawnSync(process.execPath, [path.join(import.meta.dirname, file), ...args], { encoding: 'utf8' });
-  for (const [file, args] of [['design.mjs', ['--help']], ['design.mjs', []], ['buffer.mjs', ['design', '--help']]]) {
-    const r = run(file, ...args);
-    assert.equal(r.status, 0);
-    for (const word of ['photo', 'cover', 'ledger', 'passbook', 'myth-fact', 'stats', 'screen', 'carousel', 'render', '--sizes', '--no-lines', '--image', '--spec', 'CHROME_PATH']) assert.ok(r.stdout.includes(word), `${file} ${args}: ${word}`);
-  }
-  const bad = run('design.mjs', 'photo', '--bogus');
-  assert.equal(bad.status, 1);
-  assert.match(bad.stdout, /unknown flag --bogus/);
-  assert.equal(run('design.mjs', 'frobnicate').status, 1);
-  const missing = run('design.mjs', 'photo', '--headline', 'x');
-  assert.equal(missing.status, 1);
-  assert.match(missing.stderr, /image is required/);
-});
-
 
 const chrome = findChrome();
 const NO_CHROME_SKIP = 'Google Chrome not found (set CHROME_PATH); skipping the real render';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ss-design-test-'));
 test.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
-const capture = () => { const lines = []; return { lines, log: (s) => lines.push(String(s)) }; };
 
 // A pale, bright synthetic "photo": white text on it fails contrast until the scrim is raised.
 const synthetic = path.join(tmp, 'pale-field.png');
 fs.writeFileSync(synthetic, pngBytes(1600, 1200, (x, y) => { const v = 225 + Math.round(30 * (x / 1600)); return [v, v - 6 + (y % 7), v - 12]; }));
 
 test('end to end: a text page renders at the exact size', { skip: chrome ? false : NO_CHROME_SKIP }, async () => {
-  const { lines, log } = capture();
-  const out = path.join(tmp, 'text.jpg');
-  const code = await runDesign(['text', '--headline', 'Every euro,\n*on record.*', '--sub', 'One place to run savings, passbooks, goals, loans and welfare funds.', '--out', out], { log });
-  assert.equal(code, 0, lines.join('\n'));
-  const size = imageSize(fs.readFileSync(out));
-  assert.deepEqual(size, { w: 1080, h: 1350 });
-  assert.ok(fs.statSync(out).size > 20000);
-  assert.match(lines.join('\n'), /1 image\(s\) made, 0 failed/);
+  const r = await renderSpec({ template: 'text', headline: 'Every euro,\n*on record.*', sub: 'One place to run savings, passbooks, goals, loans and welfare funds.' }, path.join(tmp, 'text.jpg'));
+  assert.equal(r.code, 0, r.text);
+  assert.equal(r.files.length, 1);
+  assert.deepEqual(imageSize(fs.readFileSync(r.out)), { w: 1080, h: 1350 });
+  assert.deepEqual([r.files[0].w, r.files[0].h], [1080, 1350]);
+  assert.ok(fs.statSync(r.out).size > 20000);
 });
 
 test('end to end: a photo post raises the scrim for contrast, draws the lines, and writes every size', { skip: chrome ? false : NO_CHROME_SKIP }, async () => {
-  const { lines, log } = capture();
-  const out = path.join(tmp, 'photo.jpg');
-  const code = await runDesign(['photo', '--image', synthetic, '--headline', 'Every euro,\n*on record.*', '--sub', 'Savings, passbooks, goals, loans and welfare funds in one place.', '--sizes', 'feed,wide', '--out', out], { log });
-  const text = lines.join('\n');
-  assert.equal(code, 0, text);
+  const r = await renderSpec({ template: 'photo', image: synthetic, headline: 'Every euro,\n*on record.*', sub: 'Savings, passbooks, goals, loans and welfare funds in one place.', sizes: ['feed', 'wide'] }, path.join(tmp, 'photo.jpg'));
+  const { text } = r;
+  assert.equal(r.code, 0, text);
   assert.deepEqual(imageSize(fs.readFileSync(path.join(tmp, 'photo-feed.jpg'))), { w: 1080, h: 1350 });
   assert.deepEqual(imageSize(fs.readFileSync(path.join(tmp, 'photo-wide.jpg'))), { w: 1200, h: 675 });
   assert.match(text, /scrim raised to 0\.\d+/); // white text on a pale picture needed more than the starting scrim
   // the same picture with the scrim switched off and no lines: the tool says so instead of hiding it
-  const off = capture();
-  const code2 = await runDesign(['photo', '--image', synthetic, '--headline', 'Every euro, on record.', '--scrim', 'none', '--no-lines', '--out', path.join(tmp, 'off.jpg')], { log: off.log });
-  assert.equal(code2, 0, off.lines.join('\n'));
-  assert.match(off.lines.join('\n'), /low contrast: the headline text is/);
+  const off = await renderSpec({ template: 'photo', image: synthetic, headline: 'Every euro, on record.', scrim: 'none', lines: false }, path.join(tmp, 'off.jpg'));
+  assert.equal(off.code, 0, off.text);
+  assert.match(off.text, /low contrast: the headline text is/);
 });
 
 test('end to end: text that cannot fit fails with a message that says to shorten it; nothing is written', { skip: chrome ? false : NO_CHROME_SKIP }, async () => {
-  const { lines, log } = capture();
-  const out = path.join(tmp, 'long.jpg');
-  const code = await runDesign(['stats', '--big', 'WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW', '--line', 'Every deposit and payout, written down the moment it happens.', '--out', out], { log });
-  assert.equal(code, 1);
-  assert.match(lines.join('\n'), /does not fit the feed format.*Shorten the text/s);
-  assert.equal(fs.existsSync(out), false);
-});
-
-test('end to end: render <batch> writes the images into mediaRoot and fills media only where it was absent', { skip: chrome ? false : NO_CHROME_SKIP }, async () => {
-  const mediaRoot = 'out/test-design-media';
-  fs.rmSync(path.join(ROOT, mediaRoot), { recursive: true, force: true });
-  const batchFile = path.join(tmp, 'batch.json');
-  const raw = rawBatch([
-    { design: { template: 'text', headline: 'Hello, *world.*', sizes: ['feed'] } },
-    { media: ['mine.jpg'], design: { template: 'photo', image: synthetic, headline: 'Saving together', lines: false } },
-  ]);
-  raw.mediaRoot = mediaRoot;
-  fs.writeFileSync(batchFile, JSON.stringify(raw, null, 2));
-  const { lines, log } = capture();
-  try {
-    const code = await runDesign(['render', batchFile], { log });
-    assert.equal(code, 0, lines.join('\n'));
-    const after = JSON.parse(fs.readFileSync(batchFile, 'utf8'));
-    assert.deepEqual(after.posts[0].media, ['01-p-feed.jpg']);
-    assert.deepEqual(after.posts[1].media, ['mine.jpg']); // hand-set media is never touched
-    assert.deepEqual(imageSize(fs.readFileSync(path.join(ROOT, mediaRoot, '01-p-feed.jpg'))), { w: 1080, h: 1350 });
-    assert.ok(fs.existsSync(path.join(ROOT, mediaRoot, '02-p-feed.jpg')));
-    assert.match(lines.join('\n'), /media does not|does not list the image/);
-    assert.deepEqual(validateBatch(after).errors, []);
-  } finally {
-    fs.rmSync(path.join(ROOT, mediaRoot), { recursive: true, force: true });
-  }
+  const r = await renderSpec({ template: 'stats', big: 'WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW', line: 'Every deposit and payout, written down the moment it happens.' }, path.join(tmp, 'long.jpg'));
+  assert.equal(r.code, 1);
+  assert.match(r.text, /does not fit the feed format.*Shorten the text/s);
+  assert.equal(fs.existsSync(r.out), false);
 });
 
 // ---- untrusted text, in a real browser ----
@@ -367,12 +242,10 @@ test('end to end: a hostile headline is shown as literal text and no script runs
       await page.close();
     }
   } finally { browser.close(); }
-  // and through the whole command: it renders (the text is just text), exit code 0
-  const { lines, log } = capture();
-  const out = path.join(tmp, 'hostile.jpg');
-  const code = await runDesign(['text', '--headline', '"> <script> window.__pwn=1 </script>', '--sub', '<img src=x onerror=alert(1)>', '--out', out], { log });
-  assert.equal(code, 0, lines.join('\n'));
-  assert.deepEqual(imageSize(fs.readFileSync(out)), { w: 1080, h: 1350 });
+  // and through the whole render, as the web app runs it: the text is just text, and the image is made
+  const r = await renderSpec({ template: 'text', headline: '"> <script> window.__pwn=1 </script>', sub: '<img src=x onerror=alert(1)>' }, path.join(tmp, 'hostile.jpg'));
+  assert.equal(r.code, 0, r.text);
+  assert.deepEqual(imageSize(fs.readFileSync(r.out)), { w: 1080, h: 1350 });
 });
 
 test('end to end: the rendered page cannot reach the network or the disk (CSP, request blocking, no file access)', { skip: chrome ? false : NO_CHROME_SKIP }, async () => {

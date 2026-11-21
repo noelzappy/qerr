@@ -1,7 +1,6 @@
 # Secrets and local state never go into the image.
 .env
 .env.*
-!.env.example
 accounts.json
 channels.json
 schema-cache.json

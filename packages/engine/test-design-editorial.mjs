@@ -10,13 +10,13 @@ import { contrastRatio, luminance, webpSize } from './lib/design/checks.mjs';
 import { ENGINE_DIR, ROOT, brandFile } from './lib/core.mjs';
 import { findChrome } from './lib/design/chrome.mjs';
 import { findLayoutProblems, explainProblems } from './lib/design/checks.mjs';
-import { runDesign } from './lib/design/cli.mjs';
 import { ledgerLayout, passbookGeometry } from './lib/design/figures.mjs';
 import { pdfPages, snapMediaBox } from './lib/design/pdf.mjs';
 import { NETWORKS, PAGE_TEMPLATES, validateDesign } from './lib/design/spec.mjs';
 import { NETWORKS as ROUTED } from './lib/networks.mjs';
 import { imageSize } from './lib/design/checks.mjs';
 import { pngBytes } from './testlib/png.mjs';
+import { renderSpec } from './testlib/render.mjs';
 import { TEMPLATE_FNS } from './design/templates/index.mjs';
 
 const SERIES = loadSeries();
@@ -300,29 +300,23 @@ const RENDERS = {
 
 test('end to end: every editorial template renders at 1080x1350 with no warnings', { skip: chrome ? false : SKIP }, async () => {
   for (const [name, spec] of Object.entries(RENDERS)) {
-    const specFile = path.join(tmp, 'spec.json');
-    fs.writeFileSync(specFile, JSON.stringify(spec));
-    const out = path.join(tmp, `${name.replace(/ /g, '-')}.jpg`), lines = [];
-    const code = await runDesign([spec.template, '--spec', specFile, '--out', out], { log: (s) => lines.push(String(s)) });
-    assert.equal(code, 0, `${name}: ${lines.join('\n')}`);
-    assert.deepEqual(imageSize(fs.readFileSync(out)), { w: 1080, h: 1350 }, name);
-    assert.ok(!lines.some((l) => /WARN/.test(l)), `${name}: ${lines.join('\n')}`);
+    const r = await renderSpec(spec, path.join(tmp, `${name.replace(/ /g, '-')}.jpg`));
+    assert.equal(r.code, 0, `${name}: ${r.text}`);
+    assert.deepEqual(imageSize(fs.readFileSync(r.out)), { w: 1080, h: 1350 }, name);
+    assert.deepEqual(r.warnings, [], `${name}: ${r.text}`);
   }
 });
 
 test('end to end: a carousel writes one image per page and a PDF of 1080x1350 px pages (810 x 1012.5 pt)', { skip: chrome ? false : SKIP }, async () => {
-  const specFile = path.join(tmp, 'carousel.json');
-  fs.writeFileSync(specFile, JSON.stringify({ template: 'carousel', series: 'explainers', pages: [RENDERS.cover, RENDERS.text, RENDERS.ledger, RENDERS.closing] }));
-  const lines = [];
-  const code = await runDesign(['carousel', '--spec', specFile, '--name', 'pass', '--out', path.join(tmp, 'car')], { log: (s) => lines.push(String(s)) });
-  assert.equal(code, 0, lines.join('\n'));
+  const r = await renderSpec({ template: 'carousel', series: 'explainers', pages: [RENDERS.cover, RENDERS.text, RENDERS.ledger, RENDERS.closing] }, path.join(tmp, 'car', 'pass.jpg'));
+  assert.equal(r.code, 0, r.text);
   for (let i = 1; i <= 4; i++) assert.ok(fs.existsSync(path.join(tmp, 'car', `pass-${i}.jpg`)), `page ${i}`);
   const pdf = fs.readFileSync(path.join(tmp, 'car', 'pass.pdf'));
   assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
   const pages = pdfPages(pdf);
   assert.equal(pages.length, 4);
   for (const p of pages) { assert.equal(p.width, 810); assert.equal(p.height, 1012.5); }
-  assert.match(lines.join('\n'), /1 PDF\(s\) written/);
+  assert.deepEqual([r.pdf.file, r.pdf.pages], ['pass.pdf', 4]);
   // the folio and the swipe cue: page 1 says Swipe, later pages the website (read back from the page the template builds)
   const { TEMPLATE_FNS } = await import('./design/templates/index.mjs');
   const brand = loadBrand();
@@ -335,15 +329,12 @@ test('end to end: a carousel writes one image per page and a PDF of 1080x1350 px
 
 test('end to end: a phone screen must be a pre-framed capture; a plain screenshot is refused, never framed in CSS', { skip: chrome ? false : SKIP }, async () => {
   for (const [image, why] of [[shot, /no transparency/], [opaqueRgba, /corners are not transparent/]]) {
-    const specFile = path.join(tmp, 'unframed.json'), out = path.join(tmp, 'unframed.jpg'), lines = [];
-    fs.rmSync(out, { force: true });
-    fs.writeFileSync(specFile, JSON.stringify({ template: 'screen', headline: 'A phone', image }));
-    const code = await runDesign(['screen', '--spec', specFile, '--out', out], { log: (s) => lines.push(String(s)) });
-    const text = lines.join('\n');
-    assert.notEqual(code, 0, text);
-    assert.match(text, /use a pre-framed phone capture/i);
-    assert.match(text, why);
-    assert.ok(!fs.existsSync(out), 'nothing is written for a refused phone');
+    fs.rmSync(path.join(tmp, 'unframed-feed.jpg'), { force: true });
+    const r = await renderSpec({ template: 'screen', headline: 'A phone', image }, path.join(tmp, 'unframed.jpg'));
+    assert.notEqual(r.code, 0, r.text);
+    assert.match(r.text, /use a pre-framed phone capture/i);
+    assert.match(r.text, why);
+    assert.ok(!fs.existsSync(r.out), 'nothing is written for a refused phone');
   }
 });
 

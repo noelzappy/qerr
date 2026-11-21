@@ -8,12 +8,12 @@ import path from 'node:path';
 import { loadBrand, loadSeries } from './lib/design/brand.mjs';
 import { findChrome } from './lib/design/chrome.mjs';
 import { imageSize } from './lib/design/checks.mjs';
-import { runDesign } from './lib/design/cli.mjs';
 import { buildPage } from './lib/design/page.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { forSize, validateDesign } from './lib/design/spec.mjs';
 import { TEMPLATE_FNS } from './design/templates/index.mjs';
 import { pngBytes } from './testlib/png.mjs';
+import { renderSpec } from './testlib/render.mjs';
 
 const SERIES = loadSeries();
 const v = (d) => validateDesign(d, 'p', { series: SERIES });
@@ -146,11 +146,8 @@ test('end to end: each poster template renders at 1080x1350; a plain photo backg
   const shot = path.join(tmp, 'shot.png');
   fs.writeFileSync(shot, pngBytes(430, 940, () => [245, 245, 240]));
   const run = async (spec) => {
-    const specFile = path.join(tmp, 'spec.json'), out = path.join(tmp, `${spec.template}.jpg`), lines = [];
-    fs.rmSync(out, { force: true });
-    fs.writeFileSync(specFile, JSON.stringify(spec));
-    const code = await runDesign([spec.template, '--spec', specFile, '--out', out], { log: (s) => lines.push(String(s)) });
-    return { code, text: lines.join('\n'), out };
+    fs.rmSync(path.join(tmp, `${spec.template}-feed.jpg`), { force: true });
+    return renderSpec(spec, path.join(tmp, `${spec.template}.jpg`));
   };
   const clean = [
     { template: 'object', headline: 'Every euro, *on record.*', sub: 'One place for savings.', image: white, ground: 'gold-pale', align: 'center' },

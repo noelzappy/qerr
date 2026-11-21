@@ -1,6 +1,6 @@
-// Renders ONE post's "design" block without the CLI, for an app to call. It does what renderJobs in lib/design/cli.mjs does
-// for a single post (validate, name the files, brand lint, one Chrome behind the lock file, check every image, a PDF for a
-// carousel) and returns data instead of printing. Nothing here writes a batch file or fills in a media field.
+// Renders ONE post's "design" block, for the web app's render job: validate, name the files, brand lint, one Chrome behind
+// the lock file, check every image, a PDF for a carousel. It returns data instead of printing. Nothing here writes a batch
+// file or fills in a media field.
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './core.mjs';
@@ -15,7 +15,7 @@ import { normaliseDesign, outputFiles, pdfFile, validateDesign } from './design/
 // Every problem with a design block, as the batch validator would list them. No Chrome needed.
 export function designBlockProblems(design, { root = ROOT } = {}) {
   const errors = validateDesign(design, 'design', { series: loadSeries({ root }) });
-  if (design?.template === 'pagecover') errors.push('design: pagecover is made with "design page-cover", not inside a batch');
+  if (design?.template === 'pagecover') errors.push('design: page-cover makes profile and cover images, not post images, so it cannot be used in a batch');
   return errors;
 }
 
@@ -45,8 +45,7 @@ export async function renderDesignBlock({ root = ROOT, design, postId, outDir, s
   }
   const warnings = brandWarnings(spec, brand);
   // A brand without a dot map (the usual case for a brand set up in the web app) still gets its closing page: the map is left
-  // off and the post carries a warning, instead of the whole post failing. The command line keeps refusing, so a pack author
-  // sees the missing map.json at once.
+  // off and the post carries a warning, instead of the whole post failing.
   if (!brand.map) {
     const pages = spec.template === 'carousel' ? spec.pages : [spec];
     if (pages.some((p) => p?.map)) {

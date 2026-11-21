@@ -19,8 +19,6 @@ export interface ApprovalReport {
 
 // Engine warnings that mean the post cannot go out. The rest are shown as warnings.
 const HARD = [/^caption is \d+ characters/, /^Instagram needs media/];
-// Engine warnings that do not apply here: files live in the bucket, and the Facebook type list needs a live Buffer check.
-const IRRELEVANT = [/^local file missing/, /^Facebook type "/];
 
 // The routing and caption limits the engine needs to judge a post, without any key.
 export async function routingForPlanning(deps: Pick<Deps, 'prisma'>) {
@@ -36,7 +34,7 @@ export async function routingForPlanning(deps: Pick<Deps, 'prisma'>) {
   };
 }
 
-// A folder that does not exist: the engine only needs a path to build items, and warns about the missing files, which we drop.
+// A folder that does not exist: the engine only needs a path to build items; nothing is read from it here.
 export const NO_MEDIA_ROOT = path.join(os.tmpdir(), 'vesk-no-media');
 
 export async function staleFigureDays(deps: Pick<Deps, 'prisma'>): Promise<number | undefined> {
@@ -73,7 +71,6 @@ export async function approvalReport(deps: Pick<Deps, 'prisma' | 'now'>, post: P
   }
   for (const item of items) {
     for (const w of item.warnings) {
-      if (IRRELEVANT.some((re) => re.test(w))) continue;
       const line = `${item.network}: ${w}`;
       // A design whose render is not ok already has its own blocker above; its "needs media" would repeat it.
       if (HARD.some((re) => re.test(w))) {

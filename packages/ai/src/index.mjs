@@ -1,4 +1,4 @@
-// The AI interface of Vesk (see docs/spec/app-contract.md and docs/ai.md).
+// The AI interface of Vesk (see docs/ai.md).
 //   createAI({ providers, search, budget, log, prices }) -> { draftBatch, research, rewrite, analyseReference }
 import { draftBatch } from './draft.mjs';
 import { research } from './research.mjs';

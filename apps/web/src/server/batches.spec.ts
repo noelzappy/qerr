@@ -10,7 +10,7 @@ beforeAll(async () => { t = await createTestApp(); });
 afterAll(() => t.close());
 beforeEach(() => t.reset());
 
-// The same example the command-line tool ships, so the two cannot drift apart.
+// The example batch the repository ships in batches/, so the file and the import cannot drift apart.
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const example = () => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'batches', 'example-editorial.json'), 'utf8'));
 const ID = '00000000-0000-0000-0000-000000000000';

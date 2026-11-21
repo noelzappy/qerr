@@ -20,24 +20,24 @@ Then, from the repository root:
 
 ```sh
 npm ci
-npm test          # the engine and AI tests (node --test), then the web app's vitest against Postgres
+npm test          # the engine, AI and script tests (node --test), then the web app's vitest against Postgres
 ```
 
 `npm test` needs no keys and no network: Buffer, the AI providers and storage are faked in the tests. Nothing in a
 fresh clone is missing: the demo brand pack (`brands/demo`) and its pictures are in the repository.
 
-To run the web app locally, see [apps/web/README.md](apps/web/README.md). To use the command-line tool, see
-[README.md](README.md).
+To run the web app locally, see [apps/web/README.md](apps/web/README.md).
 
 ## Making a change
 
 - One logical change per commit. Commit messages are imperative and conventional, for example
-  `fix(engine): refuse live pushes in the past`.
+  `fix(web): refuse live sends in the past`.
 - A change in behaviour comes with a test that fails without it. Do not skip, delete or loosen a test to get green.
 - Keep `packages/engine` and `packages/ai` free of dependencies (Node's standard library only).
-- Keep `README.md`, the `--help` texts and `docs/` in step with the code when you change a command, a flag or a field.
-- Never commit keys, `.env`, `accounts.json`, media, rendered images or photographs of people (see AGENTS.md, rules 1
-  and 7).
+- Keep `README.md`, `apps/web/README.md` and `docs/` in step with the code when you change a page, a route, an environment
+  variable, a batch field or a design option.
+- Never commit keys, `.env` files, `accounts.json`, media, rendered images, database dumps or photographs of people (see
+  AGENTS.md, rules 1 and 7).
 - Brand-specific things (names, colours, logos, prompts, facts) belong in the brand (Settings in the web app, or a brand pack under `brands/`), never in the
   engine, the AI library or the web app. Use the demo pack, `brands/demo`, in examples and tests.
 - Before you open a pull request, run `npm test` and `npm run typecheck --workspace @vesk/web`.

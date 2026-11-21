@@ -1,7 +1,7 @@
 {
   "name": "vesk",
   "version": "0.3.0",
-  "description": "Makes on-brand social post images and schedules batches of posts into Buffer. A monorepo: the engine and CLI, the AI library and the web app.",
+  "description": "A web app that drafts, renders, reviews and schedules a brand's social posts into Buffer. A monorepo: the design and Buffer engine, the AI library and the web app.",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -14,10 +14,6 @@
     "test:web": "npm test --workspace @vesk/web",
     "test:scripts": "node --test scripts/test-*.mjs",
     "export-public": "node scripts/export-public.mjs",
-    "build": "npm run build --workspace @vesk/web",
-    "check": "node packages/engine/buffer.mjs check",
-    "buffer": "node packages/engine/buffer.mjs",
-    "design": "node packages/engine/design.mjs",
-    "plan": "node packages/engine/buffer.mjs plan"
+    "build": "npm run build --workspace @vesk/web"
   }
 }
