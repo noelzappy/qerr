@@ -1,4 +1,4 @@
-// Create, Batches: every batch on a board by where it stands (draft, in review, scheduled, done), or as a list, and the way
+// Create, Batches: every batch on a board by where it stands (writing, in review, scheduled, done), or as a list, and the way
 // in to a new one (by hand or drafted by the AI). A batch is a month or a campaign of posts.
 import { useState } from 'react';
 import { Kanban, List, PenLine, Sparkles } from 'lucide-react';
@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { AiDraftSheet } from './batches/AiDraftSheet';
+import { batchCountBadges } from './batches/flow/status';
 import { BATCH_STATUS } from './batches/labels';
 import { NewBatchSheet } from './batches/NewBatchSheet';
 import { DataList, EmptyBlock, ErrorBlock, RowsSkeleton, StatusBadge, Sub, ToneBadge, type Column } from '@/components/kit';
@@ -23,7 +24,7 @@ import { CreateHeader } from '../shell/CreateHeader';
 const COLUMNS: Array<{ status: BatchStatus; hint: string }> = [
   { status: 'draft', hint: 'Being written and checked' },
   { status: 'in_review', hint: 'Waiting for approval' },
-  { status: 'scheduled', hint: 'Sent to Buffer' },
+  { status: 'scheduled', hint: 'In Buffer, waiting to go out' },
   { status: 'done', hint: 'Finished' },
 ];
 
@@ -33,7 +34,7 @@ function BatchCard({ b }: { b: BatchView }) {
     <Link to={`/batches/${b.id}`} className="flex flex-col gap-2 rounded-lg border bg-card p-3 outline-none transition-colors hover:border-foreground/25 focus-visible:ring-[3px] focus-visible:ring-ring/50">
       <div className="flex items-start justify-between gap-2">
         <span className="text-[13.5px] font-semibold leading-snug [overflow-wrap:anywhere]">{b.title}</span>
-        {b.aiDrafted && <ToneBadge tone="info">AI</ToneBadge>}
+        {b.aiDrafted && <ToneBadge tone="info">Written by AI</ToneBadge>}
       </div>
       <span className="text-[12.5px] text-muted-foreground">{periodLabel(b.periodStart, b.periodEnd)}</span>
       {total > 0 && (
@@ -41,7 +42,7 @@ function BatchCard({ b }: { b: BatchView }) {
           <div className="flex h-1.5 overflow-hidden rounded-full bg-border" aria-hidden="true">
             <span className="bg-primary" style={{ width: `${(approved / total) * 100}%` }} />
           </div>
-          <span className="text-[12px] text-muted-foreground">{approved} of {total} approved{(b.counts.renderFailed ?? 0) > 0 ? `, ${b.counts.renderFailed} render failed` : ''}</span>
+          <span className="text-[12px] text-muted-foreground">{approved} of {total} approved{(b.counts.renderFailed ?? 0) > 0 ? `, ${b.counts.renderFailed} ${b.counts.renderFailed === 1 ? 'image' : 'images'} could not be made` : ''}</span>
         </div>
       )}
       <div className="flex items-center justify-between gap-2">
@@ -92,7 +93,7 @@ export function Batches() {
       cell: (b) => (
         <>
           <Link to={`/batches/${b.id}`} className="font-semibold text-foreground underline-offset-4 hover:underline [overflow-wrap:anywhere]">{b.title}</Link>
-          {b.aiDrafted && <> <ToneBadge tone="info">AI draft</ToneBadge></>}
+          {b.aiDrafted && <> <ToneBadge tone="info">Written by AI</ToneBadge></>}
           <Sub mono>{b.name}</Sub>
         </>
       ),
@@ -103,9 +104,7 @@ export function Batches() {
       key: 'posts', header: 'Posts',
       cell: (b) => (
         <div className="flex flex-wrap gap-1.5 @[720px]:max-w-56">
-          <ToneBadge tone="warn">{b.counts.draft ?? 0} draft</ToneBadge>
-          <ToneBadge tone="good">{b.counts.approved ?? 0} approved</ToneBadge>
-          {(b.counts.renderFailed ?? 0) > 0 && <ToneBadge tone="bad">{b.counts.renderFailed} render failed</ToneBadge>}
+          {batchCountBadges(b.counts).filter((x) => x.key !== 'removed').map((x) => <ToneBadge key={x.key} tone={x.tone}>{x.label}</ToneBadge>)}
         </div>
       ),
     },
@@ -123,7 +122,7 @@ export function Batches() {
               <Button size="sm" variant={view === 'board' ? 'secondary' : 'ghost'} aria-pressed={view === 'board'} onClick={() => pick('board')}><Kanban aria-hidden="true" /> Board</Button>
               <Button size="sm" variant={view === 'list' ? 'secondary' : 'ghost'} aria-pressed={view === 'list'} onClick={() => pick('list')}><List aria-hidden="true" /> List</Button>
             </div>
-            <Button size="sm" variant="secondary" onClick={() => navigate('/batches/ai-draft')}><Sparkles aria-hidden="true" /> Draft with AI</Button>
+            <Button size="sm" variant="secondary" onClick={() => navigate('/batches/ai-draft')}><Sparkles aria-hidden="true" /> Draft posts with AI</Button>
             <Button size="sm" variant="outline" onClick={() => navigate('/batches/new')}><PenLine aria-hidden="true" /> New batch</Button>
           </>
         )}
@@ -134,7 +133,7 @@ export function Batches() {
         : data && data.length === 0 ? (
           <Card className="p-0">
             <EmptyBlock title="There are no batches yet" action={<div className="flex flex-wrap justify-center gap-2"><Button onClick={() => navigate('/batches/ai-draft')}><Sparkles aria-hidden="true" /> Draft posts with AI</Button><Button variant="outline" onClick={() => navigate('/batches/new')}>Start a batch by hand</Button></div>}>
-              Let the AI draft a month of posts from your vault, or start a batch by hand. Posts are reviewed here before anything goes to Buffer.
+              Let the AI draft a month of posts from your confirmed facts, or start a batch by hand. Posts are reviewed here before anything goes to Buffer.
             </EmptyBlock>
           </Card>
         )

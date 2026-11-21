@@ -46,7 +46,7 @@ export function NewBatchSheet({ open, onClose }: { open: boolean; onClose: () =>
       <Tabs value={tab} onValueChange={setTab} className="mb-4">
         <TabsList aria-label="How to start" className="h-auto max-w-full">
           <TabsTrigger value="create" disabled={busy} className="max-sm:min-h-11">Create by hand</TabsTrigger>
-          <TabsTrigger value="import" disabled={busy} className="max-sm:min-h-11">Import batch JSON</TabsTrigger>
+          <TabsTrigger value="import" disabled={busy} className="max-sm:min-h-11">Import a batch file <span className="ml-1.5 rounded-sm bg-muted px-1 text-[11px] font-normal text-muted-foreground">Advanced</span></TabsTrigger>
         </TabsList>
       </Tabs>
       {creating ? <CreateForm onClose={onClose} onBusy={setBusy} /> : <ImportForm onClose={onClose} onBusy={setBusy} />}
@@ -151,7 +151,7 @@ function ImportForm({ onClose, onBusy }: { onClose: () => void; onBusy: (busy: b
   async function submit(e: FormEvent) {
     e.preventDefault();
     setLines([]);
-    if (!json.trim()) { setError('Paste the batch JSON, or choose a file.'); return; }
+    if (!json.trim()) { setError('Paste the text of the batch file, or choose a file.'); return; }
     setBusy(true);
     setError('');
     try {
@@ -177,7 +177,7 @@ function ImportForm({ onClose, onBusy }: { onClose: () => void; onBusy: (busy: b
       )}
       <TextField key={fileKey} label="Choose a .json file" optional type="file" accept=".json,application/json" onChange={(e) => void pick(e.target.files?.[0])} />
       <TextAreaField
-        label="Batch JSON" value={json} rows={14} spellCheck={false} mono
+        label="Batch file text (JSON)" value={json} rows={14} spellCheck={false} mono
         hint="A batch file, in the same format as the example batches in the repository's batches folder. Nothing is saved until every post passes the checks."
         onChange={(e) => setJson(e.target.value)}
       />

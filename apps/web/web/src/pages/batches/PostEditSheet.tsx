@@ -4,13 +4,18 @@ import { api } from '../../api';
 import { errorMessage, fieldErrors } from '../../lib/errors';
 import { networkLabel } from '../../lib/labels';
 import { toast } from 'sonner';
-import { BusyButton, CheckField, FieldSet, FormPanel, FormProblem, Notice, TextAreaField, TextField } from '@/components/kit';
-import { cn } from '@/lib/utils';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { BusyButton, CheckField, FieldSet, FormProblem, Notice, TextField } from '@/components/kit';
 import { DesignFields } from './DesignFields';
-import { CAPTION_LIMIT, NETWORKS, type Network } from './labels';
+import { CaptionFields } from './editor/CaptionFields';
+import { EditorPanel } from './editor/EditorPanel';
+import { PreviewPane } from './editor/PreviewPane';
+import { usePreview } from './editor/usePreview';
+import { confirmDiscard, useUnsavedGuard } from '@/hooks/use-unsaved-guard';
+import { NETWORKS } from './labels';
 import { buildNetworks, currentCaptions, currentFlags, readNetworks } from './networks';
 import type { DesignBlock, PostDetail } from './types';
-import { charCount, detailLines } from './util';
+import { detailLines } from './util';
 
 interface BatchBits { id: string; timezone: string; defaultTime: string; defaultNetworks: string[] }
 
@@ -27,33 +32,30 @@ export function PostEditSheet(props: Props) {
   const { open, onClose, detail } = props;
   // The save button is in the panel's pinned footer, so the form tells the panel when it is busy.
   const [busy, setBusy] = useState(false);
+  // The form tells us whether it holds edits that are not saved; every way of closing asks first when it does.
+  const [dirty, setDirty] = useState(false);
+  useUnsavedGuard(open && dirty);
+  const askClose = () => confirmDiscard(dirty, onClose);
   return (
-    <FormPanel
+    <EditorPanel
       open={open}
-      onClose={onClose}
+      onClose={askClose}
       busy={busy}
-      size="lg"
       title={detail ? 'Edit this post' : 'Add a post'}
-      description={detail ? `${detail.post.postKey}. Times are in ${props.batch.timezone}.` : `The new post is a draft. Times are in ${props.batch.timezone}.`}
+      description={detail ? `${detail.post.postKey}. Times are in ${props.batch.timezone}.` : `The new post starts as Writing. Times are in ${props.batch.timezone}.`}
       footer={(
         <>
-          <BusyButton variant="outline" onClick={onClose} disabled={busy}>Cancel</BusyButton>
+          <BusyButton variant="outline" onClick={askClose} disabled={busy}>Cancel</BusyButton>
           <BusyButton type="submit" form="post-edit-form" loading={busy}>{detail ? 'Save changes' : 'Add post'}</BusyButton>
         </>
       )}
     >
-      <EditForm {...props} onBusy={setBusy} />
-    </FormPanel>
+      <EditForm {...props} onBusy={setBusy} onDirty={setDirty} />
+    </EditorPanel>
   );
 }
 
-function Counter({ value, limit }: { value: string; limit: number }) {
-  const n = charCount(value);
-  const over = n > limit;
-  return <span className={cn('whitespace-nowrap font-mono text-xs text-muted-foreground', over && 'font-semibold text-destructive', !over && n > limit * 0.9 && 'text-warning-foreground')}>{n} / {limit}{over ? `, ${n - limit} over` : ''}</span>;
-}
-
-function EditForm({ onClose, batch, detail, onSaved, onBusy }: Props & { onBusy: (busy: boolean) => void }) {
+function EditForm({ onClose, batch, detail, onSaved, onBusy, onDirty }: Props & { onBusy: (busy: boolean) => void; onDirty: (dirty: boolean) => void }) {
   const post = detail?.post ?? null;
   const base = useMemo(() => readNetworks(post?.networks), [post]);
   const initial = useMemo(() => ({
@@ -71,9 +73,20 @@ function EditForm({ onClose, batch, detail, onSaved, onBusy }: Props & { onBusy:
   const [caps, setCaps] = useState(initial.caps);
   const [design, setDesign] = useState<DesignBlock | null>(initial.design);
   const [jsonError, setJsonError] = useState('');
+  const [showPreview, setShowPreview] = useState(true);
+  const preview = usePreview(design, !!jsonError);
   const [busy, setBusy] = useState(false);
   useEffect(() => { onBusy(busy); }, [busy, onBusy]);
   useEffect(() => () => onBusy(false), [onBusy]);
+  // Edits not saved yet: any field that differs from what the form opened with. Cleared once a save has gone through.
+  const [saved, setSaved] = useState(false);
+  const dirty = !saved && (
+    title !== initial.title || caption !== initial.caption || date !== initial.date || time !== initial.time
+    || JSON.stringify(on) !== JSON.stringify(initial.on) || JSON.stringify(caps) !== JSON.stringify(initial.caps)
+    || JSON.stringify(design) !== JSON.stringify(initial.design)
+  );
+  useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
+  useEffect(() => () => onDirty(false), [onDirty]);
   const [error, setError] = useState('');
   const [lines, setLines] = useState<string[]>([]);
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -86,7 +99,7 @@ function EditForm({ onClose, batch, detail, onSaved, onBusy }: Props & { onBusy:
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) problems.date = 'Choose a date';
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) problems.time = 'Choose a time';
     if (!NETWORKS.some((n) => on[n])) problems.networks = 'Choose at least one network';
-    if (jsonError) problems.design = 'Fix the design JSON first';
+    if (jsonError) problems.design = 'Fix the advanced design JSON first';
     setFields(problems);
     setLines([]);
     if (Object.keys(problems).length) { setError('Check the highlighted fields and try again.'); return; }
@@ -106,12 +119,14 @@ function EditForm({ onClose, batch, detail, onSaved, onBusy }: Props & { onBusy:
         const next = await api.patch<PostDetail>(`/api/posts/${post.id}`, body);
         const reset = post.status === 'approved' && next.post.status !== 'approved';
         toast.success(reset ? 'Post saved. Its approval was taken back: approve it again when you are happy' : 'Post saved');
+        setSaved(true);
         onSaved(next);
       } else {
         await api.post(`/api/batches/${batch.id}/posts`, {
           posts: [{ title: title.trim(), caption, date, time, networks, ...(design ? { design } : {}) }],
         });
-        toast.success('Post added as a draft');
+        toast.success('Post added. It starts as Writing');
+        setSaved(true);
         onSaved(null);
       }
       onClose();
@@ -128,46 +143,46 @@ function EditForm({ onClose, batch, detail, onSaved, onBusy }: Props & { onBusy:
     <form id="post-edit-form" className="flex flex-col gap-4" onSubmit={(e) => void submit(e)} noValidate>
       {post?.status === 'approved' && (
         <Notice tone="warn" title="This post is approved.">
-          Changing its words, date, time, networks or design takes the approval back, so it goes to draft and needs approving again. Changing only the title does not.
+          Changing its words, date, time, networks or design takes the approval back, so it goes back to Writing and needs approving again. Changing only the title does not.
         </Notice>
       )}
       <FormProblem error={error} lines={lines} />
-      <TextField label="Title" hint="A label for the team. It is not published." value={title} maxLength={200} error={fields.title} onChange={(e) => setTitle(e.target.value)} />
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-        <TextField label="Date" type="date" value={date} error={fields.date} onChange={(e) => setDate(e.target.value)} />
-        <TextField label="Time" type="time" value={time} error={fields.time} hint={`In ${batch.timezone}.`} onChange={(e) => setTime(e.target.value)} />
-      </div>
-      <FieldSet legend="Networks" error={fields.networks}>
-        {NETWORKS.map((n) => <CheckField key={n} label={networkLabel(n)} checked={!!on[n]} onCheckedChange={(c) => setOn({ ...on, [n]: c })} />)}
-      </FieldSet>
-      <div className="flex flex-col gap-2">
-        <TextAreaField label="Main caption" rows={6} value={caption} error={fields.caption} onChange={(e) => setCaption(e.target.value)} hint="Used on every network that has no caption of its own below." />
-        <div className="flex flex-wrap gap-x-4 gap-y-1">
-          {NETWORKS.filter((n) => on[n]).map((n) => (
-            <span key={n} className="text-sm">{networkLabel(n)} <Counter value={caps[n]?.trim() ? caps[n]! : caption} limit={CAPTION_LIMIT[n as Network]} /></span>
-          ))}
+      <div className="grid grid-cols-1 gap-x-8 gap-y-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
+        <div className="flex min-w-0 flex-col gap-4 lg:col-start-1 lg:row-start-1">
+          <TextField label="Title" hint="A label for the team. It is not published." value={title} maxLength={200} error={fields.title} onChange={(e) => setTitle(e.target.value)} />
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <TextField label="Date" type="date" value={date} error={fields.date} onChange={(e) => setDate(e.target.value)} />
+            <TextField label="Time" type="time" value={time} error={fields.time} hint={`In ${batch.timezone}.`} onChange={(e) => setTime(e.target.value)} />
+          </div>
+          <FieldSet legend="Networks" error={fields.networks}>
+            {NETWORKS.map((n) => <CheckField key={n} label={networkLabel(n)} checked={!!on[n]} onCheckedChange={(c) => setOn({ ...on, [n]: c })} />)}
+          </FieldSet>
+          <CaptionFields caption={caption} onCaption={setCaption} caps={caps} onCaps={setCaps} on={on} error={fields.caption} />
         </div>
+        <aside className="min-w-0 border-t pt-4 lg:sticky lg:top-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start lg:border-t-0 lg:pt-0" aria-label="Preview of the designed image">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="text-base font-semibold">Preview</h3>
+            <button
+              type="button"
+              aria-expanded={showPreview}
+              aria-controls="post-preview"
+              onClick={() => setShowPreview(!showPreview)}
+              className="inline-flex min-h-8 items-center gap-1 rounded-md px-1 text-sm font-medium outline-none hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-11 lg:hidden"
+            >
+              {showPreview ? <ChevronDown className="size-4" aria-hidden="true" /> : <ChevronRight className="size-4" aria-hidden="true" />}
+              {showPreview ? 'Hide preview' : 'Show preview'}
+            </button>
+          </div>
+          <div id="post-preview" className={showPreview ? undefined : 'max-lg:hidden'}>
+            <PreviewPane design={design} preview={preview} />
+          </div>
+        </aside>
+        <section className="min-w-0 border-t pt-4 lg:col-start-1 lg:row-start-2" aria-labelledby="design-heading">
+          <h3 id="design-heading" className="mb-3 text-base font-semibold">Design</h3>
+          <DesignFields design={design} jsonError={jsonError} onChange={(d, err) => { setDesign(d); setJsonError(err); }} />
+          {fields.design && <p className="mt-2 text-[13px] font-medium text-destructive" role="alert">{fields.design}</p>}
+        </section>
       </div>
-      <section className="border-t pt-4" aria-labelledby="single-captions">
-        <h3 id="single-captions" className="mb-1 text-base font-semibold">Captions for single networks</h3>
-        <p className="mb-3 text-sm text-muted-foreground">Leave a box empty to use the main caption.</p>
-        <div className="flex flex-col gap-4">
-          {NETWORKS.map((n) => (
-            <div key={n} className="flex flex-col gap-1.5">
-              <TextAreaField
-                label={<>{networkLabel(n)}{!on[n] && <span className="font-normal text-muted-foreground"> (not sent here)</span>}</>} optional rows={3} value={caps[n] ?? ''}
-                onChange={(e) => setCaps({ ...caps, [n]: e.target.value })}
-              />
-              {(caps[n] ?? '').trim() !== '' && <Counter value={caps[n]!} limit={CAPTION_LIMIT[n]} />}
-            </div>
-          ))}
-        </div>
-      </section>
-      <section className="border-t pt-4" aria-labelledby="design-heading">
-        <h3 id="design-heading" className="mb-3 text-base font-semibold">Design</h3>
-        <DesignFields design={design} jsonError={jsonError} onChange={(d, err) => { setDesign(d); setJsonError(err); }} />
-        {fields.design && <p className="mt-2 text-[13px] font-medium text-destructive" role="alert">{fields.design}</p>}
-      </section>
     </form>
   );
 }

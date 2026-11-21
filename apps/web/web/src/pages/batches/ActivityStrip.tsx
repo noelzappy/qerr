@@ -36,8 +36,8 @@ export function BatchActivityStrip({ batchId, onSettled }: { batchId: string; on
       <div role="status" aria-live="polite" className="flex flex-col gap-3">
         {wave.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            <p><strong>Rendering {renderDone} of {wave.length}</strong> {wave.length === 1 ? 'post' : 'posts'}</p>
-            <Progress value={Math.round((renderDone / wave.length) * 100)} aria-label={`Rendering images, ${renderDone} of ${wave.length}`} />
+            <p><strong>Making images: {renderDone} of {wave.length}</strong> {wave.length === 1 ? 'post' : 'posts'}</p>
+            <Progress value={Math.round((renderDone / wave.length) * 100)} aria-label={`Making images, ${renderDone} of ${wave.length}`} />
           </div>
         )}
         {send && (

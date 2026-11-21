@@ -1,5 +1,5 @@
-// One post in review: pictures, render state, captions per network with their limits, when and where it goes, its
-// sources, what blocks approval, and the actions. Everything shown is untrusted text and is only ever rendered as text.
+// One post in review: its picture, where it stands (the stepper), what blocks approval, when and where it goes, its
+// caption per network with the limits, its sources, and the actions. Everything shown is untrusted text and is only ever rendered as text.
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api';
@@ -8,15 +8,18 @@ import { errorMessage } from '../../lib/errors';
 import { networkLabel } from '../../lib/labels';
 import { Maximize2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { BusyButton, CheckField, ConfirmAction, Lines, Notice, SelectBox, Spin, StatusBadge, ToneBadge } from '@/components/kit';
+import { BusyButton, CheckField, ConfirmAction, Lines, Notice, SelectBox, Spin, ToneBadge } from '@/components/kit';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { CAPTION_LIMIT, NETWORKS, POST_STATUS, RENDER_STATUS, type Network } from './labels';
+import { PostStepper } from './flow/PostStepper';
+import { postFlow } from './flow/status';
+import { CAPTION_LIMIT, NETWORKS, type Network } from './labels';
+import { markNetworkHintSeen } from './network-hint';
 import { buildNetworks, captionFor, currentCaptions, currentFlags, goesTo, readNetworks } from './networks';
 import { PostEditSheet } from './PostEditSheet';
-import type { BatchView, MediaView, PostDetail, PostSummary, SourceView } from './types';
+import type { BatchView, DeliveryRow, MediaView, PostDetail, PostSummary, SourceView } from './types';
 import { charCount, dayLabel, detailLines, MAX_UPLOAD, useInView } from './util';
 
 interface Props {
@@ -27,9 +30,15 @@ interface Props {
   // The AI's own note on why it chose this post's picture (only on AI-drafted batches).
   imageReason?: string;
   onChanged: () => void;
+  // What Buffer holds for this post, so the stepper can say how far it got.
+  deliveries?: DeliveryRow[];
+  // Scroll to this card and light it up for a moment (arriving from the calendar).
+  highlight?: boolean;
   // Ticking the card for a bulk action; the box is left out when the card is shown on its own.
   select?: { selected: boolean; onToggle: (range: boolean) => void };
 }
+
+// The first time someone switches a network, the card says that doing so takes approval off. Kept in the browser only.
 
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime';
 
@@ -40,9 +49,10 @@ function mediaLabel(m: MediaView, all: MediaView[]): string {
   return sameSize.length > 1 && typeof m.slide === 'number' ? `${where}, page ${m.slide + 1} of ${sameSize.length}` : where;
 }
 
-export function PostCard({ summary, batch, version, imageReason, onChanged, select }: Props) {
+export function PostCard({ summary, batch, version, imageReason, onChanged, deliveries, highlight, select }: Props) {
   const [ref, seen] = useInView<HTMLDivElement>();
-  const load = useLoad(() => (seen ? api.get<PostDetail>(`/api/posts/${summary.id}`) : Promise.resolve(null)), [seen, summary.id, version]);
+  const fetchNow = seen || !!highlight;
+  const load = useLoad(() => (fetchNow ? api.get<PostDetail>(`/api/posts/${summary.id}`) : Promise.resolve(null)), [fetchNow, summary.id, version]);
   const detail = load.data;
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -52,11 +62,25 @@ export function PostCard({ summary, batch, version, imageReason, onChanged, sele
   const [dropping, setDropping] = useState<MediaView | null>(null);
   const [viewing, setViewing] = useState<MediaView | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [flash, setFlash] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const lastRefresh = useRef(0);
   const lastRender = useRef(summary.renderStatus);
 
   const render = detail?.post.renderStatus ?? summary.renderStatus;
+
+  // Arriving from the calendar: scroll here, and again once the card has its pictures, then fade the highlight.
+  const scrolled = useRef(false);
+  useEffect(() => {
+    if (!highlight) return;
+    ref.current?.scrollIntoView({ block: 'center' });
+    setFlash(true);
+    const t = setTimeout(() => setFlash(false), 3500);
+    return () => clearTimeout(t);
+  }, [highlight, ref]);
+  useEffect(() => {
+    if (highlight && detail && !scrolled.current) { scrolled.current = true; ref.current?.scrollIntoView({ block: 'center' }); }
+  }, [highlight, detail, ref]);
   // While images are being made, ask again every few seconds, and tell the page when it finishes.
   useEffect(() => {
     if (render !== 'queued' && render !== 'rendering') return;
@@ -110,7 +134,8 @@ export function PostCard({ summary, batch, version, imageReason, onChanged, sele
     const r = await run('network', () => api.patch<PostDetail>(`/api/posts/${post.id}`, { networks: buildNetworks(state, on, caps, batch.defaultNetworks) }));
     if (r) {
       apply(r);
-      toast.success(`${networkLabel(n)} ${checked ? 'switched on' : 'switched off'} for this post${post.status === 'approved' ? '. Approval was taken back' : ''}`);
+      markNetworkHintSeen();
+      toast.success(`${networkLabel(n)} ${checked ? 'switched on' : 'switched off'} for this post${post.status === 'approved' ? '. Approval was taken off' : ''}`);
     }
   }
 
@@ -127,7 +152,7 @@ export function PostCard({ summary, batch, version, imageReason, onChanged, sele
   async function rerender() {
     if (!post) return;
     const r = await run('render', () => api.post<{ post: PostDetail['post'] }>(`/api/posts/${post.id}/render`));
-    if (r) { toast.success('Rendering started'); await load.reload(); onChanged(); }
+    if (r) { toast.success('Making the image'); await load.reload(); onChanged(); }
   }
   async function upload(file: File | undefined) {
     if (!post || !file) return;
@@ -143,7 +168,7 @@ export function PostCard({ summary, batch, version, imageReason, onChanged, sele
     if (!post) return;
     const r = await api.delete<{ inBuffer?: boolean }>(`/api/posts/${post.id}`);
     setRemoving(false);
-    if (r.inBuffer) toast.error('Removed here, but this post is already in Buffer. Delete it there from the Schedule tab');
+    if (r.inBuffer) toast.error('Removed here, but this post is already in Buffer. Delete it there from step 3 or 4 of the batch');
     else toast.success('Post removed. You can restore it from the list of removed posts');
     onChanged();
   }
@@ -159,94 +184,49 @@ export function PostCard({ summary, batch, version, imageReason, onChanged, sele
   const warnings = detail?.warnings ?? [];
   const sources = detail?.sources ?? [];
   const sourceFor = (text: string): SourceView[] => sources.filter((s) => (s.title && text.includes(`"${s.title}"`)) || text.includes(s.id));
+  const flow = postFlow({
+    status: post?.status ?? summary.status,
+    renderStatus: render,
+    warningCount: detail ? warnings.length : summary.warningCount,
+    deliveries,
+    networks: post ? NETWORKS.filter((n) => goesTo(state, batch.defaultNetworks, n)) : undefined,
+  });
+  const title = post?.title ?? summary.title;
 
   return (
     <div ref={ref} className="min-w-0">
-      <Card role="article" aria-label={`Post: ${summary.title}`} className={cn('min-w-0 gap-3.5 p-4 sm:p-5', select?.selected && 'border-primary ring-[3px] ring-primary')}>
-        <div className="flex flex-wrap items-start justify-between gap-2.5">
-          {select && <SelectBox className="mt-1" checked={select.selected} label={`Select ${summary.title}`} onToggle={select.onToggle} />}
-          <div className="min-w-0 flex-1">
-            <h3 className="text-base font-semibold leading-snug [overflow-wrap:anywhere]">{post?.title ?? summary.title}</h3>
-            <span className="block font-mono text-xs text-muted-foreground [overflow-wrap:anywhere]">{summary.postKey}</span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            <StatusBadge status={post?.status ?? summary.status} map={POST_STATUS} />
-            {(post?.design || summary.hasDesign) && <StatusBadge status={render} map={RENDER_STATUS} />}
-          </div>
-        </div>
-
+      <Card role="article" aria-label={`Post: ${summary.title}`} className={cn('min-w-0 gap-3.5 p-4 transition-shadow sm:p-5', select?.selected && 'border-primary ring-[3px] ring-primary', flash && 'ring-[3px] ring-primary/60')}>
         {!post ? (
           load.error
             ? <Notice tone="bad" actions={<BusyButton size="sm" variant="outline" onClick={() => void load.reload()}>Try again</BusyButton>}>{load.error}</Notice>
-            : <div className="flex flex-col gap-2.5" role="status" aria-label="Loading the post"><Skeleton className="h-40 w-full" /><Skeleton className="h-4 w-4/5" /><Skeleton className="h-4 w-3/5" /></div>
+            : <div className="flex flex-col gap-2.5" role="status" aria-label="Loading the post"><Skeleton className="h-40 w-full" /></div>
         ) : (
           <>
-            <p className="text-sm text-muted-foreground">
-              <strong className="font-semibold text-foreground">{dayLabel(post.date)}, {post.time}</strong> <span className="text-[13px]">({batch.timezone})</span>
-            </p>
-
             <Pictures post={post} render={render} onFail={pictureFailed} onDrop={setDropping} onView={setViewing} />
             {imageReason && <p className="-mt-1 text-[13px] text-muted-foreground [overflow-wrap:anywhere]">Why this picture: {imageReason}</p>}
+          </>
+        )}
+
+        <div className="flex items-start gap-2.5">
+          {select && <SelectBox className="mt-1" checked={select.selected} label={`Select ${summary.title}`} onToggle={select.onToggle} />}
+          <div className="min-w-0 flex-1">
+            <h3 className="mb-1.5 text-base font-semibold leading-snug [overflow-wrap:anywhere]">{title}</h3>
+            <PostStepper flow={flow} />
+          </div>
+        </div>
+
+        {post && (
+          <>
             {post.renderStatus === 'failed' && (
-              <Notice tone="bad" title="The images could not be made.">{post.renderError ?? 'No reason was given.'} Fix the design or render again.</Notice>
+              <Notice tone="bad" title="The image could not be made.">{post.renderError ?? 'No reason was given.'} Fix the design, or choose "Make the image again".</Notice>
             )}
-
-            <div>
-              <p className="mb-1.5 font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Caption</p>
-              <p className={cn('whitespace-pre-wrap text-sm [overflow-wrap:anywhere]', !expanded && 'line-clamp-4')}>{post.caption}</p>
-              <BusyButton size="sm" variant="ghost" className="-ml-2 mt-1" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? 'Show less' : 'Show the full caption'}</BusyButton>
-            </div>
-            <div className="flex flex-col divide-y rounded-md border" role="group" aria-label="Networks and caption lengths">
-              {NETWORKS.map((n) => {
-                const on = goesTo(state, batch.defaultNetworks, n);
-                const own = state.overrides[n]?.caption;
-                const len = charCount(captionFor(post.caption, state, n));
-                const limit = CAPTION_LIMIT[n as Network];
-                const over = len > limit;
-                return (
-                  <div className="flex flex-col gap-1.5 px-3 py-1.5" key={n} data-off={!on}>
-                    <div className="flex flex-wrap items-center justify-between gap-x-3">
-                      <CheckField
-                        label={`${networkLabel(n)}${on ? '' : ' (skipped)'}`}
-                        checked={on}
-                        disabled={!!busy}
-                        onCheckedChange={(c) => void toggleNetwork(n, c)}
-                      />
-                      <span
-                        className={cn('whitespace-nowrap font-mono text-xs text-muted-foreground', over && 'font-semibold text-destructive', !over && len > limit * 0.9 && 'text-warning-foreground')}
-                        aria-label={`${len} of ${limit} characters${over ? `, ${len - limit} over the limit` : ''}`}
-                      >
-                        {len} / {limit}{over ? `, ${len - limit} over` : ''}
-                      </span>
-                    </div>
-                    {own && <p className={cn('whitespace-pre-wrap pb-1 text-sm [overflow-wrap:anywhere]', !expanded && 'line-clamp-4', !on && 'text-muted-foreground')}><span className="text-[13px] text-muted-foreground">Own caption: </span>{own}</p>}
-                  </div>
-                );
-              })}
-            </div>
-
-            {sources.length > 0 ? (
-              <div>
-                <p className="mb-1.5 font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Sources</p>
-                <ul className="flex flex-col gap-1.5">
-                  {sources.map((s) => (
-                    <li key={s.id} className="flex flex-wrap items-center gap-2">
-                      <Link to={`/vault/${s.id}`} className="text-sm font-medium text-primary underline-offset-4 hover:underline [overflow-wrap:anywhere]">{s.title ?? 'Missing vault item'}</Link>
-                      {s.deletedAt || s.status === 'missing' ? <ToneBadge tone="bad">{s.status === 'missing' ? 'Missing' : 'Deleted'}</ToneBadge>
-                        : s.status === 'confirmed' ? <ToneBadge tone="good" dot>Confirmed</ToneBadge> : <ToneBadge tone="warn" dot>Unconfirmed</ToneBadge>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : <p className="text-[13px] text-muted-foreground">No sources linked. Every claim should link to a vault item.</p>}
-
             {blockers.length > 0 && post.status !== 'removed' && (
-              <Notice tone="bad" title="This post cannot be approved yet:">
+              <Notice tone="bad" title="Fix this before the post can be approved:">
                 <ul className="mt-1.5 list-disc space-y-1 pl-[18px]">
                   {blockers.map((b) => (
                     <li key={b} className="[overflow-wrap:anywhere]">
                       {b}
-                      {sourceFor(b).map((s) => <div key={s.id}><Link className="text-primary underline-offset-4 hover:underline" to={`/vault/${s.id}`}>Open "{s.title ?? 'the item'}" in the vault</Link></div>)}
+                      {sourceFor(b).map((s) => <div key={s.id}><Link className="text-primary underline-offset-4 hover:underline" to={`/vault/${s.id}`}>Open "{s.title ?? 'the fact'}" in Facts</Link></div>)}
                     </li>
                   ))}
                 </ul>
@@ -257,6 +237,63 @@ export function PostCard({ summary, batch, version, imageReason, onChanged, sele
                 <Lines items={warnings} />
               </Notice>
             )}
+
+            <p className="text-sm text-muted-foreground">
+              <strong className="font-semibold text-foreground">{dayLabel(post.date)}, {post.time}</strong> <span className="text-[13px]">({batch.timezone})</span>
+            </p>
+
+            <div>
+              <p className="mb-1.5 font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Caption</p>
+              <p className={cn('whitespace-pre-wrap text-sm [overflow-wrap:anywhere]', !expanded && 'line-clamp-4')}>{post.caption}</p>
+              <BusyButton size="sm" variant="ghost" className="-ml-2 mt-1" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? 'Show less' : 'Show the full caption'}</BusyButton>
+            </div>
+
+            <div>
+              <div className="flex flex-col divide-y rounded-md border" role="group" aria-label="Networks and caption lengths">
+                {NETWORKS.map((n) => {
+                  const on = goesTo(state, batch.defaultNetworks, n);
+                  const own = state.overrides[n]?.caption;
+                  const len = charCount(captionFor(post.caption, state, n));
+                  const limit = CAPTION_LIMIT[n as Network];
+                  const over = len > limit;
+                  return (
+                    <div className="flex flex-col gap-1.5 px-3 py-1.5" key={n} data-off={!on}>
+                      <div className="flex flex-wrap items-center justify-between gap-x-3">
+                        <CheckField
+                          label={`${networkLabel(n)}${on ? '' : ' (skipped)'}`}
+                          checked={on}
+                          disabled={!!busy}
+                          onCheckedChange={(c) => void toggleNetwork(n, c)}
+                        />
+                        <span
+                          className={cn('whitespace-nowrap font-mono text-xs text-muted-foreground', over && 'font-semibold text-destructive', !over && len > limit * 0.9 && 'text-warning-foreground')}
+                          aria-label={`${len} of ${limit} characters${over ? `, ${len - limit} over the limit` : ''}`}
+                        >
+                          {len} / {limit}{over ? `, ${len - limit} over` : ''}
+                        </span>
+                      </div>
+                      {own && <p className={cn('whitespace-pre-wrap pb-1 text-sm [overflow-wrap:anywhere]', !expanded && 'line-clamp-4', !on && 'text-muted-foreground')}><span className="text-[13px] text-muted-foreground">Own caption: </span>{own}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {sources.length > 0 ? (
+              <div>
+                <p className="mb-1.5 font-mono text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Sources</p>
+                <ul className="flex flex-col gap-1.5">
+                  {sources.map((s) => (
+                    <li key={s.id} className="flex flex-wrap items-center gap-2">
+                      <Link to={`/vault/${s.id}`} className="text-sm font-medium text-primary underline-offset-4 hover:underline [overflow-wrap:anywhere]">{s.title ?? 'Missing fact'}</Link>
+                      {s.deletedAt || s.status === 'missing' ? <ToneBadge tone="bad">{s.status === 'missing' ? 'Missing' : 'Deleted'}</ToneBadge>
+                        : s.status === 'confirmed' ? <ToneBadge tone="good" dot>Confirmed</ToneBadge> : <ToneBadge tone="warn" dot>Unconfirmed</ToneBadge>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : <p className="text-[13px] text-muted-foreground">No sources linked. Every claim should link to a fact.</p>}
+
             {error && (
               <Notice tone="bad">
                 {error}
@@ -264,16 +301,21 @@ export function PostCard({ summary, batch, version, imageReason, onChanged, sele
               </Notice>
             )}
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {post.status === 'approved'
                 ? <BusyButton size="sm" variant="outline" onClick={() => void unapprove()} loading={busy === 'approve'} disabled={!!busy}>Take approval off</BusyButton>
                 : <BusyButton size="sm" onClick={() => void approve()} loading={busy === 'approve'} disabled={!!busy || blockers.length > 0} title={blockers.length ? 'Fix the points above first' : undefined}>Approve</BusyButton>}
               <BusyButton size="sm" variant="outline" onClick={() => setEditing(true)} disabled={!!busy}>Edit</BusyButton>
-              {post.design && <BusyButton size="sm" variant="outline" onClick={() => void rerender()} loading={busy === 'render'} disabled={!!busy || render === 'queued' || render === 'rendering'}>{post.renderStatus === 'none' ? 'Render' : 'Re-render'}</BusyButton>}
-              <BusyButton size="sm" variant="outline" onClick={() => fileRef.current?.click()} loading={busy === 'upload'} disabled={!!busy}>Upload a file</BusyButton>
+              {post.design && <BusyButton size="sm" variant="ghost" onClick={() => void rerender()} loading={busy === 'render'} disabled={!!busy || render === 'queued' || render === 'rendering'}>{post.renderStatus === 'none' ? 'Make the image' : 'Make the image again'}</BusyButton>}
+              <BusyButton size="sm" variant="ghost" onClick={() => fileRef.current?.click()} loading={busy === 'upload'} disabled={!!busy}>Upload a file</BusyButton>
               <input ref={fileRef} type="file" accept={ACCEPT} tabIndex={-1} aria-label={`Upload a picture or video for ${post.title}`} className="sr-only" onChange={(e) => void upload(e.target.files?.[0])} />
               <BusyButton size="sm" variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setRemoving(true)} disabled={!!busy}>Remove</BusyButton>
             </div>
+
+            <details className="text-[13px] text-muted-foreground">
+              <summary className="flex min-h-8 cursor-pointer items-center max-sm:min-h-11">Details</summary>
+              <p className="pb-1">Post key: <span className="font-mono [overflow-wrap:anywhere]">{summary.postKey}</span></p>
+            </details>
           </>
         )}
       </Card>
@@ -284,7 +326,7 @@ export function PostCard({ summary, batch, version, imageReason, onChanged, sele
       <ConfirmAction
         open={removing}
         title="Remove this post?"
-        message={<>"{post?.title ?? summary.title}" leaves the batch's review list and is not sent. It stays in the batch under removed posts, and you can restore it.</>}
+        message={<>"{title}" leaves the batch's review list and is not sent. It stays in the batch under removed posts, and you can restore it.</>}
         confirmLabel="Remove post"
         danger
         onConfirm={confirmRemove}
@@ -293,7 +335,7 @@ export function PostCard({ summary, batch, version, imageReason, onChanged, sele
       <ConfirmAction
         open={!!dropping}
         title="Remove this file?"
-        message={<>{dropping?.rel} will no longer go out with "{post?.title}". The post goes back to draft if it was approved.</>}
+        message={<>{dropping?.rel} will no longer go out with "{post?.title}". The post goes back to Writing if it was approved.</>}
         confirmLabel="Remove file"
         danger
         onConfirm={confirmDropMedia}
@@ -302,7 +344,7 @@ export function PostCard({ summary, batch, version, imageReason, onChanged, sele
       <Dialog open={!!viewing} onOpenChange={(o) => { if (!o) setViewing(null); }}>
         <DialogContent className="max-h-[calc(100dvh-2rem)] gap-3 overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle className="[overflow-wrap:anywhere]">{post?.title ?? summary.title}</DialogTitle>
+            <DialogTitle className="[overflow-wrap:anywhere]">{title}</DialogTitle>
             <DialogDescription>{viewing && post ? mediaLabel(viewing, post.media) : ''}</DialogDescription>
           </DialogHeader>
           {viewing?.url && <img src={viewing.url} alt={post ? `${post.title}: ${mediaLabel(viewing, post.media)}` : ''} className="mx-auto max-h-[75dvh] w-auto max-w-full rounded-md bg-muted object-contain" />}
@@ -318,8 +360,8 @@ function Pictures({ post, render, onFail, onDrop, onView }: { post: PostDetail['
   const single = post.media.length === 1;
   const placeholder = 'flex min-h-30 items-center justify-center gap-2.5 rounded-md bg-muted p-4 text-center text-sm text-muted-foreground';
   if (!post.media.length) {
-    if (working) return <div className={placeholder} role="status"><Spin />{render === 'queued' ? 'Waiting for its turn to render' : 'Making the images'}</div>;
-    return <div className={placeholder}>{post.design ? 'No images yet. Render this post to make them.' : 'No pictures yet. Upload a file for this post.'}</div>;
+    if (working) return <div className={placeholder} role="status"><Spin />{render === 'queued' ? 'Waiting for its turn to make the image' : 'Making the images'}</div>;
+    return <div className={placeholder}>{post.design ? 'No images yet. Choose "Make the image" to create them.' : 'No pictures yet. Upload a file for this post.'}</div>;
   }
   return (
     <div>

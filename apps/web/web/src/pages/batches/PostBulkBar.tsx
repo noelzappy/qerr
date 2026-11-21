@@ -50,14 +50,14 @@ export function PostBulkBar({ selection, posts, afterRun }: {
     report(await run(approved.map((p) => p.id), 'taken off approval', (id) => api.post(`/api/posts/${id}/unapprove`)));
   }
   async function restore() {
-    report(await run(removed.map((p) => p.id), 'restored as drafts', (id) => api.post(`/api/posts/${id}/restore`)));
+    report(await run(removed.map((p) => p.id), 'restored, back to Writing', (id) => api.post(`/api/posts/${id}/restore`)));
   }
   async function remove() {
     const results = await run(removing ?? [], 'removed', (id) => api.delete<{ inBuffer?: boolean }>(`/api/posts/${id}`));
     setRemoving(null);
     report(results);
     const inBuffer = results.filter((r) => r.ok && (r.value as { inBuffer?: boolean }).inBuffer).length;
-    if (inBuffer) toast.error(`${n(inBuffer)} already in Buffer. Delete ${inBuffer === 1 ? 'it' : 'them'} there from the Schedule tab`);
+    if (inBuffer) toast.error(`${n(inBuffer)} already in Buffer. Delete ${inBuffer === 1 ? 'it' : 'them'} there from step 3 or 4 of the batch`);
   }
 
   return (

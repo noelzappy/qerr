@@ -2,18 +2,18 @@
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { networkLabel } from '../lib/labels';
-import { postState, type OverviewPost } from '../lib/overview';
-import { ToneBadge } from '@/components/kit';
+import { flowOfPost, type OverviewPost } from '../lib/overview';
+import { PostStepper } from '../pages/batches/flow/PostStepper';
 import { NetworkIcon } from './network-icon';
 
 const dayFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 export const dayLabel = (iso: string) => dayFmt.format(new Date(`${iso}T00:00:00Z`));
 
 export function PostRow({ post, className, showDate = true }: { post: OverviewPost; className?: string; showDate?: boolean }) {
-  const state = postState(post);
+  const flow = flowOfPost(post);
   return (
     <Link
-      to={`/batches/${post.batch.id}`}
+      to={`/batches/${post.batch.id}?post=${encodeURIComponent(post.id)}`}
       className={cn('group flex gap-4 rounded-lg border bg-card p-3.5 outline-none transition-colors hover:border-foreground/20 focus-visible:ring-[3px] focus-visible:ring-ring/50', className)}
     >
       <div className="min-w-0 flex-1">
@@ -22,9 +22,9 @@ export function PostRow({ post, className, showDate = true }: { post: OverviewPo
             {post.networks.map((n) => <NetworkIcon key={n} network={n} className="ring-2 ring-card" />)}
           </span>
           <span className="tabular-nums">{showDate ? `${dayLabel(post.date)}, ` : ''}{post.time}</span>
-          <ToneBadge tone={state.tone} dot>{state.label}</ToneBadge>
           <span className="truncate">{post.batch.title}</span>
         </div>
+        <PostStepper flow={flow} compact className="mt-1.5" />
         <p className="mt-1.5 line-clamp-3 text-[13.5px] leading-relaxed text-foreground [overflow-wrap:anywhere]">{post.caption || <span className="text-muted-foreground">{post.title}</span>}</p>
       </div>
       {post.thumbnailUrl

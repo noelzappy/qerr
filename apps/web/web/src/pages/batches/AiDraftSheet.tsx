@@ -85,7 +85,7 @@ export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => 
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3"><strong className="[overflow-wrap:anywhere]">{run.title}</strong><RunStatusBadge run={run} /></div>
             <RunProgress run={run} now={now} />
-            {run.error && <Notice tone="bad" title="The draft did not work.">{run.error}</Notice>}
+            {run.error && <Notice tone="bad" title="Drafting did not work.">{run.error}</Notice>}
             <RunResult run={run} />
           </div>
         )}
@@ -98,8 +98,8 @@ export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => 
       open={open}
       onClose={onClose}
       busy={busy}
-      title="Draft with AI"
-      description="The AI drafts posts from the vault items a person has confirmed. It takes a few minutes, and you review every post before anything is scheduled."
+      title="Draft posts with AI"
+      description="The AI drafts posts from the facts a person has confirmed. It takes a few minutes, and you review every post before anything is scheduled."
       footer={(
         <>
           <BusyButton variant="outline" onClick={onClose} disabled={busy}>Cancel</BusyButton>

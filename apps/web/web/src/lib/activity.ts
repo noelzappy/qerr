@@ -29,13 +29,15 @@ export interface ActivityPage { items: ActivityRun[]; page: number; pageSize: nu
 export const KIND_LABEL: Record<RunKind, string> = {
   'draft-batch': 'AI draft',
   'research-run': 'Research',
-  'render-post': 'Render images',
+  'render-post': 'Make images',
   'rewrite-post': 'AI rewrite',
   'send-batch': 'Send to Buffer',
   'analyse-reference': 'Design reference',
   'refresh-delivery': 'Status check',
   'refresh-sweep': 'Status check sweep',
 };
+// A run's title as people read it. The server stores image runs as "Render: <post>"; they are shown as "Image: <post>".
+export const runTitle = (title: string) => title.replace(/^Render: /, 'Image: ');
 export const runKindLabel = (k: string) => KIND_LABEL[k as RunKind] ?? k;
 
 const STATUS_LABEL: Record<RunStatus, string> = { queued: 'Waiting', running: 'Running', done: 'Done', failed: 'Failed', cancelled: 'Cancelled' };

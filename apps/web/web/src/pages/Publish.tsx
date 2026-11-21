@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { networkLabel } from '../lib/labels';
-import { postState, type OverviewPost } from '../lib/overview';
+import { flowOfPost, type OverviewPost } from '../lib/overview';
+import { FLAG_LABEL, STEP_LABEL, STEP_TONE } from './batches/flow/status';
 import { ErrorBlock } from '@/components/kit';
 
 type View = 'week' | 'month' | 'list';
@@ -43,18 +44,19 @@ const hourLabel = (h: number) => (h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h ===
 const TONE_BAR: Record<string, string> = { good: 'border-l-primary', warn: 'border-l-warning', bad: 'border-l-destructive', info: 'border-l-info', quiet: 'border-l-muted-foreground/50' };
 
 function Chip({ post, compact = false }: { post: OverviewPost; compact?: boolean }) {
-  const state = postState(post);
+  const flow = flowOfPost(post);
+  const tone = STEP_TONE[flow.step];
   return (
     <Link
-      to={`/batches/${post.batch.id}`}
-      title={`${post.time} ${post.caption}`}
-      className={cn('flex gap-2 rounded-md border border-l-[3px] bg-card p-1.5 text-left text-[12px] leading-snug outline-none transition-colors hover:border-foreground/25 focus-visible:ring-[3px] focus-visible:ring-ring/50', TONE_BAR[state.tone])}
+      to={`/batches/${post.batch.id}?post=${encodeURIComponent(post.id)}`}
+      title={`${STEP_LABEL[flow.step]}${flow.flags.length ? ` (${flow.flags.map((f) => FLAG_LABEL[f]).join(', ')})` : ''}, ${post.time}: ${post.caption || post.title}`}
+      className={cn('flex gap-2 rounded-md border border-l-[3px] bg-card p-1.5 text-left text-[12px] leading-snug outline-none transition-colors hover:border-foreground/25 focus-visible:ring-[3px] focus-visible:ring-ring/50', TONE_BAR[tone])}
     >
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1 text-[11.5px] text-muted-foreground">
           <span className="flex -space-x-0.5">{post.networks.map((n) => <NetworkIcon key={n} network={n} className="size-3.5 rounded-[3px] text-[9px] ring-1 ring-card" />)}</span>
           <span className="tabular-nums">{post.time}</span>
-          <span className="sr-only">{state.label}, {post.networks.map(networkLabel).join(', ')}</span>
+          <span className="sr-only">{STEP_LABEL[flow.step]}{flow.flags.length ? `, ${flow.flags.map((f) => FLAG_LABEL[f]).join(', ')}` : ''}, {post.networks.map(networkLabel).join(', ')}</span>
         </span>
         {!compact && <span className="mt-0.5 line-clamp-2 [overflow-wrap:anywhere]">{post.caption || post.title}</span>}
         {compact && <span className="block truncate">{post.title}</span>}
@@ -177,7 +179,7 @@ export function Publish() {
   const title = view === 'week'
     ? (() => { const s = weekStart(anchor), e = addDays(s, 6); return s.slice(0, 7) === e.slice(0, 7) ? monthTitle(s) : `${parse(s).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' })} – ${parse(e).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' })}`; })()
     : view === 'month' ? monthTitle(anchor) : `From ${dayLabel(anchor)}`;
-  const approved = posts.filter((p) => p.status === 'approved').length;
+  const approved = posts.filter((p) => flowOfPost(p).stepIndex >= 1).length;
 
   return (
     <div className="flex flex-col gap-4">

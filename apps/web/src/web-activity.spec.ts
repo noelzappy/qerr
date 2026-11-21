@@ -1,6 +1,6 @@
 // The batch page's list of failed jobs (web/src/lib/activity.ts), a plain function of the runs.
 import { describe, expect, it } from 'vitest';
-import { recentFailures, type ActivityRun } from '../web/src/lib/activity';
+import { recentFailures, runTitle, type ActivityRun } from '../web/src/lib/activity';
 
 const NOW = Date.parse('2027-06-01T10:00:00Z');
 const run = (id: string, kind: string, status: string, minutesAgo: number, postId: string | null = 'p1') => ({
@@ -20,5 +20,13 @@ describe('recentFailures', () => {
     expect(recentFailures([run('a', 'render-post', 'failed', 30)], NOW)).toEqual([]);
     expect(recentFailures([run('s1', 'send-batch', 'failed', 5, null), run('s2', 'send-batch', 'running', 1, null)], NOW)).toEqual([]);
     expect(recentFailures([run('x', 'draft-batch', 'failed', 1, null)], NOW)).toEqual([]);
+  });
+});
+
+describe('runTitle', () => {
+  it('shows an image run as "Image: ..." and leaves other titles alone', () => {
+    expect(runTitle('Render: Layout billboard')).toBe('Image: Layout billboard');
+    expect(runTitle('Send: June batch')).toBe('Send: June batch');
+    expect(runTitle('A Render: in the middle')).toBe('A Render: in the middle');
   });
 });

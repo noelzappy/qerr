@@ -1,7 +1,8 @@
-// The Schedule tab: what would be sent to Buffer (the plan), sending drafts or going live behind an explicit confirmation,
+// Steps 3 and 4 of a batch: what would be sent to Buffer (the plan), sending drafts or going live behind an explicit confirmation,
 // and what has happened to each post and channel since (the deliveries), with the ways to settle or delete one.
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../../api';
+import type { Loaded } from '../../hooks';
 import { useLoad } from '../../hooks';
 import { errorMessage } from '../../lib/errors';
 import { formatDateTime } from '../../lib/format';
@@ -14,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DELIVERY_COUNT_LABEL, type FlowCommand } from './flow/status';
 import { deliveryState } from './labels';
 import type { BatchView, DeliveriesResponse, DeliveryRow, Plan, PlanRow } from './types';
 import { detailLines, localLabel, utcLabel } from './util';
@@ -41,22 +43,31 @@ async function loadPlans(id: string): Promise<Plans> {
 }
 
 function actionPill(r: PlanRow, mode: 'draft' | 'live') {
-  if (r.action === 'skip') return { tone: 'quiet' as const, label: 'Skip: already in Buffer' };
+  if (r.action === 'skip') return { tone: 'quiet' as const, label: 'Skipped: already in Buffer' };
   if (r.action === 'refuse') return { tone: 'bad' as const, label: 'Refused' };
   if (!r.willSend) return { tone: 'warn' as const, label: 'Cannot send yet' };
-  if (mode === 'live') return { tone: 'good' as const, label: r.promote ? 'Will move the draft live' : 'Will go live' };
-  return { tone: 'good' as const, label: 'Will create a draft' };
+  if (mode === 'live') return { tone: 'good' as const, label: r.promote ? 'Will move the draft in Buffer live' : 'Will go live' };
+  return { tone: 'good' as const, label: 'Will be sent as a draft in Buffer' };
 }
 
-export function ScheduleView({ batch, onChanged }: { batch: BatchView; onChanged: () => void }) {
+export function ScheduleView({ batch, deliveries, mode: wanted, command, onCommandDone, onChanged }: {
+  batch: BatchView;
+  deliveries: Loaded<DeliveriesResponse>;
+  // Which plan to show first: step 3 shows the drafts, step 4 the live one.
+  mode: 'draft' | 'live';
+  // A button at the top of the batch page asks for the confirmation to open; it is cleared once handled.
+  command: FlowCommand | null;
+  onCommandDone: () => void;
+  onChanged: () => void;
+}) {
   const { me } = useSession();
   const isAdmin = me?.role === 'admin';
   const isOwner = !!me && me.id === batch.ownerId;
   const canGoLive = isAdmin || isOwner;
 
   const plans = useLoad(() => loadPlans(batch.id), [batch.id]);
-  const deliveries = useLoad(() => api.get<DeliveriesResponse>(`/api/schedule/batches/${batch.id}/deliveries`), [batch.id]);
-  const [mode, setMode] = useState<'draft' | 'live'>('draft');
+  const [mode, setMode] = useState<'draft' | 'live'>(wanted);
+  useEffect(() => { setMode(wanted); }, [wanted]);
   const [confirming, setConfirming] = useState<'draft' | 'live' | null>(null);
   const [resolving, setResolving] = useState<DeliveryRow | null>(null);
   const [deleting, setDeleting] = useState<DeliveryRow | null>(null);
@@ -144,6 +155,16 @@ export function ScheduleView({ batch, onChanged }: { batch: BatchView; onChanged
       ? (livePlan.rows.some((r) => r.needsDraftFirst) ? 'Send the drafts first. A post goes live only after its draft is in Buffer.' : 'Nothing in the live plan can be sent yet. The table says why for each post and channel.')
     : running ? 'A send is already running.' : '';
 
+  // The top of the page asked for a confirmation: open it when the plan is ready and the send is allowed. Nothing is sent here.
+  useEffect(() => {
+    if (command !== 'ask-draft' && command !== 'ask-live') return;
+    if ((plans.loading && !plans.data) || (deliveries.loading && !deliveries.data)) return;
+    const which = command === 'ask-draft' ? 'draft' : 'live';
+    if (!(which === 'draft' ? draftReason : liveReason)) { setMode(which); setConfirming(which); }
+    onCommandDone();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [command, plans.data, plans.loading, deliveries.data, deliveries.loading]);
+
   const planColumns: Column<PlanRow>[] = [
     { key: 'post', header: 'Post and network', primary: true, cell: (r) => <><span className="font-semibold [overflow-wrap:anywhere]">{r.title}</span><Sub>{networkLabel(r.network)}</Sub><Sub mono>{r.postKey}</Sub></> },
     {
@@ -205,7 +226,6 @@ export function ScheduleView({ batch, onChanged }: { batch: BatchView; onChanged
   ];
 
   const counts = deliveries.data?.counts ?? {};
-  const COUNT_LABEL: Record<string, string> = { draft: 'Draft in Buffer', scheduled: 'Scheduled', sent: 'Sent', failed: 'Failed', unknown: 'Unknown, check Buffer', created: 'Created', deleted: 'Deleted' };
   const flush = '-mx-6 border-t';
 
   return (
@@ -213,12 +233,12 @@ export function ScheduleView({ batch, onChanged }: { batch: BatchView; onChanged
       <Card role="region" aria-label="The plan" className="min-w-0">
         <CardHeader>
           <CardTitle className="text-lg">What would go to Buffer</CardTitle>
-          <CardDescription>Only approved posts are planned. Each post goes to Buffer first as a draft. Once the draft is there, it can be scheduled live.</CardDescription>
+          <CardDescription>Only approved posts are planned. Each post goes to Buffer first as a draft in Buffer. Once the draft is there, it can be scheduled live.</CardDescription>
           <CardAction>
             <Tabs value={mode} onValueChange={(v) => setMode(v === 'live' ? 'live' : 'draft')}>
               <TabsList aria-label="Show the plan for">
-                <TabsTrigger value="draft" className="max-sm:min-h-11">Drafts</TabsTrigger>
-                <TabsTrigger value="live" className="max-sm:min-h-11">Live</TabsTrigger>
+                <TabsTrigger value="draft" className="max-sm:min-h-11">Send as drafts</TabsTrigger>
+                <TabsTrigger value="live" className="max-sm:min-h-11">Go live</TabsTrigger>
               </TabsList>
             </Tabs>
           </CardAction>
@@ -237,10 +257,10 @@ export function ScheduleView({ batch, onChanged }: { batch: BatchView; onChanged
                 {(plan.stale || plan.staleReason) && <Notice tone="warn">{plan.staleReason || 'An approval no longer matches the post as it is now. Approve the post again before it can be sent.'}</Notice>}
                 <p className="text-sm">
                   <strong>{plan.willSend}</strong> of {plan.count} post and channel {plan.count === 1 ? 'pair' : 'pairs'} can be sent now.{' '}
-                  {plan.approvedPosts} {plan.approvedPosts === 1 ? 'post is' : 'posts are'} approved{plan.notApproved > 0 ? `, and ${plan.notApproved} ${plan.notApproved === 1 ? 'is' : 'are'} still draft and not planned` : ''}.
+                  {plan.approvedPosts} {plan.approvedPosts === 1 ? 'post is' : 'posts are'} approved{plan.notApproved > 0 ? `, and ${plan.notApproved} ${plan.notApproved === 1 ? 'is' : 'are'} still being written and not planned` : ''}.
                 </p>
                 {plan.rows.length === 0
-                  ? <EmptyBlock title="Nothing is planned yet">Approve posts on the Review tab. Approved posts appear here with the channel and time each one goes to.</EmptyBlock>
+                  ? <EmptyBlock title="Nothing is planned yet">Approve posts in step 2, Review. Approved posts appear here with the channel and time each one goes to.</EmptyBlock>
                   : <div className={flush}><DataList fit="container" caption={`Plan for ${mode === 'draft' ? 'sending drafts' : 'going live'}, one row for each post and channel`} columns={planColumns} rows={plan.rows} rowKey={(r) => `${r.postKey}/${r.network}`} /></div>}
               </>
             )}
@@ -254,7 +274,7 @@ export function ScheduleView({ batch, onChanged }: { batch: BatchView; onChanged
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <div className="flex flex-wrap gap-2.5">
-            <BusyButton onClick={() => setConfirming('draft')} disabled={!!draftReason} aria-describedby="draft-reason" loading={running && run?.mode === 'draft'}>Send approved to Buffer as drafts</BusyButton>
+            <BusyButton onClick={() => setConfirming('draft')} disabled={!!draftReason} aria-describedby="draft-reason" loading={running && run?.mode === 'draft'}>Send approved posts to Buffer as drafts</BusyButton>
             <BusyButton variant="destructive" onClick={() => setConfirming('live')} disabled={!!liveReason} aria-describedby="live-reason" loading={running && run?.mode === 'live'}>Schedule live</BusyButton>
           </div>
           <div className="flex flex-col gap-1 text-[13px] text-muted-foreground">
@@ -273,7 +293,7 @@ export function ScheduleView({ batch, onChanged }: { batch: BatchView; onChanged
         <CardContent className="flex min-w-0 flex-col gap-4">
           {run && <RunSummary run={run} />}
           {Object.keys(counts).length > 0 && (
-            <div className="flex flex-wrap gap-1.5">{Object.entries(counts).map(([k, v]) => <ToneBadge key={k} tone={k === 'unknown' ? 'warn' : k === 'failed' ? 'bad' : 'quiet'}>{COUNT_LABEL[k] ?? k}: {v}</ToneBadge>)}</div>
+            <div className="flex flex-wrap gap-1.5">{Object.entries(counts).map(([k, v]) => <ToneBadge key={k} tone={k === 'unknown' ? 'warn' : k === 'failed' ? 'bad' : 'quiet'}>{DELIVERY_COUNT_LABEL[k] ?? k}: {v}</ToneBadge>)}</div>
           )}
           {deliveries.loading && !deliveries.data ? <RowsSkeleton rows={4} shape="lines" />
             : deliveries.error ? <ErrorBlock message={deliveries.error} onRetry={() => void deliveries.reload()} />
@@ -310,7 +330,7 @@ export function ScheduleView({ batch, onChanged }: { batch: BatchView; onChanged
 
 function RunSummary({ run }: { run: NonNullable<DeliveriesResponse['lastRun']> }) {
   const live = run.mode === 'live';
-  const what = live ? 'Scheduling live' : 'Sending drafts';
+  const what = live ? 'Scheduling live' : 'Sending drafts to Buffer';
   if (run.state === 'queued' || run.state === 'running') {
     return <Notice tone="info"><span className="inline-flex items-center gap-2"><Spin /> <span><strong>{what}</strong> {run.state === 'queued' ? 'is waiting to start.' : 'is running.'} This page updates by itself.</span></span></Notice>;
   }
