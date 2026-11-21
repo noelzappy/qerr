@@ -6,7 +6,8 @@
 //                             starting point) or { builtin, name? } (a copy of a built-in layout, switched off until it is
 //                             switched on); checked by the engine's layout validator before it is stored
 //   POST   /validate          what is wrong with a layout, without storing it: { problems }
-//   POST   /preview           a layout drawn with sample words at one size, through the renderer and every check: { image, ... }
+//   POST   /preview           a layout drawn with sample words at one size, through the renderer and every check: { image, ... };
+//                             { empty, artefact } draw it as if those fields were empty and the artefact of that type
 //   PUT    /:id               replace a layout's definition (checked again)
 //   PATCH  /:id               switch it on or off, or move it
 //   POST   /:id/duplicate     a copy under a free id
@@ -39,6 +40,9 @@ const previewBody = z.object({
   size: z.enum(['feed', 'wide', 'story', 'square']).optional(),
   // Words to try instead of the samples: a field of the layout and its value, checked by the engine like a post's design.
   sample: z.record(z.string(), z.unknown()).optional(),
+  // "Preview as if": fields of the layout left empty, and the type of the sample artefact.
+  empty: z.array(z.string().max(40)).max(20).optional(),
+  artefact: z.enum(['ledger', 'passbook', 'register']).optional(),
 }).strict();
 
 export function layoutRoutes(deps: Deps): Hono<AppEnv> {
@@ -79,7 +83,7 @@ export function layoutRoutes(deps: Deps): Hono<AppEnv> {
     const definition = await checked(body.definition);
     const brand = await syncBrand(deps);
     if (brand.logosMissing) throw new HttpError(409, 'Add your logo and its mark in Settings, Brand before a preview can be made');
-    return c.json(await previewLayout(deps, definition, { size: body.size, sample: body.sample, lock: oneAtATime }));
+    return c.json(await previewLayout(deps, definition, { size: body.size, sample: body.sample, empty: body.empty, artefact: body.artefact, lock: oneAtATime }));
   });
 
   app.post('/', async (c) => {

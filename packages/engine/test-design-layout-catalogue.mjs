@@ -4,9 +4,8 @@
 // engine refuses nor miss anything it accepts.)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { BLOCKS, CHOICE_NAMES, FIELDS, FIELD_NAMES, PAGE_KINDS, layoutCatalogue, validateLayout } from './lib/design/layout.mjs';
-import { STARTER_LAYOUTS } from './lib/design/layout-starters.mjs';
-import { builtinCopy, builtinLayouts } from './lib/design/layout-starters.mjs';
+import { BLOCKS, CHOICE_NAMES, FIELDS, FIELD_NAMES, PAGE_KINDS, layoutCatalogue, layoutDesignProblems, sampleDesign, validateLayout } from './lib/design/layout.mjs';
+import { STARTER_LAYOUTS, builtinCopy, builtinLayouts } from './lib/design/layout-starters.mjs';
 
 const cat = layoutCatalogue();
 const PAGES = Object.keys(cat.pages);
@@ -356,4 +355,17 @@ test('every starter and every built-in layout a brand may copy uses only what th
     };
     l.blocks.forEach((b) => check(b, false));
   }
+});
+
+test('a preview\'s sample artefact is of the type asked for, when the layout takes it', () => {
+  const l = withBlock('grid', 'artefact').l;
+  assert.equal(sampleDesign(l).artefact.type, 'register');
+  for (const t of ['ledger', 'passbook', 'register']) {
+    const d = sampleDesign(l, { artefact: t });
+    assert.equal(d.artefact.type, t);
+    assert.deepEqual(layoutDesignProblems(d, 'd', { layouts: [l] }), [], t);
+  }
+  l.fields.artefact = { types: ['passbook'] };
+  assert.equal(sampleDesign(l, { artefact: 'ledger' }).artefact.type, 'passbook', 'a type the layout does not take is not used');
+  assert.equal(sampleDesign(l, { artefact: '__proto__' }).artefact.type, 'passbook');
 });

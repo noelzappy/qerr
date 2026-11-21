@@ -954,8 +954,16 @@ export const SAMPLE = {
   image: 'design/assets/demo/object-jar.jpg', artefact: { type: 'register', title: 'Where it went', rows: [['Rent', '400.00'], ['Food', '120.50'], ['Savings', '80.00']], mark: 2 },
 };
 
+// A sample artefact of each type (SAMPLE.artefact is the register card).
+const SAMPLE_ARTEFACTS = {
+  register: SAMPLE.artefact,
+  passbook: { type: 'passbook', days: 31, ticked: 17, today: 18 },
+  ledger: { type: 'ledger', columns: [{ label: 'Day' }, { label: 'Paid', align: 'end' }], rows: [['01', '10.00'], ['02', '12.50'], ['03', '10.00']], mark: [{ row: 1, col: 1 }] },
+};
+
 // A design block that shows every field of a layout with sample words (lists cut to the layout's maximum, texts to its length).
-export function sampleDesign(l, { size } = {}) {
+// artefact: the type of the sample artefact (a ledger, passbook or register card), when the layout's artefact field takes it.
+export function sampleDesign(l, { size, artefact } = {}) {
   const d = { template: 'layout', layout: l.id };
   for (const [name, f] of Object.entries(l.fields ?? {})) {
     const F = FIELDS[name];
@@ -966,7 +974,10 @@ export function sampleDesign(l, { size } = {}) {
     if (name === 'image' && l.blocks.some((x) => x.type === 'screen' && optionOf(x, 'device') === 'desktop')) v = 'design/assets/demo/screen-desk.png';
     // a phone is always a pre-framed capture (the renderer refuses any other picture there)
     if (name === 'image' && layoutUsesPhone(l)) v = 'design/assets/demo/screen-phone.png';
-    if (F.kind === 'artefact' && f.types && !f.types.includes('register')) v = f.types[0] === 'passbook' ? { type: 'passbook', days: 31, ticked: 17, today: 18 } : { type: 'ledger', columns: [{ label: 'Day' }, { label: 'Paid', align: 'end' }], rows: [['01', '10.00'], ['02', '12.50'], ['03', '10.00']], mark: [{ row: 1, col: 1 }] };
+    if (F.kind === 'artefact') {
+      const takes = (t) => Object.hasOwn(SAMPLE_ARTEFACTS, t) && (!f.types || f.types.includes(t));
+      v = structuredClone(SAMPLE_ARTEFACTS[takes(artefact) ? artefact : takes('register') ? 'register' : f.types[0] === 'passbook' ? 'passbook' : 'ledger']);
+    }
     d[name] = v;
   }
   if (size) d.sizes = [size];
