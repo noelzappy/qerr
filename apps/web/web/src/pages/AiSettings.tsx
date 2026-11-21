@@ -84,11 +84,11 @@ function Providers({ providers, onChanged }: { providers: Provider[]; onChanged:
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 p-5 max-sm:p-4">
         <div className="min-w-0 flex-1 basis-72">
           <CardTitle className="text-lg">AI providers</CardTitle>
-          <CardDescription className="mt-0.5">Each provider is used for the tasks you tick. The desk tries enabled providers in the order they were added.</CardDescription>
+          <CardDescription className="mt-0.5">Each provider is used for the tasks you tick. The app tries enabled providers in the order they were added.</CardDescription>
         </div>
         <Button className={sm} onClick={() => setEditing('new')}><Plus aria-hidden="true" />Add a provider</Button>
       </CardHeader>
-      {providers.length === 0 ? <EmptyBlock title="No AI provider yet">Add one to let the desk draft batches, rewrite posts and run research.</EmptyBlock>
+      {providers.length === 0 ? <EmptyBlock title="No AI provider yet">Add one to let the app draft batches, rewrite posts and run research.</EmptyBlock>
         : <DataList caption="AI providers" columns={columns} rows={providers} rowKey={(p) => p.id} />}
       {editing && <ProviderSheet key={editing === 'new' ? 'new' : editing.id} provider={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={(created) => { setEditing(null); toast.success(created ? 'AI provider added' : 'AI provider saved'); onChanged(); }} />}
       <ConfirmAction

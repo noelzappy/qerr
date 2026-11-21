@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { Prisma } from '@prisma/client';
 import { handlers } from './jobs/index.js';
 import { createProgressWriter, enqueueTracked, pruneSystemRuns, readableError, reconcileActivity, RESTART_MESSAGE } from './services/activity.js';
-import { seedBatch } from './testing-desk.js';
+import { seedBatch } from './testing-batches.js';
 import { createTestApp, type TestApp } from './testing.js';
 
 let t: TestApp;

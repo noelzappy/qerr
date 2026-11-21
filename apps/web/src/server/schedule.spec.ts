@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handlers } from './jobs/index.js';
-import { CHANNELS, createFakeBuffer, KEYS, seedBatch, seedBufferAccounts } from './testing-desk.js';
+import { CHANNELS, createFakeBuffer, KEYS, seedBatch, seedBufferAccounts } from './testing-batches.js';
 import { createTestApp, type TestApp } from './testing.js';
 
 let t: TestApp;

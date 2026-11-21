@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { pipelineEngine } from './engine/pipeline.js';
 import { oneAtATime, renderPost } from './services/render.js';
-import { addImage, seedBatch } from './testing-desk.js';
+import { addImage, seedBatch } from './testing-batches.js';
 import { createTestApp, type TestApp } from './testing.js';
 
 let t: TestApp;

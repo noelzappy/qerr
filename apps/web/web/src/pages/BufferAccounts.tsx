@@ -164,9 +164,9 @@ function AccountSheet({ account, onClose, onSaved }: { account: BufferAccount | 
           placeholder={account ? `Leave blank to keep the key ending ${account.keyLast4}` : ''}
           hint="Made in Buffer under your API settings. It is stored encrypted and never shown again." mono
         />
-        <TextField label="Key expires on" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} error={fields.keyExpiresAt} optional hint="The desk warns a week before this date." />
+        <TextField label="Key expires on" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} error={fields.keyExpiresAt} optional hint="The app warns a week before this date." />
         <TextField label="Buffer organisation id" value={org} onChange={(e) => setOrg(e.target.value)} error={fields.organizationId} optional mono hint="Leave blank to use every organisation this key can reach. Use Check to see the ids." />
-        <FieldGroup legend={<>Caption limits <span className="font-normal text-muted-foreground">(optional)</span></>} hint="The most characters a caption may have on each network. Leave blank to use the desk's own limit.">
+        <FieldGroup legend={<>Caption limits <span className="font-normal text-muted-foreground">(optional)</span></>} hint="The most characters a caption may have on each network. Leave blank to use the app's own limit.">
           <div className="grid gap-3 sm:grid-cols-2">
             {NETWORKS.map((n) => (
               <TextField key={n} label={networkLabel(n)} type="number" inputMode="numeric" min={1} value={limits[n]} onChange={(e) => setLimits({ ...limits, [n]: e.target.value })} error={fields[`captionLimits.${n}`]} />

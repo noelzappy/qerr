@@ -78,7 +78,7 @@ export function Audit() {
         <Card className="gap-0 overflow-hidden p-0" aria-label="Audit entries">
           {list.loading && !data ? <RowsSkeleton rows={6} />
             : list.error ? <ErrorBlock message={list.error} onRetry={() => void list.reload()} />
-            : data && data.items.length === 0 ? <EmptyBlock title={filtered ? 'Nothing matches these filters' : 'Nothing recorded yet'}>{filtered ? 'Clear the filters to see everything.' : 'Changes will appear here as people use the desk.'}</EmptyBlock>
+            : data && data.items.length === 0 ? <EmptyBlock title={filtered ? 'Nothing matches these filters' : 'Nothing recorded yet'}>{filtered ? 'Clear the filters to see everything.' : 'Changes will appear here as people use the app.'}</EmptyBlock>
             : data && (
               <div aria-busy={list.loading}>
                 <DataList caption="Audit log, newest first" columns={columns} rows={data.items} rowKey={(i) => i.id} />

@@ -6,7 +6,7 @@ import { importAiPackage } from './engine/root.js';
 import { pipelineEngine } from './engine/pipeline.js';
 import { brandState, contrast, contrastChecks, expandBrand, mergeAdvanced, mix, paletteChanges, resetBrandState, settingsFromBrand, syncBrand, baseBrand, type BrandSettings } from './services/brand-settings.js';
 import { renderPost } from './services/render.js';
-import { seedBatch } from './testing-desk.js';
+import { seedBatch } from './testing-batches.js';
 import { createTestApp, type TestApp } from './testing.js';
 
 // The real AI library, talking to a fake provider.

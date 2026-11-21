@@ -48,7 +48,7 @@ docker exec "$app" /usr/local/bin/chromium-container --version
 
 echo "== 5. the engine renders one text page"
 docker exec "$app" sh -c \
-  'cd /srv/social && node packages/engine/design.mjs text --headline "Save together,\n*see every step.*" --sub "Container render test." --out out/check.jpg && ls -l out/check.jpg && head -c 3 out/check.jpg | od -An -tx1'
+  'cd /srv/vesk && node packages/engine/design.mjs text --headline "Save together,\n*see every step.*" --sub "Container render test." --out out/check.jpg && ls -l out/check.jpg && head -c 3 out/check.jpg | od -An -tx1'
 
 echo "== 6. migrations, /healthz and the health check"
 s=""

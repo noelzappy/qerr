@@ -94,7 +94,7 @@ export const requireRole = (...roles: Role[]): MiddlewareHandler<AppEnv> => asyn
 };
 
 // The one header Better Auth reads the client address from. Set here and nowhere else; any copy a caller sends is dropped.
-export const CLIENT_IP_HEADER = 'x-sd-client-ip';
+export const CLIENT_IP_HEADER = 'x-vesk-client-ip';
 
 // THE client address. With `hops` proxies in front, each appending the address it saw to X-Forwarded-For, the
 // hops-th entry from the end is the real client; entries before it were written by the client and mean nothing.

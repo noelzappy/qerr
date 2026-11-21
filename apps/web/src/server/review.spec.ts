@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { jpegBytes, pngBytes, seedBatch } from './testing-desk.js';
+import { jpegBytes, pngBytes, seedBatch } from './testing-batches.js';
 import { createTestApp, type TestApp } from './testing.js';
 
 let t: TestApp;

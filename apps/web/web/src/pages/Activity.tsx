@@ -1,4 +1,4 @@
-// Activity: everything the desk does in the background (AI drafts, research, image renders, sends to Buffer, status
+// Activity: everything the app does in the background (AI drafts, research, image renders, sends to Buffer, status
 // checks), what it is doing now and what happened. A table on a desktop, cards on a phone; a run opens in a read-only panel.
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -47,7 +47,7 @@ export function Activity() {
 
   return (
     <>
-      <PageHeader title="Activity" description="What the desk is doing in the background and what it did: AI drafts, research, images, and sends to Buffer. It updates by itself." />
+      <PageHeader title="Activity" description="What the app is doing in the background and what it did: AI drafts, research, images, and sends to Buffer. It updates by itself." />
       <div className="flex flex-col gap-4">
         <Card className="p-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto]" role="search" aria-label="Filter the activity">
