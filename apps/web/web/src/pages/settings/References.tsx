@@ -1,8 +1,10 @@
 // Settings, Design references: pictures the team likes (posts, posters, adverts, pages). The AI looks at each one and writes
 // a style brief; drafts are given the briefs of the references that are switched on, so the images lean that way. People
-// can read and rewrite a brief, switch a reference off, or ask the AI to look again.
+// can read and rewrite a brief, switch a reference off, or ask the AI to look again. The AI also proposes concrete style settings
+// (colours, type, surfaces, decoration, photo treatment); "Apply this look" shows them beside the brand as it is and saves them
+// only when an admin accepts.
 import { useEffect, useRef, useState } from 'react';
-import { ImagePlus, Loader2, RefreshCw, Trash2 } from 'lucide-react';
+import { ImagePlus, Loader2, Palette, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../api';
 import { useDocumentTitle, useLoad } from '../../hooks';
@@ -12,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { ApplyLook } from './ApplyLook';
 import type { DesignReference } from './brand-types';
 import { shrinkImage } from './logo-tools';
 import { SettingsPage } from './section';
@@ -26,6 +29,7 @@ const STATUS: Record<DesignReference['status'], { tone: 'quiet' | 'info' | 'good
 function ReferenceCard({ r, onChange, onRemove }: { r: DesignReference; onChange: (r: DesignReference) => void; onRemove: () => void }) {
   const [brief, setBrief] = useState(r.brief ?? '');
   const [busy, setBusy] = useState('');
+  const [applying, setApplying] = useState(false);
   useEffect(() => setBrief(r.brief ?? ''), [r.brief]);
   const working = r.status === 'pending' || r.status === 'analysing';
   async function patch(body: Record<string, unknown>, what: string) {
@@ -75,10 +79,13 @@ function ReferenceCard({ r, onChange, onRemove }: { r: DesignReference; onChange
         )}
         <div className="flex flex-wrap gap-2">
           {brief.trim() && brief !== (r.brief ?? '') && <BusyButton size="sm" loading={busy === 'brief'} onClick={() => void patch({ brief: brief.trim() }, 'brief')}>Save the brief</BusyButton>}
+          {r.status === 'ready' && r.analysis?.proposal && <Button size="sm" onClick={() => setApplying(true)}><Palette aria-hidden="true" /> Apply this look</Button>}
           <BusyButton size="sm" variant="outline" loading={busy === 'again'} disabled={working} onClick={() => void again()}><RefreshCw aria-hidden="true" /> Describe again</BusyButton>
           <Button size="sm" variant="ghost" onClick={onRemove}><Trash2 aria-hidden="true" /> Remove</Button>
         </div>
+        {r.status === 'ready' && r.analysis && !r.analysis.proposal && <p className="text-[12px] text-muted-foreground">Describe it again to get style settings you can apply to your brand.</p>}
       </div>
+      {r.analysis?.proposal && <ApplyLook reference={r} open={applying} onClose={() => setApplying(false)} />}
     </li>
   );
 }

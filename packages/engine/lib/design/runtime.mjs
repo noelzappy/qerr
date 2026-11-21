@@ -10,7 +10,9 @@ window.__ds = {
   async ready() {
     const D = document.documentElement.dataset, fam = D.family, mono = D.mono;
     const faces = ['600 40px "' + fam + '"', '400 40px "' + fam + '"', '300 40px "' + fam + '"', '500 40px "' + mono + '"', '400 40px "' + mono + '"'];
-    try { await Promise.all(faces.map((f) => document.fonts.load(f))); await document.fonts.ready; } catch (e) {}
+    // Every face the page declares (the sans, the mono, and the display and label fonts a brand may add) is loaded before anything
+    // is measured.
+    try { await Promise.all([...faces.map((f) => document.fonts.load(f)), ...[...document.fonts].map((f) => f.load().catch(() => null))]); await document.fonts.ready; } catch (e) {}
     const broken = [];
     await Promise.all([...document.images].map(async (i) => {
       try { if (!i.complete) await new Promise((res, rej) => { i.onload = res; i.onerror = rej; }); await i.decode(); } catch (e) {}
@@ -51,14 +53,14 @@ window.__ds = {
     return { broken, unframed, sampled, fontOk: faces.slice(0, 2).every((f) => document.fonts.check(f)) };
   },
   // The page takes the photo's edge: the one colour when the edge does not drift, else its twelve column colours side by side (a
-  // horizontal run of exactly the colours the photo's top row has, so the two meet with no band). No texture (it would stop at
-  // the photo). The type is set for that ground: white or ink, whichever has the higher WCAG contrast against its worst column;
+  // horizontal run of exactly the colours the photo's top row has, so the two meet with no band). No decoration (it would stop
+  // at the photo). The type is set for that ground: white or ink, whichever has the higher WCAG contrast against its worst column;
   // the accent word likewise from its own pair.
   flush(cv, e) {
     const cols = e.columns, flat = e.drift < 1;
     cv.style.setProperty('--bg', flat ? 'rgb(' + e.rgb.join(',') + ')' : 'linear-gradient(to right,' + cols.map((c, k) => 'rgb(' + c.join(',') + ') ' + (((k + 0.5) / cols.length) * 100).toFixed(2) + '%').join(',') + ')');
     cv.setAttribute('data-sampled', '');
-    cv.classList.remove('tex');
+    cv.classList.remove('tex', 'dots', 'grid', 'art');
     const S = getComputedStyle(cv), hex = (n) => { const v = S.getPropertyValue(n).trim(); return /^#[0-9a-f]{6}$/i.test(v) ? [1, 3, 5].map((k) => parseInt(v.slice(k, k + 2), 16)) : null; };
     const lum = (c) => { const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
     const worst = (fg) => Math.min(...cols.map((c) => { const x = lum(c), y = lum(fg); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }));

@@ -54,15 +54,16 @@ test('poster specs: good ones pass, and each field names its problem', () => {
 
 test('poster pages: only a small logo and the website, the two-tone headline, the ground from the brand file', () => {
   const page = html({ template: 'object', headline: 'Every euro, *on record.*', image: 'a.jpg', ground: 'mint' });
-  assert.match(page, /<div class="cv poster" style="--bg:var\(--g-mint\)">/);
+  // "mint" is the older name of the cool ground
+  assert.match(page, /<div class="cv poster" style="--bg:var\(--g-cool\)">/);
   assert.match(page, /<div class="pbar"[^>]*><span class="logo-inv logo-ink" style="height:34px"><img src="data:image\/png;base64,[^"]+" alt="" style="height:34px"><i role="img" aria-label="Acme Savings"[^>]*><\/i><\/span><span class="purl" data-role="foot">acmesavings\.example<\/span><\/div>/);
-  assert.match(page, /<div class="ps-h" data-role="headline" style="font-size:calc\(104px\*var\(--hs,1\)\)">Every euro, <em data-role="accent">on record\.<\/em><\/div>/);
+  assert.match(page, /<div class="ps-h" data-role="headline" style="font-size:calc\(104px\*var\(--hs,1\)\*var\(--h-scale,1\)\)">Every euro, <em data-role="accent">on record\.<\/em><\/div>/);
   assert.ok(!/class="(rh|rh-rule|ft footer|silk|panel)"/.test(page), 'no running head, rule, footer row, silk or panel');
   // page 1 of a carousel says Swipe instead of the website
   assert.match(html({ template: 'object', headline: 'h', image: 'a.jpg' }, { counter: { n: 1, total: 6 } }), /data-role="foot">Swipe →</);
   // the poster type and slab tokens reach the page as variables
   assert.ok(/--pw:600;--p-track:-0\.035em;--p-lead:1\.06;--slab-myth:#23365E;--slab-fact:#E8EEF9;--r-slab:28px/.test(page));
-  assert.ok(/--g-mint:#E8EEF9;--g-gold-pale:#FCEBE4;--g-ink:#14213D;--g-deep:#1C2D52/.test(page));
+  assert.ok(/--g-cool:#E8EEF9;--g-warm:#FCEBE4;--g-dark:#14213D;--g-deep:#1C2D52/.test(page));
 });
 
 test('poster headlines follow the series accent style: grey, the colour or a lighter weight', () => {
@@ -77,21 +78,25 @@ test('object photos: one wrapper for both layouts, sampled in the page, with no 
   const named = html({ template: 'object', headline: 'h', image: 'a.jpg', ground: 'gold-pale', focal: '50% 60%' });
   assert.match(named, /<div class="ph pobj" data-avoid style="--pt:600px;--ph:750px;--pm:80px"><img data-user data-name="a\.jpg" data-fit="cover" data-sample data-fx="0\.5" data-fy="0\.6" src="data:[^"]+" alt="" style="object-position:50% 60%"><\/div>/);
   // a named ground is the band's ground and the fallback; the page only takes the photo's colour later, in the browser
-  assert.match(named, /<div class="cv poster" style="--bg:var\(--g-gold-pale\)">/);
+  assert.match(named, /<div class="cv poster" style="--bg:var\(--g-warm\)">/);
   assert.ok(!named.includes('class="blend"') && !/<div class="blend/.test(named) && !named.includes('pobj tone') && !/<div class="cv[^>]*data-sampled/.test(named), 'the page is only marked as taking the photo colour in the browser');
-  // ground "photo" has no ground of its own: the band ground is mint, or the series' ground
+  // ground "photo" has no ground of its own: the band ground is the cool ground, or the series' ground
   const photo = html({ template: 'object', headline: 'h', image: 'a.jpg', ground: 'photo', focal: '70% 100%' });
-  assert.match(photo, /<div class="cv poster" style="--bg:var\(--g-mint\)">/);
+  assert.match(photo, /<div class="cv poster" style="--bg:var\(--g-cool\)">/);
   assert.match(photo, /data-sample data-fx="0\.7" data-fy="1" src=/);
-  const series = Object.entries(brand.series).find(([, v]) => v.ground && v.ground !== 'mint');
+  const series = Object.entries(brand.series).find(([, v]) => v.ground && v.ground !== 'cool');
   if (series) assert.match(html({ template: 'object', headline: 'h', image: 'a.jpg', ground: 'photo', series: series[0] }), new RegExp(`--bg:var\\(--g-${series[1].ground}\\)`));
   // the wrapper is the avoid zone for text, in both layouts
   assert.equal((photo.match(/<div class="ph pobj" data-avoid/g) ?? []).length, 1);
   // the styles: flush (the default) and band (full bleed, no radius, no shadow, no side margin); nothing blends, tones or fades
   assert.match(brand.css, /\.pobj\{z-index:1;left:0;top:var\(--pt\);width:100%;height:var\(--ph\)\}/);
   assert.match(brand.css, /\.pobj\.band\{left:0;width:100%;height:var\(--ph\);border-radius:0;box-shadow:none\}/);
-  const pobj = brand.css.split('\n').filter((l) => /pobj|\.blend|mix-blend-mode/.test(l)).join('\n');
+  // A brand may choose a photo treatment (tint, duotone, overlay); those rules exist only under its st-ph-* class, which a brand
+  // without one (the demo) never gets, so its photos stay untouched.
+  const pobj = brand.css.split('\n').filter((l) => /pobj|\.blend|mix-blend-mode/.test(l) && !/^\.st-ph-(tint|duotone|overlay) /.test(l)).join('\n');
   assert.ok(!/gradient|mix-blend-mode|\.blend/.test(pobj), pobj);
+  for (const l of brand.css.split('\n').filter((x) => /mix-blend-mode|filter:grayscale/.test(x))) assert.match(l, /^(\.st-ph-(tint|duotone|overlay) [^,{]+,?)+\{/, l);
+  assert.ok(!/<html[^>]*class="[^"]*st-ph/.test(named), 'the demo brand has no photo treatment');
   // a number page with a photo uses the same wrapper; without one it has none
   const n = html({ template: 'number', big: '5', image: 'a.jpg' });
   assert.match(n, /<div class="ph pobj" data-avoid style="--pt:616px;--ph:734px;--pm:80px">/);
@@ -110,7 +115,7 @@ test('product: a pre-framed phone, large, with the glow; myth-fact: colour-block
   assert.match(m, /<div class="slab myth"><span class="tag" data-role="label">Myth<\/span><div class="ps-h" data-role="headline"[^>]*>A myth<\/div><\/div>/);
   assert.match(m, /<div class="slab fact"><span class="tag" data-role="label">Fact<\/span><div class="ps-h" data-role="headline"[^>]*>The <em data-role="accent">fact\.<\/em><\/div><div class="sub" data-role="sub" data-min="30"[^>]*>More\.<\/div><\/div>/);
   assert.match(m, /<div class="pmark" style="right:80px;bottom:62px"><span data-role="foot">Myths vs facts<\/span><\/div>/);
-  assert.ok(m.includes('class="cv poster tex" style="--bg:var(--g-ink)"'));
+  assert.ok(m.includes('class="cv poster tex" style="--bg:var(--g-dark)"'));
 });
 
 test('hostile text in every poster field stays text', () => {

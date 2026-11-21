@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { CreateAiOptions } from './ai.js';
 import { aiImport } from './engine/root.js';
 import { pipelineEngine } from './engine/pipeline.js';
-import { brandState, contrast, contrastChecks, expandBrand, mergeAdvanced, mix, paletteChanges, resetBrandState, settingsFromBrand, syncBrand, baseBrand, type BrandSettings } from './services/brand-settings.js';
+import { brandSettingsSchema, brandState, contrast, contrastChecks, expandBrand, mergeAdvanced, mix, paletteChanges, resetBrandState, settingsFromBrand, syncBrand, baseBrand, type BrandSettings } from './services/brand-settings.js';
 import { renderPost } from './services/render.js';
 import { seedBatch } from './testing-batches.js';
 import { createTestApp, type TestApp } from './testing.js';
@@ -34,13 +34,15 @@ beforeEach(async () => {
 const DEMO = (f: string) => fs.readFileSync(path.join(root, 'brands', 'demo', 'logos', f));
 const INTER = () => fs.readFileSync(path.join(root, 'packages', 'engine', 'design', 'fonts', 'inter-v20-latin.woff2'));
 
-const SETTINGS: BrandSettings = {
+// Written as settings were saved before the style layer: older ground names, no roles, no style.
+const SETTINGS_BEFORE = {
   name: 'Globex Garden', website: 'globex.example', tagline: 'Grow with us.', descriptor: 'A fictional garden centre.', timezone: 'America/New_York',
   language: 'American English', money: null, colours: { primary: '#2E7D32', accent: '#F9A825', dark: '#1B2A1E', light: '#F3F7F2' },
   headlineWeight: 500, corners: 'round', series: [{ key: 'tips', name: 'Garden tips', ground: 'white', accent: 'colour' }, { key: 'news', name: 'News', ground: 'tint', accent: 'muted' }],
   spellings: [{ wrong: 'GlobexGarden', right: 'Globex Garden' }], voice: 'Friendly and practical.', visualDirection: 'Airy pages, one plant photo, lots of white.',
   logo: { wordmarkFrom: 0, markGap: 0 },
 };
+const SETTINGS: BrandSettings = brandSettingsSchema.parse(SETTINGS_BEFORE);
 
 async function admin() {
   return t.api(await t.signIn(await t.createUser('admin')));
@@ -64,9 +66,10 @@ describe('expanding the settings', () => {
     expect((b.accents as Record<string, string>).gold).toBe('#F9A825');
     expect(contrast((b.accents as Record<string, string>).primary!, '#2E7D32')).toBeLessThan(1.1);
     expect(contrastChecks(b).filter((c) => !c.ok)).toEqual([]);
-    expect((b.grounds as Record<string, string>).ink).toBe('#1B2A1E');
+    expect((b.grounds as Record<string, string>).dark).toBe('#1B2A1E');
     expect((b.radius as Record<string, number>).card).toBe(20);
-    expect(b.series).toEqual({ tips: { name: 'Garden tips', ground: 'white', accent: 'colour' }, news: { name: 'News', ground: 'tint', accent: 'muted' } });
+    // the fixture names its grounds by their older names (white, tint); the brand gets the new ones
+    expect(b.series).toEqual({ tips: { name: 'Garden tips', ground: 'light', accent: 'colour' }, news: { name: 'News', ground: 'soft', accent: 'muted' } });
     expect(b.spelling).toEqual([{ wrong: 'GlobexGarden', flags: '', right: 'Globex Garden' }]);
     expect(b.voice).toBe('Friendly and practical.');
     expect(JSON.stringify(b)).not.toContain('Acme');
@@ -95,7 +98,7 @@ describe('expanding the settings', () => {
   it('checks small text and accents too, on every ground and both myth-and-fact slabs', () => {
     const b = expandBrand(SETTINGS);
     const labels = contrastChecks(b).map((c) => c.label);
-    expect(labels).toContain('Accent words on the mint ground');
+    expect(labels).toContain('Accent words on the cool ground');
     expect(labels).toContain('Labels on the deep ground');
     expect(labels).toContain('Accent words on the fact slab');
     expect(labels).toContain('Accent words on the myth slab');
@@ -340,6 +343,57 @@ describe('design references', () => {
     expect(ref.error).not.toContain('SECRETAIKEY');
     const again = await api.post(`/api/settings/brand/references/${ref.id}/analyse`, {});
     expect(again.body.reference.status).toBe('pending');
+  });
+
+  const PROPOSAL = {
+    colours: { light: '#0b0b0f', soft: '#111117', cool: '#16161e', warm: '#1b1b24', dark: '#000000', deep: '#0d0d13', ink: '#f4f4f6', body: '#d6d6de', muted: '#b4b4c2', inverse: '#ffffff', primary: '#39ff88', accent: '#39ff88' },
+    display: { case: 'upper', tracking: 0.01, weight: 700 }, label: { case: 'upper', tracking: 0.12, font: 'mono' },
+    accent: 'colour', surface: 'outline', decoration: { kind: 'grid', on: 'all' }, photo: { treatment: 'duotone', strength: 0.8 },
+  };
+
+  it('proposes a look from a reference: shown beside the settings in force, saved only when an admin accepts it', async () => {
+    const api = await withProvider();
+    fake.fetch = async () => new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'respond', input: { ...STYLE, proposal: PROPOSAL } }], usage: { input_tokens: 10, output_tokens: 10 }, stop_reason: 'tool_use' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    await upload(api, '/api/settings/brand/references', 'neon.png', DEMO('logo-mark.png'));
+    await t.jobs.drain(t.deps);
+    const ref = (await api.get('/api/settings/brand/references')).body.references[0];
+    expect(ref.analysis.proposal).toMatchObject({ surface: 'outline', colours: { light: '#0B0B0F', primary: '#39FF88' } });
+    // the preview: both sets of settings with their colours and checks; nothing is saved
+    const view = await api.get(`/api/settings/brand/references/${ref.id}/proposal`);
+    expect(view.status).toBe(200);
+    expect(view.body.current.settings.style.surface).toBe('shadow');
+    expect(view.body.proposed.settings.roles.grounds).toMatchObject({ light: '#0B0B0F', dark: '#000000' });
+    expect(view.body.proposed.settings.roles.accents).toMatchObject({ primary: '#39FF88', gold: '#39FF88' });
+    expect(view.body.proposed.settings.style).toMatchObject({ surface: 'outline', decoration: { kind: 'grid', on: 'all' }, photo: { treatment: 'duotone', strength: 0.8 }, type: { accent: 'colour', display: { case: 'upper', tracking: 0.01, weight: 700 }, label: { case: 'upper', font: 'mono' } } });
+    expect(view.body.proposed.palette.grounds.light).toBe('#0B0B0F');
+    expect(view.body.proposed.explicit).toContain('grounds.light');
+    expect(view.body.proposed.settings.name).toBe('Acme Savings');
+    expect(await t.prisma.brandProfile.count()).toBe(0);
+    const editor = t.api(await t.signIn(await t.createUser('editor')));
+    expect((await editor.post(`/api/settings/brand/references/${ref.id}/apply`, {})).status).toBe(403);
+    expect((await editor.get(`/api/settings/brand/references/${ref.id}/proposal`)).status).toBe(403);
+    // accepting: saved, audited, and the engine reads the new look
+    const applied = await api.post(`/api/settings/brand/references/${ref.id}/apply`, {});
+    expect(applied.status).toBe(200);
+    expect(applied.body.settings.style.surface).toBe('outline');
+    expect(activeBrand().style).toMatchObject({ surface: 'outline', decoration: { kind: 'grid', on: 'all' }, type: { display: { case: 'upper' } } });
+    expect(activeBrand().grounds.light).toBe('#0B0B0F');
+    expect((await t.prisma.auditLog.findFirstOrThrow({ where: { action: 'brand.reference.apply' } })).detail).toMatchObject({ fileName: 'neon.png', firstSave: true });
+  });
+
+  it('never shows or applies a proposal that does not pass the settings\' own checks', async () => {
+    const api = await admin();
+    const make = (analysis: unknown) => t.prisma.designReference.create({ data: { fileKey: 'brand/x/ref.png', fileName: 'ref.png', contentType: 'image/png', size: 1, status: 'ready', brief: 'b', analysis: analysis as never } });
+    const hostile = [
+      { ...PROPOSAL, surface: '"></style><script>alert(1)</script>' }, { ...PROPOSAL, colours: { light: 'url(x)' } }, { ...PROPOSAL, decoration: { kind: 'artwork' } },
+      { ...PROPOSAL, display: { case: 'upper', tracking: 9 } }, { ...PROPOSAL, extra: 1 }, { ...PROPOSAL, colours: { __proto__: '#000000', neon: '#00FF00' } },
+    ];
+    for (const proposal of [...hostile, undefined]) {
+      const r = await make({ ...STYLE, ...(proposal ? { proposal } : {}) });
+      expect((await api.get(`/api/settings/brand/references/${r.id}/proposal`)).status, JSON.stringify(proposal)).toBe(409);
+      expect((await api.post(`/api/settings/brand/references/${r.id}/apply`, {})).status).toBe(409);
+    }
+    expect(await t.prisma.brandProfile.count()).toBe(0);
   });
 });
 

@@ -446,6 +446,44 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
 - **Paths.** `logos.full` and `logos.mark` are PNG files, relative to the repository root and inside it (the demo:
   `brands/demo/logos/logo-full.png` and `logo-mark.png`). Font files are `design/fonts/...` paths, found in the engine's
   `packages/engine/design/fonts/` (Inter and IBM Plex Mono, SIL Open Font License, `OFL.txt`).
+- **Ground names.** `grounds` holds six colours under neutral names: `light`, `soft`, `cool`, `warm`, `dark` and `deep`.
+  The names used before (`white`, `tint`, `mint`, `gold-pale`, `ink`) still work everywhere a ground is named: in
+  `grounds` (one name per ground, never both), in a series' `ground` and in a spec's `ground`; they are read as `light`,
+  `soft`, `cool`, `warm` and `dark`. Which grounds are dark (light type, the dark decoration, the light logo) is worked out
+  from their colours, not their names, so a brand may make any ground dark or a saturated full-bleed colour. Elsewhere in
+  this document the older names appear; they mean the same grounds.
+- **Colour roles.** Besides `grounds`, `text` (`ink`, `body`, `muted` on light grounds; `mutedInv`, `invBody` and the
+  optional `inverse`, the headline colour on dark grounds, default the light ground or white), `accents` (`primary` on
+  light grounds, `gold` on dark ones, `goldDeep`), `surfaces` (`panel`, `card`, `line` and the optional `outline`, default
+  the ink) and `poster.slabs` (`myth`, `fact`). In Settings each can be set by hand; the ones left out are made from four
+  colours and fitted for contrast; the ones set by hand are used as set and the checks say where they do not read.
+- **Fonts by role.** `font.family` is the sans (body text, and headlines unless they have their own), `font.mono` the mono
+  (figures in drawn artefacts, and labels unless they have their own). Optional `font.display` (headlines) and `font.label`
+  (running heads, footers, eyebrows, the website) name a family: the sans, the mono, or one with files of role `display` or
+  `label` in `font.files` (roles: `sans`, `mono`, `display`, `label`; each file a `.woff2` with its weight and unicode
+  range). A name with no files is refused.
+- **`style`** (optional; without it a brand looks exactly as before). Every field is optional, a value from a fixed list or
+  a number in range (`styleProblems`); the stylesheet takes only table entries and checked numbers, and the page root only
+  fixed class names (`styleClasses`):
+  - `type.display`, `type.body`, `type.label`: `case` (`as-typed`, `upper`; labels default `upper`), `tracking` (em, -0.1 to
+    0.3) and `weight` (100 to 900). A display weight or tracking applies to editorial and poster headlines alike; without
+    one each keeps `font.*` and `poster.*`. `type.scale` (0.8 to 1.25, default 1) multiplies every headline size (the fit
+    loop still shrinks a long one). `type.accent`: `series` (default: each series and post says), or one of `muted`,
+    `colour`, `weight`, `none` for every page; a post's own `accent` still wins. `none` is also a series and spec accent.
+  - `surface`: `shadow` (default: the layered card shadow and a 1 px line), `outline` (a solid line in `surfaces.outline`)
+    or `flat` (fills only), for cards, panels, the desktop window and the phone's drop shadow.
+  - `decoration`: `kind` `auto` (default: dots on dark editorial pages, the fine line texture on dark posters), `none`,
+    `dots`, `grid`, `lines` or `artwork`; `on` `dark` (default) or `all` grounds; `alpha` (0.01 to 0.4) for dots, grid and
+    lines; for artwork, `artwork` (the path of a PNG, JPEG or WebP picture inside the repository, read and checked by its
+    bytes and embedded as a `data:` URI; never SVG), `fit` (`cover` or `corner`) and `opacity` (0.05 to 1). A page with
+    `dots: false` has none.
+  - `photo`: `treatment` `none` (default), `tint`, `duotone` or `overlay`, on photographs only (never phone or desktop
+    screens), with `colour`, `shadows` and `highlights` naming brand colours (`primary`, `accent`, `ink`, `inverse` or a
+    ground) and `strength` (0 to 1). The contrast checks measure the treated pixels, and the photo post's scrim sits above
+    the treatment. A treated poster photo does not lend the page its edge colour (it stays on its ground).
+  - `logo`: `auto` (default), `top-left`, `top-right`, `bottom-left`, `bottom-right`. Posters move their logo bar; editorial
+    pages and photo posts keep the logo in their footer and follow the side. `footer`: `website` (default), `pill` (the logo
+    on a light pill, and the website) or `none` (the logo alone; page 1 of a carousel still says "Swipe").
 - **`timezone`** (optional): an IANA time zone such as `Europe/London`. The AI drafts in it and the web app shows it; a batch
   still names its own.
 - **`money`** (optional): `{ "local": "...", "foreign": "..." }`. `local` is one sentence on what the brand's money is (the

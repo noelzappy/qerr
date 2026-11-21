@@ -14,7 +14,7 @@ import { linkVaultPhotos, vaultForAi, kindFromAi } from './ai-vault.js';
 import { importEngineBatch, NETWORK_NAMES } from './batches.js';
 import { createVaultItemFromSystem, VAULT_KINDS } from './vault.js';
 import { brandInfo } from '../brand.js';
-import { syncBrand } from './brand-settings.js';
+import { proposalOf, syncBrand } from './brand-settings.js';
 
 const isKind = (k: string): k is (typeof VAULT_KINDS)[number] => (VAULT_KINDS as readonly string[]).includes(k);
 const SOURCE_NOTES_MAX = 20_000;
@@ -194,8 +194,13 @@ async function analyseNow(deps: Deps, payload: { referenceId: string; actorId?: 
     } finally {
       await config.flush();
     }
-    await deps.prisma.designReference.update({ where: { id: ref.id }, data: { status: 'ready', analysis: out.analysis as Prisma.InputJsonValue, brief: out.brief.slice(0, 2000), error: null } });
-    await audit(deps, payload.actorId ? { id: payload.actorId } : null, 'design_reference.analysed', 'design_reference', ref.id, { promptVersion: out.notes?.promptVersion ?? null, model: out.notes?.model ?? null });
+    // The style settings the AI proposes are checked against the settings' own lists before they are stored; a proposal that
+    // does not pass is left out (the brief still counts).
+    const { proposal: _raw, ...rest } = out.analysis as Record<string, unknown>;
+    const proposal = proposalOf(out.analysis);
+    const analysis = proposal ? { ...rest, proposal } : rest;
+    await deps.prisma.designReference.update({ where: { id: ref.id }, data: { status: 'ready', analysis: analysis as Prisma.InputJsonValue, brief: out.brief.slice(0, 2000), error: null } });
+    await audit(deps, payload.actorId ? { id: payload.actorId } : null, 'design_reference.analysed', 'design_reference', ref.id, { promptVersion: out.notes?.promptVersion ?? null, model: out.notes?.model ?? null, proposal: !!proposal });
     await syncBrand(deps);
     handle.result({ referenceId: ref.id });
   } catch (err) {

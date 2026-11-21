@@ -71,11 +71,28 @@ export function readImageBytes(file, { root }) {
 
 // Brand files (font, logos): inside the repository (or the engine package, where design/ lives), the expected type, embedded.
 export function readBrandAsset(rel, { root, type }) {
+  const buf = brandBytes(rel, { root });
+  if (sniff(buf) !== type) throw new Error(`brand asset ${rel} is not a ${type} file`);
+  return dataUri(type, buf);
+}
+
+// The brand's artwork (the decoration behind pages): a PNG, JPEG or WebP picture whose bytes say so (never SVG or anything
+// that can carry script), at most 8 MB, embedded.
+export const ARTWORK_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+export const MAX_ARTWORK_BYTES = 8 * 1024 * 1024;
+export function readBrandImage(rel, { root }) {
+  const buf = brandBytes(rel, { root });
+  const type = sniff(buf);
+  if (!ARTWORK_TYPES.includes(type)) throw new Error(`brand artwork ${rel} is not a PNG, JPEG or WebP picture`);
+  if (buf.length > MAX_ARTWORK_BYTES) throw new Error(`brand artwork ${rel} is larger than ${MAX_ARTWORK_BYTES / 1048576} MB`);
+  return dataUri(type, buf);
+}
+
+function brandBytes(rel, { root }) {
+  if (typeof rel !== 'string' || !rel || rel.includes('\0')) throw new Error('brand asset: the path is empty or not text');
   const abs = repoPath(rel, root);
   const within = (base) => { const r = path.relative(base, abs); return !r.startsWith('..') && !path.isAbsolute(r); };
   if (!within(root) && !within(ENGINE_DIR)) throw new Error(`brand asset "${rel}" must stay inside the repository`);
   if (!fs.existsSync(abs)) throw new Error(`brand asset missing: ${rel}`);
-  const buf = fs.readFileSync(abs);
-  if (sniff(buf) !== type) throw new Error(`brand asset ${rel} is not a ${type} file`);
-  return dataUri(type, buf);
+  return fs.readFileSync(abs);
 }

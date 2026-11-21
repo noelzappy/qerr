@@ -9,11 +9,11 @@
     "foreign": "US\\$|\\$|£|\\b(?:dollars?|pounds? sterling|rupees?|yen|nairas?)\\b"
   },
   "grounds": {
-    "white": "#FFFFFF",
-    "tint": "#F5F7FB",
-    "mint": "#E8EEF9",
-    "gold-pale": "#FCEBE4",
-    "ink": "#14213D",
+    "light": "#FFFFFF",
+    "soft": "#F5F7FB",
+    "cool": "#E8EEF9",
+    "warm": "#FCEBE4",
+    "dark": "#14213D",
     "deep": "#1C2D52"
   },
   "text": {
@@ -210,32 +210,32 @@
   "series": {
     "explainers": {
       "name": "Savings sense",
-      "ground": "white",
+      "ground": "light",
       "accent": "muted"
     },
     "myth-vs-fact": {
       "name": "Myths vs facts",
-      "ground": "ink",
+      "ground": "dark",
       "accent": "colour"
     },
     "the-numbers": {
       "name": "The numbers",
-      "ground": "white",
+      "ground": "light",
       "accent": "muted"
     },
     "on-record": {
       "name": "On record",
-      "ground": "white",
+      "ground": "light",
       "accent": "muted"
     },
     "news": {
       "name": "News",
-      "ground": "tint",
+      "ground": "soft",
       "accent": "muted"
     },
     "community": {
       "name": "Community",
-      "ground": "white",
+      "ground": "light",
       "accent": "muted"
     }
   },

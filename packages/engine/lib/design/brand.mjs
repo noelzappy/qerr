@@ -4,8 +4,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, brandFile, repoPath } from '../core.mjs';
-import { readBrandAsset } from './assets.mjs';
-import { ACCENT_STYLES, GRADIENT_NAMES, GROUND_NAMES, HEX, SERIES_KEY, SHADOW_NAMES } from './tokens.mjs';
+import { readBrandAsset, readBrandImage } from './assets.mjs';
+import {
+  ACCENT_DEVICES, ACCENT_STYLES, ARTWORK_FITS, DECORATION_ON, DECORATIONS, FONT_ROLES, FOOTERS, GRADIENT_NAMES, GROUND_ALIASES, GROUND_NAMES, HEX, LOGO_PLACES,
+  PHOTO_TREATMENTS, SERIES_KEY, SHADOW_NAMES, STYLE_COLOURS, STYLE_DEFAULTS, SURFACES, TYPE_CASES, groundName, isDarkColour,
+} from './tokens.mjs';
 
 const REQUIRED = ['name', 'website', 'tagline', 'grounds', 'text', 'accents', 'surfaces', 'scale', 'radius', 'shadows', 'window', 'phone', 'glow', 'dots', 'gradient', 'figure', 'poster', 'font', 'logos', 'series', 'spelling', 'lint', 'contrast', 'photo'];
 const RANGE = /^U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?(, ?U\+[0-9A-Fa-f?]{1,6}(-[0-9A-Fa-f]{1,6})?)*$/;
@@ -29,6 +32,95 @@ const colourAlpha = (o, where, errors) => {
   if (!o || typeof o !== 'object' || typeof o.color !== 'string' || !HEX.test(o.color)) errors.push(`brand.json: ${where}.color must be a #rrggbb colour`);
   if (!isNum(o?.alpha, 0, 1)) errors.push(`brand.json: ${where}.alpha must be a number from 0 to 1`);
 };
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const OLD_NAME = Object.fromEntries(Object.entries(GROUND_ALIASES).map(([old, now]) => [now, old]));
+
+// The grounds: one #rrggbb colour for each ground, under its name or its older name (white, tint, mint, gold-pale, ink), never both.
+export function groundsProblems(g) {
+  if (!isObj(g)) return ['brand.json: grounds must be an object of colours'];
+  const errors = [], seen = {}, unknown = [];
+  for (const [k, v] of Object.entries(g)) {
+    const n = groundName(k);
+    if (!n) { unknown.push(k); continue; }
+    if (seen[n]) errors.push(`brand.json: grounds.${seen[n]} and grounds.${k} are the same ground (${n}); keep one`);
+    seen[n] = k;
+    if (typeof v !== 'string' || !HEX.test(v)) errors.push(`brand.json: grounds.${k} must be a #rrggbb colour`);
+  }
+  if (unknown.length) errors.push(`brand.json: grounds has unknown entries (${unknown.join(', ')})`);
+  for (const n of GROUND_NAMES) if (!seen[n]) errors.push(`brand.json: grounds.${n} must be a #rrggbb colour${OLD_NAME[n] ? ` (or give it under its older name ${OLD_NAME[n]})` : ''}`);
+  return errors;
+}
+
+// The grounds under their neutral names (call groundsProblems first).
+export function canonicalGrounds(g) {
+  const out = {};
+  for (const [k, v] of Object.entries(g ?? {})) { const n = groundName(k); if (n) out[n] = v; }
+  return out;
+}
+
+// The style block (brand.json `style`): every field optional, each a value from a fixed list or a number in a range. Nothing in
+// it is ever written into the page as it is: it picks class names and variables from tables (see styleCss).
+export function styleProblems(s, where = 'brand.json: style') {
+  if (s === undefined) return [];
+  if (!isObj(s)) return [`${where} must be an object`];
+  const e = [];
+  const only = (o, keys, w) => { const extra = Object.keys(o).filter((k) => !keys.includes(k)); if (extra.length) e.push(`${w} has unknown entries (${extra.join(', ')})`); };
+  const pick = (v, list, w) => { if (v !== undefined && !list.includes(v)) e.push(`${w} must be one of ${list.join(', ')}`); };
+  const obj = (v, w) => { if (v === undefined) return false; if (!isObj(v)) { e.push(`${w} must be an object`); return false; } return true; };
+  only(s, ['type', 'surface', 'decoration', 'photo', 'logo', 'footer'], where);
+  if (obj(s.type, `${where}.type`)) {
+    const t = s.type;
+    only(t, ['display', 'body', 'label', 'scale', 'accent'], `${where}.type`);
+    for (const role of ['display', 'body', 'label']) {
+      const w = `${where}.type.${role}`;
+      if (!obj(t[role], w)) continue;
+      only(t[role], ['case', 'tracking', 'weight'], w);
+      pick(t[role].case, TYPE_CASES, `${w}.case`);
+      if (t[role].tracking !== undefined && !isNum(t[role].tracking, -0.1, 0.3)) e.push(`${w}.tracking must be a number of em from -0.1 to 0.3`);
+      if (t[role].weight !== undefined && !(Number.isInteger(t[role].weight) && t[role].weight >= 100 && t[role].weight <= 900)) e.push(`${w}.weight must be a whole number from 100 to 900`);
+    }
+    if (t.scale !== undefined && !isNum(t.scale, 0.8, 1.25)) e.push(`${where}.type.scale must be a number from 0.8 to 1.25 (the headline sizes are multiplied by it)`);
+    pick(t.accent, ACCENT_DEVICES, `${where}.type.accent`);
+  }
+  pick(s.surface, SURFACES, `${where}.surface`);
+  if (obj(s.decoration, `${where}.decoration`)) {
+    const d = s.decoration, w = `${where}.decoration`;
+    only(d, ['kind', 'on', 'artwork', 'fit', 'opacity', 'alpha'], w);
+    pick(d.kind, DECORATIONS, `${w}.kind`);
+    pick(d.on, DECORATION_ON, `${w}.on`);
+    pick(d.fit, ARTWORK_FITS, `${w}.fit`);
+    if (d.artwork !== undefined && (typeof d.artwork !== 'string' || d.artwork.length > 300 || d.artwork.includes('\0') || !/\.(png|jpe?g|webp)$/i.test(d.artwork))) e.push(`${w}.artwork must be the path of a .png, .jpg or .webp picture`);
+    if (d.kind === 'artwork' && d.artwork === undefined) e.push(`${w}.artwork is needed when the decoration is artwork`);
+    if (d.opacity !== undefined && !isNum(d.opacity, 0.05, 1)) e.push(`${w}.opacity must be a number from 0.05 to 1`);
+    if (d.alpha !== undefined && !isNum(d.alpha, 0.01, 0.4)) e.push(`${w}.alpha must be a number from 0.01 to 0.4 (how strong dots, grid and lines are)`);
+  }
+  if (obj(s.photo, `${where}.photo`)) {
+    const p = s.photo, w = `${where}.photo`;
+    only(p, ['treatment', 'strength', 'colour', 'shadows', 'highlights'], w);
+    pick(p.treatment, PHOTO_TREATMENTS, `${w}.treatment`);
+    for (const k of ['colour', 'shadows', 'highlights']) pick(p[k], STYLE_COLOURS, `${w}.${k}`);
+    if (p.strength !== undefined && !isNum(p.strength, 0, 1)) e.push(`${w}.strength must be a number from 0 to 1`);
+  }
+  pick(s.logo, LOGO_PLACES, `${where}.logo`);
+  pick(s.footer, FOOTERS, `${where}.footer`);
+  return e;
+}
+
+// The style block with the defaults filled in (call styleProblems first).
+export function resolveStyle(s = {}) {
+  const D = STYLE_DEFAULTS, t = s.type ?? {};
+  return {
+    type: {
+      display: { ...D.type.display, ...t.display }, body: { ...D.type.body, ...t.body }, label: { ...D.type.label, ...t.label },
+      scale: t.scale ?? D.type.scale, accent: t.accent ?? D.type.accent,
+    },
+    surface: s.surface ?? D.surface,
+    decoration: { ...D.decoration, ...s.decoration },
+    photo: { ...D.photo, ...s.photo },
+    logo: s.logo ?? D.logo,
+    footer: s.footer ?? D.footer,
+  };
+}
 
 export function validateBrand(b) {
   const errors = [];
@@ -45,7 +137,8 @@ export function validateBrand(b) {
     if (!ok) errors.push('brand.json: timezone must be an IANA time zone such as Europe/London');
   }
   // What the AI is told about the brand beyond its name: the voice, the language, the visual direction and the style briefs of
-  // the design references people uploaded. Plain text for the model only; none of it is ever placed in a rendered page.
+  // the design references people uploaded. Plain text for the model only; none of it is ever placed in a rendered page. (What a
+  // reference changes in the pixels arrives as checked `style` and colour values, once an admin accepts it in Settings.)
   for (const [k, max] of [['voice', 4000], ['visualDirection', 4000], ['language', 60]]) {
     if (b[k] !== undefined && (typeof b[k] !== 'string' || b[k].length > max)) errors.push(`brand.json: ${k} must be a text of up to ${max} characters`);
   }
@@ -64,11 +157,16 @@ export function validateBrand(b) {
   }
   const hexes = (obj, where, keys) => { for (const k of keys) if (typeof obj?.[k] !== 'string' || !HEX.test(obj[k])) errors.push(`brand.json: ${where}.${k} must be a #rrggbb colour`); };
   const same = (obj, where, keys) => { const extra = Object.keys(obj ?? {}).filter((k) => !keys.includes(k)); if (extra.length) errors.push(`brand.json: ${where} has unknown entries (${extra.join(', ')})`); };
-  hexes(b.grounds, 'grounds', GROUND_NAMES); same(b.grounds, 'grounds', GROUND_NAMES);
+  errors.push(...groundsProblems(b.grounds));
   hexes(b.text, 'text', ['ink', 'body', 'muted', 'mutedInv', 'invBody']); colourAlpha(b.text?.hair, 'text.hair', errors);
+  // inverse: headlines on dark grounds (default: the light ground's colour)
+  if (b.text?.inverse !== undefined) hexes(b.text, 'text', ['inverse']);
   hexes(b.accents, 'accents', ['gold', 'goldDeep', 'primary']);
   hexes(b.gradient, 'gradient', GRADIENT_NAMES); same(b.gradient, 'gradient', GRADIENT_NAMES);
   hexes(b.surfaces, 'surfaces', ['panel', 'card']); colourAlpha(b.surfaces?.line, 'surfaces.line', errors);
+  // outline: the line of outlined cards and panels (default: the ink)
+  if (b.surfaces?.outline !== undefined) hexes(b.surfaces, 'surfaces', ['outline']);
+  errors.push(...styleProblems(b.style));
   if (!isNum(b.scale, 1, 4)) errors.push('brand.json: scale must be a number from 1 to 4 (post pixels per website pixel)');
   for (const k of ['card', 'device', 'button']) if (!isNum(b.radius?.[k], 0, 64)) errors.push(`brand.json: radius.${k} must be a number from 0 to 64`);
   for (const name of SHADOW_NAMES) {
@@ -98,12 +196,20 @@ export function validateBrand(b) {
   for (const k of ['strong', 'soft', 'grid']) if (!isNum(b.figure?.[k], 0, 1)) errors.push(`brand.json: figure.${k} must be a number from 0 to 1`);
   const f = b.font ?? {};
   for (const k of ['family', 'mono']) if (!FAMILY.test(f[k] ?? '')) errors.push(`brand.json: font.${k} may only use letters, digits, space, _ and -`);
+  // display (headlines) and label (labels, footers): optional families of their own, each the sans, the mono, or a family with
+  // files of that role.
+  for (const k of ['display', 'label']) {
+    if (f[k] === undefined) continue;
+    if (!FAMILY.test(f[k])) { errors.push(`brand.json: font.${k} may only use letters, digits, space, _ and -`); continue; }
+    if (f[k] !== f.family && f[k] !== f.mono && !(Array.isArray(f.files) && f.files.some((x) => x?.role === k))) errors.push(`brand.json: font.${k} names "${f[k]}", which has no font files: add font.files with role "${k}", or name font.family or font.mono`);
+  }
   for (const k of ['headlineWeight', 'accentWeight']) if (!Number.isInteger(f[k]) || f[k] < 100 || f[k] > 900) errors.push(`brand.json: font.${k} must be a whole number from 100 to 900`);
   if (!isNum(f.tracking, -0.1, 0.1)) errors.push('brand.json: font.tracking must be a number of em from -0.1 to 0.1');
   if (!isNum(f.leading, 0.9, 1.6)) errors.push('brand.json: font.leading must be a line height from 0.9 to 1.6');
   if (!Array.isArray(f.files) || !f.files.length || f.files.length > 12) errors.push('brand.json: font.files must be a list of 1 to 12 font files');
   else f.files.forEach((x, i) => {
-    if (!['sans', 'mono'].includes(x?.role)) errors.push(`brand.json: font.files[${i}].role must be "sans" or "mono"`);
+    if (!FONT_ROLES.includes(x?.role)) errors.push(`brand.json: font.files[${i}].role must be one of ${FONT_ROLES.join(', ')}`);
+    else if ((x.role === 'display' || x.role === 'label') && f[x.role] === undefined) errors.push(`brand.json: font.files[${i}] is a ${x.role} font, but font.${x.role} names no family for it`);
     if (typeof x?.weight !== 'string' || !/^\d{3}( \d{3})?$/.test(x.weight)) errors.push(`brand.json: font.files[${i}].weight must look like "400" or "300 700"`);
     if (typeof x?.file !== 'string' || !x.file.endsWith('.woff2')) errors.push(`brand.json: font.files[${i}].file must be a .woff2 path`);
     if (typeof x?.range !== 'string' || !RANGE.test(x.range)) errors.push(`brand.json: font.files[${i}].range must be a unicode-range like "U+0000-00FF, U+20AC"`);
@@ -116,7 +222,7 @@ export function validateBrand(b) {
   else for (const [key, s] of Object.entries(b.series)) {
     if (!SERIES_KEY.test(key)) errors.push(`brand.json: series key "${key}" may only use lowercase letters, digits and -`);
     if (typeof s?.name !== 'string' || !s.name.trim() || s.name.length > 40 || /[\n\r]/.test(s.name)) errors.push(`brand.json: series.${key}.name must be a short text (up to 40 characters, one line)`);
-    if (!GROUND_NAMES.includes(s?.ground)) errors.push(`brand.json: series.${key}.ground must be one of ${GROUND_NAMES.join(', ')}`);
+    if (!groundName(s?.ground)) errors.push(`brand.json: series.${key}.ground must be one of ${GROUND_NAMES.join(', ')} (or an older name: ${Object.keys(GROUND_ALIASES).join(', ')})`);
     if (!ACCENT_STYLES.includes(s?.accent)) errors.push(`brand.json: series.${key}.accent must be one of ${ACCENT_STYLES.join(', ')}`);
   }
   for (const k of ['headline', 'accent', 'sub', 'label', 'art', 'artbody']) if (!isNum(b.contrast?.[k], 1, 21)) errors.push(`brand.json: contrast.${k} must be a ratio from 1 to 21`);
@@ -138,12 +244,38 @@ export function loadBrand({ root = ROOT, file = brandFile('brand.json', { root }
   const errors = validateBrand(raw);
   if (errors.length) throw new Error(`The brand file is not valid:\n  - ${errors.join('\n  - ')}`);
   const css = fs.readFileSync(repoPath('design/brand.css', root), 'utf8');
+  return { ...normaliseBrand(raw), root, css, ...brandAssets(raw, { root }), map: loadMap(path.join(path.dirname(file), 'map.json')) };
+}
+
+// A checked brand file in the engine's own terms: grounds and series grounds under their neutral names, the optional colours
+// filled in, the style block with its defaults, and which grounds are dark (worked out from their colours). No file is read.
+export function normaliseBrand(raw) {
+  const grounds = canonicalGrounds(raw.grounds);
+  const series = Object.fromEntries(Object.entries(raw.series).map(([k, s]) => [k, { ...s, ground: groundName(s.ground) }]));
   return {
-    ...raw, root, css,
-    fontFaces: raw.font.files.map((x) => ({ ...x, family: x.role === 'sans' ? raw.font.family : raw.font.mono, src: readBrandAsset(x.file, { root, type: 'font/woff2' }) })),
+    ...raw, grounds, series,
+    // inverse (type on dark grounds) defaults to the light ground, or to white when the brand's light ground is itself dark
+    text: { ...raw.text, inverse: raw.text.inverse ?? (isDarkColour(grounds.light) ? '#FFFFFF' : grounds.light) },
+    surfaces: { ...raw.surfaces, outline: raw.surfaces.outline ?? raw.text.ink },
+    font: { ...raw.font, display: raw.font.display ?? raw.font.family, label: raw.font.label ?? raw.font.mono },
+    style: resolveStyle(raw.style),
+    darkGrounds: GROUND_NAMES.filter((n) => isDarkColour(grounds[n])),
+  };
+}
+
+// Whether a ground (by name or older name) of a loaded brand is dark: white type on it, the dark decoration.
+export const groundIsDark = (brand, g) => (brand.darkGrounds ?? []).includes(groundName(g));
+
+// The brand's files, read, checked and embedded as data: URIs: the fonts (each under the family of its role), the logos and
+// the artwork of the decoration.
+function brandAssets(raw, { root }) {
+  const familyOf = { sans: raw.font.family, mono: raw.font.mono, display: raw.font.display, label: raw.font.label };
+  const d = raw.style?.decoration;
+  return {
+    fontFaces: raw.font.files.map((x) => ({ ...x, family: familyOf[x.role], src: readBrandAsset(x.file, { root, type: 'font/woff2' }) })),
     logoFullSrc: readBrandAsset(raw.logos.full, { root, type: 'image/png' }),
     logoMarkSrc: readBrandAsset(raw.logos.mark, { root, type: 'image/png' }),
-    map: loadMap(path.join(path.dirname(file), 'map.json')),
+    artworkSrc: d?.kind === 'artwork' && d.artwork ? readBrandImage(d.artwork, { root }) : null,
   };
 }
 
@@ -185,23 +317,56 @@ export const shadowCss = (layers, k = 1) => layers.map((s) => `${s.inset ? 'inse
 export const dropShadowCss = (layers, k = 1) => layers.map((s) => `drop-shadow(${num(s.x * k)}px ${num(s.y * k)}px ${num(s.blur * k)}px ${rgba(s.color, s.alpha)})`).join(' ');
 export const rgbaOf = (o) => rgba(o.color, o.alpha);
 
-export function brandCssVars(brand) {
-  const t = brand.text, a = brand.accents, s = brand.surfaces, k = brand.scale;
+// The brand colours a photo treatment may name (STYLE_COLOURS), as the variables that hold them.
+const STYLE_COLOUR_VAR = { primary: 'var(--primary)', accent: 'var(--gold)', ink: 'var(--ink)', inverse: 'var(--inv)', ...Object.fromEntries(GROUND_NAMES.map((n) => [n, `var(--g-${n})`])) };
+const CASE = { 'as-typed': 'none', upper: 'uppercase' };
+// An entry of one of these tables, or the fallback: a key that is not the table's own (even "__proto__") never picks anything.
+const pickOf = (table, key, fallback) => (typeof key === 'string' && Object.hasOwn(table, key) ? table[key] : fallback);
+
+// The page's variables, built from the checked numbers and colours. The style block only picks entries of the fixed tables above
+// or gives numbers in their ranges; nothing in it is copied into the CSS as it is.
+export function brandCssVars(input) {
+  const brand = input.darkGrounds ? input : normaliseBrand(input);
+  const t = brand.text, a = brand.accents, s = brand.surfaces, k = brand.scale, st = brand.style, ty = st.type, deco = st.decoration, ph = st.photo;
   const grounds = GROUND_NAMES.map((n) => `--g-${n}:${brand.grounds[n]}`).join(';');
+  const dotA = deco.alpha ?? brand.dots.alpha, texA = deco.alpha ?? brand.poster.texture.alpha;
+  // A display weight or tracking set in the style block applies to the editorial and the poster headlines alike; without one each
+  // keeps its own (font.* and poster.*).
+  // (validateBrand has checked them; a value that is not a number in range is still never copied: it falls back.)
+  const weight = (v, d) => (Number.isInteger(v) && v >= 100 && v <= 900 ? v : d), em = (v, d) => (isNum(v, -0.1, 0.3) ? v : d);
+  const dw = weight(ty.display.weight, null), dt = em(ty.display.tracking, null);
+  const hw = dw ?? brand.font.headlineWeight, pw = dw ?? brand.poster.headlineWeight, aw = dw ? Math.max(100, dw - 300) : brand.font.accentWeight;
+  const lt = em(ty.label.tracking, 0.07);
   return [
     grounds,
-    `--ink:${t.ink};--body:${t.body};--muted:${t.muted};--muted-inv:${t.mutedInv};--inv-body:${t.invBody};--hair:${rgba(t.hair.color, t.hair.alpha)}`,
+    `--ink:${t.ink};--body:${t.body};--muted:${t.muted};--muted-inv:${t.mutedInv};--inv-body:${t.invBody};--inv:${t.inverse};--hair:${rgba(t.hair.color, t.hair.alpha)}`,
     GRADIENT_NAMES.map((n, i) => `--gr-${i + 1}:${brand.gradient[n]}`).join(';'),
-    `--dot:${rgba('#FFFFFF', brand.dots.alpha)};--dot-r:${num(brand.dots.size * k)}px;--dot-s:${num(brand.dots.spacing * k)}px`,
+    `--dot:${rgba(t.inverse, dotA)};--dot-l:${rgba(t.ink, dotA)};--dot-r:${num(brand.dots.size * k)}px;--dot-s:${num(brand.dots.spacing * k)}px;--grid-s:${num(brand.dots.spacing * k * 2)}px`,
     `--glow-o:${num(brand.glow.opacity)};--glow-blur:${num(brand.glow.blur * k)}px;--glow-in:${num(brand.glow.inset * k)}px;--fade:${num(brand.phone.fade * k)}px`,
     `--fig-strong:${rgba(t.ink, brand.figure.strong)};--fig-soft:${rgba(t.ink, brand.figure.soft)};--fig-grid:${rgba(t.ink, brand.figure.grid)}`,
     `--gold:${a.gold};--gold-deep:${a.goldDeep};--primary:${a.primary}`,
-    `--panel:${s.panel};--card:${s.card};--line:${rgba(s.line.color, s.line.alpha)}`,
+    `--panel:${s.panel};--card:${s.card};--line:${rgba(s.line.color, s.line.alpha)};--outline:${s.outline};--ow:${num(Math.max(1, 1.5 * k))}px`,
+    // the light backing of the full colour logo (the logo pill): the light ground, or the inverse text colour when that ground is dark
+    `--pill:${isDarkColour(brand.grounds.light) ? t.inverse : brand.grounds.light}`,
     `--r-card:${num(brand.radius.card * k)}px;--r-btn:${num(brand.radius.button * k)}px`,
     `--shadow-card:${shadowCss(brand.shadows.card, k)}`,
     `--logo-full:url("${brand.logoFullSrc}")`,
-    `--pw:${brand.poster.headlineWeight};--p-track:${num(brand.poster.tracking)}em;--p-lead:${num(brand.poster.leading)};--slab-myth:${brand.poster.slabs.myth};--slab-fact:${brand.poster.slabs.fact};--r-slab:${num(brand.poster.slabRadius)}px`,
-    `--tex:${rgba('#FFFFFF', brand.poster.texture.alpha)};--tex-s:${num(brand.poster.texture.spacing)}px;--tex-a:${num(brand.poster.texture.angle)}deg`,
-    `--font:'${brand.font.family}';--mono:'${brand.font.mono}';--hw:${brand.font.headlineWeight};--aw:${brand.font.accentWeight};--h-track:${num(brand.font.tracking)}em;--h-lead:${num(brand.font.leading)}`,
+    `--pw:${pw};--p-track:${num(dt ?? brand.poster.tracking)}em;--p-lead:${num(brand.poster.leading)};--slab-myth:${brand.poster.slabs.myth};--slab-fact:${brand.poster.slabs.fact};--r-slab:${num(brand.poster.slabRadius)}px`,
+    `--tex:${rgba(t.inverse, texA)};--tex-l:${rgba(t.ink, texA)};--tex-s:${num(brand.poster.texture.spacing)}px;--tex-a:${num(brand.poster.texture.angle)}deg`,
+    `--font:'${brand.font.family}';--mono:'${brand.font.mono}';--display:'${brand.font.display}';--label:'${brand.font.label}'`,
+    `--hw:${hw};--aw:${aw};--h-track:${num(dt ?? brand.font.tracking)}em;--h-lead:${num(brand.font.leading)};--h-scale:${num(isNum(ty.scale, 0.8, 1.25) ? ty.scale : 1)};--d-case:${pickOf(CASE, ty.display.case, 'none')}`,
+    `--b-w:${weight(ty.body.weight, 400)};--b-track:${num(em(ty.body.tracking, -0.006))}em;--b-case:${pickOf(CASE, ty.body.case, 'none')}`,
+    `--l-w:${weight(ty.label.weight, 500)};--l-track:${num(lt)}em;--l-track-n:${num(Math.min(lt, 0.01))}em;--l-case:${pickOf(CASE, ty.label.case, 'uppercase')}`,
+    `--ph-k:${num(isNum(ph.strength, 0, 1) ? ph.strength : 0.5)};--ph-c:${pickOf(STYLE_COLOUR_VAR, ph.colour, 'var(--primary)')};--ph-lo:${pickOf(STYLE_COLOUR_VAR, ph.shadows, 'var(--g-dark)')};--ph-hi:${pickOf(STYLE_COLOUR_VAR, ph.highlights, 'var(--g-light)')}`,
+    ...(brand.artworkSrc ? [`--art:url("${brand.artworkSrc}");--art-o:${num(isNum(deco.opacity, 0.05, 1) ? deco.opacity : 1)}`] : []),
   ].join(';');
+}
+
+// The style choices that the stylesheet keys on, as class names for the page's root element: names from fixed tables only.
+const SURFACE_CLASS = { shadow: '', outline: 'st-outline', flat: 'st-flat' };
+const PHOTO_CLASS = { none: '', tint: 'st-ph-tint', duotone: 'st-ph-duotone', overlay: 'st-ph-overlay' };
+const FIT_CLASS = { cover: '', corner: 'st-art-corner' };
+export function styleClasses(input) {
+  const st = (input.darkGrounds ? input : normaliseBrand(input)).style;
+  return [pickOf(SURFACE_CLASS, st.surface, ''), pickOf(PHOTO_CLASS, st.photo.treatment, ''), st.decoration.kind === 'artwork' ? pickOf(FIT_CLASS, st.decoration.fit, '') : ''].filter(Boolean).join(' ');
 }
