@@ -16,7 +16,7 @@ import { GROUND_ALIASES, GROUND_NAMES, STYLE_DEFAULTS, groundName, isDarkColour 
 import { TEMPLATE_FNS } from './lib/design/builtin-layouts.mjs';
 import { hs } from './design/templates/common.mjs';
 import { bar } from './design/templates/poster.mjs';
-import { pngBytes } from './testlib/png.mjs';
+import { decodePng, pngBytes } from './testlib/png.mjs';
 
 const RAW = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
@@ -246,12 +246,13 @@ test('brand artwork: only a PNG, JPEG or WebP picture inside the repository is e
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('photo treatment: on photographs only, from brand colour variables; a treated poster photo is not sampled for the page colour', () => {
+test('photo treatment: on photographs only, from brand colour variables; a treated poster photo is still sampled for the page colour', () => {
   for (const [t, c] of [['tint', 'st-ph-tint'], ['duotone', 'st-ph-duotone'], ['overlay', 'st-ph-overlay']]) {
     const b = withStyle({ photo: { treatment: t, colour: 'accent', shadows: 'deep', highlights: 'cool', strength: 0.35 } });
     const h = page(b, { template: 'object', headline: 'h', image: 'a.jpg', ground: 'photo' });
     assert.equal(htmlClass(h), c);
-    assert.ok(!bodyOf(h).includes('data-sample'), t);
+    // the page reads the photo as the treatment draws it (runtime.mjs applies treatment.mjs to the strips it reads)
+    assert.ok(bodyOf(h).includes('data-sample data-fx="0.5" data-fy="0.5"'), t);
     assert.ok(brandCssVars(b).includes('--ph-k:0.35;--ph-c:var(--gold);--ph-lo:var(--g-deep);--ph-hi:var(--g-cool)'), t);
   }
   assert.ok(bodyOf(page(brand, { template: 'object', headline: 'h', image: 'a.jpg' })).includes('data-sample'));
@@ -345,6 +346,63 @@ test('real render: a styled brand (black and neon, outlined, grid, condensed cap
     // the photo checks still run on the treated pixels: the scrim is raised as far as the text needs
     assert.ok(r.ratios.headline >= d.photo.minContrast.headline, JSON.stringify(r));
     assert.ok(!r.warnings.some((w) => /low contrast/.test(w)), r.warnings.join('\n'));
+  } finally {
+    browser.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('real render: a treated poster photo lends the page the colour it is drawn in, and the type is picked against that', { skip: chrome ? false : 'Google Chrome not found' }, async () => {
+  const dir = path.join(ROOT, 'out', 'test-style-treated');
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+  const JAR = 'packages/engine/design/assets/demo/object-jar.jpg', MARKET = 'packages/engine/design/assets/demo/scene-market.jpg';
+  // Each treatment with the demo brand's colours, and the colour Chrome draws the jar's plain background (rgb(243, 239, 230)) in.
+  // The demo's overlay at its default strength (its primary at 0.5) is a mid blue that neither ink nor white type reaches 7:1 on,
+  // so that page keeps its ground and the photo is a band; a lighter overlay becomes the page.
+  const runs = [
+    { t: 'none', photo: { treatment: 'none' }, drawn: [243, 239, 230], scene: 'band' },
+    { t: 'tint', photo: { treatment: 'tint' }, drawn: [238, 239, 243], scene: 'band' },
+    // in grey the market's sky and its buildings near the top are one tone, so as drawn its edge is plain
+    { t: 'duotone', photo: { treatment: 'duotone' }, drawn: [248, 248, 248], scene: 'page' },
+    { t: 'overlay', photo: { treatment: 'overlay' }, drawn: [145, 165, 207], low: true, scene: 'band' },
+    { t: 'overlay', photo: { treatment: 'overlay', strength: 0.3 }, drawn: [184, 195, 216], scene: 'band' },
+  ];
+  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });
+  try {
+    for (const [n, { t, photo, drawn, low, scene }] of runs.entries()) {
+      fs.writeFileSync(path.join(dir, 'brand.json'), JSON.stringify({ ...RAW, style: { photo } }));
+      const b = loadBrand({ file: path.join(dir, 'brand.json') });
+      const as = t === 'none' ? '' : ` with the ${t} treatment`;
+      const cases = [
+        [{ template: 'object', headline: 'Every euro, *on record.*', sub: 'One place for savings.', image: JAR, ground: 'photo' }, 600],
+        [{ template: 'number', big: '*€* 14.8M+', line: 'processed', stats: ['3,900+|members saving daily', '400+|organisations registered'], image: JAR, ground: 'photo' }, 616],
+      ];
+      for (const [d, top] of cases) {
+        const out = path.join(dir, `${n}-${d.template}.png`);
+        const r = await renderImage(browser, b, { spec: normaliseDesign(d), sizeName: 'feed', outFile: out }, { tmpDir: path.join(dir, 'tmp') });
+        const what = `${t} ${JSON.stringify(photo)} ${d.template}`;
+        const rgb = `rgb(${drawn.join(', ')})`;
+        const note = low ? `photo background is plain (${rgb}${as}), but no type colour reaches 7:1 on it (at best 6.4:1): the photo is placed as a full-bleed band on the ground` : `photo background is plain (${rgb}${as}, drift 0.0): the page takes its colour and the photo runs into it`;
+        assert.ok(r.notes.includes(note), `${what}: ${r.notes.join('\n')}`);
+        // every check passed on the page as drawn (no warning: contrast, fit)
+        assert.deepEqual(r.warnings, [], what);
+        for (const k of ['headline', 'sub', 'label']) if (r.ratios[k] !== undefined) assert.ok(r.ratios[k] >= b.contrast[k], `${what} ${k} ${r.ratios[k]}`);
+        // the photo is drawn in that colour just under its top edge; the page above it is the same colour (no seam), or, when the
+        // type could not be read on it, the page's own ground (cool for a photo ground without a series)
+        const png = decodePng(fs.readFileSync(out)), at = (x, y) => [...png.data.slice((y * png.w + x) * 4, (y * png.w + x) * 4 + 3)];
+        const ground = [1, 3, 5].map((k) => parseInt(b.grounds.cool.slice(k, k + 2), 16));
+        for (const x of [40, 540, 1040]) {
+          const page = at(x, top - 12), pic = at(x, top + 12), want = low ? ground : drawn;
+          const near = (u, v) => u.every((c, j) => Math.abs(c - v[j]) <= 2);
+          assert.ok(near(pic, drawn) && near(page, want), `${what} at x ${x}: page ${page} (want ${want}), photo ${pic} (want ${drawn})`);
+        }
+      }
+      // a scene judged as it is drawn: still a band under tint and overlay; under duotone the market's grey edge is plain
+      const r = await renderImage(browser, b, { spec: normaliseDesign({ template: 'object', headline: 'Save *together.*', image: MARKET, ground: 'photo' }), sizeName: 'feed', outFile: path.join(dir, `${n}-scene.png`) }, { tmpDir: path.join(dir, 'tmp') });
+      assert.ok(r.notes.some((x) => x.startsWith(scene === 'band' ? `photo background is not plain${as} (` : `photo background is plain (`) && x.includes(as)), `${t} scene: ${r.notes.join('\n')}`);
+      assert.deepEqual(r.warnings, [], `${t} scene`);
+    }
   } finally {
     browser.close();
     fs.rmSync(dir, { recursive: true, force: true });
