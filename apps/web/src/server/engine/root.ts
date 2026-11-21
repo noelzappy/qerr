@@ -48,15 +48,8 @@ export async function engineHas(name: string): Promise<boolean> {
   }
 }
 
-// Loads the AI library, or returns null when @vesk/ai is not installed (the stub in ai.ts then says so). A failure
-// inside the package itself is not "absent" and is thrown.
-export async function importAiPackage<T = unknown>(): Promise<T | null> {
+// Loads the AI library, @vesk/ai.
+export async function aiImport<T = unknown>(): Promise<T> {
   const specifier = '@vesk/ai';
-  try {
-    return (await import(/* @vite-ignore */ specifier)) as T;
-  } catch (e) {
-    const err = e as NodeJS.ErrnoException;
-    if (err.code === 'ERR_MODULE_NOT_FOUND' && String(err.message).includes(`'${specifier}'`)) return null;
-    throw e;
-  }
+  return (await import(/* @vite-ignore */ specifier)) as T;
 }
