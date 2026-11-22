@@ -2,8 +2,7 @@
 // whole design as JSON. Both edit the same object, so a field the form does not show is kept exactly as it was.
 import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { Notice, SwitchField, TextAreaField } from '@/components/kit';
-import { AutoTag } from '@/components/auto-tag';
+import { FilledTag, Notice, SwitchField, TextAreaField } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { api } from '../../api';
 import { useAppInfo } from '../../app-info';
@@ -70,7 +69,7 @@ export function DesignFields({ design, onChange, jsonError, networks, autoOn = f
   return (
     <div className="flex flex-col gap-4">
       <SwitchField
-        label={<>This post has a designed image{autoOn && enabled && <AutoTag />}</>}
+        label={<>This post has a designed image{autoOn && enabled && <FilledTag />}</>}
         hint={autoOn && enabled ? 'On for a new post because the brand has a look. Turn this off for a post that uses only pictures you upload.' : 'Turn this off for a post that uses only pictures you upload.'}
         checked={enabled}
         // Starts on a layout that needs only a headline, so a brand with no pictures yet can make its first image.

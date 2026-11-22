@@ -9,8 +9,7 @@ import { useDocumentTitle, useLoad } from '../../hooks';
 import { FailureText } from '@/components/failure-text';
 import { blockerKind, errorMessage, fieldErrors, tidyBlocker } from '../../lib/errors';
 import { splitNotes } from '../../lib/post-notes';
-import { BusyButton, EmptyBlock, FormProblem, Hint, LoadingBlock, MoreMenu, Notice, PageHeader, TextField, ToneBadge } from '@/components/kit';
-import { AutoTag } from '@/components/auto-tag';
+import { BusyButton, EmptyBlock, FilledTag, FormProblem, Hint, LoadingBlock, MoreMenu, Notice, PageHeader, TextField, ToneBadge } from '@/components/kit';
 import { NetworkToggles } from '@/components/network-toggles';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -293,7 +292,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
         <div className="flex min-w-0 max-w-[720px] flex-col gap-6 lg:col-start-1 lg:row-start-1">
           <Section title="When and where">
             <TextField
-              label={<>Title{!titleTouched && auto.from && <AutoTag>{TITLE_FROM[auto.from]}</AutoTag>}</>}
+              label={<>Title{!titleTouched && auto.from && <FilledTag>{TITLE_FROM[auto.from]}</FilledTag>}</>}
               hint="A label for the team. It is not published. It follows the headline (or the caption) until you change it."
               value={titleTouched ? title : auto.title} placeholder={auto.title || undefined} maxLength={200} error={fields.title}
               onChange={(e) => { setTitleTouched(true); setTitle(e.target.value); }}

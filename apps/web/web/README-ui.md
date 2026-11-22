@@ -160,7 +160,7 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
   `batches/editor/`). It is a page with breadcrumbs, not a side sheet: the form (words, date, networks, design) on the left and
   a live preview on the right (stacked on a phone). Network choices and captions are edited here and saved with the post: the
   networks are icon chips (`components/network-toggles.tsx`) and the caption is tabs, "Same for all" plus one per network that is on
-  (`editor/CaptionFields.tsx`). What the form fills in itself is marked (`components/auto-tag.tsx`): the title "From the headline"
+  (`editor/CaptionFields.tsx`). What the form fills in itself is marked (`FilledTag` in the kit, the one mark for every filled-in value): the title "From the headline"
   until someone types one (`editor/post-defaults.ts`), and the designed image "Auto" when a new post starts with it because the brand
   has a look. Choices of two to four options are a row of radio chips (`editor/ChoiceRow.tsx`), never a native select.
   Designs are edited with a layout chooser, a picture picker and structured editors for figures, lists, carousel pages, tables

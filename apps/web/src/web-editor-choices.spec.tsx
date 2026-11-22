@@ -94,12 +94,12 @@ describe('the designed image switch', () => {
   it('is a switch, marked Auto while it is on for a new post', () => {
     const html = draw(<DesignFields design={{ template: 'post', kind: 'statement' }} jsonError="" onChange={noop} autoOn />);
     expect(html).toContain('role="switch"');
-    expect(html).toContain('data-auto-tag');
+    expect(html).toContain('data-filled-tag');
     expect(html).toContain('On for a new post because the brand has a look.');
   });
   it('has no Auto mark once it is the choice of the person', () => {
     const html = draw(<DesignFields design={{ template: 'post', kind: 'statement' }} jsonError="" onChange={noop} />);
     expect(html).toContain('role="switch"');
-    expect(html).not.toContain('data-auto-tag');
+    expect(html).not.toContain('data-filled-tag');
   });
 });

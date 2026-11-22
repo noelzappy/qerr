@@ -6,8 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { errorMessage, fieldErrors } from '../../lib/errors';
 import { toast } from 'sonner';
-import { BusyButton, FormPanel, FormProblem, Lines, Notice, SelectField, TextAreaField, TextField } from '@/components/kit';
-import { AutoTag } from '@/components/auto-tag';
+import { BusyButton, FilledTag, FormPanel, FormProblem, Lines, Notice, SelectField, TextAreaField, TextField } from '@/components/kit';
 import { NetworkToggles } from '@/components/network-toggles';
 import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsaved-guard';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -132,7 +131,7 @@ function CreateForm({ onClose, onState }: { onClose: () => void; onState: (s: Fo
       <FormProblem error={error} lines={lines} />
       <PeriodChips today={today} value={period} onChange={setPeriod} optional errors={{ from: fields.periodStart, to: fields.periodEnd }} />
       <TextField
-        label={<>Title{!titleTouched && autoTitle && <AutoTag>From the dates</AutoTag>}</>}
+        label={<>Title{!titleTouched && autoTitle && <FilledTag>From the dates</FilledTag>}</>}
         value={titleTouched ? title : autoTitle} placeholder={autoTitle || 'January 2027 posts'} maxLength={200} error={fields.title}
         hint="Follows the dates until you change it. The batch starts empty: you add posts on the next screen."
         onChange={(e) => { setTitleTouched(true); setTitle(e.target.value); }}
@@ -151,7 +150,7 @@ function CreateForm({ onClose, onState }: { onClose: () => void; onState: (s: Fo
         {more && (
           <div id="new-batch-more" className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <SelectField
-              label={<>Time zone{timezone === brand.timezone && <AutoTag>The brand's</AutoTag>}</>}
+              label={<>Time zone{timezone === brand.timezone && <FilledTag>The brand's</FilledTag>}</>}
               value={timezone} error={fields.timezone} onValueChange={setTimezone} hint="Post times are read in this zone." options={ZONES.map((z) => ({ value: z, label: z }))}
             />
           </div>
