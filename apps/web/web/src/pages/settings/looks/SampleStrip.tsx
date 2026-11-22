@@ -1,6 +1,8 @@
-// A strip of the seven kinds of post as small pictures of a look. While previews are not available it shows quiet placeholders
-// named by kind (no error styling); when pictures arrive they replace them, and a click enlarges one.
+// A strip of the seven kinds of post as small pictures of a look. While the pictures are being drawn the placeholders pulse, each
+// with a small spinner, and a line under the strip says so; while previews are not available it shows quiet placeholders named by
+// kind (no error styling); when pictures arrive they replace them, and a click enlarges one.
 import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { kindName } from './look-model';
@@ -10,6 +12,7 @@ import type { SampleState } from './use-look-samples';
 export function SampleStrip({ state, kinds, lookName, compact = false, className }: { state: SampleState; kinds: string[]; lookName: string; compact?: boolean; className?: string }) {
   const [open, setOpen] = useState<PreviewSample | null>(null);
   const bySample = new Map(state.samples.map((s) => [s.kind, s]));
+  const loading = state.status === 'loading';
   return (
     <div className={cn('flex flex-col gap-1', className)}>
       <ul className={cn('grid gap-1.5', compact ? 'grid-cols-7' : 'grid-cols-7 sm:gap-2')} aria-busy={state.status === 'loading'}>
@@ -23,7 +26,8 @@ export function SampleStrip({ state, kinds, lookName, compact = false, className
                   <img src={s.image} alt={`${lookName}: a ${name} post`} loading="lazy" className="size-full object-cover" />
                 </button>
               ) : (
-                <div className={cn('flex aspect-[4/5] w-full items-end justify-center overflow-hidden rounded-sm bg-muted/50 p-0.5 text-center text-[10px] leading-tight text-muted-foreground', s && !s.ok && 'ring-1 ring-inset ring-border')} title={s && !s.ok ? s.error : undefined}>
+                <div data-loading={loading && !s ? '' : undefined} className={cn('relative flex aspect-[4/5] w-full items-end justify-center overflow-hidden rounded-sm bg-muted/50 p-0.5 text-center text-[10px] leading-tight text-muted-foreground', s && !s.ok && 'ring-1 ring-inset ring-border', loading && !s && 'animate-pulse bg-muted')} title={s && !s.ok ? s.error : undefined}>
+                  {loading && !s && <Loader2 className="absolute inset-0 m-auto size-3.5 animate-spin text-muted-foreground/70" aria-hidden="true" />}
                   <span className="max-w-full truncate">{name}</span>
                 </div>
               )}
@@ -31,6 +35,7 @@ export function SampleStrip({ state, kinds, lookName, compact = false, className
           );
         })}
       </ul>
+      {loading && <p role="status" className="flex items-center gap-1.5 text-[12px] text-muted-foreground"><Loader2 className="size-3 animate-spin" aria-hidden="true" />Drawing samples…</p>}
       {state.status === 'unavailable' && <p className="text-[12px] text-muted-foreground">Samples appear here once previews are switched on</p>}
       {state.status === 'error' && <p className="text-[12px] text-muted-foreground">{state.error}</p>}
       <Dialog open={!!open} onOpenChange={(o) => { if (!o) setOpen(null); }}>
