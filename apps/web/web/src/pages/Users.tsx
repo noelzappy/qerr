@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import { api } from '../api';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { BusyButton, CheckField, ConfirmAction, CopyBox, DataList, EmptyBlock, ErrorBlock, FormPanel, MoreMenu, Notice, RowsSkeleton, SelectField, TextField, ToneBadge, type Column } from '@/components/kit';
+import { SegmentedField } from '@/components/kit/segmented-field';
+import { BusyButton, CheckField, ConfirmAction, CopyBox, DataList, EmptyBlock, ErrorBlock, FormPanel, MoreMenu, Notice, RowsSkeleton, TextField, ToneBadge, type Column } from '@/components/kit';
 import { useLoad, useDocumentTitle } from '../hooks';
 import { fieldErrors, formProblem } from '../lib/errors';
 import { formatDate } from '../lib/format';
@@ -194,7 +195,7 @@ function InviteDialog({ open, onClose, onDone }: { open: boolean; onClose: () =>
       ) : (
         <form id="invite-form" className="flex flex-col gap-4" onSubmit={(e) => void submit(e)} noValidate>
           <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} error={fields.email} required autoComplete="off" autoFocus />
-          <SelectField label="Role" value={role} onValueChange={(v) => setRole(v as 'editor' | 'admin')} options={ROLE_OPTIONS} error={fields.role}
+          <SegmentedField label="Role" value={role} onValueChange={(v) => setRole(v as 'editor' | 'admin')} options={ROLE_OPTIONS} error={fields.role}
             hintMode="inline" hint={role === 'admin' ? 'Admins also manage users, Buffer accounts, routing, AI settings and the audit log.' : 'Editors work on facts, pictures and batches.'} />
           {error && <Notice tone="bad">{error}</Notice>}
         </form>
@@ -224,7 +225,8 @@ function RoleDialog({ user, onClose, onDone }: { user: UserRow; onClose: () => v
     <FormPanel open variant="dialog" size="sm" title="Change role" description={user.email} onClose={requestClose} busy={busy}
       footer={<><Button variant="outline" className={sm} onClick={requestClose} disabled={busy}>Cancel</Button><BusyButton loading={busy} disabled={role === user.role} onClick={() => void save()}>Save role</BusyButton></>}>
       <div className="flex flex-col gap-4">
-        <SelectField label="Role" value={role} onValueChange={(v) => setRole(v as 'editor' | 'admin')} options={ROLE_OPTIONS} />
+        <SegmentedField label="Role" value={role} onValueChange={(v) => setRole(v as 'editor' | 'admin')} options={ROLE_OPTIONS}
+          hintMode="inline" hint={role === 'admin' ? 'Admins also manage users, Buffer accounts, routing, AI settings and the audit log.' : 'Editors work on facts, pictures and batches.'} />
         {error && <Notice tone="bad">{error}</Notice>}
       </div>
     </FormPanel>

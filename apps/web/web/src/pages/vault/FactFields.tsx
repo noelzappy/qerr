@@ -84,7 +84,7 @@ export function FactFields({ draft, onDraft, fields, autoRecordedAt, picture, to
       {fileKind && (
         <Section title="Picture">
           {picture}
-          <SegmentedField label="Licence or permission" options={LICENCE_CHOICES} value={f.licence} onChange={(v) => set('licence', v)} error={fields.licence} />
+          <SegmentedField label="Licence or permission" options={LICENCE_CHOICES} value={f.licence} onValueChange={(v) => set('licence', v)} error={fields.licence} />
           <TextField label="Licence notes" value={f.licenceNotes} onChange={(e) => set('licenceNotes', e.target.value)} error={fields.licenceNotes} optional hint="The photographer or stock site to credit, and the licence reference." />
           <p className="text-[12.5px] text-muted-foreground">A picture marked rights still to confirm can go in a draft, but its post cannot be approved until this is settled.</p>
           <SwitchField label="People can be recognised" checked={f.peoplePresent} onCheckedChange={(v) => set('peoplePresent', v)} />

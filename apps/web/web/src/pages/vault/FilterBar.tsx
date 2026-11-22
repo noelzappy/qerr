@@ -37,7 +37,7 @@ export function FilterBar({ ariaLabel, search, filters, tag, active, onClear }: 
       </div>
       <div className={cn('flex-col gap-2 sm:flex sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6', open ? 'flex' : 'hidden')}>
         {filters.map((f) => (
-          <SegmentedField key={f.key} label={f.label} layout="inline" variant={f.display ?? 'segmented'} value={f.value} onChange={f.onChange}
+          <SegmentedField key={f.key} label={f.label} layout="inline" variant={f.display ?? 'segmented'} value={f.value} onValueChange={f.onChange}
             options={[{ value: '', label: f.allLabel }, ...f.options]} className={f.display === 'chips' ? 'sm:basis-full' : undefined} />
         ))}
       </div>

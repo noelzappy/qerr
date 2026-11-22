@@ -1,6 +1,8 @@
 // The Channels page's pure rules: which account a network row starts on, when a row counts as changed, why the table is off.
 import { describe, expect, it } from 'vitest';
-import { baselineAccountId, routeIsDirty, routesBlockedReason } from '../web/src/pages/channels/channels-logic';
+import { baselineAccountId, captionLimitSummary, organisationChoices, routeIsDirty, routesBlockedReason } from '../web/src/pages/channels/channels-logic';
+import { CAPTION_LIMIT } from '../web/src/pages/batches/labels';
+import { networkLabel } from '../web/src/lib/labels';
 
 const one = [{ accountId: 'a1' }];
 const two = [{ accountId: 'a1' }, { accountId: 'a2' }];
@@ -39,5 +41,28 @@ describe('the reason the table is off', () => {
     expect(routesBlockedReason(0)).toMatch(/Connect Buffer/);
     expect(routesBlockedReason(1)).toBeNull();
     expect(routesBlockedReason(null)).toBeNull();
+  });
+});
+
+describe('the organisation of an account, after a key check', () => {
+  const orgs = [{ id: 'o1', name: 'Studio' }, { id: 'o2', name: '' }];
+  it('is a choice of every organisation or one of those the check listed, by name', () => {
+    expect(organisationChoices(orgs, '')).toEqual([
+      { value: '', label: 'Every organisation' }, { value: 'o1', label: 'Studio' }, { value: 'o2', label: 'Unnamed (o2)' },
+    ]);
+  });
+  it('keeps a saved id the check did not list, so it is not dropped unseen', () => {
+    expect(organisationChoices(orgs, 'o9').at(-1)).toEqual({ value: 'o9', label: 'o9 (not listed by the check)' });
+    expect(organisationChoices(orgs, 'o1')).toHaveLength(3);
+  });
+});
+
+describe('the caption limits behind Fine-tune', () => {
+  it('say the networks\' own limits when none is set', () => {
+    expect(captionLimitSummary({ instagram: '', linkedin: '', facebook: '', x: '' }, networkLabel, CAPTION_LIMIT))
+      .toBe("Caption limits: the networks' own (Instagram 2,200, LinkedIn 3,000, Facebook 63,206, X 280)");
+  });
+  it('name the ones set', () => {
+    expect(captionLimitSummary({ instagram: '', x: '4000' }, networkLabel, CAPTION_LIMIT)).toBe("Caption limits: X 4,000; the rest the networks' own");
   });
 });

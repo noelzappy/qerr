@@ -237,10 +237,10 @@ function PictureEditor({ item, backTo, onItem }: { item: VaultItem; backTo: stri
             <TextField label="Title" value={form.title} maxLength={200} error={fields.title} disabled={anyBusy} onChange={(e) => set('title', e.target.value)} />
             <TextAreaField label="Description" rows={4} value={form.body} error={fields.body} disabled={anyBusy} onChange={(e) => set('body', e.target.value)}
               hint="What is in the picture, the mood, and what posts it suits. The AI reads this." />
-            {form.role === 'photo' && <SegmentedField label="Kind" options={KIND_OPTIONS} value={form.kind} disabled={anyBusy} error={fields.kind} onChange={(v) => set('kind', v as PictureKind)} />}
-            {form.kind === 'photo' && <SegmentedField label="Use as" options={USE_OPTIONS} value={form.role} disabled={anyBusy} error={fields.role} onChange={(v) => set('role', v)}
+            {form.role === 'photo' && <SegmentedField label="Kind" options={KIND_OPTIONS} value={form.kind} disabled={anyBusy} error={fields.kind} onValueChange={(v) => set('kind', v as PictureKind)} />}
+            {form.kind === 'photo' && <SegmentedField label="Use as" options={USE_OPTIONS} value={form.role} disabled={anyBusy} error={fields.role} onValueChange={(v) => set('role', v)}
               hint="Cut-outs and brand graphics need a PNG or WebP with a transparent background. The AI picks only photos." />}
-            <SegmentedField label="Licence" options={LICENCE_CHOICES} value={form.licence} disabled={anyBusy} error={fields.licence} onChange={(v) => set('licence', v as Licence)} />
+            <SegmentedField label="Licence" options={LICENCE_CHOICES} value={form.licence} disabled={anyBusy} error={fields.licence} onValueChange={(v) => set('licence', v as Licence)} />
             <TagInput label="Tags" optional values={form.tags} onChange={(t) => set('tags', t)} error={fields.tags} disabled={anyBusy} chipsLabel="Tags on this picture" placeholder="news" />
             {form.role === 'graphic' && <SwitchField label="Can be recoloured" hint="For single-colour artwork. A design may then paint it in one of your brand colours." checked={form.tintable} disabled={anyBusy} onCheckedChange={(v) => set('tintable', v)} />}
             {form.role !== 'graphic' && <SwitchField label="People can be recognised" checked={form.peoplePresent} disabled={anyBusy} onCheckedChange={(v) => set('peoplePresent', v)} />}

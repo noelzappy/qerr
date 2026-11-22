@@ -45,7 +45,7 @@ export function Activity() {
       <PageHeader title="Activity" />
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-2" role="search" aria-label="Filter the activity">
-          <SegmentedField label="Status" hideLabel value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={STATUS_OPTIONS} />
+          <SegmentedField label="Status" hideLabel value={status} onValueChange={(v) => { setStatus(v); setPage(1); }} options={STATUS_OPTIONS} />
           <SelectField hideLabel className="w-44 max-sm:w-full" label="Kind of work" value={kind} onValueChange={(v) => { setKind(v); setPage(1); }} options={KIND_OPTIONS} />
           <SwitchField className="sm:ml-2" label="Show automatic status checks" checked={showSystem} onCheckedChange={(v) => { setShowSystem(v); setPage(1); }} />
         </div>

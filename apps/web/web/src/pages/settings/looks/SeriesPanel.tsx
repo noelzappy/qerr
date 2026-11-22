@@ -4,7 +4,7 @@
 // puts a post in a series. Calls: routes/series.ts.
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../../api';
 import { useLoad } from '../../../hooks';
@@ -12,6 +12,9 @@ import { errorMessage } from '../../../lib/errors';
 import { BusyButton, ConfirmAction, EmptyBlock, ErrorBlock, FormPanel, MoreMenu, Notice, SwitchField, TextField, ToneBadge } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { FineTune } from '@/components/kit/fine-tune';
+import { confirmDiscard, useUnsavedGuard } from '@/hooks/use-unsaved-guard';
+import { MARK_PRESETS, markFor, markPreset, type MarkPreset } from './series-marks';
 import { ChoiceRow } from '../../batches/editor/ChoiceRow';
 import { POST_KIND_CATALOGUE } from '../../batches/editor/catalogue';
 import { WEEKDAYS, seriesMark, seriesSummary, type SeriesInfo } from '../../batches/editor/series-model';
@@ -38,7 +41,9 @@ const CADENCES = [{ value: 'weekly', label: 'Every week' }, { value: 'fortnightl
 function SeriesForm({ id, look, draft, setDraft, onSubmit, error, lines }: {
   id: string; look: NonNullable<SeriesAnswer['look']>; draft: Draft; setDraft: (d: Draft) => void; onSubmit: (e: FormEvent) => void; error: string; lines: string[];
 }) {
-  const [fine, setFine] = useState(false);
+  // Custom stays chosen while a person edits a mark that happens to read like a preset
+  const [custom, setCustom] = useState(() => markPreset(draft.mark) === 'custom');
+  const preset: MarkPreset = custom ? 'custom' : markPreset(draft.mark);
   const designs = look.kinds[draft.kind] ?? [];
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft({ ...draft, [k]: v });
   const shows = (field: string) => (draft.variants.length ? designs.filter((d) => draft.variants.includes(d.index)) : designs).filter((d) => !d.fields.includes(field));
@@ -57,10 +62,15 @@ function SeriesForm({ id, look, draft, setDraft, onSubmit, error, lines }: {
           hint={draft.variants.length ? `Posts of this series take these ${look.name} designs in turn.` : `None chosen: any ${look.name} design of this kind. Choose up to 3 to keep the series recognisable.`}
           onChange={(v) => set('variants', (v as number[]).slice(0, 3).sort((a, b) => a - b))} />
       )}
-      <div className="flex flex-col gap-1">
-        <TextField label="Mark" optional value={draft.mark} maxLength={40} placeholder="Tip #{n}"
-          hint="Shown on every post of the series. Write {n} where the number goes, or leave it out for a fixed line such as Myth vs fact."
-          onChange={(e) => set('mark', e.target.value)} />
+      <div className="flex flex-col gap-2">
+        <ChoiceRow legend="Mark" value={preset}
+          choices={[...MARK_PRESETS.map((p) => ({ value: p.id as MarkPreset, label: p.label })), { value: 'custom' as MarkPreset, label: 'Custom' }]}
+          onChange={(v) => { const id = v as MarkPreset; setCustom(id === 'custom'); set('mark', markFor(id, draft.mark)); }} />
+        {preset === 'custom' && (
+          <TextField label="Your mark" value={draft.mark} maxLength={40} placeholder="Myth vs fact {n}"
+            hint="Shown on every post of the series. Write {n} where the number goes, or leave it out for a fixed line such as Myth vs fact."
+            onChange={(e) => set('mark', e.target.value)} />
+        )}
         {draft.mark.trim() && <p className="text-[13px]">Reads: <span className="font-medium">{seriesMark(draft.mark.trim(), Number.isInteger(first) && first > 0 ? first : 1)}</span></p>}
         {blind.length > 0 && <p className="text-[12.5px] text-warning-foreground">{blind.map((d) => d.name).join(', ')} {blind.length === 1 ? 'does' : 'do'} not show a {draft.markField === 'tag' ? 'sticker' : 'label'}; choose designs that show it, or put the mark in the other place under Fine-tune.</p>}
       </div>
@@ -69,18 +79,11 @@ function SeriesForm({ id, look, draft, setDraft, onSubmit, error, lines }: {
         choices={[{ value: -1, label: 'Any day' }, ...WEEKDAYS.map((d, i) => ({ value: i, label: d.slice(0, 3), title: d }))]}
         hint={draft.weekday === null ? 'From the first day of each batch.' : undefined}
         onChange={(v) => set('weekday', v === -1 ? null : Number(v))} />
-      <div>
-        <button type="button" aria-expanded={fine} onClick={() => setFine(!fine)} className="-ml-1 inline-flex min-h-8 items-center gap-1.5 rounded-md px-1 text-sm font-medium outline-none hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-11">
-          {fine ? <ChevronDown className="size-4" aria-hidden="true" /> : <ChevronRight className="size-4" aria-hidden="true" />}Fine-tune
-        </button>
-        {fine && (
-          <div className="mt-2 flex flex-col gap-3">
-            <ChoiceRow legend="Mark goes in" value={draft.markField} choices={[{ value: 'label', label: 'Label' }, { value: 'tag', label: 'Sticker text' }]} onChange={(v) => set('markField', v === 'tag' ? 'tag' : 'label')} />
-            <TextField label="First number" type="number" min={1} max={9999} inputMode="numeric" value={draft.firstNumber}
-              hint="For a series that ran before. Later numbers follow the posts that carry the series." onChange={(e) => set('firstNumber', e.target.value)} />
-          </div>
-        )}
-      </div>
+      <FineTune summary={`Mark in the ${draft.markField === 'tag' ? 'sticker' : 'label'}, numbers from ${draft.firstNumber || 1}`}>
+        <ChoiceRow legend="Mark goes in" value={draft.markField} choices={[{ value: 'label', label: 'Label' }, { value: 'tag', label: 'Sticker text' }]} onChange={(v) => set('markField', v === 'tag' ? 'tag' : 'label')} />
+        <TextField label="First number" type="number" min={1} max={9999} inputMode="numeric" value={draft.firstNumber}
+          hint="For a series that ran before. Later numbers follow the posts that carry the series." onChange={(e) => set('firstNumber', e.target.value)} />
+      </FineTune>
       {error && <Notice tone="warn">{error}{lines.length > 1 && <ul className="mt-1 list-disc pl-5">{lines.map((l) => <li key={l}>{l}</li>)}</ul>}</Notice>}
     </form>
   );
@@ -88,7 +91,11 @@ function SeriesForm({ id, look, draft, setDraft, onSubmit, error, lines }: {
 
 export function SeriesPanel() {
   const data = useLoad(() => seriesApi.list(), []);
-  const [editing, setEditing] = useState<{ id: string | null; draft: Draft } | null>(null);
+  const [editing, setEditing] = useState<{ id: string | null; draft: Draft; initial: Draft } | null>(null);
+  const open = (id: string | null, draft: Draft) => { setError(''); setLines([]); setEditing({ id, draft, initial: draft }); };
+  const dirty = !!editing && JSON.stringify(editing.draft) !== JSON.stringify(editing.initial);
+  useUnsavedGuard(dirty);
+  const requestClose = () => confirmDiscard(dirty && !busy, () => setEditing(null));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [lines, setLines] = useState<string[]>([]);
@@ -132,7 +139,7 @@ export function SeriesPanel() {
           <h2 id="series-title" className="text-sm font-semibold">Series</h2>
           <p className="text-[13px] text-muted-foreground">Formats that come back, such as Tip of the week. AI drafts plan the ones that are on into each batch and number them. Drawn with {look.name}.</p>
         </div>
-        <Button size="sm" disabled={d.series.length >= d.limits.perBrand} onClick={() => { setError(''); setLines([]); setEditing({ id: null, draft: blank(firstKind) }); }}><Plus aria-hidden="true" />Add a series</Button>
+        <Button size="sm" disabled={d.series.length >= d.limits.perBrand} onClick={() => open(null, blank(firstKind))}><Plus aria-hidden="true" />Add a series</Button>
       </div>
       {d.series.length === 0 ? <EmptyBlock title="No series yet">Add one to make a format come back at a steady pace, numbered.</EmptyBlock> : (
         <ul className="divide-y rounded-lg border">
@@ -140,7 +147,7 @@ export function SeriesPanel() {
             <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2.5">
               <div className="min-w-0 flex-1 basis-56">
                 <div className="flex items-center gap-2">
-                  <button type="button" className="min-w-0 truncate text-left text-[14px] font-semibold underline-offset-2 hover:underline" onClick={() => { setError(''); setLines([]); setEditing({ id: s.id, draft: fromRow(s) }); }}>{s.name}</button>
+                  <button type="button" className="min-w-0 truncate text-left text-[14px] font-semibold underline-offset-2 hover:underline" onClick={() => open(s.id, fromRow(s))}>{s.name}</button>
                   {s.problems.length > 0 ? <ToneBadge tone="warn" dot>Needs a look</ToneBadge> : !s.designsInLook ? <ToneBadge tone="warn" dot>Designs from another look</ToneBadge> : null}
                 </div>
                 <p className="truncate text-[12.5px] text-muted-foreground">{[seriesSummary(s), s.posts ? `${s.posts} post${s.posts === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ')}</p>
@@ -148,7 +155,7 @@ export function SeriesPanel() {
               </div>
               <SwitchField label="On" checked={s.enabled} onCheckedChange={(c) => void toggle(s, c)} />
               <MoreMenu items={[
-                { label: 'Edit', onSelect: () => { setError(''); setLines([]); setEditing({ id: s.id, draft: fromRow(s) }); } },
+                { label: 'Edit', onSelect: () => open(s.id, fromRow(s)) },
                 { label: 'Delete', tone: 'danger', onSelect: () => setDeleting(s) },
               ]} />
             </li>
@@ -156,8 +163,8 @@ export function SeriesPanel() {
         </ul>
       )}
 
-      <FormPanel open={!!editing} onClose={() => setEditing(null)} busy={busy} title={editing?.id ? 'Edit series' : 'Add a series'}
-        footer={<><Button type="button" variant="outline" onClick={() => setEditing(null)} disabled={busy}>Cancel</Button><BusyButton type="submit" form="series-form" loading={busy}>Save</BusyButton></>}>
+      <FormPanel open={!!editing} variant="dialog" size="md" onClose={requestClose} busy={busy} title={editing?.id ? 'Edit series' : 'Add a series'}
+        footer={<><Button type="button" variant="outline" className="max-sm:min-h-11" onClick={requestClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="series-form" loading={busy}>Save</BusyButton></>}>
         {editing && <SeriesForm id="series-form" look={look} draft={editing.draft} setDraft={(draft) => setEditing({ ...editing, draft })} onSubmit={(e) => void save(e)} error={error} lines={lines} />}
       </FormPanel>
       <ConfirmAction

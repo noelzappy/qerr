@@ -17,7 +17,7 @@ import {
   saveSiteColours, sessionStore, typeInDraft, type BrandDraft,
 } from './flow';
 import { StepActions, StepHeader, SuggestedNote, type StepProps } from './parts';
-import { zoneOptions } from './zones';
+import { TimeZonePicker } from '@/components/kit/time-zone-picker';
 
 // Whether this server has the suggestion route at all (another part of the app adds it); once it answers "not here", the button
 // stays hidden for the rest of the visit.
@@ -41,7 +41,6 @@ export function StepBrand({ status, reload, next }: StepProps) {
     setD(loadDraft(store) ?? (view.data.saved ? draftFromSettings(view.data.settings) : emptyDraft(detectZone(), languageFor(navigator.language))));
   }, [view.data, d, store]);
   useEffect(() => { if (d) saveDraft(store, d); }, [d, store]);
-  const zones = useMemo(() => zoneOptions(d?.timezone ?? 'UTC'), [d?.timezone]);
 
   if (view.error) return <ErrorBlock message={view.error} onRetry={() => void view.reload()} />;
   if (!view.data || !d) return <div className="flex flex-col gap-3"><Skeleton className="h-7 w-48" /><Skeleton className="h-48" /></div>;
@@ -132,7 +131,7 @@ export function StepBrand({ status, reload, next }: StepProps) {
           </p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
-            <SelectField label="Time zone" value={d.timezone} onValueChange={(z) => setD({ ...d, timezone: z })} options={zones} error={fields.timezone} />
+            <TimeZonePicker label="Time zone" value={d.timezone} onChange={(z) => setD({ ...d, timezone: z })} error={fields.timezone} />
             <SelectField label="Language of the posts" value={d.language} onValueChange={(l) => setD({ ...d, language: l })} options={(LANGUAGES.includes(d.language) ? LANGUAGES : [d.language, ...LANGUAGES]).map((l) => ({ value: l, label: l }))} error={fields.language} />
           </div>
         )}

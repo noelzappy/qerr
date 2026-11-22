@@ -3,9 +3,10 @@
 // named set, a list, a group of settings, a choice between forms), the place editor, the size ladder, the condition editor.
 // Every change goes out as a value; the editor model (design-model.ts) checks it against the descriptor and says why it will not take it, and that
 // sentence is shown under the control. Nothing here clamps a number.
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
 import { CheckField, FieldGroup, SelectField, SwitchField, TextField } from '@/components/kit';
+import { ChoiceField } from '@/components/kit/segmented-field';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -82,19 +83,31 @@ export function NumberInput({ label, value, desc, onChange, hint, disabled, opti
 }
 
 // ---- a brand colour role as a swatch ----
-export function RolePicker({ label, value, roles, swatches, onChange, optional, disabled, hint }: { label: ReactNode; value: string | undefined; roles: string[]; swatches: Swatches; onChange: (v: string | undefined) => string; optional?: boolean; disabled?: boolean; hint?: ReactNode }) {
+// A radio group: one tab stop (the chosen swatch, else the first), the arrow keys move the choice. `wordOf` names a role (default: the design
+// editor's words for the look's roles).
+export function RolePicker({ label, value, roles, swatches, onChange, optional, disabled, hint, wordOf = roleWord }: { label: ReactNode; value: string | undefined; roles: string[]; swatches: Swatches; onChange: (v: string | undefined) => string; optional?: boolean; disabled?: boolean; hint?: ReactNode; wordOf?: (role: string) => string }) {
   const [error, setError] = useState('');
   const list = value && !roles.includes(value) ? [value, ...roles] : roles;
   const pick = (v: string | undefined) => setError(onChange(v));
+  const all: Array<string | undefined> = optional ? [undefined, ...list] : list;
+  const focusAt = all.includes(value) ? all.indexOf(value) : 0;
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+    if (!step || disabled) return;
+    e.preventDefault();
+    const at = (all.indexOf(value) + step + all.length) % all.length;
+    pick(all[at]);
+    (e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')[at])?.focus();
+  };
   return (
-    <div role="radiogroup" aria-label={typeof label === 'string' ? label : undefined} className="flex min-w-0 flex-col gap-1.5">
+    <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex min-h-5 items-center gap-1 text-[13px] font-medium">{label}{optional && <span className="font-normal text-muted-foreground"> (optional)</span>}
-        <span className="ml-auto truncate font-normal text-muted-foreground">{value ? roleWord(value) : 'Not set'}</span></div>
-      <div className="flex flex-wrap gap-1.5">
-        {optional && <button type="button" role="radio" aria-checked={value === undefined} aria-label="No colour" disabled={disabled} onClick={() => pick(undefined)}
+        <span className="ml-auto truncate font-normal text-muted-foreground">{value ? wordOf(value) : 'Not set'}</span></div>
+      <div role="radiogroup" aria-label={typeof label === 'string' ? label : undefined} className="flex flex-wrap gap-1.5" onKeyDown={onKey}>
+        {optional && <button type="button" role="radio" aria-checked={value === undefined} aria-label="No colour" tabIndex={focusAt === 0 ? 0 : -1} disabled={disabled} onClick={() => pick(undefined)}
           className={cn('grid size-6 place-items-center rounded-full border bg-background text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:size-9', value === undefined && 'ring-2 ring-primary ring-offset-1')}><X className="size-3" aria-hidden="true" /></button>}
-        {list.map((r) => (
-          <button key={r} type="button" role="radio" aria-checked={value === r} aria-label={roleWord(r)} title={roleWord(r)} disabled={disabled} onClick={() => pick(r)}
+        {list.map((r, i) => (
+          <button key={r} type="button" role="radio" aria-checked={value === r} aria-label={wordOf(r)} title={wordOf(r)} tabIndex={focusAt === i + (optional ? 1 : 0) ? 0 : -1} disabled={disabled} onClick={() => pick(r)}
             className={cn('size-6 rounded-full border border-foreground/20 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:size-9', value === r && 'ring-2 ring-primary ring-offset-1')}
             style={{ backgroundColor: swatchOf(swatches, r) }} />
         ))}
@@ -187,7 +200,7 @@ export function ValueControl({ name, desc, value, onChange, ctx, label, optional
     case 'enum': {
       const vals = desc.values ?? [];
       const v = value === undefined ? (optional || desc.default === undefined ? '' : String(desc.default)) : String(value);
-      return <SelectField label={lab} hint={hint} value={v} disabled={dis} error={error || undefined} placeholder={optional ? 'Not set' : undefined}
+      return <ChoiceField label={lab} hint={hint} value={v} disabled={dis} error={error || undefined} placeholder={optional ? 'Not set' : undefined}
         options={[...(optional || value === undefined ? [{ value: '', label: desc.default !== undefined ? `Look's own (${word(desc.default as string)})` : 'Not set' }] : []), ...options(vals)]}
         onValueChange={(x) => send(x === '' ? undefined : typeof vals[0] === 'number' ? Number(x) : x)} />;
     }
@@ -287,7 +300,7 @@ function OneOfControl({ name, desc, value, lab, ctx, onChange, disabled }: { nam
   }
   return (
     <FieldGroup legend={<span className="flex items-center gap-2">{lab}<Button type="button" size="icon-xs" variant="ghost" aria-label={`Remove ${typeof lab === 'string' ? lab : 'this'}`} disabled={disabled} onClick={() => setError(onChange(undefined))}><X /></Button></span>} hint={desc.help} error={error || undefined}>
-      {forms.length > 1 && <SelectField label="Form" value={String(Math.max(idx, 0))} disabled={disabled} options={forms.map((f, i) => ({ value: String(i), label: words?.[i] ?? word(f.is) }))}
+      {forms.length > 1 && <ChoiceField label="Form" value={String(Math.max(idx, 0))} disabled={disabled} options={forms.map((f, i) => ({ value: String(i), label: words?.[i] ?? word(f.is) }))}
         onValueChange={(i) => setError(onChange(clone(blankFor(forms[Number(i)]!.desc))))} />}
       {idx >= 0 && <ValueControl name={name} desc={forms[idx]!.desc} value={value} ctx={ctx} disabled={disabled} label={forms.length > 1 ? (forms[idx]!.desc.label ?? 'Value') : (forms[idx]!.desc.label ?? 'Value')} onChange={onChange} />}
     </FieldGroup>
@@ -313,7 +326,7 @@ export function PlaceEditor({ ctx }: { ctx: Ctx }) {
   const side = (k: string) => { const d = (forms.anchor as Desc | undefined)?.props?.[k]; return d ? d : ({ kind: 'length', min: -300, max: 1700 } as Desc); };
   return (
     <div className="flex flex-col gap-3">
-      <SelectField label="Placed" value={form} disabled={ctx.disabled} error={error || undefined}
+      <ChoiceField label="Placed" value={form} disabled={ctx.disabled} error={error || undefined}
         hint="Grid snaps to the page grid. Anchored holds distances from the page edges. Free pixels places it by pixels (Advanced). Fills an area covers the page, the margins or the frame."
         options={choices.map((f) => ({ value: f, label: PLACE_FORM_WORDS[f] ?? f }))}
         onValueChange={(f) => setError(ctx.setForm(f as PlaceForm))} />
@@ -324,7 +337,7 @@ export function PlaceEditor({ ctx }: { ctx: Ctx }) {
           <NumberInput label="Columns wide" value={place.grid.span} desc={{ kind: 'number', int: true, min: 1, max: g?.cols ?? 24 }} disabled={ctx.disabled} onChange={(v) => { if (v === undefined) return 'Enter a number'; return ctx.setPlace(sub('span', v)); }} />
           {(g?.rows ?? 0) > 0 && <NumberInput label="Row" value={place.grid.row} optional desc={{ kind: 'number', int: true, min: 1, max: g?.rows ?? 16 }} disabled={ctx.disabled} onChange={(v) => ctx.setPlace(sub('row', v))} />}
           {(g?.rows ?? 0) > 0 && <NumberInput label="Rows tall" value={place.grid.rowSpan} optional desc={{ kind: 'number', int: true, min: 1, max: g?.rows ?? 16 }} disabled={ctx.disabled} onChange={(v) => ctx.setPlace(sub('rowSpan', v))} />}
-          {(g?.rows ?? 0) > 0 && <div className="col-span-2"><SelectField label="Sits in its rows" value={String(place.grid.alignY ?? '')} disabled={ctx.disabled} options={[{ value: '', label: 'Look\'s own' }, ...options(((forms.grid as Desc | undefined)?.props?.alignY?.values) ?? ['top', 'center', 'bottom'])]} onValueChange={(v) => write(sub('alignY', v === '' ? undefined : v))} /></div>}
+          {(g?.rows ?? 0) > 0 && <div className="col-span-2"><ChoiceField label="Sits in its rows" value={String(place.grid.alignY ?? '')} disabled={ctx.disabled} options={[{ value: '', label: 'Look\'s own' }, ...options(((forms.grid as Desc | undefined)?.props?.alignY?.values) ?? ['top', 'center', 'bottom'])]} onValueChange={(v) => write(sub('alignY', v === '' ? undefined : v))} /></div>}
         </div>
       )}
       {form === 'px' && isObj(place.px) && (
@@ -344,7 +357,7 @@ export function PlaceEditor({ ctx }: { ctx: Ctx }) {
         </div>
       )}
       {form === 'inset' && (
-        <SelectField label="Fills" value={String(place.inset)} disabled={ctx.disabled} options={options(['page', 'margins', 'frame'])} onValueChange={(v) => write({ inset: v })} />
+        <ChoiceField label="Fills" value={String(place.inset)} disabled={ctx.disabled} options={options(['page', 'margins', 'frame'])} onValueChange={(v) => write({ inset: v })} />
       )}
       {(form === 'grid' || form === 'px' || form === 'anchor') && ctx.advanced && (
         <details className="rounded-md bg-muted/40 px-2.5 py-1.5">
@@ -387,7 +400,7 @@ export function BindingEditor({ ctx, onBind, onSource }: { ctx: Ctx; onBind: (fi
   const [error, setError] = useState('');
   return (
     <div className="flex flex-col gap-2">
-      {sourceDesc && <SelectField label="Shows" value={mode === 'field' ? 'field' : mode} disabled={ctx.disabled} options={[{ value: 'field', label: 'A field of the post' }, ...options(sourceDesc.values ?? [])]}
+      {sourceDesc && <ChoiceField label="Shows" value={mode === 'field' ? 'field' : mode} disabled={ctx.disabled} options={[{ value: 'field', label: 'A field of the post' }, ...options(sourceDesc.values ?? [])]}
         onValueChange={(v) => setError(v === 'field' ? onSource(null) : onSource(v))} />}
       {desc && mode === 'field' && (
         <SelectField label="Field" hint="Which of the post's words it shows. A field no element shows is left out of the design once you confirm." value={typeof el.field === 'string' ? el.field : ''} disabled={ctx.disabled} error={error || undefined} placeholder="Choose a field"

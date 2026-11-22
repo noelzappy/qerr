@@ -1,10 +1,14 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { api } from '../../api';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { BusyButton, DataList, ErrorBlock, FieldGroup, FormPanel, Notice, RowsSkeleton, TextField, ToneBadge, type Column } from '@/components/kit';
+import { BusyButton, DataList, ErrorBlock, FieldGroup, FormPanel, Hint, Notice, RowsSkeleton, TextField, ToneBadge, type Column } from '@/components/kit';
+import { FineTune } from '@/components/kit/fine-tune';
+import { ChoiceField } from '@/components/kit/segmented-field';
+import { CAPTION_LIMIT } from '../batches/labels';
+import { captionLimitSummary, organisationChoices, type Organisation } from './channels-logic';
 import { useLoad } from '../../hooks';
-import { fieldErrors, formProblem } from '../../lib/errors';
+import { errorMessage, fieldErrors, formProblem } from '../../lib/errors';
 import { dateInputValue } from '../../lib/format';
 import { networkLabel } from '../../lib/labels';
 import { confirmDiscard, useUnsavedGuard } from '@/hooks/use-unsaved-guard';
@@ -25,11 +29,58 @@ const sm = 'max-sm:min-h-11';
 // One bordered container; the list's rows are separated by hairlines.
 const LIST = 'overflow-hidden rounded-lg border';
 
-export function AccountDialog({ account, onClose, onSaved }: { account: BufferAccount | null; onClose: () => void; onSaved: (created: boolean) => void }) {
+// The organisation part of the account dialog. With the organisations the key check listed, a choice of them by name; without, what is
+// set now and, for a saved account, a button that runs the same check (it asks Buffer what the saved key reaches and changes nothing).
+function OrganisationField({ account, org, setOrg, orgs, onChecked, keyTyped, error }: {
+  account: BufferAccount | null; org: string; setOrg: (v: string) => void; orgs: Organisation[] | null; onChecked: (orgs: Organisation[]) => void; keyTyped: boolean; error?: string;
+}) {
+  const [checking, setChecking] = useState(false);
+  const [problem, setProblem] = useState('');
+  async function check() {
+    if (!account) return;
+    setChecking(true); setProblem('');
+    try {
+      const r = await api.post<CheckResult>(`/api/buffer-accounts/${account.id}/check`);
+      if (r.ok) onChecked(r.organizations);
+      else setProblem(`Buffer did not accept the saved key: ${r.error ?? 'the check failed'}.`);
+    } catch (err) {
+      setProblem(errorMessage(err));
+    } finally {
+      setChecking(false);
+    }
+  }
+  if (orgs) {
+    return <ChoiceField label="Buffer organisation" value={org} onValueChange={setOrg} options={organisationChoices(orgs, org)} error={error}
+      hint="Limit the account to one organisation of its key, or use every organisation the key reaches." />;
+  }
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex min-h-5 items-center gap-1 text-sm leading-none font-medium">Buffer organisation
+        <Hint about="Buffer organisation">{account ? 'Check the key to choose from the organisations it reaches.' : 'After adding the account, check its key to choose one of its organisations.'}</Hint>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="min-w-0 text-[13px] [overflow-wrap:anywhere]">{org.trim() ? <span className="font-mono">{org.trim()}</span> : 'Every organisation the key reaches'}</span>
+        {account && (
+          <BusyButton type="button" variant="outline" size="sm" className={sm} loading={checking} disabled={keyTyped} title={keyTyped ? 'Save the new key first' : undefined} onClick={() => void check()}>Check key</BusyButton>
+        )}
+      </div>
+      {account && keyTyped && <p className="text-[12.5px] text-muted-foreground">The check uses the saved key; save the new key first.</p>}
+      {problem && <p className="text-[12.5px] font-medium text-destructive" role="alert">{problem}</p>}
+      {error && <p className="text-[12.5px] font-medium text-destructive" role="alert">{error}</p>}
+    </div>
+  );
+}
+
+export function AccountDialog({ account, onClose, onSaved, knownOrgs = null, onOrgs }: {
+  account: BufferAccount | null; onClose: () => void; onSaved: (created: boolean) => void;
+  // what the last key check of this account listed, if one ran in this visit; the dialog reports a check it runs itself
+  knownOrgs?: Organisation[] | null; onOrgs?: (orgs: Organisation[]) => void;
+}) {
   const [name, setName] = useState(account?.name ?? '');
   const [apiKey, setApiKey] = useState('');
   const [expires, setExpires] = useState(dateInputValue(account?.keyExpiresAt));
   const [org, setOrg] = useState(account?.organizationId ?? '');
+  const [orgs, setOrgs] = useState<Organisation[] | null>(knownOrgs);
   const [limits, setLimits] = useState<Record<string, string>>(() => Object.fromEntries(NETWORKS.map((n) => [n, account?.captionLimits[n] ? String(account.captionLimits[n]) : ''])));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -77,6 +128,7 @@ export function AccountDialog({ account, onClose, onSaved }: { account: BufferAc
     }
   }
 
+  const limitProblem = NETWORKS.some((n) => fields[`captionLimits.${n}`]);
   return (
     <FormPanel open variant="dialog" onClose={requestClose} busy={busy} title={account ? `Edit ${account.name}` : 'Add a Buffer account'}
       description="The key is stored encrypted and cannot be shown again."
@@ -88,17 +140,19 @@ export function AccountDialog({ account, onClose, onSaved }: { account: BufferAc
           placeholder={account ? `Leave blank to keep the key ending ${account.keyLast4}` : ''}
           hint="Made in Buffer under your API settings." mono
         />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <TextField label="Key expires on" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} error={fields.keyExpiresAt} optional hint="The app warns a week before this date." />
-          <TextField label="Buffer organisation id" value={org} onChange={(e) => setOrg(e.target.value)} error={fields.organizationId} optional mono hint="Leave blank to use every organisation this key can reach. Use Check key to see the ids." />
-        </div>
-        <FieldGroup legend={<>Caption limits <span className="font-normal text-muted-foreground">(optional)</span></>} hint="The most characters a caption may have on each network. Leave blank to use the app's own limit.">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {NETWORKS.map((n) => (
-              <TextField key={n} label={networkLabel(n)} type="number" inputMode="numeric" min={1} value={limits[n]} onChange={(e) => setLimits({ ...limits, [n]: e.target.value })} error={fields[`captionLimits.${n}`]} />
-            ))}
-          </div>
-        </FieldGroup>
+        <TextField label="Key expires on" type="date" value={expires} onChange={(e) => setExpires(e.target.value)} error={fields.keyExpiresAt} optional hint="The app warns a week before this date." className="sm:max-w-[16rem]" />
+        <OrganisationField account={account} org={org} setOrg={setOrg} orgs={orgs} keyTyped={apiKey.trim() !== ''} error={orgs ? fields.organizationId : undefined}
+          onChecked={(found) => { setOrgs(found); onOrgs?.(found); }} />
+        <FineTune force={limitProblem || (!orgs && !!fields.organizationId)} summary={captionLimitSummary(limits, networkLabel, CAPTION_LIMIT)}>
+          <FieldGroup legend={<>Caption limits <span className="font-normal text-muted-foreground">(optional)</span></>} hint="The most characters a caption may have on each network. Leave blank to use the network's own limit, shown in each box; raise X's for a paid X plan.">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {NETWORKS.map((n) => (
+                <TextField key={n} label={networkLabel(n)} type="number" inputMode="numeric" min={1} placeholder={CAPTION_LIMIT[n].toLocaleString('en-GB')} value={limits[n]} onChange={(e) => setLimits({ ...limits, [n]: e.target.value })} error={fields[`captionLimits.${n}`]} />
+              ))}
+            </div>
+          </FieldGroup>
+          {!orgs && <TextField label="Buffer organisation id" value={org} onChange={(e) => setOrg(e.target.value)} error={fields.organizationId} optional mono hint="Only if you know it. Leave blank to use every organisation this key can reach; Check key lists them by name." />}
+        </FineTune>
         {error && <Notice tone="bad">{error}</Notice>}
       </form>
     </FormPanel>
@@ -106,9 +160,11 @@ export function AccountDialog({ account, onClose, onSaved }: { account: BufferAc
 }
 
 // Informational only: it asks Buffer what a key can reach and changes nothing.
-export function CheckDialog({ account, onClose }: { account: BufferAccount; onClose: () => void }) {
+// `onResult` hears the organisations a check that worked listed, so the account's Edit can offer them as a choice.
+export function CheckDialog({ account, onClose, onResult }: { account: BufferAccount; onClose: () => void; onResult?: (orgs: Organisation[]) => void }) {
   const state = useLoad(() => api.post<CheckResult>(`/api/buffer-accounts/${account.id}/check`), [account.id]);
   const r = state.data;
+  useEffect(() => { if (r?.ok) onResult?.(r.organizations); }, [r]); // eslint-disable-line react-hooks/exhaustive-deps
   const channelColumns: Column<CheckResult['channels'][number]>[] = [
     { key: 'name', header: 'Channel', primary: true, cell: (c) => <>{c.displayName || c.name}{c.displayName && c.displayName !== c.name && <span className="block text-[13px] font-normal text-muted-foreground">{c.name}</span>}</> },
     { key: 'net', header: 'Network', cell: (c) => (c.network ? networkLabel(c.network) : <span className="text-muted-foreground">{c.service || 'Unknown'}</span>) },
@@ -128,7 +184,7 @@ export function CheckDialog({ account, onClose }: { account: BufferAccount; onCl
           : r && (
             <div className="flex flex-col gap-4">
               <Notice tone="good">The key works. It can reach {r.organizations.length} {r.organizations.length === 1 ? 'organisation' : 'organisations'} and {r.channels.length} {r.channels.length === 1 ? 'channel' : 'channels'}.</Notice>
-              {r.allOrganizations && <Notice tone="info">This account has no organisation chosen, so channels from every organisation are listed. Set an organisation id on the account to limit it.</Notice>}
+              {r.allOrganizations && <Notice tone="info">This account has no organisation chosen, so channels from every organisation are listed. Choose one under Edit to limit it.</Notice>}
               <div className="flex flex-col gap-1.5">
                 <h3 className="text-sm font-semibold">Organisations</h3>
                 {r.organizations.length === 0 ? <p className="text-muted-foreground">None found.</p> : (

@@ -16,18 +16,10 @@ import { periodFor, periodTitle, todayIn, type Period } from './periods';
 import type { BatchView } from './types';
 import { detailLines } from './util';
 import { useAppInfo } from '../../app-info';
+import { TimeZonePicker } from '@/components/kit/time-zone-picker';
 
 const MAX_IMPORT = 2 * 1024 * 1024;
 
-function timeZones(): string[] {
-  let zones: string[] = [];
-  try { zones = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.('timeZone') ?? []; } catch { zones = []; }
-  const base = zones.length ? zones : ['Africa/Lagos', 'Africa/Nairobi', 'Europe/London', 'UTC'];
-  return base;
-}
-const ALL_ZONES = timeZones();
-// The brand's own time zone first.
-const zonesFor = (home: string) => [home, ...ALL_ZONES.filter((z) => z !== home)];
 
 // The submit buttons live in the dialog's pinned footer, so each form tells the dialog when it is busy or has unsaved input.
 type FormState = { busy: boolean; dirty: boolean };
@@ -74,7 +66,6 @@ function useReportState(busy: boolean, dirty: boolean, onState: (s: FormState) =
 function CreateForm({ onClose, onState }: { onClose: () => void; onState: (s: FormState) => void }) {
   const navigate = useNavigate();
   const { brand } = useAppInfo();
-  const ZONES = zonesFor(brand.timezone);
   const [timezone, setTimezone] = useState(brand.timezone);
   // The brand's zone can arrive after the form opens: follow it, so an untouched form is not counted as changed.
   useEffect(() => { setTimezone(brand.timezone); }, [brand.timezone]);
@@ -149,9 +140,9 @@ function CreateForm({ onClose, onState }: { onClose: () => void; onState: (s: Fo
         </button>
         {more && (
           <div id="new-batch-more" className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <SelectField
+            <TimeZonePicker
               label={<>Time zone{timezone === brand.timezone && <FilledTag>The brand's</FilledTag>}</>}
-              value={timezone} error={fields.timezone} onValueChange={setTimezone} hint="Post times are read in this zone." options={ZONES.map((z) => ({ value: z, label: z }))}
+              value={timezone} error={fields.timezone} onChange={setTimezone} hint="Post times are read in this zone." className="sm:col-span-2"
             />
           </div>
         )}

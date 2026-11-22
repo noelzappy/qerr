@@ -1,6 +1,7 @@
 // Brand and look, Identity and Logos.
 import { ImageUp, Wand2 } from 'lucide-react';
-import { BusyButton, CheckField, Hint, Notice, SelectField, TextField } from '@/components/kit';
+import { BusyButton, CheckField, Hint, Notice, SelectField, SwitchField, TextField } from '@/components/kit';
+import { TimeZonePicker } from '@/components/kit/time-zone-picker';
 import { Section } from '../section';
 import { FileField, NumberField } from './fields';
 import { buildCurrencyPattern, currencyListProblem, parseCurrencyPattern } from './currency';
@@ -9,10 +10,6 @@ import { SavedNote, useReportProblem, useUploadStatus } from './status';
 import type { BrandCtx } from './model';
 import type { BrandNumbers } from '../brand-types';
 
-function zones(): string[] {
-  try { return (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.('timeZone') ?? ['UTC']; } catch { return ['UTC']; }
-}
-const ALL_ZONES = zones();
 const LANGUAGES = ['British English', 'American English', 'Australian English', 'Canadian English', 'French', 'German', 'Spanish', 'Portuguese', 'Dutch', 'Italian'];
 // The starting list when "one currency only" is switched on.
 const DEFAULT_FOREIGN = '\\$|£|€';
@@ -76,11 +73,11 @@ export function IdentitySection({ ctx }: { ctx: BrandCtx }) {
         <TextField label="Website" hint="As it should appear on posts, without https://" value={s.website} onChange={(e) => set('website', e.target.value)} error={fields.website} maxLength={120} required />
         <TextField label="Tagline" value={s.tagline} onChange={(e) => set('tagline', e.target.value)} error={fields.tagline} maxLength={160} required />
         <TextField label="What the brand does" optional hint="One line, for the AI" value={s.descriptor} onChange={(e) => set('descriptor', e.target.value)} error={fields.descriptor} maxLength={200} />
-        <SelectField label="Time zone" hint="Posts are planned in this time zone" value={s.timezone} onValueChange={(v) => set('timezone', v)} options={(ALL_ZONES.includes(s.timezone) ? ALL_ZONES : [s.timezone, ...ALL_ZONES]).map((z) => ({ value: z, label: z.replace(/_/g, ' ') }))} error={fields.timezone} />
+        <TimeZonePicker label="Time zone" hint="Posts are planned in this time zone" value={s.timezone} onChange={(v) => set('timezone', v)} error={fields.timezone} />
         <SelectField label="Language of the posts" value={s.language} onValueChange={(v) => set('language', v)} options={(LANGUAGES.includes(s.language) ? LANGUAGES : [s.language, ...LANGUAGES]).map((l) => ({ value: l, label: l }))} error={fields.language} />
       </div>
       <div className="flex flex-col gap-3">
-        <CheckField
+        <SwitchField
           label="The brand works in one currency only" hint="Posts that mention another currency get a warning."
           checked={!!s.money} onCheckedChange={(on) => set('money', on ? { local: 'We work in one currency only', foreign: DEFAULT_FOREIGN } : null)}
         />

@@ -5,6 +5,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { CheckField, FieldGroup, FieldSet, Hint, SelectField, SwitchField, TextField } from '@/components/kit';
+import { ChoiceField } from '@/components/kit/segmented-field';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -108,7 +109,7 @@ function EnumRow({ path, desc, ctx }: { path: string; desc: Desc; ctx: SettingsC
   const value = readSetting(ctx.look, desc, path);
   const values = desc.values ?? [];
   return (
-    <SelectField label={labelFor(path, desc)} hint={desc.help} value={value === undefined ? '' : String(value)} disabled={ctx.disabled} error={ctx.errors[path]}
+    <ChoiceField label={labelFor(path, desc)} hint={desc.help} value={value === undefined ? '' : String(value)} disabled={ctx.disabled} error={ctx.errors[path]}
       options={values.map((v) => ({ value: String(v), label: typeof v === 'number' && path.includes('size') ? `${v} px` : valueLabel(path, v) }))}
       onValueChange={(v) => ctx.onChange(path, values.find((x) => String(x) === v) ?? v)} />
   );
@@ -183,7 +184,7 @@ function FontControl({ path, desc, ctx }: { path: string; desc: Desc; ctx: Setti
   return (
     <FieldGroup legend={label} hint={desc.help} error={ctx.errors[path]}>
       <div className="grid gap-3 sm:grid-cols-2">
-        <SelectField label="Where it comes from" value={source} disabled={ctx.disabled}
+        <ChoiceField label="Where it comes from" value={source} disabled={ctx.disabled}
           options={[{ value: 'library', label: 'A font from our library' }, { value: 'brand', label: 'Our own font' }]}
           onValueChange={(v) => set(v === 'brand' ? { source: 'brand', role: ROLE_DEFAULT[roleKey] ?? 'sans' } : { source: 'library', family: ctx.fonts[0]?.family ?? '', weights: [400] })} />
         {source === 'library'

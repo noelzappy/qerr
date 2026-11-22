@@ -171,7 +171,7 @@ export function ForAllBar({ count, role, value, disabled, onChange }: { count: n
         <DescribeAllButton disabled={disabled} />
       </div>
       <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
-        <SegmentedField label="Licence" options={LICENCE_CHOICES.filter((o) => o.value)} value={value.licence} disabled={disabled} onChange={(v) => onChange({ ...value, licence: v })} />
+        <SegmentedField label="Licence" options={LICENCE_CHOICES.filter((o) => o.value)} value={value.licence} disabled={disabled} onValueChange={(v) => onChange({ ...value, licence: v })} />
         {role !== 'graphic' && <PeopleChoice value={value.people} disabled={disabled} onChange={(p) => onChange({ ...value, people: p })} />}
       </div>
       <TagInput label="Tags" optional values={value.tags} disabled={disabled} onChange={(t) => onChange({ ...value, tags: t })} chipsLabel="Tags for every picture" placeholder="news" className="sm:max-w-sm" />
@@ -198,7 +198,7 @@ export function UploadRow({ row: r, role, disabled, forAll, onChange, onToggle, 
         <div className={cn('grid min-w-0 items-start gap-3', role === 'photo' && 'lg:grid-cols-[minmax(0,1fr)_auto]')}>
           <TextField label={<>Title{r.titleAuto && <FilledTag>From the file name</FilledTag>}</>} value={r.title} disabled={locked} maxLength={200} error={r.problems.title} onChange={(e) => onChange({ title: e.target.value })} />
           {role === 'photo' && (
-            <SegmentedField label="Kind" marker={r.kindGuessed ? <FilledTag>Guessed</FilledTag> : undefined} options={KIND_OPTIONS} value={r.kind} disabled={locked} onChange={(v) => onChange({ kind: v as PictureKind })} />
+            <SegmentedField label="Kind" tag={r.kindGuessed ? <FilledTag>Guessed</FilledTag> : undefined} options={KIND_OPTIONS} value={r.kind} disabled={locked} onValueChange={(v) => onChange({ kind: v as PictureKind })} />
           )}
         </div>
         <TextAreaField label="Description" optional={role !== 'photo'} rows={2} value={r.body} disabled={locked} error={r.problems.body} onChange={(e) => onChange({ body: e.target.value })}
@@ -210,8 +210,8 @@ export function UploadRow({ row: r, role, disabled, forAll, onChange, onToggle, 
             onChange({ body: p.body, tags: p.tags, ...(p.title !== r.title ? { title: p.title } : {}), ...(mode === 'edit' ? { expanded: true } : {}) });
           }} />
         <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
-          <SegmentedField label="Licence" options={LICENCE_CHOICES} value={r.licence} disabled={locked} onChange={(v) => onChange({ licence: v as Licence })}
-            marker={!r.licenceOwn && forAll.licence !== null && r.licence === forAll.licence ? <FilledTag>For all</FilledTag> : undefined} />
+          <SegmentedField label="Licence" options={LICENCE_CHOICES} value={r.licence} disabled={locked} onValueChange={(v) => onChange({ licence: v as Licence })}
+            tag={!r.licenceOwn && forAll.licence !== null && r.licence === forAll.licence ? <FilledTag>For all</FilledTag> : undefined} />
           {role !== 'graphic' && (
             <PeopleChoice value={peopleOf(r)} disabled={locked} onChange={(p) => onChange(peopleFlags(p))}
               marker={!r.peopleOwn && forAll.people !== null && peopleOf(r) === forAll.people ? <FilledTag>For all</FilledTag> : undefined} />

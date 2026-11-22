@@ -199,7 +199,7 @@ describe('the upload rows', () => {
 
 describe('segmented buttons and filters', () => {
   it('are one radio group under a legend, with counts read with each choice', () => {
-    const html = draw(<SegmentedField label="Status" value="a" onChange={() => {}} options={[{ value: 'a', label: 'Any', count: 4 }, { value: 'b', label: 'Done', count: 1 }]} />);
+    const html = draw(<SegmentedField label="Status" value="a" onValueChange={() => {}} options={[{ value: 'a', label: 'Any', count: 4 }, { value: 'b', label: 'Done', count: 1 }]} />);
     const names = [...html.matchAll(/type="radio"[^>]*name="([^"]+)"/g)].map((m) => m[1]);
     expect(names).toHaveLength(2);
     expect(new Set(names).size).toBe(1);

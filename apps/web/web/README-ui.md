@@ -111,6 +111,14 @@ the same anatomy in both: header (title and description), a body that scrolls, a
   for text that must stay on screen: a warning or a consequence.
 - **Pages start with `PageHeader`**, with `crumbs` (the kit `Breadcrumbs`) when the page is below another. A description longer
   than about 90 characters appears only in the info icon beside the title; a short one is one muted line under it.
+- **Small choices are segments, not dropdowns.** Two to four options are `SegmentedField` (`components/kit/segmented-field.tsx`,
+  the props of `SelectField`; real radio buttons, so one tab stop and the arrow keys). A list known only at run time (a catalogue's
+  values) uses `ChoiceField`, which draws segments when the options fit (`fitsSegments`) and a dropdown otherwise. Brand colours are
+  chosen as swatches (`RolePicker` in `pages/settings/looks/design-controls.tsx`, one tab stop, arrow keys). No native `<select>`.
+- **A value filled in for you is marked** with `AutoTag` (`components/kit/auto-tag.tsx`, "Auto" or a short reason such as "From the
+  model") beside its label, stays editable, and is never written over once a person has typed their own.
+- **Exact values sit behind "Fine-tune"** (`components/kit/fine-tune.tsx`): closed, with a one-line summary, opened by itself when a
+  value inside has a problem.
 - **Small forms** are `FormPanel variant="dialog"`; a form with many fields is a page.
 - **Secondary and destructive actions** sit in `MoreMenu`, so a row or a card shows its main action and one menu.
 - **AI suggestions** (`components/suggest/`) are shown, never applied by themselves: "Suggested by the AI" with Use (or Replace,

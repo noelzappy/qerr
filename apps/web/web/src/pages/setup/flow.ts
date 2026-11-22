@@ -205,12 +205,8 @@ export function initialLook(activeRef: string | null, shipped: Array<{ ref: stri
 // ---- step 5: AI -------------------------------------------------------------------------------------------------------
 
 // The choices behind "Model": the model id and its prices (US dollars per million tokens) follow the choice, so nobody types
-// them. Exact values stay editable under Fine-tune.
-export const ANTHROPIC_MODELS = [
-  { id: 'recommended', label: 'Recommended', model: 'claude-opus-5-5', input: 4, output: 20 },
-  { id: 'best', label: 'Best quality', model: 'claude-fable-5-2', input: 8, output: 40 },
-  { id: 'fast', label: 'Faster, cheaper', model: 'claude-sonnet-5-5', input: 2, output: 10 },
-] as const;
+// them. Exact values stay editable under Fine-tune. One table for the setup and Settings, AI (lib/ai-presets.ts).
+export { ANTHROPIC_MODELS } from '../../lib/ai-presets';
 export const BUDGET_PRESETS = [10, 25, 50, 100] as const;
 export const DEFAULT_BUDGET = 25;
 

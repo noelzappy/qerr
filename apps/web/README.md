@@ -141,7 +141,14 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   Draft with AI first asks `GET /api/batches/ai-draft` (`{ ready, missing: 'provider' | 'budget' | null }`) and, when drafting
   cannot run, says what is missing and where to add it instead of queuing a job that would fail; `POST /api/batches/ai-draft`
   refuses with a 409 in the same two cases. The Team
-  and AI provider forms are dialogs too. Settings, Channels is one page with two sections: the Buffer accounts (compact rows, their forms are dialogs; `/settings/accounts`, `/admin/accounts` and `/admin/routing` redirect there, `#accounts` scrolls to the accounts) and a table with a row per network (where it posts).
+  and AI provider forms are dialogs too. The AI provider dialog fills what follows from the kind (`lib/ai-presets.ts`): Anthropic
+  gets its address and a choice of model (Recommended `claude-sonnet-5-5`, Best quality `claude-opus-5-5`, Faster, cheaper
+  `claude-haiku-5-5`) whose prices per million tokens come with it; OpenAI-compatible gets OpenAI's address and a model to type. The
+  exact model id, the address and the prices are under Fine-tune, marked "Auto" or "From the model" while they are the filled ones, and
+  a value a person typed is never replaced. The server checks them as before. Settings, Channels is one page with two sections: the Buffer accounts (compact rows, their forms are dialogs; `/settings/accounts`, `/admin/accounts` and `/admin/routing` redirect there, `#accounts` scrolls to the accounts) and a table with a row per network (where it posts). On load it asks the server for each account's channels, and that calls Buffer: local screenshot servers: add no Buffer accounts (the tests fake every outbound call and refuse any they did not expect, so they never reach Buffer). In the account dialog the
+  Buffer organisation is a choice of the organisations the key check listed (from the row's Check key, or the dialog's own Check key
+  button, which calls the same `POST /api/buffer-accounts/:id/check`); before a check it shows what is set, and the typed id is a
+  fallback under Fine-tune. The caption limits are under Fine-tune too, each box showing the network's own limit.
 - **Conventions.** Field help is behind an info icon (kit `Hint`, `hintMode`); pages use `PageHeader` with `crumbs`; small forms
   use `FormPanel variant="dialog"`; secondary and destructive actions sit in `MoreMenu`; on a desktop only the content area and the
   sidebar scroll. See `web/README-ui.md`.
@@ -152,7 +159,10 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
 
 An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, `src/server/routes/brand.ts`):
 
-- **Identity:** name, website, tagline, what the brand does, time zone, language, an optional single currency, and how the numbers of a chart are written (Numbers in charts: the decimal mark, the thousands separator, the currency sign before or after, a space before it or before %; brand.json `numbers`).
+- **Identity:** name, website, tagline, what the brand does, time zone, language, an optional single currency, and how the numbers of a chart are written (Numbers in charts: the decimal mark, the thousands separator, the currency sign before or after, a space before it or before %; brand.json `numbers`). The time zone
+  is the shared picker (`components/kit/time-zone-picker.tsx`, over the one list of zones in `lib/time-zones.ts`): the zone with its
+  offset and time now, a short list of likely zones (the one chosen, this browser's, places on the same clock, UTC) and a search over
+  every zone by city or offset; "From this browser" marks the zone the browser is in.
 - **Design direction:** the old "Design direction" tab is gone: choosing how kinds of post are drawn is **Settings, Looks** (below). The
   brand setting `style.direction` stays in the settings (an older choice keeps working; an active look overrides it in the pack).
   `GET /api/posts/post-kinds` (admin and editor) tells the post editor the brand's direction, each kind's fields and required fields,
@@ -332,7 +342,9 @@ highest `seriesNumber` of a live post of the series, or `firstNumber`. A post li
 (`PATCH /api/posts/:id { series: { id, number } | null }`, also on new posts; a change does not take an approval back, since the reader sees
 only the design's own label); deleting a series keeps its posts and drops the link. An imported batch links a post's `series: { slug, number }`
 by slug and warns about a slug the brand has none of. The AI draft job passes the enabled series with their next numbers (`forDrafting`) to
-`draftBatch` as `recurring`, and a rewrite of a series post keeps its mark.
+`draftBatch` as `recurring`, and a rewrite of a series post keeps its mark. In Settings, Looks, Series a series is added and edited in a centred
+dialog (with the unsaved-changes guard); its mark is chosen from No mark, Tip #12, No. 12 and Part 12 (`looks/series-marks.ts`), or
+Custom for a mark typed with `{n}`; where the mark goes and the first number are under Fine-tune.
 
 | Route | What it does |
 | --- | --- |
