@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { Browser, acquireLock, chromeLockFile, chromeLockWait } from './lib/design/chrome.mjs';
+import { Browser, MAX_RENDER_CONCURRENCY, acquireLock, chromeLockFile, chromeLockFiles, chromeLockWait, renderConcurrency } from './lib/design/chrome.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-lock-'));
@@ -81,4 +81,44 @@ test('Browser.launch takes the machine-wide lock before it starts Chrome', async
     if (before === undefined) delete process.env.VESK_CHROME_LOCK; else process.env.VESK_CHROME_LOCK = before;
     await h.done;
   }
+});
+
+test('RENDER_CONCURRENCY sets how many Chromes may run on the machine: 1 to 16, else one at a time', () => {
+  assert.equal(MAX_RENDER_CONCURRENCY, 16);
+  assert.equal(renderConcurrency({}), 1);
+  assert.equal(renderConcurrency({ RENDER_CONCURRENCY: '' }), 1);
+  assert.equal(renderConcurrency({ RENDER_CONCURRENCY: '3' }), 3);
+  assert.equal(renderConcurrency({ RENDER_CONCURRENCY: '16' }), 16);
+  for (const bad of ['0', '17', '2.5', '-1', 'many', 'Infinity', 'NaN']) assert.equal(renderConcurrency({ RENDER_CONCURRENCY: bad }), 1, bad);
+  const first = path.join(os.tmpdir(), 'vesk-chrome.lock');
+  assert.deepEqual(chromeLockFiles({}), [first]);
+  assert.deepEqual(chromeLockFiles({ RENDER_CONCURRENCY: '3' }), [first, `${first}.2`, `${first}.3`]);
+  assert.deepEqual(chromeLockFiles({ RENDER_CONCURRENCY: '2', VESK_CHROME_LOCK: '/var/tmp/x.lock' }), ['/var/tmp/x.lock', '/var/tmp/x.lock.2']);
+});
+
+test('with several slots, other processes take free slots side by side, and a render waits only when every slot is taken', async () => {
+  const slots = [path.join(tmp, 'n.lock'), path.join(tmp, 'n.lock.2')];
+  const h1 = holder(slots, 1500);
+  await h1.ready;
+  const h2 = holder(slots, 1500);
+  await h2.ready;
+  assert.ok(fs.existsSync(slots[0]) && fs.existsSync(slots[1]), 'each process took its own slot');
+  assert.notEqual(fs.readFileSync(slots[0], 'utf8'), fs.readFileSync(slots[1], 'utf8'));
+  await assert.rejects(acquireLock(slots, { waitMs: 100, pollMs: 50 }), /another design run is already using Chrome \(all 2 slots, processes \d+, \d+\); waited 0 s for it to finish \(2 Chromes at a time on this machine\)/);
+  const release = await acquireLock(slots, { waitMs: 10000, pollMs: 50 });
+  assert.ok(slots.some((f) => fs.existsSync(f) && fs.readFileSync(f, 'utf8') === String(process.pid)));
+  release();
+  await Promise.all([h1.done, h2.done]);
+});
+
+test('one process takes a free slot for each of its renders, then takes its own again rather than wait for itself', async () => {
+  const slots = [path.join(tmp, 'm.lock'), path.join(tmp, 'm.lock.2')];
+  const r1 = await acquireLock(slots, { waitMs: 0 });
+  const r2 = await acquireLock(slots, { waitMs: 0 });
+  assert.ok(fs.existsSync(slots[0]) && fs.existsSync(slots[1]), 'a second render took the second slot');
+  const r3 = await acquireLock(slots, { waitMs: 0 });
+  r1(); r2();
+  assert.equal(slots.filter((f) => fs.existsSync(f)).length, 1, 'the slot taken twice stays until its last release');
+  r3();
+  assert.ok(!slots.some((f) => fs.existsSync(f)));
 });
