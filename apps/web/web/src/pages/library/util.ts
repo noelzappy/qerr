@@ -45,10 +45,23 @@ export function needsRights(i: Pick<VaultItem, 'licence' | 'peoplePresent' | 'co
 
 export const isHttpUrl = (v: string) => /^https?:\/\//i.test(v) && URL.canParse(v);
 
-export const KIND_OPTIONS = [{ value: 'photo', label: 'Photo' }, { value: 'screen', label: 'Screen' }];
-export const LICENCE_OPTIONS = [
-  { value: '', label: 'Not recorded yet' },
-  { value: 'own', label: 'Own' },
-  { value: 'licensed', label: 'Licensed stock' },
+export const KIND_OPTIONS: Array<{ value: PictureKind; label: string }> = [{ value: 'photo', label: 'Photo' }, { value: 'screen', label: 'Screen' }];
+
+// The licence as segmented buttons, the same words on facts, pictures and uploads. "Not recorded" puts it back to nothing.
+export const LICENCE_CHOICES: Array<{ value: Licence; label: string; title?: string }> = [
+  { value: '', label: 'Not recorded' },
+  { value: 'own', label: 'Our own' },
+  { value: 'licensed', label: 'Licensed', title: 'Licensed stock, with credit' },
   { value: 'rights_to_confirm', label: 'Rights to confirm' },
 ];
+
+// Who is in a picture, as one choice of three (the upload page's chips): the two stored flags, peoplePresent and
+// consentRecorded, read and written together.
+export type People = 'none' | 'consent' | 'no-consent';
+export const PEOPLE_CHOICES: Array<{ value: People; label: string }> = [
+  { value: 'none', label: 'No people' },
+  { value: 'consent', label: 'People, consent recorded' },
+  { value: 'no-consent', label: 'People, no consent' },
+];
+export const peopleOf = (r: { peoplePresent: boolean; consentRecorded: boolean }): People => (!r.peoplePresent ? 'none' : r.consentRecorded ? 'consent' : 'no-consent');
+export const peopleFlags = (p: People) => ({ peoplePresent: p !== 'none', consentRecorded: p === 'consent' });

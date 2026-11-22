@@ -106,6 +106,13 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   item; `POST /api/vault/:id/file` checks again. `GET /api/vault/graphics` is the compact list of cut-outs and graphics the
   look editor offers; a cut-out or graphic a post or look still uses cannot be deleted (`services/graphics.ts`). The AI is
   offered photos only.
+  Each upload card shows the title (from the file name, marked so until edited), the kind (guessed from the file name), the
+  description (required for photos), the licence and who is in the picture; tags, licence notes and the source link are under
+  More details. With two or more files, "For all pictures" sets the licence, the people and tags on every card; a card that
+  chose its own keeps it (`pages/library/upload-rows.ts`). A new fact's "Recorded on" starts as today and its title follows
+  the first words of the text until a title is typed, each marked as filled in (`pages/vault/fact-form.ts`); the three dates
+  fold into one "Dates" line. Small choices and the list filters are segmented buttons or chips (`SegmentedField` in the kit),
+  tags are chips everywhere (`TagInput`), and the batch page's Show menu gives a count beside each choice.
 - **Dialogs.** New batch and Draft with AI open as centred dialogs (`/batches/new`, `/batches/ai-draft` still open them).
   Draft with AI first asks `GET /api/batches/ai-draft` (`{ ready, missing: 'provider' | 'budget' | null }`) and, when drafting
   cannot run, says what is missing and where to add it instead of queuing a job that would fail; `POST /api/batches/ai-draft`

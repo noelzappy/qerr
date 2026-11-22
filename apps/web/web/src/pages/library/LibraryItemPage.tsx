@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { api } from '@/api';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BusyButton, ConfirmAction, EmptyBlock, Hint, MoreMenu, Notice, PageHeader, SelectField, SwitchField, TagField, TextAreaField, TextField, ToneBadge, type MoreMenuItem } from '@/components/kit';
+import { BusyButton, ConfirmAction, EmptyBlock, Hint, MoreMenu, Notice, PageHeader, SegmentedField, SwitchField, TagInput, TextAreaField, TextField, ToneBadge, type MoreMenuItem } from '@/components/kit';
 import { useDocumentTitle, useLoad } from '@/hooks';
 import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsaved-guard';
 import { errorMessage, fieldErrors, formProblem } from '@/lib/errors';
@@ -16,7 +16,7 @@ import { formatDate, formatDateTime } from '@/lib/format';
 import type { VaultItem } from '../vault-types';
 import { cn } from '@/lib/utils';
 import { CHECKER } from './RoleSwitch';
-import { ACCEPT_BY_ROLE, fileProblem, isHttpUrl, KIND_OPTIONS, LICENCE_OPTIONS, needsRights, ROLE_ACCEPT_HINT, ROLE_NOUN, type Licence, type PictureKind, type PictureRole } from './util';
+import { ACCEPT_BY_ROLE, fileProblem, isHttpUrl, KIND_OPTIONS, LICENCE_CHOICES, needsRights, ROLE_ACCEPT_HINT, ROLE_NOUN, type Licence, type PictureKind, type PictureRole } from './util';
 
 interface Form { kind: PictureKind; role: PictureRole; title: string; body: string; sourceUrl: string; licence: Licence; licenceNotes: string; peoplePresent: boolean; consentRecorded: boolean; tintable: boolean; tags: string[] }
 
@@ -39,7 +39,9 @@ const payloadFor = (f: Form, was: PictureRole) => {
   if (f.role !== 'graphic') delete p.tintable;
   return p;
 };
-const USE_OPTIONS = [{ value: 'photo', label: 'A photo for posts' }, { value: 'cutout', label: 'A cut-out for designs' }, { value: 'graphic', label: 'A brand graphic for designs' }];
+const USE_OPTIONS: Array<{ value: PictureRole; label: string; title: string }> = [
+  { value: 'photo', label: 'Photo for posts', title: 'A photo for posts' }, { value: 'cutout', label: 'Cut-out', title: 'A cut-out for designs' }, { value: 'graphic', label: 'Brand graphic', title: 'A brand graphic for designs' },
+];
 
 function validate(f: Form): Record<string, string> {
   const e: Record<string, string> = {};
@@ -227,13 +229,11 @@ function PictureEditor({ item, backTo, onItem }: { item: VaultItem; backTo: stri
             <TextField label="Title" value={form.title} maxLength={200} error={fields.title} disabled={anyBusy} onChange={(e) => set('title', e.target.value)} />
             <TextAreaField label="Description" rows={4} value={form.body} error={fields.body} disabled={anyBusy} onChange={(e) => set('body', e.target.value)}
               hint="What is in the picture, the mood, and what posts it suits. The AI reads this." />
-            <div className="grid gap-3 sm:grid-cols-2">
-              {form.role === 'photo' && <SelectField label="Kind" value={form.kind} options={KIND_OPTIONS} disabled={anyBusy} error={fields.kind} onValueChange={(v) => set('kind', v as PictureKind)} />}
-              {form.kind === 'photo' && <SelectField label="Use as" value={form.role} options={USE_OPTIONS} disabled={anyBusy} error={fields.role} onValueChange={(v) => set('role', v as PictureRole)}
-                hint="Cut-outs and brand graphics need a PNG or WebP with a transparent background. The AI picks only photos." />}
-              <SelectField label="Licence" value={form.licence} options={LICENCE_OPTIONS} disabled={anyBusy} error={fields.licence} onValueChange={(v) => set('licence', v as Licence)} />
-            </div>
-            <TagField tags={form.tags} onChange={(t) => set('tags', t)} error={fields.tags} />
+            {form.role === 'photo' && <SegmentedField label="Kind" options={KIND_OPTIONS} value={form.kind} disabled={anyBusy} error={fields.kind} onChange={(v) => set('kind', v as PictureKind)} />}
+            {form.kind === 'photo' && <SegmentedField label="Use as" options={USE_OPTIONS} value={form.role} disabled={anyBusy} error={fields.role} onChange={(v) => set('role', v)}
+              hint="Cut-outs and brand graphics need a PNG or WebP with a transparent background. The AI picks only photos." />}
+            <SegmentedField label="Licence" options={LICENCE_CHOICES} value={form.licence} disabled={anyBusy} error={fields.licence} onChange={(v) => set('licence', v as Licence)} />
+            <TagInput label="Tags" optional values={form.tags} onChange={(t) => set('tags', t)} error={fields.tags} disabled={anyBusy} chipsLabel="Tags on this picture" placeholder="news" />
             {form.role === 'graphic' && <SwitchField label="Can be recoloured" hint="For single-colour artwork. A design may then paint it in one of your brand colours." checked={form.tintable} disabled={anyBusy} onCheckedChange={(v) => set('tintable', v)} />}
             {form.role !== 'graphic' && <SwitchField label="People can be recognised" checked={form.peoplePresent} disabled={anyBusy} onCheckedChange={(v) => set('peoplePresent', v)} />}
             {form.role !== 'graphic' && form.peoplePresent && <SwitchField label="Their consent is recorded" hintMode="inline" hint="Only when you hold written or recorded permission to use their image." checked={form.consentRecorded} disabled={anyBusy} onCheckedChange={(v) => set('consentRecorded', v)} />}
