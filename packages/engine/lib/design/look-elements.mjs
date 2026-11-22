@@ -45,6 +45,9 @@ import * as graphic from './directions/primitives/graphic.mjs';
 import * as infoRows from './directions/primitives/info-rows.mjs';
 import * as button from './directions/primitives/button.mjs';
 import * as photoRow from './directions/primitives/photo-row.mjs';
+import * as tapedPhoto from './directions/primitives/taped-photo.mjs';
+import * as paperTexture from './directions/primitives/paper-texture.mjs';
+import * as iconBadge from './directions/primitives/icon-badge.mjs';
 // the shapes of a headline's pills (kit.mjs PILL_SHAPES)
 export const PILL_SHAPES = ['pill', 'soft', 'outline'];
 export { ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS, METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SOFT_SHADOWS, CORNERS, ROUND_SHAPES, RULE_STYLES, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS, WORDS, BLENDS };
@@ -53,7 +56,9 @@ export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 
   // gradients, colour over a picture, brand graphics and cut-outs
   gradient, overlay, graphic,
   // info rows, a button and a row of round pictures
-  'info-rows': infoRows, button, 'photo-row': photoRow });
+  'info-rows': infoRows, button, 'photo-row': photoRow,
+  // a picture taped on at an angle, a paper texture and a round icon badge
+  'taped-photo': tapedPhoto, 'paper-texture': paperTexture, 'icon-badge': iconBadge });
 
 export const LOOK_SCHEMA = 1;
 export const KINDS = [...POST_KINDS];
@@ -76,7 +81,7 @@ export const FORBIDDEN_KEYS = Object.freeze(['render', '__proto__', 'constructor
 // cta (a button's words), info (an info block's rows) and gallery (a row of round pictures) are the optional parts a post may add; they come last.
 export const KIND_FIELDS = Object.freeze({
   statement: ['label', 'headline', 'sub', 'cta', 'info', 'gallery'],
-  figure: ['label', 'headline', 'big', 'unit', 'sub'],
+  figure: ['label', 'headline', 'big', 'unit', 'sub', 'image'],
   list: ['label', 'headline', 'sub', 'items', 'cta'],
   quote: ['label', 'quote', 'by'],
   photo: ['label', 'image', 'headline', 'sub', 'tag', 'cta', 'info', 'gallery'],
@@ -187,7 +192,7 @@ const ELEMENTS_BASE = {
         shape: en(PILL_SHAPES, 'Shape', 'A round pill, a softly rounded box, or a round outline in the ink colour.', 'pill'),
         fill: role('Fill', 'The pill colour (leave out for an outline).'), ink: role('Ink', 'The colour of the words in the pill.'),
       }, 'Words in pills', 'Sets the headline\'s [[marked]] words (one or two runs of one to three words) in pills.', ['ink']),
-      icons: obj({ colour: role('Colour', 'The icon colour; leave out for the colour of the words.') }, 'Inline icons', 'Draws the headline\'s {{icon}} marks, from the engine\'s own icons.'),
+      icons: obj({ colour: role('Colour', 'The icon colour; leave out for the colour of the words.'), badge: role('Badge', 'Sets each icon in a small round disc of this colour, like a sticker in the line; leave out for a plain icon.') }, 'Inline icons', 'Draws the headline\'s {{icon}} marks, from the engine\'s own icons.'),
     },
     common: ['place', 'bleed', 'rot', 'origin', 'z', 'when', 'ink', 'w', 'before', 'nudgeX', 'alignSelf', 'textShadow'],
   },

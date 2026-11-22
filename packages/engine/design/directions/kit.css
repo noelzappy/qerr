@@ -153,3 +153,19 @@
 .post .k-round{overflow:hidden;border-radius:50%}
 /* a button: one line of words in a shape */
 .k-btn .k-run{white-space:nowrap}
+
+/* ======== bold emphasis, icons in round badges, strips of tape and a paper texture (looks only: the emphasis "bold", the headline icons'
+   badge, and the primitives taped-photo, paper-texture and icon-badge). Colours arrive as palette roles (--c-*), sizes as px from the engine. ======== */
+/* the *emphasised* words set heavier in the same colour (a letter's few bold words) */
+.k-look .k-em-b em{font-style:normal;font-weight:800}
+/* an icon in a small round disc in the line, like a sticker */
+.k-icb{display:inline-flex;align-items:center;justify-content:center;width:.96em;height:.96em;border-radius:50%;vertical-align:-.14em;margin:0 .08em;box-shadow:0 .03em .08em rgba(0,0,0,.18)}
+.k-icb .k-ic{width:.56em;height:.56em;margin:0;vertical-align:0}
+/* a strip of tape: see-through, with torn ends */
+.k-tape{display:block;opacity:.78;box-shadow:0 1px 3px rgba(0,0,0,.18);clip-path:polygon(0 8%,3% 0,6% 10%,9% 0,12% 6%,88% 4%,91% 0,94% 9%,97% 0,100% 8%,98% 50%,100% 92%,97% 100%,94% 90%,91% 100%,88% 95%,12% 96%,9% 100%,6% 90%,3% 100%,0 92%,2% 50%)}
+/* a paper texture: the page grain, multiplied over the ground */
+.k-paper{display:block;pointer-events:none;background-image:var(--k-grain);background-size:260px 260px;mix-blend-mode:multiply}
+.k-paper-c{background-size:520px 520px}
+/* the icon of a round badge, centred, sized by the badge (font-size) */
+.k-badge-i{display:flex;align-items:center;justify-content:center;line-height:1}
+.k-badge-i .k-ic{width:1em;height:1em;margin:0;vertical-align:0}

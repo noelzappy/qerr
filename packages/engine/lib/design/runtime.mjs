@@ -483,8 +483,9 @@ window.__ds = {
       }
       const g = document.createRange(); g.selectNodeContents(el);
       const rs = [...g.getClientRects()].filter((b) => b.width > 1 && b.height > 1).map(box);
-      // a phrase on a marker highlight bar (.k-hl, a bar as tall as the capitals) is judged on the band the bar covers: the middle 65%
-      if (el.parentElement && el.parentElement.classList.contains('k-hl')) { const half = 0.325 * parseFloat(getComputedStyle(el).fontSize); for (const r of rs) { const c = (r.y0 + r.y1) / 2; r.y0 = c - half; r.y1 = c + half; } }
+      // a phrase on a marker highlight bar (.k-hl, a bar as tall as the capitals) is judged on the band the bar covers: the middle 65%; so are
+      // the words in a pill (.k-pl), whose text box can be taller than the pill in a display face with tall ascent and descent (Anton)
+      if (el.parentElement && (el.parentElement.classList.contains('k-hl') || el.parentElement.classList.contains('k-pl'))) { const half = 0.325 * parseFloat(getComputedStyle(el).fontSize); for (const r of rs) { const c = (r.y0 + r.y1) / 2; r.y0 = c - half; r.y1 = c + half; } }
       return rs;
     };
     // A text inside a turned box ([data-tilt] = degrees, kit c.box) reports the bounding box of each of its lines, whose corners reach

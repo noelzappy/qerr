@@ -54,8 +54,8 @@ const nudgeCss = (v) => {
   return out.join(';');
 };
 // emph: how the emphasised phrase (<em>) of a text is set: a class of kit.css, never a class from a composition
-const EMPH = Object.freeze({ italic: 'k-em-i', accent: 'k-em-a', none: 'k-em-n' });
-const emphClass = (v) => { if (v === undefined) return ''; if (!Object.hasOwn(EMPH, v)) throw new Error('design kit: emph must be one of italic, accent, none'); return ` ${EMPH[v]}`; };
+const EMPH = Object.freeze({ italic: 'k-em-i', accent: 'k-em-a', none: 'k-em-n', bold: 'k-em-b' });
+const emphClass = (v) => { if (v === undefined) return ''; if (!Object.hasOwn(EMPH, v)) throw new Error('design kit: emph must be one of italic, accent, bold, none'); return ` ${EMPH[v]}`; };
 // textShadow: { x, y, colour } px and a palette name: a hard shadow behind the letters
 const shadowCss = (v) => {
   if (v === undefined) return '';
@@ -143,7 +143,8 @@ export function iconSvg(name, { colour, cls: extra } = {}) {
   return `<svg class="k-ic${k}" viewBox="0 0 24 24" aria-hidden="true" data-deco${colour ? ` style="fill:${colour_(colour)}"` : ''}><path d="${esc(ICONS[name].d)}"/></svg>`;
 }
 // The escaped, formatted html of a headline with its marks set: o.pills ({ shape, fill, ink }) draws pills, else the words stay plain;
-// o.icons ({ colour? }) draws icons, else they are left out. An unknown {{name}} stays as the escaped text it is.
+// o.icons ({ colour?, badge? }) draws icons, else they are left out; with badge (a palette colour) each icon sits in a small round disc of that
+// colour, like a sticker in the line. An unknown {{name}} stays as the escaped text it is.
 function inlineMarks(html, o) {
   const pill = o.pills;
   if (pill !== undefined && (!pill || !Object.hasOwn(PILL_SHAPES, pill.shape ?? 'pill'))) throw new Error('design kit: pills must be { shape, fill, ink }');
@@ -152,7 +153,8 @@ function inlineMarks(html, o) {
     const shape = pill.shape ?? 'pill', bg = shape === 'outline' ? '' : `background:${colour_(pill.fill)};`;
     return `<span class="k-pl ${PILL_SHAPES[shape]}" style="${bg}color:${colour_(pill.ink)}"><span class="k-pl-t" data-role="accent">${words}</span></span>`;
   });
-  out = out.replace(/\{\{([a-z][a-z-]{0,19})\}\}/g, (all, name) => (!Object.hasOwn(ICONS, name) ? all : o.icons ? iconSvg(name, { colour: o.icons.colour }) : ''));
+  const badge = o.icons?.badge === undefined ? '' : colour_(o.icons.badge);
+  out = out.replace(/\{\{([a-z][a-z-]{0,19})\}\}/g, (all, name) => (!Object.hasOwn(ICONS, name) ? all : !o.icons ? '' : badge ? `<span class="k-icb" style="background:${badge}">${iconSvg(name, { colour: o.icons.colour })}</span>` : iconSvg(name, { colour: o.icons.colour })));
   return out.replace(/ {2,}/g, ' ');
 }
 const colour_ = (name) => { if (!COLOUR_NAMES.includes(name)) throw new Error(`design kit: "${String(name).slice(0, 30)}" is not a palette colour`); return `var(--c-${name})`; };
@@ -160,7 +162,7 @@ const colour_ = (name) => { if (!COLOUR_NAMES.includes(name)) throw new Error(`d
 // the builders that refuse the old free-string options (extra, cls, attrs)
 const FREE = ['extra', 'cls', 'attrs'];
 const BUILDERS = ['type', 'label', 'body', 'display', 'fitLines', 'group', 'rule', 'block', 'flowBlock', 'folioMark', 'verticalLabel', 'sticker', 'glyph', 'wordmarkPattern', 'numeral', 'seal', 'frame', 'keyline',
-  'photo', 'print', 'box', 'band', 'run', 'shape', 'echoStack', 'fitBlock', 'fitFill', 'fitNumeral', 'scrim', 'gradient', 'overlay', 'graphic'];
+  'photo', 'print', 'box', 'band', 'run', 'shape', 'echoStack', 'fitBlock', 'fitFill', 'fitNumeral', 'scrim', 'gradient', 'overlay', 'graphic', 'tape', 'paper', 'badge'];
 
 // ---- gradients: two or three palette colours, a whole-degree angle or one of nine points; written from these tables only ----
 const GRADIENT_AT = Object.freeze({ center: 'center', top: 'top', bottom: 'bottom', left: 'left', right: 'right', 'left top': 'left top', 'right top': 'right top', 'left bottom': 'left bottom', 'right bottom': 'right bottom' });
@@ -680,6 +682,29 @@ function kitExtras(c, brand, spec) {
     const tr = [rot ? `rotate(${P(rot, 'rot')}deg)` : '', o.flip ? 'scaleX(-1)' : ''].filter(Boolean).join(' ');
     const tint = o.tint === undefined ? '' : colour(o.tint);
     return `<div class="abs k-graphic${tint ? ' k-tinted' : ''}" data-el data-grid="skip" style="${place({ x: o.x, y: o.y, w: o.w, h: o.h })}${tr ? `;transform:${tr}` : ''}${o.z !== undefined ? `;z-index:${P(o.z, 'z')}` : ''}"><img data-user data-graphic data-name="${esc(g.name)}" data-fit="contain" src="${g.src}" alt=""${tint ? ` style="filter:drop-shadow(${w}px 0 0 ${tint})"` : ''}></div>`;
+  };
+  // A strip of tape (decoration): w x h px centred on (cx, cy), turned by rot degrees (within 60), in a palette colour; kit.css gives it its
+  // see-through look and torn ends. Never type, never a fill the checks count.
+  x.tape = (o) => {
+    const rot = o.rot ?? 0;
+    if (!Number.isFinite(rot) || Math.abs(rot) > 60) throw new Error('design kit: a strip of tape turns at most 60 degrees');
+    const w = n(o.w, 'w'), h = n(o.h, 'h'), cx = n(o.cx, 'cx'), cy = n(o.cy, 'cy');
+    return `<i class="abs k-tape" aria-hidden="true" data-el data-deco style="${place({ x: cx - w / 2, y: cy - h / 2, w, h })};background:${colour(o.colour ?? 'muted')}${rot ? `;transform:rotate(${P(rot, 'rot')}deg)` : ''}"></i>`;
+  };
+  // A paper texture over an area (decoration): the page's own grain (--k-grain) at a strength from 0.05 to 0.6, fine or coarse.
+  x.paper = (o) => {
+    const s = n(o.strength ?? 0.25, 'strength');
+    if (s < 0.05 || s > 0.6) throw new Error('design kit: a paper texture has a strength from 0.05 to 0.6');
+    if (o.grain !== undefined && o.grain !== 'fine' && o.grain !== 'coarse') throw new Error('design kit: a paper texture is fine or coarse');
+    return `<i class="abs k-paper${o.grain === 'coarse' ? ' k-paper-c' : ''}" aria-hidden="true" data-el data-deco style="${place(o)};opacity:${px(s)}${o.z !== undefined ? `;z-index:${P(o.z, 'z')}` : ''}"></i>`;
+  };
+  // A round badge holding one of the engine's icons (decoration, like a small sticker): size px across, fill and ink palette colours, an optional
+  // ring and soft shadow, turned by rot. The icon is the engine's own SVG (iconSvg), never data.
+  x.badge = (o) => {
+    const size = n(o.size, 'size');
+    if (size < 24 || size > 300) throw new Error('design kit: a badge is 24 to 300 px across');
+    return c.box({ x: o.x, y: o.y, right: o.right, bottom: o.bottom, w: size, h: size, flow: o.flow, flexNone: o.flow || undefined, alignSelf: o.alignSelf, nudge: o.nudge, fill: o.fill ?? 'gold', radius: 'full', ring: o.ring, shadow: o.shadow, rot: o.rot || undefined, z: o.z, skipGrid: true, flex: 'row', justify: 'center', align: 'center' },
+      `<i class="k-badge-i" aria-hidden="true" data-deco style="font-size:${px(Math.round(size * 0.58))}px">${iconSvg(o.icon, { colour: o.ink ?? 'on-accent' })}</i>`);
   };
   return x;
 }

@@ -20,7 +20,7 @@ const ROMAN = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
 const roman = (n) => { let out = ''; for (const [v, s] of ROMAN) while (n >= v) { out += s; n -= v; } return out; };
 const fittedInside = (el) => (el.type === 'fitted-stack' || el.type === 'mantra-rows' || el.type === 'numeral' || (el.type === 'sticker' && el.fit)) || (el.children ?? []).some(fittedInside);
 const BAR = new Set(['bar', 'tilt-bar', 'own-line-bar']);
-const EMPH_CLASS = { italic: 'italic', accent: 'accent', none: 'none', bar: 'none', 'tilt-bar': 'none', 'own-line-bar': 'none' };
+const EMPH_CLASS = { italic: 'italic', accent: 'accent', bold: 'bold', none: 'none', bar: 'none', 'tilt-bar': 'none', 'own-line-bar': 'none' };
 export const HEAD_KEY = 'k-head';
 // the nine named turning points as the kit's origin (the kit takes corners, the centre and percentages)
 const ORIGIN_CSS = { center: undefined, 'left top': 'left top', top: '50% 0%', 'right top': 'right top', left: '0% 50%', right: '100% 50%', 'left bottom': 'left bottom', bottom: '50% 100%', 'right bottom': 'right bottom' };
@@ -79,7 +79,7 @@ export function renderComposition(look, comp, c) {
     if (el.part && el.part !== 'all') { const p = c.emphasisParts(f); return { html: c.m`${p[el.part] ?? ''}`, role }; }
     const bar = BAR.has(el.emphasis);
     // a headline's [[pill]] words and {{icon}} marks, drawn only when the element says how (else plain words, no icons)
-    const marks = clean({ pills: el.pills ? clean({ shape: el.pills.shape ?? 'pill', fill: el.pills.fill, ink: el.pills.ink }) : undefined, icons: el.icons ? clean({ colour: el.icons.colour }) : undefined });
+    const marks = clean({ pills: el.pills ? clean({ shape: el.pills.shape ?? 'pill', fill: el.pills.fill, ink: el.pills.ink }) : undefined, icons: el.icons ? clean({ colour: el.icons.colour, badge: el.icons.badge }) : undefined });
     return { html: c.fmt(f, { ...(bar ? { highlight: true, ...(el.emphasis === 'own-line-bar' ? { breakBefore: true } : {}) } : {}), ...marks }), role };
   };
 
@@ -266,7 +266,7 @@ export function renderComposition(look, comp, c) {
     if (style === 'display') {
       const steps = el.ladder ? el.ladder.steps.map((s) => s[1]) : undefined, size = el.size ?? steps?.[0];
       fixTrim(size, el.lead ?? T.type.display.lead, 'display');
-      return c.display(clean({ ...o, size: steps?.length > 1 ? undefined : size, steps: steps?.length > 1 ? steps : undefined, maxLines: steps?.length > 1 ? el.ladder.maxLines : undefined, maxH: steps?.length > 1 ? el.ladder.maxH : undefined, split: true, band: true, family: undefined }));
+      return c.display(clean({ ...o, size: steps?.length > 1 ? undefined : size, steps: steps?.length > 1 ? steps : undefined, maxLines: steps?.length > 1 ? el.ladder.maxLines : undefined, maxH: steps?.length > 1 ? el.ladder.maxH : undefined, split: true, band: true, family: el.font }));
     }
     if (style === 'body') { const size = el.size ?? T.type.body.size; fixTrim(size, (el.lead ?? T.type.body.lead / T.type.body.size), 'text'); return c.body(clean({ ...o, size: el.size, lead: el.lead, family: el.font })); }
     if (style === 'label') return c.label(clean({ ...o, size: el.size, role: role === 'folio' ? 'folio' : role === 'meta' ? 'meta' : 'label' }));
