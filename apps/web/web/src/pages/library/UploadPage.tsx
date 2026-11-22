@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { CHECKER } from './RoleSwitch';
 import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsaved-guard';
 import type { VaultItem } from '../vault-types';
+import { DescribeAllButton, PictureSuggest, PictureSuggestProvider, pictureSuggestionPatch } from '@/components/suggest/PictureSuggest';
 import { ACCEPT_BY_ROLE, asRole, fileProblem, guessKind, humaniseFileName, isHttpUrl, KIND_OPTIONS, LICENCE_OPTIONS, ROLE_ACCEPT_HINT, ROLE_NOUN, type Licence, type PictureKind, type PictureRole } from './util';
 
 interface Row {
@@ -159,7 +160,7 @@ export function UploadPage() {
   const goBack = () => confirmDiscard(dirty && !busy, () => navigate(role === 'photo' ? '/library' : `/library?role=${role}`));
   const failed = rows.filter((r) => r.phase === 'error').length;
   return (
-    <div className="max-w-[900px]">
+    <PictureSuggestProvider><div className="max-w-[900px]">
       <PageHeader
         crumbs={[{ label: 'Pictures', to: role === 'photo' ? '/library' : `/library?role=${role}` }, { label: 'Upload' }]}
         title={role === 'photo' ? 'Upload pictures' : `Upload ${noun}s`}
@@ -205,13 +206,14 @@ export function UploadPage() {
           </div>
         )}
 
+        {rows.length > 0 && <DescribeAllButton disabled={busy} />}
         {rows.length > 0 && (
           <ul className="m-0 flex list-none flex-col divide-y overflow-hidden rounded-lg border p-0" aria-label="Pictures to upload">
             {rows.map((r) => <UploadRow key={r.key} row={r} role={role} disabled={busy} onChange={(c) => patch(r.key, c)} onRemove={() => remove(r.key)} />)}
           </ul>
         )}
       </div>
-    </div>
+    </div></PictureSuggestProvider>
   );
 }
 
@@ -236,6 +238,7 @@ function UploadRow({ row: r, role, disabled, onChange, onRemove }: { row: Row; r
           className="inline-flex min-h-6 items-center gap-1 rounded-sm font-medium text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-11">
           <ChevronDown className={cn('size-3.5 transition-transform', expanded && 'rotate-180')} aria-hidden="true" />More details
         </button>
+        <PictureSuggest id={r.key} source={{ file: r.file, title: r.title, role: r.kind === 'screen' ? 'screen' : role }} hasDescription={!!r.body.trim()} disabled={locked} onUse={(s, mode) => onChange({ ...pictureSuggestionPatch(r, s, humaniseFileName(r.file.name)), ...(mode === 'edit' ? { expanded: true } : {}) })} />
         {role === 'photo' && !r.body.trim() && !expanded && <span>Description needed</span>}
         <span className="truncate">{r.file.name} · {r.file.size < 1024 * 1024 ? `${Math.max(1, Math.round(r.file.size / 1024))} KB` : `${(r.file.size / 1024 / 1024).toFixed(1)} MB`}</span>
         {r.phase === 'working' && <span className="flex items-center gap-1.5" role="status"><Loader2 className="size-3.5 animate-spin" aria-hidden="true" />{r.status}</span>}
