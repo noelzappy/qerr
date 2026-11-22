@@ -19,22 +19,24 @@
 @font-face { font-family: 'Schibsted Grotesk'; font-weight: 800; font-style: normal; font-display: block; src: url('/fonts/schibsted-grotesk/schibsted-grotesk-v7-800-latin.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 
 /* Theme tokens: Qerr's own palette in shadcn's variable names (posts take their colours from the brand, not from here).
-   The frame (sidebar) is a quiet grey and the page sits on it as a rounded panel, as in the reference dashboards; the one
-   accent is green. The logo keeps its own colours (--logo-*: ink and paper, and the orange of its square). Dark mode follows
+   The frame (sidebar) is a quiet grey and the page sits on it as a rounded panel, as in the reference dashboards. The main
+   actions are Qerr's ink (paper in dark mode); Qerr's orange (--brand) marks focus, progress and the native controls, where
+   it is never small text (3.85:1 on white, 4.5:1 on the dark page). Green stays only for success. The logo keeps its own colours (--logo-*: ink and paper, and the orange of its square). Dark mode follows
    the system unless the person picks a theme in Settings, Preferences. */
 :root {
   color-scheme: light;
   --radius: 0.625rem;
   --frame: #f3f3f1;
   --background: #ffffff;
-  --foreground: #1b1c1a;
+  --foreground: #1b1a18;
   --card: #ffffff;
   --card-foreground: #1b1c1a;
   --popover: #ffffff;
   --popover-foreground: #1b1c1a;
-  --primary: #2b7a46;
-  --primary-foreground: #ffffff;
-  --brand-soft: #e4f3e8;
+  --primary: #1b1a18;
+  --primary-foreground: #f7f6f2;
+  --brand-soft: #fbe8e2;
+  --brand: #e0532f;
   --secondary: #f4f4f2;
   --secondary-foreground: #1b1c1a;
   --muted: #f6f6f4;
@@ -48,16 +50,16 @@
   --info: #2563c9;
   --border: #ebebe7;
   --input: #b9bab4;
-  --ring: #2b7a46;
+  --ring: #e0532f;
   --gold: #c98a00;
   --sidebar: #f3f3f1;
   --sidebar-foreground: #1b1c1a;
-  --sidebar-primary: #2b7a46;
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar-primary: #1b1a18;
+  --sidebar-primary-foreground: #f7f6f2;
   --sidebar-accent: #e6e6e2;
   --sidebar-accent-foreground: #1b1c1a;
   --sidebar-border: #ebebe7;
-  --sidebar-ring: #2b7a46;
+  --sidebar-ring: #e0532f;
   --logo-ink: #1b1a18;
   --logo-accent: #e0532f;
 }
@@ -71,9 +73,10 @@
   --card-foreground: #ececea;
   --popover: #222222;
   --popover-foreground: #ececea;
-  --primary: #8fd19e;
-  --primary-foreground: #0f1c12;
-  --brand-soft: #1f3324;
+  --primary: #f7f6f2;
+  --primary-foreground: #1b1a18;
+  --brand-soft: #3a2119;
+  --brand: #e0532f;
   --secondary: #262626;
   --secondary-foreground: #ececea;
   --muted: #232323;
@@ -87,16 +90,16 @@
   --info: #7fb0ff;
   --border: rgb(255 255 255 / 0.07);
   --input: rgb(255 255 255 / 0.2);
-  --ring: #8fd19e;
+  --ring: #e0532f;
   --gold: #f2c14e;
   --sidebar: #121212;
   --sidebar-foreground: #ececea;
-  --sidebar-primary: #8fd19e;
-  --sidebar-primary-foreground: #0f1c12;
+  --sidebar-primary: #f7f6f2;
+  --sidebar-primary-foreground: #1b1a18;
   --sidebar-accent: #242424;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgb(255 255 255 / 0.08);
-  --sidebar-ring: #8fd19e;
+  --sidebar-ring: #e0532f;
   --logo-ink: #f7f6f2;
 }
 
@@ -110,6 +113,7 @@
   --color-frame: var(--frame);
   --color-logo-ink: var(--logo-ink);
   --color-brand-soft: var(--brand-soft);
+  --color-brand: var(--brand);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -158,6 +162,6 @@
     html, body, #root { height: 100%; overflow: hidden; overflow: clip; }
   }
   button:not(:disabled), [role='button']:not(:disabled) { cursor: pointer; }
-  /* Native sliders and boxes in the brand green, not the browser's blue. */
-  input[type='range'], input[type='checkbox'], input[type='radio'], progress { accent-color: var(--primary); }
+  /* Native sliders and boxes in Qerr's orange, not the browser's blue. */
+  input[type='range'], input[type='checkbox'], input[type='radio'], progress { accent-color: var(--brand); }
 }

@@ -112,7 +112,7 @@ function SetupCard({ steps }: { steps: HomeOverview['setup'] }) {
     <Link to="/home" aria-label={`Setup ${done} of ${steps.length} done. Next: ${next?.title ?? 'continue setting up'}`} className="block rounded-md px-2.5 py-1.5 outline-none transition-colors hover:bg-sidebar-accent/60 focus-visible:ring-[3px] focus-visible:ring-ring/50">
       <div className="truncate text-[12px] text-muted-foreground">Setup {done}/{steps.length} · Next: {next?.title ?? 'continue'}</div>
       <div className="mt-1.5 h-0.5 overflow-hidden rounded-full bg-border" aria-hidden="true">
-        <div className="h-full rounded-full bg-primary" style={{ width: `${(done / steps.length) * 100}%` }} />
+        <div className="h-full rounded-full bg-brand" style={{ width: `${(done / steps.length) * 100}%` }} />
       </div>
     </Link>
   );

@@ -16,7 +16,7 @@ function Progress({
       data-slot="progress"
       value={value}
       className={cn(
-        "relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
+        "relative h-2 w-full overflow-hidden rounded-full bg-brand/20",
         className
       )}
       {...props}
@@ -24,7 +24,7 @@ function Progress({
       <ProgressPrimitive.Indicator
         data-slot="progress-indicator"
         className={cn(
-          "h-full flex-1 bg-primary transition-all",
+          "h-full flex-1 bg-brand transition-all",
           value == null && "w-1/3 animate-pulse"
         )}
         style={value == null ? undefined : { transform: `translateX(-${100 - value}%)` }}

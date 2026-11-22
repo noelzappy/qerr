@@ -33,19 +33,20 @@ Then check the JSON's `dependencies` (add exact versions with `npm install -w @q
 
 ## Theme tokens
 
-Defined in `src/index.css` from `packages/engine/design/brand.json` (the website palette). Use the Tailwind names:
-`bg-background text-foreground`, `bg-card`, `bg-muted text-muted-foreground`, `bg-primary text-primary-foreground`
-(brand green `#2F6B5A`), `bg-accent` (mint), `border-border`, `border-input`, `ring-ring`, `text-destructive`, plus the
+Defined in `src/index.css`, from Qerr's palette (ink `#1b1a18`, paper `#f7f6f2`, orange `#e0532f`; see `docs/brand/qerr-logo/`).
+Use the Tailwind names: `bg-background text-foreground`, `bg-card`, `bg-muted text-muted-foreground`, `bg-primary
+text-primary-foreground` (ink with paper text; paper with ink text in dark mode), `bg-brand` (Qerr's orange: focus, progress
+and native controls only, never small text, which it is too light for on white), `bg-brand-soft` (a pale orange tint), `bg-accent` (a neutral hover grey), `border-border`, `border-input`, `ring-ring`, `text-destructive`, plus the
 status tokens `success`, `warning` / `warning-foreground`, `info`, and `gold` (logo gold `#FFB300`). `bg-sidebar*` for the sidebar.
 Never use literal colours or Tailwind palette colours (`bg-green-500`). The logo's own colours are `--logo-ink` (ink, paper
 in dark mode, `text-logo-ink`) and `--logo-accent`; only `QerrLogo` uses them.
 
 - Fonts: Inter is the default (`font-sans`); IBM Plex Mono is `font-mono` and is for ids, figures and small caps labels
   (`font-mono text-[11px] uppercase tracking-wider text-muted-foreground`). Files are served from `/fonts`: the engine's own copies in `packages/engine/design/fonts`, served and built by a small plugin in `apps/web/vite.config.ts`; no font CDN.
-- Radius is `0.5rem` (`rounded-md`, `rounded-lg`). Keep it calm: neutral surfaces, one green primary action per view.
+- Radius is `0.5rem` (`rounded-md`, `rounded-lg`). Keep it calm: neutral surfaces, one ink primary action per view.
 - Dark mode: variables exist (`.dark` class on `<html>`). The default is light until the pages are ported because the old
   CSS has no dark palette. Test with `localStorage.theme = 'dark'` then reload.
-- The focus ring is brand green in light mode (gold on white is too faint) and gold in dark mode.
+- The focus ring is Qerr's orange in both modes (3.85:1 on white, 4.5:1 on the dark page). Green is only for success.
 
 ## Conventions
 
