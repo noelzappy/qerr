@@ -351,7 +351,7 @@ export function validateDesign(d, where = 'design', opts = {}) {
     }
   }
   if (d.template === 'carousel' && isPostCarousel(d)) {
-    errors.push(...postCarouselProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null }));
+    errors.push(...postCarouselProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null, emoji: opts.emoji === true }));
     return errors;
   }
   if (d.template === 'carousel') {
@@ -367,7 +367,7 @@ export function validateDesign(d, where = 'design', opts = {}) {
     return errors;
   }
   if (d.template === 'post') {
-    errors.push(...postProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null }));
+    errors.push(...postProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null, emoji: opts.emoji === true }));
     return errors;
   }
   checkOne(d, d.template, where, errors, opts);

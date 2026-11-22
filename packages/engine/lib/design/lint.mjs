@@ -35,7 +35,8 @@ export function lintText(fields, sizeName, brand) {
     }
     const money = foreignMoneyWarning(field, t, brand);
     if (money) warnings.push(money);
-    const emoji = t.match(EMOJI);
+    // (a brand that turns emoji on, brand.json "emoji", has them checked as part of the design instead: emoji.mjs)
+    const emoji = brand.emoji === true ? null : t.match(EMOJI);
     if (emoji) warnings.push(`${field}: contains an emoji (${emoji[0]}); image text uses words only`);
     const kind = field.replace(/^page \d+ /, '');
     // A two-tone headline (the website's: a statement, then its *continuation* in grey) is judged in two parts: the statement

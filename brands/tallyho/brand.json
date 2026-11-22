@@ -10,6 +10,7 @@
   },
   "voice": "Loud, warm and direct. Short punchy lines, first person plural, a little cheeky. Speak to founders and community builders, never to investors. No hype numbers: every figure is a round illustrative one and is said to be.",
   "language": "British English",
+  "emoji": true,
   "visualDirection": "Loud and friendly: saturated blue, orange and deep purple grounds, heavy condensed capitals, words in pills, letters on grey paper with a few bold words, big figures with photos taped on.",
   "grounds": {
     "light": "#FFFFFF",

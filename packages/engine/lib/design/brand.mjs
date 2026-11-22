@@ -7,6 +7,7 @@ import { ROOT, brandFile, repoPath } from '../core.mjs';
 import { validateLayouts } from './layout.mjs';
 import { validateLooks } from './look.mjs';
 import { readBrandAsset, readBrandImage } from './assets.mjs';
+import { emojiIn } from './emoji.mjs';
 import {
   ACCENT_DEVICES, ACCENT_STYLES, ARTWORK_FITS, DECORATION_ON, DECORATIONS, FONT_ROLES, FOOTERS, GRADIENT_NAMES, GROUND_ALIASES, GROUND_NAMES, HEX, LOGO_PLACES,
   DIRECTIONS, PHOTO_TREATMENTS, SERIES_KEY, SHADOW_NAMES, STYLE_COLOURS, STYLE_DEFAULTS, SURFACES, TYPE_CASES, groundName, isDarkColour,
@@ -165,6 +166,9 @@ export function validateBrand(b) {
   if (b.references !== undefined && (!Array.isArray(b.references) || b.references.length > 24 || b.references.some((r) => typeof r !== 'string' || !r.trim() || r.length > 2000))) {
     errors.push('brand.json: references must be a list of up to 24 texts of up to 2000 characters (style briefs of design references)');
   }
+  // emoji in the words of post images: off unless set to true; never in the brand's name (emoji.mjs)
+  if (b.emoji !== undefined && typeof b.emoji !== 'boolean') errors.push('brand.json: emoji must be true or false (whether post images may carry emoji)');
+  if (typeof b.name === 'string' && emojiIn(b.name).emoji.length + emojiIn(b.name).bad > 0) errors.push('brand.json: name takes no emoji');
   if (b.money !== undefined) {
     const m = b.money;
     if (!m || typeof m !== 'object' || Array.isArray(m)) errors.push('brand.json: money must be an object with local and foreign');
@@ -271,6 +275,11 @@ export function loadSeries({ root = ROOT, file = brandFile('brand.json', { root 
 // The brand file's design direction (style.direction) or null, without reading fonts or images (used to validate a `post` design).
 export function loadDirection({ root = ROOT, file = brandFile('brand.json', { root }) } = {}) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')).style?.direction ?? null; } catch { return null; }
+}
+
+// Whether the brand turns emoji on for the words of its post images (brand.json "emoji": true), read without validating the whole file.
+export function loadEmoji({ root = ROOT, file = brandFile('brand.json', { root }) } = {}) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')).emoji === true; } catch { return false; }
 }
 
 // The look the brand's direction names (style.direction is the id of an entry of brand.looks), as written in the file, or null (a code

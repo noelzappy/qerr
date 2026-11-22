@@ -34,12 +34,15 @@ test('the Tallyho spelling rules catch the wrong forms and leave the brand name 
 
 test('the Tallyho example batch covers every post kind and fits the loud look', () => {
   const brand = loadBrand({ file }), brief = lookBrief(shippedLooks().loud);
-  assert.deepEqual(validateBatchDesigns(batch.posts, { series: loadSeries({ file }) }), []);
+  // Tallyho turns emoji on (brand.json emoji), and its letter post carries two
+  assert.equal(brand.emoji, true);
+  assert.deepEqual(validateBatchDesigns(batch.posts, { series: loadSeries({ file }), emoji: brand.emoji }), []);
+  assert.ok(batch.posts.some((p) => /\p{Extended_Pictographic}/u.test(JSON.stringify(p.design))), 'a post shows emoji');
   assert.ok(batch.posts.length >= 8);
   assert.deepEqual([...new Set(batch.posts.map((p) => p.design.kind))].sort(), [...POST_KINDS].sort());
   for (const p of batch.posts) {
     const d = p.design;
-    assert.deepEqual(postProblems(d, p.id, { brief }), [], p.id);
+    assert.deepEqual(postProblems(d, p.id, { brief, emoji: brand.emoji }), [], p.id);
     assert.deepEqual(lintText(textFieldsOf(d), 'feed', brand), [], p.id);
     // pictures come from the engine's photo library, recorded in its CREDITS.md (the photos themselves are git-ignored)
     if (d.image) {

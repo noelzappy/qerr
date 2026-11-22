@@ -6,6 +6,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ENGINE_DIR } from '../core.mjs';
+import { emojiIn } from './emoji.mjs';
 
 const DIR = path.join(ENGINE_DIR, 'design', 'fonts');
 const FAMILY = /^[A-Za-z0-9 ]{1,40}$/;
@@ -49,6 +50,39 @@ export function libraryProblems() {
     }
   }
   return errors;
+}
+
+// ---- the colour emoji font (design/fonts/emoji.json: Noto Color Emoji, OFL, a COLRv1 build in unicode-range slices) ----
+// Embedded only on a page whose words hold an emoji (a brand that turns them on, emoji.mjs), and then only the slices those emoji need, under
+// the alias EMOJI_ALIAS, which the page puts in every font stack right after the role's own font. Nothing is loaded from the network.
+export const EMOJI_ALIAS = 'VF Emoji';
+let emojiCache = null;
+export function emojiLibrary() {
+  if (!emojiCache) emojiCache = JSON.parse(fs.readFileSync(path.join(DIR, 'emoji.json'), 'utf8'));
+  return emojiCache;
+}
+export function emojiLibraryProblems() {
+  const e = [], lib = emojiLibrary();
+  if (lib.license !== 'OFL-1.1') e.push('emoji font: must be OFL-1.1');
+  if (!DIRNAME.test(lib.dir ?? '')) e.push('emoji font: odd folder');
+  else if (!fs.existsSync(path.join(DIR, lib.dir, 'OFL.txt'))) e.push('emoji font: no OFL.txt beside the files');
+  for (const x of lib.files ?? []) {
+    if (!FILE.test(x.file ?? '')) { e.push('emoji font: odd file name'); continue; }
+    if (!RANGE.test(x.range ?? '')) e.push(`emoji font ${x.file}: odd unicode-range`);
+    const file = path.join(DIR, lib.dir, x.file);
+    if (!fs.existsSync(file)) e.push(`emoji font ${x.file}: the file is missing`);
+    else if (fs.readFileSync(file).toString('latin1', 0, 4) !== 'wOF2') e.push(`emoji font ${x.file}: not a woff2 file`);
+  }
+  return e;
+}
+// The @font-face rules for the emoji in `text` (only the slices they need), and the files: { css, files }; empty when the text holds none.
+export function emojiFacesFor(text = '') {
+  const clusters = emojiIn(String(text)).emoji;
+  if (!clusters.length) return { css: '', files: [] };
+  const lib = emojiLibrary(), cps = new Set(clusters.flatMap((c) => [...c].map((ch) => ch.codePointAt(0))));
+  const picked = lib.files.filter((x) => [...cps].some((cp) => inRange(x.range, cp)));
+  const css = picked.map((x) => `@font-face{font-family:"${EMOJI_ALIAS}";src:url("${dataUri(lib, x.file)}") format("woff2");font-weight:100 900;font-style:normal;unicode-range:${x.range}}`).join('');
+  return { css, files: picked.map((x) => ({ family: lib.family, file: x.file, style: 'normal', weight: '400', subset: 'emoji', bytes: x.bytes })) };
 }
 
 const bounds = (w) => w.split(' ').map(Number).filter(Number.isFinite);

@@ -79,6 +79,8 @@ export interface BrandSettings {
   spellings: Array<{ wrong: string; right: string }>;
   voice: string;
   visualDirection: string;
+  // Emoji in the words of post images (at most three standard emoji per text); off by default.
+  emoji: boolean;
   logo: { wordmarkFrom: number; markGap: number };
 }
 
