@@ -26,6 +26,7 @@ import { usePreview } from './editor/usePreview';
 import { postFlow } from './flow/status';
 import { CAPTION_LIMIT, NETWORKS, type Network } from './labels';
 import { buildNetworks, currentCaptions, currentFlags, goesTo, readNetworks } from './networks';
+import { carouselPages, groupMedia } from './media-groups';
 import { mediaLabel, PostChips, PostConfirms, onlyWaitingForImage, postProblem, UploadInput, usePostActions } from './post-parts';
 import type { AiDraftNotes, BatchView, DeliveryRow, DesignBlock, PostDetail, SourceView } from './types';
 import { detailLines } from './util';
@@ -370,27 +371,42 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
   );
 }
 
-// The pictures saved with the post: the images made from its design and the files uploaded for it.
+// The pictures saved with the post: one compact strip per size (a carousel's pages numbered in order), then the uploaded files.
+// A click opens a picture in a new tab.
 function SavedPictures({ post, working, onDrop }: { post: PostDetail['post']; working: boolean; onDrop: (m: PostDetail['post']['media'][number]) => void }) {
   if (!post.media.length && !working) return null;
+  const pages = carouselPages(post.design, post.media);
+  const groups = groupMedia(post.media);
+  const thumb = 'block h-24 w-[4.8rem] rounded-md border bg-muted object-cover';
   return (
     <section aria-label="Pictures saved with this post" className="border-t pt-4">
-      <h3 className="mb-2 text-[13.5px] font-semibold">Saved pictures</h3>
+      <h3 className="mb-2 flex items-baseline gap-2 text-[13.5px] font-semibold">
+        Saved pictures{pages !== null && <span className="text-[12.5px] font-normal text-muted-foreground">Carousel, {pages} pages</span>}
+      </h3>
       {working && <Skeleton className="mb-2 h-6 w-48" role="status" aria-label="Making the image" />}
-      <ul className="grid grid-cols-2 gap-3">
-        {post.media.map((m) => {
-          const label = mediaLabel(m, post.media);
-          return (
-            <li key={m.rel} className="flex min-w-0 flex-col gap-1">
-              {m.url && m.kind === 'image'
-                ? <a href={m.url} target="_blank" rel="noreferrer" aria-label={`Open ${post.title}: ${label} in a new tab`}><img src={m.url} alt={`${post.title}: ${label}`} loading="lazy" className="h-28 w-full rounded-md bg-muted object-contain" /></a>
-                : <div className="flex h-28 items-center justify-center rounded-md bg-muted text-[12.5px] text-muted-foreground">{m.kind === 'video' ? 'Video' : 'Not available'}</div>}
-              <span className="text-[12.5px] text-muted-foreground [overflow-wrap:anywhere]">{label}</span>
-              {m.source === 'upload' && <BusyButton size="sm" variant="ghost" className="w-fit text-destructive hover:text-destructive" onClick={() => onDrop(m)} aria-label={`Remove ${m.rel}`}>Remove</BusyButton>}
-            </li>
-          );
-        })}
-      </ul>
+      <div className="flex flex-col gap-3">
+        {groups.map((g) => (
+          <div key={g.key} className="flex min-w-0 flex-col gap-1.5">
+            {(groups.length > 1 || g.key === 'upload') && <p className="text-[12.5px] text-muted-foreground">{g.label}</p>}
+            <ul className="flex gap-2 overflow-x-auto p-0.5 pb-1" aria-label={g.label}>
+              {g.items.map((m, i) => {
+                const label = mediaLabel(m, post.media);
+                return (
+                  <li key={m.rel} className="flex shrink-0 flex-col items-start gap-1">
+                    <div className="relative">
+                      {m.url && m.kind === 'image'
+                        ? <a href={m.url} target="_blank" rel="noreferrer" aria-label={`Open ${post.title}: ${label} in a new tab`} className="block rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"><img src={m.url} alt={`${post.title}: ${label}`} loading="lazy" className={thumb} /></a>
+                        : <div className={cn(thumb, 'flex items-center justify-center text-[11.5px] text-muted-foreground')}>{m.kind === 'video' ? 'Video' : 'Not available'}</div>}
+                      {g.key !== 'upload' && g.items.length > 1 && <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-background/90 px-1 text-[11px] leading-4 font-medium tabular-nums" aria-hidden="true">{i + 1}</span>}
+                    </div>
+                    {m.source === 'upload' && <BusyButton size="sm" variant="ghost" className="h-7 px-1.5 text-destructive hover:text-destructive max-sm:min-h-11" onClick={() => onDrop(m)} aria-label={`Remove ${m.rel}`}>Remove</BusyButton>}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
