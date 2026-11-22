@@ -5,6 +5,7 @@ import { shapeProblems } from './checks.mjs';
 import { LIMITS, ledgerLayout } from './figures.mjs';
 import { COVER_SIZES, DEFAULT_SIZES, SIZE_NAMES } from './sizes.mjs';
 import { postProblems } from './post-spec.mjs';
+import { lookBrief } from './look.mjs';
 import { ACCENT_STYLES, ALIGNS, GROUND_ALIASES, GROUND_NAMES, POSTER_SIZES, SERIES_KEY, groundName } from './tokens.mjs';
 
 // The feed pages (one 1080 x 1350 page each, usable as pages of a carousel): first the poster pages of 2026-11-20 (one real
@@ -362,7 +363,7 @@ export function validateDesign(d, where = 'design', opts = {}) {
     return errors;
   }
   if (d.template === 'post') {
-    errors.push(...postProblems(d, where, { direction: opts.direction, focalOk: (f) => focalToCss(f) !== null }));
+    errors.push(...postProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null }));
     return errors;
   }
   checkOne(d, d.template, where, errors, opts);

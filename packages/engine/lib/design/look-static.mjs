@@ -81,7 +81,7 @@ function minHeight(el, look) {
   switch (el.type) {
     case 'text': return el.ladder ? el.ladder.steps[el.ladder.steps.length - 1][1] : el.size ?? styleSize(styleOf(el), look) ?? 24;
     case 'fitted-stack': case 'mantra-rows': return el.floor ?? el.sizes?.[el.sizes.length - 1] ?? 40;
-    case 'numeral': return el.min ?? 60;
+    case 'numeral': return el.min ?? el.sizes?.[el.sizes.length - 1] ?? 60;
     case 'rows': return Math.max(el.rowMinH ?? 0, el.textSize ?? styleSize(el.textStyle ?? 'item', look) ?? 30);
     case 'sticker': return el.size ?? el.h ?? 40;
     case 'rule': return typeof el.weight === 'number' ? el.weight : 1;
@@ -100,7 +100,7 @@ const lenPx = (v, side, look, g) => {
 };
 const PAGE_RECT = { x0: 0, y0: 0, x1: PAGE.w, y1: PAGE.h };
 // The rectangle a place gives (x0, y0, x1, y1); an unknown size is no extent from the edge it is anchored to (so only what is certain is judged).
-function placeRect(place, base, look, g, mh = 0) {
+export function placeRect(place, base, look, g, mh = 0) {
   const f = look.devices?.frame ?? {};
   if (place.inset !== undefined) {
     if (place.inset === 'page') return { ...PAGE_RECT };
@@ -111,7 +111,7 @@ function placeRect(place, base, look, g, mh = 0) {
   const bw = base.x1 - base.x0, bh = base.y1 - base.y0;
   if (place.px) {
     const p = place.px;
-    return { x0: base.x0 + p.x, y0: base.y0 + p.y, x1: base.x0 + p.x + (p.w ?? 0), y1: base.y0 + p.y + (p.h ?? mh) };
+    return { x0: base.x0 + p.x, y0: base.y0 + p.y, x1: base.x0 + p.x + (p.w ?? 0), y1: base.y0 + p.y + Math.max(p.h ?? mh, place.minH ?? 0) };
   }
   if (place.anchor) {
     const a = place.anchor, v = (k, side) => (a[k] === undefined ? null : lenPx(a[k], side, look, g));
@@ -121,10 +121,13 @@ function placeRect(place, base, look, g, mh = 0) {
       if (hi !== null) return [b0 + total - hi - (size ?? 0), b0 + total - hi];
       return size !== null ? [b0, b0 + size] : [b0, b0 + total];
     };
-    const [x0, x1] = axis(v('left', 'left'), v('right', 'right'), v('w', 'left'), bw, base.x0), [y0, y1] = axis(v('top', 'top'), v('bottom', 'bottom'), v('h', 'top') ?? mh, bh, base.y0);
+    const [x0, x1] = axis(v('left', 'left'), v('right', 'right'), v('w', 'left'), bw, base.x0);
+    let [y0, y1] = axis(v('top', 'top'), v('bottom', 'bottom'), v('h', 'top') ?? mh, bh, base.y0);
+    const lack = (place.minH ?? 0) - (y1 - y0);
+    if (lack > 0) { if (a.top === undefined && a.bottom !== undefined) y0 = y1 - (place.minH ?? 0); else y1 = y0 + (place.minH ?? 0); }
     return { x0: x0 + (place.dx ?? 0), y0: y0 + (place.dy ?? 0), x1: x1 + (place.dx ?? 0), y1: y1 + (place.dy ?? 0) };
   }
-  const p = place.grid;
+  const p = place.grid, minH = place.minH ?? 0;
   const x0 = g.m.left + (p.col - 1) * (g.colW + g.gutter), x1 = place.w !== undefined ? x0 + lenPx(place.w, 'left', look, g) : x0 + p.span * g.colW + (p.span - 1) * g.gutter;
   let y0 = g.m.top, y1 = PAGE.h - g.m.bottom;
   if (p.row !== undefined) {
@@ -132,6 +135,14 @@ function placeRect(place, base, look, g, mh = 0) {
     if (place.h !== undefined) y1 = y0 + lenPx(place.h, 'top', look, g);
     else if (p.alignY) { if (p.alignY === 'top') y1 = y0 + mh; else if (p.alignY === 'bottom') y0 = y1 - mh; else { const mid = (y0 + y1) / 2; y0 = mid - mh / 2; y1 = mid + mh / 2; } }
   }
+  if (place.square) {
+    // as tall as wide: at the foot of its rows with alignY bottom, centred with center, else at the top
+    const side = x1 - x0;
+    if (p.row !== undefined && p.alignY === 'bottom') y0 = y1 - side;
+    else if (p.row !== undefined && p.alignY === 'center') { const mid = (y0 + y1) / 2; y0 = mid - side / 2; y1 = mid + side / 2; }
+    else y1 = y0 + side;
+  }
+  if (y1 - y0 < minH) { if (p.row !== undefined && p.alignY === 'bottom') y0 = y1 - minH; else y1 = y0 + minH; }
   return { x0: x0 + (place.dx ?? 0), y0: y0 + (place.dy ?? 0), x1: x1 + (place.dx ?? 0), y1: y1 + (place.dy ?? 0) };
 }
 function rectOf(node, look, g, cache) {
@@ -141,7 +152,11 @@ function rectOf(node, look, g, cache) {
   if (node.type === 'frame' || node.type === 'seam') r = { ...PAGE_RECT };
   else if (node.type === 'meta-row') r = { x0: g.m.left, y0: g.m.top, x1: PAGE.w - g.m.right, y1: g.m.top + g.head };
   else if (node.type === 'band') r = { x0: 0, y0: el.y, x1: PAGE.w, y1: el.y + el.h };
-  else if (el.place) r = placeRect(el.place, node.parent ? rectOf(node.parent, look, g, cache) : PAGE_RECT, look, g, minHeight(el, look));
+  else if (node.parent?.type === 'seam') {
+    // a seam's sticker is placed from the seam's top edge; its other items flow in the colour below the edge
+    const [lo, hi] = [Math.min(node.parent.el.leftY, node.parent.el.rightY), Math.max(node.parent.el.leftY, node.parent.el.rightY)];
+    r = node.slot && el.place ? placeRect(el.place, { x0: 0, y0: lo, x1: PAGE.w, y1: PAGE.h }, look, g, minHeight(el, look)) : { x0: 0, y0: hi, x1: PAGE.w, y1: PAGE.h };
+  } else if (el.place) r = placeRect(el.place, node.parent ? rectOf(node.parent, look, g, cache) : PAGE_RECT, look, g, minHeight(el, look));
   else r = node.parent ? rectOf(node.parent, look, g, cache) : { ...PAGE_RECT };
   cache.set(node, r);
   return r;
@@ -180,7 +195,7 @@ function sizesOf(node, look) {
   if (node.type === 'text') add(el.ladder ? el.ladder.steps[0][1] : el.size ?? styleSize(styleOf(el), look));
   else if (['fitted-stack', 'mantra-rows'].includes(node.type)) out.fitted = true;
   else if (node.type === 'numeral') { out.fitted = true; if (el.unit) add(styleSize(el.unit.style ?? 'label', look)); }
-  else if (node.type === 'sticker' && el.field !== undefined) add(el.ladder ? el.ladder.steps[0][1] : el.textSize ?? Math.round((el.size ?? el.h ?? 100) / 5));
+  else if (node.type === 'sticker' && el.field !== undefined) add(el.ladder ? el.ladder.steps[0][1] : el.fit?.cap ?? el.textSize ?? Math.round((el.size ?? el.h ?? 100) / 5));
   else if (node.type === 'rows') {
     add(el.textSize ?? styleSize(el.textStyle ?? 'item', look));
     if ((el.number ?? 'none') !== 'none') add(el.numberSize ?? styleSize(el.numberStyle ?? 'label', look));
@@ -199,6 +214,7 @@ function backgrounds(node, comp, look) {
   for (let n = node; n; n = n.parent) {
     if (n.type === 'sticker') return [n.el.fill ?? (look.colour?.sticker === 'primary' ? 'primary' : 'gold')];
     if (hasFill(n)) return [n.el.fill];
+    if (n.type === 'seam') return [n.el.lower];
     if (n.type === 'rows' && (n.el.altFill || n.el.fill)) return n.el.altFill ?? [n.el.fill];
   }
   const gs = typeof comp.ground === 'string' ? [comp.ground] : comp.ground.map((c) => c.ground);
@@ -260,7 +276,7 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
   for (const n of nodes) {
     const el = n.el;
     if (el.ink !== undefined) {
-      const own = backgrounds(n, comp, look);
+      const own = n.type === 'text' && el.tiltBar ? ['gold'] : backgrounds(n, comp, look);
       for (const bg of own) { const p = pairProblem(el.ink, bg); if (p) { at(n, `${p}`); break; } }
     }
     if (n.type === 'rows') {
@@ -284,10 +300,13 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
   for (const n of nodes) {
     const b = n.el.bleed;
     if (!b) continue;
-    if (n.type === 'numeral') continue;
-    if (n.parent) { at(n, 'only an element placed on the page can run to its edge (a numeral aside)'); continue; }
-    if (!g) continue;
-    for (const e of b.edges) if (!touches(n, e, g)) at(n, `runs to the ${e} edge, which it does not touch (only an element at that edge, or a numeral, may)`);
+    if (n.parent) { at(n, 'only an element placed on the page can run to its edge'); continue; }
+    // drawn only when the place gives left, top, width and height
+    const pl = n.el.place, an = pl?.anchor;
+    const sized = pl && (pl.inset !== undefined || pl.grid !== undefined || (pl.px && pl.px.w !== undefined && pl.px.h !== undefined)
+      || (an && an.left !== undefined && (an.right !== undefined || an.w !== undefined) && an.top !== undefined && (an.bottom !== undefined || an.h !== undefined)));
+    if (n.type !== 'numeral' && g) for (const e of b.edges) if (!touches(n, e, g)) at(n, `runs to the ${e} edge, which it does not touch (only an element at that edge, or a numeral, may)`);
+    if (!sized) at(n, 'runs to the page edge, so its place must give left, top, width and height (a grid place, inset, px with w and h, or an anchor from the left and top with a width or the right edge)');
   }
 
   // -- text over a picture --
@@ -301,7 +320,7 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
     }
     for (const t of nodes.filter((x) => TEXT_TYPES.includes(x.type))) {
       let ok = false;
-      for (let a = t.parent; a; a = a.parent) if (a.type === 'sticker' || hasFill(a)) ok = true;
+      for (let a = t.parent; a; a = a.parent) if (a.type === 'sticker' || a.type === 'seam' || hasFill(a)) ok = true;
       if (ok || (t.type === 'rows' && (t.el.fill || t.el.altFill))) continue;
       const tr = rectOf(t, look, g, cache), tk = keyOf(topOf(t));
       for (const p of photos) {

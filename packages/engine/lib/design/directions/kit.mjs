@@ -28,8 +28,8 @@ const cls = (c) => { if (typeof c !== 'string' || !CLASS.test(c)) throw new Erro
 // dropSub: { key, lines }: the element is left out when the element with that key sets in that many lines or more.
 // steps / maxLines / maxH: the runtime sets the element at the largest of `steps` (px, descending) at which it takes at most maxLines lines and
 //   is at most maxH px tall (a number, or 'slot': the room its parent leaves it); the smallest step when none does.
-const KIT_VARIANTS = Object.freeze({ tilt: 'k-tilt' });
-export const NUDGE_MAX = 96;
+const KIT_VARIANTS = Object.freeze({ tilt: 'k-tilt', fill: 'k-v-fill' });
+export const NUDGE_MAX = 120;
 const ID = /^[a-z][a-z0-9-]{0,30}$/;
 const ALIGN_SELF = Object.freeze({ stretch: 'stretch', start: 'flex-start', end: 'flex-end', center: 'center' });
 const variantOf = (tokens, v) => {
@@ -50,6 +50,16 @@ const nudgeCss = (v) => {
     out.push(`${prop}:${px(q)}px`);
   }
   return out.join(';');
+};
+// emph: how the emphasised phrase (<em>) of a text is set: a class of kit.css, never a class from a composition
+const EMPH = Object.freeze({ italic: 'k-em-i', accent: 'k-em-a', none: 'k-em-n' });
+const emphClass = (v) => { if (v === undefined) return ''; if (!Object.hasOwn(EMPH, v)) throw new Error('design kit: emph must be one of italic, accent, none'); return ` ${EMPH[v]}`; };
+// textShadow: { x, y, colour } px and a palette name: a hard shadow behind the letters
+const shadowCss = (v) => {
+  if (v === undefined) return '';
+  if (!v || typeof v !== 'object') throw new Error('design kit: textShadow must be { x, y, colour }');
+  const lim = (q, w) => { n(q, w); if (Math.abs(q) > 24) throw new Error(`design kit: ${w} must be within 24 px`); return px(q); };
+  return `text-shadow:${lim(v.x, 'textShadow x')}px ${lim(v.y, 'textShadow y')}px 0 ${colour(v.colour ?? 'ink')}`;
 };
 const flexCss = (o) => [o.flexNone ? 'flex:none' : '', o.alignSelf !== undefined ? `align-self:${ALIGN_SELF[o.alignSelf] ?? (() => { throw new Error('design kit: alignSelf'); })()}` : ''].filter(Boolean).join(';');
 const flagAttrs = (o) => `${o.split ? ' data-split' : ''}${o.band ? ' data-band' : ''}`;
@@ -187,9 +197,9 @@ export function makeContext(args) {
       o.track !== undefined ? `letter-spacing:${P(o.track, 'track')}em` : '', o.weight !== undefined ? `font-weight:${P(o.weight, 'weight')}` : '',
       o.colour ? `color:${colour(o.colour)}` : '', o.align ? `text-align:${['left', 'right', 'center'].includes(o.align) ? o.align : 'left'}` : '',
       o.italic ? 'font-style:italic' : '', o.upper ? 'text-transform:uppercase' : '', o.num === 'onum' ? 'font-variant-numeric:oldstyle-nums' : o.num === 'lnum' ? 'font-variant-numeric:lining-nums' : '',
-      o.nowrap ? 'white-space:nowrap' : '', flexCss(o), nudgeCss(o.nudge)].filter(Boolean).join(';');
+      o.nowrap ? 'white-space:nowrap' : '', shadowCss(o.textShadow), flexCss(o), nudgeCss(o.nudge)].filter(Boolean).join(';');
     const v = variantOf(tokens, o.variant);
-    return `<div class="${o.flow ? 'k-flow ' : 'abs '}k-t${base ? ` ${base}` : ''}${v ? ` ${v}` : ''}" data-role="${role}" data-el${o.scale ? ' data-scaled' : ''} data-grid="${mode}"${o.bleed ? ` data-bleed="${cls(o.bleed)}"` : ''}${flagAttrs(o)}${keyAttr(o)}${dropAttr(o)}${followAttr(o)}${stepAttrs(o)} style="${css}">${body}</div>`;
+    return `<div class="${o.flow ? 'k-flow ' : 'abs '}k-t${base ? ` ${base}` : ''}${v ? ` ${v}` : ''}${emphClass(o.emph)}${o.dfont ? ' k-dfont' : ''}" data-role="${role}" data-el${o.scale ? ' data-scaled' : ''} data-grid="${mode}"${o.bleed ? ` data-bleed="${cls(o.bleed)}"` : ''}${flagAttrs(o)}${keyAttr(o)}${dropAttr(o)}${followAttr(o)}${stepAttrs(o)} style="${css}">${body}</div>`;
   };
   c.type = (o) => textEl(o);
   // A label: the direction's small caps line (its size, tracking, family and weight come from the tokens).
@@ -222,9 +232,10 @@ export function makeContext(args) {
     if (o.valign && !auto && o.y === undefined) throw new Error('design kit: valign needs y or h: "auto"');
     const css = [place({ x: o.x, y: o.y, w: fit ? undefined : o.w, h: auto ? undefined : o.h, right: o.right, bottom: o.bottom }), `font-family:${c.fontVar(o.family ?? 'display')}`, `line-height:${P(o.lead ?? D.lead, 'lead')}`,
       `letter-spacing:${P(o.track ?? D.track, 'track')}em`, `font-weight:${P(o.weight ?? D.weight, 'weight')}`, o.colour ? `color:${colour(o.colour)}` : '', `text-align:${o.align === 'right' ? 'right' : o.align === 'center' ? 'center' : 'left'}`,
-      o.grow ? 'flex:1 1 0;min-height:0' : '', flexCss(o), nudgeCss(o.nudge)].filter(Boolean).join(';');
+      o.grow ? 'flex:1 1 0;min-height:0' : '', shadowCss(o.textShadow), flexCss(o), nudgeCss(o.nudge),
+      o.stretch !== undefined ? `font-stretch:${n(o.stretch, 'stretch')}%` : '', o.padBelow !== undefined ? `--k-lpad:${P(o.padBelow, 'padBelow')}em` : ''].filter(Boolean).join(';');
     const v = variantOf(tokens, o.variant);
-    return `<div class="${o.flow ? 'k-flow' : 'abs'} k-t k-display k-fit${v ? ` ${v}` : ''}" data-el${keyAttr(o)}${o.trail ? ' data-trail' : ''}${o.what ? ` data-what="${cls(o.what)}"` : ''}${o.valign ? ` data-valign="${o.valign}"${auto ? '' : ` data-y="${P(o.y, 'y')}"`}` : ''} data-role="${o.role && ROLES.has(o.role) ? o.role : 'headline'}" data-grid="${o.grid ?? 'left'}" data-fitlines data-split${o.highlight ? ' data-hl' : ''} data-w="${fit ? 'fit' : P(o.w, 'w')}"${fit ? ` data-minw="${P(o.minW ?? 0, 'minW')}" data-maxw="${P(o.maxW ?? 10000, 'maxW')}"` : ''} data-h="${auto ? 'auto' : P(o.h, 'h')}" data-cap="${P(o.cap, 'cap')}" data-floor="${P(o.floor, 'floor')}" data-lead="${P(o.lead ?? D.lead, 'lead')}" data-track="${P(o.track ?? D.track, 'track')}" data-max="${P(o.max ?? 5, 'max')}" data-align="${o.align === 'right' ? 'right' : o.align === 'center' ? 'center' : 'left'}" style="${css}">${body}</div>`;
+    return `<div class="${o.flow ? 'k-flow' : 'abs'} k-t k-display k-fit${o.padBelow !== undefined ? ' k-lpad' : ''}${v ? ` ${v}` : ''}${emphClass(o.emph)}" data-el${keyAttr(o)}${o.trail ? ' data-trail' : ''}${o.what ? ` data-what="${cls(o.what)}"` : ''}${o.valign ? ` data-valign="${o.valign}"${auto ? '' : ` data-y="${P(o.y, 'y')}"`}` : ''} data-role="${o.role && ROLES.has(o.role) ? o.role : 'headline'}" data-grid="${o.grid ?? 'left'}" data-fitlines data-split${o.highlight ? ' data-hl' : ''} data-w="${fit ? 'fit' : P(o.w, 'w')}"${fit ? ` data-minw="${P(o.minW ?? 0, 'minW')}" data-maxw="${P(o.maxW ?? 10000, 'maxW')}"` : ''} data-h="${auto ? 'auto' : P(o.h, 'h')}" data-cap="${P(o.cap, 'cap')}" data-floor="${P(o.floor, 'floor')}" data-lead="${P(o.lead ?? D.lead, 'lead')}" data-track="${P(o.track ?? D.track, 'track')}" data-max="${P(o.max ?? 5, 'max')}" data-align="${o.align === 'right' ? 'right' : o.align === 'center' ? 'center' : 'left'}" style="${css}">${body}</div>`;
   };
 
   // A group: blocks that flow one under another (type() with flow: true), the whole box placed at x/y/right/bottom, gap px apart.
@@ -236,7 +247,7 @@ export function makeContext(args) {
   // A filled block (an accent block, a band): colour a palette name; rot degrees; counts as deliberate fill for the emptiness check.
   c.block = (o) => `<i class="abs k-block" aria-hidden="true" data-el data-fill style="${place(o)};background:${colour(o.colour ?? 'accent')}${o.rot ? `;transform:rotate(${P(o.rot, 'rot')}deg)` : ''}${o.skew ? `;transform:rotate(${P(o.rot ?? 0, 'rot')}deg) skewX(${P(o.skew, 'skew')}deg)` : ''}"></i>`;
   // A filled bar in the flow of a group (an accent tick between a headline and its sub).
-  c.flowBlock = (o) => `<i class="k-flow k-block" aria-hidden="true" data-el data-fill style="display:block;flex:none;width:${P(o.w, 'w')}px;height:${P(o.h, 'h')}px;background:${colour(o.colour ?? 'accent')}"></i>`;
+  c.flowBlock = (o) => `<i class="k-flow k-block" aria-hidden="true" data-el data-fill style="display:block;flex:none;${o.w === 'fill' ? 'align-self:stretch' : `width:${P(o.w, 'w')}px`};height:${P(o.h, 'h')}px;background:${colour(o.colour ?? 'accent')}${o.nudge ? `;${nudgeCss(o.nudge)}` : ''}"></i>`;
   // The folio at a place (right-aligned at x1 when align is right).
   c.folioMark = (o) => c.type({ role: 'folio', family: o.family ?? 'label', html: c.folioText(), size: o.size ?? tokens.type.label.size, lead: 1.2, track: o.track ?? tokens.type.label.track, weight: o.weight ?? tokens.type.label.weight, upper: o.upper ?? tokens.type.label.upper !== false, colour: o.colour ?? 'muted', nowrap: true, num: o.num ?? 'lnum', ...o });
   // A vertical label running up the page (rotated 90 degrees counter-clockwise), its box starting at (x, y) and reading upward;
@@ -271,7 +282,7 @@ export function makeContext(args) {
   };
   // A decorative glyph (a hanging opening quotation mark, a large ornament): texture, not type, so no role and no check reads it.
   // text: the glyph (escaped); positioned like type (x, y, right, bottom in px, in the nearest positioned box); size, lead, colour, family.
-  c.glyph = (o) => `<span class="abs k-glyph${variantOf(tokens, o.variant) ? ` ${variantOf(tokens, o.variant)}` : ''}" aria-hidden="true" data-el data-deco style="${place(o)};font-family:${c.fontVar(o.family ?? 'display')};font-size:${P(o.size, 'size')}px;line-height:${P(o.lead ?? 1, 'lead')};color:${colour(o.colour ?? 'accent')};font-weight:${P(o.weight ?? 300, 'weight')};white-space:nowrap">${esc(o.text ?? '')}</span>`;
+  c.glyph = (o) => `<span class="abs k-glyph${variantOf(tokens, o.variant) ? ` ${variantOf(tokens, o.variant)}` : ''}" aria-hidden="true" data-el data-deco style="${place(o)};font-family:${c.fontVar(o.family ?? 'display')};font-size:${P(o.size, 'size')}px;line-height:${P(o.lead ?? 1, 'lead')};color:${colour(o.colour ?? 'accent')};font-weight:${P(o.weight ?? 300, 'weight')};white-space:nowrap${o.stretch !== undefined ? `;font-stretch:${n(o.stretch, 'stretch')}%` : ''}${o.textShadow ? `;${shadowCss(o.textShadow)}` : ''}">${esc(o.text ?? '')}</span>`;
   // A date line ("12 Dec · 6pm · The roastery") read as a date tile: { line, count, first, day, month } as Markup, every piece escaped from the
   // raw text here (never a split of already-built markup). day and month are set only when the first piece looks like a date ("12 Dec",
   // "Sat 12 December", "Dec 12": one or two digits and a month name, kept to three letters); otherwise they are null and `first` is the piece.
@@ -289,7 +300,7 @@ export function makeContext(args) {
   // unitSize, lx (default 0.07), colour, unitColour, track, weight, cap (the numeral's cap height in em, default 0.7).
   c.numeral = (o) => {
     const D = tokens.type.display, body = safe(o.html, 'html'), size = n(o.size, 'size');
-    const common = `font-family:${c.fontVar('display')};line-height:1;white-space:nowrap`;
+    const common = `font-family:${c.fontVar(o.family ?? 'display')};line-height:1;white-space:nowrap`;
     const num = `<span class="k-t k-numeral-n" data-role="stat" data-grid="skip" data-bleed="left" data-fitnum style="display:inline-block;${common};font-size:${P(size, 'size')}px;letter-spacing:${P(o.track ?? -0.045, 'track')}em;font-weight:${P(o.weight ?? D.weight, 'weight')};color:${colour(o.colour ?? 'ink')}">${body}</span>`;
     const unit = o.unit === undefined || o.unit === null ? '' : `<span class="k-t k-numeral-u" data-role="accent" data-grid="skip" data-fitunit style="position:absolute;left:0;top:0;${common};font-size:${P(o.unitSize ?? 36, 'unitSize')}px;font-style:italic;font-weight:${P(o.weight ?? D.weight, 'weight')};color:${colour(o.unitColour ?? 'accent-type')}">${safe(o.unit, 'unit')}</span>`;
     return `<div class="abs k-numeral" data-el data-fitwidth data-size="${P(size, 'size')}" data-min="${P(o.min ?? size / 3, 'min')}" data-right="${P(o.right, 'right')}" data-x="${P(o.x, 'x')}" data-base="${P(o.base, 'base')}" data-lx="${P(o.lx ?? 0.07, 'lx')}" data-cap="${P(o.cap ?? 0.7, 'cap')}" data-asc="${P(o.asc ?? 0.86, 'asc')}" style="left:0;top:0;${common};font-size:${P(size, 'size')}px">${num}${unit}</div>`;
@@ -318,7 +329,7 @@ export function makeContext(args) {
   c.photo = (o) => {
     if (!c.hasImage) return '';
     const shape = ['rect', 'circle', 'arch', 'rounded'].includes(o.shape) ? o.shape : 'rect', treat = Array.isArray(o.treat) ? o.treat : [];
-    for (const t of treat) if (!['grey', 'multiply', 'grain'].includes(t)) throw new Error(`design kit: photo treatment "${t}"`);
+    for (const t of treat) if (!['grey', 'multiply', 'grain', 'punch'].includes(t)) throw new Error(`design kit: photo treatment "${t}"`);
     const fo = POSITION.test(spec.focalCss ?? '') ? spec.focalCss : '50% 50%';
     const zoom = Number.isFinite(Number(spec.zoom)) ? Math.min(3, Math.max(1, Number(spec.zoom))) : 1;
     const tr = zoom > 1 ? `;transform:scale(${px(zoom)});transform-origin:${fo}` : '';
@@ -375,7 +386,7 @@ export function makeContext(args) {
       o.radius !== undefined ? `border-radius:${o.radius === 'full' ? '999px' : `${P(o.radius, 'radius')}px`}` : '',
       o.clip ? `clip-path:polygon(${o.clip.map(([px_, py]) => `${P(px_, 'clip x')}px ${P(py, 'clip y')}px`).join(',')})` : '',
       o.slant !== undefined ? `clip-path:polygon(0 ${P(o.slant, 'slant')}px,100% 0,100% 100%,0 100%)` : '',
-      o.flex ? `display:flex;flex-direction:${o.flex === 'row' ? 'row' : 'column'};justify-content:${{ end: 'flex-end', center: 'center', between: 'space-between' }[o.justify] ?? 'flex-start'};align-items:${{ end: 'flex-end', center: 'center' }[o.align] ?? 'flex-start'}${o.gap ? `;gap:${P(o.gap, 'gap')}px` : ''}` : '',
+      o.flex ? `display:flex;flex-direction:${o.flex === 'row' ? 'row' : 'column'};justify-content:${{ end: 'flex-end', center: 'center', between: 'space-between' }[o.justify] ?? 'flex-start'};align-items:${{ end: 'flex-end', center: 'center', stretch: 'stretch' }[o.align] ?? 'flex-start'}${o.gap ? `;gap:${P(o.gap, 'gap')}px` : ''}` : '',
       o.grow !== undefined ? `flex:${P(o.grow, 'grow')} 1 0;min-height:${P(o.minH ?? 0, 'minH')}px` : '',
       flexCss(o), nudgeCss(o.nudge),
       o.z !== undefined ? `z-index:${P(o.z, 'z')}` : ''].filter(Boolean).join(';');
@@ -391,11 +402,12 @@ export function makeContext(args) {
   c.run = (o) => {
     const body = o.html !== undefined ? safe(o.html, 'html') : esc(o.text ?? '');
     if (!body) return '';
-    const sz = o.scale ? hs(n(o.size, 'size')) : `${P(o.size, 'size')}px`;
+    const rsize = o.steps !== undefined ? o.steps[0] : o.size;
+    const sz = o.scale ? hs(n(rsize, 'size')) : `${P(rsize, 'size')}px`;
     const css = [`display:block`, `font-family:${c.fontVar(o.family ?? 'display')}`, `font-size:${sz}`, `line-height:${o.lead === undefined ? 1 : P(o.lead, 'lead')}`, o.track !== undefined ? `letter-spacing:${P(o.track, 'track')}em` : '',
-      o.weight !== undefined ? `font-weight:${P(o.weight, 'weight')}` : '', o.colour ? `color:${colour(o.colour)}` : '', o.upper ? 'text-transform:uppercase' : '', o.nowrap ? 'white-space:nowrap' : '', flexCss(o), nudgeCss(o.nudge)].filter(Boolean).join(';');
+      o.weight !== undefined ? `font-weight:${P(o.weight, 'weight')}` : '', o.colour ? `color:${colour(o.colour)}` : '', o.upper ? 'text-transform:uppercase' : '', o.nowrap ? 'white-space:nowrap' : '', shadowCss(o.textShadow), flexCss(o), nudgeCss(o.nudge)].filter(Boolean).join(';');
     const v = variantOf(tokens, o.variant);
-    return `<span class="k-t k-run${v ? ` ${v}` : ''}" data-role="${ROLES.has(o.role ?? 'label') ? o.role ?? 'label' : 'label'}" data-el${o.scale ? ' data-scaled' : ''}${followAttr(o)} data-grid="skip" style="${css}">${body}</span>`;
+    return `<span class="k-t k-run${v ? ` ${v}` : ''}${emphClass(o.emph)}${o.dfont ? ' k-dfont' : ''}" data-role="${ROLES.has(o.role ?? 'label') ? o.role ?? 'label' : 'label'}" data-el${o.scale ? ' data-scaled' : ''}${followAttr(o)}${stepAttrs(o)} data-grid="skip" style="${css}">${body}</span>`;
   };
   // A shape with centred content (a sticker): shape 'circle' | 'pill' | 'tile' | 'stamp' (a circle with a dashed ring inside it). size (circle,
   // stamp, tile: the side) or w and h; fill and ink (palette colours); rot; ring { w, colour } (a paper ring round it); shadow. inner: runs.
@@ -412,7 +424,8 @@ export function makeContext(args) {
   c.echoStack = (o) => {
     const D = tokens.type.display, track = o.track ?? D.track, lead = o.lead ?? 1, auto = o.h === 'auto';
     const solid = c.fitLines({ flow: true, w: o.w, h: o.h, cap: o.cap, floor: o.floor, lead, track, max: 1, highlight: true, colour: o.colour, html: o.html });
-    const css = [auto ? '' : place({ x: o.x, y: o.y, w: o.w, h: o.h }), auto ? `width:${P(o.w, 'w')}px;flex:1 1 0;min-height:0` : '', `font-family:${c.fontVar('display')}`, `font-weight:${P(o.weight ?? D.weight, 'weight')}`, nudgeCss(o.nudge)].filter(Boolean).join(';');
+    const outline = o.outline === undefined ? '' : `--k-ol:${P(o.outline, 'outline')}px`;
+    const css = [auto ? '' : place({ x: o.x, y: o.y, w: o.w, h: o.h }), auto ? `width:${P(o.w, 'w')}px;flex:1 1 0;min-height:0` : '', outline, `font-family:${c.fontVar('display')}`, `font-weight:${P(o.weight ?? D.weight, 'weight')}`, nudgeCss(o.nudge)].filter(Boolean).join(';');
     return `<div class="${auto ? 'k-flow' : 'abs'} k-echo k-display" data-el data-fill data-echo data-w="${P(o.w, 'w')}" data-h="${auto ? 'auto' : P(o.h, 'h')}" data-cap="${P(o.cap, 'cap')}" data-rmin="${P(o.rmin ?? 3, 'rmin')}" data-rmax="${P(o.rmax ?? 7, 'rmax')}" data-track="${P(track, 'track')}" style="${css}">`
       + `<span data-pre style="display:none">${safe(o.pre, 'pre')}</span>${solid}</div>`;
   };
@@ -489,7 +502,7 @@ function kitExtras(c, brand, spec) {
       o.ml !== undefined ? `margin-left:${P(o.ml, 'ml')}px` : '', o.trimTop === false ? '' : `margin-top:-${emOf(trim.top, 'trim')}`, o.trimBottom === false ? '' : `margin-bottom:-${emOf(trim.bottom, 'trim')}`].filter(Boolean).join(';');
     if (o.stop !== undefined && !ID.test(o.stop)) throw new Error('design kit: stop must be an id');
     const body = safe(o.html ?? c.fmt('headline'), 'html');
-    return `<div class="${o.flow ? 'k-flow' : 'abs'} k-t k-display k-fb" data-el data-role="${role}" data-grid="${o.grid ?? 'left'}" data-fitlines data-fitmode="${mode}" data-w="${P(o.w, 'w')}" data-h="${P(o.h, 'h')}"${o.sizes ? ` data-sizes="${sizesOf(o.sizes, 'sizes')}"` : ''}`
+    return `<div class="${o.flow ? 'k-flow' : 'abs'} k-t k-display k-fb${emphClass(o.emph)}" data-el data-role="${role}" data-grid="${o.grid ?? 'left'}" data-fitlines data-fitmode="${mode}" data-w="${P(o.w, 'w')}" data-h="${P(o.h, 'h')}"${o.sizes ? ` data-sizes="${sizesOf(o.sizes, 'sizes')}"` : ''}`
       + ` data-lead="${P(lead, 'lead')}" data-track="${P(track, 'track')}" data-max="${P(o.max ?? 5, 'max')}" data-align="${o.align === 'right' ? 'right' : o.align === 'center' ? 'center' : 'left'}" data-capem="${P(o.capEm ?? 0.7, 'capEm')}"`
       + ` data-tt="${P(trim.top, 'trim')}" data-tb="${P(trim.bottom, 'trim')}"${o.stop ? ` data-stop="${o.stop}" data-gap="${P(o.gap ?? 32, 'gap')}"` : ''}${o.anchor === 'bottom' ? ' data-anchor="bottom"' : ''}`
       + `${o.mode ?? ''} style="${css}">${body}</div>`;
@@ -511,7 +524,7 @@ function kitExtras(c, brand, spec) {
   x.fitNumeral = (o) => {
     const D = tokens.type.display, T = tokens.type, num = safe(o.html, 'html'), unit = o.unit === undefined || o.unit === null ? '' : safe(o.unit, 'unit');
     const common = `display:block;white-space:nowrap`;
-    const nSpan = `<span class="abs k-t k-fnum-n" data-role="stat" data-grid="skip" data-bleed="left bottom" style="${common};left:0;top:0;font-family:${c.fontVar('display')};font-size:${P(o.sizes[0], 'size')}px;line-height:1;letter-spacing:${P(o.track ?? -0.05, 'track')}em;font-weight:${P(o.weight ?? D.weight, 'weight')};color:${colour(o.colour ?? 'ink')};font-variant-numeric:lining-nums">${num}</span>`;
+    const nSpan = `<span class="abs k-t k-fnum-n" data-role="stat" data-grid="skip" data-bleed="left bottom" style="${common};left:0;top:0;font-family:${c.fontVar(o.family ?? 'display')};font-size:${P(o.sizes[0], 'size')}px;line-height:1;letter-spacing:${P(o.track ?? -0.05, 'track')}em;font-weight:${P(o.weight ?? D.weight, 'weight')};color:${colour(o.colour ?? 'ink')};font-variant-numeric:lining-nums">${num}</span>`;
     const uSpan = unit ? `<span class="abs k-t k-fnum-u" data-role="sub" data-grid="left" style="left:0;top:0;font-family:${c.fontVar('mono')};font-size:${P(o.unitSize ?? T.body.size, 'unitSize')}px;line-height:${P(o.unitLead ?? T.body.lead / T.body.size, 'unitLead')};font-weight:500;text-transform:uppercase;color:${colour(o.unitColour ?? 'ink')}">${unit}</span>` : '';
     const cols = (o.cols ?? []).map((v) => P(v, 'col')).join(',');
     return `<div class="abs k-fnum" data-el data-fitlines data-fitmode="numeral" data-w="${P(o.right - o.x0, 'w')}" data-h="0" data-x0="${P(o.x0, 'x0')}" data-right="${P(o.right, 'right')}" data-edge="${P(o.edge, 'edge')}" data-bleedem="${P(o.bleed ?? 0.08, 'bleed')}"`

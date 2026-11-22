@@ -50,3 +50,6 @@ export const HOSTILE = [
 ];
 // A post design of a retail composition from its copy (a picture where the composition draws one).
 export const retailSpec = (comp, copy) => ({ template: 'post', kind: comp.id.split('/')[1], variant: Number(comp.id.split('/')[2]), name: 'retail-test', ...copy, ...(comp.fields.includes('image') ? { image: PICS[comp.id.split('/')[1]] } : {}) });
+// MINIMAL as the checks accept it: for two compositions the bare required fields leave an empty area the page checks refuse (the code
+// compositions refuse them too), so these carry the one extra field that fills it. MINIMAL itself is the recorded markup fixtures' copy.
+export const MINIMAL_CHECKED = { ...MINIMAL, 'retail/figure/0': { big: '7 kg', unit: 'per bag', sub: 'One bag, always.' }, 'retail/photo/1': { headline: 'Look', sub: 'Small batches.', tag: 'New' } };

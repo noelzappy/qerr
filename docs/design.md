@@ -955,6 +955,25 @@ headline set by `fitLines` (a headline stacked so that each line fills the measu
 a `cap`; if the words would need a line smaller than the floor, or more lines than the box allows, the render is refused with
 the same kind of character estimate. Nothing is squeezed past these limits, and no check is weakened to make a picture pass.
 
+### Contrast of large display type (`contrast.display`)
+
+On a post (a direction or a look page) the contrast check holds text to a target chosen by its **rendered size**, not by its role alone.
+Text that is at least **64 px** on the 1080 px wide feed canvas (`LARGE_DISPLAY_PX` in `lib/design/checks.mjs`; about 24 CSS px at
+phone size, the large-text threshold of the accessibility standard) at a weight of 400 or more, and whose role is a headline, a
+big figure (`stat`), an accent phrase or a label (a fitted headline and a sticker's words included), is judged against the brand's
+`contrast.display`. The same role set smaller keeps its own target (`contrast.headline` 7:1 for a headline or figure, the body
+target for body roles, `contrast.label`/`accent` as before), so a headline the fit loop shrinks under 64 px must then meet the
+stricter target (`postContrastNeed`).
+
+`contrast.display` is a number from 3 to 7, 4.5 when absent; `validateBrand` refuses anything outside it, so 3:1, the minimum for
+large text, is a floor. It is a brand accessibility setting, not a design setting: a look cannot carry it, and classic layouts and
+every other role are untouched. The palette of a post page (`colour.mjs`) uses it instead of the old hard 7:1: the brand's primary
+colour stays the field as it is whenever the light or the ink reads on it at the target, and is deepened (by the smallest step that
+passes) only when neither does. A composition that sets small body text directly on the field (`bodyOnField`: retail's Stack and
+Seam) needs the stricter of the display target and `contrast.sub` there, so its field is deepened as before; a low-contrast accent
+still never becomes small text. The Settings form needs a control for it ("Contrast for large headlines": Standard 4.5, High 7, or
+a custom value from 3 to 7, with a note under 4.5); the web app does not have it yet.
+
 ### Fonts
 
 The engine ships the families the directions use, under the SIL Open Font License 1.1, with the licence text (`OFL.txt`) in each
@@ -1073,9 +1092,9 @@ a time, and writes only under the repository; `out/` is ignored by git. Look at 
 ## Looks as data: the schema
 
 A design direction (editorial, swiss, retail) is engine code today. A **look** is the same thing written as data, so that it can be
-shown in the panel, copied, edited and checked without a developer. This step is the schema alone: the tables, the validator, the
-catalogue the panel will draw its controls from, and the brief the AI and the post editor will read. **Nothing draws a look yet:**
-the renderer (`directions/interpret.mjs`, the primitives) and the panel come in later steps, and the classic layouts (`layout.mjs`,
+shown in the panel, copied, edited and checked without a developer: the tables, the validator, the catalogue the panel draws its controls
+from, the brief the AI and the post editor read, and the renderer that draws a look (`directions/interpret.mjs`, the primitives). The
+engine's own retail and swiss looks are shipped in this format (`lib/design/looks/*.look.json`), and the classic layouts (`layout.mjs`,
 Settings, Layouts) are untouched. All of it is pure (no Chrome) and lives in `packages/engine/lib/design/`:
 
 | File | What it holds |
@@ -1083,11 +1102,12 @@ Settings, Layouts) are untouched. All of it is pure (no Chrome) and lives in `pa
 | `look.mjs` | the public API: `validateLook`, `validateLooks`, `lookCatalogue`, `lookBrief`, `normaliseLook`, `lookHash`, and the defaults |
 | `look-elements.mjs` | the tables: kinds and fields, fixed lists, limits, the common properties, the element types, the look-level sections |
 | `look-validate.mjs` | `validateLook`: guard pass, descriptor-driven checks, placement, composition rules |
+| `look-desc.mjs` | the descriptor builders and the fixed lists the tables are written with |
 | `look-static.mjs` | the static design checks (they need no picture) |
 
-Two sample looks, written out in the schema from the prototypes' numbers, are the fixtures: `packages/engine/testlib/looks/retail.sample.json`
-(Frame pop, Stack, Mantra, Blocks) and `swiss.sample.json` (Grid photo, Poster, Rows). `test-design-look.mjs` holds them, the catalogue
-and the validator together.
+Two partial sample looks, `packages/engine/testlib/looks/retail.sample.json` (Frame pop, Stack, Mantra, Blocks) and `swiss.sample.json` (Grid photo,
+Poster, Rows), are test fixtures only; the shipped looks are the full ones (see "The shipped looks and the engine's hooks"). `test-design-look.mjs`
+holds the fixtures, the catalogue and the validator together.
 
 **What a look is.** `{ schema: 1, id, name, description, origin, canvas, fonts, type, colour, devices, photo, logo, dials, compositions }`.
 The sections hold numbers in bounds and names from fixed lists: `canvas.feed` (margins, a grid of 1 to 24 columns, a gutter, rows, the
@@ -1115,7 +1135,7 @@ stored. At most 21 compositions, at most 3 of a kind.
 | `mantra-rows` | The first part of the headline repeated as outline rows, the emphasis once, solid |
 | `rows` | One row per list item (or event part): number, tile, alternating fills and turns, rules. One per composition |
 | `photo` | The post's picture: rect, circle, arch, rounded, card or print, with treatments |
-| `seam` | The page cut by a slanted edge (picture or colour above, a page colour below) |
+| `seam` | The page cut by a slanted edge (picture or colour above, a colour role below); items flow in the colour below and one sticker may sit on the edge |
 | `band` | A turned full-width band (wider than the page, so its ends never show) |
 | `sticker` | A circle, pill, tile, stamp or seal carrying a short field or text items |
 | `rule`, `block`, `frame`, `keyline` | Lines, solid blocks, the page frame, a thin outlined box |
@@ -1124,11 +1144,39 @@ stored. At most 21 compositions, at most 3 of a kind.
 | `wordmark-pattern`, `scrim`, `punch-hole` | The brand name as texture, a dark fade behind text over a picture, a punched hole |
 
 Common to most: `place` (exactly one of a grid position, pixels, an anchor, or an inset of the page, margins or frame; a flow child of a
-box has none), `bleed`, `rot` (a named angle or -15 to 15), `skew`, `origin`, `z`, `when` (`{ present }` / `{ absent }`), `fill`, `ink`,
+box has none), `bleed`, `rot` (a named angle or -15 to 15), `origin` or `originPct`, `skew` (a plain block only), `z`, `when` (`{ present }` / `{ absent }`), `fill`, `ink`,
 `shadow`, `ring`, `border`, `pad`, `radius`. Lengths are a bounded number or a token (`margin`, `gutter`, `col`, `frame`, `frame+pad`);
 there is **no arithmetic, no reference between elements and no free string** (only `name`, `describe` and `description` carry text, one line, no
 control characters). A key named `render`, `__proto__`, `constructor` or `prototype` is refused anywhere. `lookCatalogue()` lists every
 element, property, range and fixed list with a label and a line of help in plain words; the validator is driven by the same tables.
+
+**Properties that join others.** Each is a table entry, so it is in the catalogue and refused value by value like the rest; the rules that
+need two properties are listed here.
+
+| Where | Property | Rule |
+|---|---|---|
+| any element that lists it (`box`, `text`, `fitted-stack`, `numeral`, `mantra-rows`, `rows`, `sticker`, `rule`, `block`) | `before` | Whole pixels -40 to 120 of extra space above an item flowing in a box, on top of the box's gap. Like `grow`, `minH`, `w` and `h`, it is refused on an element placed at the top of a composition and on a child that has a place |
+| `place` | `minH` | Whole pixels 0 to 600, with any form of place: the least height of what is placed (a box grows with its content). The static checks take it as the least extent |
+| `place` | `square` | A grid place only. When true the height is the width (a `w` modifier, else the columns); with rows, `alignY: "bottom"` puts it at the foot of its rows, `center` in the middle, otherwise at the top. A square place may not also give `h` |
+| `text` | `track`, `lead`, `font` | Letter spacing in em (-0.1 to 0.3), line height as a multiple of the size (0.8 to 1.6) and which of the look's fonts (`display`, `text`, `label`, `mono`); left out, the style's own |
+| `text` | `weight` | A whole number 100 to 900 that the font of its role lists in `fonts.<role>.weights`: its own `font`, else the style's (display and numeral use `display`, body and item `text`, label `label` or `mono` as `type.label.role` says). Checked only for library fonts, as the type weights are |
+| `text` | `dropWhenTight` | Leaves the text out when the composition's headline sets in three lines or more. At most one text of a composition may set it, and the composition needs another headline `text` (field `headline` or `quote`) or a `fitted-stack` on the headline to measure |
+| `text`, `sticker` | `ladder.maxLines`, `ladder.maxH` | Optional: the page measures the words and takes the largest step at which they take at most `maxLines` lines (1 to 8) and are at most `maxH` pixels tall (40 to 900). The ladder rules (shortest text first, sizes never grow, the last step reaches the field's maximum) still apply |
+| `text`, `numeral`, `glyph` | `textShadow` | `"hard"` (the look's hard shadow, no more needed) or `{ x, y, colour }`: a hard shadow behind the letters, no blur |
+| `fitted-stack` | `maxLines` | 1 to 8; at most 5 in `lines` mode, 6 in `block` mode, up to 8 in `fill` mode |
+| `fitted-stack` | `lead` | Line height 0.78 to 1.2, `lines` mode only; left out, the headline line height of the look. `h` and `minH` are allowed on a block-mode headline in a flow; nothing requires them |
+| `numeral` | `cap`, `min`, `sizes`, `family`, `weight`, `format` | Either both `cap` and `min`, or `sizes` (1 to 8 whole numbers 24 to 900, each smaller than the one before), never both. `family` is `display` (default) or `mono`; `weight` is one the font of that role lists. The least height is `min`, else the last size. `format` is honoured for both fields (`pad2`, `roman` read the first digits; a date format needs `field: meta`, and a meta numeral needs a format) |
+| `sticker` | `w` | A number of pixels 40 to 900, or `"hug"`: as wide as its words, between `minW` and `maxW` |
+| `sticker` | `minW`, `maxW` | Whole pixels 40 to 900, only with `w: "hug"`, `minW` at most `maxW` |
+| `sticker` | `fit` | `{ cap, floor, w?, h?, maxLines? }`: the page sizes the words of the sticker's `field` to fill a box, line by line (`floor` at most `cap`, `maxLines` 1 to 4). Only with a `field`, and never with `ladder` or `textSize` |
+| `sticker` | `w: "hug"` rules | A hugging sticker is a `pill`, carries a `field`, has `fit`, and has a height (`h` or `size`) |
+| `sticker` | `pad` | The space inside it, as for a box |
+| `seam` | `leftY`, `rightY` | `leftY` must be more than `rightY`: the edge rises to the right (the renderer draws only that) |
+| `seam` | `lower` | A colour role the panel can be filled with (the same list as `fill`), not a page colour name. Ink on the seam and on its items is checked against it |
+| `seam` | `edge`, `gap`, `ink` | The thin edge in pixels, the space from the edge's lowest point to the words, and the ink of the items |
+| `seam` | `children` | Items that flow in the colour below the edge, like the flowing children of a box: they take no `place` and no `z`, count as text on the seam's colour (no picture needs to back them) and may use `before`, `w` and the like |
+| `seam` | `sticker` | At most one `sticker` element, given as the seam's own property (not in `children`). It is checked like any sticker and counts as an element, one level below the seam; its `place` is required and is an `anchor` or `px` place measured from the top edge of the split (a negative `top` lifts it above the edge); it takes no `z`. `normaliseLook` fills its defaults and `lookCatalogue()` lists it under the seam's `slots` |
+| `type.display` | `wordSpace` | Extra space between the words of headlines, 0 to 0.2 em (default 0) |
 
 **What `validateLook` refuses** (every message says where, quotes only a short plain value, never echoes other input, and is at most 200
 characters): unknown keys at every level, wrong types, out-of-range numbers, values outside a fixed list, a family not in the font
@@ -1147,3 +1195,127 @@ CSS and runtime hook), never a new kind of value in an existing property.
 (`validateLooks`, ids unique). `normaliseLook` returns a deep-frozen copy with the documented defaults filled and the ids derived; `lookHash` is
 the sha256 of its canonical JSON (a look written with its defaults and one without hash the same); `lookBrief` gives the kinds, variants,
 fields and budgets the AI and the post editor read.
+
+### The renderer: drawing a look from data
+
+`lib/design/directions/interpret.mjs` draws a composition of a look with the kit's builders (`kit.mjs`): `renderComposition(look, comp, c)`
+returns the same `{ html, classes }` a code composition returns. A look is validated first (`validateLook`), normalised (`normaliseLook`) and
+only then drawn; `resolveLook(look, { shipped })` in `directions/index.mjs` does both, memoised by the content of the look (no state per
+brand), and `renderPostWithLook(look, spec, ctx, { shipped })` draws a post with it, refusing an invalid look with "this look cannot be
+drawn" and the validator's problems. `renderPost` uses it when the brand object carries `looks` and `style.direction` names one of them
+(an own look's origin is `copy:...`; only the engine's own shipped looks are `shipped`). A brand file carries `looks` (see "The shipped looks and the engine's hooks").
+
+How the data becomes the page:
+
+| Element | Drawn with | Notes |
+|---|---|---|
+| `box` | `c.box` | flow children get no place of their own (`flow: true`); `align: stretch` is the kit's `align-items: stretch`; `rot` turns the box and holds it straight while fitted lines inside it are measured |
+| `text` | `c.display` (display), `c.body`, `c.label`, `c.type` (item, numeral), `c.run` inside a sticker | `data-role` comes from the field (`headline`/`quote` headline, `big` stat, `sub` sub, `items` item, `label`, `by`, `tag`, `unit` label, `meta` meta, folio, brand) and is never chosen; a ladder becomes the runtime's measured `steps` (the largest step that fits `maxLines` and `maxH`), the characters in a step are only for the editor |
+| `photo` | `c.photo`, `c.print`, a box for card, turn, shadow or ring | treatments from the element or the look; `punch` is a kit class |
+| `sticker` | `c.shape` with fitted or stepped words | `fit` is a fitted tag (`c.fitLines`), `w: "hug"` leaves the shape as wide as its words |
+| `rule`, `block`, `frame`, `keyline`, `glyph` | `c.rule`/`c.flowBlock`, `c.block`/`c.box`, `c.frame`, `c.keyline`, `c.glyph` | |
+| primitives | `directions/primitives/<name>.mjs` | see below |
+
+`place` is resolved to pixel numbers with the look's canvas: grid cells (`col`/`span`, `row`/`rowSpan` with the top label row `head`,
+`alignY`, `square`, `w`/`h`/`dx`/`dy`/`minH` modifiers), pixels, anchors (both sides of an axis give a size), `inset` page, margins or
+frame, and the length tokens `margin`, `gutter`, `col`, `frame`, `frame+pad`. `rot` is a number or a name from `devices.angles`, scaled
+by `dials.tilt`. `data-grid="skip"` is written only for a turned element or one inside a turned box or a shape; a look's own text
+lines (the frame inset, `extraLines`) are what the grid check holds text to. `data-el` index paths come from the kit.
+
+**Tokens from the look** (`directions/look-tokens.mjs`, `tokensFromLook`): the token object the kit and the checks read, from the look's
+canvas, fonts (library families with their fallback stacks and metrics from `design/fonts/library.json`, or the brand's own roles), type
+scale, devices and angles. Font files embedded are the union of the weights the composition's elements use (`fontUsage`), at most the
+files the manifest has. Colours are palette roles (`palette()` with the brand's display contrast target); `colour.logic: one-accent`
+sets the accent as type only where the brand's contrast targets allow (`accentPlan`, as the swiss direction did).
+
+**One stylesheet**: a look's page loads the `kit` sheet only. Its look-wide values reach the page as numeric custom properties on the root
+(`--k-dstretch`, `--k-dcase`, `--k-dword`, `--k-hl-top`, `--k-hl-h`, `--k-hl-pr`, `--k-hl-pl`, `--k-hl-tilt`) and as enum classes
+(`k-look`, `k-em-i`, `k-em-a`, `k-punch`, `k-v-fill`, `k-dfont`). `retail.css` stays for the code oracle until it is deleted.
+
+**Checks apply unchanged**: fit, contrast, enlargement, pixel size and the four post checks run on the same markup. One change: a headline
+pulled left by its first letter's side bearing (`data-optical`) has its ink on the margin, so the fit check lets its box stand that far
+outside the margin.
+
+**Primitives and their parameters** (the tables in each module are the ones the validator and the editor read):
+
+| Primitive | Parameters |
+|---|---|
+| `fitted-stack` | `field`, `mode` (lines, fill, block), `cap`, `floor`, `maxLines`, `gapEm`, `lead`, `valign`, `emphasis`, `emphasisOwnLine`, `trail`, `stretch`, `padBelowEm`, `sizes`, `align` |
+| `numeral` | `field`, `format`, `cap`, `min` or `sizes`, `family`, `weight`, `baselineAt`, `unit` |
+| `mantra-rows` | `field`, `rmin`, `rmax`, `cap`, `floor`, `outline` |
+| `rows` | `each`, `number`, `numberStyle`, `numberSize`, `numberTile`, `numberSpan`, `textStyle`, `textSize`, `textTrack`, `altFill`, `altRot`, `rule`, `ruleEnd`, `sizeByCount`, `firstAccent`, `gap`, `rowMinH`, `valign`, `keys` |
+| `seam` | `leftY`, `rightY`, `edge`, `upper`, `lower`, `edgeFill`, `gap`; children flow in the colour below, optional `sticker` slot |
+| `band` | `y`, `h`, `gap`, `rot`, `origin`, `fill`, `ink`, `pad`, `shadow`; children flow in it |
+| `meta-row` | `tone`; the cells come from `devices.metaRow` |
+| `wordmark-pattern` | `size`, `altItalic`, `fade`, `fadeFrom`, `colour` |
+| `scrim` | `need`, `floor`, `cap`, `fade`, `colour` |
+| `punch-hole` | `size` |
+
+**What the schema grew to draw the two full looks.** Each is a table entry (catalogue, validator, fuzz) with a bounded value and a rule; none is an
+expression, a reference or a free string. A property that validates has an effect: what the renderer does not draw is refused or not in the schema
+(`shrinkFloor`, a photo's `caption` and a box's `skew` were removed; `skew` is drawn on a plain block; `bleed` is refused unless the element is at the top of
+the composition and its place gives left, top, width and height; `origin` and `originPct` need `rot`).
+
+| Where | Property | What it does |
+|---|---|---|
+| any flowing item | `alignSelf` (`start`, `center`, `end`, `stretch`) | how one item lines up across its box, whatever the box says for the others (the offer's column of stamp and sub stretches to the card's height) |
+| any flowing item | `before` -40 to 120, `nudgeX` -120 to 120 | a small negative number pulls an item up; `nudgeX` moves it across |
+| `box`, `sticker` | `originPct` `[x, y]` percentages 0 to 100 | the turning point as percentages (the price tag turns about 30% 50%); `origin` (the nine names) is mapped to the kit's origins; not both |
+| `fitted-stack` | `field` may be `tag` or `big` too | the tag of the swiss offer and the figure of the retail price tag are fitted type (`big` takes the look's numeral tracking) |
+| `fitted-stack` (lines) | `trail`, `stretch` 50 to 150, `padBelowEm` 0 to 0.3, `textShadow` | a negative tracking keeps its trailing space inside the width; the font width of this text; room under each line; a hard shadow |
+| `fitted-stack` | `emphasis: accent` or `italic` | on `fill` and `block` headlines too: the emphasised rows take the accent (`.k-em-a .fb-em`) |
+| `text` | `tiltBar` | a label line set on a bar in the accent colour turned by the look's highlight turn (a quote's source); its padding follows the size |
+| `text` | `follow` | inside a sticker, the text takes the size the composition's headline is set at (the date of a poster follows its headline) |
+| `text` | `format: not-date` | the first part of the meta line, only when it is not a date (the tile's fallback); `format` and `split` are not given together |
+| `sticker` | `stretch` | the font width of the fitted words (84% for the retail stickers); `fit` now needs `h`, and `w` unless the sticker hugs |
+| `glyph` | `stretch` | the font width of the mark |
+| `numeral` | `weight`, `baselineAt: box` with `sizes` | the date numeral in mono 500; its baseline on the foot of its box |
+| `rows` | `valign`, `ruleEnd`, `sizeByCount`, `textTrack`, `numberSpan` with `keys` | words at the top of tall rows; a rule closing the last row; smaller words from so many items on (`[[5, 44]]`: five points are set at 44 px, the number follows); letter spacing of label words; the key labels of an event table in their own columns |
+| `rows` | each row grows only when the rows element has `grow` | a table of natural height no longer collapses |
+| `seam` | `upper: photo` | draws the picture full page behind the slanted field |
+| `devices.highlight` | | the highlight pad of retail is `[0.09, 0.12, 0.04, 0.12]` |
+
+**Dark pages of a one-accent look (swiss).** A page on the dark ground keeps it only when the brand's accent reads on it (`accentPlan`): when it does
+not but reads on paper, the page takes the light ground and every dark-page colour turns into its light-page one (`white` to the ink, `dark` and `field` to
+paper, `on-field` to the ink, `body-dark` and `muted-dark` to the light greys), so the accent logic holds for any brand.
+
+### The shipped looks and the engine's hooks
+
+`shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each: two
+statements, a figure, a list, a quote, two photos, an event and an offer), read once, validated with `{ shipped: true }`, deep frozen. They are the
+data counterpart of the code directions of the same name: retail is held to the code (the same budgets, names and grounds; geometry within 3 px of the
+code compositions in `test-design-look-equivalence.mjs`, with the deviations listed there: the roles of the unit and the date tile, and the wrapping
+highlight bar 0.12 em against 0.13 em); swiss is held to the approved prototype by eye. `test-design-look-retail.mjs` and `test-design-look-swiss.mjs`
+accept no problem at all from the validator. The partial `testlib/looks/*.sample.json` stay as test fixtures.
+
+Where swiss differs from the prototype: the offer has the tag block top right in four columns and three rows with the headline at the foot (the
+three-type-level rule: headline and tag are both fitted type), where the prototype puts the tag block bottom left; headlines are set in balanced lines
+(the prototype leaves them ragged); a list takes three to five items and sets five at 44 px; the list numbers are muted grey where the prototype's are
+the ink; photo/0 accepts a headline of up to 56 characters (else the Bar is used); the empty page the style is made of is declared as `calm` (0.55 to 0.75
+of the page) on the six compositions that can be sparse. The swiss minimal copy (`testlib/swiss-copy.mjs`) and the retail `MINIMAL_CHECKED`
+(`testlib/retail-copy.mjs`) carry the least a post of the kind needs to pass the checks (the code retail refuses the bare fields of the figure and the
+second photo too).
+
+**Hooks (the engine's public names, for the web app and the AI library):**
+
+| Name | Where | What |
+|---|---|---|
+| `shippedLooks()` | `@vesk/engine/design/directions/index` | the frozen shipped looks, raw data `{ retail, swiss }` |
+| `resolveLook(raw, { shipped })` | same | `{ problems }` or `{ problems: [], look (normalised), comps }`, memoised by content, deep frozen |
+| `renderPostWithLook(look, spec, ctx, { shipped })` | same | draws a post with a look written as data; any failure of the kit on a valid look is a `DesignError` |
+| `postKinds(brand)` | same | `{ [kind]: { required, fields: { field: { max, budget? } or { min, max, chars } or {} }, variants: [{ variant, name, describe }] } }` for the brand's direction, a code direction or its own look, the same shape |
+| `lookOfBrand(brand)` | same | the entry of `brand.looks` the direction names, or null |
+| `lookBrief(look)` | same, and `@vesk/engine/design/look` | the kinds, variants, fields and budgets of a raw look |
+| `validateBrand(raw)` | `design/brand.mjs` | validates `brand.looks` (at most `MAX_LOOKS` = 20, each through `validateLook`, problems prefixed `brand.json: looks[i]`, ids unique, origin `copy:...`) and accepts `style.direction` naming a shipped direction or the id of one of the brand's looks |
+| `validateDesign(d, where, { look })` | `design/spec.mjs` | a `post` design held to the kinds, variants and budgets of a data look (`postProblems(d, where, { brief })`); without `look` the direction is looked up among the engine's |
+| `validateLook`, `validateLooks`, `lookCatalogue`, `normaliseLook`, `lookHash`, `MAX_LOOKS` | `design/look.mjs` | as above |
+
+`renderPost` still draws a code direction by its name; a brand look is drawn when the brand object carries it in `looks` and `style.direction` is its id.
+`test-design-security.mjs` holds that a hostile look is refused by `validateBrand`; `test-design-look-hooks.mjs` holds the hooks.
+
+**Drawing a look as a sheet:** `node packages/engine/scripts/direction-sheet.mjs --look packages/engine/lib/design/looks/retail.look.json,packages/engine/lib/design/looks/swiss.look.json
+[--copy sample|stress|minimal] [--brand out/brand-a] [--content file.json] [--out out/lk/x]` draws every composition of the looks, one column per look;
+with `--copy` each composition is drawn from the test copy written for it (`testlib/retail-copy.mjs`, `testlib/swiss-copy.mjs`), without it from the
+content file (the shipped looks are drawn as a brand's own copy). Tests: `test-design-look-render.mjs` (hostile text through every binding, the
+style grammar, class and attribute sets, validation first, no Chrome), `test-design-look-equivalence.mjs` (Chrome: the data version of
+all nine retail compositions against the code oracle within 3 px, and all 18 shipped compositions through every check, from three copies in three sets of colours), `test-design-look-hooks.mjs` (the engine hooks, no Chrome).

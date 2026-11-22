@@ -6,60 +6,260 @@
   "origin": "shipped",
   "canvas": {
     "feed": {
-      "margin": { "top": 56, "right": 56, "bottom": 56, "left": 56 },
-      "grid": { "cols": 6, "gutter": 24, "rows": 0, "head": 0 },
-      "extraLines": [114]
+      "margin": {
+        "top": 56,
+        "right": 56,
+        "bottom": 56,
+        "left": 56
+      },
+      "grid": {
+        "cols": 6,
+        "gutter": 24,
+        "rows": 0,
+        "head": 0
+      },
+      "extraLines": [
+        102,
+        114
+      ]
     }
   },
   "fonts": {
-    "display": { "source": "library", "family": "Archivo", "weights": [900], "stretch": 82 },
-    "text": { "source": "library", "family": "Archivo", "weights": [400, 600] },
-    "label": { "source": "library", "family": "Archivo", "weights": [800] },
-    "mono": { "source": "library", "family": "Archivo", "weights": [400] }
+    "display": {
+      "source": "library",
+      "family": "Archivo",
+      "weights": [
+        900
+      ],
+      "stretch": 82
+    },
+    "text": {
+      "source": "library",
+      "family": "Archivo",
+      "weights": [
+        400,
+        600
+      ]
+    },
+    "label": {
+      "source": "library",
+      "family": "Archivo",
+      "weights": [
+        800
+      ]
+    },
+    "mono": {
+      "source": "library",
+      "family": "Archivo",
+      "weights": [
+        400
+      ]
+    }
   },
   "type": {
-    "display": { "lead": 0.9, "track": -0.025, "weight": 900, "case": "as-typed", "ladder": [1, 0.9, 0.82], "trim": "none", "optical": false },
-    "body": { "size": 36, "lead": 1.222, "weight": 600, "strength": 1 },
-    "item": { "size": 46, "lead": 1.087, "weight": 600 },
-    "label": { "size": 24, "track": 0.1, "weight": 800, "upper": true, "role": "label" },
-    "numeral": { "track": -0.04, "figures": "lining" }
+    "display": {
+      "lead": 0.9,
+      "track": -0.025,
+      "weight": 900,
+      "case": "as-typed",
+      "ladder": [
+        1,
+        0.9,
+        0.82
+      ],
+      "trim": "none",
+      "optical": false,
+      "wordSpace": 0.06
+    },
+    "body": {
+      "size": 36,
+      "lead": 1.2222,
+      "weight": 600,
+      "strength": 1
+    },
+    "item": {
+      "size": 46,
+      "lead": 1.087,
+      "weight": 600
+    },
+    "label": {
+      "size": 24,
+      "track": 0.1,
+      "weight": 800,
+      "upper": true,
+      "role": "label"
+    },
+    "numeral": {
+      "track": -0.04,
+      "figures": "lining"
+    }
   },
-  "colour": { "logic": "field", "field": "primary", "sticker": "accent", "accentAsType": "never", "grounds": ["paper", "field"] },
+  "colour": {
+    "logic": "field",
+    "field": "primary",
+    "sticker": "accent",
+    "accentAsType": "never",
+    "grounds": [
+      "paper",
+      "field"
+    ]
+  },
   "devices": {
-    "rule": { "hair": 1, "heavy": 4 },
-    "frame": { "t": 70, "pad": 44 },
-    "highlight": { "pad": [0.04, 0.13, 0.04, 0.13], "tilt": -1.5 },
-    "shadow": { "x": 14, "y": 14, "colour": "ink" },
-    "angles": { "sticker": -8, "bar": -1.5, "block": -2, "band": -4, "card": 4, "price": -3 },
+    "rule": {
+      "hair": 1,
+      "heavy": 4
+    },
+    "frame": {
+      "t": 70,
+      "pad": 44
+    },
+    "highlight": {
+      "pad": [
+        0.09,
+        0.12,
+        0.04,
+        0.12
+      ],
+      "tilt": -1.5
+    },
+    "shadow": {
+      "x": 14,
+      "y": 14,
+      "colour": "ink"
+    },
+    "angles": {
+      "sticker": -8,
+      "bar": -1.5,
+      "block": -2,
+      "band": -4,
+      "card": 4,
+      "price": -3
+    },
     "folio": "pad2",
-    "wordmark": { "opacity": 0.05, "sep": "dash" }
+    "wordmark": {
+      "opacity": 0.05,
+      "sep": "dash"
+    }
   },
-  "photo": { "treat": ["punch"], "tint": "primary" },
-  "logo": { "default": "off", "height": 44 },
-  "dials": { "tilt": 1, "density": 0, "weightShift": 0 },
+  "photo": {
+    "treat": [
+      "punch"
+    ],
+    "tint": "primary"
+  },
+  "logo": {
+    "default": "off",
+    "height": 44
+  },
+  "dials": {
+    "tilt": 1,
+    "density": 0,
+    "weightShift": 0
+  },
   "compositions": [
     {
       "kind": "photo",
       "name": "Frame pop",
       "describe": "The picture inside a primary frame; a light block turned a little across its foot with a hard shadow, the headline on it with the emphasis on a bar and the sub under it; a round accent sticker with the tag on the top corner.",
       "ground": "paper",
-      "fit": "frame",
-      "fields": { "image": { "required": true }, "headline": { "required": true, "max": 68 }, "sub": { "max": 120 }, "tag": { "max": 16 } },
+      "fit": "margins",
+      "fields": {
+        "image": {
+          "required": true
+        },
+        "headline": {
+          "required": true,
+          "max": 68
+        },
+        "sub": {
+          "max": 120
+        },
+        "tag": {
+          "max": 16
+        }
+      },
       "elements": [
-        { "type": "photo", "place": { "inset": "frame" }, "shape": "rect", "treat": ["punch"] },
-        { "type": "frame" },
         {
-          "type": "box", "place": { "anchor": { "left": "frame", "right": "frame", "bottom": 34 } },
-          "rot": "block", "origin": "left bottom", "fill": "paper", "ink": "ink", "pad": [40, 48, 42, 48], "shadow": "hard", "flow": "column", "gap": 22,
-          "children": [
-            { "type": "text", "field": "headline", "style": "display", "ladder": { "by": "headline", "steps": [[34, 104], [50, 94], [70, 85]] }, "shrinkFloor": 0.82, "emphasis": "own-line-bar" },
-            { "type": "text", "field": "sub", "style": "body", "w": 760, "when": { "present": "sub" } }
+          "type": "photo",
+          "place": {
+            "inset": "frame"
+          },
+          "shape": "rect",
+          "treat": [
+            "punch"
           ]
         },
         {
-          "type": "sticker", "shape": "circle", "size": 250, "place": { "px": { "x": 760, "y": 22 } },
-          "rot": "sticker", "ring": { "w": 6, "colour": "paper" }, "field": "tag",
-          "ladder": { "by": "tag", "steps": [[4, 92], [9, 66], [16, 52]] }, "when": { "present": "tag" }
+          "type": "frame"
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "frame",
+              "right": "frame",
+              "bottom": 34
+            }
+          },
+          "rot": "block",
+          "origin": "left bottom",
+          "fill": "paper",
+          "ink": "ink",
+          "pad": [
+            40,
+            48,
+            42,
+            48
+          ],
+          "shadow": "hard",
+          "flow": "column",
+          "align": "stretch",
+          "gap": 22,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "size": 104,
+              "lead": 0.92,
+              "emphasis": "own-line-bar"
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "w": 760,
+              "when": {
+                "present": "sub"
+              }
+            }
+          ]
+        },
+        {
+          "type": "sticker",
+          "shape": "circle",
+          "size": 250,
+          "place": {
+            "px": {
+              "x": 760,
+              "y": 22
+            }
+          },
+          "rot": "sticker",
+          "ring": {
+            "w": 6,
+            "colour": "paper"
+          },
+          "field": "tag",
+          "fit": {
+            "cap": 92,
+            "floor": 40,
+            "w": 190,
+            "h": 150
+          },
+          "when": {
+            "present": "tag"
+          }
         }
       ]
     },
@@ -69,23 +269,150 @@
       "describe": "A full primary field: the headline stacked edge to edge, every line sized to fill the width in the light colour and centred in the height, the emphasis on a turned highlight bar; a rule, a dot and the brand name at the foot.",
       "ground": "field",
       "fit": "margins",
-      "fields": { "label": { "max": 28 }, "headline": { "required": true, "max": 65 }, "sub": { "max": 110 } },
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 65
+        },
+        "sub": {
+          "max": 110
+        }
+      },
       "elements": [
         {
-          "type": "box", "place": { "inset": "margins" }, "flow": "column", "align": "stretch", "gap": 36, "ink": "on-field",
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": "margin",
+              "bottom": 136
+            }
+          },
+          "flow": "column",
+          "align": "stretch",
+          "gap": 36,
+          "ink": "on-field",
+          "when": {
+            "present": "sub"
+          },
           "children": [
-            { "type": "text", "field": "label", "style": "label", "when": { "present": "label" } },
-            { "type": "fitted-stack", "field": "headline", "mode": "lines", "cap": 230, "floor": 80, "maxLines": 5, "valign": "center", "emphasis": "tilt-bar", "grow": 1 },
-            { "type": "text", "field": "sub", "style": "body", "w": 760, "when": { "present": "sub" } },
-            { "type": "rule", "weight": "heavy", "colour": "on-field" },
             {
-              "type": "box", "flow": "row", "align": "center", "gap": 24,
-              "children": [
-                { "type": "block", "w": 22, "h": 22, "radius": "full", "colour": "gold" },
-                { "type": "text", "source": "brand", "style": "label" }
-              ]
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "when": {
+                "present": "label"
+              }
+            },
+            {
+              "type": "fitted-stack",
+              "field": "headline",
+              "mode": "lines",
+              "cap": 230,
+              "floor": 80,
+              "maxLines": 5,
+              "valign": "center",
+              "emphasis": "tilt-bar",
+              "grow": 1,
+              "w": 960,
+              "lead": 1
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "w": 760,
+              "before": 8
             }
           ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": "margin",
+              "bottom": 136
+            }
+          },
+          "flow": "column",
+          "align": "stretch",
+          "gap": 36,
+          "ink": "on-field",
+          "when": {
+            "absent": "sub"
+          },
+          "children": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "when": {
+                "present": "label"
+              }
+            },
+            {
+              "type": "fitted-stack",
+              "field": "headline",
+              "mode": "lines",
+              "cap": 230,
+              "floor": 80,
+              "maxLines": 5,
+              "valign": "center",
+              "emphasis": "tilt-bar",
+              "grow": 1,
+              "w": 960,
+              "lead": 1
+            }
+          ],
+          "pad": [
+            0,
+            0,
+            12,
+            0
+          ]
+        },
+        {
+          "type": "rule",
+          "weight": "heavy",
+          "colour": "on-field",
+          "place": {
+            "px": {
+              "x": 56,
+              "y": 1242,
+              "w": 968
+            }
+          }
+        },
+        {
+          "type": "block",
+          "radius": "full",
+          "colour": "gold",
+          "place": {
+            "px": {
+              "x": 56,
+              "y": 1270,
+              "w": 22,
+              "h": 22
+            }
+          }
+        },
+        {
+          "type": "text",
+          "source": "brand",
+          "style": "label",
+          "ink": "on-field",
+          "place": {
+            "px": {
+              "x": 102,
+              "y": 1266
+            }
+          }
         }
       ]
     },
@@ -95,16 +422,142 @@
       "describe": "The first part of the headline repeated as outline rows down a primary field, the emphasis phrase once, solid, on a highlight bar in the middle; the sub on a light band with an accent edge at the foot. Needs a first part of at most 22 characters, else the Stack is used.",
       "ground": "field",
       "fit": "margins",
-      "fields": { "headline": { "required": true, "max": 60 }, "sub": { "max": 130 } },
-      "accepts": [{ "field": "headline", "part": "pre", "maxChars": 22 }],
-      "elements": [
-        { "type": "mantra-rows", "field": "headline", "place": { "anchor": { "left": "margin", "right": "margin", "top": 30, "bottom": 56 } }, "cap": 250, "floor": 56, "rmin": 3, "rmax": 7, "outline": 3, "ink": "on-field", "when": { "absent": "sub" } },
-        { "type": "mantra-rows", "field": "headline", "place": { "anchor": { "left": "margin", "right": "margin", "top": 30, "bottom": 250 } }, "cap": 250, "floor": 56, "rmin": 3, "rmax": 7, "outline": 3, "ink": "on-field", "when": { "present": "sub" } },
+      "fields": {
+        "headline": {
+          "required": true,
+          "max": 60
+        },
+        "sub": {
+          "max": 130
+        }
+      },
+      "accepts": [
         {
-          "type": "box", "place": { "anchor": { "left": 0, "bottom": 0, "w": 868 } }, "fill": "paper", "ink": "ink", "flow": "column", "align": "stretch", "pad": [0, 0, 44, 0], "when": { "present": "sub" },
+          "field": "headline",
+          "part": "pre",
+          "maxChars": 22
+        }
+      ],
+      "elements": [
+        {
+          "type": "box",
+          "place": {
+            "inset": "page"
+          },
+          "flow": "column",
+          "when": {
+            "present": "sub"
+          },
           "children": [
-            { "type": "block", "h": 14, "colour": "gold" },
-            { "type": "box", "flow": "column", "pad": [40, 56, 0, 56], "children": [{ "type": "text", "field": "sub", "style": "body", "w": 756 }] }
+            {
+              "type": "box",
+              "flow": "column",
+              "align": "stretch",
+              "grow": 1,
+              "pad": [
+                30,
+                56,
+                0,
+                56
+              ],
+              "children": [
+                {
+                  "type": "mantra-rows",
+                  "field": "headline",
+                  "cap": 250,
+                  "floor": 56,
+                  "rmin": 3,
+                  "rmax": 7,
+                  "outline": 3,
+                  "ink": "on-field",
+                  "grow": 1
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "w": 868,
+              "minH": 210,
+              "fill": "paper",
+              "ink": "ink",
+              "flow": "column",
+              "align": "stretch",
+              "pad": [
+                0,
+                0,
+                56,
+                0
+              ],
+              "before": 40,
+              "children": [
+                {
+                  "type": "block",
+                  "h": 14,
+                  "colour": "gold"
+                },
+                {
+                  "type": "box",
+                  "flow": "column",
+                  "pad": [
+                    40,
+                    56,
+                    0,
+                    56
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "field": "sub",
+                      "style": "body",
+                      "w": 756
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "inset": "page"
+          },
+          "flow": "column",
+          "when": {
+            "absent": "sub"
+          },
+          "children": [
+            {
+              "type": "box",
+              "flow": "column",
+              "align": "stretch",
+              "grow": 1,
+              "pad": [
+                30,
+                56,
+                0,
+                56
+              ],
+              "children": [
+                {
+                  "type": "mantra-rows",
+                  "field": "headline",
+                  "cap": 250,
+                  "floor": 56,
+                  "rmin": 3,
+                  "rmax": 7,
+                  "outline": 3,
+                  "ink": "on-field",
+                  "grow": 1
+                }
+              ]
+            }
+          ],
+          "pad": [
+            0,
+            0,
+            56,
+            0
           ]
         }
       ]
@@ -115,23 +568,112 @@
       "describe": "A primary field with the headline at the top and, under an accent edge, the items as full-width light rows that share the rest of the height, each with a turned accent number block.",
       "ground": "field",
       "fit": "margins",
-      "fields": { "label": { "max": 28 }, "headline": { "required": true, "max": 44 }, "items": { "required": true, "max": 5 } },
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 44
+        },
+        "items": {
+          "required": true,
+          "max": 5
+        }
+      },
       "elements": [
         {
-          "type": "box", "place": { "inset": "page" }, "flow": "column", "align": "stretch",
+          "type": "box",
+          "place": {
+            "inset": "page"
+          },
+          "flow": "column",
+          "align": "stretch",
           "children": [
             {
-              "type": "box", "flow": "column", "gap": 18, "pad": [56, 56, 44, 56],
+              "type": "box",
+              "flow": "column",
+              "gap": 18,
+              "pad": [
+                56,
+                56,
+                44,
+                56
+              ],
               "children": [
-                { "type": "text", "field": "label", "style": "label", "ink": "on-field", "when": { "present": "label" } },
-                { "type": "text", "field": "headline", "style": "display", "ink": "on-field", "emphasis": "bar", "ladder": { "by": "headline", "steps": [[28, 140], [40, 126], [44, 115]] } }
-              ]
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "ink": "on-field",
+                  "when": {
+                    "present": "label"
+                  }
+                },
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "ink": "on-field",
+                  "emphasis": "own-line-bar",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        28,
+                        140
+                      ],
+                      [
+                        40,
+                        126
+                      ],
+                      [
+                        44,
+                        115
+                      ]
+                    ],
+                    "maxH": 350
+                  }
+                }
+              ],
+              "align": "stretch"
             },
-            { "type": "block", "h": 14, "colour": "gold" },
             {
-              "type": "rows", "each": "items", "number": "1", "numberStyle": "display", "numberSize": 46,
-              "numberTile": { "size": 88, "fill": "gold", "ink": "on-accent", "shadow": true },
-              "textStyle": "item", "altFill": ["paper", "light-tint"], "altRot": [-4, 3], "gap": 36, "pad": [0, 56, 0, 56], "rowMinH": 150, "ink": "ink", "grow": 1
+              "type": "block",
+              "h": 14,
+              "colour": "gold"
+            },
+            {
+              "type": "rows",
+              "each": "items",
+              "number": "1",
+              "numberStyle": "display",
+              "numberSize": 46,
+              "numberTile": {
+                "size": 88,
+                "fill": "gold",
+                "ink": "on-accent",
+                "shadow": 6
+              },
+              "textStyle": "item",
+              "altFill": [
+                "paper",
+                "light-tint"
+              ],
+              "altRot": [
+                -4,
+                3
+              ],
+              "gap": 36,
+              "pad": [
+                0,
+                56,
+                0,
+                56
+              ],
+              "rowMinH": 150,
+              "ink": "ink",
+              "grow": 1
             }
           ]
         }

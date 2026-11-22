@@ -106,9 +106,9 @@ export function check(desc, v, path, ctx, errs) {
       return;
     }
     case 'oneOf': {
-      const is = typeof v === 'number' ? 'number' : typeof v === 'string' ? 'string' : Array.isArray(v) ? 'array' : isObj(v) ? 'object' : null;
+      const is = typeof v === 'number' ? 'number' : typeof v === 'string' ? 'string' : typeof v === 'boolean' ? 'boolean' : Array.isArray(v) ? 'array' : isObj(v) ? 'object' : null;
       const form = desc.forms.find((f) => f.is === is);
-      if (!form) return bad(`must be ${desc.forms.map((f) => `${f.is === 'array' ? 'a list' : `a ${f.is}`}`).join(' or ')}`);
+      if (!form) return bad(`must be ${desc.forms.map((f) => `${f.is === 'array' ? 'a list' : f.is === 'boolean' ? 'true or false' : `a ${f.is}`}`).join(' or ')}`);
       check(form.desc, v, path, ctx, errs);
       return;
     }
@@ -139,7 +139,7 @@ export function checkWhen(v, path, ctx, errs) {
 function checkPlace(v, path, ctx, errs, { child }) {
   if (!isObj(v)) return push(errs, ctx, path, 'must be an object with exactly one of grid, px, anchor or inset');
   const keys = Object.keys(v), forms = keys.filter((k) => hasOwn(PLACE_FORMS, k)), mods = keys.filter((k) => hasOwn(PLACE_MODIFIERS, k));
-  for (const k of keys) if (!hasOwn(PLACE_FORMS, k) && !hasOwn(PLACE_MODIFIERS, k)) push(errs, ctx, path, `${safeKey(k)} is not part of a place (use one of ${list(Object.keys(PLACE_FORMS))}; w, h, dx, dy go with a grid place)`);
+  for (const k of keys) if (!hasOwn(PLACE_FORMS, k) && !hasOwn(PLACE_MODIFIERS, k)) push(errs, ctx, path, `${safeKey(k)} is not part of a place (use one of ${list(Object.keys(PLACE_FORMS))}; w, h, dx, dy, square go with a grid place; minH goes with any)`);
   if (forms.length !== 1) return push(errs, ctx, path, `needs exactly one form: ${list(Object.keys(PLACE_FORMS))}`);
   const form = forms[0];
   if (child && !['px', 'anchor'].includes(form)) return push(errs, ctx, path, 'inside a box is placed with px or anchor (relative to the box), or left out to flow');
@@ -148,9 +148,11 @@ function checkPlace(v, path, ctx, errs, { child }) {
   for (const k of mods) {
     if ((k === 'w' || k === 'h') && form !== 'grid') push(errs, ctx, path, `${k} goes with a grid place only (an anchor or px place has its own ${k})`);
     else if ((k === 'dx' || k === 'dy') && !['grid', 'anchor'].includes(form)) push(errs, ctx, path, `${k} goes with a grid or anchor place only`);
+    else if (k === 'square' && form !== 'grid') push(errs, ctx, path, 'square goes with a grid place only');
     else check(PLACE_MODIFIERS[k], v[k], `${path}.${k}`, ctx, errs);
   }
   if (errs.length > before) return;
+  if (v.square === true && v.h !== undefined) push(errs, ctx, path, 'gives square and h; a square place is as tall as it is wide');
   const p = v[form];
   if (form === 'anchor') {
     if (!Object.keys(p).length) push(errs, ctx, `${path}.anchor`, 'needs at least one of left, right, top, bottom, w, h');
@@ -188,6 +190,13 @@ function ladderProblems(l, path, ctx, errs, style) {
 
 const NEEDS_OWN = (type) => REQUIRED_OWN[type] ?? [];
 
+// The font role a text is set in: its own font, else its style's (labels follow type.label.role; numerals use the display font).
+const textFontRole = (el, look) => {
+  if (el.font !== undefined) return el.font;
+  const style = styleOf(el);
+  return style === 'display' || style === 'numeral' ? 'display' : style === 'label' ? (look?.type?.label?.role === 'mono' ? 'mono' : 'label') : 'text';
+};
+
 function typeRules(el, path, ctx, errs) {
   const bad = (t, sub) => push(errs, ctx, sub ? `${path}.${sub}` : path, t);
   const t = el.type;
@@ -201,13 +210,28 @@ function typeRules(el, path, ctx, errs) {
     if (el.part !== undefined && el.part !== 'all' && el.source !== undefined) bad('cannot split a source', 'part');
     if (el.split !== undefined && !['meta', 'by', 'label'].includes(el.field)) bad('splits a one-line field: meta, by or label', 'split');
     if (el.format !== undefined) {
-      const date = ['date-dd.mm', 'day', 'month'].includes(el.format);
+      const date = ['date-dd.mm', 'day', 'month', 'not-date'].includes(el.format);
       if (date && el.field !== 'meta') bad('reads a date from the meta field', 'format');
       if (!date && !(el.source === 'index' || el.source === 'folio' || el.field === 'big')) bad('numbers a source (index or folio) or the big field', 'format');
     }
     if (el.vertical !== undefined && el.rot !== undefined) bad('is turned up or down already; leave out rot', 'vertical');
+    if (el.split !== undefined && el.format !== undefined) bad('reads its part by itself (a date format) or splits a line; use one', 'format');
+    if (el.tiltBar === true) {
+      if (style !== 'label') bad('is for a label line', 'tiltBar');
+      if (el.place !== undefined) bad('sets a flowing line on a bar; leave out place', 'tiltBar');
+      if (el.vertical !== undefined || (el.emphasis !== undefined && el.emphasis !== 'none')) bad('cannot go with vertical or emphasis', 'tiltBar');
+    }
+    if (Number.isFinite(el.weight)) {
+      const role = textFontRole(el, ctx.look), fonts = isObj(ctx.look?.fonts) ? ctx.look.fonts : {}, f = fonts[role] ?? (role === 'mono' ? fonts.label : undefined);
+      if (isObj(f) && f.source === 'library' && Array.isArray(f.weights) && !f.weights.includes(el.weight)) bad(`is ${el.weight}, which fonts.${role}.weights does not list (${list(f.weights)}); add it there`, 'weight');
+    }
   }
+  if (t === 'block' && el.skew !== undefined && el.skew !== 0 && (el.radius !== undefined || el.shadow !== undefined || el.place === undefined)) bad('is drawn only on a plain block with a place, with no rounded corners and no shadow', 'skew');
+  if (el.origin !== undefined && el.originPct !== undefined) bad('gives origin and originPct; use one', 'originPct');
+  if ((el.origin !== undefined || el.originPct !== undefined) && el.rot === undefined) bad('is the point it turns about, so it needs rot', el.origin !== undefined ? 'origin' : 'originPct');
   if (t === 'fitted-stack') {
+    if (el.mode !== 'lines') for (const k of ['trail', 'stretch', 'padBelowEm', 'textShadow']) if (el[k] !== undefined) bad('is for lines mode', k);
+    if (['big', 'tag'].includes(el.field) && el.emphasis !== undefined && el.emphasis !== 'none') bad('a figure or tag has no emphasised phrase', 'emphasis');
     if (el.mode === 'block') {
       if (el.sizes === undefined) bad('needs sizes in block mode', 'sizes');
       else if (Array.isArray(el.sizes)) for (let i = 1; i < el.sizes.length; i++) if (el.sizes[i] >= el.sizes[i - 1]) { bad('must go from the largest down', 'sizes'); break; }
@@ -217,23 +241,44 @@ function typeRules(el, path, ctx, errs) {
       else if (el.floor > el.cap) bad('is above the largest size', 'floor');
       if (el.sizes !== undefined) bad('sizes are for block mode', 'sizes');
     }
+    if (Number.isFinite(el.maxLines) && el.maxLines > (el.mode === 'block' ? 6 : 5) && el.mode !== 'fill') bad('is at most 5 in lines mode and 6 in block mode (fill mode takes up to 8)', 'maxLines');
+    if (el.lead !== undefined && el.mode !== 'lines') bad('is for lines mode', 'lead');
   }
-  if (t === 'numeral') { if (Number.isFinite(el.min) && Number.isFinite(el.cap) && el.min > el.cap) bad('is above the largest size', 'min'); }
+  if (t === 'numeral') {
+    if (el.sizes !== undefined) {
+      if (el.cap !== undefined || el.min !== undefined) bad('gives sizes and cap or min; use one');
+      else if (Array.isArray(el.sizes)) for (let i = 1; i < el.sizes.length; i++) if (el.sizes[i] >= el.sizes[i - 1]) { bad('must go from the largest down', 'sizes'); break; }
+    } else if (el.cap === undefined || el.min === undefined) bad('needs cap and min, or sizes');
+    if (Number.isFinite(el.min) && Number.isFinite(el.cap) && el.min > el.cap) bad('is above the largest size', 'min');
+    if ((el.field ?? 'big') === 'meta' && el.format === undefined) bad('reading a date from the meta field needs a format', 'format');
+    if (Number.isFinite(el.weight)) {
+      const role = el.family ?? 'display', fonts = isObj(ctx.look?.fonts) ? ctx.look.fonts : {}, f = fonts[role] ?? (role === 'mono' ? fonts.label : undefined);
+      if (isObj(f) && f.source === 'library' && Array.isArray(f.weights) && !f.weights.includes(el.weight)) bad(`is ${el.weight}, which fonts.${role}.weights does not list (${list(f.weights)}); add it there`, 'weight');
+    }
+    if (el.format !== undefined) {
+      const date = ['date-dd.mm', 'day', 'month', 'not-date'].includes(el.format);
+      if (date && (el.field ?? 'big') !== 'meta') bad('reads a date from the meta field', 'format');
+    }
+  }
   if (t === 'mantra-rows') {
     if (Number.isFinite(el.floor) && Number.isFinite(el.cap) && el.floor > el.cap) bad('is above the largest size', 'floor');
     if (Number.isFinite(el.rmin) && Number.isFinite(el.rmax) && el.rmin > el.rmax) bad('is more than rmax', 'rmin');
   }
   if (t === 'rows') {
+    if (el.textTrack !== undefined && el.textStyle !== 'label') bad('is for the label style', 'textTrack');
+    if (el.numberSpan !== undefined && el.number === 'none' && el.keys === undefined) bad('needs numbering or row labels (keys)', 'numberSpan');
+    if (el.sizeByCount !== undefined && el.each !== 'items') bad('is for the items of a list', 'sizeByCount');
+    if (el.sizeByCount !== undefined && Array.isArray(el.sizeByCount)) for (let i = 1; i < el.sizeByCount.length; i++) if (!(el.sizeByCount[i][0] > el.sizeByCount[i - 1][0]) || el.sizeByCount[i][1] > el.sizeByCount[i - 1][1]) { bad('must list the fewest items first, each step with more items and a smaller size than the one before', 'sizeByCount'); break; }
+    if (el.ruleEnd === true && (el.rule === undefined || el.rule === 'none')) bad('closes the rows with a rule, so it needs rule above each row', 'ruleEnd');
     if (el.keys !== undefined && el.each !== 'meta-parts') bad('labels the rows of an event table (each: meta-parts)', 'keys');
     if (el.numberTile !== undefined && el.number === 'none') bad('needs numbering', 'numberTile');
     if (el.numberStyle !== undefined && (el.number === undefined || el.number === 'none') && el.numberTile === undefined) bad('needs numbering', 'numberStyle');
   }
   if (t === 'photo') {
     if (el.border !== undefined && !['print', 'card'].includes(el.shape)) bad('is the mount of a print or a card', 'border');
-    if (el.caption !== undefined && el.caption !== 'none' && el.shape !== 'print') bad('goes under a print', 'caption');
     if (el.radius !== undefined && el.shape !== 'rounded') bad('rounds a rounded picture', 'radius');
   }
-  if (t === 'seam') { if (el.leftY === el.rightY) bad('is level; a slanted split needs different heights'); }
+  if (t === 'seam' && !(el.leftY > el.rightY)) bad('must be more than rightY: the edge rises to the right', 'leftY');
   if (t === 'sticker') {
     const hasKids = Array.isArray(el.children) && el.children.length > 0;
     if (el.field !== undefined && hasKids) bad('gives a field and text items; use one');
@@ -246,6 +291,24 @@ function typeRules(el, path, ctx, errs) {
     if (shape === 'pill' && el.size === undefined && el.w === undefined) bad('needs a width (w) or a size');
     if (shape === 'tile' && el.size === undefined && (el.w === undefined || el.h === undefined)) bad('needs a size, or w and h');
     if (el.field !== undefined && Number.isFinite(el.textSize) && (el.textSize < SIZE_RANGE.display[0] || el.textSize > 400)) bad('is out of range', 'textSize');
+    const hug = el.w === 'hug';
+    for (const k of ['minW', 'maxW']) if (el[k] !== undefined && !hug) bad('goes with w "hug" only', k);
+    if (hug) {
+      if (Number.isFinite(el.minW) && Number.isFinite(el.maxW) && el.minW > el.maxW) bad('is above maxW', 'minW');
+      if (shape !== 'pill') bad('a hugging sticker is a pill', 'w');
+      if (el.field === undefined) bad('a hugging sticker carries a field', 'w');
+      if (el.fit === undefined) bad('a hugging sticker needs fit (cap and floor)', 'w');
+      if (el.h === undefined && el.size === undefined) bad('a hugging sticker needs a height (h) or a size');
+    }
+    if (el.stretch !== undefined && el.fit === undefined) bad('goes with fit (it is the width of the fitted words)', 'stretch');
+    if (el.fit !== undefined && isObj(el.fit)) {
+      if (el.fit.h === undefined) bad('needs h, the height of the box the words fill', 'fit');
+      if (el.fit.w === undefined && !hug) bad('needs w, the width of the box the words fill (a hugging sticker takes its width from its words)', 'fit');
+      if (el.field === undefined) bad('sizes the words of a field; give it a field', 'fit');
+      if (el.ladder !== undefined) bad('gives fit and a ladder; use one', 'fit');
+      if (el.textSize !== undefined) bad('gives fit and a text size; use one', 'fit');
+      if (Number.isFinite(el.fit.floor) && Number.isFinite(el.fit.cap) && el.fit.floor > el.fit.cap) bad('is above the largest size', 'fit.floor');
+    }
   }
   if (t === 'scrim' && Number.isFinite(el.floor) && Number.isFinite(el.cap) && el.floor > el.cap) bad('is above the most strength', 'floor');
   if (t === 'wordmark-pattern' && el.fadeFrom !== undefined && !el.fade) bad('needs fade', 'fadeFrom');
@@ -254,25 +317,27 @@ function typeRules(el, path, ctx, errs) {
 
 const FILL_ROLES_HELP = 'a colour a panel can be filled with';
 
-function element(el, path, ctx, errs, st, parent, depth, comp) {
+function element(el, path, ctx, errs, st, parent, depth, comp, slot = false) {
   if (!isObj(el)) return push(errs, ctx, path, 'must be an object like { "type": "text", ... }');
   if (typeof el.type !== 'string' || !hasOwn(ELEMENTS, el.type)) return push(errs, ctx, path, `type must be one of ${list(ELEMENT_TYPES)} (got ${show(el.type)})`);
   if (depth > LIMITS.depth) { if (!st.deep) push(errs, ctx, path, `is nested more than ${LIMITS.depth} levels deep`); st.deep = true; return; }
   if (st.nodes.length >= LIMITS.nodes) { if (!st.over) push(errs, ctx, path, `is element ${st.nodes.length + 1}; a composition has at most ${LIMITS.nodes}`); st.over = true; return; }
-  const spec = ELEMENTS[el.type], node = { el, path, parent, depth, order: st.nodes.length, type: el.type }, mark = errs.length;
+  const spec = ELEMENTS[el.type], node = { el, path, parent, depth, order: st.nodes.length, type: el.type, slot }, mark = errs.length;
   st.nodes.push(node);
   const isChild = parent !== null;
   const known = keysOf(el.type);
   unknownKeys(el, known, path, ctx, errs, `of a ${el.type}`);
   for (const k of NEEDS_OWN(el.type)) if (el[k] === undefined) push(errs, ctx, path, `a ${el.type} needs ${k}`);
   for (const k of Object.keys(el)) {
-    if (k === 'type' || k === 'children' || !known.includes(k) || el[k] === undefined) continue;
+    if (k === 'type' || k === 'children' || k === 'sticker' || !known.includes(k) || el[k] === undefined) continue;
     const kp = `${path}.${k}`;
     if (k === 'place') { checkPlace(el.place, kp, ctx, errs, { child: isChild }); continue; }
     check(descriptorOf(el.type, k), el[k], kp, ctx, errs);
   }
   // fill and ink are palette roles, and a fill is a colour a panel can have
   if (el.fill !== undefined && typeof el.fill === 'string' && COLOUR_NAMES.includes(el.fill) && !ctx.fillRoles.includes(el.fill)) push(errs, ctx, `${path}.fill`, `must be ${FILL_ROLES_HELP} (${list(ctx.fillRoles)})`);
+  // a seam's colour is a fill role
+  if (el.type === 'seam' && typeof el.lower === 'string' && COLOUR_NAMES.includes(el.lower) && !ctx.fillRoles.includes(el.lower)) push(errs, ctx, `${path}.lower`, `must be ${FILL_ROLES_HELP} (${list(ctx.fillRoles)})`);
   // placement
   const hasPlace = el.place !== undefined;
   if (spec.placement === 'none') {
@@ -282,11 +347,13 @@ function element(el, path, ctx, errs, st, parent, depth, comp) {
     if (!hasPlace) push(errs, ctx, path, `needs a place (grid, px, anchor or inset)`);
     for (const k of FLOW_ONLY) if (el[k] !== undefined && spec.common.includes(k)) push(errs, ctx, `${path}.${k}`, 'is for an item flowing in a box; use place at the top of a composition');
   } else if (!hasPlace) {
-    if (!spec.flow) push(errs, ctx, path, `a ${el.type} cannot flow in a box; give it a place (px or anchor, relative to the box)`);
+    if (slot) push(errs, ctx, path, 'the sticker of a seam needs a place (anchor or px, relative to the top edge of the seam)');
+    else if (!spec.flow) push(errs, ctx, path, `a ${el.type} cannot flow in a box; give it a place (px or anchor, relative to the box)`);
   } else {
+    if (isChild && !slot && parent.type === 'seam') push(errs, ctx, path, 'an item of a seam flows in the colour below the edge and takes no place');
     for (const k of FLOW_ONLY) if (el[k] !== undefined && spec.common.includes(k)) push(errs, ctx, `${path}.${k}`, 'is for an item that flows; this one has a place');
   }
-  if (isChild && el.z !== undefined) push(errs, ctx, `${path}.z`, 'is for the top of a composition; inside a box the order is the list\'s');
+  if (isChild && el.z !== undefined) push(errs, ctx, `${path}.z`, slot ? 'a seam\'s sticker takes no layer' : 'is for the top of a composition; inside a box the order is the list\'s');
   if (errs.length === mark) typeRules(el, path, ctx, errs);
   // children
   if (el.children !== undefined) {
@@ -299,6 +366,13 @@ function element(el, path, ctx, errs, st, parent, depth, comp) {
         element(c, `${path}.children[${i}]`, ctx, errs, st, node, depth + 1, comp);
       });
     }
+  }
+  // the one sticker a seam may hold, on its edge
+  if (el.sticker !== undefined && known.includes('sticker')) {
+    const s = el.sticker;
+    if (!isObj(s)) push(errs, ctx, `${path}.sticker`, 'must be a sticker element like { "type": "sticker", ... }');
+    else if (s.type !== 'sticker') push(errs, ctx, `${path}.sticker`, 'must be an element of type sticker');
+    else element(s, `${path}.sticker`, ctx, errs, st, node, depth + 1, comp, true);
   }
   return node;
 }
@@ -405,6 +479,16 @@ function compositionProblems(c, i, ctx, errs) {
     const n = st.nodes.filter((x) => x.type === t);
     if (n.length > 1) push(errs, ctx, n[1].path, `a composition has at most one ${t}`);
   }
+  for (const n of st.nodes.filter((x) => x.type === 'text' && x.el.follow === true)) {
+    let inSticker = false;
+    for (let a = n.parent; a; a = a.parent) if (a.type === 'sticker') inSticker = true;
+    if (!inSticker) push(errs, ctx, `${n.path}.follow`, 'is drawn for text inside a sticker (a date numeral on a tile); put it there');
+  }
+  const droppers = st.nodes.filter((x) => x.type === 'text' && x.el.dropWhenTight === true);
+  if (droppers.length > 1) push(errs, ctx, `${droppers[1].path}.dropWhenTight`, 'at most one element of a composition may leave itself out when tight');
+  const measures = (x) => (x.type === 'fitted-stack' && (x.el.field ?? 'headline') === 'headline') || (x.type === 'text' && ['headline', 'quote'].includes(x.el.field) && x.el.dropWhenTight !== true);
+  if (st.nodes.some((x) => x.type === 'text' && x.el.follow === true) && !st.nodes.some(measures)) push(errs, ctx, `${st.nodes.find((x) => x.type === 'text' && x.el.follow === true).path}.follow`, 'needs a headline text or a fitted headline in the composition to follow');
+  if (droppers.length && !st.nodes.some(measures)) push(errs, ctx, `${droppers[0].path}.dropWhenTight`, 'needs a headline text or a fitted headline in the composition to measure');
   if (errs.length === before) compositionStaticChecks(c, st.nodes, cctx, path, errs, push);
 }
 

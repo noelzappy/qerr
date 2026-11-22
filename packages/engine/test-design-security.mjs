@@ -14,6 +14,7 @@ import { focalToCss, validateDesign } from './lib/design/spec.mjs';
 import { TEMPLATE_FNS } from './lib/design/builtin-layouts.mjs';
 import { esc, fmt, fmtE } from './design/templates/common.mjs';
 import { pngBytes } from './testlib/png.mjs';
+import { renderPostWithLook } from './lib/design/directions/index.mjs';
 
 // The silk ribbon is the website's artwork (ignored by git); a stand-in keeps these tests independent of it.
 const brand = { ...loadBrand(), silkSrc: 'data:image/png;base64,iVBORw0KGgo=' };
@@ -217,4 +218,57 @@ test('generated pages: strict Content-Security-Policy first in the head, no remo
   const nonce = csp.match(/nonce-([^']+)/)[1];
   assert.ok(html.includes(`<script nonce="${nonce}">`));
   assert.notEqual(buildPage({ brand, size: S, ...t }).match(/nonce-([^']+)/)[1], nonce); // a fresh nonce per page
+});
+
+test('looks: hostile text in every field and the brand name never puts a script, a handler or a javascript: URL into a tag of a post drawn by a look', () => {
+  // (the interpreter's own tests, with the grammar of every tag, attribute, class and style, are in test-design-look-render.mjs)
+  const look = (f) => JSON.parse(fs.readFileSync(path.join(ENGINE_DIR, 'testlib', 'looks', f), 'utf8'));
+  const FIELDS = ['label', 'headline', 'sub', 'big', 'unit', 'quote', 'by', 'meta', 'tag'];
+  let drawn = 0;
+  for (const l of [look('retail.sample.json'), look('swiss.sample.json')]) {
+    const per = {};
+    for (const cp of l.compositions) {
+      const variant = per[cp.kind] = (per[cp.kind] ?? -1) + 1;
+      for (const h of HOSTILE) {
+        const spec = { template: 'post', kind: cp.kind, variant, name: 'looks-security', ...Object.fromEntries(FIELDS.map((f) => [f, h])), items: [h, h], image: 'design/assets/demo/object-jar.jpg' };
+        let r;
+        try { r = renderPostWithLook(l, spec, { size: SIZES.feed, brand: { ...brand, name: h }, image: () => PIXEL, imageSize: () => ({ w: 100, h: 100 }) }, { shipped: true }); } catch (e) { assert.match(e.message, /can draw these words/); continue; }
+        // the tags only (the words are text there, and may say anything): no script, no handler, no javascript: and no raw angle bracket left in the text
+        const tags = [...r.body.matchAll(/<[^>]*>/g)].map((t) => t[0]);
+        assert.ok(!tags.some((t) => /<\/?script|onerror|onload|javascript:/i.test(t)), `${l.id} ${cp.kind}/${variant}: ${h}`);
+        assert.ok(!/[<>]/.test(r.body.replace(/<[^>]*>/g, '')), `${l.id} ${cp.kind}/${variant}: ${h}`);
+        assert.deepEqual(tags.flatMap((t) => [...t.matchAll(/\s(on[a-z]+)=/gi)].map((m) => m[1])), [], `${l.id} ${cp.kind}/${variant}: ${h}`);
+        drawn++;
+      }
+    }
+  }
+  assert.equal(drawn, 7 * HOSTILE.length, 'the 4 retail and 3 swiss compositions, each from every hostile text'); // (a composition that declines the words falls to the next of its kind, so all are drawn)
+});
+
+// A brand file is untrusted data: a look it carries (brand.looks) is checked by validateBrand like every other part, so a hostile or invalid look never
+// reaches the renderer through a brand.
+test('a brand carrying a hostile or invalid look is refused by validateBrand', async () => {
+  const { shippedLooks } = await import('./lib/design/directions/index.mjs');
+  const raw = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
+  const own = { ...structuredClone(shippedLooks().retail), id: 'my-retail', origin: 'copy:shipped:retail' };
+  assert.deepEqual(validateBrand({ ...raw, looks: [own], style: { ...raw.style, direction: 'my-retail' } }), [], 'a valid copy of a shipped look is accepted');
+  const hostile = [
+    ['a render key', (l) => { l.render = 'process.exit(1)'; }],
+    ['__proto__', (l) => { Object.defineProperty(l, '__proto__', { value: { x: 1 }, enumerable: true }); }],
+    ['a hex colour where a role goes', (l) => { l.compositions[0].elements[0].fill = '#ff0000'; }],
+    ['a style payload in a number', (l) => { l.canvas.feed.margin.top = 'red;background:url(//evil.example/x)'; }],
+    ['a script URL in a font family', (l) => { l.fonts.display.family = 'javascript:alert(1)'; }],
+    ['the shipped origin', (l) => { l.origin = 'shipped'; }],
+    ['a composition nested far too deep', (l) => { let n = l.compositions[0].elements[0]; for (let i = 0; i < 30; i++) { n.children = [{ type: 'box', flow: 'column' }]; n = n.children[0]; } }],
+  ];
+  for (const [what, edit] of hostile) {
+    const l = structuredClone(own);
+    edit(l);
+    const errs = validateBrand({ ...raw, looks: [l], style: { ...raw.style, direction: 'my-retail' } });
+    assert.ok(errs.length > 0, `${what}: refused`);
+    assert.ok(errs.every((e) => e.startsWith('brand.json: ') && e.length <= 220), `${what}: ${errs[0]}`);
+    assert.ok(!errs.join(' ').includes('evil.example') && !errs.join(' ').includes('onerror'), `${what}: the payload is not echoed`);
+  }
+  assert.ok(validateBrand({ ...raw, looks: Array.from({ length: 21 }, (_, i) => ({ ...own, id: `l${i}` })) }).length > 0, 'more than the most looks');
+  assert.ok(validateBrand({ ...raw, style: { ...raw.style, direction: 'nope' } }).some((e) => /direction/.test(e)), 'a direction that names nothing');
 });

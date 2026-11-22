@@ -6,16 +6,23 @@
 //
 //   node packages/engine/scripts/direction-sheet.mjs [--content file.json] [--brand brands/demo] [--directions editorial,swiss,retail]
 //        [--kinds statement,figure] [--variants all|0|0,1] [--name "Brand name"] [--out out/directions] [--thumb 400]
+//        [--look file.json[,file2.json]] [--copy sample|stress|minimal] [--copy-lib testlib/retail-copy.mjs,testlib/swiss-copy.mjs]
 //
 // --content: { brandName?, designs: [ { template: "post", kind, ...fields } ] } (default testlib/direction-sample.json: a fictional
 //   coffee roaster, one design per kind, the synthetic demo pictures). The same design is drawn in every direction.
 // --brand: the brand pack (default brands/demo, or BRAND_DIR). Its colours, logo and photo treatment are used as they are; only the
 //   direction changes from column to column. --name replaces the brand's name for the sheet (the content file's brandName does too).
+// --look: draw looks written as data (testlib/looks/*.sample.json, or a look you wrote) instead of the code directions: one column per look,
+//   the look's own compositions (variants), validated first; a shipped look (origin "shipped") is drawn as a copy in the brand. Use --directions
+//   as well to put code directions beside them.
+// --copy: with --look, draw each look's compositions from the test copy written for each of them (--copy-lib: modules exporting NORMAL,
+//   STRESS and MINIMAL, objects keyed "<look id>/<kind>/<variant>"; default: the retail and swiss ones of testlib/): sample (NORMAL), stress (the longest
+//   copy that holds) or minimal (the least a post of the kind needs). Without --copy the content file is used for every column.
 // --variants: which variants of each kind to draw (default all: every variant any direction has; a direction without it shows a gap).
 // Pictures named in a design are read from the repository (checked as ever); nothing is sent anywhere.
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ROOT } from '../lib/core.mjs';
 
 const args = process.argv.slice(2);
@@ -35,11 +42,31 @@ const { Browser, NO_CHROME, findChrome } = await import('../lib/design/chrome.mj
 const { renderImage } = await import('../lib/design/render.mjs');
 const { normaliseDesign, validateDesign } = await import('../lib/design/spec.mjs');
 const { DIRECTIONS } = await import('../lib/design/tokens.mjs');
-const { compositionsFor } = await import('../lib/design/directions/index.mjs');
+const { compositionsFor: codeCompositionsFor, resolveLook } = await import('../lib/design/directions/index.mjs');
 const { esc } = await import('../design/templates/common.mjs');
+const { PICS } = await import('../testlib/retail-copy.mjs');
 
 const content = JSON.parse(fs.readFileSync(contentFile, 'utf8'));
-const directions = (opt('directions', DIRECTIONS.join(',')) ?? '').split(',').filter((d) => DIRECTIONS.includes(d));
+// the test copy written for each composition of a look (--copy)
+const copyName = opt('copy');
+const COPY = {};
+if (copyName) {
+  if (!['sample', 'stress', 'minimal'].includes(copyName)) { console.error('--copy must be sample, stress or minimal'); process.exit(2); }
+  for (const f of (opt('copy-lib', 'testlib/retail-copy.mjs,testlib/swiss-copy.mjs')).split(',').filter(Boolean)) {
+    const m = await import(pathToFileURL(path.resolve(path.join(here, '..'), f.replace(/^packages\/engine\//, ''))).href);
+    Object.assign(COPY, { ...((copyName === 'minimal' ? m.MINIMAL_CHECKED : undefined) ?? m[{ sample: 'NORMAL', stress: 'STRESS', minimal: 'MINIMAL' }[copyName]] ?? {}) });
+  }
+}
+// looks written as data: id -> the raw look, drawn as a brand's own copy
+const LOOKS = {};
+for (const f of (opt('look', '') ?? '').split(',').filter(Boolean)) {
+  const raw = JSON.parse(fs.readFileSync(path.resolve(f), 'utf8'));
+  const r = resolveLook(raw, { shipped: raw.origin === 'shipped' });
+  if (r.problems.length) { console.error(`${f}: this look is not valid:\n  ${r.problems.slice(0, 8).join('\n  ')}`); process.exit(2); }
+  LOOKS[raw.id] = { ...raw, origin: raw.origin === 'shipped' ? `copy:shipped:${raw.id}` : raw.origin, compositions: raw.compositions };
+}
+const compositionsFor = (direction, kind) => (Object.hasOwn(LOOKS, direction) ? LOOKS[direction].compositions.filter((c) => c.kind === kind) : codeCompositionsFor(direction, kind));
+const directions = args.includes('--look') && !args.includes('--directions') ? Object.keys(LOOKS) : [...Object.keys(LOOKS), ...(opt('directions', DIRECTIONS.join(',')) ?? '').split(',').filter((d) => DIRECTIONS.includes(d) && !Object.hasOwn(LOOKS, d))];
 const kinds = opt('kinds') ? opt('kinds').split(',') : null;
 const wanted = opt('variants', 'all');
 const designs = (content.designs ?? []).filter((d) => !kinds || kinds.includes(d.kind));
@@ -47,7 +74,7 @@ if (!directions.length || !designs.length) { console.error('nothing to draw: che
 
 const base = loadBrand();
 const name = opt('name', content.brandName);
-const brandFor = (direction) => ({ ...base, ...(name ? { name } : {}), style: { ...base.style, direction } });
+const brandFor = (direction) => ({ ...base, ...(name ? { name } : {}), ...(Object.hasOwn(LOOKS, direction) ? { looks: [LOOKS[direction]] } : {}), style: { ...base.style, direction } });
 
 // rows: each design, each variant any chosen direction has (or the variants asked for)
 const rows = [];
@@ -71,8 +98,10 @@ try {
       const key = `${row.design.kind}-${row.variant}`, file = path.join(outRoot, direction, `${key}.jpg`);
       const label = `${direction}/${key}`;
       if (row.variant >= compositionsFor(direction, row.design.kind).length) { cells.set(label, { gap: true }); continue; }
-      const design = { ...row.design, variant: row.variant };
-      const problems = validateDesign(design, 'design', { direction });
+      const own = copyName ? (COPY[`${direction}/${row.design.kind}/${row.variant}`] ?? (Object.hasOwn(LOOKS, direction) ? COPY[`${direction.split('-')[0]}/${row.design.kind}/${row.variant}`] : undefined)) : null;
+      if (copyName && Object.hasOwn(LOOKS, direction) && !own) { cells.set(label, { error: `no ${copyName} copy for ${direction}/${row.design.kind}/${row.variant} in the copy library` }); failed++; continue; }
+      const design = own ? { template: 'post', kind: row.design.kind, variant: row.variant, name: `${copyName}-${row.design.kind}`, ...own, ...(((f) => (Array.isArray(f) ? f.includes('image') : f?.image !== undefined))(compositionsFor(direction, row.design.kind)[row.variant]?.fields) ? { image: row.design.image ?? PICS[row.design.kind] ?? PICS.photo } : {}) } : { ...row.design, variant: row.variant };
+      const problems = validateDesign(design, 'design', Object.hasOwn(LOOKS, direction) ? {} : { direction });
       if (problems.length) { cells.set(label, { error: problems.join('; ') }); failed++; console.log(`FAIL ${label}: ${problems.join('; ')}`); continue; }
       try {
         const r = await renderImage(browser, brandFor(direction), { spec: normaliseDesign(design), sizeName: 'feed', outFile: file, folio: { n: rows.indexOf(row) + 1, total: rows.length } }, { tmpDir });

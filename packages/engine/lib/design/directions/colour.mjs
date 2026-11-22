@@ -68,12 +68,13 @@ export function palette(brand, need = 7) {
   const gold = brand.accents.gold, goldDeep = brand.accents.goldDeep;
   const { paper, black, white } = baseRoles(brand);
   // the deep field: the primary colour, deepened toward the ink until the paper colour reads on it
-  const field = deepen(primary, white, black, need);
+  // the brand's primary is the field as it is whenever the light or the ink reads on it at the target; it is deepened only when neither does
+  const field = Math.max(contrast(white, primary), contrast(black, primary)) >= need ? primary : deepen(primary, white, black, need);
   const onField = readable(field, [white, black], need);
   const accentText = readable(paper, [gold, goldDeep, primary, black], 4.5);
   const accentOnDark = readable(dark, [gold, goldDeep, white], 4.5);
   // the accent as a fill, and the type that sits on it
-  const onAccent = readable(gold, [black, white], need >= 7 ? 4.5 : need);
+  const onAccent = readable(gold, [black, white], Math.min(need, 4.5));
   const onPrimary = readable(primary, [white, black], 4.5);
   return {
     accentType: accentTypeOf(brand, { paper, black }).colour, bodyOnField: mix(field, onField, 0.88),

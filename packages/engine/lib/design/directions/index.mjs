@@ -11,8 +11,18 @@
 import { DesignError } from '../errors.mjs';
 import { DIRECTIONS } from '../tokens.mjs';
 import { palette } from './colour.mjs';
+import { displayTarget } from '../checks.mjs';
 import { fontFacesFor } from '../font-library.mjs';
 import { grainUri, makeContext, numberElements, rootCss } from './kit.mjs';
+import fs from 'node:fs';
+import { canonicalJson, lookBrief, normaliseLook, validateLook } from '../look.mjs';
+import { POST_FIELDS, POST_ITEMS, POST_KINDS, POST_REQUIRED } from '../post-spec.mjs';
+import { accentPlan, paletteCss } from './colour.mjs';
+import { fontAlias } from '../font-library.mjs';
+import { fontNeedsFor, tokensFromLook } from './look-tokens.mjs';
+import { fontUsage, renderComposition } from './interpret.mjs';
+import { emphasisParts } from './kit.mjs';
+import crypto from 'node:crypto';
 import { COMPOSITIONS as EDITORIAL } from './editorial/compositions.mjs';
 import { TOKENS as EDITORIAL_TOKENS } from './editorial/tokens.mjs';
 import { COMPOSITIONS as RETAIL } from './retail/compositions.mjs';
@@ -86,10 +96,20 @@ const wordsOfPage = (spec, brand, folioText) => [brand.name, folioText, ...['lab
 // ctx: { size, brand, counter?, folio?, date?, image(path), imageSize(path) } as for every page (render.mjs preparePage).
 export function renderPost(spec, ctx) {
   const brand = ctx.brand, direction = brand.style?.direction;
+  // a look the brand carries (brand.looks, written as data) named by style.direction is drawn by the interpreter, after validation
+  const own = Array.isArray(brand.looks) && typeof direction === 'string' ? brand.looks.find((l) => l && typeof l === 'object' && l.id === direction) : null;
+  if (own) return renderPostWithLook(own, spec, ctx, { shipped: false });
   if (!direction) throw new DesignError('a post is drawn in the brand\'s design direction, and this brand has none: set style.direction in brand.json to one of ' + DIRECTIONS.join(', '));
   if (!DIRECTIONS.includes(direction) || !Object.hasOwn(REGISTRY, direction)) throw new DesignError(`the brand's design direction "${String(direction).slice(0, 30)}" is not one of ${DIRECTIONS.join(', ')}`);
   const list = compositionsFor(direction, spec.kind);
   if (!list.length) throw new DesignError(`the ${direction} direction has no ${spec.kind} composition yet`);
+  const { variant, used, fellBackFrom } = pickVariant(spec, list, direction);
+  const comp = list[used], tokens = DIRECTION_TOKENS[direction];
+  return draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code: true });
+}
+
+// The variant a post gets and the one that draws it: the named or hashed variant, then the next that accepts the words (see renderPost).
+function pickVariant(spec, list, direction) {
   const variant = spec.variant ?? chooseVariant({ ...spec, name: spec.name }, list.length);
   if (!Number.isInteger(variant) || variant < 0 || variant >= list.length) throw new DesignError(`the ${direction} direction has ${list.length} ${spec.kind} variant${list.length === 1 ? '' : 's'} (0 to ${list.length - 1}), not ${String(variant).slice(0, 8)}`);
   // A composition may decline content it cannot draw well (accepts(spec) is false): the next variant of the kind, in order and
@@ -97,15 +117,104 @@ export function renderPost(spec, ctx) {
   let used = variant;
   for (let i = 0; i < list.length && typeof list[used].accepts === 'function' && !list[used].accepts(spec); i++) used = (used + 1) % list.length;
   if (typeof list[used].accepts === 'function' && !list[used].accepts(spec)) throw new DesignError(`no ${spec.kind} composition of the ${direction} direction can draw these words`);
-  const fellBackFrom = used === variant ? null : list[variant].id;
-  const comp = list[used], tokens = DIRECTION_TOKENS[direction];
+  return { variant, used, fellBackFrom: used === variant ? null : list[variant].id };
+}
+
+// ---- looks written as data ----
+// resolveLook: validate FIRST (an invalid look never reaches the interpreter), then normalise. Memoised by the content of the look (no state per brand).
+const memo = new Map();
+export function resolveLook(raw, { shipped = false } = {}) {
+  let key;
+  try { key = crypto.createHash('sha256').update(`${shipped ? 's' : 'b'}${canonicalJson(raw)}`).digest('hex'); } catch { key = null; }
+  if (key && memo.has(key)) return memo.get(key);
+  const problems = validateLook(raw, 'look', { shipped });
+  const out = problems.length ? { problems } : { problems: [], look: normaliseLook(raw), comps: null };
+  if (out.look) out.comps = adapt(out.look);
+  deepFreeze(out);
+  if (key) { if (memo.size >= 64) memo.delete(memo.keys().next().value); memo.set(key, out); }
+  return out;
+}
+
+const deepFreeze = (o) => { if (o && (typeof o === 'object' || typeof o === 'function') && !Object.isFrozen(o)) { Object.freeze(o); for (const v of Object.values(o)) deepFreeze(v); } return o; };
+// the compositions of a normalised look as the registry's shape (id, name, fields, words, ground, accepts, render ...), by kind
+function adapt(look) {
+  const byKind = {};
+  look.compositions.forEach((cp) => {
+    const index = (byKind[cp.kind] ??= []).length, tokensProbe = null;
+    const groundOf = (spec) => {
+      if (typeof cp.ground === 'string') return cp.ground;
+      const has = (f) => (f === 'items' ? Array.isArray(spec.items) && spec.items.length > 0 : f === 'image' ? typeof spec.image === 'string' && spec.image !== '' : typeof spec[f] === 'string' && spec[f] !== '');
+      for (const g of cp.ground) if (!g.when || ((g.when.present === undefined || has(g.when.present)) && (g.when.absent === undefined || !has(g.when.absent)))) return g.ground;
+      return cp.ground[cp.ground.length - 1].ground;
+    };
+    const seen = (v) => [...String(v).replace(/\*/g, '').replace(/\\n|\n/g, '')].length;
+    byKind[cp.kind].push({
+      id: `${look.id}/${cp.kind}/${index}`, name: cp.name, describe: cp.describe, fields: Object.keys(cp.fields), words: Object.fromEntries(Object.entries(cp.fields).filter(([f, v]) => f !== 'items' && f !== 'image' && v.max).map(([f, v]) => [f, v.max])),
+      ground: typeof cp.ground === 'string' ? cp.ground : cp.ground[cp.ground.length - 1].ground, groundOf, calm: cp.calm ? { maxShare: cp.calm.maxShare } : undefined, fitSpec: cp.fit,
+      dark: groundDark(cp), bodyOnField: bodyOnField(cp),
+      accepts: cp.accepts.length ? (spec) => cp.accepts.every((r) => {
+        if (r.field === 'items') { const n = Array.isArray(spec.items) ? spec.items.length : 0; return (r.min === undefined || n >= r.min) && (r.max === undefined || n <= r.max); }
+        if (typeof spec[r.field] !== 'string') return true;
+        const part = r.part ?? 'all', t = part === 'all' ? spec[r.field] : emphasisParts(spec[r.field])[part];
+        return seen(t) <= r.maxChars;
+      }) : undefined,
+      data: cp,
+    });
+  });
+  return byKind;
+}
+const groundDark = (cp) => { const g = typeof cp.ground === 'string' ? [cp.ground] : cp.ground.map((x) => x.ground); return g.some((x) => x === 'field' || x === 'dark'); };
+// whether small body text sits directly on the field colour (so the field must carry the stricter body target)
+function bodyOnField(cp) {
+  const FIELDS = ['field', 'field-deep', 'dark', 'primary'];
+  const base = (typeof cp.ground === 'string' ? [cp.ground] : cp.ground.map((x) => x.ground)).some((x) => x === 'field' || x === 'dark') ? 'field' : 'paper';
+  const walk = (list, bg) => list.some((e) => {
+    const here = e.fill && ['box', 'band'].includes(e.type) ? e.fill : bg;
+    if (e.type === 'text' && ['sub', 'items'].includes(e.field) && FIELDS.includes(here)) return true;
+    return walk([...(e.children ?? []), ...(e.sticker ? [e.sticker] : [])], e.type === 'sticker' ? 'paper' : here);
+  });
+  return walk(cp.elements, base);
+}
+
+// Draws a post with a look written as data. look: the raw look (validated here: a refusal lists the validator's problems and nothing is
+// drawn); opts.shipped: the engine's own shipped looks (origin "shipped") are accepted. The brand's own looks reach this through renderPost.
+export function renderPostWithLook(look, spec, ctx, { shipped = false } = {}) {
+  const r = resolveLook(look, { shipped });
+  if (r.problems.length) throw new DesignError(`this look cannot be drawn: ${r.problems.slice(0, 4).join('; ')}${r.problems.length > 4 ? `; and ${r.problems.length - 4} more` : ''}`);
+  const list = r.comps[spec.kind] ?? [];
+  if (!list.length) throw new DesignError(`the ${r.look.id} look has no ${spec.kind} composition`);
+  const { used, fellBackFrom } = pickVariant(spec, list, r.look.id);
+  const comp = list[used], tokens = tokensFromLook(r.look, ctx.brand);
+  return draw({ spec, ctx, comp, tokens, direction: r.look.id, used, fellBackFrom, code: false, look: r.look });
+}
+
+const num4 = (v) => +Number(v).toFixed(4);
+// the look's custom properties on the page's root: numbers and fixed words only
+function lookRoot(look, tokens) {
+  const hl = look.devices.highlight, [t, r, b, l] = hl.pad, d = look.type.display;
+  const stretch = look.fonts.display.source === 'library' ? look.fonts.display.stretch : undefined;
+  return [`--k-dstretch:${stretch ? num4(stretch) : 100}%`, `--k-dcase:${d.case === 'upper' ? 'uppercase' : 'none'}`, `--k-dword:${num4(d.wordSpace ?? 0)}em`, `--k-hl-top:${num4(t)}em`, `--k-hl-h:${num4(1 - t - b)}em`, `--k-hl-pr:${num4(r)}em`, `--k-hl-pl:${num4(l)}em`, `--k-hl-tilt:${num4(hl.tilt)}deg`].join(';');
+}
+function lookStack(tokens, role) {
+  const f = tokens.fonts[role];
+  return f.brandVar ? `var(${f.brandVar}),${f.fallback.replace(/"/g, "'")}` : `'${fontAlias(f.family)}',${f.fallback.replace(/"/g, "'")}`;
+}
+
+function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, look }) {
+  const brand = ctx.brand;
   const c = makeContext({ spec, brand, tokens, direction, kind: spec.kind, variant: used, comp, size: ctx.size, image: ctx.image, imageSize: ctx.imageSize, counter: ctx.counter, folio: ctx.folio, date: ctx.date });
   if (c.hasImage === false && comp.fields.includes('image') && spec.kind === 'photo') throw new DesignError('a photo post needs an image');
-  const out = comp.render(c);
+  let out;
+  if (code) out = comp.render(c);
+  else {
+    // a look is data a person wrote: whatever the kit refuses on a look that passed the validator is a refusal of that look, never a bare engine error
+    try { out = renderComposition(look, comp.data, c); } catch (e) {
+      if (e instanceof DesignError) throw e;
+      throw new DesignError(`the ${look.id} look cannot draw its ${comp.name} composition (${comp.id}): ${String(e?.message ?? e).replace(/[^\x20-\x7e]/g, '?').slice(0, 160)}`);
+    }
+  }
   const made = typeof out === 'string' ? out : out?.html;
   if (typeof made !== 'string') throw new Error(`${comp.id}: render must return { html }`);
-  // every element a builder marked gets its index path (data-el="2.0"), see kit.mjs numberElements
-  const html = numberElements(made);
   const classes = typeof out === 'object' && out.classes ? String(out.classes) : '';
   if (!/^[a-z0-9 _-]*$/.test(classes)) throw new Error(`${comp.id}: classes may only use lowercase letters, digits, space, - and _`);
   const warnings = [];
@@ -114,14 +223,102 @@ export function renderPost(spec, ctx) {
     if (f === 'items') continue;
     if (spec[f] !== undefined && c.chars(f) > max) warnings.push(`the ${f} is ${c.chars(f)} characters; the ${comp.name} composition is designed for up to ${max}, so it may be set smaller than intended`);
   }
-  const pal = palette(brand, Math.max(7, Number(brand.contrast?.headline) || 7));
-  const fonts = fontFacesFor(fontNeeds(tokens, comp, brand), wordsOfPage(spec, brand, tokens.folio(c.folio.n, c.folio.total)));
-  const root = `--bg:var(--c-${comp.ground === 'accent' ? 'gold' : comp.ground === 'soft' ? 'soft' : comp.ground});${rootCss({ palette: pal, tokens, brand, grain: grainUri(tokens.grain) })}`;
-  const body = `<div class="cv post d-${direction}${classes ? ` ${classes}` : ''}" data-kind="${spec.kind}" data-comp="${comp.id}"${comp.calm ? ` data-calm="${comp.calm.maxShare}"` : ''} style="${root}">${html}${c.logoHtml()}</div>`;
+  const pal = palette(brand, comp.bodyOnField ? Math.max(displayTarget(brand), Number(brand.contrast?.sub) || 0) : displayTarget(brand));
+  let fonts, root, html, ground = code ? comp.ground : comp.groundOf(spec), sheet, rootClass;
+  if (code) {
+    html = numberElements(made);
+    fonts = fontFacesFor(fontNeeds(tokens, comp, brand), wordsOfPage(spec, brand, tokens.folio(c.folio.n, c.folio.total)));
+    root = `--bg:var(--c-${ground === 'accent' ? 'gold' : ground === 'soft' ? 'soft' : ground});${rootCss({ palette: pal, tokens, brand, grain: grainUri(tokens.grain) })}`;
+    sheet = ['kit', direction]; rootClass = `d-${direction}`;
+  } else {
+    let inner = made;
+    let bg = ground === 'accent' ? 'gold' : ground === 'soft' ? 'soft' : ground === 'field' && look.colour.field === 'dark' ? 'dark' : ground;
+    if (look.colour.logic === 'one-accent') {
+      // the accent plan of the page (what the brand's accent reaches by measured contrast): a page on the dark ground keeps it when the accent reads
+      // there; when it does not, but reads on paper, the page takes the light ground and every dark-page colour turns into its light-page one
+      const p = accentPlan(brand, pal), lightPage = !p.word.dark && p.word.paper;
+      const vars = { 'accent-type': pal.primary, 'accent-dark': pal.primary, 'on-accent': p.onFill.colour, muted: p.mutedPaper, 'muted-dark': p.mutedDark };
+      if (lightPage && bg === 'dark') { Object.assign(vars, { white: pal.ink, dark: pal.paper, field: pal.paper, 'on-field': pal.ink, 'body-dark': pal.body, 'muted-dark': p.mutedPaper }); bg = 'paper'; }
+      inner = c.scope(vars, made);
+    }
+    html = numberElements(inner);
+    fonts = fontFacesFor(fontNeedsFor(look, fontUsage(look, comp.data), brand), wordsOfPage(spec, brand, tokens.folio(c.folio.n, c.folio.total)));
+    root = `--bg:var(--c-${bg});${paletteCss(pal)};--f-display:${lookStack(tokens, 'display')};--f-text:${lookStack(tokens, 'text')};--f-label:${lookStack(tokens, 'label')};--f-mono:${lookStack(tokens, 'mono')};--k-grain:${grainUri(tokens.grain)};${lookRoot(look, tokens)}`;
+    sheet = ['kit']; rootClass = 'k-look';
+  }
+  const body = `<div class="cv post ${rootClass}${classes ? ` ${classes}` : ''}" data-kind="${spec.kind}" data-comp="${comp.id}"${comp.calm ? ` data-calm="${comp.calm.maxShare}"` : ''} style="${root}">${html}${c.logoHtml()}</div>`;
   const m = tokens.margin;
+  const f = look ? (comp.fitSpec === 'frame' ? { pad: tokens.frame.t + tokens.frame.pad, top: tokens.frame.t + tokens.frame.pad, bottom: tokens.frame.t + tokens.frame.pad } : comp.fitSpec && typeof comp.fitSpec === 'object' ? comp.fitSpec : {}) : comp.fit ?? {};
   return {
-    body, bodyClass: 'post-page', bodyAttrs: 'data-post="1"', sheet: ['kit', direction], css: fonts.css, warnings,
-    fit: { pad: comp.fit?.pad ?? m.left, top: comp.fit?.top ?? m.top, bottom: comp.fit?.bottom ?? m.bottom },
+    body, bodyClass: 'post-page', bodyAttrs: 'data-post="1"', sheet, css: fonts.css, warnings,
+    fit: { pad: f.pad ?? m.left, top: f.top ?? m.top, bottom: f.bottom ?? m.bottom },
     post: { direction, kind: spec.kind, variant: used, ...(fellBackFrom ? { fellBackFrom } : {}), id: comp.id, name: comp.name, calm: comp.calm?.maxShare ?? null, grid: c.gridLines(), fonts: fonts.files },
   };
+}
+
+// ---- the engine's own looks, written as data ----
+export { lookBrief };
+const SHIPPED_IDS = Object.freeze(['retail', 'swiss']);
+let shipped = null;
+// The shipped looks (lib/design/looks/<id>.look.json), read once, validated as shipped looks and deep frozen: { retail, swiss } as the raw look
+// data (origin "shipped"). A brand copies one into brand.looks (origin "copy:shipped:<id>") to change it; draw one with
+// renderPostWithLook(look, spec, ctx, { shipped: true }). A shipped file the validator refuses is an engine bug, so it throws.
+export function shippedLooks() {
+  if (shipped) return shipped;
+  const out = {};
+  for (const id of SHIPPED_IDS) {
+    const raw = JSON.parse(fs.readFileSync(new URL(`../looks/${id}.look.json`, import.meta.url), 'utf8'));
+    const problems = validateLook(raw, `shipped look ${id}`, { shipped: true });
+    if (problems.length) throw new Error(`the shipped ${id} look is not valid: ${problems.slice(0, 5).join('; ')}`);
+    if (raw.id !== id) throw new Error(`the shipped look file ${id}.look.json carries the id "${String(raw.id).slice(0, 30)}"`);
+    out[id] = deepFreeze(raw);
+  }
+  return (shipped = Object.freeze(out));
+}
+
+// The brand's own look the direction names (an entry of brand.looks with that id), or null (a code direction, or none).
+export const lookOfBrand = (brand) => (Array.isArray(brand?.looks) && typeof brand?.style?.direction === 'string' ? brand.looks.find((l) => l && typeof l === 'object' && l.id === brand.style.direction) ?? null : null);
+
+// What a brand's direction draws, in the shape the AI library and the post editor read for any direction:
+// { [kind]: { required: [fields], fields: { field: { max, budget? } | { min, max, chars } | {} }, variants: [{ variant, name, describe }] } }, only the kinds
+// with a composition. A look written as data is read from its brief (look.mjs lookBrief); with no named variant any composition may draw a post, so a
+// field's budget is the smallest any variant draws it with. The brand's direction may be a code direction (editorial, swiss, retail) or its own look.
+export function postKinds(brand) {
+  const direction = brand?.style?.direction, own = lookOfBrand(brand);
+  const out = {};
+  if (own) {
+    const brief = lookBrief(own);
+    for (const kind of POST_KINDS) {
+      const entry = brief.kinds[kind];
+      if (!entry?.variants.length) continue;
+      const vs = entry.variants, names = new Set([...(POST_REQUIRED[kind] ?? []), ...vs.flatMap((v) => Object.keys(v.fields))]), fields = {};
+      for (const f of names) {
+        if (f === 'image') { fields[f] = {}; continue; }
+        const have = vs.filter((v) => v.fields[f]);
+        if (f === 'items') { fields[f] = { min: Math.min(...have.map((v) => v.fields.items.min ?? POST_ITEMS.min)), max: Math.max(...have.map((v) => v.fields.items.max ?? POST_ITEMS.max)), chars: POST_ITEMS.chars }; continue; }
+        const hard = POST_FIELDS[f]?.max;
+        if (!hard) continue;
+        fields[f] = { max: hard, ...(have.length ? { budget: Math.min(hard, ...have.map((v) => v.fields[f].max ?? hard)) } : {}) };
+      }
+      out[kind] = { required: POST_REQUIRED[kind] ?? [], fields, variants: vs.map((v) => ({ variant: v.index, name: v.name, describe: v.describe })) };
+    }
+    return out;
+  }
+  for (const kind of POST_KINDS) {
+    const comps = compositionsFor(direction, kind);
+    if (!comps.length) continue;
+    const names = new Set(POST_REQUIRED[kind] ?? []);
+    for (const c of comps) for (const f of c.fields) names.add(f);
+    const fields = {};
+    for (const f of names) {
+      if (f === 'image' || f === 'focal' || f === 'zoom') { fields[f] = {}; continue; }
+      if (f === 'items') { fields[f] = { min: POST_ITEMS.min, max: POST_ITEMS.max, chars: Math.min(POST_ITEMS.chars, ...comps.filter((c) => c.fields.includes(f)).map((c) => c.words?.items ?? POST_ITEMS.chars)) }; continue; }
+      const hard = POST_FIELDS[f]?.max;
+      if (!hard) continue;
+      const drawn = comps.filter((c) => c.fields.includes(f)).map((c) => c.words?.[f] ?? hard);
+      fields[f] = { max: hard, ...(drawn.length ? { budget: Math.min(hard, ...drawn) } : {}) };
+    }
+    out[kind] = { required: POST_REQUIRED[kind] ?? [], fields, variants: comps.map((c, variant) => ({ variant, name: c.name, describe: c.describe })) };
+  }
+  return out;
 }

@@ -432,7 +432,7 @@ window.__ds = {
       return {
         i, role: el.dataset.role, rects: whole ? (b.width > 1 && b.height > 1 ? [box(b)] : []) : rectsT(el), color: svg ? cs.fill : cs.color,
         overX: svg ? 0 : el.scrollWidth - el.clientWidth, text: (el.getAttribute('aria-label') || el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 50),
-        size: parseFloat(cs.fontSize), min: +(el.dataset.min || 0), nested: !!(el.parentElement && el.parentElement.closest('[data-role]')),
+        size: parseFloat(cs.fontSize), weight: parseInt(cs.fontWeight, 10) || 400, optical: parseFloat(el.closest('[data-optical]')?.dataset.optical) || 0, min: +(el.dataset.min || 0), nested: !!(el.parentElement && el.parentElement.closest('[data-role]')),
         onpanel: el.hasAttribute('data-onpanel'), inAvoid: avoidEls.map((a, k) => (a.contains(el) ? k : -1)).filter((k) => k >= 0),
         cell: el.closest('[data-cell]') ? box(el.closest('[data-cell]').getBoundingClientRect()) : null,
         // a numeral or a picture-like block that may leave the page by the edges named (a post's bleed, lib/design/directions/)
@@ -584,6 +584,11 @@ window.__ds = {
       const z = Math.floor(s.size * 10) / 10; row.style.fontSize = z + 'px'; row.style.lineHeight = '1';
       row.style.marginTop = ((i ? gapEm : 0) - tt) + 'em'; row.style.marginBottom = (-tb) + 'em'; row.style.marginLeft = (-(s.left / 100) * z) + 'px';
       row.appendChild(this.swLine(box, words.slice(s.a, s.b), 0)); box.appendChild(row); s.z = z;
+    }
+    // a line's advance can run a few px past its ink (a side bearing): take that off every line so nothing stands past the measure
+    for (let g = 0; g < 4 && box.scrollWidth > box.clientWidth + 0.5; g++) {
+      const k = box.clientWidth / box.scrollWidth;
+      for (const [i, s] of pick.sized.entries()) { s.z = Math.floor(s.z * k * 10) / 10; box.children[i].style.fontSize = s.z + 'px'; box.children[i].style.marginLeft = (-(s.left / 100) * s.z) + 'px'; }
     }
     box.dataset.optical = String(+Math.max(...pick.sized.map((s) => (s.left / 100) * s.z)).toFixed(2));
     const zs = pick.sized.map((s) => s.z), natural = ink(words.map((w) => w.parts.map((p) => p.t).join('')).join(' ')).width;

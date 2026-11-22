@@ -27,7 +27,7 @@ const SEAM_GAP = 125;
 const stack = {
   id: 'retail/statement/0', name: 'Stack',
   describe: 'A full primary field: the headline stacked edge to edge, every line sized to fill the width in the light colour and centred in the height, the emphasis on a turned highlight bar; a rule, a dot and the brand name at the foot.',
-  fields: ['label', 'headline', 'sub'], words: { headline: 65, sub: 110, label: 28 }, ground: 'field', dark: true, roles: ['display', 'text', 'label'],
+  fields: ['label', 'headline', 'sub'], words: { headline: 65, sub: 110, label: 28 }, ground: 'field', dark: true, bodyOnField: true, roles: ['display', 'text', 'label'],
   render(c) {
     const T = c.tokens, { left, top, bottom } = c.margin, W = c.W - left - c.margin.right;
     const footTop = c.H - bottom - 52, sub = c.has('sub');
@@ -138,7 +138,7 @@ const framePop = {
 const seam = {
   id: 'retail/photo/1', name: 'Seam',
   describe: 'The picture full bleed, cut across by a slanted primary field with a thin light edge; the headline and sub on the field at the foot, an accent pill with the tag straddling the seam.',
-  fields: ['headline', 'sub', 'tag', 'image'], words: { headline: 66, sub: 130, tag: 16 }, ground: 'field', roles: ['display', 'text', 'label'],
+  fields: ['headline', 'sub', 'tag', 'image'], words: { headline: 66, sub: 130, tag: 16 }, ground: 'field', bodyOnField: true, roles: ['display', 'text', 'label'],
   render(c) {
     const S = c.tokens.device.seam, { left, bottom } = c.margin, W = c.W - left - c.margin.right, rise = S.left - S.right, edge = 16;
     let html = c.photo({ x: 0, y: 0, w: c.W, h: c.H });

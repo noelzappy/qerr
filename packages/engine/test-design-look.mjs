@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import { ELEMENT_TYPES, ELEMENTS, KINDS, LIMITS, lookBrief, lookCatalogue, lookHash, normaliseLook, validateLook, validateLooks } from './lib/design/look.mjs';
 import { COLOUR_NAMES, FLOW_ONLY, FORBIDDEN_KEYS, KIND_FIELDS, keysOf } from './lib/design/look-elements.mjs';
 import { POST_FIELDS, POST_REQUIRED } from './lib/design/post-spec.mjs';
+import { gridOf, placeRect, rowSpanOf } from './lib/design/look-static.mjs';
 
 const load = (n) => JSON.parse(fs.readFileSync(new URL(`./testlib/looks/${n}.sample.json`, import.meta.url), 'utf8'));
 // A deep copy that keeps functions and an own "__proto__" key (structuredClone refuses the first and drops the second).
@@ -61,10 +62,10 @@ test('the retail sample is faithful to the prototype numbers', () => {
   assert.equal(RETAIL.devices.frame.t, 70);
   assert.equal(RETAIL.devices.frame.pad, 44);
   assert.deepEqual(RETAIL.devices.angles, { sticker: -8, bar: -1.5, block: -2, band: -4, card: 4, price: -3 });
-  assert.deepEqual(RETAIL.canvas.feed.extraLines, [114]);
+  assert.deepEqual(RETAIL.canvas.feed.extraLines, [102, 114], 'the frame inset (114) and the brand line of the Stack\'s foot (102)');
   const fp = compOf(RETAIL, 'Frame pop');
-  assert.deepEqual(fp.elements[2].children[0].ladder.steps, [[34, 104], [50, 94], [70, 85]]);
-  assert.deepEqual(fp.elements[3].ladder.steps, [[4, 92], [9, 66], [16, 52]]);
+  assert.equal(fp.elements[2].children[0].size, 104);
+  assert.deepEqual(fp.elements[3].fit, { cap: 92, floor: 40, w: 190, h: 150 });
   assert.deepEqual(SWISS.canvas.feed.grid, { cols: 12, gutter: 16, rows: 8, head: 72 });
   assert.deepEqual(compOf(SWISS, 'Poster').elements[1].sizes, [232, 208, 184, 168, 152, 138]);
 });
@@ -85,7 +86,9 @@ test('the catalogue is JSON, stable and complete', () => {
   for (const k of KINDS) { assert.deepEqual(a.kinds[k].fields, KIND_FIELDS[k]); assert.deepEqual(a.kinds[k].required, POST_REQUIRED[k]); }
   for (const t of ELEMENT_TYPES) {
     const e = a.elements[t];
-    assert.deepEqual(Object.keys(e.properties), keysOf(t).filter((k) => k !== 'type' && k !== 'children'), `${t}: the catalogue lists exactly the properties the validator knows`);
+    // a slot (a seam's sticker) is not a property: the catalogue lists it apart, under slots
+    assert.deepEqual(Object.keys(e.properties), keysOf(t).filter((k) => k !== 'type' && k !== 'children' && k !== 'sticker'), `${t}: the catalogue lists exactly the properties the validator knows`);
+    assert.deepEqual(Object.keys(e.slots ?? {}), keysOf(t).filter((k) => k === 'sticker'), `${t}: the catalogue lists the slots the validator knows`);
     assert.ok(e.label && e.help, `${t} has a label and help`);
     for (const [name, p] of Object.entries(e.properties)) assert.ok(typeof p.label === 'string' && p.label && typeof p.help === 'string' && p.help, `${t}.${name} has a label and help`);
     for (const k of FLOW_ONLY) if (ELEMENTS[t].common.includes(k)) assert.equal(e.properties[k].group, 'flow');
@@ -116,9 +119,11 @@ test('the catalogue is JSON, stable and complete', () => {
   assert.deepEqual([a.common.bleed.props.by.min, a.common.bleed.props.by.max], [0, 0.2]);
   assert.deepEqual([a.common.skew.min, a.common.skew.max], [-6, 6]);
   assert.deepEqual([a.common.z.min, a.common.z.max], [0, 9]);
-  assert.deepEqual(a.elements.text.properties.shrinkFloor.min, 0.82);
+  assert.equal(a.elements.text.properties.shrinkFloor, undefined, 'a property that is not drawn is not in the catalogue');
+  assert.equal(a.elements.photo.properties.caption, undefined);
+  assert.equal(a.elements.box.properties.skew, undefined);
   assert.deepEqual(a.elements.seam.properties.edge.max, 32);
-  assert.deepEqual([a.elements['fitted-stack'].properties.maxLines.min, a.elements['fitted-stack'].properties.maxLines.max], [1, 5]);
+  assert.deepEqual([a.elements['fitted-stack'].properties.maxLines.min, a.elements['fitted-stack'].properties.maxLines.max], [1, 8]);
   assert.deepEqual([a.elements['mantra-rows'].properties.outline.min, a.elements['mantra-rows'].properties.outline.max], [2, 4]);
   assert.deepEqual([a.composition.properties.calm.props.maxShare.min, a.composition.properties.calm.props.maxShare.max], [0.45, 0.8]);
 });
@@ -135,6 +140,7 @@ function autoFields(els, out = {}) {
     for (const f of [e.field, e.unit?.field, e.ladder?.by]) if (typeof f === 'string' && Object.hasOwn(AUTO, f)) out[f] = clone(AUTO[f]);
     if (e.type === 'photo' || (e.type === 'seam' && e.upper !== 'field')) out.image = {};
     if (e.type === 'meta-row') out.label = clone(AUTO.label);
+    if (e.sticker) autoFields([e.sticker], out);
     if (Array.isArray(e.children)) autoFields(e.children, out);
   }
   return out;
@@ -144,22 +150,23 @@ const BASE = [
   { type: 'text', field: 'meta', style: 'label', place: { anchor: { left: 'margin', top: 60 } } },
 ];
 const AT = (x, y, w, h) => ({ px: { x, y, w, h } });
+// in the catalogue's order (the elements the tables list first, then the primitives)
 const EXAMPLES = {
   box: { type: 'box', place: AT(100, 300, 400, 200), flow: 'row' },
   text: { type: 'text', field: 'sub', style: 'body', place: AT(56, 900, 600, 100) },
-  'fitted-stack': { type: 'fitted-stack', field: 'headline', mode: 'lines', cap: 200, floor: 80, place: AT(56, 400, 900, 300) },
-  numeral: { type: 'numeral', field: 'meta', cap: 400, min: 100, place: AT(56, 400, 900, 300) },
-  'mantra-rows': { type: 'mantra-rows', field: 'headline', cap: 200, floor: 60, place: AT(56, 400, 900, 300) },
-  rows: { type: 'rows', each: 'meta-parts', textSize: 24, place: AT(56, 1000, 900, 200) },
   photo: { type: 'photo', place: AT(56, 700, 900, 500) },
-  seam: { type: 'seam', leftY: 700, rightY: 600, lower: 'dark' },
-  band: { type: 'band', y: 900, h: 300, fill: 'paper' },
   sticker: { type: 'sticker', field: 'tag', shape: 'circle', size: 200, place: AT(700, 300, 200, 200) },
   rule: { type: 'rule', place: AT(56, 700, 900, 4) },
   block: { type: 'block', place: AT(56, 700, 100, 100) },
   frame: { type: 'frame', t: 40 },
   keyline: { type: 'keyline', place: AT(56, 700, 900, 300) },
   glyph: { type: 'glyph', glyph: '“', size: 400, place: AT(56, 300, 300, 300) },
+  'fitted-stack': { type: 'fitted-stack', field: 'headline', mode: 'lines', cap: 200, floor: 80, place: AT(56, 400, 900, 300) },
+  numeral: { type: 'numeral', field: 'meta', format: 'date-dd.mm', cap: 400, min: 100, place: AT(56, 400, 900, 300) },
+  'mantra-rows': { type: 'mantra-rows', field: 'headline', cap: 200, floor: 60, place: AT(56, 400, 900, 300) },
+  rows: { type: 'rows', each: 'meta-parts', textSize: 24, place: AT(56, 1000, 900, 200) },
+  seam: { type: 'seam', leftY: 700, rightY: 600, lower: 'dark' },
+  band: { type: 'band', y: 900, h: 300, fill: 'paper' },
   'meta-row': { type: 'meta-row' },
   'wordmark-pattern': { type: 'wordmark-pattern', size: 100, place: AT(56, 700, 900, 300) },
   scrim: { type: 'scrim', place: AT(56, 700, 900, 300) },
@@ -608,7 +615,7 @@ test('static: an element runs to a page edge only where it touches that edge', (
     refused(host(photo(place, { edges: [edge] })), `${JSON.stringify(place)} bleeding ${edge}`, new RegExp(`runs to the ${edge} edge`));
   }
   // a numeral may; a child of a box may not
-  hostOk({ type: 'numeral', field: 'meta', cap: 400, min: 100, place: AT(56, 400, 900, 300), bleed: { edges: ['left', 'bottom'], by: 0.08 } });
+  hostOk({ type: 'numeral', field: 'meta', format: 'day', cap: 400, min: 100, place: AT(56, 400, 900, 300), bleed: { edges: ['left', 'bottom'], by: 0.08 } });
   refused(host({ type: 'box', place: AT(56, 700, 500, 500), children: [{ type: 'rule', bleed: { edges: ['left'] } }] }), 'a child bleeding', /only an element placed on the page/);
   // the amount is bounded
   refused(host(photo({ inset: 'page' }, { edges: ['left'], by: 0.3 })), 'by 0.3', /bleed\.by/);
@@ -698,7 +705,7 @@ test('normaliseLook: a canonical deep-frozen copy with defaults, ids derived', (
   assert.throws(() => { n.compositions[0].elements.push({}); }, TypeError);
   assert.deepEqual(n.compositions.map((c) => c.id), ['photo/0', 'statement/0', 'statement/1', 'list/0']);
   assert.equal(compOf(RETAIL, 'Frame pop').id, undefined, 'the id is derived, never stored');
-  assert.equal(n.compositions[0].fit, 'frame'); assert.equal(n.compositions[1].fit, 'margins'); assert.equal(n.compositions[1].calm, null); assert.deepEqual(n.compositions[1].accepts, []);
+  assert.equal(n.compositions[0].fit, 'margins'); assert.equal(n.compositions[1].fit, 'margins'); assert.equal(n.compositions[1].calm, null); assert.deepEqual(n.compositions[1].accepts, []);
   assert.deepEqual(n.compositions[0].fields.headline, { required: true, max: 68 });
   assert.deepEqual(n.compositions[0].fields.image, { required: true });
   assert.deepEqual(n.compositions[1].fields.label, { max: 28, required: false });
@@ -711,7 +718,7 @@ test('normaliseLook: a canonical deep-frozen copy with defaults, ids derived', (
   assert.deepEqual(d.photo, { treat: [], tint: 'primary' });
   assert.deepEqual(d.devices.angles, { sticker: 0, bar: 0, block: 0, band: 0, card: 0, price: 0 });
   assert.deepEqual(d.devices.rule, { hair: 1, heavy: 4 }); assert.equal(d.devices.folio, 'no'); assert.deepEqual(d.devices.shadow, { x: 0, y: 0, colour: 'ink' });
-  assert.deepEqual(d.fonts.mono, d.fonts.label); assert.deepEqual(d.type.item, { size: 36, lead: 1.222, weight: 600 }); assert.equal(d.description, '');
+  assert.deepEqual(d.fonts.mono, d.fonts.label); assert.deepEqual(d.type.item, { size: 36, lead: 1.2222, weight: 600 }); assert.equal(d.description, '');
   assert.equal(n.compositions[0].elements[0].z, 0, 'element defaults are filled');
   assert.equal(RETAIL.compositions[0].elements[0].z, undefined, 'the input is not changed');
   const back = JSON.parse(JSON.stringify(n));
@@ -764,4 +771,441 @@ test('every message names where the problem is, in the style of the layout valid
   assert.ok(q[0].startsWith('look "host": compositions[0].elements[2].style must be one of display, body, item, label, numeral (got "bold")'), q[0]);
   assert.deepEqual(validateLook(5, 'look', {}), ['look: a look must be an object']);
   assert.deepEqual(ELEMENTS.box.placement, 'required');
+});
+
+// ---------------------------------------------------------------- the newer properties
+// (the fuzz above is table-driven over the catalogue, so every property listed below is also hostile-tested value by value; these tests
+// hold the rules that join several properties, and one valid example of each)
+const hp = (...extra) => validateLook(host(...extra), 'look', {});
+const says = (p, re, what) => { assert.ok(p.length > 0, `${what}: should be refused`); assert.ok(p.some((m) => re.test(m)), `${what}: expected ${re} in ${JSON.stringify(p)}`); assertClean(p, what); };
+const inBox = (...children) => ({ type: 'box', place: AT(56, 300, 900, 700), children });
+const flowOf = (t) => { const e = clone(EXAMPLES[t]); delete e.place; return e; };
+const defd = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
+const TX = (o) => ({ type: 'text', field: 'sub', style: 'body', place: AT(56, 900, 600, 100), ...o });
+
+test('the catalogue lists the newer properties and the seam\'s sticker slot', () => {
+  const c = lookCatalogue(), P = (t) => Object.keys(c.elements[t].properties);
+  for (const t of ['box', 'text', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'sticker', 'rule', 'block']) assert.ok(P(t).includes('before') && c.elements[t].properties.before.group === 'flow', `${t}.before`);
+  for (const k of ['track', 'lead', 'weight', 'font', 'dropWhenTight', 'textShadow']) assert.ok(P('text').includes(k), `text.${k}`);
+  assert.deepEqual([c.elements.text.properties.ladder.props.maxLines.max, c.elements.text.properties.ladder.props.maxH.max], [8, 900]);
+  assert.deepEqual([c.elements.sticker.properties.ladder.props.maxLines.max, c.elements.sticker.properties.ladder.props.maxH.min], [8, 40]);
+  for (const k of ['sizes', 'family', 'textShadow']) assert.ok(P('numeral').includes(k), `numeral.${k}`);
+  assert.ok(P('glyph').includes('textShadow'));
+  assert.ok(P('fitted-stack').includes('lead') && P('fitted-stack').includes('h'));
+  for (const k of ['minW', 'maxW', 'fit', 'pad', 'w']) assert.ok(P('sticker').includes(k), `sticker.${k}`);
+  assert.equal(c.elements.seam.container, 'any');
+  assert.deepEqual(Object.keys(c.elements.seam.slots), ['sticker']);
+  assert.equal(c.elements.seam.slots.sticker.of, 'sticker');
+  assert.equal(c.elements.box.slots, undefined);
+  assert.ok(P('seam').includes('gap') && P('seam').includes('edge') && P('seam').includes('ink'));
+  assert.deepEqual([c.sections.type.props.display.props.wordSpace.min, c.sections.type.props.display.props.wordSpace.max], [0, 0.2]);
+  assert.deepEqual([c.place.modifiers.minH.min, c.place.modifiers.minH.max], [0, 600]);
+  assert.equal(c.place.modifiers.square.kind, 'bool');
+  assert.equal(lookCatalogue().elements.numeral.required.length, 0, 'a numeral needs cap and min or sizes, a rule that joins properties');
+});
+
+test('before: only for an item flowing in a box, for every type that lists it', () => {
+  const types = ELEMENT_TYPES.filter((t) => ELEMENTS[t].common.includes('before'));
+  assert.deepEqual(types, ['box', 'text', 'sticker', 'rule', 'block', 'fitted-stack', 'numeral', 'mantra-rows', 'rows']);
+  for (const t of types) {
+    assert.deepEqual(hp(inBox({ ...flowOf(t), before: 24 })), [], `${t} flows with space before`);
+    assert.deepEqual(hp(inBox({ ...flowOf(t), before: -12 })), [], `${t} flows pulled up a little`);
+    says(hp({ ...clone(EXAMPLES[t]), before: 24 }), /elements\[2\]\.before is for an item flowing in a box/, `${t}: before at the top`);
+    says(hp(inBox({ ...clone(EXAMPLES[t]), place: AT(5, 5, 100, 100), before: 24 })), /before is for an item that flows/, `${t}: before with a place`);
+    for (const v of [-41, 121, 1.5, '8', NaN]) says(hp(inBox({ ...flowOf(t), before: v })), /before must be a whole number from -40 to 120/, `${t}: before ${String(v)}`);
+  }
+  for (const t of ELEMENT_TYPES.filter((x) => !types.includes(x))) says(hp({ ...clone(EXAMPLES[t]), before: 5 }), /"before" is not a setting/, `${t} takes no before`);
+});
+
+test('place: minH goes with any form, square with a grid only and never with h', () => {
+  const ph = (place) => ({ type: 'photo', place });
+  hostOk(ph({ grid: { col: 1, span: 4 }, minH: 300 }));
+  hostOk(ph({ px: { x: 0, y: 700, w: 100, h: 100 }, minH: 300 }));
+  hostOk(ph({ anchor: { left: 'margin', top: 700, w: 100 }, minH: 300 }));
+  hostOk(ph({ inset: 'margins', minH: 10 }));
+  hostOk(ph({ grid: { col: 1, span: 4 }, square: true }));
+  hostOk(ph({ grid: { col: 1, span: 4, row: 3, rowSpan: 3, alignY: 'bottom' }, square: true, minH: 100 }));
+  hostOk(ph({ grid: { col: 1, span: 4 }, square: false, h: 300 }));
+  hostOk(ph({ grid: { col: 1, span: 4 }, square: true, w: 'col' }));
+  for (const v of [-1, 601, 1.5, '3', NaN, null]) says(hp(ph({ grid: { col: 1, span: 4 }, minH: v })), /minH must be a whole number from 0 to 600/, `minH ${String(v)}`);
+  for (const v of [1, 'yes', 0, null, {}]) says(hp(ph({ grid: { col: 1, span: 4 }, square: v })), /square must be true or false/, `square ${String(v)}`);
+  says(hp(ph({ grid: { col: 1, span: 4 }, square: true, h: 300 })), /square and h/, 'square with h');
+  says(hp(ph({ grid: { col: 1, span: 4 }, square: true, h: 'gutter' })), /square and h/, 'square with a token h');
+  for (const place of [{ px: { x: 1, y: 700, w: 100, h: 100 } }, { anchor: { left: 0, top: 700, w: 100, h: 100 } }, { inset: 'page' }]) says(hp(ph({ ...place, square: true })), /square goes with a grid place only/, `square with ${Object.keys(place)[0]}`);
+  // the child of a box: px or anchor, so a square is refused there
+  says(hp(inBox({ type: 'photo', place: { px: { x: 1, y: 1 }, square: true } })), /square goes with a grid place only/, 'square in a box');
+});
+
+test('static: a place\'s square and minH change the rectangle it covers', () => {
+  const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-6, `${a} is not ${b}`);
+  const g = gridOf(SWISS), PAGE_RECT = { x0: 0, y0: 0, x1: 1080, y1: 1350 };
+  const rect = (place, mh = 0) => placeRect(place, PAGE_RECT, SWISS, g, mh);
+  const [r3top, r4bottom] = rowSpanOf(g, 3, 2);
+  const plain = rect({ grid: { col: 1, span: 3, row: 3, rowSpan: 2 } });
+  assert.deepEqual([plain.y0, plain.y1], [r3top, r4bottom], 'no square: the rows');
+  const side = plain.x1 - plain.x0;
+  assert.ok(side < r4bottom - r3top, 'the test needs a square smaller than its rows');
+  const top = rect({ grid: { col: 1, span: 3, row: 3, rowSpan: 2 }, square: true });
+  assert.ok(Math.abs(top.y1 - top.y0 - side) < 1e-6, 'a square is as tall as it is wide'); assert.equal(top.y0, r3top, 'at the top of its rows');
+  const foot = rect({ grid: { col: 1, span: 3, row: 3, rowSpan: 2, alignY: 'bottom' }, square: true });
+  assert.equal(foot.y1, r4bottom, 'with alignY bottom it sits at the foot'); assert.ok(Math.abs(foot.y1 - foot.y0 - side) < 1e-6);
+  const mid = rect({ grid: { col: 1, span: 3, row: 3, rowSpan: 2, alignY: 'center' }, square: true });
+  assert.ok(Math.abs((mid.y0 + mid.y1) / 2 - (r3top + r4bottom) / 2) < 1e-6 && Math.abs(mid.y1 - mid.y0 - side) < 1e-6);
+  const wide = rect({ grid: { col: 1, span: 3, row: 3, rowSpan: 2 }, square: true, w: 300 });
+  assert.ok(Math.abs(wide.y1 - wide.y0 - 300) < 1e-6, 'a square with its own width is as tall as that');
+  const noRow = rect({ grid: { col: 1, span: 3 }, square: true });
+  assert.ok(Math.abs(noRow.y1 - noRow.y0 - side) < 1e-6);
+  // minH is the least height, whatever the form
+  near(rect({ grid: { col: 1, span: 3, row: 3, rowSpan: 2 }, minH: 500 }).y1 - r3top, 500);
+  const lowMin = rect({ grid: { col: 1, span: 3, row: 3, rowSpan: 2, alignY: 'bottom' }, minH: 500 });
+  assert.equal(lowMin.y1, r4bottom); near(lowMin.y1 - lowMin.y0, 500);
+  assert.deepEqual(rect({ grid: { col: 1, span: 3, row: 3, rowSpan: 2 }, minH: 10 }), plain, 'a minH below the rows changes nothing');
+  assert.equal(rect({ px: { x: 0, y: 100, w: 50, h: 10 }, minH: 80 }).y1, 180);
+  assert.equal(rect({ px: { x: 0, y: 100, w: 50 }, minH: 80 }).y1, 180);
+  assert.deepEqual([rect({ anchor: { left: 0, top: 100, w: 50 }, minH: 80 }).y0, rect({ anchor: { left: 0, top: 100, w: 50 }, minH: 80 }).y1], [100, 180]);
+  const fromBottom = rect({ anchor: { left: 0, bottom: 100, w: 50 }, minH: 80 });
+  assert.deepEqual([fromBottom.y0, fromBottom.y1], [1350 - 100 - 80, 1350 - 100]);
+  assert.equal(rect({ anchor: { left: 0, top: 100, h: 200, w: 50 }, minH: 80 }).y1, 300);
+  // and it is judged: a square caption reaching down onto a picture is text over a picture
+  const photo = { type: 'photo', place: { grid: { col: 1, span: 12, row: 6, rowSpan: 2 } } };
+  hostOk(photo, { type: 'text', field: 'sub', style: 'body', place: { grid: { col: 1, span: 3, row: 3 }, minH: 100 } });
+  says(hp(photo, { type: 'text', field: 'sub', style: 'body', place: { grid: { col: 1, span: 3, row: 3 }, minH: 600 } }), /over a picture/, 'a text whose minH reaches the picture');
+  says(hp(photo, { type: 'text', field: 'sub', style: 'body', place: { grid: { col: 1, span: 12, row: 3 }, square: true } }), /over a picture/, 'a square text as tall as the page is wide');
+});
+
+test('text: track, lead, weight, font; the weight is one the font of its role lists', () => {
+  hostOk(TX({ track: 0.1, lead: 1.2, weight: 500, font: 'text' }));
+  hostOk(TX({ track: -0.1, lead: 0.8 })); hostOk(TX({ track: 0.3, lead: 1.6, weight: 400 }));
+  for (const [k, v] of [['track', -0.11], ['track', 0.31], ['lead', 0.79], ['lead', 1.61], ['weight', 99], ['weight', 901], ['weight', 450.5], ['weight', '500'], ['font', 'serif'], ['font', 7]]) says(hp(TX({ [k]: v })), new RegExp(`\\.${k} must be`), `${k} ${v}`);
+  // swiss: display 700 and 800, text 400 and 500, label (mono) 500
+  says(hp(TX({ weight: 600 })), /\.weight is 600, which fonts\.text\.weights does not list \(400, 500\)/, 'body 600');
+  hostOk(TX({ style: 'display', size: 100, weight: 700 }));
+  says(hp(TX({ style: 'display', size: 100, weight: 900 })), /fonts\.display\.weights does not list \(700, 800\)/, 'display 900');
+  says(hp(TX({ style: 'numeral', size: 100, weight: 500 })), /fonts\.display\.weights/, 'a numeral style uses the display font');
+  hostOk(TX({ style: 'label', weight: 500 }));
+  says(hp(TX({ style: 'label', weight: 400 })), /fonts\.mono\.weights does not list \(500\)/, 'label follows type.label.role (mono)');
+  // the font override
+  hostOk(TX({ font: 'display', weight: 800 }));
+  says(hp(TX({ font: 'display', weight: 500 })), /fonts\.display\.weights/, 'body text in the display font, weight 500');
+  says(hp(TX({ font: 'label', weight: 400 })), /fonts\.label\.weights does not list \(500\)/, 'font label');
+  says(hp(TX({ font: 'mono', weight: 400 })), /fonts\.mono\.weights/, 'font mono');
+  hostOk(TX({ font: 'mono', weight: 500 }));
+  // a label font of a look whose labels are not mono
+  const swap = host(TX({ style: 'label', weight: 500 })); swap.type.label.role = 'label'; swap.fonts.label.weights = [400, 500]; swap.fonts.label.family = 'Hanken Grotesk'; swap.fonts.mono.weights = [500];
+  assert.deepEqual(validateLook(swap, 'look', {}), [], 'label type in the label font, which lists 500');
+  swap.compositions[0].elements[2].weight = 300; says(validateLook(swap, 'look', {}), /fonts\.label\.weights/, 'label role label');
+  // only library fonts are checked, like fontRules
+  const brand = host(TX({ style: 'display', size: 100, weight: 900 })); brand.fonts.display = { source: 'brand', role: 'display' };
+  assert.deepEqual(validateLook(brand, 'look', {}), [], 'a brand font lists no weights');
+  // in a flow too
+  says(hp(inBox({ type: 'text', field: 'sub', style: 'body', weight: 600 })), /elements\[2\]\.children\[0\]\.weight is 600/, 'weight of a child');
+  // other types take none of them
+  for (const k of ['track', 'lead', 'weight', 'font', 'dropWhenTight']) says(hp({ type: 'box', place: AT(56, 700, 100, 100), [k]: 1 }), /is not a setting of a box/, `box.${k}`);
+});
+
+test('text: dropWhenTight at most once, and only where a headline can be measured', () => {
+  hostOk(TX({ dropWhenTight: true }));
+  hostOk(TX({ dropWhenTight: false }), { ...TX({ dropWhenTight: false }), field: 'tag', style: 'label', place: AT(56, 1000, 300, 60) });
+  says(hp(TX({ dropWhenTight: true }), { ...TX({ dropWhenTight: true }), field: 'tag', style: 'label', place: AT(56, 1000, 300, 60) }), /elements\[3\]\.dropWhenTight at most one element/, 'two that may be dropped');
+  says(hp(TX({ dropWhenTight: 'yes' })), /dropWhenTight must be true or false/, 'a string');
+  // the measured headline: a fitted headline counts, a mantra-rows or no headline text does not
+  const without = (el) => { const l = host(TX({ dropWhenTight: true })); l.compositions[0].elements[0] = clone(el); return validateLook(l, 'look', {}); };
+  assert.deepEqual(without(EXAMPLES['fitted-stack']), [], 'a fitted headline is measured');
+  says(without(EXAMPLES['mantra-rows']), /dropWhenTight needs a headline text or a fitted headline/, 'repeated headline rows');
+  // the headline that drops itself cannot be what is measured
+  const self = host({ type: 'text', field: 'headline', style: 'display', size: 100, place: AT(56, 100, 900, 300), dropWhenTight: true });
+  self.compositions[0].elements.shift();
+  says(validateLook(self, 'look', {}), /dropWhenTight needs a headline text/, 'the only headline drops itself');
+});
+
+test('text and sticker ladders: maxLines and maxH, and the ladder rules still apply', () => {
+  const lad = (extra = {}, steps = [[50, 100], [100, 90]]) => TX({ style: 'display', ladder: { by: 'sub', steps, ...extra } });
+  hostOk(lad({ maxLines: 3, maxH: 300 })); hostOk(lad({ maxLines: 1 })); hostOk(lad({ maxH: 900 }));
+  for (const [k, v] of [['maxLines', 0], ['maxLines', 9], ['maxLines', 2.5], ['maxH', 39], ['maxH', 901], ['maxH', '300']]) says(hp(lad({ [k]: v })), new RegExp(`ladder\\.${k} must be`), `${k} ${v}`);
+  says(hp(lad({ maxLines: 3 }, [[100, 100], [50, 90]])), /shortest text first/, 'steps still ordered with maxLines');
+  says(hp(lad({ maxH: 300 }, [[50, 90], [100, 100]])), /must not grow/, 'sizes still never grow with maxH');
+  says(hp(lad({ maxLines: 3 }, [[50, 100], [90, 90]])), /must reach it/, 'the last step still reaches the maximum');
+  const st = (extra) => ({ type: 'sticker', field: 'tag', shape: 'circle', size: 200, place: AT(700, 300, 200, 200), ladder: { by: 'tag', steps: [[8, 60], [16, 40]], ...extra } });
+  hostOk(st({ maxLines: 2, maxH: 120 }));
+  for (const [k, v] of [['maxLines', 0], ['maxLines', 9], ['maxH', 39], ['maxH', 901]]) says(hp(st({ [k]: v })), new RegExp(`ladder\\.${k} must be`), `sticker ${k} ${v}`);
+  says(hp({ ...st({ maxLines: 2 }), ladder: { by: 'tag', steps: [[8, 40], [16, 60]], maxLines: 2 } }), /must not grow/, 'a sticker ladder still never grows');
+});
+
+test('textShadow: hard or your own, on text, a numeral and a glyph only', () => {
+  const shadows = ['hard', { x: 3, y: 3, colour: 'ink' }, { x: -24, y: 24 }];
+  for (const sh of shadows) {
+    hostOk(TX({ textShadow: sh }));
+    hostOk({ ...EXAMPLES.numeral, textShadow: sh });
+    hostOk({ ...EXAMPLES.glyph, textShadow: sh });
+  }
+  for (const bad of ['soft', 'none', 5, [1, 2], { x: 25, y: 0 }, { x: 1 }, { y: 1 }, { x: 1.5, y: 1 }, { x: 1, y: 1, colour: '#ffffff' }, { x: 1, y: 1, colour: 'chartreuse' }, { x: 1, y: 1, blur: 4 }, null]) {
+    for (const t of ['text', 'numeral', 'glyph']) says(hp({ ...clone(EXAMPLES[t]), textShadow: bad }), /textShadow/, `${t}.textShadow ${JSON.stringify(bad)}`);
+  }
+  hostOk({ ...clone(EXAMPLES['fitted-stack']), textShadow: 'hard' });
+  says(hp((({ cap, floor, ...rest }) => ({ ...rest, mode: 'block', sizes: [120, 100], textShadow: 'hard' }))(clone(EXAMPLES['fitted-stack']))), /textShadow is for lines mode/, 'a block headline takes no letter shadow');
+  for (const t of ELEMENT_TYPES.filter((x) => !['text', 'numeral', 'glyph', 'fitted-stack'].includes(x))) says(hp({ ...clone(EXAMPLES[t]), textShadow: 'hard' }), /"textShadow" is not a setting/, `${t} takes no textShadow`);
+});
+
+test('fitted-stack: maxLines up to 5 in lines and block mode and 8 in fill mode; lead in lines mode only', () => {
+  const fsx = (o) => ({ type: 'fitted-stack', place: AT(56, 400, 900, 300), ...o });
+  hostOk(fsx({ mode: 'lines', cap: 200, floor: 80, maxLines: 5, lead: 0.9 }));
+  hostOk(fsx({ mode: 'block', sizes: [120, 100], maxLines: 5 }));
+  hostOk(fsx({ mode: 'fill', cap: 200, floor: 80, maxLines: 8 }));
+  hostOk(fsx({ mode: 'fill', cap: 200, floor: 80, maxLines: 6 }));
+  hostOk(fsx({ mode: 'lines', cap: 200, floor: 80, maxLines: 1, lead: 0.78 })); hostOk(fsx({ mode: 'lines', cap: 200, floor: 80, lead: 1.2 }));
+  says(hp(fsx({ mode: 'lines', cap: 200, floor: 80, maxLines: 6 })), /maxLines is at most 5 in lines mode/, 'lines 6');
+  says(hp(fsx({ mode: 'block', sizes: [120, 100], maxLines: 7 })), /maxLines is at most 5 in lines mode and 6 in block mode/, 'block 7');
+  for (const v of [0, 9, 2.5, '3']) says(hp(fsx({ mode: 'fill', cap: 200, floor: 80, maxLines: v })), /maxLines must be a whole number from 1 to 8/, `fill ${v}`);
+  for (const v of [0.77, 1.21, '1', null]) says(hp(fsx({ mode: 'lines', cap: 200, floor: 80, lead: v })), /lead must be a number from 0.78 to 1.2/, `lead ${v}`);
+  says(hp(fsx({ mode: 'fill', cap: 200, floor: 80, lead: 1 })), /lead is for lines mode/, 'lead in fill');
+  says(hp(fsx({ mode: 'block', sizes: [120, 100], lead: 1 })), /lead is for lines mode/, 'lead in block');
+  // h and minH, a block-mode headline in a flow
+  hostOk(inBox({ type: 'fitted-stack', mode: 'block', sizes: [120, 100], h: 300, minH: 200, before: 10 }));
+  hostOk(inBox({ type: 'fitted-stack', mode: 'lines', cap: 200, floor: 80, grow: 1 }));
+  says(hp(fsx({ mode: 'lines', cap: 200, floor: 80, h: 300 })), /\.h is for an item flowing in a box/, 'h at the top');
+});
+
+test('numeral: cap and min, or sizes; the sizes go from the largest down; family', () => {
+  const nu = (o) => ({ type: 'numeral', field: 'meta', format: 'day', place: AT(56, 400, 900, 300), ...o });
+  hostOk(nu({ cap: 400, min: 100 })); hostOk(nu({ sizes: [400, 300, 200] })); hostOk(nu({ sizes: [900] }));
+  hostOk(nu({ sizes: [900, 800, 700, 600, 500, 400, 300, 24] })); hostOk(nu({ sizes: [400, 300], family: 'mono' })); hostOk(nu({ cap: 400, min: 100, family: 'display' }));
+  says(hp(nu({ sizes: [400, 300], cap: 400 })), /gives sizes and cap or min/, 'sizes and cap');
+  says(hp(nu({ sizes: [400, 300], min: 100 })), /gives sizes and cap or min/, 'sizes and min');
+  says(hp(nu({})), /needs cap and min, or sizes/, 'nothing');
+  says(hp(nu({ cap: 400 })), /needs cap and min, or sizes/, 'cap alone');
+  says(hp(nu({ min: 100 })), /needs cap and min, or sizes/, 'min alone');
+  says(hp(nu({ cap: 100, min: 200 })), /min is above the largest size/, 'min above cap');
+  says(hp(nu({ sizes: [300, 400] })), /sizes must go from the largest down/, 'ascending');
+  says(hp(nu({ sizes: [300, 300] })), /sizes must go from the largest down/, 'equal');
+  says(hp(nu({ sizes: [] })), /sizes must be a list of 1 to 8/, 'empty');
+  says(hp(nu({ sizes: Array.from({ length: 9 }, (_, i) => 900 - i * 10) })), /sizes must be a list of 1 to 8/, 'nine');
+  for (const v of [23, 901, 100.5, '300']) says(hp(nu({ sizes: [v] })), /sizes\[0\] must be a whole number from 24 to 900/, `size ${v}`);
+  for (const v of ['serif', 'text', 3]) says(hp(nu({ cap: 400, min: 100, family: v })), /family must be one of display, mono/, `family ${v}`);
+  // the least height is the last size: a numeral set from y 650 reaches a picture at 700 with sizes ending at 100, not with sizes ending at 24
+  const over = (sizes) => hp({ type: 'photo', place: AT(56, 700, 900, 500) }, { type: 'numeral', field: 'meta', format: 'day', sizes, place: { px: { x: 56, y: 650, w: 900 } } });
+  assert.deepEqual(over([400, 24]), [], 'ends at 24: clear of the picture');
+  says(over([400, 100]), /over a picture/, 'ends at 100: reaches the picture');
+  says(hp({ type: 'photo', place: AT(56, 700, 900, 500) }, { type: 'numeral', field: 'meta', format: 'day', cap: 400, min: 60, place: { px: { x: 56, y: 650, w: 900 } } }), /over a picture/, 'cap and min are judged by the least size too');
+});
+
+test('sticker: w "hug" with minW, maxW and fit; fit and pad', () => {
+  const pill = (o) => defd({ type: 'sticker', field: 'tag', shape: 'pill', w: 'hug', h: 80, fit: { cap: 60, floor: 30, h: 60 }, place: { px: { x: 600, y: 300 } }, ...o });
+  hostOk(pill({}));
+  hostOk(pill({ minW: 100, maxW: 400, pad: 20, fit: { cap: 60, floor: 30, w: 300, h: 60, maxLines: 4 } }));
+  says(hp(pill({ fit: { cap: 60, floor: 30 } })), /fit needs h/, 'a hugging pill with no fit.h');
+  hostOk(pill({ minW: 100, maxW: 100 }));
+  hostOk(pill({ h: undefined, size: 90 }));
+  hostOk(pill({ pad: [10, 20, 10, 20] }));
+  hostOk({ type: 'sticker', field: 'tag', shape: 'pill', w: 300, h: 80, place: AT(600, 300, 300, 80), pad: 12 });
+  hostOk({ type: 'sticker', field: 'tag', shape: 'circle', size: 200, fit: { cap: 60, floor: 30, w: 150, h: 100 }, place: AT(700, 300, 200, 200) });
+  says(hp({ type: 'sticker', field: 'tag', shape: 'circle', size: 200, fit: { cap: 60, floor: 30, h: 100 }, place: AT(700, 300, 200, 200) }), /fit needs w/, 'fit with no w');
+  says(hp({ type: 'sticker', field: 'tag', shape: 'circle', size: 200, fit: { cap: 60, floor: 30, w: 100 }, place: AT(700, 300, 200, 200) }), /fit needs h/, 'fit with no h');
+  says(hp(pill({ w: 'wide' })), /w must be/, 'w wide'); says(hp(pill({ w: 10 })), /w must be/, 'w 10'); says(hp(pill({ w: 901 })), /w must be/, 'w 901');
+  says(hp(pill({ fit: undefined })), /a hugging sticker needs fit/, 'hug without fit');
+  const kids = pill({ field: undefined, fit: undefined, children: [{ type: 'text', field: 'tag', style: 'display', size: 40 }] });
+  says(hp(kids), /a hugging sticker carries a field/, 'hug with text items');
+  says(hp(pill({ h: undefined })), /a hugging sticker needs a height/, 'hug without a height');
+  says(hp(pill({ shape: 'circle' })), /a hugging sticker is a pill/, 'hug circle');
+  says(hp(pill({ shape: undefined })), /a hugging sticker is a pill/, 'hug with the default shape');
+  says(hp(pill({ minW: 500, maxW: 100 })), /minW is above maxW/, 'minW above maxW');
+  for (const v of [39, 901, 100.5, '100']) { says(hp(pill({ minW: v })), /minW must be/, `minW ${v}`); says(hp(pill({ maxW: v })), /maxW must be/, `maxW ${v}`); }
+  says(hp(pill({ w: 300, minW: 100, h: 80 })), /minW goes with w "hug" only/, 'minW with a number w');
+  says(hp({ type: 'sticker', field: 'tag', shape: 'pill', h: 80, maxW: 300, place: AT(600, 300, 300, 80), size: 200 }), /maxW goes with w "hug" only/, 'maxW without w');
+  says(hp(pill({ ladder: { by: 'tag', steps: [[16, 40]] } })), /fit and a ladder/, 'fit and ladder');
+  says(hp(pill({ textSize: 40 })), /fit and a text size/, 'fit and textSize');
+  says(hp(pill({ fit: { cap: 30, floor: 60 } })), /fit\.floor is above the largest size/, 'floor above cap');
+  says(hp(pill({ fit: { cap: 60 } })), /fit needs floor/, 'fit without floor'); says(hp(pill({ fit: { floor: 30 } })), /fit needs cap/, 'fit without cap');
+  says(hp(pill({ fit: { cap: 60, floor: 30, maxLines: 5 } })), /fit\.maxLines must be a whole number from 1 to 4/, 'fit.maxLines 5');
+  says(hp(pill({ fit: { cap: 60, floor: 30, extra: 1 } })), /is not a setting here/, 'fit extra key');
+  says(hp({ type: 'sticker', shape: 'circle', size: 200, fit: { cap: 60, floor: 30 }, place: AT(700, 300, 200, 200), children: [{ type: 'text', field: 'tag', style: 'display', size: 40 }] }), /sizes the words of a field/, 'fit with text items');
+  says(hp(pill({ pad: 201 })), /pad must be/, 'pad 201');
+  // the existing rules hold: a circle needs a size, a pill a width or a size
+  says(hp({ type: 'sticker', field: 'tag', shape: 'circle', place: AT(700, 300, 200, 200) }), /needs a size/, 'a circle with no size');
+  says(hp({ type: 'sticker', field: 'tag', shape: 'pill', h: 80, place: AT(700, 300, 200, 80) }), /needs a width \(w\) or a size/, 'a pill with no width');
+  // type levels: the fit's cap is the size it sets
+  says(hp({ type: 'text', field: 'sub', style: 'item', size: 36, place: AT(56, 900, 600, 100) }, pill({ fit: { cap: 70, floor: 30, h: 60 } })), /sets type in 4 sizes/, 'the fit cap is a level');
+});
+
+test('seam: edge rises to the right, lower is a fill role, items flow, one sticker on the edge', () => {
+  const stk = (o = {}) => defd({ type: 'sticker', field: 'tag', shape: 'circle', size: 160, place: { anchor: { right: 60, top: -80 } }, ...o });
+  const seam = (o = {}) => defd({ type: 'seam', leftY: 700, rightY: 600, lower: 'dark', ...o });
+  const kid = { type: 'text', field: 'sub', style: 'body' };
+  hostOk(seam());
+  hostOk(seam({ edge: 8, gap: 20, ink: 'white', upper: 'field', edgeFill: 'paper', children: [clone(kid)] }));
+  hostOk(seam({ children: [{ ...clone(kid), w: 600, before: 12 }], sticker: stk() }));
+  hostOk(seam({ sticker: stk({ place: { px: { x: 700, y: -60, w: 160, h: 160 } } }) }));
+  hostOk(seam({ sticker: stk({ field: undefined, children: [{ type: 'text', field: 'tag', style: 'display', size: 40 }] }) }));
+  // leftY more than rightY
+  says(hp(seam({ leftY: 600, rightY: 600 })), /leftY must be more than rightY/, 'level');
+  says(hp(seam({ leftY: 500, rightY: 600 })), /leftY must be more than rightY/, 'falling to the right');
+  for (const v of [-1, 1351, 650.5, '700']) says(hp(seam({ leftY: v })), /leftY must be a whole number from 0 to 1350/, `leftY ${v}`);
+  // lower is a fill role
+  for (const ok_ of ['paper', 'white', 'soft', 'paper-warm', 'light-tint', 'dark', 'field', 'field-deep', 'ink', 'primary', 'gold', 'gold-deep', 'accent']) hostOk(seam({ lower: ok_, ...(['paper', 'white', 'soft', 'paper-warm', 'light-tint'].includes(ok_) ? {} : {}) }));
+  for (const bad of ['muted', 'on-field', 'rule', 'body']) says(hp(seam({ lower: bad })), /lower must be a colour a panel can be filled with/, `lower ${bad}`);
+  for (const bad of ['#ff0000', 'red', 5, null]) says(hp(seam({ lower: bad })), /lower must be a colour role|lower must be a colour a panel/, `lower ${String(bad)}`);
+  says(hp({ type: 'seam', leftY: 700, rightY: 600 }), /a seam needs lower/, 'lower is needed');
+  // ink on the items, against lower
+  says(hp(seam({ ink: 'ink' })), /ink ink does not read on fill dark/, 'dark ink on a dark lower');
+  hostOk(seam({ lower: 'paper', ink: 'ink', children: [clone(kid)] }));
+  says(hp(seam({ lower: 'paper', children: [{ ...clone(kid), ink: 'white' }] })), /ink white does not read on fill paper/, 'a child\'s ink against lower');
+  hostOk(seam({ lower: 'dark', children: [{ ...clone(kid), ink: 'white' }] }));
+  // items flow: no place, no layer, only the types that flow
+  says(hp(seam({ children: [{ ...clone(kid), place: AT(1, 1, 100, 50) }] })), /an item of a seam flows in the colour below the edge and takes no place/, 'a child with a place');
+  says(hp(seam({ children: [{ type: 'photo' }] })), /cannot flow in a box/, 'a picture cannot flow');
+  says(hp(seam({ children: [{ type: 'band', y: 1, h: 10 }] })), /a seam holds/, 'a band in a seam');
+  says(hp(seam({ children: [{ type: 'seam', leftY: 2, rightY: 1, lower: 'dark' }] })), /a seam holds/, 'a seam in a seam');
+  says(hp(seam({ children: [{ ...clone(kid), z: 3 }] })), /z is for the top of a composition/, 'a child with z');
+  says(hp(seam({ children: 'x' })), /children must be a list/, 'children not a list');
+  // the sticker slot
+  says(hp(seam({ sticker: stk({ place: undefined }) })), /sticker the sticker of a seam needs a place/, 'no place');
+  says(hp(seam({ sticker: stk({ place: { grid: { col: 1, span: 3 } } }) })), /sticker\.place inside a box is placed with px or anchor/, 'a grid place');
+  says(hp(seam({ sticker: stk({ place: { inset: 'page' } }) })), /sticker\.place inside a box is placed with px or anchor/, 'an inset place');
+  says(hp(seam({ sticker: stk({ z: 2 }) })), /sticker\.z a seam's sticker takes no layer/, 'a sticker with z');
+  says(hp(seam({ sticker: { ...kid, place: AT(1, 1, 5, 5) } })), /sticker must be an element of type sticker/, 'a text in the slot');
+  says(hp(seam({ sticker: { type: 'zzz' } })), /sticker must be an element of type sticker/, 'an unknown type in the slot');
+  for (const v of ['x', 5, [], [stk()], null, true]) says(hp(seam({ sticker: v })), /\.sticker must be/, `sticker ${JSON.stringify(v)}`);
+  says(hp(seam({ sticker: stk({ size: undefined }) })), /sticker a sticker needs a size|sticker needs a size/, 'a circle without a size, by the sticker rules');
+  says(hp(seam({ sticker: stk({ field: undefined }) })), /carries nothing/, 'a sticker that carries nothing');
+  says(hp(seam({ sticker: stk({ fill: 'muted' }) })), /sticker\.fill must be a colour a panel can be filled with/, 'a sticker fill');
+  says(hp(seam({ sticker: stk({ sticker: stk() }) })), /"sticker" is not a setting of a sticker/, 'a sticker in the sticker');
+  says(hp({ type: 'box', place: AT(56, 300, 400, 200), sticker: stk() }), /"sticker" is not a setting of a box/, 'a sticker slot on a box');
+  says(hp({ ...EXAMPLES.band, sticker: stk() }), /"sticker" is not a setting of a band/, 'a sticker slot on a band');
+  // the slot is a node: it counts toward the 40, and its depth is the seam's plus one
+  const blocks = (n) => Array.from({ length: n }, (_, i) => ({ type: 'block', place: AT(10 + i, 700, 10, 10) }));
+  assert.deepEqual(hp(seam({ sticker: stk() }), ...blocks(36)), [], '2 + seam + sticker + 36 = 40');
+  says(hp(seam({ sticker: stk() }), ...blocks(37)), /at most 40/, 'the sticker is the 41st node');
+  assert.deepEqual(hp(seam({ children: [clone(kid)] }), ...blocks(36)), [], 'a child is a node too');
+  const nest = (n) => { let e = { type: 'text', field: 'sub', style: 'body' }; for (let i = 0; i < n; i++) e = { type: 'box', children: [e] }; return e; };
+  assert.deepEqual(hp(seam({ children: [nest(2)] })), [], 'seam 1, box 2, box 3, text 4');
+  says(hp(seam({ children: [nest(3)] })), /nested more than 4 levels deep/, 'seam 1, box 2, box 3, box 4, text 5');
+  // one seam only
+  says(hp(seam(), seam({ leftY: 900, rightY: 800 })), /at most one seam/, 'two seams');
+  // a seam's items are text on its field: no picture needed under them
+  hostOk(seam({ children: [clone(kid)] }));
+  hostOk(seam({ upper: 'field', children: [clone(kid)] }));
+  // the slot's static checks: its text reads on the sticker, its field is shown
+  hostOk(seam({ sticker: stk({ field: undefined, fill: 'gold', ink: 'on-accent', children: [{ type: 'text', field: 'tag', style: 'display', size: 40, ink: 'ink' }] }) }));
+  says(hp(seam({ sticker: stk() }), stk({ place: AT(700, 100, 160, 160) })), /show each field once/, 'the same sticker field twice');
+});
+
+test('seam: its sticker is judged with the look, filled by normaliseLook and valid after it', () => {
+  const l = host({ type: 'seam', leftY: 700, rightY: 600, lower: 'dark', children: [{ type: 'text', field: 'sub', style: 'body' }], sticker: { type: 'sticker', field: 'tag', size: 160, place: { anchor: { right: 60, top: -80 } } } });
+  assert.deepEqual(validateLook(l, 'look', {}), []);
+  const n = normaliseLook(l), seam = n.compositions[0].elements[2];
+  assert.equal(seam.type, 'seam');
+  assert.equal(seam.sticker.shape, 'circle', 'the defaults of a sticker are filled inside the slot');
+  assert.equal(seam.sticker.z, undefined, 'a slot takes no z');
+  assert.deepEqual([seam.edge, seam.gap, seam.upper, seam.edgeFill, seam.z], [0, 0, 'photo', 'paper', 0], 'the seam\'s own defaults');
+  assert.equal(seam.children[0].align, 'left'); assert.equal(seam.children[0].z, undefined);
+  assert.ok(Object.isFrozen(seam.sticker) && Object.isFrozen(seam.sticker.place));
+  assert.equal(l.compositions[0].elements[2].sticker.shape, undefined, 'the input is not changed');
+  const back = JSON.parse(JSON.stringify(n));
+  back.compositions.forEach((c) => { delete c.id; if (c.calm === null) delete c.calm; });
+  assert.deepEqual(validateLook(back, 'look', {}), [], 'a normalised look with a seam sticker is still valid');
+  const other = clone(l); other.compositions[0].elements[2].sticker.size = 170;
+  assert.notEqual(lookHash(other), lookHash(l), 'the sticker is part of the hash');
+  const withSeam = host({ type: 'seam', leftY: 700, rightY: 600, lower: 'dark' }), noSticker = normaliseLook(withSeam).compositions[0].elements[2];
+  assert.equal(noSticker.sticker, undefined, 'no sticker is invented');
+});
+
+test('fuzz: every property of a seam\'s sticker refuses hostile values with a message that says where', () => {
+  const base = { type: 'sticker', field: 'tag', shape: 'circle', size: 160, place: { anchor: { right: 60, top: -80 } } };
+  const mk = (st) => ({ type: 'seam', leftY: 700, rightY: 600, lower: 'dark', sticker: st });
+  assert.deepEqual(hp(mk(clone(base))), []);
+  let n = 0;
+  for (const [prop, desc] of Object.entries(cat.elements.sticker.properties)) {
+    for (const [path, d] of leaves(desc, [prop])) {
+      for (const v of hostile(d)) {
+        const st = clone(base); setPath(st, path, v);
+        const p = validateLook(host(mk(st)), 'look', {});
+        assertClean(p, `seam.sticker.${path.join('.')} = ${typeof v}`, v);
+        assert.ok(p.some((m) => m.includes('elements[2].sticker')), `seam.sticker.${path.join('.')}: the message says where`);
+        n++;
+      }
+    }
+  }
+  assert.ok(n > 300, `ran ${n} cases`);
+  // and the seam's own new settings, hostile, inside a seam that carries a child and a sticker
+  for (const [prop, desc] of Object.entries(cat.elements.seam.properties)) for (const [path, d] of leaves(desc, [prop])) for (const v of hostile(d)) {
+    const el = mk(clone(base)); el.children = [{ type: 'text', field: 'sub', style: 'body' }]; setPath(el, path, v);
+    assertClean(validateLook(host(el), 'look', {}), `seam.${path.join('.')} = ${typeof v}`, v);
+  }
+});
+
+test('type.display.wordSpace: 0 to 0.2 em, filled with 0', () => {
+  const edit = (v) => { const l = host(); l.type.display.wordSpace = v; return validateLook(l, 'look', {}); };
+  for (const v of [0, 0.05, 0.2]) assert.deepEqual(edit(v), [], `wordSpace ${v}`);
+  for (const v of [-0.01, 0.21, '0.1', null, NaN]) says(edit(v), /type\.display\.wordSpace must be a number from 0 to 0.2/, `wordSpace ${String(v)}`);
+  assert.equal(normaliseLook(host()).type.display.wordSpace, 0);
+  const w = host(); w.type.display.wordSpace = 0.1; assert.equal(normaliseLook(w).type.display.wordSpace, 0.1);
+  assert.notEqual(lookHash(w), lookHash(host()), 'part of the hash');
+});
+
+test('every new refusal names where it is, in the style of the others', () => {
+  const stk = { type: 'sticker', field: 'tag', shape: 'pill', w: 'hug', place: { px: { x: 1, y: 1 } } };
+  const cases = [
+    hp({ type: 'seam', leftY: 1, rightY: 2, lower: 'muted', children: [{ ...TX({}), place: AT(1, 1, 1, 1) }], sticker: { type: 'text' } }),
+    hp(stk, TX({ dropWhenTight: true, weight: 600 }), { ...TX({ dropWhenTight: true }), field: 'tag' }),
+    hp({ ...EXAMPLES.numeral, sizes: [1, 2], cap: 5 }), hp({ type: 'fitted-stack', mode: 'fill', cap: 100, floor: 50, lead: 1, maxLines: 9, place: AT(1, 1, 1, 1) }),
+    hp({ type: 'photo', place: { px: { x: 1, y: 1 }, square: true, minH: 700 } }),
+  ];
+  for (const p of cases) { assert.ok(p.length > 0); for (const m of p) assert.match(m, /^look "host": [a-zA-Z.\[\]0-9]+ /, m); assertClean(p, 'new refusals'); }
+});
+
+// ---- the properties added to draw the two shipped looks: each validates only where the renderer draws it ----
+test('a property that validates has an effect: skew, bleed, origin, numeral format, sticker fit', () => {
+  hostOk({ type: 'block', colour: 'accent', skew: 3, place: AT(56, 1150, 300, 20) });
+  says(hp({ type: 'block', colour: 'accent', skew: 3, radius: 8, place: AT(56, 1150, 300, 20) }), /skew is drawn only on a plain block/, 'skew with a radius');
+  says(hp({ type: 'block', colour: 'accent', skew: 3, shadow: 'hard', place: AT(56, 1150, 300, 20) }), /skew is drawn only on a plain block/, 'skew with a shadow');
+  says(hp({ type: 'box', skew: 3, place: AT(56, 1150, 300, 20) }), /"skew" is not a setting of a box/, 'a box takes no skew');
+  says(hp({ type: 'photo', place: { px: { x: 0, y: 700 } }, bleed: { edges: ['left'] } }), /place must give left, top, width and height/, 'a bleed with no size');
+  says(hp(inBox({ type: 'rule', bleed: { edges: ['left'] } })), /only an element placed on the page can run to its edge/, 'a child bleeding');
+  says(hp({ type: 'box', place: AT(56, 700, 500, 300), origin: 'left top', children: [{ type: 'rule' }] }), /needs rot/, 'origin without rot');
+  says(hp({ type: 'box', place: AT(56, 700, 500, 300), rot: 'card', origin: 'left top', originPct: [30, 50], children: [{ type: 'rule' }] }), /gives origin and originPct/, 'both origins');
+  hostOk({ type: 'box', place: AT(56, 700, 500, 300), rot: 'card', originPct: [30, 50], children: [{ type: 'rule' }] });
+  for (const v of [[101, 0], [0, -1], [1], 'center', [1.5, 2]]) says(hp({ type: 'box', place: AT(56, 700, 500, 300), rot: 'card', originPct: v, children: [{ type: 'rule' }] }), /originPct/, `originPct ${JSON.stringify(v)}`);
+  says(hp({ type: 'numeral', field: 'meta', cap: 400, min: 100, place: AT(56, 400, 900, 300) }), /needs a format/, 'a meta numeral with no format');
+  hostOk({ type: 'numeral', field: 'meta', format: 'pad2', cap: 400, min: 100, place: AT(56, 400, 900, 300) });
+  says(hp({ type: 'sticker', field: 'tag', shape: 'circle', size: 200, fit: { cap: 60, floor: 30 }, place: AT(700, 300, 200, 200) }), /fit needs h/, 'fit with no h');
+});
+
+test('flow properties: alignSelf, nudgeX and a small negative before, only for an item that flows', () => {
+  for (const t of ['box', 'text', 'sticker', 'fitted-stack']) {
+    assert.deepEqual(hp(inBox({ ...flowOf(t), alignSelf: 'stretch', nudgeX: -6, before: -6 })), [], `${t} flows, stretched and nudged`);
+    says(hp(inBox({ ...flowOf(t), alignSelf: 'baseline' })), /alignSelf must be one of/, `${t}: alignSelf baseline`);
+    says(hp(inBox({ ...flowOf(t), nudgeX: 121 })), /nudgeX must be a whole number from -120 to 120/, `${t}: nudgeX 121`);
+    says(hp({ ...clone(EXAMPLES[t]), alignSelf: 'start' }), /alignSelf is for an item flowing in a box/, `${t}: alignSelf at the top`);
+  }
+  for (const t of ['rule', 'block', 'photo', 'glyph', 'numeral']) says(hp({ ...clone(EXAMPLES[t]), alignSelf: 'start' }), /"alignSelf" is not a setting/, `${t} takes no alignSelf`);
+});
+
+test('text: tiltBar, follow and the not-date format', () => {
+  const lab = (o) => ({ type: 'text', field: 'label', style: 'label', size: 30, ...o });
+  assert.deepEqual(hp(inBox(lab({ tiltBar: true }))), []);
+  says(hp(lab({ tiltBar: true, place: AT(56, 700, 400, 60) })), /tiltBar sets a flowing line on a bar/, 'tiltBar with a place');
+  says(hp(inBox({ type: 'text', field: 'sub', style: 'body', tiltBar: true })), /tiltBar is for a label line/, 'tiltBar on body');
+  says(hp(inBox(lab({ tiltBar: true, emphasis: 'bar' }))), /tiltBar cannot go with vertical or emphasis/, 'tiltBar with emphasis');
+  says(hp(inBox({ type: 'text', field: 'sub', style: 'body', follow: true })), /follow is drawn for text inside a sticker/, 'follow outside a sticker');
+  hostOk({ type: 'text', field: 'meta', format: 'not-date', style: 'label', place: AT(56, 700, 400, 60) });
+  says(hp({ type: 'text', field: 'meta', format: 'day', split: { sep: '·', pick: 0 }, style: 'label', place: AT(56, 700, 400, 60) }), /reads its part by itself/, 'format with split');
+});
+
+test('rows: ruleEnd, sizeByCount, textTrack, numberSpan; fitted-stack lines-only properties; sticker and glyph stretch', () => {
+  const rows = (o) => ({ type: 'rows', each: 'items', number: '01', textStyle: 'item', place: AT(56, 700, 900, 400), ...o });
+  const listHost = (e) => validateLook({ ...host(), compositions: [{ kind: 'list', name: 'L', describe: 'A list host.', ground: 'paper', fields: { headline: { required: true }, items: { required: true } }, elements: [{ type: 'text', field: 'headline', style: 'display', size: 100, place: AT(56, 200, 900, 200) }, e] }] }, 'look', {});
+  assert.deepEqual(listHost(rows({ rule: 'hair', ruleEnd: true, sizeByCount: [[5, 44]], valign: 'top' })), []);
+  says(listHost(rows({ ruleEnd: true })), /ruleEnd closes the rows with a rule/, 'ruleEnd with no rule');
+  says(listHost(rows({ sizeByCount: [[5, 44], [4, 40]] })), /sizeByCount must list the fewest items first/, 'steps the wrong way');
+  says(listHost(rows({ sizeByCount: [[3, 40], [5, 44]] })), /sizeByCount must list the fewest items first/, 'a step that grows');
+  says(hp({ type: 'rows', each: 'meta-parts', number: 'none', textStyle: 'label', sizeByCount: [[5, 20]], place: AT(56, 700, 900, 400) }), /sizeByCount is for the items of a list/, 'sizeByCount on an event table');
+  says(listHost(rows({ textTrack: 0.1 })), /textTrack is for the label style/, 'textTrack on item words');
+  hostOk({ type: 'rows', each: 'meta-parts', number: 'none', keys: ['Date', 'Time', 'Place'], numberSpan: 4, textStyle: 'label', textTrack: -0.02, place: AT(56, 700, 900, 400) });
+  const fs = (o) => ({ type: 'fitted-stack', field: 'tag', mode: 'lines', cap: 220, floor: 80, maxLines: 1, place: AT(56, 400, 900, 440), ...o });
+  hostOk(fs({ trail: true, stretch: 70, padBelowEm: 0.14 }));
+  says(hp(fs({ stretch: 49 })), /stretch must be a whole number from 50 to 150/, 'stretch 49');
+  says(hp(fs({ padBelowEm: 0.4 })), /padBelowEm/, 'padBelowEm 0.4');
+  says(hp((({ cap, floor, ...r }) => ({ ...r, mode: 'block', sizes: [200, 150], trail: true }))(fs({}))), /is for lines mode/, 'trail in block mode');
+  says(hp({ type: 'sticker', field: 'tag', shape: 'circle', size: 200, stretch: 84, place: AT(700, 300, 200, 200) }), /stretch goes with fit/, 'sticker stretch without fit');
+  hostOk({ type: 'glyph', glyph: '“', size: 400, stretch: 84, place: AT(56, 300, 300, 300) });
+  says(hp({ type: 'glyph', glyph: '“', size: 400, stretch: 84.5, place: AT(56, 300, 300, 300) }), /stretch must be a whole number/, 'glyph stretch fraction');
 });

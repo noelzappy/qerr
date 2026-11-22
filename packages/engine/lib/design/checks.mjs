@@ -10,6 +10,20 @@ export const contrastRatio = (l1, l2) => (Math.max(l1, l2) + 0.05) / (Math.min(l
 // A ratio that is below its target, as text for a message. The check compares the true ratio; this only prints it, to one decimal
 // when that still reads as below the target, else to two decimals cut off (never rounded up), so a warning never says
 // "4.5:1 (needs 4.5:1)".
+// ---- the contrast target of LARGE display type on a post (a direction or look page) ----
+// A brand's contrast.display (3 to 7, default 4.5) is the target for text that is large on the feed canvas: a rendered size of at least
+// LARGE_DISPLAY_PX (64 px on a 1080 px wide image is about 24 CSS px at phone size, the large-text threshold of WCAG) at a weight of
+// 400 or more. Smaller text keeps its own target (brand.contrast headline, accent, sub, label ...). It is a brand accessibility
+// setting: a look cannot change it, and nothing here lowers a target below the 3:1 floor.
+export const LARGE_DISPLAY_PX = 64;
+export const DISPLAY_CONTRAST = Object.freeze({ min: 3, max: 7, default: 4.5 });
+export const displayTarget = (brand) => { const v = brand?.contrast?.display; return typeof v === 'number' && Number.isFinite(v) && v >= DISPLAY_CONTRAST.min && v <= DISPLAY_CONTRAST.max ? v : DISPLAY_CONTRAST.default; };
+// The target one measured text of a post page is held to: `key` is the brand.contrast key its role maps to; size (px) and weight are as rendered.
+export function postContrastNeed(brand, key, { size = 0, weight = 400 } = {}) {
+  if (['headline', 'accent', 'label'].includes(key) && size >= LARGE_DISPLAY_PX && weight >= 400) return displayTarget(brand);
+  return Number(brand?.contrast?.[key]);
+}
+
 export function ratioBelow(ratio, need) {
   const one = ratio.toFixed(1);
   return Number(one) < need ? one : (Math.floor(ratio * 100) / 100).toFixed(2);
@@ -180,7 +194,8 @@ export function findLayoutProblems(m, S) {
   for (const r of own) {
     if (EXEMPT_EDGE.has(r.role)) continue;
     const u = union(r.rects.map(core));
-    const over = { bottom: u.y1 - lim.y1, top: lim.y0 - u.y0, right: u.x1 - lim.x1, left: lim.x0 - u.x0 };
+    const over = { bottom: u.y1 - lim.y1, top: lim.y0 - u.y0, right: u.x1 - lim.x1, left: lim.x0 - u.x0 - (r.optical || 0) };
+    // (a headline pulled left by its first letter's side bearing, data-optical, has its INK on the margin: its box may stand that far outside)
     // a post's numeral may bleed off the edges it names (data-bleed="left bottom", or "all")
     const bleeds = r.bleed ? (r.bleed === 'all' ? Object.keys(over) : r.bleed.split(' ')) : [];
     for (const [edge, px] of Object.entries(over)) if (px > 1 && !bleeds.includes(edge)) problems.push({ kind: 'outside', role: r.role, text: r.text, edge, px: Math.round(px) });

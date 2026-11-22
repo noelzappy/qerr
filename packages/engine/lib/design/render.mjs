@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import { buildPage, buildPrintPage } from './page.mjs';
 import { COVER_SIZES, SIZES, pillHeight } from './sizes.mjs';
 import { forSize } from './spec.mjs';
-import { SCALABLE, autoLines, explainFitLines, explainPostFit, explainPostProblems, findPostProblems, contrastRatio, ratioBelow, explainCoverProblems, explainProblems, findCoverProblems, findLayoutProblems, imageSize, linesToSvg, luminance, upscaleWarning } from './checks.mjs';
+import { SCALABLE, autoLines, explainFitLines, explainPostFit, explainPostProblems, findPostProblems, contrastRatio, ratioBelow, explainCoverProblems, explainProblems, findCoverProblems, findLayoutProblems, imageSize, linesToSvg, luminance, postContrastNeed, upscaleWarning } from './checks.mjs';
 import { convertToJpeg } from './convert.mjs';
 import { hasAlpha, readImageBytes, sniff } from './assets.mjs';
 import { DesignError } from './errors.mjs';
@@ -204,7 +204,8 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
         const ratio = contrastRatio(tl, tl >= 0.18 ? stats[i].p95 : stats[i].p05);
         const key = THRESHOLD_KEY[r.role];
         ratios[key] = Math.min(ratios[key] ?? Infinity, ratio);
-        if (ratio < need(key)) failing.push({ role: r.role, key, ratio, need: need(key) });
+        const target = isPost ? postContrastNeed(brand, key, { size: r.size, weight: r.weight }) : need(key);
+        if (ratio < target) failing.push({ role: r.role, key, ratio, need: target });
       });
       const body = failing.filter((f) => f.key !== 'url');
       if (isPhoto && spec.scrim !== 'none' && body.length && peak < brand.photo.scrimCap - 1e-9) {

@@ -12,17 +12,8 @@ const FILE = new URL('./lib/design/looks/retail.look.json', import.meta.url);
 const look = JSON.parse(fs.readFileSync(FILE, 'utf8'));
 const code = REGISTRY.retail;
 
-// Messages of properties the validator did not know yet while the schema was being extended (before, track, lead, weight, upper, font,
-// numeral.family, numeral.sizes, fitted-stack maxLines up to 8, textShadow, sticker.w "hug" with minW and maxW, dropWhenTight, the seam's
-// own sticker slot, place.minH, grid square). The schema has caught up, so the list is empty and the test is fully strict. To allow one
-// again, add a pattern here; to stay strict, leave it empty. To drop the allow-list altogether, delete the filter line in the first test.
-const NOT_YET_KNOWN = [];
-
-test('the retail look validates as a shipped look', () => {
-  const problems = validateLook(look, 'retail', { shipped: true });
-  for (const p of problems) console.log(`retail look: ${p}`);
-  const unexpected = problems.filter((p) => !NOT_YET_KNOWN.some((re) => re.test(p)));
-  assert.deepEqual(unexpected, []);
+test('the retail look validates as a shipped look, with no problem at all (fully strict: no allow-list)', () => {
+  assert.deepEqual(validateLook(look, 'retail', { shipped: true }), []);
 });
 
 test('the brief lists all seven kinds, with the code registry\'s variants, names and budgets', () => {

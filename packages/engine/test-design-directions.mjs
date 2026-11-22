@@ -572,3 +572,41 @@ test('retail: markup-looking text in meta is escaped in every branch of the Post
   assert.equal(odd.day, null);
   assert.equal(String(odd.first), '&lt;b&gt;12&lt;/b&gt; Dec');
 });
+
+// ---- contrast.display: the target for large display type on post pages ----
+import { LARGE_DISPLAY_PX, displayTarget, postContrastNeed } from './lib/design/checks.mjs';
+test('contrast.display: default 4.5, a brand value from 3 to 7, validated; 3:1 is the floor', () => {
+  const base = loadBrand();
+  assert.equal(displayTarget(base), 4.5);
+  assert.equal(displayTarget({ contrast: { display: 6 } }), 6);
+  assert.equal(displayTarget({ contrast: { display: 2.9 } }), 4.5, 'a value outside the range is never used');
+  const raw = RAW;
+  const withDisplay = (display) => validateBrand({ ...raw, contrast: { ...raw.contrast, display } }).filter((e) => /contrast\.display/.test(e));
+  for (const ok of [3, 4.5, 7]) assert.deepEqual(withDisplay(ok), [], String(ok));
+  for (const bad of [2.9, 7.1, '4.5', NaN, null]) assert.equal(withDisplay(bad).length, 1, String(bad));
+  assert.deepEqual(validateBrand(raw).filter((e) => /contrast\.display/.test(e)), [], 'leaving it out is fine');
+});
+
+test('contrast.display: judged by the rendered size (64 px and a weight of 400), not by the role alone', () => {
+  const b = { contrast: { headline: 7, accent: 4.5, sub: 7, label: 4.5, display: 4.5 } };
+  assert.equal(LARGE_DISPLAY_PX, 64);
+  assert.equal(postContrastNeed(b, 'headline', { size: 64, weight: 700 }), 4.5);
+  assert.equal(postContrastNeed(b, 'headline', { size: 63, weight: 700 }), 7, 'a headline shrunk under 64 px meets the stricter target');
+  assert.equal(postContrastNeed(b, 'headline', { size: 200, weight: 300 }), 7, 'a light weight is not display type');
+  assert.equal(postContrastNeed(b, 'sub', { size: 90, weight: 700 }), 7, 'body roles keep their target');
+  assert.equal(postContrastNeed({ contrast: { ...b.contrast, display: 7 } }, 'headline', { size: 100, weight: 900 }), 7);
+  assert.equal(postContrastNeed(b, 'label', { size: 70, weight: 600 }), 4.5);
+});
+
+test('contrast.display: the palette keeps the brand field when light or ink reads on it at the target, and deepens it otherwise', () => {
+  const bright = paletteBrand(PALETTES.A);
+  assert.ok(contrast('#FFFFFF', PALETTES.A.primary) >= 4.5 || contrast(PALETTES.A.ink, PALETTES.A.primary) >= 4.5);
+  assert.equal(palette(bright, 4.5).field.toLowerCase(), PALETTES.A.primary.toLowerCase(), 'the bright field is kept at 4.5');
+  assert.notEqual(palette(bright, 7).field.toLowerCase(), PALETTES.A.primary.toLowerCase(), 'at 7 it is deepened as before');
+  assert.ok(contrast(palette(bright, 7).field, palette(bright, 7).onField) >= 7);
+  const demo = loadBrand();
+  assert.equal(palette({ ...demo, ...bright }, 4.5).field.toLowerCase(), PALETTES.A.primary.toLowerCase());
+  // a low-contrast accent never becomes small text: the accent type role is moved or replaced by the ink, whatever the target
+  const pale = paletteBrand({ name: 'Pale', light: '#F5F0E6', ink: '#2A2418', primary: '#9C3B16', gold: '#EADFC0', deep: '#9A7B2E' });
+  for (const need of [3, 4.5, 7]) assert.ok(contrast(palette(pale, need).accentType, palette(pale, need).paper) >= 4.5, `accent type at ${need}`);
+});

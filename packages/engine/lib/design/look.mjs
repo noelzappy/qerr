@@ -47,6 +47,8 @@ const FIELD_INFO = {
   meta: ['Event line', 'Date, time and place, split by dots.'], tag: ['Tag or price', 'A short word or price for a sticker.'], items: ['List points', 'Two to five short points.'], image: ['Picture', 'The post\'s picture.'],
 };
 const clone = (v) => JSON.parse(JSON.stringify(v));
+// A slot is one element of a fixed type held as a property of its element (not in children): a seam's sticker on its edge.
+const SLOT_INFO = { sticker: { of: 'sticker', label: 'Sticker on the edge', help: 'One sticker sitting on the slanted edge. Its place is an anchor or px place measured from the top edge of the split; a negative top lifts it above the edge. It takes no layer.', places: ['anchor', 'px'] } };
 
 // Everything the web editor draws its controls from, and the validator and tests are held to: plain JSON, stable key order.
 export function lookCatalogue() {
@@ -58,6 +60,7 @@ export function lookCatalogue() {
     elements[t] = {
       label: s.label, group: s.group, help: s.help, placement: s.placement, flow: s.flow, container: s.container ?? null, text: s.text, fitted: !!s.fitted,
       required: [...(REQUIRED_OWN[t] ?? [])], properties,
+      ...(s.sticker ? { slots: { sticker: { ...SLOT_INFO.sticker } } } : {}),
     };
   }
   const fields = Object.fromEntries(FIELD_NAMES.map((f) => [f, {
@@ -129,12 +132,13 @@ function fill(desc, v) {
 function fillElement(el, top = true) {
   const out = { ...el };
   for (const k of keysOf(el.type)) {
-    if (k === 'type' || k === 'children' || k === 'place' || (k === 'z' && !top)) continue;
+    if (k === 'type' || k === 'children' || k === 'sticker' || k === 'place' || (k === 'z' && !top)) continue;
     const desc = descriptorOf(el.type, k);
     if (out[k] === undefined && desc.default !== undefined) out[k] = clone(desc.default);
     else if (out[k] !== undefined) out[k] = fill(desc, out[k]);
   }
   if (Array.isArray(el.children)) out.children = el.children.map((c) => fillElement(c, false));
+  if (isObj(el.sticker)) out.sticker = fillElement(el.sticker, false);
   return out;
 }
 const deepFreeze = (o) => { if (o && typeof o === 'object' && !Object.isFrozen(o)) { Object.freeze(o); for (const v of Object.values(o)) deepFreeze(v); } return o; };

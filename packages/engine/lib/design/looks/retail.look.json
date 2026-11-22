@@ -19,7 +19,9 @@
         "head": 0
       },
       "extraLines": [
-        114
+        102,
+        114,
+        122
       ]
     }
   },
@@ -67,11 +69,12 @@
         0.82
       ],
       "trim": "none",
-      "optical": false
+      "optical": false,
+      "wordSpace": 0.06
     },
     "body": {
       "size": 36,
-      "lead": 1.222,
+      "lead": 1.2222,
       "weight": 600,
       "strength": 1
     },
@@ -113,10 +116,10 @@
     },
     "highlight": {
       "pad": [
+        0.09,
+        0.12,
         0.04,
-        0.13,
-        0.04,
-        0.13
+        0.12
       ],
       "tilt": -1.5
     },
@@ -177,22 +180,16 @@
         {
           "type": "box",
           "place": {
-            "px": {
-              "x": 56,
-              "y": 56,
-              "w": 968,
-              "h": 1158
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": "margin",
+              "bottom": 136
             }
           },
           "flow": "column",
           "align": "stretch",
           "gap": 36,
-          "pad": [
-            0,
-            0,
-            0,
-            0
-          ],
           "ink": "on-field",
           "when": {
             "present": "sub"
@@ -213,11 +210,11 @@
               "cap": 230,
               "floor": 80,
               "maxLines": 5,
-              "lead": 1,
               "valign": "center",
               "emphasis": "tilt-bar",
               "grow": 1,
-              "w": 960
+              "w": 960,
+              "lead": 1
             },
             {
               "type": "text",
@@ -231,22 +228,16 @@
         {
           "type": "box",
           "place": {
-            "px": {
-              "x": 56,
-              "y": 56,
-              "w": 968,
-              "h": 1158
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": "margin",
+              "bottom": 136
             }
           },
           "flow": "column",
           "align": "stretch",
           "gap": 36,
-          "pad": [
-            0,
-            0,
-            12,
-            0
-          ],
           "ink": "on-field",
           "when": {
             "absent": "sub"
@@ -267,28 +258,36 @@
               "cap": 230,
               "floor": 80,
               "maxLines": 5,
-              "lead": 1,
               "valign": "center",
               "emphasis": "tilt-bar",
               "grow": 1,
-              "w": 960
+              "w": 960,
+              "lead": 1
             }
+          ],
+          "pad": [
+            0,
+            0,
+            12,
+            0
           ]
         },
         {
           "type": "rule",
+          "weight": "heavy",
+          "colour": "on-field",
           "place": {
             "px": {
               "x": 56,
               "y": 1242,
               "w": 968
             }
-          },
-          "weight": "heavy",
-          "colour": "on-field"
+          }
         },
         {
           "type": "block",
+          "radius": "full",
+          "colour": "gold",
           "place": {
             "px": {
               "x": 56,
@@ -296,21 +295,19 @@
               "w": 22,
               "h": 22
             }
-          },
-          "radius": "full",
-          "colour": "gold"
+          }
         },
         {
           "type": "text",
           "source": "brand",
           "style": "label",
+          "ink": "on-field",
           "place": {
             "px": {
               "x": 102,
               "y": 1266
             }
-          },
-          "ink": "on-field"
+          }
         }
       ]
     },
@@ -343,7 +340,6 @@
             "inset": "page"
           },
           "flow": "column",
-          "align": "stretch",
           "when": {
             "present": "sub"
           },
@@ -352,13 +348,13 @@
               "type": "box",
               "flow": "column",
               "align": "stretch",
+              "grow": 1,
               "pad": [
                 30,
                 56,
                 0,
                 56
               ],
-              "grow": 1,
               "children": [
                 {
                   "type": "mantra-rows",
@@ -399,7 +395,7 @@
                   "flow": "column",
                   "pad": [
                     40,
-                    0,
+                    56,
                     0,
                     56
                   ],
@@ -422,28 +418,41 @@
             "inset": "page"
           },
           "flow": "column",
-          "align": "stretch",
-          "pad": [
-            30,
-            56,
-            56,
-            56
-          ],
           "when": {
             "absent": "sub"
           },
           "children": [
             {
-              "type": "mantra-rows",
-              "field": "headline",
-              "cap": 250,
-              "floor": 56,
-              "rmin": 3,
-              "rmax": 7,
-              "outline": 3,
-              "ink": "on-field",
-              "grow": 1
+              "type": "box",
+              "flow": "column",
+              "align": "stretch",
+              "grow": 1,
+              "pad": [
+                30,
+                56,
+                0,
+                56
+              ],
+              "children": [
+                {
+                  "type": "mantra-rows",
+                  "field": "headline",
+                  "cap": 250,
+                  "floor": 56,
+                  "rmin": 3,
+                  "rmax": 7,
+                  "outline": 3,
+                  "ink": "on-field",
+                  "grow": 1
+                }
+              ]
             }
+          ],
+          "pad": [
+            0,
+            0,
+            56,
+            0
           ]
         }
       ]
@@ -478,44 +487,43 @@
           "flow": "column",
           "align": "stretch",
           "gap": 48,
-          "pad": [
-            0,
-            0,
-            0,
-            0
-          ],
-          "when": {
-            "present": "sub"
-          },
           "children": [
             {
               "type": "box",
               "flow": "column",
-              "justify": "center",
               "align": "start",
+              "w": 968,
               "rot": "price",
-              "origin": "center",
+              "originPct": [
+                30,
+                50
+              ],
               "pad": [
                 0,
-                56,
                 0,
-                70
+                0,
+                14
               ],
-              "grow": 1,
               "children": [
                 {
-                  "type": "numeral",
+                  "type": "fitted-stack",
                   "field": "big",
+                  "mode": "lines",
                   "cap": 520,
-                  "min": 150,
-                  "family": "display",
+                  "floor": 150,
+                  "maxLines": 1,
+                  "lead": 0.78,
+                  "trail": true,
+                  "stretch": 70,
+                  "padBelowEm": 0.14,
                   "ink": "on-field",
                   "textShadow": {
                     "x": 10,
                     "y": 10,
                     "colour": "field-deep"
                   },
-                  "w": 894
+                  "w": 894,
+                  "h": 440
                 },
                 {
                   "type": "box",
@@ -533,7 +541,8 @@
                     "y": 8,
                     "colour": "field-deep"
                   },
-                  "before": 0,
+                  "before": -6,
+                  "nudgeX": 6,
                   "when": {
                     "present": "unit"
                   },
@@ -549,7 +558,11 @@
                     }
                   ]
                 }
-              ]
+              ],
+              "grow": 1,
+              "justify": "center",
+              "nudgeX": 56,
+              "alignSelf": "start"
             },
             {
               "type": "box",
@@ -572,7 +585,10 @@
                 }
               ]
             }
-          ]
+          ],
+          "when": {
+            "present": "sub"
+          }
         },
         {
           "type": "box",
@@ -582,44 +598,43 @@
           "flow": "column",
           "align": "stretch",
           "gap": 48,
-          "pad": [
-            0,
-            0,
-            48,
-            0
-          ],
-          "when": {
-            "absent": "sub"
-          },
           "children": [
             {
               "type": "box",
               "flow": "column",
-              "justify": "center",
               "align": "start",
+              "w": 968,
               "rot": "price",
-              "origin": "center",
+              "originPct": [
+                30,
+                50
+              ],
               "pad": [
                 0,
-                56,
                 0,
-                70
+                0,
+                14
               ],
-              "grow": 1,
               "children": [
                 {
-                  "type": "numeral",
+                  "type": "fitted-stack",
                   "field": "big",
+                  "mode": "lines",
                   "cap": 520,
-                  "min": 150,
-                  "family": "display",
+                  "floor": 150,
+                  "maxLines": 1,
+                  "lead": 0.78,
+                  "trail": true,
+                  "stretch": 70,
+                  "padBelowEm": 0.14,
                   "ink": "on-field",
                   "textShadow": {
                     "x": 10,
                     "y": 10,
                     "colour": "field-deep"
                   },
-                  "w": 894
+                  "w": 894,
+                  "h": 440
                 },
                 {
                   "type": "box",
@@ -637,7 +652,8 @@
                     "y": 8,
                     "colour": "field-deep"
                   },
-                  "before": 0,
+                  "before": -6,
+                  "nudgeX": 6,
                   "when": {
                     "present": "unit"
                   },
@@ -653,8 +669,21 @@
                     }
                   ]
                 }
-              ]
+              ],
+              "grow": 1,
+              "justify": "center",
+              "nudgeX": 56,
+              "alignSelf": "start"
             }
+          ],
+          "when": {
+            "absent": "sub"
+          },
+          "pad": [
+            0,
+            0,
+            48,
+            0
           ]
         },
         {
@@ -745,7 +774,6 @@
                   "style": "display",
                   "ink": "on-field",
                   "emphasis": "own-line-bar",
-                  "w": 968,
                   "ladder": {
                     "by": "headline",
                     "steps": [
@@ -765,7 +793,8 @@
                     "maxH": 350
                   }
                 }
-              ]
+              ],
+              "align": "stretch"
             },
             {
               "type": "block",
@@ -776,13 +805,13 @@
               "type": "rows",
               "each": "items",
               "number": "1",
-              "numberStyle": "label",
+              "numberStyle": "display",
               "numberSize": 46,
               "numberTile": {
                 "size": 88,
                 "fill": "gold",
                 "ink": "on-accent",
-                "shadow": true
+                "shadow": 6
               },
               "textStyle": "item",
               "altFill": [
@@ -842,7 +871,13 @@
               "x": -16,
               "y": -96
             }
-          }
+          },
+          "textShadow": {
+            "x": 16,
+            "y": 16,
+            "colour": "ink"
+          },
+          "stretch": 84
         },
         {
           "type": "box",
@@ -895,33 +930,20 @@
               }
             },
             {
-              "type": "box",
-              "flow": "column",
-              "rot": "bar",
-              "fill": "gold",
+              "type": "text",
+              "field": "by",
+              "style": "label",
+              "size": 30,
+              "lead": 1,
+              "weight": 800,
+              "track": 0.06,
+              "upper": true,
+              "nowrap": true,
               "ink": "on-accent",
-              "pad": [
-                9,
-                21,
-                9,
-                21
-              ],
+              "tiltBar": true,
               "when": {
                 "present": "by"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "field": "by",
-                  "style": "label",
-                  "size": 30,
-                  "lead": 1,
-                  "weight": 800,
-                  "track": 0.06,
-                  "upper": true,
-                  "nowrap": true
-                }
-              ]
+              }
             }
           ]
         }
@@ -932,7 +954,7 @@
       "name": "Frame pop",
       "describe": "The picture inside a primary frame, with a light block turned slightly across its foot carrying the headline (emphasis on a bar) and the sub, and a round accent sticker with a short tag on the top corner. The default for a photo with a headline of up to about 68 characters.",
       "ground": "paper",
-      "fit": "frame",
+      "fit": "margins",
       "fields": {
         "image": {
           "required": true
@@ -960,8 +982,7 @@
           ]
         },
         {
-          "type": "frame",
-          "colour": "field"
+          "type": "frame"
         },
         {
           "type": "box",
@@ -984,6 +1005,7 @@
           ],
           "shadow": "hard",
           "flow": "column",
+          "align": "stretch",
           "gap": 22,
           "children": [
             {
@@ -992,8 +1014,6 @@
               "style": "display",
               "size": 104,
               "lead": 0.92,
-              "w": 844,
-              "shrinkFloor": 0.82,
               "emphasis": "own-line-bar"
             },
             {
@@ -1023,16 +1043,16 @@
             "colour": "paper"
           },
           "field": "tag",
-          "when": {
-            "present": "tag"
-          },
           "fit": {
             "cap": 92,
             "floor": 40,
             "w": 190,
-            "h": 150,
-            "maxLines": 2
-          }
+            "h": 150
+          },
+          "when": {
+            "present": "tag"
+          },
+          "stretch": 84
         }
       ]
     },
@@ -1096,7 +1116,14 @@
               "w": 504,
               "h": 100,
               "maxLines": 1
-            }
+            },
+            "pad": [
+              0,
+              28,
+              0,
+              28
+            ],
+            "stretch": 84
           },
           "children": [
             {
@@ -1283,30 +1310,34 @@
             {
               "type": "text",
               "field": "meta",
-              "split": {
-                "sep": "·",
-                "pick": 0
-              },
               "format": "day",
               "style": "display",
               "size": 116,
               "lead": 1.1,
               "weight": 900,
-              "track": -0.03
+              "track": -0.03,
+              "follow": true
             },
             {
               "type": "text",
               "field": "meta",
-              "split": {
-                "sep": "·",
-                "pick": 0
-              },
               "format": "month",
               "style": "label",
               "size": 44,
               "lead": 1,
               "weight": 800,
               "track": 0.08,
+              "upper": true
+            },
+            {
+              "type": "text",
+              "field": "meta",
+              "format": "not-date",
+              "style": "label",
+              "size": 34,
+              "lead": 1.1,
+              "weight": 800,
+              "track": 0.06,
               "upper": true
             }
           ]
@@ -1452,7 +1483,6 @@
                   "type": "box",
                   "flow": "column",
                   "justify": "between",
-                  "align": "stretch",
                   "w": 282,
                   "children": [
                     {
@@ -1471,7 +1501,10 @@
                         "w": 310,
                         "h": 260,
                         "maxLines": 2
-                      }
+                      },
+                      "before": -12,
+                      "nudgeX": -6,
+                      "stretch": 84
                     },
                     {
                       "type": "text",
@@ -1482,7 +1515,8 @@
                         "present": "sub"
                       }
                     }
-                  ]
+                  ],
+                  "alignSelf": "stretch"
                 }
               ]
             }

@@ -3,6 +3,7 @@
 // the page through the kit's Markup builders; every colour is a palette name, or a #rrggbb worked out here from the brand's own colours.
 import { accentPlan, palette } from '../colour.mjs';
 import { capTrim } from '../kit.mjs';
+import { displayTarget } from '../../checks.mjs';
 
 // ---- the grid ----
 // R(r) / B(r): the top and the bottom of row r (2 to 8; row 1 is the meta row). g.x0 / g.x1: the left and right margin lines.
@@ -20,7 +21,7 @@ export function geometry(c) {
 // brand's accent); `wordsOnLight` then whether the accent may be type there.
 export function plan(c) {
   if (c.__swissPlan) return c.__swissPlan;
-  const brand = c.brandData, pal = palette(brand, Math.max(7, Number(brand.contrast?.headline) || 7)), p = accentPlan(brand, pal);
+  const brand = c.brandData, pal = palette(brand, displayTarget(brand)), p = accentPlan(brand, pal);
   const darkOk = p.word.dark, lightOk = p.word.paper;
   const darkPage = darkOk ? 'dark' : lightOk ? 'light' : 'dark';
   c.__swissPlan = {

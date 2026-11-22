@@ -6,13 +6,6 @@ import { validateLook, lookBrief } from './lib/design/look.mjs';
 
 const look = JSON.parse(fs.readFileSync(new URL('./lib/design/looks/swiss.look.json', import.meta.url), 'utf8'));
 
-// Problems the validator may still report for this file. Properties the schema did not know yet at the time of writing go here
-// ("is not a known property"-style messages); once the schema has caught up the list is emptied. One line to remove: set to [].
-const NOT_YET_KNOWN = [/not (yet )?a known property|is not known|unknown property/i];
-// A known conflict between the designer's spec and the static checks, kept visible: offer/0 sets four type sizes (headline, tag 128,
-// body 34, label 20) where the validator allows three levels. Remove when the rule or the composition changes.
-const KNOWN_DEVIATIONS = [/compositions\[8\] sets type in 4 sizes/];
-
 test('the swiss look loads and names itself', () => {
   assert.equal(look.id, 'swiss');
   assert.equal(look.compositions.length, 9);
@@ -22,10 +15,8 @@ test('the swiss look loads and names itself', () => {
   assert.equal(look.devices.folio, 'pad2-of-total');
 });
 
-test('validateLook reports only allow-listed problems', () => {
-  const problems = validateLook(look, 'swiss', { shipped: true });
-  const rest = problems.filter((p) => ![...NOT_YET_KNOWN, ...KNOWN_DEVIATIONS].some((re) => re.test(p)));
-  assert.deepEqual(rest, []);
+test('validateLook reports no problem at all (fully strict: no allow-list)', () => {
+  assert.deepEqual(validateLook(look, 'swiss', { shipped: true }), []);
 });
 
 test('lookBrief lists all seven kinds with the right variant counts', () => {

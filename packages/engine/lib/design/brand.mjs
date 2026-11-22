@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, brandFile, repoPath } from '../core.mjs';
 import { validateLayouts } from './layout.mjs';
+import { validateLooks } from './look.mjs';
 import { readBrandAsset, readBrandImage } from './assets.mjs';
 import {
   ACCENT_DEVICES, ACCENT_STYLES, ARTWORK_FITS, DECORATION_ON, DECORATIONS, FONT_ROLES, FOOTERS, GRADIENT_NAMES, GROUND_ALIASES, GROUND_NAMES, HEX, LOGO_PLACES,
@@ -74,7 +75,7 @@ export function canonicalGrounds(g) {
 
 // The style block (brand.json `style`): every field optional, each a value from a fixed list or a number in a range. Nothing in
 // it is ever written into the page as it is: it picks class names and variables from tables (see styleCss).
-export function styleProblems(s, where = 'brand.json: style') {
+export function styleProblems(s, where = 'brand.json: style', { looks } = {}) {
   if (s === undefined) return [];
   if (!isObj(s)) return [`${where} must be an object`];
   const e = [];
@@ -116,7 +117,9 @@ export function styleProblems(s, where = 'brand.json: style') {
     if (p.strength !== undefined && !isNum(p.strength, 0, 1)) e.push(`${w}.strength must be a number from 0 to 1`);
   }
   pick(s.logo, LOGO_PLACES, `${where}.logo`);
-  pick(s.direction, DIRECTIONS, `${where}.direction`);
+  // a shipped direction (the engine's own looks) or the id of one of the brand's own looks (brand.looks)
+  const own = (Array.isArray(looks) ? looks : []).map((l) => (l && typeof l === 'object' && typeof l.id === 'string' ? l.id : null)).filter(Boolean);
+  pick(s.direction, [...DIRECTIONS, ...own.filter((x) => !DIRECTIONS.includes(x))], `${where}.direction`);
   pick(s.footer, FOOTERS, `${where}.footer`);
   return e;
 }
@@ -183,7 +186,7 @@ export function validateBrand(b) {
   hexes(b.surfaces, 'surfaces', ['panel', 'card']); colourAlpha(b.surfaces?.line, 'surfaces.line', errors);
   // outline: the line of outlined cards and panels (default: the ink)
   if (b.surfaces?.outline !== undefined) hexes(b.surfaces, 'surfaces', ['outline']);
-  errors.push(...styleProblems(b.style));
+  errors.push(...styleProblems(b.style, undefined, { looks: b.looks }));
   if (!isNum(b.scale, 1, 4)) errors.push('brand.json: scale must be a number from 1 to 4 (post pixels per website pixel)');
   for (const k of ['card', 'device', 'button']) if (!isNum(b.radius?.[k], 0, 64)) errors.push(`brand.json: radius.${k} must be a number from 0 to 64`);
   for (const name of SHADOW_NAMES) {
@@ -249,11 +252,14 @@ export function validateBrand(b) {
     if (!ACCENT_STYLES.includes(s?.accent)) errors.push(`brand.json: series.${key}.accent must be one of ${ACCENT_STYLES.join(', ')}`);
   }
   for (const k of ['headline', 'accent', 'sub', 'label', 'art', 'artbody']) if (!isNum(b.contrast?.[k], 1, 21)) errors.push(`brand.json: contrast.${k} must be a ratio from 1 to 21`);
+  if (b.contrast?.display !== undefined && !isNum(b.contrast.display, 3, 7)) errors.push('brand.json: contrast.display must be a ratio from 3 to 7 (the target for large headlines on look pages; 4.5 when left out)');
   for (const r of b.spelling ?? []) {
     try { new RegExp(r.wrong, r.flags ?? ''); } catch { errors.push(`brand.json: spelling rule "${r.wrong}" is not a valid pattern`); }
   }
   // The brand's own compositions (layouts as data, lib/design/layout.mjs): each checked in full, ids unique.
   errors.push(...validateLayouts(b.layouts));
+  // The brand's own looks (looks as data, lib/design/look.mjs): at most MAX_LOOKS, each checked in full, ids unique; the problems name where they are.
+  errors.push(...validateLooks(b.looks, 'brand.json: looks'));
   return errors;
 }
 

@@ -75,7 +75,7 @@
 .k-run{margin:0}
 /* a phrase repeated as outline rows around one solid row (runtime.mjs [data-echo]) */
 .k-echo{display:flex;flex-direction:column;overflow:visible}
-.k-echo-row{display:block;white-space:nowrap;line-height:.92;color:transparent;-webkit-text-stroke:3px var(--c-on-field);pointer-events:none}
+.k-echo-row{display:block;white-space:nowrap;line-height:.92;color:transparent;-webkit-text-stroke:var(--k-ol,3px) var(--c-on-field);pointer-events:none}
 .k-echo .k-fit{padding:.1em 0}
 /* a bar behind one line of text, turned a little (the text sits in a role element inside it); visible while the page reads the pixels behind its type */
 .k-tilt{position:relative;display:block;isolation:isolate}
@@ -94,3 +94,31 @@
 .k-fnum-n,.k-fnum-u{display:block}
 /* a scrim whose strength the runtime measures (kit scrim) */
 .k-scrim{display:block}
+
+/* ======== looks written as data (lib/design/directions/interpret.mjs): ONE stylesheet; a look's own values arrive as numeric custom
+   properties on the page root (--k-*) and as the enum classes below, never as free CSS ======== */
+.k-look{font-synthesis:none}
+.k-look .k-display{font-stretch:var(--k-dstretch,100%);text-transform:var(--k-dcase,none)}
+/* the space between words of a headline, in em of the line's own size (on a fitted headline the lines are sized by the runtime) */
+.k-look .k-display:not(.k-fit),.k-look .k-fit .fl-in{word-spacing:var(--k-dword,0em)}
+/* the emphasised phrase: upright unless the text asks for italic or the accent */
+.k-look .k-t em{font-style:normal}
+.k-look .k-em-i em{font-style:italic}
+.k-look .k-em-a em{font-style:normal;color:var(--c-accent-type)}
+/* the highlight bar on wrapping text: one bar per line, its height and padding from the look's highlight device */
+.k-look .k-hl{color:var(--c-on-accent);background:linear-gradient(var(--c-gold),var(--c-gold)) no-repeat 0 var(--k-hl-top,.09em)/100% var(--k-hl-h,.87em);padding:0 var(--k-hl-pr,.13em) 0 var(--k-hl-pl,.13em);margin:0;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.k-look .k-hl em{color:var(--c-on-accent)}
+/* in a fitted headline the bar is a pseudo-element behind ALL the type of its line, turned a little */
+.k-look .k-fit .k-hl{display:inline-block;position:relative;background:none;padding:0 var(--k-hl-pr,.12em) 0 var(--k-hl-pl,.12em);margin:0;isolation:isolate}
+.k-look .k-fit .k-hl::before{content:"";position:absolute;left:0;right:0;top:.03em;bottom:.03em;background:var(--c-gold);transform:skewX(var(--k-hl-tilt,0deg));z-index:-1}
+/* photo treatment: punch */
+.k-look .k-punch img{filter:saturate(1.12) contrast(1.05)}
+/* the words in a shape; a run that takes the rest of a row */
+.k-look .k-shape .k-run{padding:0 .3em;box-sizing:border-box}
+/* an emphasised row of a filled headline in the accent (the em of a block headline follows .k-em-a em) */
+.k-look .k-em-a .fb-em{color:var(--c-accent-type)}
+.k-look .k-em-i .fb-em{font-style:italic}
+.k-lpad .fl-line{padding-bottom:var(--k-lpad,0em)}
+.k-look .k-tilt::before{transform:rotate(var(--k-hl-tilt,-1.5deg))}
+.k-v-fill{flex:1 1 0;min-width:0;text-wrap:balance}
+.k-look .k-dfont{font-stretch:var(--k-dstretch,100%)}
