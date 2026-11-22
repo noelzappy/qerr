@@ -1,14 +1,19 @@
-// "New batch": make an empty batch by hand, or paste or upload an engine batch file to import.
+// "New batch": make an empty batch by hand, or paste or upload an engine batch file to import. By hand, the period is one tap
+// (next month first), the title follows the dates until someone types one, and the time zone is the brand's, under "More".
 import { useEffect, useState, type FormEvent } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { errorMessage, fieldErrors } from '../../lib/errors';
-import { networkLabel } from '../../lib/labels';
 import { toast } from 'sonner';
-import { BusyButton, CheckField, FieldSet, FormPanel, FormProblem, Lines, Notice, SelectField, TextAreaField, TextField } from '@/components/kit';
+import { BusyButton, FormPanel, FormProblem, Lines, Notice, SelectField, TextAreaField, TextField } from '@/components/kit';
+import { AutoTag } from '@/components/auto-tag';
+import { NetworkToggles } from '@/components/network-toggles';
 import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsaved-guard';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NETWORKS } from './labels';
+import { PeriodChips } from './PeriodChips';
+import { periodFor, periodTitle, todayIn, type Period } from './periods';
 import type { BatchView } from './types';
 import { detailLines } from './util';
 import { useAppInfo } from '../../app-info';
@@ -69,29 +74,38 @@ function useReportState(busy: boolean, dirty: boolean, onState: (s: FormState) =
 
 function CreateForm({ onClose, onState }: { onClose: () => void; onState: (s: FormState) => void }) {
   const navigate = useNavigate();
-  const [title, setTitle] = useState('');
   const { brand } = useAppInfo();
   const ZONES = zonesFor(brand.timezone);
   const [timezone, setTimezone] = useState(brand.timezone);
   // The brand's zone can arrive after the form opens: follow it, so an untouched form is not counted as changed.
   useEffect(() => { setTimezone(brand.timezone); }, [brand.timezone]);
+  const today = todayIn(brand.timezone);
+  // Next month, as Draft with AI starts.
+  const [startPeriod] = useState(() => periodFor('month', today));
+  const [period, setPeriod] = useState<Period>(startPeriod);
+  // The title follows the dates ("December 2026") until someone types one.
+  const [title, setTitle] = useState('');
+  const [titleTouched, setTitleTouched] = useState(false);
+  const autoTitle = periodTitle(period);
+  const effectiveTitle = (titleTouched ? title.trim() : '') || autoTitle;
   const [defaultTime, setDefaultTime] = useState('09:00');
   const [networks, setNetworks] = useState<string[]>([...NETWORKS]);
-  const [periodStart, setPeriodStart] = useState('');
-  const [periodEnd, setPeriodEnd] = useState('');
+  const [more, setMore] = useState(false);
   const [busy, setBusy] = useState(false);
-  const dirty = !!title.trim() || !!periodStart || !!periodEnd || timezone !== brand.timezone || defaultTime !== '09:00' || networks.length !== NETWORKS.length;
+  const dirty = (titleTouched && !!title.trim()) || period.from !== startPeriod.from || period.to !== startPeriod.to || timezone !== brand.timezone || defaultTime !== '09:00' || networks.length !== NETWORKS.length;
   useReportState(busy, dirty, onState);
   const [error, setError] = useState('');
   const [lines, setLines] = useState<string[]>([]);
   const [fields, setFields] = useState<Record<string, string>>({});
+  // A problem with the time zone must be seen.
+  useEffect(() => { if (fields.timezone) setMore(true); }, [fields.timezone]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     const problems: Record<string, string> = {};
-    if (!title.trim()) problems.title = 'Give the batch a title';
+    if (!effectiveTitle) problems.title = 'Give the batch a title';
     if (!networks.length) problems.defaultNetworks = 'Choose at least one network';
-    if (periodStart && periodEnd && periodEnd < periodStart) problems.periodEnd = 'The end must be on or after the start';
+    if (period.from && period.to && period.to < period.from) problems.periodEnd = 'The end must be on or after the start';
     setFields(problems);
     setLines([]);
     if (Object.keys(problems).length) { setError('Check the highlighted fields and try again.'); return; }
@@ -99,8 +113,8 @@ function CreateForm({ onClose, onState }: { onClose: () => void; onState: (s: Fo
     setError('');
     try {
       const r = await api.post<{ batch: BatchView }>('/api/batches', {
-        title: title.trim(), timezone, defaultTime, defaultNetworks: networks,
-        ...(periodStart ? { periodStart } : {}), ...(periodEnd ? { periodEnd } : {}),
+        title: effectiveTitle, timezone, defaultTime, defaultNetworks: networks,
+        ...(period.from ? { periodStart: period.from } : {}), ...(period.to ? { periodEnd: period.to } : {}),
       });
       toast.success('Batch created. Add its first post');
       withoutGuard(() => { onClose(); navigate(`/batches/${r.batch.id}`); });
@@ -114,20 +128,35 @@ function CreateForm({ onClose, onState }: { onClose: () => void; onState: (s: Fo
   }
 
   return (
-    <form id="new-batch-form" className="flex flex-col gap-3" onSubmit={(e) => void submit(e)} noValidate>
+    <form id="new-batch-form" className="flex flex-col gap-4" onSubmit={(e) => void submit(e)} noValidate>
       <FormProblem error={error} lines={lines} />
-      <TextField label="Title" value={title} maxLength={200} error={fields.title} placeholder="January 2027 posts" hint="The batch starts empty. You add posts on the next screen." onChange={(e) => setTitle(e.target.value)} />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <SelectField label="Time zone" value={timezone} error={fields.timezone} onValueChange={setTimezone} hint="Post times are read in this zone." options={ZONES.map((z) => ({ value: z, label: z }))} />
-        <TextField label="Default time" type="time" value={defaultTime} error={fields.defaultTime} onChange={(e) => setDefaultTime(e.target.value)} hint="Used by posts that do not set their own." />
-        <TextField label="Period starts" optional type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
-        <TextField label="Period ends" optional type="date" value={periodEnd} error={fields.periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} hint="Left empty, the period follows the posts you add." />
+      <PeriodChips today={today} value={period} onChange={setPeriod} optional errors={{ from: fields.periodStart, to: fields.periodEnd }} />
+      <TextField
+        label={<>Title{!titleTouched && autoTitle && <AutoTag>From the dates</AutoTag>}</>}
+        value={titleTouched ? title : autoTitle} placeholder={autoTitle || 'January 2027 posts'} maxLength={200} error={fields.title}
+        hint="Follows the dates until you change it. The batch starts empty: you add posts on the next screen."
+        onChange={(e) => { setTitleTouched(true); setTitle(e.target.value); }}
+      />
+      <NetworkToggles value={networks} onChange={setNetworks} error={fields.defaultNetworks} />
+      <TextField label="Default time" type="time" value={defaultTime} error={fields.defaultTime} onChange={(e) => setDefaultTime(e.target.value)} hint={`Used by posts that do not set their own. In ${timezone}.`} className="sm:max-w-[calc(50%-0.375rem)]" />
+      <div>
+        <button
+          type="button" aria-expanded={more} aria-controls="new-batch-more" onClick={() => setMore(!more)}
+          className="-ml-1 inline-flex min-h-8 items-center gap-1.5 rounded-md px-1 text-sm font-medium outline-none hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-11"
+        >
+          {more ? <ChevronDown className="size-4" aria-hidden="true" /> : <ChevronRight className="size-4" aria-hidden="true" />}
+          More
+          {!more && <span className="font-normal text-muted-foreground">Time zone: {timezone}</span>}
+        </button>
+        {more && (
+          <div id="new-batch-more" className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <SelectField
+              label={<>Time zone{timezone === brand.timezone && <AutoTag>The brand's</AutoTag>}</>}
+              value={timezone} error={fields.timezone} onValueChange={setTimezone} hint="Post times are read in this zone." options={ZONES.map((z) => ({ value: z, label: z }))}
+            />
+          </div>
+        )}
       </div>
-      <FieldSet legend="Networks" error={fields.defaultNetworks}>
-        {NETWORKS.map((n) => (
-          <CheckField key={n} label={networkLabel(n)} checked={networks.includes(n)} onCheckedChange={(c) => setNetworks(c ? [...networks, n] : networks.filter((x) => x !== n))} />
-        ))}
-      </FieldSet>
     </form>
   );
 }
