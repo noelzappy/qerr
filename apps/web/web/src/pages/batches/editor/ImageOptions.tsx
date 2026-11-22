@@ -2,14 +2,13 @@
 // whose design accepts them (packages/engine/lib/design/spec.mjs: checkFrame, checkWindow, checkOptions, checkScreen). A setting that
 // is not chosen is not written, so the layout decides. The server and the preview stay the authority on what is valid; a value the
 // form cannot show (a focal point set per size, say) is left as it is and named as something for Advanced.
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Hint, SelectField, TextField } from '@/components/kit';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
 import { ChoiceRow } from './ChoiceRow';
-import { focalXY, imageOptionsSupport } from './image-options-support';
+import { sizesOf } from './focal-frame';
+import { imageOptionsSupport } from './image-options-support';
+import { PictureFocus } from './PictureFocus';
 import type { Json, LayoutBrief } from './types';
 
 const GROUNDS = [
@@ -25,66 +24,8 @@ const YES_NO = [{ value: '', label: 'Automatic' }, { value: 'true', label: 'Yes'
 const BOOL_LABEL: Record<string, string> = { framed: 'Show the screenshot without the window frame', glow: 'Glow behind the phone', fade: 'Fade the phone out at the bottom' };
 const LAYOUT_DECIDES = 'Automatic leaves it to the layout.';
 
-const focalText = (x: number, y: number) => `${Math.round(x)}% ${Math.round(y)}%`;
 const word = (v: unknown) => (typeof v === 'string' ? v : '');
 const isPerSize = (v: unknown) => !!v && typeof v === 'object' && !Array.isArray(v) && !('x' in (v as Json));
-
-export function FocalPicker({ value, onChange, disabled }: { value: unknown; onChange: (v: string | undefined) => void; disabled?: boolean }) {
-  const id = useId();
-  const xy = focalXY(value);
-  const set = value !== undefined;
-  if (set && !xy) {
-    return (
-      <div className="flex min-w-0 flex-col gap-1.5">
-        <span className="text-sm font-medium">Picture position</span>
-        <p className="text-[13px] text-muted-foreground">{isPerSize(value) ? 'This position is set for each size separately.' : 'This position is written in a way this form does not show.'} Change it in Advanced, or <button type="button" className="underline underline-offset-2" disabled={disabled} onClick={() => onChange(undefined)}>clear it</button>.</p>
-      </div>
-    );
-  }
-  const x = xy?.x ?? 50;
-  const y = xy?.y ?? 50;
-  const cells = [0, 50, 100];
-  return (
-    <div className="flex min-w-0 flex-col gap-2" role="group" aria-labelledby={`${id}-l`}>
-      <span className="flex items-center gap-1"><span id={`${id}-l`} className="text-[13px] font-medium">Picture position</span><Hint about="Picture position">Which part of the picture stays in view when it is cropped.</Hint></span>
-      <div className="flex flex-wrap items-start gap-4">
-        <div className="grid size-20 shrink-0 grid-cols-3 gap-1 max-sm:size-32">
-          {cells.flatMap((cy) => cells.map((cx) => {
-            const on = set && Math.round(x) === cx && Math.round(y) === cy;
-            const names = ['top', 'middle', 'bottom'];
-            const cols = ['left', 'centre', 'right'];
-            return (
-              <button key={`${cx}-${cy}`} type="button" disabled={disabled} aria-pressed={on} aria-label={`${names[cy / 50]} ${cols[cx / 50]}`}
-                onClick={() => onChange(focalText(cx, cy))}
-                className={cn('rounded-sm border bg-muted outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50', on && 'border-primary bg-primary')} />
-            );
-          }))}
-        </div>
-        <div className="flex min-w-40 flex-1 flex-col gap-1.5">
-          <Label htmlFor={`${id}-x`} className="text-[12.5px] font-normal text-muted-foreground">Across: {Math.round(x)}%</Label>
-          <input id={`${id}-x`} type="range" min={0} max={100} step={1} value={x} disabled={disabled} className="w-full max-sm:h-8" onChange={(e) => onChange(focalText(Number(e.target.value), y))} />
-          <Label htmlFor={`${id}-y`} className="text-[12.5px] font-normal text-muted-foreground">Down: {Math.round(y)}%</Label>
-          <input id={`${id}-y`} type="range" min={0} max={100} step={1} value={y} disabled={disabled} className="w-full max-sm:h-8" onChange={(e) => onChange(focalText(x, Number(e.target.value)))} />
-        </div>
-      </div>
-      {set && <div><Button type="button" variant="ghost" size="sm" className="max-sm:min-h-11" disabled={disabled} onClick={() => onChange(undefined)}>Use the layout's position</Button></div>}
-    </div>
-  );
-}
-
-export function ZoomField({ value, onChange, disabled }: { value: unknown; onChange: (v: number | undefined) => void; disabled?: boolean }) {
-  const id = useId();
-  const n = typeof value === 'number' && Number.isFinite(value) ? value : 1;
-  return (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <span className="flex items-center gap-1">
-        <Label htmlFor={id} className="text-[13px]">Zoom: {n.toFixed(1)}x{value === undefined && <span className="font-normal text-muted-foreground"> (as the layout has it)</span>}</Label>
-        <Hint about="Zoom">1 shows the whole crop. Up to 3 moves in on the picture position. A picture enlarged too far is refused when the image is made.</Hint>
-      </span>
-      <input id={id} type="range" min={1} max={3} step={0.1} value={n} disabled={disabled} className="w-full max-sm:h-8" onChange={(e) => { const v = Math.round(Number(e.target.value) * 10) / 10; onChange(v <= 1 ? undefined : v); }} />
-    </div>
-  );
-}
 
 export function ImageOptions({ design, onChange, brandLayouts, disabled }: { design: Json; onChange: (next: Json) => void; brandLayouts: LayoutBrief[]; disabled?: boolean }) {
   const d = design;
@@ -130,17 +71,19 @@ export function ImageOptions({ design, onChange, brandLayouts, disabled }: { des
         <span onClick={(e) => e.preventDefault()}><Hint about="Image options">Anything not set here is left to the layout. Other settings, such as the headline size or where text and pictures start, are in Advanced.</Hint></span>
       </summary>
       <div className="mt-3 flex min-w-0 flex-col gap-3">
-        {s.focal && <FocalPicker value={d.focal} disabled={disabled} onChange={(v) => setField('focal', v)} />}
-        {s.zoom && <ZoomField value={d.zoom} disabled={disabled} onChange={(v) => setField('zoom', v)} />}
+        {(s.focal || s.zoom) && (
+          <PictureFocus focal={d.focal} zoom={d.zoom} withFocal={s.focal} withZoom={s.zoom} vaultItemId={word(d.vaultItemId) || undefined} sizes={sizesOf(d)} disabled={disabled}
+            onChange={(focal, zoom) => { const next: Json = { ...d }; for (const [k, v] of [['focal', focal], ['zoom', zoom]] as const) { if (v === undefined) delete next[k]; else next[k] = v; } onChange(next); }} />
+        )}
         {(s.frame || s.photo || s.screen || s.glow) && (
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             {s.frame && (
               <SelectField label="Page colour" value={word(d.ground)} disabled={disabled} onValueChange={(v) => setField('ground', v)}
-                options={[{ value: '', label: 'As the post type says' }, ...GROUNDS, ...known(GROUNDS, d.ground)]} />
+                options={[{ value: '', label: 'As the kind of post says' }, ...GROUNDS, ...known(GROUNDS, d.ground)]} />
             )}
             {s.frame && (
-              <SelectField label="Second half of the headline" hint="The part of the headline in asterisks." value={word(d.accent)} disabled={disabled} onValueChange={(v) => setField('accent', v)}
-                options={[{ value: '', label: 'As the post type says' }, ...ACCENTS, ...known(ACCENTS, d.accent)]} />
+              <SelectField label="Second half of the headline" hint="The words set in the second colour." value={word(d.accent)} disabled={disabled} onValueChange={(v) => setField('accent', v)}
+                options={[{ value: '', label: 'As the kind of post says' }, ...ACCENTS, ...known(ACCENTS, d.accent)]} />
             )}
             {s.photo && choice('textAt', 'Where the text sits', [{ value: 'top', label: 'Top' }, { value: 'bottom', label: 'Bottom' }], 'top')}
             {s.photo && choice('scrim', 'Dark fade behind the text', [{ value: 'black', label: 'On' }, { value: 'none', label: 'Off' }], 'on')}

@@ -39,14 +39,14 @@ export function vaultImagePath(item: Pick<VaultItem, 'id' | 'fileName' | 'conten
 const fileNameOf = (p: string) => p.split('/').filter(Boolean).pop() ?? p;
 
 // What the design's current picture is, as far as it can be shown.
-type Current =
+export type Current =
   | { state: 'none' }
   | { state: 'loading' }
   | { state: 'missing' }
   | { state: 'error'; message: string }
   | { state: 'ready'; item: VaultItem; url: string | null };
 
-function useCurrentPicture(vaultItemId: string | undefined): Current {
+export function useCurrentPicture(vaultItemId: string | undefined): Current {
   const [current, setCurrent] = useState<Current>(vaultItemId ? { state: 'loading' } : { state: 'none' });
   useEffect(() => {
     if (!vaultItemId) { setCurrent({ state: 'none' }); return; }

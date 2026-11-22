@@ -7,9 +7,10 @@ import { Notice, SelectField, TextAreaField, TextField } from '@/components/kit'
 import { cn } from '@/lib/utils';
 import { POST_LIMITS, postFieldsFor, seenLength, setVariant, switchKind, withField, type PostKindInfo, type PostLimits } from '../design-model';
 import { HeadlineField } from './HeadlineField';
-import { FocalPicker, ZoomField } from './ImageOptions';
+import { sizesOf } from './focal-frame';
 import { KindChooser } from './KindChooser';
 import { budgetsFor, drawsFor } from './look-brief';
+import { PictureFocus } from './PictureFocus';
 import { ChoiceRow } from './ChoiceRow';
 import { ListEditor } from './ListEditor';
 import { InfoEditor } from './InfoEditor';
@@ -108,8 +109,10 @@ export function PostFields({ design, onChange, direction, kinds, limits, offered
         return (
           <div key={f} className="flex min-w-0 flex-col gap-3">
             <PicturePicker required={needs('image')} value={{ image: text(d.image) || undefined, vaultItemId: text(d.vaultItemId) || undefined }} disabled={disabled} onChange={setPicture} />
-            <FocalPicker value={d.focal} disabled={disabled} onChange={(v) => set('focal', v)} />
-            <ZoomField value={d.zoom} disabled={disabled} onChange={(v) => set('zoom', v)} />
+            {Boolean(d.image || d.vaultItemId) && (
+              <PictureFocus focal={d.focal} zoom={d.zoom} vaultItemId={text(d.vaultItemId) || undefined} sizes={sizesOf(d)} disabled={disabled}
+                onChange={(focal, zoom) => onChange(withField(withField(d, 'focal', focal), 'zoom', zoom))} />
+            )}
           </div>
         );
       default:
