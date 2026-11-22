@@ -90,7 +90,8 @@ const radiusCss = (r, corners = 'all') => {
   const q = r === 'arch' ? '999px' : r === 'full' ? '999px' : `${px(n(r, 'radius'))}px`;
   if (r === 'arch') return '999px 999px 0 0';
   if (typeof r === 'number' && (r < 0 || r > 200)) throw new Error('design kit: radius must be from 0 to 200 px');
-  return CORNERS[corners].map((on) => (on ? q : '0')).join(' ');
+  // all four corners alike: one value, as the look always wrote it
+  return corners === 'all' ? q : CORNERS[corners].map((on) => (on ? q : '0')).join(' ');
 };
 const colour = (name) => { if (!COLOUR_NAMES.includes(name)) throw new Error(`design kit: "${String(name).slice(0, 30)}" is not a palette colour (${COLOUR_NAMES.join(', ')})`); return `var(--c-${name})`; };
 const FAMILIES = ['display', 'text', 'label', 'mono'];
