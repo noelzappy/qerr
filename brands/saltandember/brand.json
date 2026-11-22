@@ -1,0 +1,1879 @@
+{
+  "name": "Salt & Ember",
+  "website": "saltandember.example",
+  "tagline": "Cooked over fire, served after dark.",
+  "descriptor": "A grill restaurant in the invented city of Cindervale: whole cuts cooked slowly over wood, a short seasonal menu and booked tables. A fictional brand for testing.",
+  "timezone": "Europe/Dublin",
+  "money": {
+    "local": "Salt & Ember prices in euros (€) only",
+    "foreign": "US\\$|\\$|£|\\b(?:dollars?|pounds? sterling|rupees?|yen|nairas?)\\b"
+  },
+  "voice": "Calm, assured and sensory, never loud. Few words, chosen well. Name the fire, the cut and the hours it takes; no hype, no urgency, and every price is a round, illustrative one.",
+  "language": "British English",
+  "visualDirection": "Dark and moody: near-black grounds, full-bleed food pictures with colour laid over them so the words read, an elegant serif with small capitals in a sans, and one ember accent.",
+  "grounds": {
+    "light": "#EFE6D7",
+    "soft": "#E6DBC9",
+    "cool": "#DCD2C2",
+    "warm": "#EADBC2",
+    "dark": "#141110",
+    "deep": "#1E1916"
+  },
+  "text": {
+    "ink": "#161210",
+    "body": "#3D332D",
+    "muted": "#6A5D53",
+    "mutedInv": "#B3A595",
+    "invBody": "#E3D8C8",
+    "hair": {
+      "color": "#161210",
+      "alpha": 0.12
+    }
+  },
+  "accents": {
+    "gold": "#E07B3C",
+    "goldDeep": "#9C4718",
+    "primary": "#2B211C"
+  },
+  "gradient": {
+    "sage": "#5A4A40",
+    "teal": "#2B211C",
+    "mint": "#C9B79E",
+    "gold": "#E07B3C",
+    "amber": "#B5562A"
+  },
+  "surfaces": {
+    "panel": "#1E1916",
+    "card": "#EFE6D7",
+    "line": {
+      "color": "#161210",
+      "alpha": 0.08
+    }
+  },
+  "scale": 2,
+  "radius": {
+    "card": 8,
+    "device": 12,
+    "button": 4
+  },
+  "shadows": {
+    "card": [
+      {
+        "x": 0,
+        "y": 13,
+        "blur": 27,
+        "spread": -5,
+        "color": "#161210",
+        "alpha": 0.18
+      },
+      {
+        "x": 0,
+        "y": 8,
+        "blur": 16,
+        "spread": -8,
+        "color": "#161210",
+        "alpha": 0.22
+      }
+    ],
+    "window": [
+      {
+        "x": 0,
+        "y": 13,
+        "blur": 27,
+        "spread": -5,
+        "color": "#161210",
+        "alpha": 0.18
+      },
+      {
+        "x": 0,
+        "y": 8,
+        "blur": 16,
+        "spread": -8,
+        "color": "#161210",
+        "alpha": 0.22
+      }
+    ],
+    "phone": [
+      {
+        "x": 0,
+        "y": 24,
+        "blur": 32,
+        "spread": 0,
+        "color": "#161210",
+        "alpha": 0.22
+      }
+    ]
+  },
+  "window": {
+    "refWidth": 560,
+    "bar": 32,
+    "dot": 8,
+    "dotGap": 6,
+    "padX": 12,
+    "titleGap": 12,
+    "titleSize": 10,
+    "titlePadX": 8,
+    "titlePadY": 2,
+    "tilt": {
+      "perspective": 1600,
+      "rotateY": -8,
+      "rotateX": 4
+    }
+  },
+  "phone": {
+    "refWidth": 300,
+    "fade": 56
+  },
+  "glow": {
+    "opacity": 0.6,
+    "blur": 64,
+    "inset": 40
+  },
+  "dots": {
+    "size": 1,
+    "spacing": 24,
+    "alpha": 0.08
+  },
+  "figure": {
+    "strong": 0.42,
+    "soft": 0.16,
+    "grid": 0.2
+  },
+  "font": {
+    "family": "Hanken Grotesk",
+    "mono": "JetBrains Mono",
+    "headlineWeight": 500,
+    "accentWeight": 400,
+    "tracking": -0.02,
+    "leading": 1.18,
+    "files": [
+      {
+        "role": "sans",
+        "weight": "400 800",
+        "file": "design/fonts/hanken-grotesk/hanken-grotesk-v12-normal-latin.woff2",
+        "range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+      },
+      {
+        "role": "sans",
+        "weight": "400 800",
+        "file": "design/fonts/hanken-grotesk/hanken-grotesk-v12-normal-latin-ext.woff2",
+        "range": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF"
+      },
+      {
+        "role": "mono",
+        "weight": "400 500",
+        "file": "design/fonts/jetbrains-mono/jetbrains-mono-v24-normal-latin.woff2",
+        "range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+      },
+      {
+        "role": "mono",
+        "weight": "400 500",
+        "file": "design/fonts/jetbrains-mono/jetbrains-mono-v24-normal-latin-ext.woff2",
+        "range": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF"
+      },
+      {
+        "role": "display",
+        "weight": "300 600",
+        "file": "design/fonts/fraunces/fraunces-v38-normal-latin-ext.woff2",
+        "range": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF"
+      },
+      {
+        "role": "display",
+        "weight": "300 600",
+        "file": "design/fonts/fraunces/fraunces-v38-normal-latin.woff2",
+        "range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+      }
+    ],
+    "display": "Fraunces"
+  },
+  "poster": {
+    "headlineWeight": 650,
+    "tracking": -0.035,
+    "leading": 1.06,
+    "slabs": {
+      "myth": "#1E1916",
+      "fact": "#E6DBC9"
+    },
+    "slabRadius": 28,
+    "texture": {
+      "alpha": 0.045,
+      "spacing": 9,
+      "angle": 135
+    }
+  },
+  "logos": {
+    "full": "brands/saltandember/logos/logo-full.png",
+    "mark": "brands/saltandember/logos/logo-mark.png",
+    "fullSize": [
+      1500,
+      338
+    ],
+    "wordmarkFrom": 360,
+    "markGap": 22
+  },
+  "style": {
+    "direction": "plate"
+  },
+  "series": {
+    "tonights-special": {
+      "name": "Tonight's special",
+      "ground": "dark",
+      "accent": "colour"
+    },
+    "from-the-fire": {
+      "name": "From the fire",
+      "ground": "dark",
+      "accent": "colour"
+    },
+    "the-kitchen": {
+      "name": "The kitchen",
+      "ground": "deep",
+      "accent": "muted"
+    },
+    "book-a-table": {
+      "name": "Book a table",
+      "ground": "light",
+      "accent": "muted"
+    }
+  },
+  "spelling": [
+    {
+      "wrong": "Salt and Ember|Salt ?\\+ ?Ember|Salt&Ember",
+      "flags": "i",
+      "right": "Salt & Ember"
+    },
+    {
+      "wrong": "SALT & EMBER|salt & ember",
+      "flags": "",
+      "right": "Salt & Ember"
+    }
+  ],
+  "lint": {
+    "headlineMaxChars": {
+      "feed": 60,
+      "wide": 48,
+      "story": 60,
+      "square": 50
+    },
+    "subMaxChars": {
+      "feed": 110,
+      "wide": 90,
+      "story": 110,
+      "square": 90
+    }
+  },
+  "contrast": {
+    "headline": 7,
+    "accent": 4.5,
+    "sub": 7,
+    "label": 4.5,
+    "art": 4.5,
+    "artbody": 7
+  },
+  "photo": {
+    "scrimStart": 0.5,
+    "scrimCap": 0.65,
+    "scrimStep": 0.05,
+    "footerFadeCap": 0.5,
+    "minContrast": {
+      "headline": 3,
+      "sub": 4.5,
+      "eyebrow": 4.5,
+      "url": 3
+    },
+    "maxUpscale": 1.3
+  },
+  "looks": [
+    {
+      "schema": 1,
+      "id": "plate",
+      "name": "Plate",
+      "description": "A restaurant after dark: near-black grounds, full-bleed food pictures with colour laid over them so the words read, a fine high-contrast serif with italics over small capitals in a sans, thin keylines, menus with dotted leaders and one warm accent.",
+      "origin": "copy:shipped:plate",
+      "canvas": {
+        "feed": {
+          "margin": {
+            "top": 80,
+            "right": 80,
+            "bottom": 80,
+            "left": 80
+          },
+          "grid": {
+            "cols": 6,
+            "gutter": 24,
+            "rows": 0,
+            "head": 0
+          },
+          "extraLines": [
+            446
+          ]
+        }
+      },
+      "fonts": {
+        "display": {
+          "source": "library",
+          "family": "Fraunces",
+          "weights": [
+            300,
+            400
+          ],
+          "italic": true,
+          "opsz": 144
+        },
+        "text": {
+          "source": "library",
+          "family": "Inter",
+          "weights": [
+            400
+          ]
+        },
+        "label": {
+          "source": "library",
+          "family": "Inter",
+          "weights": [
+            600
+          ]
+        },
+        "mono": {
+          "source": "library",
+          "family": "Inter",
+          "weights": [
+            500
+          ]
+        }
+      },
+      "type": {
+        "display": {
+          "lead": 1.04,
+          "track": -0.02,
+          "weight": 300,
+          "case": "as-typed",
+          "ladder": [
+            1,
+            0.9,
+            0.82
+          ],
+          "trim": "none",
+          "optical": false
+        },
+        "body": {
+          "size": 30,
+          "lead": 1.5,
+          "weight": 400,
+          "strength": 1
+        },
+        "item": {
+          "size": 40,
+          "lead": 1.2,
+          "weight": 400
+        },
+        "label": {
+          "size": 20,
+          "track": 0.2,
+          "weight": 600,
+          "upper": true,
+          "role": "label"
+        },
+        "numeral": {
+          "track": -0.04,
+          "figures": "lining"
+        }
+      },
+      "colour": {
+        "logic": "tonal",
+        "field": "dark",
+        "sticker": "accent",
+        "accentAsType": "when-contrast",
+        "grounds": [
+          "dark",
+          "paper"
+        ]
+      },
+      "devices": {
+        "rule": {
+          "hair": 1,
+          "heavy": 3
+        },
+        "frame": {
+          "t": 0,
+          "pad": 0
+        },
+        "highlight": {
+          "pad": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "tilt": 0
+        },
+        "shadow": {
+          "x": 0,
+          "y": 0,
+          "colour": "ink"
+        },
+        "angles": {
+          "sticker": 0,
+          "bar": 0,
+          "block": 0,
+          "band": 0,
+          "card": 0,
+          "price": 0
+        },
+        "folio": "no",
+        "wordmark": {
+          "opacity": 0.03,
+          "sep": "dot"
+        }
+      },
+      "photo": {
+        "treat": [],
+        "tint": "primary"
+      },
+      "logo": {
+        "default": "off",
+        "height": 44
+      },
+      "dials": {
+        "tilt": 0,
+        "density": 0,
+        "weightShift": 0
+      },
+      "compositions": [
+        {
+          "kind": "statement",
+          "name": "Candlelit",
+          "ground": "dark",
+          "fit": "margins",
+          "calm": {
+            "maxShare": 0.6
+          },
+          "describe": "A fine serif headline centred on the near-black page inside a thin keyline, the emphasis in italic, a short accent tick and the label in small capitals above, the sub line under it and the brand name at the foot. Use for a quiet statement of up to 60 characters.",
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "headline": {
+              "required": true,
+              "max": 60
+            },
+            "sub": {
+              "max": 110
+            }
+          },
+          "elements": [
+            {
+              "type": "keyline",
+              "place": {
+                "px": {
+                  "x": 40,
+                  "y": 40,
+                  "w": 1000,
+                  "h": 1270
+                }
+              },
+              "weight": 1,
+              "colour": "rule-dark"
+            },
+            {
+              "type": "box",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "right": 80,
+                  "top": 140,
+                  "bottom": 220
+                }
+              },
+              "flow": "column",
+              "justify": "center",
+              "align": "center",
+              "gap": 40,
+              "ink": "white",
+              "z": 2,
+              "children": [
+                {
+                  "type": "block",
+                  "w": 48,
+                  "h": 2,
+                  "colour": "gold",
+                  "when": {
+                    "present": "label"
+                  }
+                },
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "ink": "accent-dark",
+                  "align": "center",
+                  "nowrap": true,
+                  "when": {
+                    "present": "label"
+                  }
+                },
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "align": "center",
+                  "emphasis": "italic",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        16,
+                        150
+                      ],
+                      [
+                        30,
+                        126
+                      ],
+                      [
+                        44,
+                        110
+                      ],
+                      [
+                        60,
+                        98
+                      ]
+                    ],
+                    "maxLines": 5,
+                    "maxH": 640
+                  },
+                  "w": 920
+                },
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "ink": "body-dark",
+                  "align": "center",
+                  "w": 700,
+                  "when": {
+                    "present": "sub"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "source": "brand",
+              "style": "label",
+              "ink": "muted-dark",
+              "align": "center",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "right": 80,
+                  "bottom": 100
+                }
+              }
+            }
+          ]
+        },
+        {
+          "kind": "statement",
+          "name": "Bone page",
+          "ground": "paper",
+          "fit": "margins",
+          "calm": {
+            "maxShare": 0.55
+          },
+          "describe": "A large fine serif headline on the pale page under a huge pale ampersand and the label in small capitals, and a near-black band across the foot holding the sub line and the brand name. Use for a statement of up to 56 characters.",
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "headline": {
+              "required": true,
+              "max": 56
+            },
+            "sub": {
+              "max": 100
+            }
+          },
+          "elements": [
+            {
+              "type": "glyph",
+              "glyph": "&",
+              "size": 760,
+              "colour": "tint-deep",
+              "place": {
+                "px": {
+                  "x": 470,
+                  "y": -90
+                }
+              },
+              "z": 0
+            },
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "ink": "accent-type",
+              "nowrap": true,
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 80
+                }
+              },
+              "when": {
+                "present": "label"
+              },
+              "z": 2
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 160,
+                  "w": 920,
+                  "h": 740
+                }
+              },
+              "flow": "column",
+              "justify": "end",
+              "align": "start",
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "emphasis": "italic",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        16,
+                        168
+                      ],
+                      [
+                        28,
+                        140
+                      ],
+                      [
+                        42,
+                        120
+                      ],
+                      [
+                        56,
+                        106
+                      ]
+                    ],
+                    "maxLines": 5,
+                    "maxH": 640
+                  },
+                  "w": 920
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 0,
+                  "y": 960,
+                  "w": 1080,
+                  "h": 390
+                }
+              },
+              "fill": "dark",
+              "ink": "white",
+              "pad": [
+                80,
+                80,
+                80,
+                80
+              ],
+              "flow": "column",
+              "justify": "between",
+              "z": 1,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "ink": "white",
+                  "w": 760,
+                  "when": {
+                    "present": "sub"
+                  }
+                },
+                {
+                  "type": "text",
+                  "source": "brand",
+                  "style": "label",
+                  "ink": "accent-dark"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "figure",
+          "name": "Long smoke",
+          "ground": "dark",
+          "fit": "margins",
+          "calm": {
+            "maxShare": 0.55
+          },
+          "describe": "One huge fine serif figure centred on the near-black page between two hairlines, its unit in small capitals under it, the label above with a short accent tick and the sub line at the foot. Use for a single number of up to 5 characters, such as 12 hours or 48 days.",
+          "accepts": [
+            {
+              "field": "big",
+              "part": "all",
+              "maxChars": 5
+            }
+          ],
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "big": {
+              "required": true,
+              "max": 5
+            },
+            "unit": {
+              "max": 24
+            },
+            "sub": {
+              "max": 110
+            }
+          },
+          "elements": [
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 80,
+                  "w": 920,
+                  "h": 200
+                }
+              },
+              "flow": "column",
+              "justify": "start",
+              "align": "center",
+              "gap": 32,
+              "z": 2,
+              "when": {
+                "present": "label"
+              },
+              "children": [
+                {
+                  "type": "block",
+                  "w": 48,
+                  "h": 2,
+                  "colour": "gold"
+                },
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "ink": "accent-dark",
+                  "align": "center",
+                  "nowrap": true
+                }
+              ]
+            },
+            {
+              "type": "rule",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 300,
+                  "w": 920
+                }
+              },
+              "weight": "hair",
+              "colour": "rule-dark"
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 330,
+                  "w": 920,
+                  "h": 640
+                }
+              },
+              "flow": "column",
+              "justify": "center",
+              "align": "center",
+              "gap": 16,
+              "ink": "white",
+              "z": 2,
+              "children": [
+                {
+                  "type": "fitted-stack",
+                  "field": "big",
+                  "mode": "lines",
+                  "cap": 520,
+                  "floor": 200,
+                  "maxLines": 1,
+                  "align": "center",
+                  "trail": true,
+                  "lead": 0.86,
+                  "w": 920,
+                  "h": 520
+                },
+                {
+                  "type": "text",
+                  "field": "unit",
+                  "style": "label",
+                  "ink": "accent-dark",
+                  "align": "center",
+                  "nowrap": true,
+                  "when": {
+                    "present": "unit"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "rule",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 1000,
+                  "w": 920
+                }
+              },
+              "weight": "hair",
+              "colour": "rule-dark"
+            },
+            {
+              "type": "box",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "right": 80,
+                  "bottom": 80
+                }
+              },
+              "flow": "column",
+              "align": "center",
+              "z": 2,
+              "when": {
+                "present": "sub"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "ink": "body-dark",
+                  "align": "center",
+                  "w": 760
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "list",
+          "name": "Menu highlights",
+          "ground": "dark",
+          "fit": "margins",
+          "calm": {
+            "maxShare": 0.55
+          },
+          "describe": "A menu card on the near-black page: the label in small capitals, a fine serif headline centred, then each dish in small capitals with a dotted leader to its price (write each item as \"Bone marrow · €14\"), and the sub line at the foot. Use for two to five dishes with prices.",
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "headline": {
+              "required": true,
+              "max": 40
+            },
+            "items": {
+              "required": true,
+              "min": 2,
+              "max": 5
+            },
+            "sub": {
+              "max": 90
+            }
+          },
+          "elements": [
+            {
+              "type": "keyline",
+              "place": {
+                "px": {
+                  "x": 40,
+                  "y": 40,
+                  "w": 1000,
+                  "h": 1270
+                }
+              },
+              "weight": 1,
+              "colour": "rule-dark"
+            },
+            {
+              "type": "box",
+              "place": {
+                "inset": "margins"
+              },
+              "flow": "column",
+              "justify": "between",
+              "align": "stretch",
+              "ink": "white",
+              "z": 2,
+              "children": [
+                {
+                  "type": "box",
+                  "flow": "column",
+                  "align": "center",
+                  "gap": 30,
+                  "children": [
+                    {
+                      "type": "text",
+                      "field": "label",
+                      "style": "label",
+                      "ink": "accent-dark",
+                      "align": "center",
+                      "nowrap": true,
+                      "when": {
+                        "present": "label"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "field": "headline",
+                      "style": "display",
+                      "emphasis": "italic",
+                      "align": "center",
+                      "ladder": {
+                        "by": "headline",
+                        "steps": [
+                          [
+                            18,
+                            128
+                          ],
+                          [
+                            30,
+                            110
+                          ],
+                          [
+                            40,
+                            98
+                          ]
+                        ],
+                        "maxLines": 3,
+                        "maxH": 320
+                      },
+                      "w": 920
+                    },
+                    {
+                      "type": "block",
+                      "w": 48,
+                      "h": 2,
+                      "colour": "gold"
+                    }
+                  ]
+                },
+                {
+                  "type": "rows",
+                  "each": "items",
+                  "number": "none",
+                  "textStyle": "label",
+                  "textSize": 30,
+                  "textTrack": 0.14,
+                  "leader": "dotted",
+                  "rule": "none",
+                  "rowMinH": 96,
+                  "grow": 1,
+                  "ink": "white"
+                },
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "ink": "body-dark",
+                  "align": "center",
+                  "w": 920,
+                  "when": {
+                    "present": "sub"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "quote",
+          "name": "The chef",
+          "ground": "dark",
+          "fit": "margins",
+          "calm": {
+            "maxShare": 0.6
+          },
+          "describe": "The chef's words in a fine italic serif centred on the near-black page under a large accent quotation mark, the label in small capitals at the top and the name in small capitals after a short accent tick at the foot. Use for a quotation of up to about 150 characters.",
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "quote": {
+              "required": true,
+              "max": 150
+            },
+            "by": {
+              "max": 40
+            }
+          },
+          "elements": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "ink": "muted-dark",
+              "align": "center",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "right": 80,
+                  "top": 100
+                }
+              },
+              "when": {
+                "present": "label"
+              }
+            },
+            {
+              "type": "glyph",
+              "glyph": "“",
+              "size": 360,
+              "colour": "gold",
+              "place": {
+                "px": {
+                  "x": 444,
+                  "y": 140
+                }
+              },
+              "z": 1
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 420,
+                  "w": 920,
+                  "h": 640
+                }
+              },
+              "flow": "column",
+              "justify": "center",
+              "align": "center",
+              "ink": "white",
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "quote",
+                  "style": "display",
+                  "emphasis": "italic",
+                  "align": "center",
+                  "ladder": {
+                    "by": "quote",
+                    "steps": [
+                      [
+                        40,
+                        100
+                      ],
+                      [
+                        80,
+                        84
+                      ],
+                      [
+                        120,
+                        74
+                      ],
+                      [
+                        150,
+                        68
+                      ]
+                    ],
+                    "maxLines": 8,
+                    "maxH": 620
+                  },
+                  "w": 900
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "right": 80,
+                  "bottom": 90
+                }
+              },
+              "flow": "column",
+              "align": "center",
+              "gap": 26,
+              "z": 2,
+              "when": {
+                "present": "by"
+              },
+              "children": [
+                {
+                  "type": "block",
+                  "w": 48,
+                  "h": 2,
+                  "colour": "gold"
+                },
+                {
+                  "type": "text",
+                  "field": "by",
+                  "style": "label",
+                  "ink": "accent-dark",
+                  "align": "center",
+                  "nowrap": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "photo",
+          "name": "After dark",
+          "ground": "dark",
+          "fit": "margins",
+          "describe": "The picture over the whole page with the near-black laid over its foot so the words read, the label in small capitals with a short accent tick, a fine serif headline and the sub line at the foot. Use for a dish or the room with a headline of up to 56 characters.",
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "image": {
+              "required": true
+            },
+            "headline": {
+              "required": true,
+              "max": 56
+            },
+            "sub": {
+              "max": 110
+            }
+          },
+          "elements": [
+            {
+              "type": "photo",
+              "place": {
+                "inset": "page"
+              },
+              "shape": "rect",
+              "z": 0
+            },
+            {
+              "type": "overlay",
+              "colour": "dark",
+              "from": "bottom",
+              "need": 4.5,
+              "floor": 0.55,
+              "cap": 0.94,
+              "fade": 420,
+              "place": {
+                "anchor": {
+                  "left": 0,
+                  "right": 0,
+                  "bottom": 0,
+                  "h": 860
+                }
+              },
+              "z": 1
+            },
+            {
+              "type": "box",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "right": 80,
+                  "bottom": 80
+                }
+              },
+              "flow": "column",
+              "gap": 28,
+              "ink": "white",
+              "z": 2,
+              "children": [
+                {
+                  "type": "block",
+                  "w": 48,
+                  "h": 2,
+                  "colour": "gold",
+                  "when": {
+                    "present": "label"
+                  }
+                },
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "ink": "accent-dark",
+                  "nowrap": true,
+                  "when": {
+                    "present": "label"
+                  }
+                },
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "emphasis": "italic",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        20,
+                        128
+                      ],
+                      [
+                        36,
+                        108
+                      ],
+                      [
+                        56,
+                        94
+                      ]
+                    ],
+                    "maxLines": 3,
+                    "maxH": 330
+                  },
+                  "w": 920
+                },
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "ink": "white",
+                  "w": 760,
+                  "when": {
+                    "present": "sub"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "photo",
+          "name": "Framed plate",
+          "ground": "dark",
+          "fit": "margins",
+          "describe": "The picture in a tall frame with a thin keyline round it on the near-black page, the label in small capitals and a fine serif headline centred under it. Use for a plated dish with a headline of up to 44 characters.",
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "image": {
+              "required": true
+            },
+            "headline": {
+              "required": true,
+              "max": 44
+            }
+          },
+          "elements": [
+            {
+              "type": "keyline",
+              "place": {
+                "px": {
+                  "x": 60,
+                  "y": 60,
+                  "w": 960,
+                  "h": 900
+                }
+              },
+              "weight": 1,
+              "colour": "rule-dark"
+            },
+            {
+              "type": "photo",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 80,
+                  "w": 920,
+                  "h": 860
+                }
+              },
+              "shape": "rect",
+              "z": 1
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 1000,
+                  "w": 920,
+                  "h": 270
+                }
+              },
+              "flow": "column",
+              "justify": "center",
+              "align": "center",
+              "gap": 24,
+              "ink": "white",
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "ink": "accent-dark",
+                  "align": "center",
+                  "nowrap": true,
+                  "when": {
+                    "present": "label"
+                  }
+                },
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "emphasis": "italic",
+                  "align": "center",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        18,
+                        92
+                      ],
+                      [
+                        30,
+                        80
+                      ],
+                      [
+                        44,
+                        70
+                      ]
+                    ],
+                    "maxLines": 2,
+                    "maxH": 190
+                  },
+                  "w": 920
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "event",
+          "name": "Reservation",
+          "ground": "dark",
+          "fit": "margins",
+          "describe": "The picture across the top of the near-black page, then the label in small capitals, a fine serif headline, the info rows (When, Where, Book on ...) on hairlines and an accent pill button. Use for a dinner, a tasting menu or bookings, with a picture.",
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "image": {
+              "required": true
+            },
+            "headline": {
+              "required": true,
+              "max": 44
+            },
+            "meta": {
+              "required": true,
+              "max": 40
+            },
+            "info": {
+              "min": 1,
+              "max": 3
+            },
+            "cta": {
+              "max": 24
+            }
+          },
+          "elements": [
+            {
+              "type": "photo",
+              "place": {
+                "px": {
+                  "x": 0,
+                  "y": 0,
+                  "w": 1080,
+                  "h": 540
+                }
+              },
+              "shape": "rect",
+              "z": 0
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 600,
+                  "w": 920,
+                  "h": 670
+                }
+              },
+              "flow": "column",
+              "justify": "between",
+              "align": "stretch",
+              "ink": "white",
+              "z": 2,
+              "children": [
+                {
+                  "type": "box",
+                  "flow": "column",
+                  "align": "start",
+                  "gap": 22,
+                  "children": [
+                    {
+                      "type": "text",
+                      "field": "label",
+                      "style": "label",
+                      "ink": "accent-dark",
+                      "nowrap": true,
+                      "when": {
+                        "present": "label"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "field": "headline",
+                      "style": "display",
+                      "emphasis": "italic",
+                      "ladder": {
+                        "by": "headline",
+                        "steps": [
+                          [
+                            18,
+                            104
+                          ],
+                          [
+                            30,
+                            90
+                          ],
+                          [
+                            44,
+                            80
+                          ]
+                        ],
+                        "maxLines": 2,
+                        "maxH": 200
+                      },
+                      "w": 920
+                    },
+                    {
+                      "type": "text",
+                      "field": "meta",
+                      "style": "label",
+                      "ink": "muted-dark"
+                    }
+                  ]
+                },
+                {
+                  "type": "info-rows",
+                  "layout": "beside",
+                  "labelSpan": 2,
+                  "valueStyle": "body",
+                  "maxLines": 1,
+                  "rule": "hair",
+                  "gap": 20,
+                  "labelInk": "accent-dark",
+                  "when": {
+                    "present": "info"
+                  }
+                },
+                {
+                  "type": "button",
+                  "field": "cta",
+                  "shape": "pill",
+                  "size": 20,
+                  "icon": "arrow-right",
+                  "fill": "gold",
+                  "ink": "on-accent",
+                  "alignSelf": "start",
+                  "when": {
+                    "present": "cta"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "event",
+          "name": "Supper club",
+          "ground": "paper",
+          "fit": "margins",
+          "calm": {
+            "maxShare": 0.6
+          },
+          "describe": "A near-black tile with the day as large as the headline and the month in small capitals on the pale page, the label and a fine serif headline beside and under it, the info rows on hairlines and a dark pill button. Use for an evening with a date, up to 44 characters of headline.",
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "headline": {
+              "required": true,
+              "max": 44
+            },
+            "meta": {
+              "required": true,
+              "max": 40
+            },
+            "info": {
+              "min": 1,
+              "max": 3
+            },
+            "cta": {
+              "max": 24
+            }
+          },
+          "elements": [
+            {
+              "type": "sticker",
+              "shape": "tile",
+              "w": 300,
+              "h": 380,
+              "radius": 0,
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 80
+                }
+              },
+              "fill": "dark",
+              "ink": "white",
+              "z": 3,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "meta",
+                  "format": "day",
+                  "style": "display",
+                  "size": 140,
+                  "follow": true,
+                  "weight": 300,
+                  "lead": 1,
+                  "align": "center"
+                },
+                {
+                  "type": "text",
+                  "field": "meta",
+                  "format": "month",
+                  "style": "label",
+                  "size": 20,
+                  "upper": true,
+                  "track": 0.2,
+                  "align": "center",
+                  "before": 10,
+                  "ink": "accent-dark"
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 446,
+                  "y": 80,
+                  "w": 554,
+                  "h": 380
+                }
+              },
+              "flow": "column",
+              "justify": "end",
+              "gap": 18,
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "ink": "accent-type",
+                  "nowrap": true,
+                  "when": {
+                    "present": "label"
+                  }
+                },
+                {
+                  "type": "text",
+                  "field": "meta",
+                  "split": {
+                    "sep": "·",
+                    "pick": "rest"
+                  },
+                  "style": "label",
+                  "ink": "muted"
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 520,
+                  "w": 920,
+                  "h": 750
+                }
+              },
+              "flow": "column",
+              "justify": "between",
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "emphasis": "italic",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        18,
+                        140
+                      ],
+                      [
+                        30,
+                        118
+                      ],
+                      [
+                        44,
+                        102
+                      ]
+                    ],
+                    "maxLines": 3,
+                    "maxH": 360
+                  },
+                  "w": 920
+                },
+                {
+                  "type": "box",
+                  "flow": "column",
+                  "align": "stretch",
+                  "gap": 44,
+                  "children": [
+                    {
+                      "type": "info-rows",
+                      "layout": "beside",
+                      "labelSpan": 2,
+                      "valueStyle": "body",
+                      "maxLines": 1,
+                      "rule": "hair",
+                      "gap": 20,
+                      "labelInk": "accent-type",
+                      "when": {
+                        "present": "info"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "field": "cta",
+                      "shape": "pill",
+                      "size": 20,
+                      "icon": "arrow-right",
+                      "fill": "dark",
+                      "ink": "white",
+                      "alignSelf": "start",
+                      "when": {
+                        "present": "cta"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "offer",
+          "name": "Tonight's special",
+          "ground": "dark",
+          "fit": "margins",
+          "describe": "The picture over the whole page with the near-black laid over its top and its foot so the words read, the label in small capitals at the top, a fine serif headline at the foot with a round price badge and an accent pill button. Use for tonight's special or a set menu with a short price.",
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "image": {
+              "required": true
+            },
+            "headline": {
+              "required": true,
+              "max": 48
+            },
+            "tag": {
+              "required": true,
+              "max": 10
+            },
+            "cta": {
+              "max": 24
+            }
+          },
+          "elements": [
+            {
+              "type": "photo",
+              "place": {
+                "inset": "page"
+              },
+              "shape": "rect",
+              "z": 0
+            },
+            {
+              "type": "overlay",
+              "colour": "dark",
+              "from": "top",
+              "need": 4.5,
+              "floor": 0.4,
+              "cap": 0.9,
+              "fade": 160,
+              "place": {
+                "anchor": {
+                  "left": 0,
+                  "right": 0,
+                  "top": 0,
+                  "h": 300
+                }
+              },
+              "z": 1
+            },
+            {
+              "type": "overlay",
+              "colour": "dark",
+              "from": "bottom",
+              "need": 4.5,
+              "floor": 0.5,
+              "cap": 0.92,
+              "fade": 300,
+              "place": {
+                "anchor": {
+                  "left": 0,
+                  "right": 0,
+                  "bottom": 0,
+                  "h": 560
+                }
+              },
+              "z": 1
+            },
+            {
+              "type": "box",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "right": 80,
+                  "top": 80
+                }
+              },
+              "flow": "column",
+              "align": "start",
+              "gap": 26,
+              "ink": "white",
+              "z": 2,
+              "when": {
+                "present": "label"
+              },
+              "children": [
+                {
+                  "type": "block",
+                  "w": 48,
+                  "h": 2,
+                  "colour": "gold"
+                },
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "ink": "white",
+                  "nowrap": true
+                }
+              ]
+            },
+            {
+              "type": "sticker",
+              "shape": "circle",
+              "size": 240,
+              "place": {
+                "px": {
+                  "x": 760,
+                  "y": 500
+                }
+              },
+              "fill": "gold",
+              "ink": "on-accent",
+              "field": "tag",
+              "fit": {
+                "cap": 96,
+                "floor": 36,
+                "w": 190,
+                "h": 120,
+                "maxLines": 2
+              },
+              "z": 4
+            },
+            {
+              "type": "box",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "right": 80,
+                  "bottom": 80
+                }
+              },
+              "flow": "column",
+              "gap": 40,
+              "ink": "white",
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "emphasis": "italic",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        20,
+                        124
+                      ],
+                      [
+                        34,
+                        106
+                      ],
+                      [
+                        48,
+                        94
+                      ]
+                    ],
+                    "maxLines": 3,
+                    "maxH": 330
+                  },
+                  "w": 920
+                },
+                {
+                  "type": "button",
+                  "field": "cta",
+                  "shape": "pill",
+                  "size": 20,
+                  "icon": "arrow-right",
+                  "fill": "gold",
+                  "ink": "on-accent",
+                  "when": {
+                    "present": "cta"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

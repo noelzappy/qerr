@@ -1,0 +1,63 @@
+// The studio look's test copy (sample = normal pages, stress = the longest copy that holds, minimal = the least a post of each kind needs).
+// Fictional: a product and design studio (the Northbeam pack, brands/northbeam), written in its own words. No real organisation, person,
+// place or amount; the pictures are the engine's synthetic demo pictures.
+const PIC = 'design/assets/demo/object-jar.jpg', SCENE = 'design/assets/demo/scene-market.jpg';
+const DESK = 'design/assets/demo/screen-desk.png', PHONE = 'design/assets/demo/screen-phone.png';
+const GALLERY = [{ image: PIC }, { image: SCENE }, { image: DESK }];
+export const NORMAL = {
+  'studio/statement/0': { label: 'Studio notes', headline: 'Bring us [[a sketch]] and we bring back [[a plan]].', sub: 'Every project starts with the people who will use it.' },
+  'studio/statement/1': { label: 'The product teams report', headline: 'Most teams track speed. *Few track what they ship.*', sub: 'We asked 1,200 people who build software how they decide. Illustrative figures.' },
+  'studio/statement/2': { label: 'How we work', headline: 'Start with the customer, then the *code.*', sub: 'Research, design and engineering at one table, from the first call to launch day.' },
+  'studio/figure/0': { label: 'The product teams report', big: '1,200', unit: 'teams answered', sub: 'Questions on planning, testing and shipping, from teams of every size. Illustrative figure.' },
+  'studio/figure/1': { label: 'Since we opened', big: '140+', unit: 'launches with clients', sub: 'Websites, apps and tools for teams of two to two hundred. Illustrative figure.' },
+  'studio/list/0': { label: 'What we do', headline: 'What we bring to your *team.*', items: ['Research', 'Design', 'Engineering', 'Training'] },
+  'studio/list/1': { label: 'We are hiring', headline: 'Backend Developer*.*', sub: 'Join a small team that ships with care and talks to users every week.', items: ['Four years on web backends', 'Writes tests before shipping', 'Explains trade-offs plainly', 'Enjoys pairing with designers'] },
+  'studio/list/2': { label: 'Our process', headline: 'How a project runs, week by week', items: ['Listen to customers', 'Sketch and test', 'Build in small steps'] },
+  'studio/quote/0': { label: 'Field notes', quote: 'If nobody is asking for it, a louder launch will not *fix it.*', by: 'Northbeam research lead' },
+  'studio/quote/1': { label: 'Field notes', quote: 'Ship the smallest useful thing, then listen hard.', by: 'Northbeam design team' },
+  'studio/photo/0': { label: 'Studio notes', headline: 'Small teams, [[clear]] plans, steady launches.', sub: 'We work beside your team every week.' },
+  'studio/photo/1': { label: 'Work notes', headline: 'Good software starts with [[one question]].' },
+  'studio/photo/2': { label: 'Northbeam talks', headline: 'What makes a tool worth opening twice?', sub: 'Our design lead on habits, trust and small details.' },
+  'studio/event/0': { label: 'See us at', headline: 'Larkford Make*.*', sub: 'Designing forms people finish', meta: 'Hands-on session · Hall B', tag: 'Workshop', info: [{ key: 'When', value: 'Thu 12 Nov, 2.45pm' }, { key: 'Where', value: 'Main hall, Larkford' }] },
+  'studio/event/1': { label: 'Studio events', headline: 'Demo evening: see what our clients built', meta: 'Thu 12 Nov · 6pm · The Yard, Larkford', cta: 'Save a seat', gallery: GALLERY },
+  'studio/offer/0': { label: 'Studio fellowship', headline: 'Our 2027 fellowship is taking *entries.*', tag: 'Fellowship', sub: 'Ten weeks inside the studio on live client projects, with a mentor.', cta: 'Entries close 9 Jan 2027' },
+  'studio/offer/1': { label: 'Hire the studio', headline: 'A focused sprint for early teams', tag: '6 weeks', sub: 'From a question to a tested prototype, with three people from the studio.', cta: 'Start a project' },
+};
+export const STRESS = {
+  'studio/statement/0': { label: 'Studio notes, this week', headline: 'Bring us [[a rough sketch]] and we bring back [[a working plan]].', sub: 'Every project starts with the people who will use it, so we meet them before we draw anything.' },
+  'studio/statement/1': { label: 'The product teams report', headline: 'Most teams track how fast they go. *Few track what they ship.*', sub: 'We asked 1,200 people who build software how they decide what comes next. Illustrative figures.' },
+  'studio/statement/2': { label: 'How we work, week by week', headline: 'Start with the customer, then the plan, then the *code.*', sub: 'Research, design and engineering at one small table, from the very first call to launch day.' },
+  'studio/figure/0': { label: 'The product teams report', big: '12,000+', unit: 'teams answered in total', sub: 'Questions on planning, testing and shipping, from teams of every size and sector. Illustrative.' },
+  'studio/figure/1': { label: 'Since the studio opened', big: '1,400+', unit: 'launches with clients', sub: 'Websites, apps and internal tools for teams of two to two hundred. Illustrative figure.' },
+  'studio/list/0': { label: 'What we do for teams', headline: 'What we bring to your *team.*', items: ['Research', 'Design', 'Engineering', 'Training', 'Support'] },
+  'studio/list/1': { label: 'We are hiring', headline: 'Senior Backend Developer*.*', sub: 'Join a small team that ships with care, talks to users every week and writes things down.', items: ['Four years on web backends', 'Writes tests before shipping', 'Explains trade-offs plainly', 'Enjoys pairing with designers', 'Keeps systems simple'] },
+  'studio/list/2': { label: 'Our process, step by step', headline: 'How a project runs at the studio, week by week', items: ['Listen to customers', 'Sketch and test ideas', 'Build in small steps', 'Measure and improve'] },
+  'studio/quote/0': { label: 'Field notes', quote: 'If nobody is asking for it, a louder launch will not fix it. Go back to the people you built it for and *ask again.*', by: 'Northbeam research lead, 2026' },
+  'studio/quote/1': { label: 'Field notes', quote: 'Ship the smallest useful thing, then listen hard, then ship the next small thing a little sooner.', by: 'Northbeam design team, 2026' },
+  'studio/photo/0': { label: 'Studio notes', headline: 'Small teams, [[clear]] plans and steady, careful launches.', sub: 'We work beside your team every week, in your tools and on your schedule.' },
+  'studio/photo/1': { label: 'Work notes', headline: 'Good software always starts with [[one good question]], asked early' },
+  'studio/photo/2': { label: 'Northbeam talks', headline: 'What makes a tool worth opening twice? We asked around', sub: 'Our design lead on habits, trust and the small details people notice.' },
+  'studio/event/0': { label: 'See us at', headline: 'Larkford Make 26*.*', sub: 'Designing forms people finish, with practice', meta: 'Hands-on session · Hall B, 2.45pm', tag: 'Talk + workshop', info: [{ key: 'When', value: 'Thursday 12 November, 2.45pm' }, { key: 'Where', value: 'Main hall, Larkford centre' }] },
+  'studio/event/1': { label: 'Studio events', headline: 'Demo evening: see what our clients built in 2026', meta: 'Thu 12 Nov · 6pm to 9pm · The Yard', cta: 'Save a free seat', gallery: [...GALLERY, { image: PHONE }] },
+  'studio/offer/0': { label: 'Studio fellowship', headline: 'Our 2027 fellowship is now taking *entries.*', tag: 'Fellowship', sub: 'Ten weeks inside the studio on live client projects, with a mentor and a small stipend.', cta: 'Entries close 9 Jan 2027' },
+  'studio/offer/1': { label: 'Hire the studio', headline: 'A focused sprint for early teams who need answers fast', tag: '6 weeks', sub: 'From a question to a tested prototype, with three people from the studio.', cta: 'Start a project' },
+};
+export const MINIMAL = {
+  'studio/statement/0': { headline: 'Hello' },
+  'studio/statement/1': { headline: 'Our story. *Told.*' },
+  'studio/statement/2': { headline: 'Build *it.*' },
+  'studio/figure/0': { big: '7' },
+  'studio/figure/1': { big: '7' },
+  'studio/list/0': { headline: 'Two things', items: ['Research teams', 'Design tools'] },
+  'studio/list/1': { headline: 'Designer', items: ['One', 'Two'] },
+  'studio/list/2': { headline: 'Steps', items: ['Listen to customers', 'Build in steps'] },
+  'studio/quote/0': { quote: 'Said' },
+  'studio/quote/1': { quote: 'Said' },
+  'studio/photo/0': { headline: 'Look' },
+  'studio/photo/1': { headline: 'Look' },
+  'studio/photo/2': { headline: 'Look' },
+  'studio/event/0': { headline: 'Make', meta: 'Session' },
+  'studio/event/1': { headline: 'Night', meta: '12 Nov', cta: 'Book' },
+  'studio/offer/0': { headline: 'Open', tag: 'New' },
+  'studio/offer/1': { headline: 'Sprint', tag: '6 weeks' },
+};

@@ -48,6 +48,7 @@ import * as photoRow from './directions/primitives/photo-row.mjs';
 import * as tapedPhoto from './directions/primitives/taped-photo.mjs';
 import * as paperTexture from './directions/primitives/paper-texture.mjs';
 import * as iconBadge from './directions/primitives/icon-badge.mjs';
+import * as ribbon from './directions/primitives/ribbon.mjs';
 import * as chart from './directions/primitives/chart.mjs';
 // the shapes of a headline's pills (kit.mjs PILL_SHAPES)
 export const PILL_SHAPES = ['pill', 'soft', 'outline'];
@@ -58,8 +59,9 @@ export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 
   gradient, overlay, graphic,
   // info rows, a button and a row of round pictures
   'info-rows': infoRows, button, 'photo-row': photoRow,
-  // a picture taped on at an angle, a paper texture, and one of the engine's icons drawn large, bare or on a badge (a sticker, a trust mark)
-  'taped-photo': tapedPhoto, 'paper-texture': paperTexture, 'icon-badge': iconBadge,
+  // a picture taped on at an angle, a paper texture, one of the engine's icons drawn large, bare or on a badge (a sticker, a trust mark),
+  // and a ribbon across a corner of the page
+  'taped-photo': tapedPhoto, 'paper-texture': paperTexture, 'icon-badge': iconBadge, ribbon,
   // a chart drawn from the post's numbers (bars, a line, a sparkline, a donut, a progress bar)
   chart });
 
@@ -178,7 +180,7 @@ const ELEMENTS_BASE = {
     label: 'Text', group: 'Text', help: 'Words of the post (or the brand name, the folio, a list number) set in one of the look\'s type styles.',
     placement: 'required', flow: true, container: null, text: true,
     own: {
-      field: field(TEXT_FIELDS, 'Field', 'Which of the post\'s words it shows (or choose a source).'), source: en(SOURCES, 'Source', 'The brand name, the folio, the index or the brand\'s web address instead of a field.'),
+      field: field(TEXT_FIELDS, 'Field', 'Which of the post\'s words it shows (or choose a source).'), source: en(SOURCES, 'Source', 'The brand name, the folio, the index, the brand\'s web address, or "Swipe" with an arrow (only on a carousel page that has a page after it) instead of a field.'),
       word: en(WORDS, 'Word', 'One of a few fixed words (such as Myth or Fact) instead of a field.'),
       part: en(PARTS, 'Part', 'The whole text, the part before the emphasised phrase, the phrase, or what follows it.', 'all'),
       split: obj({ sep: en(SPLIT_SEPARATORS, 'Separator', 'What splits the text into parts.'), pick: oneOf([{ is: 'number', desc: int(0, 3, 'Part', 'Which part (0 is the first).') }, { is: 'string', desc: en(['rest'], 'Rest', 'Everything after the first part.') }], 'Pick', 'Which part to show, or "rest".') }, 'Split', 'Shows one part of a line like "12 Dec · 6pm · Place".', ['sep', 'pick']),

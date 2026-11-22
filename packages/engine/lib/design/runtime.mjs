@@ -18,6 +18,16 @@ window.__ds = {
     // Every face the page declares (the sans, the mono, and the display and label fonts a brand may add) is loaded before anything
     // is measured.
     try { await Promise.all([...faces.map((f) => document.fonts.load(f)), ...[...document.fonts].map((f) => f.load().catch(() => null))]); await document.fonts.ready; } catch (e) {}
+    // Punctuation right after a headline pill (kit inlineMarks: "[[an app]],") sits snug against the pill: the mark is pulled in by its
+    // own left side bearing in the face it is set in, so its ink starts a hair (0.02 em) after the pill's edge. In em, so it holds when a
+    // headline is resized; never more than 0.15 em, and never pushed away.
+    for (const m of document.querySelectorAll('.k-pl-p')) {
+      const cs = getComputedStyle(m), fs = parseFloat(cs.fontSize), ch = (m.textContent || '').charAt(0);
+      if (!(fs > 0) || !ch) continue;
+      const g = document.createElement('canvas').getContext('2d'); g.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+      const lsb = -g.measureText(ch).actualBoundingBoxLeft;
+      if (Number.isFinite(lsb)) m.style.marginLeft = Math.max(-0.15, Math.min(0, 0.02 - lsb / fs)).toFixed(3) + 'em';
+    }
     const broken = [];
     await Promise.all([...document.images].map(async (i) => {
       try { if (!i.complete) await new Promise((res, rej) => { i.onload = res; i.onerror = rej; }); await i.decode(); } catch (e) {}
@@ -484,9 +494,15 @@ window.__ds = {
       }
       const g = document.createRange(); g.selectNodeContents(el);
       const rs = [...g.getClientRects()].filter((b) => b.width > 1 && b.height > 1).map(box);
-      // a phrase on a marker highlight bar (.k-hl, a bar as tall as the capitals) is judged on the band the bar covers: the middle 65%; so are
-      // the words in a pill (.k-pl), whose text box can be taller than the pill in a display face with tall ascent and descent (Anton)
-      if (el.parentElement && (el.parentElement.classList.contains('k-hl') || el.parentElement.classList.contains('k-pl'))) { const half = 0.325 * parseFloat(getComputedStyle(el).fontSize); for (const r of rs) { const c = (r.y0 + r.y1) / 2; r.y0 = c - half; r.y1 = c + half; } }
+      // a phrase on a marker highlight bar (.k-hl, a bar as tall as the capitals) is judged on the band the bar covers: the middle 65%
+      if (el.parentElement && el.parentElement.classList.contains('k-hl')) { const half = 0.325 * parseFloat(getComputedStyle(el).fontSize); for (const r of rs) { const c = (r.y0 + r.y1) / 2; r.y0 = c - half; r.y1 = c + half; } }
+      // the words of a headline pill (.k-pl) are judged on the pill they sit on: a face with a tall ascent and descent (Anton) has a text
+      // rectangle taller than the pill, whose edges would otherwise read the page round the pill as the words' background
+      if (el.parentElement && el.parentElement.classList.contains('k-pl')) {
+        const p = el.parentElement.getBoundingClientRect();
+        for (const r of rs) { r.y0 = Math.max(r.y0, p.top); r.y1 = Math.min(r.y1, p.bottom); r.x0 = Math.max(r.x0, p.left); r.x1 = Math.min(r.x1, p.right); }
+        return rs.filter((r) => r.x1 - r.x0 > 1 && r.y1 - r.y0 > 1);
+      }
       return rs;
     };
     // A text inside a turned box ([data-tilt] = degrees, kit c.box) reports the bounding box of each of its lines, whose corners reach

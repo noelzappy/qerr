@@ -102,7 +102,7 @@ export const POST_LIMITS: PostLimits = {
   info: { min: 1, max: 4, chars: 40 }, gallery: { min: 2, max: 5, chars: 24 },
   infoKeys: ['When', 'Where', 'Date', 'Time', 'Place', 'Book on', 'Tickets', 'Price', 'Entry', 'Who', 'Host', 'Call', 'Online', 'Starts', 'Ends', 'Open'],
   chart: { ...CHART_LIMITS },
-  icons: ['arrow-right', 'arrow-up-right', 'check', 'plus', 'star', 'spark', 'heart', 'bolt', 'leaf', 'calendar', 'clock', 'pin', 'ticket', 'tag', 'gift', 'phone', 'mail', 'user', 'play', 'dot', 'lock', 'shield'],
+  icons: ['arrow-right', 'arrow-up-right', 'check', 'plus', 'star', 'spark', 'heart', 'bolt', 'leaf', 'calendar', 'clock', 'pin', 'ticket', 'tag', 'gift', 'phone', 'mail', 'user', 'play', 'dot', 'lock', 'shield', 'bowl'],
 };
 // What the server says about each kind (GET /api/posts/post-kinds).
 export interface PostKindInfo {

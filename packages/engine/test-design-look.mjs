@@ -184,6 +184,7 @@ const EXAMPLES = {
   'taped-photo': { type: 'taped-photo', place: AT(140, 600, 800, 520), rot: -3 },
   'paper-texture': { type: 'paper-texture', place: { inset: 'page' } },
   'icon-badge': { type: 'icon-badge', icon: 'shield', fill: 'field', ink: 'on-field', place: AT(56, 600, 122, 122) },
+  ribbon: { type: 'ribbon', corner: 'top-right', at: 160, w: 72, colour: 'primary' },
   chart: { type: 'chart', kinds: ['bar', 'line'], place: AT(56, 600, 900, 400) },
 };
 const host = (...extra) => ({

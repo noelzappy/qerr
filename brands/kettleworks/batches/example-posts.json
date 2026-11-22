@@ -1,0 +1,314 @@
+{
+  "name": "kettleworks-example-posts",
+  "timezone": "Europe/Dublin",
+  "defaultTime": "09:00",
+  "mediaRoot": "media/kettleworks-example-posts",
+  "posts": [
+    {
+      "id": "01-roasted-round-the-corner-poured-with-car",
+      "date": "2026-12-07",
+      "title": "Roasted round the corner, poured with care",
+      "caption": "Roasted round the corner, poured with care.\n\nSmall batches every Thursday, from the drum to your cup within the week.\n\nhttps://kettleworks.example\n\n#KettleworksCoffee #Brookmere #CoffeeRoaster",
+      "media": [
+        "01-roasted-round-the-corner-poured-with-car-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "statement",
+        "variant": 0,
+        "label": "Roastery notes",
+        "headline": "Roasted round the corner, *poured with care.*",
+        "sub": "Small batches every Thursday, from the drum to your cup within the week."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "02-fresh-beans-every-thursday",
+      "date": "2026-12-08",
+      "title": "Fresh beans every Thursday",
+      "caption": "Fresh beans every Thursday\n\nBags of the new roast are on the counter from eight.\n\nhttps://kettleworks.example\n\n#KettleworksCoffee #Brookmere #CoffeeRoaster",
+      "media": [
+        "02-fresh-beans-every-thursday-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "statement",
+        "variant": 1,
+        "label": "New this week",
+        "headline": "Fresh beans [[every Thursday]]",
+        "sub": "Bags of the new roast are on the counter from eight.",
+        "cta": "See the beans"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "03-48-h-after-every-roast",
+      "date": "2026-12-09",
+      "title": "48 h after every roast",
+      "caption": "48 h after every roast\n\nOur beans rest for two days before they reach the grinder, so every cup tastes settled.\n\nhttps://kettleworks.example\n\n#KettleworksCoffee #Brookmere #CoffeeRoaster",
+      "media": [
+        "03-48-h-after-every-roast-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "figure",
+        "variant": 0,
+        "label": "Rested",
+        "big": "48 h",
+        "unit": "after every roast",
+        "sub": "Our beans rest for two days before they reach the grinder, so every cup tastes settled."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "04-the-morning-board",
+      "date": "2026-12-10",
+      "title": "The morning board",
+      "caption": "The morning board\n\nOat, soy or whole milk, at no extra cost.\n\nPrices are illustrative, for a fictional brand.\n\nhttps://kettleworks.example\n\n#KettleworksCoffee #Brookmere #CoffeeRoaster",
+      "media": [
+        "04-the-morning-board-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "list",
+        "variant": 0,
+        "label": "On the menu",
+        "headline": "The *morning* board",
+        "items": [
+          "Espresso · €2",
+          "Flat white · €3",
+          "Oat latte · €4",
+          "Filter of the day · €3"
+        ],
+        "sub": "Oat, soy or whole milk, at no extra cost."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "05-something-on-the-side",
+      "date": "2026-12-11",
+      "title": "Something on the side",
+      "caption": "Something on the side\n\nPrices are illustrative, for a fictional brand.\n\nhttps://kettleworks.example\n\n#KettleworksCoffee #Brookmere #CoffeeRoaster",
+      "media": [
+        "05-something-on-the-side-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "list",
+        "variant": 1,
+        "label": "Pastries",
+        "headline": "Something *on the side*",
+        "items": [
+          "Cinnamon bun · €3",
+          "Butter croissant · €2",
+          "Banana bread · €3"
+        ]
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "06-i-come-for-the-flat-white-and-stay-for-t",
+      "date": "2026-12-12",
+      "title": "I come for the flat white and stay for the people. It is the",
+      "caption": "I come for the flat white and stay for the people. It is the best ten minutes of my morning.\n\nMaren, a regular since spring (an invented quote for a fictional brand).\n\nhttps://kettleworks.example\n\n#KettleworksCoffee #Brookmere #CoffeeRoaster",
+      "media": [
+        "06-i-come-for-the-flat-white-and-stay-for-t-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "quote",
+        "variant": 0,
+        "label": "Regulars",
+        "quote": "I come for the flat white and stay for the *people*. It is the best ten minutes of my morning.",
+        "by": "Maren, a regular since spring"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "07-honey-oat-latte-warm-and-slow",
+      "date": "2026-12-13",
+      "title": "Honey oat latte, warm and slow",
+      "caption": "Honey oat latte, warm and slow\n\nPrices are illustrative, for a fictional brand.\n\nhttps://kettleworks.example\n\n#KettleworksCoffee #Brookmere #CoffeeRoaster",
+      "media": [
+        "07-honey-oat-latte-warm-and-slow-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "photo",
+        "variant": 0,
+        "label": "Drink of the week",
+        "headline": "Honey oat latte, *warm and slow*",
+        "tag": "€4",
+        "image": "design/assets/photos/scout-latte-leaf-art-top-wood.jpg"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "08-every-bean-roasted-by-hand",
+      "date": "2026-12-14",
+      "title": "Every bean, roasted by hand",
+      "caption": "Every bean, roasted by hand\n\nWe roast twice a week in small batches, a few streets from the counter.\n\nhttps://kettleworks.example\n\n#KettleworksCoffee #Brookmere #CoffeeRoaster",
+      "media": [
+        "08-every-bean-roasted-by-hand-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "photo",
+        "variant": 1,
+        "label": "Roastery notes",
+        "headline": "Every bean, *roasted by hand*",
+        "sub": "We roast twice a week in small batches, a few streets from the counter.",
+        "image": "design/assets/photos/scout-roasted-coffee-beans-pile.jpg"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "09-our-winter-hours",
+      "date": "2026-12-15",
+      "title": "Our winter hours",
+      "caption": "Our winter hours\n\nhttps://kettleworks.example\n\n#KettleworksCoffee #Brookmere #CoffeeRoaster",
+      "media": [
+        "09-our-winter-hours-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "event",
+        "variant": 0,
+        "label": "Winter hours",
+        "headline": "Our *winter* hours",
+        "meta": "From 1 December · Kettle Lane",
+        "info": [
+          {
+            "key": "Open",
+            "value": "Every day, 7:00 to 18:00"
+          },
+          {
+            "key": "When",
+            "value": "From 1 December"
+          },
+          {
+            "key": "Where",
+            "value": "12 Kettle Lane, Brookmere"
+          }
+        ],
+        "cta": "Find us"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "10-a-tasting-night-at-the-roastery",
+      "date": "2026-12-16",
+      "title": "A tasting night at the roastery",
+      "caption": "A tasting night at the roastery\n\nPrices are illustrative, for a fictional brand.\n\nhttps://kettleworks.example\n\n#KettleworksCoffee #Brookmere #CoffeeRoaster",
+      "media": [
+        "10-a-tasting-night-at-the-roastery-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "event",
+        "variant": 1,
+        "label": "Tasting night",
+        "headline": "A *tasting* night at the roastery",
+        "meta": "12 Dec · 19:00 · The roastery",
+        "info": [
+          {
+            "key": "Where",
+            "value": "The roastery, Kettle Lane"
+          },
+          {
+            "key": "Entry",
+            "value": "€10, a coffee included"
+          }
+        ],
+        "cta": "Book a seat"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "11-your-tenth-cup-is-on-us",
+      "date": "2026-12-17",
+      "title": "Your tenth cup is on us",
+      "caption": "Your tenth cup is on us\n\nCollect a stamp with every coffee. Ask for a card at the counter.\n\nhttps://kettleworks.example\n\n#KettleworksCoffee #Brookmere #CoffeeRoaster",
+      "media": [
+        "11-your-tenth-cup-is-on-us-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "offer",
+        "variant": 0,
+        "label": "Stamp card",
+        "headline": "Your tenth cup *is on us*",
+        "tag": "Free",
+        "sub": "Collect a stamp with every coffee. Ask for a card at the counter."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "12-a-latte-before-nine-half-price",
+      "date": "2026-12-18",
+      "title": "A latte before nine, half price",
+      "caption": "A latte before nine, half price\n\nEvery weekday morning until nine, in a cup or to take away.\n\nPrices are illustrative, for a fictional brand.\n\nhttps://kettleworks.example\n\n#KettleworksCoffee #Brookmere #CoffeeRoaster",
+      "media": [
+        "12-a-latte-before-nine-half-price-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "offer",
+        "variant": 1,
+        "headline": "A latte before nine, *half price*",
+        "tag": "€2",
+        "sub": "Every weekday morning until nine, in a cup or to take away.",
+        "image": "design/assets/photos/scout-latte-white-cup-dark-wood.jpg"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    }
+  ]
+}

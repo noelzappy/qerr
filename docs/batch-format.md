@@ -325,3 +325,7 @@ Settings starts on the Clean look).
 Ledger `variant`; pick the look in Settings, Brand and look first; its three photos are listed in
 `packages/engine/design/assets/photos/CREDITS.md` and are not committed): eleven posts, among them a five-page how-it-works carousel of
 `post` pages, a figure with a change pill (`tag`) and a quotation with round pictures (`gallery`).
+
+The fictional Northbeam pack has one too, `brands/northbeam/batches/example-posts.json`: twelve posts covering every kind, one of
+them a carousel of three post pages, its pictures photos recorded in `packages/engine/design/assets/photos/CREDITS.md`, written for the shipped studio look (with the Studio look active, a carousel's pages
+before the last say "Swipe").

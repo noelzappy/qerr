@@ -1,0 +1,99 @@
+{
+  "note": "Starting vault for Kettleworks Coffee, a fictional neighbourhood roaster used as a test brand. Every item is invented: no real company, person, place or figure. The numbers and prices are round and illustrative only. Imported once on an empty database; edit or delete in the app afterwards.",
+  "vault": [
+    {
+      "kind": "figure",
+      "title": "Batches a week",
+      "body": "We roast two batches a week, every Monday and Thursday (illustrative figure).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": [
+        "numbers",
+        "roastery"
+      ]
+    },
+    {
+      "kind": "figure",
+      "title": "Rest after roasting",
+      "body": "Beans rest for 48 hours after roasting before they are ground (illustrative figure).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": [
+        "numbers",
+        "roastery"
+      ]
+    },
+    {
+      "kind": "figure",
+      "title": "Stamp card",
+      "body": "Ten stamps on the card; the tenth coffee is free (illustrative offer).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": [
+        "numbers",
+        "offer"
+      ]
+    },
+    {
+      "kind": "product",
+      "title": "The morning board",
+      "body": "Espresso €2, flat white €3, oat latte €4, filter of the day €3 (round, illustrative prices).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "menu",
+        "prices"
+      ]
+    },
+    {
+      "kind": "product",
+      "title": "House blend",
+      "body": "The house espresso blend, sold in 250 g bags for €12 (illustrative price).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "beans",
+        "prices"
+      ]
+    },
+    {
+      "kind": "fact",
+      "title": "Opening hours",
+      "body": "Open every day from 7:00 to 18:00 at 12 Kettle Lane, Brookmere, an invented town.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "hours",
+        "public"
+      ]
+    },
+    {
+      "kind": "event",
+      "title": "Tasting night",
+      "body": "A tasting night at the roastery on 12 December at 19:00; entry €10 with a coffee included (invented event).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "events",
+        "public"
+      ]
+    },
+    {
+      "kind": "fact",
+      "title": "Milk",
+      "body": "Oat, soy and whole milk at no extra cost.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "menu",
+        "public"
+      ]
+    }
+  ]
+}

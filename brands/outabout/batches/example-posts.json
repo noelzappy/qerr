@@ -1,0 +1,337 @@
+{
+  "name": "outabout-example-posts",
+  "timezone": "Europe/London",
+  "defaultTime": "10:00",
+  "mediaRoot": "media/outabout-example-posts",
+  "posts": [
+    {
+      "id": "01-seven-days-out",
+      "date": "2026-11-23",
+      "title": "Seven days out",
+      "caption": "Seven days out in Tallowmere: a social ride, a night market, a bakery morning and more. Swipe through, then save the ones you like.\n\nEvery event here is invented for a fictional brand.\n\n#Outabout #Tallowmere #WhatsOn",
+      "media": [
+        "01-seven-days-out-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "statement",
+        "variant": 0,
+        "label": "Week 48 · 23 Nov–29 Nov",
+        "headline": "Seven [[days]] out",
+        "sub": "Swipe for what’s on in Tallowmere",
+        "cta": "Swipe",
+        "gallery": [
+          {
+            "image": "design/assets/photos/scout-cut-mango-cups-street-stall.jpg"
+          },
+          {
+            "image": "design/assets/photos/scout-baked-pastries-market-tray.jpg"
+          },
+          {
+            "image": "design/assets/photos/scout-red-bicycle-basket-wall.jpg"
+          },
+          {
+            "image": "design/assets/photos/scout-green-coconut-pile.jpg"
+          }
+        ]
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Seven days out in Tallowmere: a social ride, a night market, a bakery morning and more. https://outabout.example"
+        }
+      }
+    },
+    {
+      "id": "02-leftovers-can-wait",
+      "date": "2026-11-23",
+      "title": "The leftovers can wait",
+      "caption": "Ten plans in Tallowmere this week that have nothing to do with dinner. The leftovers will keep.\n\n#Outabout #Tallowmere #WhatsOn",
+      "media": [
+        "02-leftovers-can-wait-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "statement",
+        "variant": 1,
+        "label": "10 plans · Tallowmere",
+        "headline": "The leftovers can wait {{bowl}}",
+        "sub": "10 plans in Tallowmere that have nothing to do with dinner.",
+        "cta": "See all",
+        "gallery": [
+          {
+            "image": "design/assets/photos/scout-hopscotch-numbers-steps.jpg"
+          },
+          {
+            "image": "design/assets/photos/scout-stacking-block-tower-cafe.jpg"
+          },
+          {
+            "image": "design/assets/photos/scout-pergola-path-benches.jpg"
+          },
+          {
+            "image": "design/assets/photos/scout-red-bicycle-basket-wall.jpg"
+          }
+        ]
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Ten plans in Tallowmere this week that have nothing to do with dinner. https://outabout.example"
+        }
+      }
+    },
+    {
+      "id": "03-ten-plans",
+      "date": "2026-11-24",
+      "title": "Ten plans",
+      "caption": "Ten plans this week, from a social ride to a bakery morning. The full list is on our site.\n\n#Outabout #Tallowmere #WhatsOn",
+      "media": [
+        "03-ten-plans-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "figure",
+        "label": "Week 48 · 23 Nov–29 Nov",
+        "big": "10",
+        "unit": "Plans this week",
+        "sub": "Ten things to do this week, from a social ride to a bakery morning."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Ten plans this week in Tallowmere. https://outabout.example"
+        }
+      }
+    },
+    {
+      "id": "04-this-weekend",
+      "date": "2026-11-25",
+      "title": "This weekend",
+      "caption": "Four plans for this weekend on the quay. Which one are you going to?\n\n#Outabout #Tallowmere #WhatsOn",
+      "media": [
+        "04-this-weekend-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "list",
+        "label": "Week 48 · 23 Nov–29 Nov",
+        "headline": "This [[weekend]]",
+        "items": [
+          "Sunday social ride",
+          "Night market at the Ropeworks",
+          "Bakery tasting morning",
+          "Late opening at the gallery"
+        ]
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "This weekend on the quay: a social ride, the night market, a bakery morning and a late gallery opening."
+        }
+      }
+    },
+    {
+      "id": "05-overheard",
+      "date": "2026-11-25",
+      "title": "Overheard",
+      "caption": "Overheard at last week’s night market. A line written for our fictional test brand.\n\n#Outabout #Tallowmere #WhatsOn",
+      "media": [
+        "05-overheard-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "quote",
+        "label": "Overheard",
+        "quote": "Came for one drink at the night market and somehow joined a four-seat bike ride.",
+        "by": "A reader, last Saturday"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "“Came for one drink at the night market and somehow joined a four-seat bike ride.”"
+        }
+      }
+    },
+    {
+      "id": "06-the-new-spot",
+      "date": "2026-11-26",
+      "title": "The new spot",
+      "caption": "The new market stall on the quay that your friends will ask about. Stay in the know with everything happening on the quay.\n\n#Outabout #Tallowmere #WhatsOn",
+      "media": [
+        "06-the-new-spot-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "photo",
+        "variant": 0,
+        "label": "Week 48",
+        "headline": "The new spot [[your friends]] will ask about",
+        "sub": "Stay in the know with everything happening on the quay.",
+        "cta": "Read",
+        "image": "design/assets/photos/scout-vegetable-street-stall.jpg",
+        "focal": "62% 85%",
+        "zoom": 1.5
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "The new stall on the quay your friends will ask about. https://outabout.example"
+        }
+      }
+    },
+    {
+      "id": "07-now-hiring",
+      "date": "2026-11-26",
+      "title": "Now hiring",
+      "caption": "We are hiring a growth and partnerships intern to start in January. Apply on our site.\n\nAn invented role for a fictional brand.\n\n#Outabout #Tallowmere #WhatsOn",
+      "media": [
+        "07-now-hiring-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "photo",
+        "variant": 1,
+        "label": "Now hiring",
+        "headline": "We’re hiring [[interns]]",
+        "info": [
+          {
+            "key": "Who",
+            "value": "Growth and partnerships intern"
+          },
+          {
+            "key": "Starts",
+            "value": "January"
+          }
+        ],
+        "cta": "outabout.example/jobs",
+        "image": "design/assets/photos/scout-man-backpack-checking-phone.jpg",
+        "focal": "55% 50%"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "We are hiring a growth and partnerships intern, starting in January. https://outabout.example/jobs"
+        }
+      }
+    },
+    {
+      "id": "08-four-on-a-bike",
+      "date": "2026-11-27",
+      "title": "Four on a bike",
+      "caption": "Never ridden a four-seat bike? Perfect. The Sunday social ride leaves the harbour steps at 10am: slow, flat and finished with coffee.\n\nAn invented event for a fictional brand.\n\n#Outabout #Tallowmere #WhatsOn",
+      "media": [
+        "08-four-on-a-bike-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "event",
+        "variant": 0,
+        "label": "Week 48",
+        "meta": "Sunday social ride",
+        "headline": "Four on a bike",
+        "sub": "Never ridden a four-seater? Perfect. A slow, flat loop of the quay, then coffee.",
+        "info": [
+          {
+            "key": "When",
+            "value": "Sun 29 Nov, 10am"
+          },
+          {
+            "key": "Where",
+            "value": "Harbour steps"
+          }
+        ],
+        "cta": "outabout.example",
+        "image": "design/assets/photos/scout-four-seat-tandem-bicycle.jpg",
+        "focal": "45% 40%"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Sunday social ride on a four-seat bike, Sun 29 Nov at 10am from the harbour steps. https://outabout.example"
+        }
+      }
+    },
+    {
+      "id": "09-night-market",
+      "date": "2026-11-28",
+      "title": "Night market on the quay",
+      "caption": "The night market is back at the Old Ropeworks on Saturday from 5pm. Free entry.\n\nAn invented event for a fictional brand.\n\n#Outabout #Tallowmere #WhatsOn",
+      "media": [
+        "09-night-market-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "event",
+        "variant": 1,
+        "label": "Listings",
+        "meta": "Sat 28 Nov · The Old Ropeworks",
+        "headline": "Night market on the quay",
+        "info": [
+          {
+            "key": "When",
+            "value": "Sat 28 Nov, 5pm to 11pm"
+          },
+          {
+            "key": "Entry",
+            "value": "Free"
+          }
+        ],
+        "cta": "Details",
+        "image": "design/assets/photos/scout-fish-market-stall-warm-lamps.jpg",
+        "focal": "50% 45%"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Night market at the Old Ropeworks, Sat 28 Nov from 5pm. Free entry."
+        }
+      }
+    },
+    {
+      "id": "10-bakery-morning",
+      "date": "2026-11-29",
+      "title": "Bakery morning",
+      "caption": "Six breads, three pastries and the bakers who make them. A tasting morning at the quay bakery, £8 a seat (an illustrative price for a fictional brand).\n\n#Outabout #Tallowmere #WhatsOn",
+      "media": [
+        "10-bakery-morning-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "offer",
+        "label": "Tickets",
+        "headline": "Bakery [[tasting morning]]",
+        "tag": "£8",
+        "sub": "Six breads, three pastries and the people who bake them.",
+        "cta": "Book a seat",
+        "image": "design/assets/photos/scout-bakery-bread-baskets-display.jpg",
+        "focal": "50% 50%"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Bakery tasting morning on the quay: six breads, three pastries. Seats £8. https://outabout.example"
+        }
+      }
+    }
+  ]
+}
