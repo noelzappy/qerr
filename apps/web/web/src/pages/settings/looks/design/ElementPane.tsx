@@ -10,6 +10,8 @@
 import { useState, type ReactNode } from 'react';
 import { AlignCenter, AlignLeft, AlignRight } from 'lucide-react';
 import { ConfirmAction } from '@/components/kit';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { fromSelectValue, toSelectValue } from '@/lib/select-value';
 import { cn } from '@/lib/utils';
 import {
   bindField, declaredFields, elementName, fieldLabel, gridOf, inkChoices, placeForm, placeReadout, PLACE_FORM_WORDS, namedAngles, propsOf, turnOptions, pruneFields, readWhen, setPlace,
@@ -347,15 +349,21 @@ function WhenSentence({ ctx }: { ctx: Ctx }) {
   const declared = declaredFields(ctx.comp);
   const [error, setError] = useState('');
   const set = (next: Json) => setError(ctx.set('when', Object.keys(next).length ? next : undefined));
-  const sel = 'h-7 max-w-[8.5rem] rounded-md border bg-background px-1.5 text-[12.5px] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60 max-sm:h-10 max-sm:text-base';
-  const opts = (other?: string) => [<option key="" value="">any</option>, ...declared.filter((f) => f !== other).map((f) => <option key={f} value={f}>{fieldLabel(f, ctx.cat)}</option>)];
+  // "any" travels as the empty value (toSelectValue), since a Radix item cannot hold the empty string
+  const opts = (other?: string) => [{ value: '', label: 'any' }, ...declared.filter((f) => f !== other).map((f) => ({ value: f, label: fieldLabel(f, ctx.cat) }))];
+  const pick = (label: string, value: string, options: Array<{ value: string; label: string }>, onPick: (v: string) => void) => (
+    <Select value={toSelectValue(value, options)} disabled={ctx.disabled} onValueChange={(v) => onPick(fromSelectValue(v))}>
+      <SelectTrigger size="sm" aria-label={label} className="max-w-[8.5rem] text-[12.5px] max-sm:h-10 max-sm:text-base"><SelectValue /></SelectTrigger>
+      <SelectContent position="popper">{options.map((o) => <SelectItem key={o.value} value={toSelectValue(o.value, [o])}>{o.label}</SelectItem>)}</SelectContent>
+    </Select>
+  );
   return (
     <section aria-label="Shown only when" className="border-t pt-2.5">
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]">
         <span className="font-semibold">Shown only when</span>
-        <select aria-label="Only when this is filled in" className={sel} value={w.present ?? ''} disabled={ctx.disabled} onChange={(e) => set({ ...(e.target.value ? { present: e.target.value } : {}), ...(w.absent ? { absent: w.absent } : {}) })}>{opts(w.absent)}</select>
+        {pick('Only when this is filled in', w.present ?? '', opts(w.absent), (v) => set({ ...(v ? { present: v } : {}), ...(w.absent ? { absent: w.absent } : {}) }))}
         <span>is filled in and</span>
-        <select aria-label="and only when this is empty" className={sel} value={w.absent ?? ''} disabled={ctx.disabled} onChange={(e) => set({ ...(w.present ? { present: w.present } : {}), ...(e.target.value ? { absent: e.target.value } : {}) })}>{opts(w.present)}</select>
+        {pick('and only when this is empty', w.absent ?? '', opts(w.present), (v) => set({ ...(w.present ? { present: w.present } : {}), ...(v ? { absent: v } : {}) }))}
         <span>is empty</span>
       </div>
       <p className="sr-only" role="status">{whenText(w, ctx.cat)}</p>

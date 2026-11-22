@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Hint, MoreMenu, SelectField, SwitchField, TextAreaField, TextField } from '@/components/kit';
+import { SegmentedField } from '@/components/kit/segmented-field';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
@@ -153,7 +154,7 @@ export function DesignSettings({ comp, look, cat, readOnly, apply, problems }: D
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
-                  {emphasis(draft.field) && <SelectField label="Which part" value={draft.part} options={[{ value: 'all', label: 'The whole text' }, { value: 'pre', label: 'The first part' }, { value: 'phrase', label: 'The emphasised phrase' }]} onValueChange={(v) => setDraft({ ...draft, part: v })} />}
+                  {emphasis(draft.field) && <SegmentedField className="col-span-2" label="Which part" value={draft.part} options={[{ value: 'all', label: 'The whole text' }, { value: 'pre', label: 'The first part' }, { value: 'phrase', label: 'The emphasised phrase' }]} onValueChange={(v) => setDraft({ ...draft, part: v })} />}
                   <TextField label="Up to characters" type="number" inputMode="numeric" value={draft.n} onChange={(e) => setDraft({ ...draft, n: e.target.value })} />
                 </div>
               )}
@@ -177,7 +178,7 @@ export function DesignSettings({ comp, look, cat, readOnly, apply, problems }: D
         <div className="border-t pt-2.5">
           {isObj(fit)
             ? <p className="text-[13px] text-muted-foreground">The room for text is set in pixels. Change it under Advanced: JSON.</p>
-            : <SelectField label="Text stays inside" value={fitNow} disabled={readOnly} options={[{ value: 'margins', label: 'The page margins' }, { value: 'frame', label: 'The frame' }]}
+            : <SegmentedField label="Text stays inside" value={fitNow} disabled={readOnly} options={[{ value: 'margins', label: 'The page margins' }, { value: 'frame', label: 'The frame' }]}
               onValueChange={(v) => { apply((c) => ({ comp: { ...c, fit: v } }), 'fit'); }} />}
         </div>
       </Disclosure>

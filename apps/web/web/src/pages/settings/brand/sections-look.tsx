@@ -3,19 +3,26 @@ import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Hint, Notice, SelectField } from '@/components/kit';
+import { Hint, Notice } from '@/components/kit';
+import { SegmentedField } from '@/components/kit/segmented-field';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, type BrandSettings } from '../brand-types';
+import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, groundColours, type BrandSettings } from '../brand-types';
 import { Section } from '../section';
-import { ColourRoles, LookFields, TypeFields, type TypePart } from '../style-fields';
+import { ColourRoles, LookFields, TypeFields, styleSwatches, type TypePart } from '../style-fields';
 import { ColourField } from './fields';
 import { useActiveLook } from '@/hooks/use-active-look';
 import { LOOK_HINT, classicProblem, lookInForce, type BrandCtx } from './model';
 import { Changes, Readability } from './preview';
 import { ContrastDisplay } from './contrast-display';
+
+// Each choice drawn as the corner it makes.
+const corner = (r: string) => <span aria-hidden="true" className="mr-1.5 inline-block size-3 border-[1.5px] border-current" style={{ borderRadius: r }} />;
+const CORNERS: Array<{ value: BrandSettings['corners']; label: ReactNode }> = [
+  { value: 'square', label: <>{corner('0')}Square</> }, { value: 'soft', label: <>{corner('3px')}Softly rounded</> }, { value: 'round', label: <>{corner('999px')}Round</> },
+];
 
 export function ColoursSection({ ctx }: { ctx: BrandCtx }) {
   const { s, set, fields, look, view } = ctx;
@@ -34,7 +41,7 @@ export function ColoursSection({ ctx }: { ctx: BrandCtx }) {
         <Notice tone="info">Imported brand settings (see Advanced) set the exact page and text colours, so changing these four colours has little effect. Clear them under Advanced to let these colours decide.</Notice>
       )}
       <Changes changes={look?.changes ?? []} />
-      <SelectField label="Corners" hint="How rounded cards, panels and buttons are." value={s.corners} onValueChange={(v) => set('corners', v as BrandSettings['corners'])} options={[{ value: 'square', label: 'Square' }, { value: 'soft', label: 'Softly rounded' }, { value: 'round', label: 'Round' }]} className="md:max-w-xs" />
+      <SegmentedField label="Corners" hint="How rounded cards, panels and buttons are." value={s.corners} onValueChange={(v) => set('corners', v as BrandSettings['corners'])} options={CORNERS} />
       <ContrastDisplay value={s.contrastDisplay} onChange={(v) => set('contrastDisplay', v)} error={fields.contrastDisplay} />
       <Readability checks={checks} />
       <details className="border-t pt-3" open={customised > 0}>
@@ -99,8 +106,9 @@ export function TypeSection({ ctx }: { ctx: BrandCtx }) {
 export function SurfacesSection({ ctx }: { ctx: BrandCtx }) {
   const { s, set } = ctx;
   const inForce = lookInForce(s.style.direction, useActiveLook().active);
+  const swatches = styleSwatches(s.colours, ctx.look?.palette ?? null, groundColours(s.colours, s.roles));
   const fields = (part?: 'look' | 'classic') => (
-    <LookFields part={part} style={s.style} onChange={(style) => set('style', style)} artwork={ctx.artworkUrl} busy={ctx.busy === 'artwork'} onArtwork={ctx.uploadArtwork} onRemoveArtwork={ctx.askRemoveArtwork} />
+    <LookFields part={part} swatches={swatches} style={s.style} onChange={(style) => set('style', style)} artwork={ctx.artworkUrl} busy={ctx.busy === 'artwork'} onArtwork={ctx.uploadArtwork} onRemoveArtwork={ctx.askRemoveArtwork} />
   );
   return (
     <Section id="surfaces" title="Surfaces and photos" description="How cards and panels stand off the page, the texture behind pages, what happens to photos, and where the logo goes.">
@@ -109,6 +117,8 @@ export function SurfacesSection({ ctx }: { ctx: BrandCtx }) {
   );
 }
 
+// The headline styles in a word each; the full sentence is the segment's tooltip and is explained above the table.
+const ACCENT_WORDS: Record<string, string> = { muted: 'Grey', colour: 'Accent', weight: 'Lighter', none: 'None' };
 const slug = (v: string) => v.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'series';
 const MAX_POST_TYPES = 16;
 
@@ -137,7 +147,7 @@ export function PostTypesSection({ ctx }: { ctx: BrandCtx }) {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Page colour</TableHead>
-              <TableHead>Headline style</TableHead>
+              <TableHead><span className="inline-flex items-center gap-1">Headline style<Hint about="Headline style">How the second half of a headline stands out: in grey, in the accent colour, in a lighter weight, or not at all.</Hint></span></TableHead>
               <TableHead className="w-10"><span className="sr-only">Remove</span></TableHead>
             </TableRow>
           </TableHeader>
@@ -154,10 +164,8 @@ export function PostTypesSection({ ctx }: { ctx: BrandCtx }) {
                   </Select>
                 </TableCell>
                 <TableCell className="whitespace-normal">
-                  <Select value={x.accent} onValueChange={(v) => change(i, { accent: v })}>
-                    <SelectTrigger className="w-full" aria-label={`Headline style of ${x.name}`}><SelectValue /></SelectTrigger>
-                    <SelectContent position="popper">{ACCENTS.map((a) => <SelectItem key={a} value={a}>{ACCENT_LABEL[a]}</SelectItem>)}</SelectContent>
-                  </Select>
+                  <SegmentedField hideLabel label={`Headline style of ${x.name}`} value={x.accent} onValueChange={(v) => change(i, { accent: v })}
+                    options={ACCENTS.map((a) => ({ value: a, label: ACCENT_WORDS[a] ?? a, title: ACCENT_LABEL[a] }))} />
                 </TableCell>
                 <TableCell>
                   <Button type="button" variant="ghost" size="icon" aria-label={`Remove the post type ${x.name}`} disabled={s.series.length <= 1} onClick={() => remove(i)}><Trash2 aria-hidden="true" /></Button>

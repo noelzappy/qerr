@@ -2,7 +2,7 @@
 // A named size writes only `size` and `ladder`, and shows "Custom" (none lit, nothing snapped) when the element's own values match none.
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
-import { SelectField } from '@/components/kit';
+import { ChoiceField } from '@/components/kit/segmented-field';
 import { Button } from '@/components/ui/button';
 import { firstSize, ladderOf } from '../design-model';
 import { LadderEditor, NumberInput, ValueControl, type Ctx } from '../design-controls';
@@ -94,7 +94,7 @@ export function TextSize({ ctx }: { ctx: Ctx }) {
   return (
     <>
       <div className="col-span-2"><ValueControl name="style" desc={cat.elements.text!.properties.style!} value={el.style} ctx={ctx} optional onChange={(v) => ctx.set('style', v)} /></div>
-      <div className="col-span-2"><SelectField label="Size" value={mode} options={opts} disabled={ctx.disabled} error={error || undefined} hint={big ? 'Headlines and figures need steps (or a fixed size under Advanced).' : 'Body, list and label text keep the look’s sizes so the design stays in step with it.'} onValueChange={change} /></div>
+      <div className="col-span-2"><ChoiceField label="Size" value={mode} options={opts} disabled={ctx.disabled} error={error || undefined} hint={big ? 'Headlines and figures need steps (or a fixed size under Advanced).' : 'Body, list and label text keep the look’s sizes so the design stays in step with it.'} onValueChange={change} /></div>
       {mode === 'ladder' && <div className="col-span-2"><LadderEditor ctx={ctx} el={el} fieldMax={max} range={range} disabled={ctx.disabled} /></div>}
       {mode === 'fixed' && <NumberInput label="Size in pixels" value={el.size} desc={{ kind: 'number', int: true, min: range[0], max: range[1] }} disabled={ctx.disabled} onChange={(v) => (v === undefined ? 'Enter a number' : ctx.set('size', v))} />}
     </>

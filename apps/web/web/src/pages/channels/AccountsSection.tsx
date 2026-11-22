@@ -9,6 +9,7 @@ import type { Loaded } from '../../hooks';
 import { formatDate } from '../../lib/format';
 import { Section } from '../settings/section';
 import { AccountDialog, CheckDialog, type BufferAccount } from './AccountDialogs';
+import type { Organisation } from './channels-logic';
 
 const sm = 'max-sm:min-h-11';
 
@@ -28,6 +29,9 @@ export function AccountsSection({ list, onChanged }: { list: Loaded<BufferAccoun
   const [editing, setEditing] = useState<BufferAccount | 'new' | null>(null);
   const [deleting, setDeleting] = useState<BufferAccount | null>(null);
   const [checking, setChecking] = useState<BufferAccount | null>(null);
+  // The organisations each account's key reached, from a key check in this visit: Edit offers them as a choice.
+  const [orgsOf, setOrgsOf] = useState<Record<string, Organisation[]>>({});
+  const heard = (id: string) => (orgs: Organisation[]) => setOrgsOf((cur) => ({ ...cur, [id]: orgs }));
 
   const accounts = list.data ?? [];
   const expired = accounts.filter((a) => a.expired);
@@ -76,8 +80,9 @@ export function AccountsSection({ list, onChanged }: { list: Loaded<BufferAccoun
         )
         : <div className="overflow-hidden rounded-lg border" aria-label="Buffer accounts"><DataList caption="Buffer accounts" columns={columns} rows={accounts} rowKey={(a) => a.id} /></div>}
 
-      {editing && <AccountDialog key={editing === 'new' ? 'new' : editing.id} account={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={(created) => { setEditing(null); toast.success(created ? 'Buffer account added' : 'Buffer account saved'); onChanged(); }} />}
-      {checking && <CheckDialog account={checking} onClose={() => setChecking(null)} />}
+      {editing && <AccountDialog key={editing === 'new' ? 'new' : editing.id} account={editing === 'new' ? null : editing}
+        knownOrgs={editing === 'new' ? null : orgsOf[editing.id] ?? null} onOrgs={editing === 'new' ? undefined : heard(editing.id)} onClose={() => setEditing(null)} onSaved={(created) => { setEditing(null); toast.success(created ? 'Buffer account added' : 'Buffer account saved'); onChanged(); }} />}
+      {checking && <CheckDialog account={checking} onResult={heard(checking.id)} onClose={() => setChecking(null)} />}
 
       <ConfirmAction
         open={!!deleting}
