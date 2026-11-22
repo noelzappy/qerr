@@ -45,6 +45,7 @@ rules as a file.
 | `media` | list | no | File names. The app does not import files: a post that names media and has no `design` gets a warning to upload its images in the app before it is approved. See "Media". |
 | `skip` | list | no | Networks to leave out: any of `instagram`, `linkedin`, `facebook`, `x`. Default: none. Skipping every network the post would go to is an error. |
 | `networks` | object | no | Per-network overrides. Keys must be `instagram`, `linkedin`, `facebook` or `x`. Naming `x` here (even as `"x": {}`) sends this post to X even when `defaultNetworks` does not list it. |
+| `series` | object | no | `{ "slug": "tip-of-the-week", "number": 12 }`: the brand's named series this post belongs to (Settings, Looks, Series) and its number in it. `slug` is lowercase letters, digits and `-`; `number` 1 to 9999. Not sent to Buffer and not part of the duplicate-protection hash. On import, a slug the brand has no series for is dropped with a warning. The mark the reader sees ("Tip #12") is in the design's own `label` or `tag`; this field only links the post to its series. Not the same as `design.series` (a classic layout's series key, below). |
 | `sources` | list | no | Ids of vault items the post's claims come from (the AI fills it in). An id that is not in the vault is dropped with a warning. |
 | `warnings` | list | no | Notes for review (the AI fills them in). |
 

@@ -7,6 +7,7 @@ import { captionLimitFor } from './accounts.mjs';
 import { validateBatchDesigns } from './design/batch.mjs';
 import { loadSeries } from './design/brand.mjs';
 import { loadLayouts } from './design/layout.mjs';
+import { seriesRefProblems } from './design/series.mjs';
 
 export { NETWORKS, CLASSIC_NETWORKS, LIMITS };
 export const DEFAULT_FACEBOOK_TYPE = 'post';
@@ -68,6 +69,8 @@ export function validateBatch(raw, { fallbackName = 'batch', root = ROOT } = {})
     if (!dateOk) errors.push(`${where}: date "${date}" must be a real date like 2026-12-01`);
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) errors.push(`${where}: time "${time}" must look like 09:00`);
     if (typeof p.caption !== 'string' || !p.caption.trim()) errors.push(`${where}: caption is required`);
+    // The named series the post belongs to (the brand's, Settings, Looks, Series); not sent to Buffer and not part of the hash.
+    errors.push(...seriesRefProblems(p.series, where));
 
     const skip = p.skip ?? [];
     if (!Array.isArray(skip) || skip.some((s) => !NETWORKS.includes(s))) errors.push(`${where}: skip must be a list of ${NETWORKS.join(', ')}`);
