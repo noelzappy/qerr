@@ -92,6 +92,13 @@ export async function designProblems(design: unknown, deps?: Pick<Deps, 'prisma'
     if (typeof node.image === 'string' && !node.vaultItemId && !insideAssets(node.image)) {
       problems.push(`${where}: image "${node.image}" must be a file under design/assets/ or a vault photo (set vaultItemId)`);
     }
+    // A post's brand graphics name files the renderer reads from disk too: the same rule, so a design never reaches a file elsewhere
+    // (another brand's vault files, anything on the machine) through `graphics`.
+    if (node.template === 'post' && Array.isArray(node.graphics)) {
+      node.graphics.forEach((g, i) => {
+        if (isObj(g) && typeof g.image === 'string' && !insideAssets(g.image)) problems.push(`${where} graphic ${i + 1}: image "${g.image.slice(0, 80)}" must be a file under design/assets/`);
+      });
+    }
   });
   if (deps && !problems.length) problems.push(...(await screenProblems(deps, design)));
   return problems;
