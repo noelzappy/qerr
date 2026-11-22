@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import { buildPage, buildPrintPage } from './page.mjs';
 import { COVER_SIZES, SIZES, pillHeight } from './sizes.mjs';
 import { forSize } from './spec.mjs';
-import { SCALABLE, autoLines, contrastRatio, ratioBelow, explainCoverProblems, explainProblems, findCoverProblems, findLayoutProblems, imageSize, linesToSvg, luminance, upscaleWarning } from './checks.mjs';
+import { SCALABLE, autoLines, explainFitLines, explainPostFit, explainPostProblems, findPostProblems, contrastRatio, ratioBelow, explainCoverProblems, explainProblems, findCoverProblems, findLayoutProblems, imageSize, linesToSvg, luminance, upscaleWarning } from './checks.mjs';
 import { convertToJpeg } from './convert.mjs';
 import { hasAlpha, readImageBytes, sniff } from './assets.mjs';
 import { DesignError } from './errors.mjs';
@@ -13,6 +13,7 @@ import { pdfPages, snapMediaBox } from './pdf.mjs';
 import { findLayout, layoutUsesPhone } from './layout.mjs';
 import { layoutFit, renderLayout, renderLayoutWith } from './layout-render.mjs';
 import { TEMPLATE_FNS, builtinLayoutFor } from './builtin-layouts.mjs';
+import { renderPost } from './directions/index.mjs';
 
 export { DesignError };
 
@@ -21,7 +22,10 @@ export { DesignError };
 // The poster logo's wordmark (logo) is held to the label target, like the website beside it; it only ever warns.
 const PHOTO_KEY = { headline: 'headline', stat: 'headline', sub: 'sub', statlabel: 'sub', eyebrow: 'eyebrow', url: 'url' };
 const EDITORIAL_KEY = { headline: 'headline', stat: 'headline', accent: 'accent', sub: 'sub', statlabel: 'sub', label: 'label', foot: 'label', url: 'label', logo: 'label', art: 'art', artbody: 'artbody' };
-const WORD = { url: 'website', foot: 'footer label', logo: 'logo', art: 'artefact label', artbody: 'artefact text', label: 'label' };
+// A post's headline may be set no smaller than this share of its designed size (lib/design/directions/); beyond it the render is refused.
+export const POST_MIN_SCALE = 0.82;
+const POST_KEY = { ...EDITORIAL_KEY, item: 'sub', meta: 'label', folio: 'label' };
+const WORD = { item: 'list item', meta: 'meta line', folio: 'folio', url: 'website', foot: 'footer label', logo: 'logo', art: 'artefact label', artbody: 'artefact text', label: 'label' };
 const MIN_SCALE = 0.62;
 const PUSHED = new Set(['panel', 'outside', 'avoid']);
 const parseRgb = (c) => { const m = c.match(/[\d.]+/g).map(Number); return luminance(m[0], m[1], m[2]); };
@@ -46,7 +50,7 @@ export function preparePage(brand, job) {
     if (!layout.canvas[sizeName]) throw new DesignError(`layout "${layout.id}" has no ${sizeName} size`);
   } else layout = builtinLayoutFor(spec, job.counter);
   // A built-in template is drawn from its layout (lib/design/builtin-layouts.mjs). (TEMPLATE_FNS also takes a page a test adds.)
-  const tpl = spec.template === 'layout' ? renderLayout : layout ? (s, c) => renderLayoutWith(layout, s, c) : TEMPLATE_FNS[spec.template];
+  const tpl = spec.template === 'layout' ? renderLayout : layout ? (s, c) => renderLayoutWith(layout, s, c) : spec.template === 'post' ? renderPost : TEMPLATE_FNS[spec.template];
   if (!tpl) throw new DesignError(`template must be one of ${Object.keys(TEMPLATE_FNS).join(', ')} or layout (got "${String(spec.template).slice(0, 40)}")`);
   // Pictures are read and checked here, once, and embedded; templates only ever see the resulting data: URIs.
   const images = new Map(), dims = new Map();
@@ -56,7 +60,7 @@ export function preparePage(brand, job) {
     images.set(spec.image, `data:${type};base64,${buf.toString('base64')}`);
     dims.set(spec.image, imageSize(buf));
   }
-  const out = tpl(spec, { size: S, brand, counter: job.counter, layouts, image: (p) => images.get(p) ?? (() => { throw new DesignError(`image not loaded: ${p}`); })(), imageSize: (p) => dims.get(p) ?? null });
+  const out = tpl(spec, { size: S, brand, counter: job.counter, folio: job.folio, date: job.date, layouts, image: (p) => images.get(p) ?? (() => { throw new DesignError(`image not loaded: ${p}`); })(), imageSize: (p) => dims.get(p) ?? null });
   return { S, spec, layout, out };
 }
 
@@ -99,13 +103,15 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
   const { S, spec, layout, out } = preparePage(brand, job);
   const warnings = [], notes = [];
   const html = buildPage({ brand, size: S, ...out });
-  const isPhoto = spec.template === 'photo';
-  const THRESHOLD_KEY = isPhoto ? PHOTO_KEY : EDITORIAL_KEY;
+  const isPhoto = spec.template === 'photo', isPost = spec.template === 'post';
+  const THRESHOLD_KEY = isPhoto ? PHOTO_KEY : isPost ? POST_KEY : EDITORIAL_KEY;
   const need = (key) => (isPhoto ? brand.photo.minContrast[key] : brand.contrast[key]);
   warnings.push(...(out.warnings ?? []));
   // A layout keeps its own margins (a built-in page, its reference margins: PAGES[page].fit); a page without a layout (one a test
   // adds to TEMPLATE_FNS) the editorial pages' reference margins (70 px, a few px of optical overhang on the headline).
-  const Sfit = layout ? layoutFit(layout, sizeName) : { ...S, pad: 62, top: 46 };
+  // (a post: the margins its composition declares, else its direction's)
+  const Sfit = isPost ? { ...S, ...out.fit } : layout ? layoutFit(layout, sizeName) : { ...S, pad: 62, top: 46 };
+  const minScale = isPost ? POST_MIN_SCALE : MIN_SCALE;
   fs.mkdirSync(tmpDir, { recursive: true });
   const page = await browser.page(S.w, S.h);
   try {
@@ -117,6 +123,13 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
     if (ready.unframed.length) throw new DesignError(unframedPhone(ready.unframed[0], 'its corners are not transparent, so it is a screenshot without a phone around it'));
     for (const s of ready.sampled ?? []) notes.push(sampleNote(s));
     if (!ready.fontOk) warnings.push(`the ${brand.font.family} font did not load; the text uses a fallback font`);
+    // A post's fitted headlines (each line sized to fill the measure) are set before anything is measured.
+    if (isPost) {
+      const fitted = await page.evaluate('window.__ds.fitLines()');
+      for (const f of fitted) if (f.note) notes.push(f.note);
+      const bad = fitted.find((f) => !f.ok);
+      if (bad) throw new DesignError(explainFitLines(bad, bad.what || 'headline'));
+    }
     let peak = 0;
     if (isPhoto && spec.scrim !== 'none') peak = spec.scrimPeak ?? brand.photo.scrimStart;
     if (isPhoto) await page.evaluate(`window.__ds.setScrim(${Number(peak) || 0})`);
@@ -142,15 +155,30 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
         // A smaller headline also helps text under it that runs into the panel, the footer or a picture: it moves up with it.
         const hasHeadline = m.roles.some((r) => r.role === 'headline' && r.rects.length);
         const scalable = problems.some((p) => SCALABLE.has(p.role) || SCALABLE.has(p.other) || (hasHeadline && PUSHED.has(p.kind)));
-        if (!scalable || scale <= MIN_SCALE) {
+        if (!scalable || scale <= minScale) {
+          if (isPost) {
+            const head = m.roles.filter((r) => (r.role === 'headline' || r.role === 'stat') && r.rects.length), field = spec.headline ? 'headline' : 'big';
+            const h = head.flatMap((r) => r.rects).reduce((u, r) => ({ y0: Math.min(u.y0, r.y0), y1: Math.max(u.y1, r.y1) }), { y0: Infinity, y1: -Infinity });
+            const over = Math.max(0, ...problems.filter((p) => p.px).map((p) => p.px)), tall = h.y1 - h.y0;
+            throw new DesignError(explainPostFit(problems, { chars: [...String(spec[field] ?? '').replace(/\*|\\n|\n/g, '')].length, scale: minScale, kind: field, fraction: tall > 0 ? Math.max(0.3, (tall - over) / tall) : 0.7 }));
+          }
           const hl = m.roles.find((r) => r.role === 'headline')?.text.length;
           throw new DesignError(explainProblems(problems, sizeName, { headline: spec.headline ? String(spec.headline).replace(/\*|\\n/g, '').length : hl }));
         }
-        scale = +(scale * 0.93).toFixed(3);
+        scale = isPost ? Math.max(minScale, +(scale * 0.93).toFixed(3)) : +(scale * 0.93).toFixed(3);
         await page.evaluate(`window.__ds.setScale(${scale})`);
       }
-      if (scale < 1) notes.push(`headline set at ${Math.round(scale * 100)}% of the brand size to fit`);
+      if (scale < 1) notes.push(`headline set at ${Math.round(scale * 100)}% of the ${isPost ? 'designed' : 'brand'} size to fit`);
       if (scale < 0.7) warnings.push(`the headline had to be shrunk to ${Math.round(scale * 100)}%; a shorter headline reads better`);
+    }
+
+    // 1b. A post's design checks: emptiness, scale, levels of type and the grid (checks.mjs findPostProblems).
+    if (isPost) {
+      const pm = await page.evaluate('window.__ds.postMetrics()');
+      const bad = findPostProblems(pm, { grid: out.post.grid });
+      if (bad.length) throw new DesignError(explainPostProblems(bad, out.post));
+      notes.push(`composition ${out.post.id} (${out.post.name})`);
+      if (out.post.fellBackFrom) notes.push(`${out.post.fellBackFrom} does not take these words, so ${out.post.id} was used`);
     }
 
     // 2. Upscaling of supplied images.
@@ -234,7 +262,7 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
     const written = imageSize(fs.readFileSync(outFile));
     if (!written || written.w !== S.w || written.h !== S.h) throw new DesignError(`the saved file is ${written ? `${written.w}x${written.h}` : 'unreadable'}, expected ${S.w}x${S.h}`);
     if (page.blocked.length) warnings.push(`the page tried to load ${page.blocked.length} outside resource(s), which were blocked (${page.blocked.join(', ')}); a template must not need the network`);
-    return { file: outFile, w: S.w, h: S.h, warnings, notes, ratios };
+    return { file: outFile, w: S.w, h: S.h, warnings, notes, ratios, ...(isPost ? { post: out.post } : {}) };
   } finally {
     await page.close();
   }

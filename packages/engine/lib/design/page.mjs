@@ -16,9 +16,13 @@ export const fontFaceCss = (brand) => brand.fontFaces.map((f) => `@font-face{fon
 // The engine's own extra stylesheets, by name: a template asks for one (sheet: 'layout') and gets this fixed file, placed after
 // the brand's. Nothing from a spec, a batch or the brand file is ever a stylesheet.
 const SHEETS = { layout: fs.readFileSync(new URL('../../design/layout.css', import.meta.url), 'utf8') };
+// The design directions' stylesheets (design/directions/): the shared kit, and one per direction, loaded only for that direction's pages.
+for (const name of ['kit', 'editorial', 'swiss', 'retail']) SHEETS[name] = fs.readFileSync(new URL(`../../design/directions/${name}.css`, import.meta.url), 'utf8');
 
-export function buildPage({ brand, size, body, bodyClass = '', bodyAttrs = '', sheet }) {
-  const extra = Object.hasOwn(SHEETS, sheet ?? '') ? `<style>${SHEETS[sheet]}</style>` : '';
+// sheet: the name of one engine stylesheet, or a list of names, placed in order. css: engine-made CSS for this page (the font faces of
+// lib/design/font-library.mjs, built from the engine's own files); never anything from a spec.
+export function buildPage({ brand, size, body, bodyClass = '', bodyAttrs = '', sheet, css = '' }) {
+  const extra = (Array.isArray(sheet) ? sheet : [sheet]).filter((n) => Object.hasOwn(SHEETS, n ?? '')).map((n) => `<style>${SHEETS[n]}</style>`).join('') + (css ? `<style>${css}</style>` : '');
   const nonce = crypto.randomBytes(16).toString('base64');
   const vars = `--W:${size.w}px;--H:${size.h}px;--pad:${size.pad}px;--top:${size.top}px;--fbot:${size.fbot}px;--logo-h:${size.logoH}px;--url:${size.url}px;--hs:1;${brandCssVars(brand)}`;
   // The style choices (surface, photo treatment, artwork fit) as class names from fixed tables (styleClasses).

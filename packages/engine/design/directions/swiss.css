@@ -1,0 +1,7 @@
+/* The swiss direction (lib/design/directions/swiss/): black, white and one accent on a grid. Colours are the post's palette (--c-*),
+   fonts its roles (--f-*); nothing is written from a spec. Positions, sizes and the colour decisions are written by the compositions. */
+.d-swiss{-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
+.d-swiss .k-display{font-weight:800}
+.d-swiss .k-t em{font-style:normal}
+.d-swiss [data-role="sub"] em,.d-swiss [data-role="item"] em{font-style:normal;font-weight:700}
+.d-swiss [data-role="label"],.d-swiss [data-role="meta"],.d-swiss [data-role="folio"]{white-space:nowrap}

@@ -1,0 +1,30 @@
+/* The retail direction (lib/design/directions/retail/): the primary colour as a field, heavy type, the accent as sticker and highlight.
+   Colours are the post's palette (--c-*), fonts its roles (--f-*); nothing is written from a spec. */
+.d-retail{font-weight:600;font-stretch:100%}
+.d-retail .k-display{font-weight:900;font-stretch:82%;text-transform:none}
+/* the space between words, in em of the line's own size (on a fitted headline the lines are sized by the runtime, not the box) */
+.d-retail .k-display:not(.k-fit),.d-retail .k-fit .fl-in{word-spacing:.06em}
+.d-retail .k-display em,.d-retail .k-t em{font-style:normal}
+/* the highlight bar on wrapping text: one bar per line (box-decoration-break), as tall as the capitals and ascenders, the descenders
+   hanging out below it; the text on it is in the colour that reads on the accent */
+.d-retail .k-hl{color:var(--c-on-accent);background:linear-gradient(var(--c-gold),var(--c-gold)) no-repeat 0 .09em/100% .87em;padding:0 .13em;margin:0;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.d-retail .k-hl em{color:var(--c-on-accent)}
+/* in a fitted headline the bar is a pseudo-element behind ALL the type of its own line, turned a little, as tall as the line (a little less, so
+   the bars of two lines never touch), which covers the middle band of the text the contrast check reads */
+.d-retail .k-fit .k-hl{display:inline-block;position:relative;background:none;padding:0 .12em;margin:0;isolation:isolate}
+.d-retail .k-fit .k-hl::before{content:"";position:absolute;left:0;right:0;top:.03em;bottom:.03em;background:var(--c-gold);transform:skewX(-1.5deg);z-index:-1}
+/* the display type of stickers, tiles, numerals and the like */
+.d-retail .rt-sticker{font-weight:900;font-stretch:84%;letter-spacing:-.02em;line-height:.9}
+.d-retail .rt-date{font-weight:800;font-stretch:100%;letter-spacing:.08em}
+.d-retail .rt-numeral{font-stretch:70%;text-shadow:10px 10px 0 var(--c-field-deep)}
+.d-retail .rt-numeral .fl-line{padding-bottom:.14em}
+.d-retail .rt-unit{max-width:860px;font-stretch:84%;letter-spacing:-.02em;word-spacing:.05em;text-wrap:balance}
+.d-retail .rt-quote{font-stretch:82%;letter-spacing:-.02em}
+.d-retail .rt-item{font-weight:600;font-stretch:100%;text-wrap:balance}
+.d-retail .rt-num{font-weight:900;font-stretch:84%}
+.d-retail .rt-meta{font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.d-retail .rt-by{font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.d-retail .k-photo img{filter:saturate(1.12) contrast(1.05)}
+.d-retail .rt-mark{font-stretch:84%;text-shadow:16px 16px 0 var(--c-ink)}
+.d-retail .rt-item{flex:1 1 0;min-width:0}
+.d-retail .k-shape .k-run{padding:0 .3em;box-sizing:border-box}

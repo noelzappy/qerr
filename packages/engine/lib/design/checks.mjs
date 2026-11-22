@@ -181,7 +181,9 @@ export function findLayoutProblems(m, S) {
     if (EXEMPT_EDGE.has(r.role)) continue;
     const u = union(r.rects.map(core));
     const over = { bottom: u.y1 - lim.y1, top: lim.y0 - u.y0, right: u.x1 - lim.x1, left: lim.x0 - u.x0 };
-    for (const [edge, px] of Object.entries(over)) if (px > 1) problems.push({ kind: 'outside', role: r.role, text: r.text, edge, px: Math.round(px) });
+    // a post's numeral may bleed off the edges it names (data-bleed="left bottom", or "all")
+    const bleeds = r.bleed ? (r.bleed === 'all' ? Object.keys(over) : r.bleed.split(' ')) : [];
+    for (const [edge, px] of Object.entries(over)) if (px > 1 && !bleeds.includes(edge)) problems.push({ kind: 'outside', role: r.role, text: r.text, edge, px: Math.round(px) });
     if (r.overX > 1) problems.push({ kind: 'wide', role: r.role, text: r.text, px: Math.round(r.overX) });
     // A layout's text stays in its own cell (its slot on the grid): text that runs out of it is too long for the slot.
     if (r.cell) {
@@ -279,4 +281,65 @@ export function explainProblems(problems, sizeName, lengths = {}) {
   });
   const tip = lengths.headline ? ` The headline is ${lengths.headline} characters; try about ${Math.max(12, Math.floor(lengths.headline * 0.65))}.` : '';
   return `The text does not fit the ${sizeName} format: ${[...new Set(lines)].join('; ')}. Shorten the text (a shorter headline or sub line fits; the tool already shrank the headline as far as the brand allows).${tip}`;
+}
+
+// ---- design directions: the checks of a `post` page (lib/design/directions/) ----
+// m = what window.__ds.postMetrics() returned; grid = { lefts, rights, centre } of the direction. Pure, so it is tested without Chrome.
+//   EMPTINESS  the largest rectangle that no text, picture or deliberate filled device covers is at most 45% of the page, or the
+//              composition's own declared calm area (calm: { maxShare }, set on the page as data-calm);
+//   SCALE      the headline (or the big numeral) is at least 2.6 times the size of the body text, when both exist;
+//   LEVELS     the page uses at most three sizes of type (within 2 px); a headline fitted line by line counts as one;
+//   GRID       every text block's edge sits on the margin or a column line (within 2 px), unless it is marked data-grid="skip".
+export const POST_LIMITS = Object.freeze({ emptyShare: 0.45, scale: 2.6, levels: 3, tol: 2 });
+export function findPostProblems(m, { grid } = {}) {
+  const problems = [], L = POST_LIMITS, hs = m.hs || 1;
+  const limit = Number.isFinite(m.calm) ? Math.max(L.emptyShare, m.calm) : L.emptyShare;
+  if (m.empty && m.empty.share > limit + 1e-9) problems.push({ kind: 'empty', share: m.empty.share, limit, rect: m.empty });
+  // sizes as designed: a scalable headline is judged at the size it was drawn for, before the fit loop shrank it
+  // (an accent phrase inside a headline is scaled with it, and so is any text the page marks data-scaled)
+  const designed = (t) => (t.fit ? t.size : t.role === 'headline' || t.role === 'stat' || t.scaled || (t.role === 'accent' && t.inHead) ? t.size / hs : t.size);
+  const head = m.texts.filter((t) => t.role === 'headline' || t.role === 'stat'), body = m.texts.filter((t) => t.role === 'sub');
+  if (head.length && body.length) {
+    const h = Math.min(...head.map(designed)), b = Math.max(...body.map(designed));
+    if (h / b < L.scale - 0.005) problems.push({ kind: 'scale', ratio: h / b, headline: Math.round(h), body: Math.round(b) });
+  }
+  const sizes = [...new Set(m.texts.filter((t) => !t.fit).map((t) => Math.round(designed(t))))].sort((a, b) => a - b);
+  const levels = []; for (const z of sizes) if (!levels.length || z - levels[levels.length - 1][levels[levels.length - 1].length - 1] > L.tol) levels.push([z]); else levels[levels.length - 1].push(z);
+  const count = levels.length + (m.texts.some((t) => t.fit) ? 1 : 0);
+  if (count > L.levels) problems.push({ kind: 'levels', count, sizes: [...levels.map((g) => Math.round(g.reduce((a, b) => a + b, 0) / g.length)), ...(m.texts.some((t) => t.fit) ? ['fitted headline'] : [])] });
+  if (grid) {
+    const near = (x, xs) => xs.reduce((best, v) => (Math.abs(v - x) < Math.abs(best - x) ? v : best), xs[0]);
+    for (const b of m.blocks ?? []) {
+      if (b.mode === 'skip') continue;
+      const [x, xs] = b.mode === 'right' ? [b.x1, grid.rights] : b.mode === 'center' ? [(b.x0 + b.x1) / 2, [grid.centre]] : [b.x0, grid.lefts];
+      const n = near(x, xs);
+      if (Math.abs(n - x) > L.tol) problems.push({ kind: 'grid', role: b.role, text: b.text, x: Math.round(x * 10) / 10, nearest: Math.round(n * 10) / 10, mode: b.mode });
+    }
+  }
+  return problems;
+}
+
+export function explainPostProblems(problems, post = {}) {
+  const who = post.id ? ` (${post.id})` : '';
+  const lines = problems.map((p) => {
+    if (p.kind === 'empty') return `an empty area covers ${Math.round(p.share * 100)}% of the page (at most ${Math.round(p.limit * 100)}% is allowed here), at x ${Math.round(p.rect.x0)}-${Math.round(p.rect.x1)}, y ${Math.round(p.rect.y0)}-${Math.round(p.rect.y1)}: use longer words, a picture or another variant`;
+    if (p.kind === 'scale') return `the headline is ${p.headline} px against ${p.body} px of body text, ${p.ratio.toFixed(2)} times (it needs at least ${POST_LIMITS.scale}): shorten the sub line or use another variant`;
+    if (p.kind === 'levels') return `the page sets type in ${p.count} sizes (${p.sizes.join(', ')}); at most ${POST_LIMITS.levels} levels are allowed`;
+    return `the ${p.role} "${p.text}" starts at x ${p.x}, which is not on the margin or a column line (nearest ${p.nearest})`;
+  });
+  return `The page does not meet the design rules${who}: ${[...new Set(lines)].join('; ')}.`;
+}
+
+// Why a headline fitted line by line (fitLines) does not fit: too many words for the box at the smallest size the direction allows.
+export function explainFitLines(f, kind = 'headline') {
+  return `The ${kind} is too long to set at a size that reads: it would need ${f.lines} lines of ${Math.round(f.min)} px at the most, under the smallest size allowed here (${Math.round(f.floor)} px) or taller than its ${Math.round(f.h)} px box. Shorten the ${kind} to about ${f.est} characters (it is ${f.chars}).`;
+}
+
+// Why a post headline does not fit even at the smallest size the fit loop may use (82% of its designed size). fraction: the share of
+// the headline's height that fits (its height less the overflow, over its height), from which roughly how many characters would.
+export function explainPostFit(problems, { chars = 0, scale = 0.82, fraction = 0, kind = 'headline' } = {}) {
+  const mine = problems.some((p) => ['headline', 'stat', 'accent'].includes(p.role) || ['headline', 'stat', 'accent'].includes(p.other));
+  const about = mine && chars && fraction > 0 ? Math.max(6, Math.floor(chars * Math.min(0.95, fraction) * 0.95)) : null;
+  const lines = [...new Set(problems.map((p) => `the ${p.role} ("${p.text}") ${p.kind === 'overlap' ? `overlaps the ${p.other}` : p.px ? `runs ${p.px} px out of its place` : 'does not fit'}`))];
+  return `The text does not fit the post at the smallest size allowed (${Math.round(scale * 100)}% of the designed size): ${lines.join('; ')}.${about ? ` Shorten the ${kind} to about ${about} characters (it is ${chars}).` : ''}`;
 }

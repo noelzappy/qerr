@@ -8,7 +8,7 @@ import { validateLayouts } from './layout.mjs';
 import { readBrandAsset, readBrandImage } from './assets.mjs';
 import {
   ACCENT_DEVICES, ACCENT_STYLES, ARTWORK_FITS, DECORATION_ON, DECORATIONS, FONT_ROLES, FOOTERS, GRADIENT_NAMES, GROUND_ALIASES, GROUND_NAMES, HEX, LOGO_PLACES,
-  PHOTO_TREATMENTS, SERIES_KEY, SHADOW_NAMES, STYLE_COLOURS, STYLE_DEFAULTS, SURFACES, TYPE_CASES, groundName, isDarkColour,
+  DIRECTIONS, PHOTO_TREATMENTS, SERIES_KEY, SHADOW_NAMES, STYLE_COLOURS, STYLE_DEFAULTS, SURFACES, TYPE_CASES, groundName, isDarkColour,
 } from './tokens.mjs';
 
 const REQUIRED = ['name', 'website', 'tagline', 'grounds', 'text', 'accents', 'surfaces', 'scale', 'radius', 'shadows', 'window', 'phone', 'glow', 'dots', 'gradient', 'figure', 'poster', 'font', 'logos', 'series', 'spelling', 'lint', 'contrast', 'photo'];
@@ -81,7 +81,7 @@ export function styleProblems(s, where = 'brand.json: style') {
   const only = (o, keys, w) => { const extra = Object.keys(o).filter((k) => !keys.includes(k)); if (extra.length) e.push(`${w} has unknown entries (${extra.join(', ')})`); };
   const pick = (v, list, w) => { if (v !== undefined && !list.includes(v)) e.push(`${w} must be one of ${list.join(', ')}`); };
   const obj = (v, w) => { if (v === undefined) return false; if (!isObj(v)) { e.push(`${w} must be an object`); return false; } return true; };
-  only(s, ['type', 'surface', 'decoration', 'photo', 'logo', 'footer'], where);
+  only(s, ['type', 'surface', 'decoration', 'photo', 'logo', 'footer', 'direction'], where);
   if (obj(s.type, `${where}.type`)) {
     const t = s.type;
     only(t, ['display', 'body', 'label', 'scale', 'accent'], `${where}.type`);
@@ -116,6 +116,7 @@ export function styleProblems(s, where = 'brand.json: style') {
     if (p.strength !== undefined && !isNum(p.strength, 0, 1)) e.push(`${w}.strength must be a number from 0 to 1`);
   }
   pick(s.logo, LOGO_PLACES, `${where}.logo`);
+  pick(s.direction, DIRECTIONS, `${where}.direction`);
   pick(s.footer, FOOTERS, `${where}.footer`);
   return e;
 }
@@ -133,6 +134,8 @@ export function resolveStyle(s = {}) {
     photo: { ...D.photo, ...s.photo },
     logo: s.logo ?? D.logo,
     footer: s.footer ?? D.footer,
+    // the design direction (the `post` template): absent means none, and the style block then equals the defaults exactly
+    ...(s.direction !== undefined ? { direction: s.direction } : {}),
   };
 }
 
@@ -257,6 +260,11 @@ export function validateBrand(b) {
 // The series keys of the brand file, without reading fonts or images (used to validate specs and batches).
 export function loadSeries({ root = ROOT, file = brandFile('brand.json', { root }) } = {}) {
   try { return Object.keys(JSON.parse(fs.readFileSync(file, 'utf8')).series ?? {}); } catch { return []; }
+}
+
+// The brand file's design direction (style.direction) or null, without reading fonts or images (used to validate a `post` design).
+export function loadDirection({ root = ROOT, file = brandFile('brand.json', { root }) } = {}) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')).style?.direction ?? null; } catch { return null; }
 }
 
 export function loadBrand({ root = ROOT, file = brandFile('brand.json', { root }) } = {}) {

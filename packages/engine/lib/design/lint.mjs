@@ -53,7 +53,7 @@ export function lintText(fields, sizeName, brand) {
 }
 
 // Collects the text fields of a normalised spec (a carousel has one set per page): every text that appears in the image.
-const TEXT_KEYS = ['headline', 'sub', 'eyebrow', 'label', 'headRight', 'caption', 'title', 'big', 'line', 'myth', 'factLead', 'fact', 'quote', 'note'];
+const TEXT_KEYS = ['headline', 'sub', 'eyebrow', 'label', 'headRight', 'caption', 'title', 'big', 'line', 'myth', 'factLead', 'fact', 'quote', 'note', 'by', 'unit', 'meta', 'tag'];
 function fieldsOfOne(o) {
   const out = TEXT_KEYS.filter((k) => typeof o[k] === 'string').map((k) => ({ field: k, text: o[k] }));
   for (const k of ['pills', 'checks', 'items']) (Array.isArray(o[k]) ? o[k] : []).forEach((t, i) => out.push({ field: `${k.slice(0, -1)} ${i + 1}`, text: t }));

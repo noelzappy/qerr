@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './core.mjs';
-import { loadBrand, loadSeries } from './design/brand.mjs';
+import { loadBrand, loadDirection, loadSeries } from './design/brand.mjs';
 import { stemOf } from './design/batch.mjs';
 import { Browser, NO_CHROME, findChrome } from './design/chrome.mjs';
 import { detectConverter } from './design/convert.mjs';
@@ -18,7 +18,9 @@ import { loadLayouts, normalisePostDesign, postDesignProblems, usesLayouts } fro
 // given (a preview of layouts that are not saved yet), else one of the brand's (brand.json "layouts").
 export function designBlockProblems(design, { root = ROOT, layouts } = {}) {
   const series = loadSeries({ root });
-  const errors = postDesignProblems(design, 'design', { series, layouts: usesLayouts(design) ? layouts ?? loadLayouts({ root }) : [] });
+  // A `post` design needs the brand's design direction (style.direction); it is only looked up for one.
+  const direction = design?.template === 'post' ? loadDirection({ root }) : undefined;
+  const errors = postDesignProblems(design, 'design', { series, direction, layouts: usesLayouts(design) ? layouts ?? loadLayouts({ root }) : [] });
   if (design?.template === 'pagecover') errors.push('design: page-cover makes profile and cover images, not post images, so it cannot be used in a batch');
   return errors;
 }

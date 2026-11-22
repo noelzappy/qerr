@@ -81,3 +81,10 @@ export const STYLE_DEFAULTS = Object.freeze({
   logo: 'auto',
   footer: 'website',
 });
+
+// ---- design directions (brand.json `style.direction`, the `post` template; lib/design/directions/) -----------------------------
+// A direction is a whole way of composing a post: its own type, grid, colour logic and devices. A brand has none until it names one;
+// without one the brand is drawn exactly as before and a `post` design is refused.
+export const DIRECTIONS = ['editorial', 'swiss', 'retail'];
+// What a `post` design is: it says what the post IS (a kind), never which layout to use; the brand's direction decides the drawing.
+export const POST_KINDS = ['statement', 'figure', 'list', 'quote', 'photo', 'event', 'offer'];

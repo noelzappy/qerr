@@ -1,0 +1,8 @@
+/* The editorial direction (lib/design/directions/editorial/): paper, ink, restraint. Colours are the post's palette (--c-*), fonts
+   its roles (--f-*); nothing is written from a spec. Display type is Fraunces cut soft and low in contrast (opsz 72), true italics for
+   emphasis, old-style figures in running display type. */
+.d-editorial .k-display{font-weight:300;font-optical-sizing:none;font-variation-settings:'opsz' 72;font-variant-numeric:oldstyle-nums}
+.d-editorial .k-display em{font-style:italic;font-weight:300;letter-spacing:-.015em}
+.d-editorial [data-role="sub"] em,.d-editorial [data-role="item"] em{font-style:italic}
+/* the wordmark pattern: the soft cut at large size */
+.d-editorial .k-wm{font-optical-sizing:none;font-variation-settings:'opsz' 72}

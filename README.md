@@ -74,6 +74,12 @@ It is not:
 - A WhatsApp tool (WhatsApp is not a Buffer channel), and not wired to TikTok (Buffer supports it; Vesk knows Instagram,
   LinkedIn, Facebook and X).
 
+Besides the fixed templates there is an optional second way to draw a post, the `post` template. A post says what it is
+(`kind`: statement, figure, list, quote, photo, event or offer) and the brand's design direction (`style.direction` in
+`brand.json`: `editorial`, `swiss` or `retail`) decides how it is drawn, with its own fonts, grid and checks. A brand without a
+direction is unaffected, and a `post` design is then refused with a message. Today each direction draws the `statement` kind
+only; the other kinds are being built. See "Design directions and the post template" in [docs/design.md](docs/design.md).
+
 ## Quick start
 
 ### On a server: Docker Compose

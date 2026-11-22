@@ -1,0 +1,96 @@
+/* The design directions' shared stylesheet (lib/design/directions/kit.mjs): type behaviour, photo treatments, devices. It holds no
+   brand colour, no font name and no size of a page: colours are the post's palette (--c-*, lib/design/directions/colour.mjs, worked out
+   from the brand's colours), fonts are the direction's roles (--f-display, --f-text, --f-label, --f-mono) and every position and size is
+   written by the kit from numbers. Nothing here may be written from a spec. Loaded after the brand's stylesheet, for post pages only. */
+.post{isolation:isolate;font-feature-settings:normal;font-kerning:normal;color:var(--c-ink);background:var(--bg,var(--c-paper))}
+.post .abs{position:absolute}
+.post .k-t{font-variant-ligatures:common-ligatures;overflow-wrap:normal}
+.post .k-flow{position:relative}
+.post .k-group{min-width:0}
+
+/* display type: balanced lines, no widows; size-dependent tracking and leading are set on the block by the kit */
+.k-display{text-wrap:balance;font-optical-sizing:auto;-webkit-font-smoothing:antialiased}
+.post .k-t em{font-style:italic}
+.k-up{text-transform:uppercase}
+/* numerals: old-style (text figures, in running prose and display numerals that want them) or lining (labels, tables) */
+.k-onum{font-variant-numeric:oldstyle-nums}
+.k-lnum{font-variant-numeric:lining-nums tabular-nums}
+/* body copy: no widows or orphans, never justified */
+.post [data-role="sub"],.post [data-role="item"]{text-wrap:pretty;text-align:left;hyphens:none}
+/* a hanging opening quotation mark: the block starts with it, and it hangs in the margin so the text itself stays on the grid */
+.k-hang{text-indent:-.42em}
+
+/* rules, fills and frames */
+.k-rule,.k-block{display:block}
+.k-frame,.k-keyline{display:block;pointer-events:none;box-sizing:border-box}
+
+/* the picture: a window with a shape (set inline), and treatments */
+.post .k-photo{overflow:hidden;background:var(--c-soft)}
+.post .k-photo img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
+.k-grey img{filter:grayscale(1) contrast(1.04)}
+.k-mul{position:absolute;inset:0;display:block;mix-blend-mode:multiply;opacity:.92}
+.k-gr{position:absolute;inset:0;display:block;background-image:var(--k-grain);background-size:260px 260px;mix-blend-mode:multiply;opacity:.34}
+.k-printmat{display:block}
+
+/* a vertical label reads upward: its box starts at (x, y) and the text runs from there toward the top of the page */
+.k-vlabel{transform-origin:0 0;transform:rotate(-90deg)}
+
+/* stickers: a circle or a pill with centred heavy words, turned by the kit */
+.k-sticker{display:flex;align-items:center;justify-content:center;text-align:center;box-sizing:border-box;padding:0 6%}
+.k-circle{border-radius:50%}
+.k-pill{border-radius:999px}
+.k-sticker span{display:block;text-wrap:balance}
+
+/* the highlight bar behind a phrase (retail); the direction sets its colour and padding */
+.k-hl{display:inline;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+/* while the page reads the pixels behind its type (the contrast check hides every [data-role]), the bar stays: it is what the phrase sits on */
+.measure .k-hl{visibility:visible}
+
+/* the brand name repeated as a texture */
+.k-wm{overflow:hidden;white-space:nowrap;pointer-events:none;user-select:none}
+.k-wm-row{display:block;white-space:nowrap}
+/* the texture fades out toward its foot, so type set over it stays clean */
+.k-wm-fade{-webkit-mask-image:linear-gradient(to bottom,#000 0,#000 45%,transparent 100%);mask-image:linear-gradient(to bottom,#000 0,#000 45%,transparent 100%)}
+
+/* a headline fitted to the measure line by line (runtime.mjs fitLines) */
+.k-fit{white-space:nowrap}
+.k-fit .fl-line{display:block;white-space:nowrap}
+.k-fit .fl-in{display:inline-block;white-space:nowrap}
+
+.k-logo{display:block}
+
+/* a vertical label that reads downward: the line box sits inside the margin, to the right of the box's origin */
+.k-vlabel.k-vdown{transform:translateX(24px) rotate(90deg)}
+/* a numeral set by the runtime to the width (position and size are written by fitLines); its unit stays at its own size */
+.k-numeral{display:block;white-space:nowrap}
+.k-seal{display:block}
+.k-glyph{display:block}
+
+/* ---- additions for the retail direction (generic: boxes, shapes, an echoed phrase) ---- */
+.k-box{box-sizing:border-box}
+/* a shape with centred content (a sticker): the direction sets the type; a stamp has a dashed ring inside its edge in the ink colour */
+.k-shape{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.k-shape .k-run{max-width:100%;text-wrap:balance}
+.k-shape-stamp::before{content:"";position:absolute;inset:16px;border:5px dashed currentColor;border-radius:50%;pointer-events:none}
+.k-run{margin:0}
+/* a phrase repeated as outline rows around one solid row (runtime.mjs [data-echo]) */
+.k-echo{display:flex;flex-direction:column;overflow:visible}
+.k-echo-row{display:block;white-space:nowrap;line-height:.92;color:transparent;-webkit-text-stroke:3px var(--c-on-field);pointer-events:none}
+.k-echo .k-fit{padding:.1em 0}
+/* a bar behind one line of text, turned a little (the text sits in a role element inside it); visible while the page reads the pixels behind its type */
+.k-tilt{position:relative;display:block;isolation:isolate}
+.k-tilt::before{content:"";position:absolute;inset:0;background:var(--c-gold);transform:rotate(-1.5deg);z-index:-1}
+.measure .k-tilt{visibility:visible}
+
+/* ======== additions for the swiss direction ======== */
+/* a page-wide colour scope (kit scope(): custom properties only) */
+.k-scope{display:block;pointer-events:none}
+/* a headline set by the runtime at one size, line by line (kit fitBlock / fitFill; runtime fitLines modes block and fill) */
+.k-fb{white-space:nowrap}
+.k-fb .fb-line{display:block;white-space:nowrap}
+.k-fb .fb-in{display:inline-block;white-space:nowrap}
+/* a numeral and its unit placed by the runtime (kit fitNumeral) */
+.k-fnum{display:block}
+.k-fnum-n,.k-fnum-u{display:block}
+/* a scrim whose strength the runtime measures (kit scrim) */
+.k-scrim{display:block}

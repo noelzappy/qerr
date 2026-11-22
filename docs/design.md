@@ -3,7 +3,7 @@
 The design engine turns a post's texts and pictures into finished post images. It drives headless Google Chrome, so what
 you get is what Chrome draws, at the exact pixel size, checked before it is saved.
 
-Everything here is taken from the code in `packages/engine/lib/design/` and `packages/engine/design/templates/`. Five poster templates (`object`, `number`, `product`, `myth-fact`, `closing`, see "The poster look"), seven earlier editorial templates (`cover`, `text`, `ledger`, `passbook`, `stats`, `screen`, `photo-story`), `carousel`, full-bleed `photo` posts and `page-cover` make up the engine. Where something has not been proved, it
+Everything here is taken from the code in `packages/engine/lib/design/` and `packages/engine/design/templates/`. Five poster templates (`object`, `number`, `product`, `myth-fact`, `closing`, see "The poster look"), seven earlier editorial templates (`cover`, `text`, `ledger`, `passbook`, `stats`, `screen`, `photo-story`), `carousel`, full-bleed `photo` posts, `page-cover` and `post` (the design directions' template, see "Design directions and the post template") make up the engine. Where something has not been proved, it
 says so (see "What is weak or unverified" at the end).
 
 ## The short version
@@ -855,6 +855,190 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
   and `lit` naming regions to light. Only numbers and short names, checked on load (`mapProblems`); nothing in it becomes
   markup. Draw it from public-domain or your own data and say where it came from in the file.
 
+## Design directions and the post template
+
+A design direction is a way of drawing posts as a whole: its fonts, margins, grid, devices and colour logic live in one table
+(`packages/engine/lib/design/directions/<name>/tokens.mjs`) and its layouts live in `compositions.mjs` beside it. The `post`
+template does not name a layout. A post says **what it is**, and the brand's direction decides **how it is drawn**:
+
+```json
+{ "template": "post", "kind": "figure", "variant": 0, "big": "74%", "unit": "of our beans", "sub": "come straight from the farm.", "label": "Numbers" }
+```
+
+- **`kind`** is one of `statement`, `figure`, `list`, `quote`, `photo`, `event`, `offer`.
+- **The direction** is `style.direction` in `brand.json` (`editorial`, `swiss` or `retail`; Settings, Brand and look in the
+  web app). It is optional. When it is absent the brand behaves exactly as before, and a `post` design is refused with a message
+  that names the way out (set `style.direction`). Every other template ignores it.
+- **`variant`** (a whole number from 0 to 9) picks one of the direction's compositions of that kind. Leave it out and the
+  engine chooses one from a hash of the post's name and words (`chooseVariant`), so a batch varies but a re-render never
+  changes. A variant the direction does not have is refused with the number it does have.
+- **Size**: `feed` (1080 x 1350) only for now, like the poster templates.
+- **No logo and no website** are drawn on a post page. A brand that sets `style.logo` to a corner gets its logo there, and
+  nothing else.
+
+### The fields
+
+Lengths count what is seen: the asterisks of an emphasis and line breaks do not count. Unknown keys are refused, and a text
+that is empty, over its limit or on two lines where one is required is refused, all by `postProblems` in
+`lib/design/post-spec.mjs`, before Chrome starts. `image`, `focal` and `zoom` work as in the other templates.
+
+| Field | Limit | Notes |
+|---|---|---|
+| `label` | 28 | one line; the small line above or beside the page |
+| `headline` | 70 | `*phrase*` marks the emphasis; `\n` breaks a line |
+| `sub` | 140 | |
+| `big` | 8 | the numeral of a figure, one line |
+| `unit` | 24 | one line |
+| `items` | 2 to 5 texts of 44 | one line each |
+| `quote` | 160 | |
+| `by` | 40 | one line |
+| `meta` | 40 | one line, for example the date and place of an event |
+| `tag` | 16 | one line, the words of a seal or sticker |
+| `image`, `focal`, `zoom` | as elsewhere | `.jpg .jpeg .png .webp .gif`; zoom 1 to 3 |
+
+Required per kind: `statement` needs `headline`; `figure` `big`; `list` `headline` and `items`; `quote` `quote`; `photo`
+`image` and `headline`; `event` `headline` and `meta`; `offer` `headline` and `tag`. A field the chosen composition does not
+draw is left out of the image, with a warning. A text longer than the composition's own budget (`words`) gets a warning that it
+may be set smaller than intended.
+
+### The three directions
+
+| Direction | Look | Built today |
+|---|---|---|
+| `editorial` | Quiet luxury, a magazine rather than an advert. Margins 96, 6 columns. Fraunces (display), Source Serif 4 (text), Inter (label); the emphasis is italic, not a colour; a 2 px rule and a folio ("No. 07"). | `statement/0` "Cover line" |
+| `swiss` | An international-style poster. Margins 64, 12 columns and an 8-row rhythm. Hanken Grotesk (display, text), JetBrains Mono (meta); a meta row (label, brand name, folio, 4 px rule above); one accent block. | `statement/0` "Poster" |
+| `retail` | A high-street campaign. Margin 56 (a frame of 70 plus 44 padding on the framed pages, so text there starts at 114). Archivo, heavy and condensed; the primary colour as a field; highlight bars, stickers, hard shadows and turned boxes. | all seven kinds, nine compositions (below) |
+
+Retail's nine compositions, ported from the owner-approved prototype. `words` is the most characters a field holds (the prototype's
+longest copy that holds, tested on every composition); beyond it the page may be refused with "shorten the headline to about N
+characters". Each kind is a variant list; a post that names no variant gets one by hash.
+
+| Composition | Kind | Page | Words (characters) | How it fits |
+|---|---|---|---|---|
+| `statement/0` Stack | statement | primary field; the headline stacked, every line sized to the width and centred in the height, the emphasis on a turned bar; rule, dot and brand name at the foot | headline 65, sub 110, label 28 | `fitLines`, 5 lines at most, floor 80 px, cap 230 px |
+| `statement/1` Mantra | statement | the first part of the headline repeated as outline rows, the emphasis once, solid, on a bar; the sub on a light band with an accent edge | headline 60, sub 130 | rows sized to the width, as many as fit; floor 56 px. **Needs a first part of at most 22 characters**, else `statement/0` is drawn (note: "does not take these words") |
+| `figure/0` Price tag | figure | a hole and label like a hang tag; the figure huge, turned 3 degrees, with a hard shadow; the unit on an accent block; the sub on a light band | big 8, unit 24, label 28, sub 125 | numeral `fitLines`, cap 520 px, floor 150 px; the label is set at 34 px so the page keeps three levels of type |
+| `list/0` Blocks | list | the headline from the top margin (under the label, if any), then an accent edge and the items as full-width rows that share all the remaining height, each with a turned number block | headline 44, items 44, label 28 | headline steps 140, 126, 115 px by length; rows flex; the numbers are set at the item size (three levels) |
+| `quote/0` Shout | quote | light card in a primary frame; a big accent mark, the quote and the source on a turned bar, one block centred in the card | quote 145, by 40 | quote steps 164, 140, 120, 104, 92 px by length |
+| `photo/0` Frame pop | photo | the picture in a primary frame, a light block turned 2 degrees with a hard shadow across its foot, a round sticker for the tag | headline 68, sub 120, tag 16 | headline 104 px; the block grows upward; the tag sized to the sticker (floor 40 px) |
+| `photo/1` Seam | photo | the picture cut by a slanted primary field with a light edge, the text on the field, a pill sticker for the tag on the seam | headline 66, sub 130, tag 16 | headline steps 126, 113, 103 px by length; the seam rises with the step |
+| `event/0` Poster band | event | the picture under a light band turned 4 degrees with a primary edge; headline, meta, sub; an accent date tile | headline 50, meta 40, sub 62 | headline steps 116, 104, 95 px by length (the date numeral follows it). **When the headline takes three lines the sub is left out** (noted in the render's notes) |
+| `offer/0` Sticker | offer | light card in a primary frame; headline at the top, then a turned photo card with a hard shadow, a big stamp for the tag overlapping both, the sub beside the card | headline 60, tag 16, sub 100 | headline steps 150, 135, 123 px by length (larger when short); sticker and sub share the left column, and when the stage is too short for both the fit loop shrinks the headline to 82%, then refuses |
+
+Retail draws no `label` on the Mantra, Shout, Frame pop, Seam, Poster band or Sticker; a post that gives one gets the warning that it
+is left out. The date tile of the Poster band reads a day and a month from the first part of `meta` ("12 Dec", "Sat 12 December",
+"Dec 12"; the month in three letters); any other first part is set in the tile as it is.
+
+### Declining content
+
+A composition may declare `accepts(spec)`. When the chosen variant (named, or chosen by hash) returns false for the post, the next
+variant of the kind is used, wrapping round, and the render's notes say which one was drawn instead; when none accepts it, the post
+is refused. Retail's Mantra uses it for its 22 character rule.
+
+### What the engine checks on a post
+
+Every check of the other templates still runs unchanged: text fit, contrast measured on the pixels behind the text, the
+pixel size and the loaded fonts. A post adds four, measured by the page itself (`postMetrics` in `lib/design/runtime.mjs`) and
+judged by `findPostProblems` in `lib/design/checks.mjs`, with the numbers in `POST_LIMITS`. A failed check refuses the render
+with a sentence that says what to change.
+
+| Check | Rule |
+|---|---|
+| Emptiness | The largest rectangle that no text, picture or deliberate filled device covers is at most 45% of the page. A composition may declare a calm area (`calm: { maxShare }`, above 0.45 and up to 0.8) and is then held to that. |
+| Scale | The headline (or the big numeral) is at least 2.6 times the largest body text, judged at the size it was designed for, before the fit loop shrank it. |
+| Levels | At most three sizes of type, sizes within 2 px counting as one. A headline fitted line by line counts as one level. |
+| Grid | Every text block's left edge (or right edge, or centre) sits on the margin, a column line or the page centre, within 2 px. A block marked `data-grid="skip"`, and a block inside `data-deco`, is not judged. |
+
+Two rules about fit. A post's headline may shrink to 82% of its designed size (`POST_MIN_SCALE` in `render.mjs`); below that
+the render is refused with "shorten the headline to about N characters", an estimate from how much of it fitted. And a
+headline set by `fitLines` (a headline stacked so that each line fills the measure) is sized line by line between a `floor` and
+a `cap`; if the words would need a line smaller than the floor, or more lines than the box allows, the render is refused with
+the same kind of character estimate. Nothing is squeezed past these limits, and no check is weakened to make a picture pass.
+
+### Fonts
+
+The engine ships the families the directions use, under the SIL Open Font License 1.1, with the licence text (`OFL.txt`) in each
+folder under `packages/engine/design/fonts/`: Fraunces (variable, weights 300 to 600, normal and italic), Source Serif 4
+(400, 600, and 400 italic), Hanken Grotesk (400 to 800), JetBrains Mono (400 to 500) and Archivo (variable weight and width).
+Inter and IBM Plex Mono were already there. Files are woff2, `latin` and `latin-ext` subsets only. `fonts/library.json` lists
+each file, and `fonts/README.md` gives each family's source URL, the fetch date, the axes and the file sizes; `libraryProblems()`
+(`lib/design/font-library.mjs`) checks that every listed file exists and is a woff2. A page embeds only what it uses: the faces
+of the roles its composition draws in, the `latin-ext` file only when a character of its words needs it, each as one
+`@font-face` with a `data:` URI under an alias (`VF Fraunces`, so a brand's own fonts of the same name never clash). A brand
+that supplied its own display or label font keeps it; the direction supplies the other roles.
+
+### Adding a composition
+
+A composition is trusted engine code, in `lib/design/directions/<direction>/compositions.mjs`, which exports
+`COMPOSITIONS = { <kind>: [composition, ...] }`; the index of a kind in its list is its `variant`. Everything about the
+direction as a whole (margins, grid, fonts, type scale, devices, the folio format) stays in its `tokens.mjs`; its stylesheet is
+`design/directions/<direction>.css`, loaded after the shared `kit.css`. A composition is an object:
+
+| Field | Meaning |
+|---|---|
+| `id` | `<direction>/<kind>/<variant>`, which must match its place (the registry check refuses a mismatch or a duplicate) |
+| `name`, `describe` | a short name and a sentence on what is where |
+| `fields` | the spec fields it draws |
+| `words` | the most characters per field it is designed for |
+| `ground` | the page colour: `paper`, `field`, `dark`, `accent` or `soft` |
+| `calm` | optional `{ maxShare }`, a deliberate empty area (see Emptiness) |
+| `fit` | optional `{ pad, top, bottom }`, the margins the fit check holds text to (default: the direction's margins) |
+| `dark` | optional, true when the page is dark, so the logo (if switched on) is the inverse one |
+| `roles` | optional, the font roles it uses (`display`, `text`, `label`, `mono`; default all); only those faces are embedded |
+| `accepts(spec)` | optional; false when the composition cannot draw this content, so the next variant of the kind is drawn |
+| `render(ctx)` | returns `{ html, classes? }`; `classes` may use lowercase letters, digits, space, `-` and `_` only |
+
+`render` receives the context built by `makeContext` in `lib/design/directions/kit.mjs`. All positions are in feed pixels.
+
+- **Grid**: `col(i)`, `colR(i)`, `span(a, b)`, `gridLines()`, and `margin`, `grid`, `W`, `H`, `tokens`.
+- **Words** (the only way spec text reaches the page): `has(f)`, `chars(f)`, `text(f)` (escaped, one line), `fmt(f, { highlight })`
+  (escaped, `*phrase*` as emphasis, `\n` as a break, optionally on a highlight bar), `items()`, `brand`, `labelOrBrand()`,
+  `folioText()`.
+- **Type**: `type`, `label`, `body`, `display` (size-dependent tracking and leading), `fitLines` (each line as large as fills the
+  width, between `floor` and `cap`), `group` with `flow: true` blocks, `flowBlock`, `folioMark`, `verticalLabel`.
+- **Boxes and shapes** (generic): `box` (a container: fill, ink, `rot` with `origin`, hard `shadow`, `ring`, `border`, `pad`, `radius`, `clip` polygon, `flex`, `flow`, `grow`; a turned box carries `data-tilt`, so its text is measured in slices along its own direction), `band` (a turned full-width slab with overscan), `shape` (`circle`, `pill`, `tile`, `stamp`), `run` (a text run inside a box or shape), `echoStack` (a phrase repeated as outline rows around one solid row). `fitLines` also takes `valign`, `role`, `what`, `trail`, `flow` and `key`; a sub line with `data-dropsub="key:n"` is left out when the headline with that key sets in n lines or more; `fmt` takes `breakBefore`; `emphasisParts` splits a headline around its emphasis.
+- **Devices and pictures**: `rule`, `block`, `sticker`, `highlight`, `wordmarkPattern`, `frame`, `keyline`, `photo` (shapes
+  `rect`, `circle`, `arch`, `rounded`; treatments `grey`, `multiply`, `grain`), `print` (a framed print), `logoHtml`.
+- **No free strings.** No builder takes a style, a class or an attribute written by a composition (`extra`, `cls` and `attrs` are refused).
+  What they stood for is a validated parameter: `variant` (a name from the direction's `tokens.variants` or the kit's, mapped to a
+  class), `nudge: { x, y }` (margin, within 96 px), `flexNone`, `alignSelf`, `minH`, `slant`, `split`, `band`, `key`, `follow`,
+  `dropSub: { key, lines }`. Sizes and room are measured on the page, not estimated from a number of characters: `steps` (a ladder,
+  largest first) with `maxLines` and/or `maxH` sets a text at the largest step it fits at; `fitLines` takes `h: 'auto'` (the height of
+  its own flex slot) and `w: 'fit'` (its own natural width, between `minW` and `maxW`).
+- **Element addresses.** Every element a builder makes carries `data-el`, its index path among the addressed elements (digits and
+  dots, document order; `numberElements` in the kit), and the runtime's `postMetrics().els` lists a rectangle for each one.
+- **Palette contract.** `palette(brand, need)` returns colour roles only (every value `#rrggbb` or `rgba(...)`); the non-colour facts
+  of the derivation are `paletteFacts(brand)`: `{ accentInk: boolean, accentShift: number }`.
+- **Colours** are names, never literals: `paper ink white dark primary field on-field gold gold-deep accent accent-dark
+  on-accent on-primary body soft muted body-dark muted-dark rule rule-soft rule-dark rule-field accent-type body-field field-deep paper-warm light-tint field-text` (`COLOUR_NAMES` in the kit). `onColour(bg, light, dark)` picks the type colour with more measured contrast on a field, and `textSafe` moves a colour toward the ink until it reads on a ground.
+  `lib/design/directions/colour.mjs` works them out from the brand's own colours and deepens any that must carry type until it
+  meets the brand's contrast target.
+- **Data attributes** the checks read, written by the helpers: `data-role` (what a text is: headline, stat, sub, item, label,
+  meta, folio, accent), `data-scaled` (a text the page scales with the headline), `data-grid` (`left`, `right`, `center`, `skip`), `data-fill` (a deliberate filled device, which counts as
+  covered for Emptiness), `data-deco` (a texture, not type), `data-bleed` (an edge a block may leave the page by) and
+  `data-calm`.
+
+**The untrusted-text rule applies to compositions.** The words of a post may come from a program working from web research.
+A composition never writes a spec value into HTML itself. Markup is a class (`Markup`) that only `ctx.fmt()`, `ctx.text()`,
+`ctx.items()`, `ctx.brand` and the tag `m` (`` m`<b>${x}</b>` `` escapes every value) produce; every builder that takes HTML
+refuses a plain string, and positions, sizes and colour names are checked (finite numbers, names from the list, class names
+from a fixed alphabet). Never write a raw `${spec.x}` in a composition (rule 11 in `AGENTS.md`).
+
+To try a composition, add its entry to the list, then run `npm test`; `test-design-directions.mjs` checks the registry, the
+fields, the hostile-text cases, the checks, and (with Chrome) that every composition renders and passes every check. To look at
+it, use the contact sheet:
+
+```sh
+node packages/engine/scripts/direction-sheet.mjs [--content file.json] [--brand brands/demo] [--directions editorial,swiss,retail]
+     [--kinds statement,figure] [--variants all|0|0,1] [--name "Brand name"] [--out out/directions] [--thumb 400]
+```
+
+It draws the same designs in every direction with one brand pack, writes `out/directions/<direction>/<kind>-<variant>.jpg`
+and one labelled `out/directions/sheet.jpg` (rows are kinds and variants, columns are directions; a direction without a variant
+shows a gap, a refused design shows the reason). The default content, `packages/engine/testlib/direction-sample.json`, is a
+fictional coffee roaster with one design per kind and only the synthetic demo pictures. The tool needs Chrome, runs one Chrome at
+a time, and writes only under the repository; `out/` is ignored by git. Look at every picture it writes.
+
 ## What is weak or unverified
 
 - The phone glow is placed by fixed numbers per template, checked only for contrast; a very long headline next to it is shrunk, not
@@ -885,3 +1069,81 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
 - Chrome versions: the tests run with current Google Chrome on macOS and Linux. The container's Debian Chromium is
   checked by `deploy/check.sh` with one text page only.
 - Images are checked for pixel size and loaded fonts, not for correct language, facts or figures. Check the numbers.
+
+## Looks as data: the schema
+
+A design direction (editorial, swiss, retail) is engine code today. A **look** is the same thing written as data, so that it can be
+shown in the panel, copied, edited and checked without a developer. This step is the schema alone: the tables, the validator, the
+catalogue the panel will draw its controls from, and the brief the AI and the post editor will read. **Nothing draws a look yet:**
+the renderer (`directions/interpret.mjs`, the primitives) and the panel come in later steps, and the classic layouts (`layout.mjs`,
+Settings, Layouts) are untouched. All of it is pure (no Chrome) and lives in `packages/engine/lib/design/`:
+
+| File | What it holds |
+|---|---|
+| `look.mjs` | the public API: `validateLook`, `validateLooks`, `lookCatalogue`, `lookBrief`, `normaliseLook`, `lookHash`, and the defaults |
+| `look-elements.mjs` | the tables: kinds and fields, fixed lists, limits, the common properties, the element types, the look-level sections |
+| `look-validate.mjs` | `validateLook`: guard pass, descriptor-driven checks, placement, composition rules |
+| `look-static.mjs` | the static design checks (they need no picture) |
+
+Two sample looks, written out in the schema from the prototypes' numbers, are the fixtures: `packages/engine/testlib/looks/retail.sample.json`
+(Frame pop, Stack, Mantra, Blocks) and `swiss.sample.json` (Grid photo, Poster, Rows). `test-design-look.mjs` holds them, the catalogue
+and the validator together.
+
+**What a look is.** `{ schema: 1, id, name, description, origin, canvas, fonts, type, colour, devices, photo, logo, dials, compositions }`.
+The sections hold numbers in bounds and names from fixed lists: `canvas.feed` (margins, a grid of 1 to 24 columns, a gutter, rows, the
+height of a top label row, extra text lines), `fonts` (four roles, each a library family with its weights, or the brand's own font),
+`type` (display, body, item, label and numeral styles), `colour` (the logic, the field colour, the sticker colour, whether the accent may
+be type, which page colours compositions may use), `devices` (rules, frame, highlight bar, hard shadow, six named angles, the top label
+row, the folio, the brand-name pattern), `photo`, `logo` and `dials` (tilt 0 to 1.5, density, weight shift). A look names **no hex
+colour, no CSS font name, no asset path, no URL, no brand id**: colours are palette roles, families come from `design/fonts/library.json`.
+`origin` is `"shipped"` (only the engine's own looks, `validateLook(look, where, { shipped: true })`) or `copy:shipped:<id>` / `copy:own:<slug>`.
+
+**A composition** is `{ kind, name, describe, ground, fields, accepts?, calm?, fit?, elements }`. `kind` is one of the seven post kinds;
+`fields` names the post fields it draws, each with `required` and `max` (never above what a post allows, and the kind's own required fields
+must be required); `accepts` holds rules on the words it can draw (`{ field, part: all|pre|phrase, maxChars }` or `{ field: "items", min, max }`),
+and when they fail the next variant of the kind is used. Its id is derived, `<kind>/<index>` among the look's compositions of that kind, never
+stored. At most 21 compositions, at most 3 of a kind.
+
+**The elements** (a composition's `elements` is a tree: at most 40 elements, at most 4 levels deep):
+
+| Type | What it is |
+|---|---|
+| `box` | A container; items flow in it in a column or a row, or sit at places of their own; fill, padding, shadow, turn |
+| `text` | A field of the post (or the brand name, the folio, an index) in one of the look's type styles; part, split, format, size or size ladder, emphasis |
+| `fitted-stack` | A headline sized by the page to fill its box: `lines`, `fill` or `block` |
+| `numeral` | A figure or date as large as the width allows, with an optional unit |
+| `mantra-rows` | The first part of the headline repeated as outline rows, the emphasis once, solid |
+| `rows` | One row per list item (or event part): number, tile, alternating fills and turns, rules. One per composition |
+| `photo` | The post's picture: rect, circle, arch, rounded, card or print, with treatments |
+| `seam` | The page cut by a slanted edge (picture or colour above, a page colour below) |
+| `band` | A turned full-width band (wider than the page, so its ends never show) |
+| `sticker` | A circle, pill, tile, stamp or seal carrying a short field or text items |
+| `rule`, `block`, `frame`, `keyline` | Lines, solid blocks, the page frame, a thin outlined box |
+| `glyph` | A decorative mark from a fixed list (opening and closing quotes, `&`, `№`, arrows) |
+| `meta-row` | The top label row, built from the look's own cells |
+| `wordmark-pattern`, `scrim`, `punch-hole` | The brand name as texture, a dark fade behind text over a picture, a punched hole |
+
+Common to most: `place` (exactly one of a grid position, pixels, an anchor, or an inset of the page, margins or frame; a flow child of a
+box has none), `bleed`, `rot` (a named angle or -15 to 15), `skew`, `origin`, `z`, `when` (`{ present }` / `{ absent }`), `fill`, `ink`,
+`shadow`, `ring`, `border`, `pad`, `radius`. Lengths are a bounded number or a token (`margin`, `gutter`, `col`, `frame`, `frame+pad`);
+there is **no arithmetic, no reference between elements and no free string** (only `name`, `describe` and `description` carry text, one line, no
+control characters). A key named `render`, `__proto__`, `constructor` or `prototype` is refused anywhere. `lookCatalogue()` lists every
+element, property, range and fixed list with a label and a line of help in plain words; the validator is driven by the same tables.
+
+**What `validateLook` refuses** (every message says where, quotes only a short plain value, never echoes other input, and is at most 200
+characters): unknown keys at every level, wrong types, out-of-range numbers, values outside a fixed list, a family not in the font
+library or a weight or width the family lacks, fields a kind does not have, and the static design checks: each required field shown in
+every branch of the conditions (the same way of showing a field twice is refused), at most three type levels (sizes within 2 px are one; a
+fitted headline counts as one), ink and fill pairs from a table, at most three turned elements, text turned at most 8 degrees outside a
+sticker, text over a picture only with a filled box under it or a dark fade between, and an element running to a page edge only where it
+touches that edge (a numeral aside). The render-time checks (fit, contrast, enlargement, pixel size, the four post checks) still run on
+the pictures.
+
+**The rule for growth.** No expressions, no references between elements, no free strings. A new capability is a named primitive with a
+parameter table of at most about eight validated parameters (a new entry in `ELEMENTS`, and later `directions/primitives/<name>.mjs` with its
+CSS and runtime hook), never a new kind of value in an existing property.
+
+**Limits.** 21 compositions, 3 per kind, 40 elements, 4 levels, description 300 characters, a serialised definition 256 KB, 20 looks per brand
+(`validateLooks`, ids unique). `normaliseLook` returns a deep-frozen copy with the documented defaults filled and the ids derived; `lookHash` is
+the sha256 of its canonical JSON (a look written with its defaults and one without hash the same); `lookBrief` gives the kinds, variants,
+fields and budgets the AI and the post editor read.

@@ -1,0 +1,13 @@
+{
+  "brandName": "Emberwell Coffee",
+  "note": "Fictional content for the design-directions contact sheet (scripts/direction-sheet.mjs): one `post` design per kind, a fictional coffee roaster, words within each composition's budget, only the synthetic pictures of design/assets/demo/.",
+  "designs": [
+    { "template": "post", "kind": "statement", "name": "sample-statement", "label": "The Roastery Notes", "headline": "A coffee worth *waiting for.*", "sub": "Small batches, roasted on Thursdays and gone by the weekend." },
+    { "template": "post", "kind": "figure", "name": "sample-figure", "label": "Numbers", "big": "74%", "unit": "of our beans", "sub": "come straight from the farm we visited this spring, not through a broker." },
+    { "template": "post", "kind": "list", "name": "sample-list", "label": "Method", "headline": "Three ways to *brew better*", "items": ["Weigh the beans, every time", "Water just off the boil", "Grind fresh, grind coarse"] },
+    { "template": "post", "kind": "quote", "name": "sample-quote", "label": "From the roastery", "quote": "The first cup of the day should never feel *rushed*.", "by": "Marta, head roaster" },
+    { "template": "post", "kind": "photo", "name": "sample-photo", "label": "Journal", "headline": "The jar that *started it all*", "sub": "Our first shelf, our first customers, still the best seat in the shop.", "image": "design/assets/demo/object-jar.jpg" },
+    { "template": "post", "kind": "event", "name": "sample-event", "label": "Event", "headline": "Open *roastery* night", "meta": "12 Dec · 6pm · The roastery", "sub": "Taste five new origins with the people who roast them." },
+    { "template": "post", "kind": "offer", "name": "sample-offer", "label": "Offer", "headline": "Your first bag, *half price*", "tag": "-50%", "sub": "Until Sunday, in the shop and online.", "image": "design/assets/demo/scene-market.jpg" }
+  ]
+}

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { shapeProblems } from './checks.mjs';
 import { LIMITS, ledgerLayout } from './figures.mjs';
 import { COVER_SIZES, DEFAULT_SIZES, SIZE_NAMES } from './sizes.mjs';
+import { postProblems } from './post-spec.mjs';
 import { ACCENT_STYLES, ALIGNS, GROUND_ALIASES, GROUND_NAMES, POSTER_SIZES, SERIES_KEY, groundName } from './tokens.mjs';
 
 // The feed pages (one 1080 x 1350 page each, usable as pages of a carousel): first the poster pages of 2026-11-20 (one real
@@ -331,13 +332,14 @@ function checkOne(d, template, where, errors, opts = {}) {
 export function validateDesign(d, where = 'design', opts = {}) {
   const errors = [];
   if (!d || typeof d !== 'object' || Array.isArray(d)) return [`${where}: must be an object`];
-  if (!TEMPLATES.includes(d.template)) return [`${where}: template must be one of ${TEMPLATES.join(', ')} (got "${d.template}")`];
+  // `post` (lib/design/post-spec.mjs) is the design directions' template. It is not one of TEMPLATES (no built-in layout draws it).
+  if (!TEMPLATES.includes(d.template) && d.template !== 'post') return [`${where}: template must be one of ${TEMPLATES.join(', ')} (got "${d.template}")`];
   if (d.template === 'pagecover') {
     if (!Object.keys(COVER_SIZES).includes(d.kind)) errors.push(`${where}: kind must be one of ${Object.keys(COVER_SIZES).join(', ')}`);
     return errors;
   }
   const sizes = parseSizes(d.sizes, { errors, where });
-  if ((FEED_ONLY.has(d.template) || d.template === 'carousel') && sizes.some((z) => z !== 'feed')) errors.push(`${where}: ${d.template} is made for the feed format (1080x1350) only; sizes must be feed (got ${sizes.join(', ')})`);
+  if ((FEED_ONLY.has(d.template) || d.template === 'carousel' || d.template === 'post') && sizes.some((z) => z !== 'feed')) errors.push(`${where}: ${d.template} is made for the feed format (1080x1350) only; sizes must be feed (got ${sizes.join(', ')})`);
   if (d.name !== undefined && !/^[a-z0-9][a-z0-9._-]*$/.test(d.name)) errors.push(`${where}: name must use lowercase letters, digits, . _ - only`);
   if (d.networkSizes !== undefined) {
     const ns = d.networkSizes;
@@ -357,6 +359,10 @@ export function validateDesign(d, where = 'design', opts = {}) {
       else if (!p || !PAGE_TEMPLATES.includes(p.template)) errors.push(`${pw}: template must be one of ${PAGE_TEMPLATES.join(', ')}${typeof opts.layoutPage === 'function' ? ', or layout (one of the brand\'s layouts)' : ''}`);
       else checkOne(p, p.template, pw, errors, opts);
     });
+    return errors;
+  }
+  if (d.template === 'post') {
+    errors.push(...postProblems(d, where, { direction: opts.direction, focalOk: (f) => focalToCss(f) !== null }));
     return errors;
   }
   checkOne(d, d.template, where, errors, opts);
