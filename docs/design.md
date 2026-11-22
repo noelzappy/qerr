@@ -1127,7 +1127,7 @@ a time, and writes only under the repository; `out/` is ignored by git. Look at 
 A design direction (editorial, swiss, retail) is engine code today. A **look** is the same thing written as data, so that it can be
 shown in the panel, copied, edited and checked without a developer: the tables, the validator, the catalogue the panel draws its controls
 from, the brief the AI and the post editor read, and the renderer that draws a look (`directions/interpret.mjs`, the primitives). The
-engine's own retail, swiss, soft, bloom and clean looks are shipped in this format (`lib/design/looks/*.look.json`), and the classic layouts (`layout.mjs`,
+engine's own retail, swiss, soft, bloom, clean and studio looks are shipped in this format (`lib/design/looks/*.look.json`), and the classic layouts (`layout.mjs`,
 Settings, Layouts) are untouched. All of it is pure (no Chrome) and lives in `packages/engine/lib/design/`:
 
 | File | What it holds |
@@ -1181,6 +1181,11 @@ stored. At most 21 compositions, at most 3 of a kind.
 | `info-rows` | The post's `info` rows (When, Where, Book on ...): a fixed label and its words on each row, beside or stacked |
 | `button` | A call to action shaped like a button: the `cta` (or `tag`, `label`) on one line in a pill, rounded or square box, with an optional icon |
 | `photo-row` | The post's `gallery`: two to five pictures in a row, each cropped to a circle, with optional names under them |
+| `ribbon` | A straight band across one corner of the page at 45 degrees, in a colour role, with an optional thin stripe of a second role on its corner side; no words |
+
+A `text` with `source: "swipe"` writes "Swipe" and the engine's arrow icon, only on a carousel page that has a page after it (its place in the carousel); on a
+single post, a post placed in a batch and the last page it is empty. A pill and the punctuation right after it (`[[an app]],`) are kept on one line, and a pill's
+padding (0.08 em above, 0.14 em below) covers the whole height of its words, so the contrast check reads them on the pill.
 
 A headline `text` also takes `pills` (`shape` pill, soft or outline; `fill`, a fill role, none for an outline; `ink`, which must read on the
 fill, or on the page for an outline) and `icons` (`colour`, a role; the words' own colour when left out): how its `[[pill]]` words and `{{icon}}`
@@ -1290,7 +1295,7 @@ outside the margin.
 | `fitted-stack` | `field`, `mode` (lines, fill, block), `cap`, `floor`, `maxLines`, `gapEm`, `lead`, `valign`, `emphasis`, `emphasisOwnLine`, `trail`, `stretch`, `padBelowEm`, `sizes`, `align` |
 | `numeral` | `field`, `format`, `cap`, `min` or `sizes`, `family`, `weight`, `baselineAt`, `unit` |
 | `mantra-rows` | `field`, `rmin`, `rmax`, `cap`, `floor`, `outline` |
-| `rows` | `each`, `number`, `numberStyle`, `numberSize`, `numberTile`, `numberSpan`, `textStyle`, `textSize`, `textTrack`, `altFill`, `altRot`, `rule`, `ruleEnd`, `sizeByCount`, `firstAccent`, `gap`, `rowMinH`, `valign`, `keys` |
+| `rows` | `each`, `number`, `numberStyle`, `numberSize`, `numberTile`, `numberSpan`, `textStyle`, `textSize`, `textTrack`, `altFill`, `altRot`, `rule`, `ruleEnd`, `sizeByCount`, `firstAccent`, `gap`, `rowMinH`, `valign`, `keys`, `numberInk` (the numbers' colour, checked against the page), `ruleColour` (`rule-dark` on a dark page, `rule-field` on the field) |
 | `seam` | `leftY`, `rightY`, `edge`, `upper`, `lower`, `edgeFill`, `gap`; children flow in the colour below, optional `sticker` slot |
 | `band` | `y`, `h`, `gap`, `rot`, `origin`, `fill`, `ink`, `pad`, `shadow`; children flow in it |
 | `meta-row` | `tone`; the cells come from `devices.metaRow` |
@@ -1302,6 +1307,7 @@ outside the margin.
 | `graphic` | `ref`, `at`, `size`, `edge`, `dx`, `dy`, `flip`, `tint` |
 | `info-rows` | `layout` (beside, stacked), `labelSpan` (1 to 6 grid columns; beside only), `valueStyle` (body, item, label), `valueSize` (20 to 60), `maxLines` (1 or 2; the words step down to 82% first), `labelInk`, `rule`, `gap`, `upper`. Each value sits in a cell as tall as its lines (`data-cell`): words that still run out are refused by the fit check |
 | `button` | `field` (cta, tag, label), `shape` (pill, rounded, square), `size` (20 to 60), `font` (label, display, text), `upper`, `icon` (none or an icon name), `width` (hug, full), `align` (hugging only); `fill` and `ink` (default accent and on-accent, a pair from the ink table). The words never wrap; its place is their cell |
+| `ribbon` | `corner` (top-left, top-right, bottom-left, bottom-right), `at` (40 to 480 px from the corner along each edge), `w` (16 to 200), `colour`, `edge` (a second role, optional), `edgeW` (4 to 40); its geometry is a clipped box computed from these numbers |
 | `photo-row` | `size` (80 to 400, the most a circle is across; smaller when the row needs the room, refused below 60), `gap`, `overlap` (needs gap 0 and a ring, no names), `align`, `captions`, `captionInk`, `treat`; `ring`, a soft `shadow`. It counts as a picture for the text-over-picture check |
 
 A primitive module may also export `bindings(el)`, `sizes(el, look)`, `inks(el)`, `inkPairs(el)`, `ownFill(el)`, `picture`, `fonts(el, look)`
@@ -1338,16 +1344,23 @@ paper, `on-field` to the ink, `body-dark` and `muted-dark` to the light greys), 
 
 ### The shipped looks and the engine's hooks
 
-`shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss, soft, bloom, clean }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each: two
-statements, a figure, a list, a quote, two photos, an event and an offer), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
+`shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss, soft, bloom, clean, studio }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each: two
+statements, a figure, a list, a quote, two photos, an event and an offer; studio has seventeen), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
 data counterpart of the code directions of the same name: retail is held to the code (the same budgets, names and grounds; geometry within 3 px of the
 code compositions in `test-design-look-equivalence.mjs`, with the deviations listed there: the roles of the unit and the date tile, and the wrapping
 highlight bar 0.12 em against 0.13 em); swiss is held to the approved prototype by eye. Soft (one sans in medium weights on pale tints of the brand colour, the logo top
 left and the web address top right, rounded panels and pills, pictures that melt into a page sampled from their own edge, a myth and fact page and a big
 figure over a rounded panel) bloom (a serif with italics, arch, oval and circle windows, keylines and dotted rules) and clean (the classic poster pages as a look: the brand's own
-fonts, two-tone headlines, a picture melting into a page sampled from its edge, myth and fact on rounded cards on the dark page) exist only as data.
-`test-design-look-retail.mjs`, `test-design-look-swiss.mjs`, `test-design-look-soft.mjs`, `test-design-look-bloom.mjs` and `test-design-look-clean.mjs` accept no problem at all from the
-validator, and `test-design-look-equivalence.mjs` draws all five from sample, stress and minimal copy in three sets of brand colours through every check.
+fonts, two-tone headlines, a picture melting into a page sampled from its edge, myth and fact on rounded cards on the dark page) and studio (an editorial product-studio feed in Inter: a tight bold grotesk in cream or near-black on a red,
+black or cream page, one accent (`one-accent`: the brand's primary is the field and the coloured final word), numbered rows on thin rules, report covers with a
+short red line and a red second line, a job post with a light title and a drawn phone outline, a speaker card with a picture on a colour block and a two-colour
+footer of the meta line and When / Where rows, an application page with a corner ribbon and the date on a yellow pill, yellow highlight pills, the web address
+and "Swipe" at the foot; three statements, two figures, three lists, two quotes, three photos, two events, two offers) exist only as data. The fictional
+Northbeam pack (`brands/northbeam`) is made to show studio off. Where it falls short of its reference: no cut-out person on the red field and no photo of a
+speaker cut to a shape, the round picture row overlaps the demo pictures, and a brand whose primary does not read on its dark ground gets the light page
+instead of the black one (the one-accent rule).
+`test-design-look-retail.mjs`, `test-design-look-swiss.mjs`, `test-design-look-soft.mjs`, `test-design-look-bloom.mjs`, `test-design-look-clean.mjs` and `test-design-look-studio.mjs` accept no problem at all from the
+validator, and `test-design-look-equivalence.mjs` draws all six from sample, stress and minimal copy in three sets of brand colours through every check.
 The retail price tag (figure/0) sets its figure as large as the stage allows (up to 930 px, centred) with the unit fitted on a full-width accent block
 under it, in the code composition and the look alike. A folio is written only from the post's real place (its position in its batch, or a carousel
 page's); without one a page has no folio, never a number made up from the words or the date. The partial `testlib/looks/*.sample.json` stay as test fixtures.
@@ -1364,7 +1377,7 @@ second photo too).
 
 | Name | Where | What |
 |---|---|---|
-| `shippedLooks()` | `@vesk/engine/design/directions/index` | the frozen shipped looks, raw data `{ retail, swiss, soft, bloom, clean }` |
+| `shippedLooks()` | `@vesk/engine/design/directions/index` | the frozen shipped looks, raw data `{ retail, swiss, soft, bloom, clean, studio }` |
 | `resolveLook(raw, { shipped })` | same | `{ problems }` or `{ problems: [], look (normalised), comps }`, memoised by content, deep frozen |
 | `renderPostWithLook(look, spec, ctx, { shipped })` | same | draws a post with a look written as data; any failure of the kit on a valid look is a `DesignError` |
 | `postKinds(brand)` | same | `{ [kind]: { required, fields: { field: { max, budget? } or { min, max, chars } or {} }, variants: [{ variant, name, describe }] } }` for the brand's direction, a code direction or its own look, the same shape |
@@ -1380,7 +1393,7 @@ second photo too).
 **Drawing a look as a sheet:** `node packages/engine/scripts/direction-sheet.mjs --look packages/engine/lib/design/looks/retail.look.json,packages/engine/lib/design/looks/swiss.look.json
 [--copy sample|stress|minimal] [--brand out/brand-a] [--content file.json] [--out out/lk/x]` draws every composition of the looks, one column per look;
 with `--copy` each composition is drawn from the test copy written for it (`testlib/retail-copy.mjs`, `testlib/swiss-copy.mjs`; for soft and bloom pass
-`--copy-lib testlib/soft-copy.mjs,testlib/bloom-copy.mjs,testlib/clean-copy.mjs`), without it from the
+`--copy-lib testlib/soft-copy.mjs,testlib/bloom-copy.mjs,testlib/clean-copy.mjs,testlib/studio-copy.mjs`), without it from the
 content file (the shipped looks are drawn as a brand's own copy). Tests: `test-design-look-render.mjs` (hostile text through every binding, the
 style grammar, class and attribute sets, validation first, no Chrome), `test-design-look-equivalence.mjs` (Chrome: the data version of
 all nine retail compositions against the code oracle within 3 px, and all 18 shipped compositions through every check, from three copies in three sets of colours), `test-design-look-hooks.mjs` (the engine hooks, no Chrome).

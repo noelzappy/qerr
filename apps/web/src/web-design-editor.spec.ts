@@ -1,5 +1,5 @@
 // The design editor's model (web/src/pages/settings/looks/design-model.ts and design-health.ts), against the engine's real catalogue and
-// the looks it ships as data (retail, swiss, soft, bloom and clean): every composition of each is loaded, edited and checked against the engine's validator.
+// the looks it ships as data (retail, swiss, soft, bloom, clean and studio): every composition of each is loaded, edited and checked against the engine's validator.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -14,7 +14,7 @@ const statics = await import('@vesk/engine/design/look-static' as string) as { g
 const cat = engine.lookCatalogue();
 const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@vesk/engine/package.json')), 'lib', 'design', 'looks');
 const load = (n: string): Json & { compositions: Json[] } => JSON.parse(fs.readFileSync(path.join(dir, `${n}.look.json`), 'utf8'));
-const LOOKS = { retail: load('retail'), swiss: load('swiss'), soft: load('soft'), bloom: load('bloom'), clean: load('clean') };
+const LOOKS = { retail: load('retail'), swiss: load('swiss'), soft: load('soft'), bloom: load('bloom'), clean: load('clean'), studio: load('studio') };
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const settings = (l: Json): Json => { const { compositions: _c, ...rest } = l; return rest; };
 const all = Object.entries(LOOKS).flatMap(([name, look]) => look.compositions.map((comp, i) => ({ name, look, comp, i, id: `${name}/${comp.kind}/${comp.name}`, s: settings(look) })));
