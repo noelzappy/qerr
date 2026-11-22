@@ -106,6 +106,7 @@
       "dark",
       "soft"
     ],
+    "fromPicture": "picture",
     "rotate": [
       "tint",
       "soft"

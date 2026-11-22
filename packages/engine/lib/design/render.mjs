@@ -132,11 +132,21 @@ async function fitCover(page, S, sizeName) {
 // What the page decided about a poster photo's background (runtime.mjs ready()). A treated photo is judged, and lends its colour,
 // as the treatment draws it.
 function sampleNote(s) {
+  if (s.look) return lookSampleNote(s);
   const as = s.treatment ? ` with the ${s.treatment} treatment` : '';
   if (s.untreatable) return 'the photo treatment\'s colours could not be read: the photo is placed as a full-bleed band';
   if (s.lowContrast) return `photo background is plain (rgb(${s.rgb.join(', ')})${as}), but no type colour reaches ${s.need}:1 on it (at best ${(Math.floor(s.lowContrast * 10) / 10).toFixed(1)}:1): the photo is placed as a full-bleed band on the ground`;
   if (s.uniform) return `photo background is plain (rgb(${s.rgb.join(', ')})${as}, drift ${s.drift.toFixed(1)}): the page takes its colour and the photo runs into it`;
   return `photo background is not plain${as} (grain ${s.grain.toFixed(1)}, edge drift ${s.drift.toFixed(1)}, sides ${s.shift.toFixed(1)}): the photo is placed as a full-bleed band`;
+}
+// What a look page decided about its picture's colour (runtime.mjs ready(), lookPicture).
+function lookSampleNote(s) {
+  const rgb = s.rgb ? `rgb(${s.rgb.join(', ')})` : 'its edge';
+  if (s.untreatable) return 'the photo treatment\'s colours could not be read: the page keeps the brand colour';
+  if (s.taken) return `the page takes the picture's colour (${rgb}${s.uniform ? '' : ', a soft edge'}), with ${s.ink} type${s.accent ? ` and a ${s.accent} emphasis` : ''}`;
+  if (s.lowContrast) return `the picture's colour (${rgb}) has no type colour that reaches ${s.need}:1 on it (at best ${(Math.floor(s.lowContrast * 10) / 10).toFixed(1)}:1): the page keeps the brand colour`;
+  if (s.mode === 'auto' || s.mode === 'picture') return `the picture has no background colour ${s.mode === 'auto' ? 'plain enough ' : ''}for the page (${Math.round((s.share ?? 0) * 100)}% of its edge agrees, grain ${(s.grain ?? 0).toFixed(1)}): the page keeps the brand colour`;
+  return `the picture's edge is not plain (grain ${(s.grain ?? 0).toFixed(1)}, edge drift ${(s.drift ?? 0).toFixed(1)}, sides ${(s.shift ?? 0).toFixed(1)}): the page keeps the brand colour`;
 }
 
 // job: { spec, sizeName, outFile, counter?, layouts? } (see preparePage).
@@ -160,7 +170,8 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
     await page.setContent(html);
     // A plain photo background becomes the page only if the type can be read on it at the strictest text contrast the page needs.
     const flushNeed = Math.max(...['headline', 'sub', 'label'].map((k) => Number(need(k)) || 0));
-    const ready = await page.evaluate(`window.__ds.ready(${JSON.stringify({ text: flushNeed })})`);
+    // (a look page that takes a picture's colour also sets its emphasis and labels for it: their own targets)
+    const ready = await page.evaluate(`window.__ds.ready(${JSON.stringify({ text: flushNeed, accent: Number(need('accent')) || 4.5, label: Number(need('label')) || 4.5 })})`);
     if (ready.broken.length) throw new DesignError(`image could not be loaded: ${ready.broken.join(', ')} (is the path right, and is it a valid image?)`);
     if (ready.unframed.length) throw new DesignError(unframedPhone(ready.unframed[0], 'its corners are not transparent, so it is a screenshot without a phone around it'));
     for (const s of ready.sampled ?? []) notes.push(sampleNote(s));

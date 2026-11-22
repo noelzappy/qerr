@@ -31,7 +31,10 @@ export function renderComposition(look, comp, c) {
   const T = c.tokens, W = c.W, H = c.H, m = c.margin, frame = T.frame, grid = gridOf(look);
   const shadowOf = look.devices.shadow;
   // a page whose picture may give it its colour (the type and the logo's wordmark then follow the ground the page takes)
-  if (JSON.stringify(comp.elements).includes('"blend":"ground"')) c.blendPage = true;
+  // (fromPicture: the design's own choice, else the look's; auto and picture let a picture that is not turned, framed or only faded lend the
+  // page its colour, see kit photo and runtime.mjs ready() and pictureLook)
+  const fromPicture = comp.fromPicture ?? look.colour?.fromPicture ?? 'brand';
+  if (JSON.stringify(comp.elements).includes('"blend":"ground"') || (fromPicture !== 'brand' && JSON.stringify(comp.elements).includes('"type":"photo"'))) c.blendPage = true;
   const tilt = look.dials?.tilt ?? 1;
   const angle = (v) => (v === undefined || v === 0 ? 0 : typeof v === 'number' ? +(v * tilt).toFixed(4) : (T.device.rot[v] ?? 0));
   const len = (v, side = 'left') => (typeof v === 'number' ? v : v === 'margin' ? m[side] : v === 'gutter' ? T.grid.gutter : v === 'col' ? c.colW : v === 'frame' ? frame.t : frame.t + frame.pad);
@@ -191,7 +194,7 @@ export function renderComposition(look, comp, c) {
     const inner = (x, y) => {
       if (shape === 'print') return c.print(clean({ x, y, w: b.w, h: b.h, border: el.border, keyline: el.keyline || 1, treat, caption: 0 }));
       if (shape === 'card') return c.box({ x, y, w: b.w, h: b.h, fill: 'paper-warm', pad: el.border ?? 8 }, c.photo({ x: 0, y: 0, w: b.w - 2 * (el.border ?? 8), h: b.h - 2 * (el.border ?? 8), treat, tint: el.tint ?? look.photo.tint }));
-      return c.photo(clean({ x, y, w: b.w, h: b.h, right: b.right, bottom: b.bottom, shape, treat, tint: el.tint ?? look.photo.tint, radius: typeof el.radius === 'number' ? el.radius : undefined, soft: softShadow, z: env.z, blend: el.blend && el.blend !== 'none' ? el.blend : undefined, fade: el.blend && el.blend !== 'none' ? el.fade : undefined }))
+      return c.photo(clean({ x, y, w: b.w, h: b.h, right: b.right, bottom: b.bottom, shape, treat, tint: el.tint ?? look.photo.tint, radius: typeof el.radius === 'number' ? el.radius : undefined, soft: softShadow, z: env.z, blend: el.blend && el.blend !== 'none' ? el.blend : undefined, fade: el.blend && el.blend !== 'none' ? el.fade : undefined, fromPicture: fromPicture !== 'brand' && el.blend !== 'fade' && !turned ? fromPicture : undefined }))
         + (el.keyline ? c.keyline({ x, y, w: b.w, h: b.h, weight: el.keyline }) : '');
     };
     if (!turned) return inner(b.x, b.y);

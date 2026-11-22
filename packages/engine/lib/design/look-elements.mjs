@@ -29,7 +29,7 @@ import {
   angle, bool, d, en, field, int, length, list, num, obj, oneOf, role, text, tuple,
 } from './look-desc.mjs';
 import { GRADIENT_AT, GRADIENT_KINDS, GRADIENT_SHAPES, GRADIENT_STOPS, GRAPHIC_SIZES, GRAPHIC_SLOTS, OVERLAY_FROM, VAULT_REF, gradientDesc, swashDesc, SWASH_SHAPES, SWASH_WORDS, SWASH_WEIGHTS } from './look-desc.mjs';
-import { BACKDROP_MASKS, BACKDROP_PATTERNS, OVERLAP_MAX, OVERLAP_WITH, SHAPE_KEYS } from './look-desc.mjs';
+import { BACKDROP_MASKS, BACKDROP_PATTERNS, FROM_PICTURE, OVERLAP_MAX, OVERLAP_WITH, SHAPE_KEYS } from './look-desc.mjs';
 import * as fittedStack from './directions/primitives/fitted-stack.mjs';
 import * as numeral from './directions/primitives/numeral.mjs';
 import * as mantraRows from './directions/primitives/mantra-rows.mjs';
@@ -337,6 +337,7 @@ export const SECTIONS = Object.freeze({
     logic: en(COLOUR_LOGICS, 'Colour logic', 'Tonal (paper and ink), one accent, or a colour field.'), field: en(['primary', 'dark'], 'Field', 'Which colour a field is.', 'primary'),
     sticker: en(['accent', 'primary'], 'Stickers', 'Which colour stickers are.', 'accent'), accentAsType: en(['never', 'when-contrast', 'field'], 'Accent as type', 'Whether the accent may be type: never, where it has enough contrast, or field: the emphasised phrase takes the deep colour of the field.', 'never'),
     grounds: list(en(GROUNDS, 'Page colour', 'A page colour.'), 5, 'Page colours', 'The page colours compositions may use.', { min: 1, unique: true }),
+    fromPicture: en(FROM_PICTURE, 'Page colour from the picture', 'Where a page with a picture takes its colour. brand: the brand\'s page colour (a melting picture lends its edge only when that edge is one flat colour). auto: the page takes the colour of the picture\'s background when its edge is plain enough, shows the picture whole and sets the type and the emphasis to read on it. picture: the same whenever the picture has a background colour at all. Never when the type would not reach its contrast on that colour.', 'brand'),
     rotate: list(en(ROTATE_GROUNDS, 'Page colour', 'A light page colour.'), 3, 'Page colours in turn', 'Light page colours a batch takes in turn: a composition whose page colour is one of these is drawn on one of them, chosen from the post\'s own words, so a batch without pictures does not sit on one colour. Each must be in the page colours.', { min: 2, unique: true }),
   }, 'Colour', 'How the brand\'s colours are used.', ['logic', 'grounds']),
   devices: obj({

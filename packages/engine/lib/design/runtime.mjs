@@ -1,12 +1,15 @@
 // The small script that runs inside every rendered page. The driver (render.mjs) calls window.__ds.* through the DevTools
 // protocol to size devices, tune the photo scrim, measure text and read the pixels behind it. No network, no libraries.
-import { EDGE_LIMITS, classifyEdge } from './edge.mjs';
+import { EDGE_LIMITS, PICTURE_LIMITS, classifyEdge, pictureColours, pictureEdge } from './edge.mjs';
 import { TREATED, treatPixels } from './treatment.mjs';
 
 export const RUNTIME = String.raw`
 const EDGE_LIMITS = ${JSON.stringify(EDGE_LIMITS)};
 const TREATED = ${JSON.stringify(TREATED)};
 ${classifyEdge.toString()}
+const PICTURE_LIMITS = ${JSON.stringify(PICTURE_LIMITS)};
+${pictureEdge.toString()}
+${pictureColours.toString()}
 ${treatPixels.toString()}
 window.__ds = {
   peak: 0, hold: 0.68,
@@ -100,7 +103,50 @@ window.__ds = {
         return treatPixels(g.getImageData(0, 0, c.width, c.height).data, treat);
       };
       const e = classifyEdge({ topWidth: Math.max(1, Math.round(vw)), top: grab(vx, vy, vw, vh * 0.03), left: grab(vx, vy, vw * 0.03, vh * 0.3), right: grab(vx + vw * 0.97, vy, vw * 0.03, vh * 0.3) });
-      if (e.uniform) { const type = this.typeForLook(cv, e.columns); if (type.ratio >= (+need.text || 0)) this.flushLook(cv, e, type); }
+      const type = e.uniform ? this.typeForLook(cv, e.columns) : null, taken = !!type && type.ratio >= (+need.text || 0);
+      if (taken) this.flushLook(cv, e, type);
+      sampled.push({ name: i.getAttribute('data-name'), look: true, mode: 'brand', rgb: e.rgb, uniform: e.uniform, grain: e.grain, drift: e.drift, shift: e.shift, taken, ...(taken ? { ink: type.light ? 'light' : 'dark' } : {}), ...(type && !taken ? { lowContrast: type.ratio, need: +need.text } : {}) });
+    }
+    // A look's picture that may lend the page its colour (kit photo fromPicture: data-pcolour "auto" or "picture"; the first such picture of
+    // a page). The picture's background is read from its edges (edge.mjs pictureEdge): a picture that melts into the page (blend ground) is
+    // shown whole, so its own top and side edges are read; any other picture as it is cropped. When the mode takes the colour and a type
+    // reaches the page's text target on it (pictureColours), the page takes it and its type, emphasis and surfaces follow (pictureLook).
+    // Nothing is guessed: a treatment whose colours cannot be read, no background, or no type that reads on it, and the page keeps the
+    // brand's colour and the picture its designed crop.
+    const lent = new Set();
+    for (const i of document.querySelectorAll('img[data-pcolour]')) {
+      if (!i.naturalWidth) continue;
+      const cv = i.closest('.k-look'); if (!cv || lent.has(cv)) continue;
+      lent.add(cv);
+      const mode = i.dataset.pcolour === 'picture' ? 'picture' : 'auto', name = i.getAttribute('data-name');
+      if (treat === false) { sampled.push({ name, look: true, mode, untreatable: true }); continue; }
+      const box = i.parentElement, melt = box.dataset.blend === 'ground', nw = i.naturalWidth, nh = i.naturalHeight;
+      let vx = 0, vy = 0, vw = nw, vh = nh;
+      if (!melt) {
+        const bw = i.offsetWidth, bh = i.offsetHeight, s = Math.max(bw / nw, bh / nh), sw = bw / s, sh = bh / s;
+        const pos = (i.style.objectPosition || '50% 50%').match(/([\d.]+)%\s+([\d.]+)%/), fx = pos ? +pos[1] / 100 : 0.5, fy = pos ? +pos[2] / 100 : 0.5;
+        const tf = getComputedStyle(i).transform, z = tf && tf !== 'none' ? new DOMMatrix(tf).a || 1 : 1;
+        vw = sw / z; vh = sh / z; vx = (nw - sw) * fx + (sw - vw) * fx; vy = (nh - sh) * fy + (sh - vh) * fy;
+      }
+      // read at most 400 px along the longer side (enough for the twenty segments, and quick)
+      const q = Math.min(1, 400 / Math.max(vw, vh));
+      const grab = (x, y, w, h) => {
+        const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w * q)); c.height = Math.max(1, Math.round(h * q));
+        const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(i, x, y, w, h, 0, 0, c.width, c.height);
+        return { d: treatPixels(g.getImageData(0, 0, c.width, c.height).data, treat), w: c.width };
+      };
+      const sideH = vh * (melt ? 0.6 : 0.3), top = grab(vx, vy, vw, vh * 0.03), left = grab(vx, vy, vw * 0.03, sideH), right = grab(vx + vw * 0.97, vy, vw * 0.03, sideH);
+      const e = pictureEdge({ top: top.d, topWidth: top.w, left: left.d, right: right.d, sideWidth: left.w });
+      const roles = { ink: this.lookRole(cv, 'ink') || [11, 31, 26], white: this.lookRole(cv, 'white') || [255, 255, 255] };
+      for (const [k, n] of [['accentType', 'accent-type'], ['field', 'field'], ['primary', 'primary'], ['accent', 'accent'], ['gold', 'gold']]) roles[k] = this.lookRole(cv, n);
+      const pc = e.rgb && e[mode] ? pictureColours(e.rgb, roles, need) : null;
+      // a picture shown whole meets the page down the whole of its sides too: they are plain only if the full height is (else they fade)
+      if (pc && melt) { const l2 = grab(vx, vy, vw * 0.03, vh), r2 = grab(vx + vw * 0.97, vy, vw * 0.03, vh); e.sidesPlain = pictureEdge({ top: top.d, topWidth: top.w, left: l2.d, right: r2.d, sideWidth: l2.w }).plain; }
+      if (pc) this.pictureLook(cv, i, box, melt, e, pc);
+      const best = e.rgb ? Math.max(...[roles.ink, roles.white, [0, 0, 0]].map((c) => { const x = this.lum(c), y = this.lum(e.rgb); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); })) : 0;
+      sampled.push({ name, look: true, mode, rgb: e.rgb, uniform: e.plain, share: e.share, grain: e.grain, spread: e.spread, taken: !!pc, whole: !!pc && melt,
+        ...(pc ? { ink: pc.light ? 'light' : 'dark', accent: pc.accentFrom === 'picture' ? "picture's own hue" : pc.accentFrom === 'brand' ? 'brand colour' : 'type colour' } : {}),
+        ...(e.rgb && e[mode] && !pc ? { lowContrast: best, need: +need.text } : {}) });
     }
     return { broken, unframed, devices, sampled, fontOk: faces.slice(0, 2).every((f) => document.fonts.check(f)) };
   },
@@ -124,6 +170,33 @@ window.__ds = {
     for (const l of cv.querySelectorAll('.logo-inv')) l.classList.toggle('logo-ink', !type.light);
     const acc = this.lookRole(cv, 'accent-type');
     if (!acc || type.worst(acc) < 4.5) cv.style.setProperty('--c-accent-type', val('ink'));
+  },
+  // A look page takes the picture's colour (pictureColours: every value a computed [r, g, b]): the page, its type, emphasis, rules, pills and
+  // pale surfaces, and the logo's wordmark follow. A picture that melts into the page is then shown whole, at the foot of its box and
+  // centred: no crop and no band. Its edges fade into the page only when they are not plain (softly into exactly the page's colour, which
+  // is the picture's own); a plain edge meets the page with no fade at all.
+  pictureLook(cv, img, box, melt, e, pc) {
+    const css = (c) => 'rgb(' + c.map((v) => Math.round(v)).join(',') + ')', rgba = (c, a) => 'rgba(' + c.map((v) => Math.round(v)).join(',') + ',' + a + ')';
+    cv.style.setProperty('--bg', css(e.rgb));
+    cv.setAttribute('data-sampled', '');
+    const set = { ink: pc.ink, body: pc.body, muted: pc.muted, 'body-dark': pc.body, 'muted-dark': pc.muted, 'accent-type': pc.accent, accent: pc.accent, 'accent-dark': pc.accent, 'field-text': pc.accent, soft: pc.soft, 'light-tint': pc.soft, paper: pc.soft, 'paper-warm': pc.soft, 'tint-deep': pc.soft };
+    if (pc.field) Object.assign(set, { field: pc.field, 'on-field': pc.onField, primary: pc.field, 'on-primary': pc.onField, 'body-field': pc.onField });
+    for (const [k, v] of Object.entries(set)) cv.style.setProperty('--c-' + k, css(v));
+    for (const [k, a] of [['rule', 0.55], ['rule-dark', 0.55], ['rule-soft', 0.2]]) cv.style.setProperty('--c-' + k, rgba(pc.ink, a));
+    for (const l of cv.querySelectorAll('.logo-inv')) l.classList.toggle('logo-ink', !pc.light);
+    if (!melt) return;
+    const nw = img.naturalWidth, nh = img.naturalHeight, bw = box.clientWidth, bh = box.clientHeight, s = Math.min(bw / nw, bh / nh);
+    const w = Math.round(nw * s), h = Math.round(nh * s), x = Math.round((bw - w) / 2), y = bh - h;
+    // the box round the whole picture is the page itself (not the pale placeholder a cropped picture covers)
+    box.style.webkitMaskImage = 'none'; box.style.maskImage = 'none'; box.style.background = 'transparent';
+    Object.assign(img.style, { position: 'absolute', left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px', objectFit: 'fill', transform: 'none' });
+    img.setAttribute('data-whole', '');
+    if (e.plain && e.sidesPlain) return;
+    const cvr = cv.getBoundingClientRect(), br = box.getBoundingClientRect(), ft = Math.round(Math.min(200, h * 0.3)), fs = Math.round(Math.min(240, w * 0.35));
+    const foot = br.top + y + h < cvr.bottom - 1, inside = br.left + x > cvr.left + 1 || br.left + x + w < cvr.right - 1;
+    // the top (and a foot inside the page) fade on the picture itself, the sides on its box: two masks, one inside the other, multiply
+    if (!e.plain || foot) img.style.webkitMaskImage = img.style.maskImage = 'linear-gradient(to bottom,' + (e.plain ? '#000 0' : 'transparent 0,#000 ' + ft + 'px') + (foot ? ',#000 calc(100% - ' + ft + 'px),transparent 100%' : '') + ')';
+    if (inside && !e.sidesPlain) box.style.webkitMaskImage = box.style.maskImage = 'linear-gradient(to right,transparent ' + x + 'px,#000 ' + (x + fs) + 'px,#000 ' + (x + w - fs) + 'px,transparent ' + (x + w) + 'px)';
   },
   // The brand's photo treatment as the page draws it: its kind from the page's class (styleClasses) and its colours and strength
   // from the variables brand.css draws it with (--ph-c, --ph-lo, --ph-hi, --ph-k). null without one; false if a colour cannot be

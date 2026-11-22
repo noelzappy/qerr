@@ -37,6 +37,11 @@ export const SOURCES = ['brand', 'folio', 'index', 'site', 'swipe'];
 export const WORDS = ['Myth', 'Fact', 'Before', 'After', 'Yes', 'No'];
 // How a picture melts into the page: not at all, the page takes the colour of the picture's own plain edge (and the top edge fades), or only a fade.
 export const BLENDS = ['none', 'ground', 'fade'];
+// Where a page with a picture takes its colour (a look's colour.fromPicture, a composition's fromPicture): brand: the page keeps the brand's
+// colour (only a picture that melts into the page with blend ground lends its edge, when that edge is one flat colour, as before);
+// auto: the page takes the colour of the picture's background whenever its edge is plain enough; picture: whenever the picture has a
+// background colour at all. Either way only when the type reaches its contrast on it, else the brand's colour.
+export const FROM_PICTURE = ['brand', 'auto', 'picture'];
 // The only words a look may place besides the post's own: glyphs (decoration, not type).
 export const GLYPHS = ['“', '”', '‘', '’', '&', '№', '→', '←', '↑', '↓', '+', '×'];
 export const STICKER_SHAPES = ['circle', 'pill', 'tile', 'stamp', 'seal'];

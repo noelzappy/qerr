@@ -90,6 +90,7 @@
       "dark",
       "tint"
     ],
+    "fromPicture": "picture",
     "rotate": [
       "paper",
       "tint"

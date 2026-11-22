@@ -16,7 +16,7 @@
 //   description ''                                  canvas.feed.grid.rows 0, head 0     canvas.feed.extraLines []
 //   fonts.mono = fonts.label                        type.item = the body's size, lead and weight; type.numeral { track -0.04, figures lining }
 //   type.display { case as-typed, ladder [1, .9, .82], trim none, optical false }           type.body.strength 1
-//   type.label { upper true, role label }           colour { field primary, sticker accent, accentAsType never }
+//   type.label { upper true, role label }           colour { field primary, sticker accent, accentAsType never, fromPicture brand }
 //   devices.rule { hair 1, heavy 4 }  devices.frame { t 0, pad 0 }  devices.highlight { pad [0,0,0,0], tilt 0 }
 //   devices.shadow { x 0, y 0, colour ink }  devices.angles all 0  devices.folio no  devices.wordmark { opacity .05, sep dash }
 //   photo { treat [], tint primary }  logo { default off, height 44 }  dials { tilt 1, density 0, weightShift 0 }
@@ -28,7 +28,7 @@ import {
   LIMITS, LOOK_SCHEMA, ORIGINS, PAGE, PLACE_FORMS, PLACE_MODIFIERS, POST_FIELDS, POST_ITEMS, POST_REQUIRED, ROW_KEYS, SECTIONS, SIZE_RANGE, STICKER_SHAPES, PHOTO_SHAPES, PHOTO_TREATS, FORMATS, EMPHASES, STYLES,
   SPLIT_SEPARATORS, FORBIDDEN_KEYS, REQUIRED_OWN, descriptorOf, keysOf,
 } from './look-elements.mjs';
-import { LEVELS, VAULT_REF } from './look-desc.mjs';
+import { FROM_PICTURE, LEVELS, VAULT_REF } from './look-desc.mjs';
 import { INK_ON } from './look-static.mjs';
 import { ICONS, ICON_NAMES } from './icons.mjs';
 import { INFO_KEYS, INLINE, POST_GALLERY, POST_INFO, POST_LISTS } from './post-spec.mjs';
@@ -89,6 +89,7 @@ export function lookCatalogue() {
       accepts: { kind: 'accepts', label: 'Accepts', help: 'Rules on the words it can draw (at most maxChars and, optionally, at least minChars characters of a part of the headline); when they fail the next variant of the kind is used.', max: LIMITS.accepts, parts: ['all', 'pre', 'phrase'] },
       calm: { kind: 'object', props: { maxShare: { kind: 'number', min: 0.45, max: 0.8, step: 0.01 } }, label: 'Empty space', help: 'A deliberately empty area, as a share of the page (0.45 to 0.8).' },
       levels: { kind: 'object', props: { max: { kind: 'number', min: LEVELS.min, max: LEVELS.max, step: 1, int: true }, ratio: { kind: 'number', min: LEVELS.ratioMin, max: LEVELS.ratioMax, step: 0.01, default: LEVELS.ratio } }, required: ['max'], label: 'Type sizes', help: `How many sizes of type the page may set (${LEVELS.min} when left out, at most ${LEVELS.max}). With more than ${LEVELS.min}, each size must be at least the ratio times the next smaller one (${LEVELS.ratio} when left out) and the headline the largest.` },
+      fromPicture: { kind: 'enum', values: [...FROM_PICTURE], label: 'Page colour from the picture', help: 'This design\'s own choice over the look\'s (Colour, Page colour from the picture): brand, auto or picture. Leave out to follow the look.' },
       fit: { kind: 'oneOf', values: ['margins', 'frame'], props: { pad: [0, 300], top: [0, 300], bottom: [0, 300] }, label: 'Text fit', help: 'The margins text must stay inside.' },
       elements: { kind: 'elements', label: 'Elements', help: 'The layers, back to front.', maxNodes: LIMITS.nodes, maxDepth: LIMITS.depth },
     },

@@ -9,7 +9,7 @@ import {
   LIMITS, LOOK_SCHEMA, ORIGIN, PAGE, PLACE_FORMS, PLACE_MODIFIERS, POST_FIELDS, POST_ITEMS, POST_REQUIRED, REQUIRED_OWN, SECTIONS, SECTION_NAMES, SIZE_RANGE, TEXT_FIELDS, TOP_ONLY, VALIGNS, descriptorOf, keysOf,
 } from './look-elements.mjs';
 import { FILL_ROLES, compositionStaticChecks, gridOf, styleOf } from './look-static.mjs';
-import { LEVELS, OVERLAP_MAX, ROTATE_GROUNDS, SHAPE_KEYS, VAULT_REF } from './look-desc.mjs';
+import { FROM_PICTURE, LEVELS, OVERLAP_MAX, ROTATE_GROUNDS, SHAPE_KEYS, VAULT_REF } from './look-desc.mjs';
 import { INLINE, POST_LISTS } from './post-spec.mjs';
 import { POST_CHART } from './chart.mjs';
 import { PRIMITIVES } from './look-elements.mjs';
@@ -503,7 +503,7 @@ function crossingRules(nodes, ctx, errs) {
   }
 }
 
-const COMP_KEYS = ['kind', 'name', 'describe', 'ground', 'fields', 'accepts', 'calm', 'levels', 'fit', 'elements'];
+const COMP_KEYS = ['kind', 'name', 'describe', 'ground', 'fields', 'accepts', 'calm', 'levels', 'fit', 'fromPicture', 'elements'];
 
 function compositionProblems(c, i, ctx, errs) {
   const path = `compositions[${i}]`;
@@ -550,6 +550,8 @@ function compositionProblems(c, i, ctx, errs) {
     if (!Array.isArray(c.accepts) || c.accepts.length > LIMITS.accepts) push(errs, ctx, `${path}.accepts`, `must be a list of up to ${LIMITS.accepts} rules`);
     else c.accepts.forEach((a, ai) => acceptsProblems(a, ai, c, `${path}.accepts[${ai}]`, cctx, errs));
   }
+  // the design's own choice of where its page takes its colour, over the look's colour.fromPicture
+  if (c.fromPicture !== undefined && !FROM_PICTURE.includes(c.fromPicture)) push(errs, ctx, `${path}.fromPicture`, `must be one of ${list(FROM_PICTURE)} (got ${show(c.fromPicture)})`);
   if (c.calm !== undefined) {
     if (!isObj(c.calm)) push(errs, ctx, `${path}.calm`, 'must be { "maxShare": 0.6 }');
     else { unknownKeys(c.calm, ['maxShare'], `${path}.calm`, ctx, errs); check({ kind: 'number', min: 0.45, max: 0.8 }, c.calm.maxShare, `${path}.calm.maxShare`, cctx, errs); }
