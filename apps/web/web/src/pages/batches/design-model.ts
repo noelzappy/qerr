@@ -74,7 +74,7 @@ export function movePage(d: DesignBlock, i: number, by: -1 | 1): DesignBlock {
 // answer is used when it is there.
 export const POST_KINDS = ['statement', 'figure', 'list', 'quote', 'photo', 'event', 'offer'] as const;
 export type PostKind = (typeof POST_KINDS)[number];
-export type PostFieldName = 'label' | 'headline' | 'sub' | 'big' | 'unit' | 'items' | 'quote' | 'by' | 'image' | 'meta' | 'tag';
+export type PostFieldName = 'label' | 'headline' | 'sub' | 'big' | 'unit' | 'items' | 'quote' | 'by' | 'image' | 'meta' | 'tag' | 'cta' | 'info' | 'gallery';
 export interface PostKindFields { fields: PostFieldName[]; required: PostFieldName[] }
 
 export const POST_KIND_FIELDS: Record<PostKind, PostKindFields> = {
@@ -87,9 +87,18 @@ export const POST_KIND_FIELDS: Record<PostKind, PostKindFields> = {
   offer: { fields: ['label', 'headline', 'sub', 'image', 'tag'], required: ['headline', 'tag'] },
 };
 // The most characters a field takes, counting what is seen (the engine's POST_FIELDS and POST_ITEMS).
-export interface PostLimits { label: number; headline: number; sub: number; big: number; unit: number; quote: number; by: number; meta: number; tag: number; items: { min: number; max: number; chars: number } }
+// cta, info (labelled rows) and gallery (round pictures) are drawn by a look written as data only (the engine's POST_INFO and POST_GALLERY).
+export interface ListLimit { min: number; max: number; chars: number }
+export interface PostLimits {
+  label: number; headline: number; sub: number; big: number; unit: number; quote: number; by: number; meta: number; tag: number; cta: number;
+  items: ListLimit; info: ListLimit; gallery: ListLimit; infoKeys: string[]; icons: string[];
+}
+export const POST_LISTS = ['items', 'info', 'gallery'] as const;
 export const POST_LIMITS: PostLimits = {
-  label: 28, headline: 70, sub: 140, big: 8, unit: 24, quote: 160, by: 40, meta: 40, tag: 16, items: { min: 2, max: 5, chars: 44 },
+  label: 28, headline: 70, sub: 140, big: 8, unit: 24, quote: 160, by: 40, meta: 40, tag: 16, cta: 24, items: { min: 2, max: 5, chars: 44 },
+  info: { min: 1, max: 4, chars: 40 }, gallery: { min: 2, max: 5, chars: 24 },
+  infoKeys: ['When', 'Where', 'Date', 'Time', 'Place', 'Book on', 'Tickets', 'Price', 'Entry', 'Who', 'Host', 'Call', 'Online', 'Starts', 'Ends', 'Open'],
+  icons: ['arrow-right', 'arrow-up-right', 'check', 'plus', 'star', 'spark', 'heart', 'bolt', 'leaf', 'calendar', 'clock', 'pin', 'ticket', 'tag', 'gift', 'phone', 'mail', 'user', 'play', 'dot'],
 };
 // What the server says about each kind (GET /api/posts/post-kinds).
 export interface PostKindInfo {
@@ -98,7 +107,7 @@ export interface PostKindInfo {
   variants: Array<{ variant: number; name: string; describe: string; budgets?: Record<string, { required: boolean; max?: number; min?: number }> }>;
 }
 
-const CANON: PostFieldName[] = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag'];
+const CANON: PostFieldName[] = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag', 'cta', 'info', 'gallery'];
 // The keys a post may carry besides its fields; the app's vaultItemId is stripped by the server before the engine sees it.
 const POST_FRAME = ['name', 'networkSizes', 'sizes'];
 const POST_EXTRA = ['focal', 'zoom', 'vaultItemId'];
@@ -117,7 +126,8 @@ export function postFieldsFor(kind: string, kinds?: PostKindInfo[] | null): { fi
 }
 
 // The characters a person sees in a text: the asterisks of an emphasis and the line breaks do not count (as the engine counts).
-export const seenLength = (v: string): number => [...v.replace(/\*/g, '').replace(/\\n|\n/g, '')].length;
+// A headline's [[pill]] brackets do not count either, and an icon ({{name}}) counts as two characters (the engine's seenText).
+export const seenLength = (v: string): number => [...v.replace(/\{\{([a-z][a-z-]{0,19})\}\}/g, '■■').replace(/\[\[([^[\]*{}\n\\]{1,40})\]\]/g, '$1').replace(/\*/g, '').replace(/\\n|\n/g, '')].length;
 
 // A post set to another kind: it keeps only what the new kind uses, plus its frame (template, kind, name, network sizes). The
 // variant goes, since the new kind's looks differ. A picture's position and zoom and the app's vault id go with the picture.

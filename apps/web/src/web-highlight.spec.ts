@@ -1,6 +1,23 @@
 // The headline's Highlight button: wrapping, unwrapping and the cases where it does nothing.
 import { describe, expect, it } from 'vitest';
-import { toggleHighlight } from '../web/src/pages/batches/editor/highlight';
+import { insertIcon, toggleHighlight, togglePill } from '../web/src/pages/batches/editor/highlight';
+
+describe('togglePill and insertIcon', () => {
+  it('wraps one to three selected words in [[brackets]] and takes them off again', () => {
+    expect(togglePill('Coffee on us today', 7, 12)).toEqual({ text: 'Coffee [[on us]] today', start: 9, end: 14 });
+    expect(togglePill('Coffee [[on us]] today', 7, 16)).toEqual({ text: 'Coffee on us today', start: 7, end: 12 });
+    expect(togglePill('Coffee [[on us]] today', 9, 14)).toEqual({ text: 'Coffee on us today', start: 7, end: 12 });
+  });
+  it('does nothing for an empty selection, four words or a selection holding a mark', () => {
+    expect(togglePill('Coffee', 2, 2)).toBeNull();
+    expect(togglePill('one two three four', 0, 18)).toBeNull();
+    expect(togglePill('a *b* c', 0, 7)).toBeNull();
+  });
+  it('puts an icon mark at the caret with a space where it touches a word', () => {
+    expect(insertIcon('New blend', 3, 'star')).toEqual({ text: 'New {{star}} blend', start: 12, end: 12 });
+    expect(insertIcon('New', 0, 'star')).toEqual({ text: '{{star}} New', start: 9, end: 9 });
+  });
+});
 
 describe('toggleHighlight', () => {
   it('wraps the selected words and keeps them selected', () => {

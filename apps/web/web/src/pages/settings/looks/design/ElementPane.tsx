@@ -20,6 +20,7 @@ import type { Swatches } from '../design-colours';
 import { blankFor } from '../look-model';
 import type { Desc, LookCatalogue } from '../look-types';
 import { SizeChips, StickerSize, TextSize } from './size';
+import { hasPartChoices, PartChoices } from './parts';
 import { Chips, Group, Disclosure, Label, spanOf, ToggleChip } from './ui';
 
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -28,12 +29,14 @@ export type GroupId = 'content' | 'size' | 'position' | 'colour' | 'style' | 'mo
 
 // ---- which group owns which property of the catalogue ----
 const SKIP = new Set(['type', 'children', 'sticker', 'when']);
-const CONTENT = ['field', 'source', 'part', 'split', 'format', 'each', 'number', 'mode', 'glyph', 'tone', 'unit', 'keys'];
-const SIZE = ['style', 'size', 'ladder', 'textSize', 'cap', 'floor', 'min', 'sizes', 'maxLines', 'fit', 'minW', 'maxW', 'rmin', 'rmax', 'rowMinH', 'numberSize', 'numberSpan', 'sizeByCount', 'skew', 'stretch', 't', 'w', 'h', 'padBelowEm', 'y', 'leftY', 'rightY', 'edge', 'vertical'];
+const CONTENT = ['field', 'source', 'part', 'split', 'format', 'each', 'number', 'mode', 'glyph', 'tone', 'unit', 'keys', 'layout', 'captions'];
+const SIZE = ['style', 'size', 'ladder', 'textSize', 'cap', 'floor', 'min', 'sizes', 'maxLines', 'fit', 'minW', 'maxW', 'rmin', 'rmax', 'rowMinH', 'numberSize', 'numberSpan', 'sizeByCount', 'skew', 'stretch', 't', 'w', 'h', 'padBelowEm', 'y', 'leftY', 'rightY', 'edge', 'vertical',
+  'labelSpan', 'valueSize', 'overlap', 'width'];
 const POSITION = ['place', 'rot', 'origin', 'originPct', 'bleed', 'z', 'altRot'];
-const COLOUR = ['fill', 'ink', 'colour', 'tint', 'altFill', 'edgeFill', 'lower', 'keylineColour'];
+const COLOUR = ['fill', 'ink', 'colour', 'tint', 'altFill', 'edgeFill', 'lower', 'keylineColour', 'labelInk', 'captionInk'];
 const STYLE = ['emphasis', 'emphasisOwnLine', 'align', 'upper', 'weight', 'font', 'family', 'valign', 'track', 'lead', 'nowrap', 'dropWhenTight', 'numberStyle', 'textStyle', 'gapEm', 'baselineAt',
-  'shape', 'shadow', 'textShadow', 'ring', 'border', 'radius', 'pad', 'treat', 'keyline', 'rule', 'firstAccent', 'need', 'fade', 'fadeFrom', 'altItalic', 'outline', 'numberTile'];
+  'shape', 'shadow', 'textShadow', 'ring', 'border', 'radius', 'pad', 'treat', 'keyline', 'rule', 'firstAccent', 'need', 'fade', 'fadeFrom', 'altItalic', 'outline', 'numberTile',
+  'pills', 'icons', 'icon', 'valueStyle'];
 
 export function ownerOf(name: string, desc: Desc & { group?: string }): GroupId {
   if (desc.group === 'flow' || POSITION.includes(name)) return 'position';
@@ -164,6 +167,7 @@ export function ElementProperties(p: PropertiesProps) {
     err('style', ctx.set(name, blank));
   };
   const showStyle = by.style.length > 0;
+  const parts = hasPartChoices(el);
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -229,6 +233,7 @@ export function ElementProperties(p: PropertiesProps) {
 
       {showStyle && (
         <Group title="Style" force={forced('style')} fine={by.style.map(render)}>
+          {parts && <PartChoices ctx={ctx} />}
           {emph?.kind === 'enum' && (
             <Chips label="Emphasis" value={typeof el.emphasis === 'string' ? el.emphasis : ''} disabled={p.readOnly}
               options={[{ value: '', label: 'Look’s own' }, ...((emph.values ?? []) as string[]).map((v) => ({ value: v, label: EMPHASIS_WORDS[v] ?? word(v) }))]}
