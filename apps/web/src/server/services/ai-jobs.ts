@@ -10,7 +10,7 @@ import { noHandle, readableError, trackRun, type RunHandle } from './activity.js
 import type { Deps } from '../deps.js';
 import { HttpError } from '../http.js';
 import { getAiConfig, getSetting, SETTING_RESEARCH_LAST_RUN, SETTING_TOPICS, setSetting, type AiRunContext } from './ai-config.js';
-import { linkVaultPhotos, vaultForAi, kindFromAi } from './ai-vault.js';
+import { linkVaultPhotos, vaultForAi, vaultListForAi, kindFromAi } from './ai-vault.js';
 import { ensureScreenFraming } from './screen-framing.js';
 import { importEngineBatch, NETWORK_NAMES } from './batches.js';
 import { createVaultItemFromSystem, VAULT_KINDS } from './vault.js';
@@ -159,7 +159,8 @@ async function rewriteNow(deps: Deps, payload: z.infer<typeof rewritePayload>, h
     result = await ai.rewrite({
       post: { id: post.postKey, postKey: post.postKey, title: post.title, date: post.date, time: post.time, caption: post.caption, networks: splitNetworks(post.networks).overrides, design: post.design, sources: post.sources },
       instruction: payload.instruction,
-      vault: sources.map(vaultView),
+      // Not filtered here: the library hides what is not usable and says why when the post still cites it.
+      vault: sources.map((i) => vaultForAi(i, deps.now())),
     });
   } finally {
     await config.flush();
@@ -177,6 +178,29 @@ async function rewriteNow(deps: Deps, payload: z.infer<typeof rewritePayload>, h
 
 const isText = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0;
 
+// JSON with the keys in a fixed order, so two values that say the same thing compare equal (the database keeps keys in its own order).
+function canonical(value: unknown): string {
+  const sort = (v: unknown): unknown => (Array.isArray(v) ? v.map(sort) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, sort(x)])) : v);
+  return JSON.stringify(sort(value));
+}
+const normalisedNetworks = (value: unknown) => { const { skip, overrides } = splitNetworks(value); return joinNetworks(skip, overrides); };
+
+// The post's networks after a rewrite, or null when the rewrite changes none of them. The AI may only add or change the words of
+// a network the post already goes to; an empty entry, a network the post does not go to, and a file list are ignored, and the
+// settings the post already has for a network are kept.
+function rewrittenNetworks(current: unknown, fromAi: unknown, defaults: string[]): Record<string, unknown> | null {
+  const { skip, overrides } = splitNetworks(current);
+  const merged: Record<string, NetworkOverride> = { ...overrides };
+  for (const [network, offered] of Object.entries(splitNetworks(fromAi).overrides)) {
+    if (!(network in overrides) && !defaults.includes(network)) continue;
+    const { media: _files, ...rest } = offered;
+    const real = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined && v !== null && !(typeof v === 'string' && !v.trim())));
+    if (Object.keys(real).length) merged[network] = { ...overrides[network], ...real };
+  }
+  const next = joinNetworks(skip, merged);
+  return canonical(next) === canonical(joinNetworks(skip, overrides)) ? null : next;
+}
+
 // Saves the AI's version as an edit by the person who asked. A rewrite that does not pass the edit checks fails the run
 // with the reason and leaves the post as it was.
 async function applyRewrite(deps: Deps, payload: z.infer<typeof rewritePayload>, post: { id: string; networks: unknown; caption: string; status: string }, result: Record<string, unknown>) {
@@ -189,15 +213,14 @@ async function applyRewrite(deps: Deps, payload: z.infer<typeof rewritePayload>,
   if (typeof result.time === 'string') input.time = result.time;
   if (result.design && typeof result.design === 'object' && !Array.isArray(result.design)) input.design = result.design;
   if (Array.isArray(result.sources)) input.sources = result.sources.filter(isText);
-  // Per-network captions from the AI, keeping each network's other settings and the skip list the post already has.
-  if (result.networks && typeof result.networks === 'object' && !Array.isArray(result.networks)) {
-    const { skip } = splitNetworks(post.networks);
-    input.networks = joinNetworks(skip, splitNetworks(result.networks).overrides as Record<string, NetworkOverride>);
-  }
-  const parsed = patchPostInput.parse(input);
+  // Per-network captions from the AI, merged into what the post already has. Nothing changes when the AI sends nothing real.
   const before = await loadPost(deps, post.id);
+  const networks = rewrittenNetworks(post.networks, result.networks, before.batch.defaultNetworks);
+  if (networks) input.networks = networks;
+  const parsed = patchPostInput.parse(input);
   const after = await patchPost(deps, actor, post.id, parsed);
-  const fields = (['title', 'caption', 'date', 'time', 'networks', 'design', 'sources'] as const).filter((k) => JSON.stringify(before[k] ?? null) !== JSON.stringify(after[k] ?? null));
+  const view = (p: object, k: string) => { const v = (p as Record<string, unknown>)[k]; return canonical(k === 'networks' ? normalisedNetworks(v) : v ?? null); };
+  const fields = (['title', 'caption', 'date', 'time', 'networks', 'design', 'sources'] as const).filter((k) => view(before, k) !== view(after, k));
   return { fields, caption: after.caption, contentChanged: fields.some((f) => f !== 'title') };
 }
 
@@ -307,17 +330,17 @@ async function draftNow(deps: Deps, payload: z.infer<typeof draftPayload>, handl
   try {
     const { ai, config } = await aiFor(deps, 'draft', { runId, actorId: actor.id }, handle);
     spent = config;
-    // Facts, figures and news must be confirmed by a person. Photos and screens may be unconfirmed: the post then carries a
-    // "not confirmed" warning, and rights problems still block approval, as the spec says for media.
+    // Only what a person has confirmed, that is current and (photos, screens) has its rights settled is offered: the AI is
+    // sent nothing else, and its library rejects a post that cites or pictures anything else (vaultListForAi).
     const items = await deps.prisma.vaultItem.findMany({
-      where: { deletedAt: null, OR: [{ status: 'confirmed' }, { kind: { in: ['photo', 'screen'] }, fileKey: { not: null } }] },
+      where: { deletedAt: null, status: 'confirmed' },
       orderBy: { updatedAt: 'desc' }, take: 500,
     });
     let result: DraftBatchResult;
     try {
       await ensureScreenFraming(deps, items);
       result = await ai.draftBatch({
-        vault: items.map((i) => vaultForAi(i, deps.now())),
+        vault: vaultListForAi(items, deps.now()),
         ...(brief.series ? { series: brief.series } : {}),
         period,
         count: brief.count ?? 10,

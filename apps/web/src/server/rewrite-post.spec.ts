@@ -70,6 +70,29 @@ describe('POST /api/posts/:id/rewrite', () => {
     expect(t.fetchCalls).toHaveLength(0);
   });
 
+  it('reports and writes only what really changed: empty or foreign network entries are not a change', async () => {
+    const { editor, post, fact } = await setup();
+    expect((await t.prisma.post.findUniqueOrThrow({ where: { id: post.id } })).networks).toEqual({});
+    const res = await editor.post(`/api/posts/${post.id}/rewrite`, { instruction: 'Shorter' });
+    // The AI sends back an empty entry for X, an entry for LinkedIn (the batch does not go there) and an empty caption.
+    fake.rewrite = { id: 'p1', date: '2026-12-02', time: '10:00', title: 'Plans', caption: 'Start free.', sources: [fact.id], networks: { x: {}, linkedin: { caption: 'Words for LinkedIn' }, instagram: { caption: '  ' } }, warnings: [] };
+    await handlers.rewritePost(t.deps, t.jobs.enqueued.find((j) => j.name === 'rewrite-post')!.payload as never);
+    const run = await t.prisma.activityRun.findUniqueOrThrow({ where: { id: res.body.activityId } });
+    expect(run.result).toMatchObject({ changed: ['caption'] });
+    expect((await t.prisma.post.findUniqueOrThrow({ where: { id: post.id } })).networks).toEqual({});
+  });
+
+  it('reports networks when the words for one network really changed, and keeps that network\'s other settings', async () => {
+    const { editor, post, fact } = await setup();
+    await t.prisma.post.update({ where: { id: post.id }, data: { networks: { x: { caption: 'Old X words', firstComment: 'Keep me' } } } });
+    const res = await editor.post(`/api/posts/${post.id}/rewrite`, { instruction: 'Shorter' });
+    fake.rewrite = { id: 'p1', date: '2026-12-02', time: '10:00', title: 'Plans', caption: 'Old words about plans.', sources: [fact.id], networks: { x: { caption: 'New X words' } }, warnings: [] };
+    await handlers.rewritePost(t.deps, t.jobs.enqueued.find((j) => j.name === 'rewrite-post')!.payload as never);
+    const run = await t.prisma.activityRun.findUniqueOrThrow({ where: { id: res.body.activityId } });
+    expect(run.result).toMatchObject({ changed: ['networks'] });
+    expect((await t.prisma.post.findUniqueOrThrow({ where: { id: post.id } })).networks).toEqual({ x: { caption: 'New X words', firstComment: 'Keep me' } });
+  });
+
   it('fails the run with the reason and leaves the post alone when the new version is not a valid edit', async () => {
     const { editor, post, fact } = await setup({ approved: true });
     const res = await editor.post(`/api/posts/${post.id}/rewrite`, { instruction: 'Longer' });

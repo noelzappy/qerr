@@ -9,7 +9,9 @@ export const MEDIA_KINDS = ['photo', 'screen'];
 export const DEFAULT_FIGURE_MAX_AGE_DAYS = 180;
 
 export function isStale(item, { now = new Date(), figureMaxAgeDays = DEFAULT_FIGURE_MAX_AGE_DAYS } = {}) {
-  if (item.stale === true) return true;
+  // The app decides what is stale (its own rules, apps/web services/vault-rules.ts) and says so with a boolean; only an item
+  // that says nothing is judged here.
+  if (typeof item.stale === 'boolean') return item.stale;
   const today = now.toISOString().slice(0, 10);
   if (typeof item.validUntil === 'string' && item.validUntil.slice(0, 10) < today) return true;
   if (item.kind === 'figure' && typeof item.recordedAt === 'string' && !item.validUntil) {
@@ -26,6 +28,23 @@ export function normaliseVault(vault) {
   const seen = new Set();
   return vault.filter((i) => i && typeof i === 'object' && typeof i.id === 'string' && i.id && !seen.has(i.id) && seen.add(i.id));
 }
+
+// Whether the drafter may use an item at all, as a fact or as a picture: confirmed by a person, not deleted, not out of date
+// and, for a photo or screen, with a file and its rights settled. null when usable, else the reason in plain words. The app
+// keeps the same rule in services/vault-rules.ts (sourceProblems, rightsProblems); this is its library-side mirror, applied to
+// what the app sends, so every caller gets it. Items the research finds are unconfirmed and so never usable until a person confirms them.
+export function unusableReason(item, opts) {
+  if (item.deletedAt) return 'was deleted from the vault';
+  if (item.status !== 'confirmed') return 'is not confirmed by a person';
+  if (isStale(item, opts)) return `is out of date${item.validUntil ? ` (valid until ${String(item.validUntil).slice(0, 10)})` : ''}`;
+  if (MEDIA_KINDS.includes(item.kind)) {
+    if (!item.file) return 'has no file';
+    if (needsRightsCheck(item)) return 'has its rights or consent still to be confirmed';
+  }
+  return null;
+}
+export const isUsable = (item, opts) => unusableReason(item, opts) === null;
+export const usableItems = (items, opts) => items.filter((i) => isUsable(i, opts));
 
 // Confirmed and current items first, then unconfirmed or stale ones, newest record first within a group.
 export function rank(items, opts) {

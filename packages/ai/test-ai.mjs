@@ -440,7 +440,7 @@ test('draftBatch: a good post passes, the vault photo is resolved by id, the bat
   assert.deepEqual(p.warnings, []);
   assert.deepEqual(batch.defaultNetworks, ['instagram', 'linkedin', 'facebook', 'x']);
   assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
-  assert.equal(notes.promptVersion, 'draft-11');
+  assert.equal(notes.promptVersion, 'draft-12');
   assert.equal(notes.model, 'claude-sonnet-5-5');
   assert.equal(notes.seriesMix['the-numbers'], 1);
   assert.equal(notes.usage.costUsd > 0, true);
@@ -572,10 +572,10 @@ test('draftBatch: an explicit X caption is kept; networks the batch does not tar
   assert.equal(batch.posts[0].networks.x.caption, '€ 14.8M processed. #AcmeSavings');
 });
 
-test('draftBatch: brand lint repairs spelling and emoji, warns about Title Case, US spelling and rights', async () => {
+test('draftBatch: brand lint repairs spelling and emoji, warns about Title Case and US spelling', async () => {
   const p = good({
     caption: 'Acme savings keeps the color of every euro. Over € 14.8 million processed. #AcmeSavings',
-    design: { template: 'object', headline: 'Every Euro On Record Today', sub: 'ACME SAVINGS keeps the record 🙂', image: 'vault:ph-2', series: 'the-numbers' },
+    design: { template: 'object', headline: 'Every Euro On Record Today', sub: 'ACME SAVINGS keeps the record 🙂', image: 'vault:ph-3', series: 'the-numbers' },
   });
   const { ai } = draftWith([p]);
   const { batch, notes } = await ai.draftBatch(req());
@@ -585,17 +585,51 @@ test('draftBatch: brand lint repairs spelling and emoji, warns about Title Case,
   assert.equal(post.design.sub, 'Acme Savings keeps the record');
   assert.match(post.warnings.join('\n'), /Title Case/);
   assert.match(post.warnings.join('\n'), /US spelling.*color/);
-  assert.match(post.warnings.join('\n'), /photo ph-2 needs its rights confirmed/);
   assert.ok(notes.repaired[0].repairs.length >= 2);
 });
 
-test('draftBatch: unconfirmed and stale sources add warnings; the model cannot hide them', async () => {
-  const p = good({ id: '03-notice', caption: 'A regulator notice mentions 12 new rules, and groups numbered 250 in 2024.\n\n#AcmeSavings', design: { template: 'closing', headline: 'Twelve new rules' }, sources: ['unc-1', 'old-1'], warnings: [] });
+// ---------- only confirmed, current, cleared items are usable ----------
+const offeredIds = (f) => { const c = f.calls[0].body.messages[0].content; return JSON.parse(c.slice(c.indexOf('{'))).vault.map((i) => i.id); };
+const allReasons = (e) => e.notes.rejected.flatMap((r) => r.reasons).join('\n');
+
+test('draftBatch: unconfirmed, out-of-date and rights-unsettled items are never offered; confirmed ones are', async () => {
+  const { f, ai } = draftWith([good()]);
+  await ai.draftBatch(req());
+  const ids = offeredIds(f);
+  for (const hidden of ['unc-1', 'old-1', 'ph-2']) assert.ok(!ids.includes(hidden), `${hidden} must not be offered`);
+  for (const shown of ['fig-1', 'fig-2', 'fact-1', 'ph-1']) assert.ok(ids.includes(shown), `${shown} must be offered`);
+  assert.ok(!JSON.stringify(f.calls[0].body).includes('regulator notice'), 'the text of an unconfirmed item is not sent either');
+});
+
+test('draftBatch: a post that cites an unconfirmed or out-of-date item is rejected with the reason, not warned about', async () => {
+  const p = good({ id: '03-notice', caption: 'A regulator notice mentions 12 new rules, and groups numbered 250 in 2024.\n\n#AcmeSavings', design: { template: 'closing', headline: 'Twelve new rules' }, sources: ['unc-1', 'old-1'] });
   const { ai } = draftWith([p]);
-  const { batch } = await ai.draftBatch(req());
-  const w = batch.posts[0].warnings.join('\n');
-  assert.match(w, /unconfirmed item unc-1/);
-  assert.match(w, /stale item old-1 \(valid until 2025-01-01\)/);
+  await assert.rejects(ai.draftBatch(req()), (e) => e.code === 'no_valid_posts'
+    && /source unc-1 \("A notice"\) is not confirmed by a person, so a post may not cite it/.test(allReasons(e))
+    && /source old-1 .*is out of date \(valid until 2025-01-01\)/.test(allReasons(e)));
+});
+
+test('draftBatch: a picture that is unconfirmed, has rights to settle, or has no file is rejected', async () => {
+  const vault = [...VAULT, { id: 'ph-unc', kind: 'photo', title: 'Draft photo', body: 'A stall.', status: 'unconfirmed', file: 'design/assets/photos/unc.jpg' }];
+  const post = (image) => good({ design: { template: 'object', headline: 'Every euro, *on record*', image, series: 'the-numbers' } });
+  for (const [id, why] of [['ph-unc', /picture ph-unc is not confirmed by a person/], ['ph-2', /picture ph-2 has its rights or consent still to be confirmed/]]) {
+    const { ai } = draftWith([post(`vault:${id}`)]);
+    await assert.rejects(ai.draftBatch(req({ vault })), (e) => e.code === 'no_valid_posts' && why.test(allReasons(e)));
+  }
+});
+
+test('draftBatch: when nothing in the vault is usable, no call is made', async () => {
+  const f = fakeFetch(anthropicOk({ posts: [] }));
+  const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES });
+  await assert.rejects(ai.draftBatch(req({ vault: [VAULT[4], VAULT[3]] })), (e) => e.code === 'config' && /no usable items/.test(e.message));
+  assert.equal(f.calls.length, 0);
+});
+
+test('draftBatch: an app-supplied stale flag decides, in both directions', async () => {
+  const vault = [{ ...VAULT[0], stale: true }, { ...VAULT[1], recordedAt: '2020-01-01', stale: false }, VAULT[5]];
+  const { f, ai } = draftWith([good({ caption: '3,900+ members save daily with Acme Savings.\n\n#AcmeSavings', design: { template: 'closing', headline: 'Members *saving daily*' }, sources: ['fig-2'] })]);
+  await ai.draftBatch(req({ vault }));
+  assert.deepEqual(offeredIds(f).sort(), ['fig-2', 'ph-1']);
 });
 
 test('draftBatch: invented quotations are rejected, quotes from the vault pass', async () => {
@@ -747,7 +781,7 @@ test('rewrite: returns a revised post through the same checks, keeps the id and 
   assert.equal(out.id, '01-numbers');
   assert.equal(out.networks.instagram.type, 'post');
   assert.equal(out.networks.x, undefined);
-  assert.equal(out.notes.promptVersion, 'rewrite-4');
+  assert.equal(out.notes.promptVersion, 'rewrite-5');
   assert.deepEqual(validateBatch({ name: 't', timezone: 'UTC', defaultTime: '09:00', mediaRoot: 'media/t', posts: [out] }, { fallbackName: 't' }).errors, []);
 });
 
@@ -756,6 +790,195 @@ test('rewrite: an invented number is sent back once, then fails', async () => {
   const ai = createAI({ providers: [anthropic], fetch: f, now: NOW });
   await assert.rejects(ai.rewrite({ post: good(), instruction: 'Add a bigger number', vault: VAULT }), (e) => e.code === 'invalid_output' && /not found in its sources: 55/.test(e.message));
   assert.equal(f.calls.length, 2);
+});
+
+// ---------- a brand with a design direction ----------
+import { directionBrief, directionKinds } from './src/direction.mjs';
+import { POST_KINDS } from '@vesk/engine/design/post-spec';
+
+// A throw-away repository root with a brand pack (the demo brand plus style.direction), and the env that points at it.
+async function withDirection(direction, fn) {
+  const os = await import('node:os'), path = await import('node:path');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-dir-'));
+  const prev = process.env.BRAND_DIR;
+  try {
+    const brand = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
+    fs.mkdirSync(path.join(root, 'brands', 'dir'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'brands', 'dir', 'brand.json'), JSON.stringify({ ...brand, ...(direction ? { style: { direction } } : {}) }));
+    process.env.BRAND_DIR = 'brands/dir';
+    return await fn(root);
+  } finally {
+    if (prev === undefined) delete process.env.BRAND_DIR; else process.env.BRAND_DIR = prev;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+const dirPost = (over = {}, design = {}) => good({
+  id: '01-notes', title: 'Notes', caption: 'Every euro is on the record.\n\n#AcmeSavings #Savings #the region', imageReason: undefined,
+  design: { template: 'post', kind: 'statement', label: 'Notes', headline: 'Every euro, *on the record*', sub: 'Members see their own record on their phone.', ...design },
+  sources: ['fact-1'], ...over,
+});
+const draftIn = (root, ...answers) => {
+  const f = fakeFetch(...answers.map((a) => anthropicOk(a)));
+  return { f, ai: createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep, root }) };
+};
+const askedOf = (f, i = 0) => { const c = f.calls[i].body.messages[0].content; return JSON.parse(c.slice(c.indexOf('{'))); };
+
+test('direction brand: gets draft-12 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
+  await withDirection('editorial', async (root) => {
+    const vault = [...VAULT, { id: 'scr-1', kind: 'screen', title: 'Passbook', body: 'The passbook.', status: 'confirmed', file: 'design/assets/screens/p.png', framing: 'phone' }];
+    const { f, ai } = draftIn(root, { posts: [dirPost()] }, { posts: [] });
+    const { batch, notes } = await ai.draftBatch(req({ vault }));
+    assert.equal(notes.promptVersion, 'draft-12');
+    assert.equal(f.calls[0].body.system, loadPrompt('draft', { direction: true }).text);
+    assert.notEqual(f.calls[0].body.system, loadPrompt('draft').text);
+    assert.match(f.calls[0].body.system, /never use the same kind three posts running/);
+    assert.doesNotMatch(f.calls[0].body.system, /the only templates you may use/);
+    const asked = askedOf(f);
+    assert.equal(asked.design.direction, 'editorial');
+    assert.deepEqual(asked.design, directionBrief('editorial'), 'the kinds, fields and budgets come from the engine');
+    assert.deepEqual(Object.keys(asked.design.kinds), directionKinds('editorial'));
+    assert.equal(asked.design.kinds.statement.fields.headline.max, 70);
+    assert.ok(asked.design.kinds.statement.fields.headline.budget <= 70);
+    assert.equal(asked.layouts, undefined);
+    assert.ok(!asked.vault.some((i) => i.kind === 'screen'), 'no screens for a direction brand');
+    assert.equal(batch.posts[0].design.template, 'post');
+    assert.equal(batch.posts[0].design.kind, 'statement');
+    assert.equal(notes.direction, 'editorial');
+    assert.deepEqual(notes.kindMix, { statement: 1 });
+    assert.deepEqual(validateBatch(batch, { fallbackName: 'x', root }).errors, []);
+  });
+});
+
+test('direction brand: only post designs are accepted; the old templates, layouts and carousels are rejected with the reason', async () => {
+  await withDirection('swiss', async (root) => {
+    const posts = [
+      dirPost({ id: 'a' }, {}),
+      good({ id: 'b', design: { template: 'object', headline: 'Old *template*', image: 'vault:ph-1', series: 'the-numbers' } }),
+      good({ id: 'c', design: { template: 'closing', headline: 'Closing' } }),
+      good({ id: 'd', design: { template: 'carousel', series: 'the-numbers', pages: [{ template: 'object', headline: 'x', image: 'vault:ph-3' }, { template: 'closing', headline: 'y' }] } }),
+    ];
+    const { ai } = draftIn(root, { posts }, { posts: [] });
+    const { batch, notes } = await ai.draftBatch(req({ count: 4 }));
+    assert.deepEqual(batch.posts.map((p) => p.id), ['a']);
+    const all = notes.rejected.flatMap((r) => r.reasons).join('\n');
+    assert.match(all, /template "object" is not allowed: this brand has the "swiss" design direction, so every post is designed with template "post"/);
+    assert.match(all, /template "carousel" is not allowed/);
+  });
+});
+
+test('a brand without a direction refuses the post template and keeps the old behaviour', async () => {
+  await withDirection(null, async (root) => {
+    const { f, ai } = draftIn(root, { posts: [dirPost()] }, { posts: [] });
+    await assert.rejects(ai.draftBatch(req()), (e) => e.code === 'no_valid_posts' && /template "post" needs a brand with a design direction/.test(allReasons(e)));
+    assert.equal(f.calls[0].body.system, loadPrompt('draft').text);
+    assert.equal(askedOf(f).design, undefined);
+  });
+  const { f, ai } = draftWith([good()]);
+  const { batch } = await ai.draftBatch(req());
+  assert.equal(batch.posts[0].design.template, 'number');
+  assert.doesNotMatch(f.calls[0].body.system, /never use the same kind three posts running/);
+});
+
+test('direction brand: a variant is removed (reported), and a unusable-kind or unknown field is rejected', async () => {
+  await withDirection('editorial', async (root) => {
+    const { ai } = draftIn(root, { posts: [dirPost({ id: 'a' }, { variant: 1 })] });
+    const { batch, notes } = await ai.draftBatch(req());
+    assert.equal(batch.posts[0].design.variant, undefined);
+    assert.match(JSON.stringify(notes.repaired), /variant removed/);
+  });
+  await withDirection('editorial', async (root) => {
+    const undrawable = POST_KINDS.find((k) => !directionKinds('editorial').includes(k));
+    const posts = [dirPost({ id: 'b' }, { series: 'the-numbers' }), dirPost({ id: 'c' }, { image: 'vault:ph-1' }), ...(undrawable ? [dirPost({ id: 'd' }, { kind: undrawable, big: '1' })] : [])];
+    const { ai } = draftIn(root, { posts }, { posts: [] });
+    await assert.rejects(ai.draftBatch(req({ count: 3 })), (e) => {
+      const all = allReasons(e);
+      return /"series" is not a field of a post/.test(all) && /does not draw a picture; remove image/.test(all) && (!undrawable || new RegExp(`kind "${undrawable}" cannot be drawn in the "editorial" direction`).test(all));
+    });
+  });
+});
+
+test('direction brand: words over the direction\'s budget, bad emphasis and unsourced numbers are rejected with reasons the model can act on', async () => {
+  await withDirection('editorial', async (root) => {
+    const budget = directionBrief('editorial').kinds.statement.fields.headline.budget;
+    const long = 'word '.repeat(Math.ceil((budget + 2) / 5)).trim().slice(0, budget + 2);
+    const posts = [
+      dirPost({ id: 'a' }, { headline: long }),
+      dirPost({ id: 'b' }, { headline: '*Every euro* on the *record*' }),
+      dirPost({ id: 'c' }, { headline: '*Every euro on record*' }),
+      dirPost({ id: 'd' }, { headline: 'Every *euro in all of the* record' }),
+      dirPost({ id: 'e' }, { headline: 'Over 99 members, *on record*' }),
+      dirPost({ id: 'f' }, { sub: 'Members see *their* record.' }),
+    ];
+    const { ai } = draftIn(root, { posts }, { posts: [] });
+    await assert.rejects(ai.draftBatch(req({ count: 6 })), (e) => {
+      const by = Object.fromEntries(e.notes.rejected.map((r) => [r.id, r.reasons.join(' ')]));
+      return new RegExp(`headline is ${budget + 2} characters; a statement post in the "editorial" direction draws at most ${budget}\\. Shorten it to about`).test(by.a)
+        && /more than one emphasis phrase/.test(by.b) && /emphasis in headline is the whole text/.test(by.c) && /is 5 words; mark a phrase of 1 to 4 words/.test(by.d)
+        && /image text \(headline\) has a number not found in its sources: 99/.test(by.e) && /sub has asterisks; only headline and quote/.test(by.f);
+    });
+  });
+});
+
+test('direction brand: the same kind three posts running (by date) is rejected', async () => {
+  await withDirection('editorial', async (root) => {
+    const posts = ['02', '03', '04'].map((d) => dirPost({ id: `p${d}`, date: `2026-12-${d}` }));
+    const { ai } = draftIn(root, { posts }, { posts: [] });
+    const { batch, notes } = await ai.draftBatch(req({ count: 3 }));
+    assert.deepEqual(batch.posts.map((p) => p.id), ['p02', 'p03']);
+    assert.match(allReasons({ notes }), /three posts in a row \(by date\) would be "statement" posts/);
+  });
+});
+
+test('direction brand: a post may not use an unconfirmed picture, and a photo post takes a photo item', async () => {
+  await withDirection('editorial', async (root) => {
+    if (!directionKinds('editorial').includes('photo')) return; // the direction draws no photo kind yet: nothing more to prove here
+    const vault = [...VAULT, { id: 'ph-unc', kind: 'photo', title: 'Draft', body: 'x', status: 'unconfirmed', file: 'design/assets/photos/u.jpg' }];
+    const photo = (image) => dirPost({ id: 'ph', imageReason: 'A market, matching the post.' }, { kind: 'photo', headline: 'Every euro, *on the record*', image });
+    const { ai } = draftIn(root, { posts: [photo('vault:ph-unc')] }, { posts: [] });
+    await assert.rejects(ai.draftBatch(req({ vault })), (e) => /picture ph-unc is not confirmed/.test(allReasons(e)));
+    const ok = draftIn(root, { posts: [photo('vault:ph-1')] });
+    assert.equal((await ok.ai.draftBatch(req({ vault }))).batch.posts[0].design.image, 'design/assets/photos/street-market.jpg');
+  });
+});
+
+test('the prompts keep one file with a direction section: draft-12 and rewrite-5 differ by brand type only where they must', () => {
+  const plain = loadPrompt('draft'), dir = loadPrompt('draft', { direction: true });
+  assert.equal(plain.version, 'draft-12');
+  assert.equal(dir.version, 'draft-12');
+  assert.match(plain.text, /the only templates you may use/);
+  assert.match(plain.text, /Only confirmed, current items/);
+  assert.match(dir.text, /Only confirmed, current items/);
+  assert.match(dir.text, /Choose the KIND from the content/);
+  assert.doesNotMatch(plain.text, /Choose the KIND/);
+  assert.doesNotMatch(`${plain.text}${dir.text}`, /<!--/);
+  assert.match(loadPrompt('rewrite', { direction: true }).text, /KEEP the post's `kind`/);
+  assert.doesNotMatch(loadPrompt('rewrite').text, /KEEP the post's `kind`/);
+});
+
+test('rewrite for a direction brand: keeps the post design within the budgets, and an old template is refused', async () => {
+  await withDirection('editorial', async (root) => {
+    const original = { id: '01-notes', date: '2026-12-02', title: 'Notes', caption: 'Old caption.', design: { template: 'post', kind: 'statement', headline: 'Old *line*' }, sources: ['fact-1'] };
+    const mk = (design) => dirPost({ id: 'x' }, design);
+    const f = fakeFetch(anthropicOk(mk({ headline: 'Short, *clear*' })));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, root });
+    const out = await ai.rewrite({ post: original, instruction: 'Make it shorter', vault: VAULT });
+    assert.equal(out.id, '01-notes');
+    assert.equal(out.design.kind, 'statement');
+    assert.equal(out.notes.promptVersion, 'rewrite-5');
+    assert.equal(f.calls[0].body.system, loadPrompt('rewrite', { direction: true }).text);
+    assert.equal(askedOf(f).design.direction, 'editorial');
+    const old = anthropicOk(good({ caption: 'Agents record each deposit on their phone.\n\n#AcmeSavings', design: { template: 'closing', headline: 'Old' }, sources: ['fact-1'] }));
+    const ai2 = createAI({ providers: [anthropic], fetch: fakeFetch(old), now: NOW, prices: PRICES, root });
+    await assert.rejects(ai2.rewrite({ post: original, instruction: 'x', vault: VAULT }), (e) => e.code === 'invalid_output' && /template "closing" is not allowed: this brand has the "editorial" design direction/.test(e.message));
+  });
+});
+
+test('rewrite: a post that still cites an unconfirmed item is refused, and the item is not shown to the model', async () => {
+  const f = fakeFetch(anthropicOk(good({ caption: 'A regulator notice mentions 12 new rules.\n\n#AcmeSavings', design: { template: 'closing', headline: 'x' }, sources: ['unc-1'] })));
+  const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES });
+  await assert.rejects(ai.rewrite({ post: { ...good(), sources: ['unc-1'] }, instruction: 'Shorter', vault: VAULT }), (e) => e.code === 'invalid_output' && /source unc-1 .* is not confirmed by a person/.test(e.message));
+  assert.ok(!JSON.stringify(f.calls[0].body).includes('regulator notice mentions 12 new rules.') || JSON.stringify(f.calls[0].body).indexOf('"vault"') > 0);
+  assert.ok(!askedOf(f).vault.some((i) => i.id === 'unc-1'));
 });
 
 // ---------- research ----------

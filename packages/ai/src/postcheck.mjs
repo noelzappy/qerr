@@ -6,7 +6,8 @@ import { POSTER_TEMPLATES } from '@vesk/engine/design/spec';
 import { normalisePostDesign, postDesignProblems, screenDeviceOf } from '@vesk/engine/design/layout';
 import { layoutImageKind } from './context.mjs';
 import { EMOJI_G, fixSpelling, isTitleCase, numberKeys, quoteIsSourced, quotesIn, trimToLimit, unsourcedNumbers, usSpellings } from './facts.mjs';
-import { MEDIA_KINDS, foreignMoneyPattern, isStale, mentionsForeignMoney, needsRightsCheck } from './vault.mjs';
+import { MEDIA_KINDS, foreignMoneyPattern, mentionsForeignMoney, unusableReason } from './vault.mjs';
+import { EMPHASIS_FIELDS, directionKinds, emphasisIn, kindBrief } from './direction.mjs';
 
 // The drafting assistant may only use the poster pages (a real photo or a framed phone screen on a pale ground), a full-bleed photo,
 // carousels of poster pages, and the brand's own layouts (template "layout", when the brand has some, as a post or as a carousel
@@ -15,7 +16,7 @@ import { MEDIA_KINDS, foreignMoneyPattern, isStale, mentionsForeignMoney, needsR
 export const ALLOWED_TEMPLATES = [...POSTER_TEMPLATES, 'photo', 'carousel', 'layout'];
 const ALLOWED_LIST = 'object, number, product, myth-fact or closing';
 // The vault kind each template's image must have: a framed phone is a screen item, every other picture is a photo item.
-const IMAGE_KIND = { product: 'screen', object: 'photo', number: 'photo', photo: 'photo' };
+const IMAGE_KIND = { product: 'screen', object: 'photo', number: 'photo', photo: 'photo', post: 'photo' };
 const ID_OK = /^[A-Za-z0-9._-]+$/;
 const DATE_OK = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_OK = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -46,6 +47,7 @@ function resolveImages(design, ctx) {
       const item = id ? ctx.byId.get(id) : null;
       if (!item) problems.push(`image "${x.slice(0, 80)}" is not a vault photo; use "vault:<id>" with the id of a photo or screen item`);
       else if (!MEDIA_KINDS.includes(item.kind) || !item.file) problems.push(`vault item ${id} is not a photo or screen with a file`);
+      else if (unusableReason(item, { now: ctx.now })) problems.push(`picture ${id} ${unusableReason(item, { now: ctx.now })}, so it cannot be used; choose a picture from the vault list`);
       else if (/^[a-z][a-z0-9+.-]*:/i.test(item.file) || item.file.startsWith('/') || item.file.split('/').includes('..')) problems.push(`vault item ${id} has a file path that is not relative to the repository`);
       else { ids.add(id); out[k] = item.file; }
     }
@@ -63,6 +65,10 @@ function vaultItemOf(image, ctx) {
 // Template rules the engine does not know: only poster pages (or the brand's layouts) inside a carousel, and the right kind of vault
 // item behind each image.
 function templateProblems(design, ctx) {
+  // A brand with a design direction designs with the `post` template only: it says what the post is, the direction draws it. (A
+  // carousel's pages cannot be `post` designs in the engine, so carousels are not offered to such a brand.)
+  if (ctx.direction) return design.template === 'post' ? [] : [`template "${design.template}" is not allowed: this brand has the "${ctx.direction}" design direction, so every post is designed with template "post" and a kind (${directionKinds(ctx.direction).join(', ')}); carousels and the older templates are not used`];
+  if (design.template === 'post') return ['template "post" needs a brand with a design direction (style.direction), and this brand has none; use one of the other templates'];
   if (!ALLOWED_TEMPLATES.includes(design.template) || (design.template === 'layout' && !ctx.layouts?.length)) return [`template "${design.template}" is not allowed; use ${ALLOWED_LIST}, or photo or carousel${ctx.layouts?.length ? ', or layout with one of the brand\'s layouts' : ''}`];
   if (design.template !== 'carousel' || !Array.isArray(design.pages)) return [];
   const out = [];
@@ -134,7 +140,57 @@ function repairGround(design) {
 
 // The engine's own checks of a design block: a brand layout's (a post or a carousel page) against the fields it declares, the rest
 // against the templates.
-const designProblems = (design, ctx) => postDesignProblems(design, 'design', { layouts: ctx.layouts ?? [], series: ctx.seriesKeys });
+const designProblems = (design, ctx) => postDesignProblems(design, 'design', { layouts: ctx.layouts ?? [], series: ctx.seriesKeys, direction: ctx.direction ?? null });
+
+// A `post` design (a brand with a design direction): the kind must be one its direction can draw, only fields that kind's
+// compositions draw, every text within its budget, at most one emphasis phrase (1 to 4 words, never the whole text), and no
+// `variant` (checkPost removes one; the engine varies it). Everything else is the engine's own validator
+// (designProblems). Returns a list of problems.
+function postKindProblems(design, ctx) {
+  const out = [], d = design;
+  if (d.template !== 'post') return out;
+  const brief = ctx.direction ? kindBrief(ctx.direction, d.kind) : null;
+  if (!brief) {
+    if (ctx.direction && typeof d.kind === 'string') out.push(`kind "${String(d.kind).slice(0, 20)}" cannot be drawn in the "${ctx.direction}" direction; use one of: ${directionKinds(ctx.direction).join(', ')}`);
+    return out;
+  }
+  const visible = (v) => [...String(v).replace(/\*/g, '').replace(/\\n|\n/g, '')].length;
+  for (const [f, v] of Object.entries(d)) {
+    if (['template', 'kind', 'variant', 'sizes', 'name', 'networkSizes', 'focal', 'zoom'].includes(f)) continue;
+    if (f === 'image') { if (!brief.fields.image) out.push(`a ${d.kind} post does not draw a picture; remove image (only these kinds do: ${directionKinds(ctx.direction).filter((k) => kindBrief(ctx.direction, k).fields.image).join(', ') || 'none'})`); continue; }
+    const spec = brief.fields[f];
+    if (!spec) { out.push(`a ${d.kind} post does not draw ${f}; remove it (this kind takes: ${Object.keys(brief.fields).join(', ')})`); continue; }
+    if (f === 'items') {
+      if (Array.isArray(v)) v.forEach((t, i) => { if (typeof t === 'string' && visible(t) > spec.chars) out.push(`items[${i}] is ${visible(t)} characters; this direction draws items of at most ${spec.chars}. Shorten it and keep the items parallel in length`); });
+      continue;
+    }
+    if (typeof v !== 'string') continue;
+    if (spec.budget && visible(v) > spec.budget) out.push(`${f} is ${visible(v)} characters; a ${d.kind} post in the "${ctx.direction}" direction draws at most ${spec.budget}. Shorten it to about ${Math.max(10, Math.floor(spec.budget * 0.75))}`);
+    const marks = emphasisIn(v);
+    if (EMPHASIS_FIELDS.includes(f)) {
+      const stars = (v.match(/\*/g) ?? []).length;
+      if (stars % 2 || marks.length > 1) out.push(`${f} has ${marks.length > 1 ? 'more than one emphasis phrase' : 'an unpaired asterisk'}; mark exactly one phrase of 1 to 4 words with *asterisks*`);
+      else if (marks.length === 1) {
+        const words = marks[0].trim().split(/\s+/).filter(Boolean).length;
+        if (!words || words > 4) out.push(`the emphasis in ${f} is ${words} words; mark a phrase of 1 to 4 words`);
+        else if (visible(marks[0]) >= visible(v)) out.push(`the emphasis in ${f} is the whole text; mark only a phrase of 1 to 4 words`);
+      }
+    } else if (hasStar(v)) out.push(`${f} has asterisks; only headline and quote take an *emphasis* phrase`);
+  }
+  return out;
+}
+const hasStar = (v) => typeof v === 'string' && v.includes('*');
+
+// Never the same kind three posts running (in date order): ctx.kinds is the kinds of the posts already accepted, { date, time?, kind }.
+function kindRunProblems(design, date, ctx) {
+  if (design.template !== 'post' || !Array.isArray(ctx.kinds) || !ctx.kinds.length || typeof date !== 'string') return [];
+  const all = [...ctx.kinds, { date, time: '', kind: design.kind, self: true }].sort((a, b) => `${a.date} ${a.time ?? ''}`.localeCompare(`${b.date} ${b.time ?? ''}`));
+  const at = all.findIndex((x) => x.self);
+  for (let s = Math.max(0, at - 2); s <= at && s + 2 < all.length; s++) {
+    if (all[s].kind === all[s + 1].kind && all[s + 1].kind === all[s + 2].kind) return [`three posts in a row (by date) would be "${design.kind}" posts; choose a different kind for this one`];
+  }
+  return [];
+}
 
 // checkPost(raw, ctx) -> { ok, post, reasons, repairs, imageSuggestion }
 // ctx: { byId: Map, byFile: Map, channels, period: {from,to}|null, seriesKeys, brand, now, takenIds: Set, tagline,
@@ -161,6 +217,10 @@ export function checkPost(raw, ctx) {
   const unknown = sources.filter((s) => !ctx.byId.has(s));
   if (unknown.length) reasons.push(`sources name items that are not in the vault: ${unknown.join(', ')}`);
   const sourceItems = sources.map((s) => ctx.byId.get(s)).filter(Boolean);
+  for (const i of sourceItems) {
+    const why = unusableReason(i, { now: ctx.now });
+    if (why) reasons.push(`source ${i.id}${i.title ? ` ("${String(i.title).slice(0, 50)}")` : ''} ${why}, so a post may not cite it; use only the items in the vault list`);
+  }
 
   // design: template list, images, engine validation
   let design = raw.design;
@@ -177,7 +237,12 @@ export function checkPost(raw, ctx) {
       design = g.design;
       if (g.changed) repairs.push("ground set to photo so the page matches the picture's background");
     }
-    if (!r.problems.length) reasons.push(...designProblems(design, ctx));
+    if (!r.problems.length) {
+      if (design.template === 'post' && design.variant !== undefined) { const { variant: _v, ...rest } = design; design = rest; repairs.push('variant removed: the design direction chooses the variant itself'); }
+      const engine = designProblems(design, ctx);
+      reasons.push(...engine);
+      if (!engine.length && design.template === 'post') reasons.push(...postKindProblems(design, ctx), ...kindRunProblems(design, date, ctx));
+    }
   }
   const imageReason = typeof raw.imageReason === 'string' ? raw.imageReason.trim().slice(0, 200) : '';
   if (ctx.requireImageReason && photoIds.length && !imageReason) reasons.push('imageReason is missing: say what the picture shows and why it fits this post');
@@ -238,16 +303,6 @@ export function checkPost(raw, ctx) {
   }
   const us = usSpellings([caption, ...Object.values(networkCaptions), ...imageFields.map((f) => f.text)].join(' '));
   if (us.length) warnings.push(`possible US spelling (the house style is UK): ${us.join(', ')}`);
-  const opts = { now: ctx.now };
-  for (const i of sourceItems) {
-    if (i.status !== 'confirmed') warnings.push(`uses unconfirmed item ${i.id}${i.title ? ` ("${String(i.title).slice(0, 50)}")` : ''}`);
-    if (isStale(i, opts)) warnings.push(`uses a stale item ${i.id}${i.validUntil ? ` (valid until ${String(i.validUntil).slice(0, 10)})` : ''}`);
-  }
-  for (const pid of photoIds) {
-    const p = ctx.byId.get(pid);
-    if (needsRightsCheck(p)) warnings.push(`photo ${pid} needs its rights confirmed before this post can be approved`);
-    if (p.status !== 'confirmed') warnings.push(`photo ${pid} is not confirmed`);
-  }
   for (const w of Array.isArray(raw.warnings) ? raw.warnings : []) if (typeof w === 'string' && w.trim()) warnings.push(w.trim().slice(0, 200));
 
   const post = { id, date, ...(raw.time ? { time: raw.time } : {}), title: raw.title.trim(), caption, ...(Object.keys(networks).length ? { networks } : {}), design, sources, photoIds, warnings: [...new Set(warnings)] };

@@ -3,6 +3,7 @@ import { ROOT, brandFile, readJson, validTimeZone } from '@vesk/engine/core';
 import { AIError } from './errors.mjs';
 import { NETWORKS } from '@vesk/engine/networks';
 import { normaliseVault } from './vault.mjs';
+import { directionOf } from './direction.mjs';
 import { FIELDS, layoutSizes, optionOf, validateLayout } from '@vesk/engine/design/layout';
 
 export function readBrand({ root = ROOT, override } = {}) {
@@ -47,7 +48,7 @@ export function makeCtx({ vault, channels, period = null, brand, now, seriesKeys
   const items = normaliseVault(vault);
   const byId = new Map(items.map((i) => [i.id, i]));
   const byFile = new Map(items.filter((i) => typeof i.file === 'string' && i.file).map((i) => [i.file, i]));
-  return { items, byId, byFile, channels, period, brand, now, seriesKeys: seriesKeys ?? Object.keys(brand.series ?? {}), layouts: brandLayouts(brand), takenIds: new Set() };
+  return { items, byId, byFile, channels, period, brand, now, seriesKeys: seriesKeys ?? Object.keys(brand.series ?? {}), layouts: directionOf(brand) ? [] : brandLayouts(brand), direction: directionOf(brand), takenIds: new Set() };
 }
 
 export function parseChannels(channels, fallback = ['instagram', 'linkedin', 'facebook']) {

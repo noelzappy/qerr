@@ -115,7 +115,25 @@ the picture is data and is never followed.
 `{ id, kind, title?, body, status: 'confirmed' | 'unconfirmed', recordedAt?, validFrom?, validUntil?, tags?, sourceUrls?, file?, framing?, license?, identifiable?, consent? }`.
 Kinds: fact, figure, news, event, product-note, story, photo, screen. `file` (photos and screens) is a path relative to the
 repository. A figure is stale when `validUntil` has passed, or when it has no `validUntil` and was recorded over 180 days ago.
-A photo with `license: 'rights-to-confirm'`, or with identifiable people and no recorded consent, adds a warning.
+A photo with `license: 'rights-to-confirm'`, or with identifiable people and no recorded consent, has its rights unsettled.
+An item that carries an explicit boolean `stale` (the web app sends one, from its own rules in `vault-rules.ts`) is judged by it;
+the 180-day rule is for items that say nothing.
+
+### Only usable items reach the model, and only usable items may be cited
+
+An item is **usable** when a person has confirmed it (`status: 'confirmed'`), it is not deleted, it is not stale, and, for a photo
+or screen, it has a `file` and its rights are settled. This mirrors what the web app already requires before a post can be
+approved (`services/vault-rules.ts`: `sourceProblems` and `rightsProblems`), so a draft never starts from something approval would
+refuse. The rule is applied twice, in the library so every caller gets it (`unusableReason` in `src/vault.mjs`):
+
+- **Offering**: `draftBatch` and `rewrite` show the model only usable items. Unconfirmed items (research findings included),
+  stale items, deleted items and pictures with rights to settle are not in the request at all, text and ids included, and
+  `draftBatch` makes no call when nothing is usable (`config` error). The web app does not send them either (`vaultListForAi`
+  in `services/ai-vault.ts`).
+- **Checking**: `postcheck.mjs` rejects a post whose `sources` include, or whose picture is, an item that is not usable, with the
+  reason ("source fig-9 is out of date (valid until ...), so a post may not cite it"; "picture ph-2 has its rights or consent
+  still to be confirmed"). The post is redrafted or reported like any other rejection. These used to be warnings; there is no
+  longer a warning for an unconfirmed or stale source or an unconfirmed picture.
 
 `framing` (screens only) is `"phone"` for a pre-framed phone capture (transparent, the phone already drawn around the screen) or
 `"desktop"` for a plain screenshot; leave it out when unknown. The web app works it out from the stored file with the engine's own
@@ -139,15 +157,55 @@ first), and every call after the first is told how often each layout has been us
 the prompt also explains that a layout needing a picture can only be used while unused pictures remain, and that a `quote`
 field takes a quotation that is in a cited item (a quotation that is not in the vault is rejected).
 
+## A brand with a design direction
+
+When the brand pack's `brand.json` has `style.direction` (`editorial`, `swiss` or `retail`; see [design.md](design.md), "Design
+directions and the post template"), the model designs with ONE template, `post`, instead of naming layouts or templates. Such a
+brand is offered no `layouts`, no screens and no old templates (`object`, `number`, `product`, `myth-fact`, `closing`, `photo`,
+`layout`), and **no carousels**: the engine does not accept a `post` as a carousel page (`PAGE_TEMPLATES` in `spec.mjs`), so there is
+nothing to offer. The design is `{ "template": "post", "kind": "<kind>", ...fields }`, `kind` being one of `statement`, `figure`,
+`list`, `quote`, `photo`, `event`, `offer`.
+
+The request carries `design: { direction, template: 'post', kinds }`, built in `src/direction.mjs` from the engine's own registry
+(`lib/design/post-spec.mjs` and `lib/design/directions`), so nothing is written twice: each kind the direction can draw today
+(a kind with no composition in the direction is not offered, and is rejected if used), its `required` fields, the fields its
+compositions draw, and for each text the hard `max` and the `budget` (the most the direction's compositions are drawn for; with no
+`variant` the engine may pick any composition of the kind, so the budget is the smallest one). Items carry `min`, `max`, `chars`.
+
+`prompts/draft.md` is one file; the parts that differ are between `<!-- if direction -->`, `<!-- else -->` and `<!-- end -->`
+lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-12`, serves both kinds of brand and a brand without a
+direction gets what it got under `draft-11`, except for the confirmed-only rule. The direction part teaches: choose the kind from
+the content (a number is a `figure`; steps or reasons a `list`; a date and place an `event`; a price or "new" an `offer`; a picture
+that carries the post a `photo`; a house line a `quote`; otherwise a `statement`); write to the budgets (headline at most 70, aim
+for 45, one `*emphasis*` phrase of 1 to 4 words never the whole line, `sub` adds a fact and never repeats the headline, `label` 1 or
+2 words, `big` as people say it with its sign or unit and `unit` what it counts, `items` parallel in grammar and length, `meta` as
+"12 Dec · 6pm · Place", `tag` at most 2 words or a price); vary the kinds (at least three kinds in five or more posts, never the same
+kind three posts running); use each picture once; do not set `variant`. All rules about sources, numbers, dates, networks and
+currency stay.
+
+What `postcheck.mjs` adds for a `post` design: the template must be `post` (a direction-less brand refuses `post` and keeps
+the old behaviour); the engine's own `postDesignProblems` with the brand's direction; the kind must be one the direction draws; only
+fields that kind's compositions draw (a `statement` with an `image` is refused); every text within its budget, with the problem
+stated as "headline is 62 characters; ... draws at most 60. Shorten it to about 45"; one emphasis phrase, 1 to 4 words, not the
+whole text, and asterisks only in `headline` and `quote`; a `variant` is removed and reported as a repair; the picture of any
+post is a vault `photo` item; numbers in `big`, `unit`, `meta`, `tag`, `items` and the other image texts must be in the cited
+items; and the same kind may not make three posts in a row by date (the third is rejected, `ctx.kinds`). `notes` gains `direction`
+and `kindMix`.
+
+`rewrite` uses the same file (`rewrite-5`): a direction brand's rewrite is told the kinds and budgets, to keep the post's `kind`
+and edit the words within the same budgets, and to redesign an old-template post as a `post`. A kind changed by the model is
+shown in the post's `warnings`.
+
 ## How drafting works
 
-1. Items are ranked (confirmed and current first) and the top ones sent to the model as data, with series, period, channels and limits.
+1. Items that are usable (see above) are ranked (newest first) and the top ones sent to the model as data, with series, period, channels and limits.
 2. The model returns JSON (Anthropic: a forced tool call whose `input_schema` is the schema; OpenAI-compatible: `json_object`, falling
    back to plain JSON extraction). It is validated against the schema; invalid output is sent back once with the problems, then the
    call fails with `invalid_output`.
 3. Each post goes through `postcheck.mjs`:
+   - every source and every picture must be a usable item (rejected otherwise, see above);
    - template must be a poster template, `carousel`, `photo`, or `layout` with one of the brand's own layouts (when it has
-     some; never `pagecover`); a carousel's pages are poster pages or, when the brand has layouts, `layout` pages. The design
+     some; never `pagecover`); for a brand with a design direction, `post` only (see above); a carousel's pages are poster pages or, when the brand has layouts, `layout` pages. The design
      passes the engine's `postDesignProblems`: `validateDesign`, and for a layout post or page `layoutDesignProblems`: the
      layout must exist and be valid, and the post or page fills in exactly its declared fields within their lengths. A layout's
      picture must be a vault item of the kind it shows (a `screen` item for a screen block, else a `photo` item);
@@ -157,14 +215,14 @@ field takes a quotation that is in a cited item (a quotation that is not in the 
      quotations of three words or more must appear in a source; the post must cite at least one item that exists;
    - a picture used twice in the batch, or one that shows another currency (see "The brand"), is rejected;
    - repaired and reported: brand spelling, emoji in image text, duplicate or odd ids, an X caption over 280 (cut to whole sentences);
-   - warned, not blocked: unconfirmed or stale sources, photos needing rights, over-length Instagram or LinkedIn captions, more than
+   - warned, not blocked: over-length Instagram or LinkedIn captions, more than
      30 hashtags, Title Case headlines, US spellings, headline and sub lengths.
 4. If posts were rejected, one replacement call is made, checked the same way.
 5. The batch is validated by the engine's own `validateBatch`; a post it refuses is dropped and reported. If nothing is left the call
    throws `no_valid_posts`.
 
 `notes`: `promptVersion`, `model`, `usage` (calls, tokens, cost or `"unknown"`), `plan`, `requested`, `delivered`, `seriesMix`,
-`rejected` (id and reasons), `repaired`, `imageSuggestions` (stock-photo briefs; nothing is fetched or embedded) and `messages`.
+`rejected` (id and reasons), `repaired`, `direction` and `kindMix` (a direction brand only), `imageSuggestions` (stock-photo briefs; nothing is fetched or embedded) and `messages`.
 
 ## Research
 
@@ -194,7 +252,7 @@ number absent from the pages, or duplicate a vault item or an earlier candidate.
 ## Prompts
 
 `packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`. They are brand-neutral: they read the `brand` brief above.
-The first line is `<!-- version: draft-1 -->`; the version is returned in `notes.promptVersion`. Change a prompt by editing
+The first line is `<!-- version: draft-12 -->` (now `draft-12`, `rewrite-5`); the version is returned in `notes.promptVersion`. Change a prompt by editing
 the file, bumping its version and reviewing the diff. Tests pin the versions' format only, not the wording.
 
 A brand pack can replace any of them with its own `prompts/<name>.md` (for example `brands/acme/prompts/draft.md`), with
@@ -222,7 +280,7 @@ the same version line. The pack's file is used when it exists, the library's oth
 ## How the Vesk web app uses it
 
 `apps/web` depends on `@vesk/ai` and loads it through one seam, `loadAI()` in `src/server/ai.ts` (which tests replace). The `draft-batch` job (queued by `POST /api/batches/ai-draft`, or the Draft with AI button on the batch list)
-sends the confirmed vault items, calls `draftBatch`, and imports the answer through the same path as a batch file: a batch
+sends the usable vault items (confirmed, current, rights settled; `vaultListForAi`), calls `draftBatch`, and imports the answer through the same path as a batch file: a batch
 in `draft` state owned by the person who asked, each post linked to its vault sources and carrying the AI's warnings,
 the drafter's `notes` kept on the batch (shown with an "AI draft" badge), and a render queued for every design block.
 Vault photos are offered to the library with a made-up path named after their id; the app swaps it for `vaultItemId`, and

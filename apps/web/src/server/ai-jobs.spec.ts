@@ -144,7 +144,7 @@ describe('draft-batch', () => {
     expect((await admin.put('/api/settings/ai/budget', { monthlyBudgetUsd: options.budget ?? 5 })).status).toBe(200);
     const editor = await t.createUser('editor');
     const figure = await t.prisma.vaultItem.create({ data: { kind: 'figure', title: 'Processed volume', body: 'Acme Savings has processed over € 14.8 million.', status: 'confirmed', recordedAt: new Date('2026-11-01') } });
-    const photo = await t.prisma.vaultItem.create({ data: { kind: 'photo', title: 'Market', body: 'A street market.', status: 'confirmed', fileKey: 'vault/market.jpg', fileName: 'market.jpg', contentType: 'image/jpeg', size: 10 } });
+    const photo = await t.prisma.vaultItem.create({ data: { kind: 'photo', title: 'Market', body: 'A street market.', status: 'confirmed', licence: 'own', fileKey: 'vault/market.jpg', fileName: 'market.jpg', contentType: 'image/jpeg', size: 10 } });
     const unconfirmed = await t.prisma.vaultItem.create({ data: { kind: 'news', title: 'A notice', body: 'A regulator notice mentions 12 new rules.', status: 'unconfirmed' } });
     return { admin, editor, figure, photo, unconfirmed };
   }
@@ -174,8 +174,8 @@ describe('draft-batch', () => {
     expect(post.postKey).toBe('01-numbers');
     expect(post.sources).toEqual(expect.arrayContaining([figure.id]));
     expect(post.sources).not.toContain(unconfirmed.id);
-    // The photo has no licence recorded: the post carries the AI's warning, and the design points at the vault photo.
-    expect(post.warnings.some((w) => w.includes('needs its rights confirmed'))).toBe(true);
+    // The design points at the vault photo, and nothing about it needs a warning: it is confirmed and cleared.
+    expect(post.warnings).toEqual([]);
     expect((post.design as any).vaultItemId).toBe(photo.id);
     expect(post.renderStatus).toBe('queued');
     expect(t.jobs.enqueued.filter((j) => j.name === 'render-post').map((j) => (j.payload as any).postId)).toEqual([post.id]);
@@ -206,22 +206,22 @@ describe('draft-batch', () => {
     expect(await t.prisma.batch.count()).toBe(2);
   });
 
-  it('offers unconfirmed photos and screens to the model, never unconfirmed facts, and warns on a post that uses one', async () => {
-    const { editor, figure, unconfirmed } = await setup();
-    const shot = await t.prisma.vaultItem.create({ data: { kind: 'photo', title: 'Calculator', body: 'A calculator on mint.', status: 'unconfirmed', licence: 'licensed', licenceNotes: 'Pexels License', fileKey: 'vault/calc.jpg', fileName: 'calc.jpg', contentType: 'image/jpeg', size: 10 } });
-    const noFile = await t.prisma.vaultItem.create({ data: { kind: 'photo', title: 'Missing', body: 'No file yet.', status: 'unconfirmed' } });
+  it('offers only usable items to the model (no unconfirmed or rights-unsettled picture, no unconfirmed fact), and refuses a post that uses one', async () => {
+    const { editor, figure, photo, unconfirmed } = await setup();
+    const make = (data: Record<string, unknown>) => t.prisma.vaultItem.create({ data: { kind: 'photo', body: 'x', fileKey: 'vault/c.jpg', fileName: 'c.jpg', contentType: 'image/jpeg', size: 10, ...data } as never });
+    const draft = await make({ title: 'Calculator', status: 'unconfirmed', licence: 'licensed', licenceNotes: 'Pexels License' });
+    const open = await make({ title: 'Rights open', status: 'confirmed', licence: 'rights_to_confirm' });
+    const noLicence = await make({ title: 'No licence', status: 'confirmed' });
+    const noFile = await make({ title: 'Missing', status: 'unconfirmed', fileKey: null });
     const seen: any[] = [];
-    fake.fetch = async (_url, init) => { seen.push(JSON.parse(String(init?.body))); return anthropicReply({ plan: 'One post.', posts: [goodPost(figure.id, shot.id)] }); };
+    fake.fetch = async (_url, init) => { seen.push(JSON.parse(String(init?.body))); return anthropicReply({ plan: 'One post.', posts: [goodPost(figure.id, draft.id)] }); };
 
-    const result = await runDraftBatch(t.deps, { actorId: editor.id, brief: BRIEF });
+    await expect(runDraftBatch(t.deps, { actorId: editor.id, brief: BRIEF })).rejects.toThrow();
 
     const sent = JSON.stringify(seen[0]);
-    expect(sent).toContain(shot.id);
-    expect(sent).not.toContain(noFile.id);
-    expect(sent).not.toContain(unconfirmed.id);
-    const post = (await t.prisma.post.findFirstOrThrow({ where: { batchId: result.batchId } }));
-    expect((post.design as any).vaultItemId).toBe(shot.id);
-    expect(post.warnings.some((w) => w.includes('not confirmed'))).toBe(true);
+    expect(sent).toContain(photo.id);
+    for (const hidden of [draft, open, noLicence, noFile, unconfirmed]) expect(sent).not.toContain(hidden.id);
+    expect(await t.prisma.batch.count()).toBe(0);
   });
 
   it('is requested through the API for editors, and refused when no provider can draft', async () => {
@@ -343,7 +343,7 @@ describe('activity of the AI jobs', () => {
     await admin.post('/api/settings/ai/providers', { name: 'Claude', kind: 'anthropic', model: 'claude-test-1', apiKey: KEY, tasks: ['draft'], inputPricePerMTok: 3, outputPricePerMTok: 15 });
     await admin.put('/api/settings/ai/budget', { monthlyBudgetUsd: 5 });
     const figure = await t.prisma.vaultItem.create({ data: { kind: 'figure', title: 'Processed volume', body: 'Acme Savings has processed over € 14.8 million.', status: 'confirmed', recordedAt: new Date('2026-11-01') } });
-    const photo = await t.prisma.vaultItem.create({ data: { kind: 'photo', title: 'Market', body: 'A street market.', status: 'confirmed', fileKey: 'vault/market.jpg', fileName: 'market.jpg', contentType: 'image/jpeg', size: 10 } });
+    const photo = await t.prisma.vaultItem.create({ data: { kind: 'photo', title: 'Market', body: 'A street market.', status: 'confirmed', licence: 'own', fileKey: 'vault/market.jpg', fileName: 'market.jpg', contentType: 'image/jpeg', size: 10 } });
     fake.fetch = async () => anthropicReply({
       plan: 'p',
       posts: [{ id: '01-numbers', date: '2026-12-02', title: 'The numbers', caption: 'Trusted with real money, every day.\n\nOver € 14.8 million processed through Acme Savings.\n\n#AcmeSavings #Savings #the region', design: { template: 'photo', series: 'the-numbers', image: `vault:${photo.id}`, headline: 'Trusted with *real money*' }, imageReason: 'A photo of real money, matching the message.', sources: [figure.id] }],
