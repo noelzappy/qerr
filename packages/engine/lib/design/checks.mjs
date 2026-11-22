@@ -315,6 +315,8 @@ export function inkGap(i, f) {
   if (inside) return -Math.min(i.y0 - f.y0, f.y1 - i.y1);
   return Math.hypot(Math.max(f.x0 - i.x1, i.x0 - f.x1, 0), Math.max(f.y0 - i.y1, i.y0 - f.y1, 0));
 }
+// A line of ink allowed to cross the edge of shape f: its text names that shape's key (a to f) or any shape (data-ov="any"). Nothing else is.
+export const crossesOnPurpose = (i, f) => typeof i.ov === 'string' && (i.ov === 'any' || (/^[a-f]$/.test(i.ov) && f.key === i.ov));
 export function findPostProblems(m, { grid } = {}) {
   const problems = [], L = POST_LIMITS, hs = m.hs || 1;
   const limit = Number.isFinite(m.calm) ? Math.max(L.emptyShare, m.calm) : L.emptyShare;
@@ -334,6 +336,8 @@ export function findPostProblems(m, { grid } = {}) {
   for (const i of m.inks ?? []) {
     for (const f of m.shapes ?? []) {
       if ((f.frame ?? '') !== (i.frame ?? '')) continue;
+      // words a look lets cross a shape's edge on purpose (overlap): only that pairing is not judged; every other shape still is
+      if (crossesOnPurpose(i, f)) continue;
       const g = inkGap(i, f);
       if (Math.abs(g) < L.edge) { problems.push({ kind: 'edge', role: i.role, text: i.text, gap: Math.round(Math.abs(g)), inside: g < 0, crossing: g === 0 }); break; }
     }

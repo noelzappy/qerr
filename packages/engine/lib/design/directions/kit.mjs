@@ -8,6 +8,8 @@ import { esc, fmtE, hs, px } from '../../../design/templates/common.mjs';
 import { paletteCss } from './colour.mjs';
 import { fontAlias } from '../font-library.mjs';
 import { ICONS } from '../icons.mjs';
+import { backdropGeometry } from './backdrop-geom.mjs';
+import { BACKDROP_PATTERNS } from '../look-desc.mjs';
 import { INFO_KEYS, INLINE, POST_GALLERY, POST_INFO, seenText, withoutMarks } from '../post-spec.mjs';
 
 // ---- markup that is safe to place in the page ----
@@ -165,7 +167,13 @@ const colour_ = (name) => { if (!COLOUR_NAMES.includes(name)) throw new Error(`d
 // the builders that refuse the old free-string options (extra, cls, attrs)
 const FREE = ['extra', 'cls', 'attrs'];
 const BUILDERS = ['type', 'label', 'body', 'display', 'fitLines', 'group', 'rule', 'block', 'flowBlock', 'folioMark', 'verticalLabel', 'sticker', 'glyph', 'wordmarkPattern', 'numeral', 'seal', 'frame', 'keyline',
-  'photo', 'print', 'box', 'band', 'run', 'shape', 'echoStack', 'fitBlock', 'fitFill', 'fitNumeral', 'scrim', 'gradient', 'overlay', 'graphic', 'tape', 'paper', 'badge'];
+  'photo', 'print', 'box', 'band', 'run', 'shape', 'echoStack', 'fitBlock', 'fitFill', 'fitNumeral', 'scrim', 'gradient', 'overlay', 'graphic', 'tape', 'paper', 'badge', 'backdrop'];
+// how a backdrop fades out: fixed masks, written from this table only
+const BACKDROP_MASK_CSS = Object.freeze({
+  'fade-down': 'linear-gradient(to bottom,#000 30%,transparent 100%)', 'fade-up': 'linear-gradient(to top,#000 30%,transparent 100%)',
+  'fade-left': 'linear-gradient(to left,#000 30%,transparent 100%)', 'fade-right': 'linear-gradient(to right,#000 30%,transparent 100%)',
+  vignette: 'radial-gradient(ellipse at center,#000 30%,transparent 75%)', edges: 'radial-gradient(ellipse at center,transparent 35%,#000 85%)',
+});
 
 // ---- gradients: two or three palette colours, a whole-degree angle or one of nine points; written from these tables only ----
 const GRADIENT_AT = Object.freeze({ center: 'center', top: 'top', bottom: 'bottom', left: 'left', right: 'right', 'left top': 'left top', 'right top': 'right top', 'left bottom': 'left bottom', 'right bottom': 'right bottom' });
@@ -701,6 +709,27 @@ function kitExtras(c, brand, spec) {
     if (o.grain !== undefined && o.grain !== 'fine' && o.grain !== 'coarse') throw new Error('design kit: a paper texture is fine or coarse');
     return `<i class="abs k-paper${o.grain === 'coarse' ? ' k-paper-c' : ''}" aria-hidden="true" data-el data-deco style="${place(o)};opacity:${px(s)}${o.z !== undefined ? `;z-index:${P(o.z, 'z')}` : ''}"></i>`;
   };
+  // A decorative background (decoration): a pattern of palette colours built by backdropGeometry from bounded numbers, as one inline svg of
+  // paths (or, for the blob mesh, radial gradients), at a strength (opacity) from 0.03 to 0.6, optionally fading out by a fixed mask. The grain
+  // is the page's own (paper). It carries data-pattern and its spacing (data-scale): the emptiness check counts it as cover only where the
+  // runtime measures it on the pixels (patternCover). o: x, y, w, h, pattern, colour, second, scale, density, opacity, angle, seed, mask, at,
+  // radius, corners, z.
+  x.backdrop = (o) => {
+    if (!BACKDROP_PATTERNS.includes(o.pattern)) throw new Error('design kit: a backdrop is one of the fixed patterns');
+    if (o.mask !== undefined && o.mask !== 'none' && !Object.hasOwn(BACKDROP_MASK_CSS, o.mask)) throw new Error('design kit: a backdrop fades by one of the fixed masks');
+    const op = n(o.opacity ?? 0.1, 'opacity');
+    if (op < 0.03 || op > 0.6) throw new Error('design kit: a backdrop has a strength from 0.03 to 0.6');
+    const mask = o.mask && o.mask !== 'none' ? `;-webkit-mask-image:${BACKDROP_MASK_CSS[o.mask]};mask-image:${BACKDROP_MASK_CSS[o.mask]}` : '';
+    const z = o.z !== undefined ? `;z-index:${P(o.z, 'z')}` : '', radius = o.radius !== undefined ? `;border-radius:${radiusCss(o.radius, o.corners)}` : '';
+    if (o.pattern === 'grain') return `<i class="abs k-paper k-backdrop${n(o.scale ?? 40, 'scale') > 40 ? ' k-paper-c' : ''}" aria-hidden="true" data-el data-deco style="${place(o)};opacity:${px(Math.max(0.05, op))}${mask}${radius}${z}"></i>`;
+    const w = n(o.w, 'w'), h = n(o.h, 'h');
+    const g = backdropGeometry({ pattern: o.pattern, w, h, scale: o.scale ?? 40, density: o.density ?? 0.5, angle: o.angle ?? 0, seed: o.seed ?? 1, at: o.at, two: o.second !== undefined });
+    const one = colour(o.colour ?? 'accent'), two = o.second !== undefined ? colour(o.second) : one;
+    const head = `<div class="abs k-backdrop" aria-hidden="true" data-el data-deco data-pattern data-scale="${P(Math.round(g.scale), 'scale')}" style="${place(o)};opacity:${px(op)}`;
+    if (g.blobs) return `${head};background:${g.blobs.map((b) => `radial-gradient(circle at ${P(b.x, 'x')}% ${P(b.y, 'y')}%,${b.second ? two : one} 0%,transparent ${P(b.r, 'r')}%)`).join(',')}${mask}${radius}${z}"></div>`;
+    const paths = g.paths.filter((p) => p.d).map((p) => `<path d="${p.d}" style="${p.stroke !== undefined ? `fill:none;stroke:${p.second ? two : one};stroke-width:${px(p.stroke)}px` : `fill:${p.second ? two : one}`}"></path>`).join('');
+    return `${head}${mask}${radius}${z}"><svg class="k-bd-svg" width="${P(w, 'w')}" height="${P(h, 'h')}" viewBox="0 0 ${P(w, 'w')} ${P(h, 'h')}" aria-hidden="true">${paths}</svg></div>`;
+  };
   // A round badge holding one of the engine's icons (decoration, like a small sticker): size px across, fill and ink palette colours, an optional
   // ring and soft shadow, turned by rot. The icon is the engine's own SVG (iconSvg), never data.
   x.badge = (o) => {
@@ -710,6 +739,33 @@ function kitExtras(c, brand, spec) {
       `<i class="k-badge-i" aria-hidden="true" data-deco style="font-size:${px(Math.round(size * 0.58))}px">${iconSvg(o.icon, { colour: o.ink ?? 'on-accent' })}</i>`);
   };
   return x;
+}
+
+// ---- a shape's key and words that cross its edge on purpose (a look's key and overlap): written on the first tag of an element's markup
+// (built by the kit) from these tables only: data-ovk (the shape), data-ov (the words: a key or any), and an outline as a class and two custom
+// properties of a palette colour and whole pixels. The checks read them (runtime postMetrics, measure; checks.mjs crossesOnPurpose). ----
+const SHAPE_KEY = Object.freeze({ a: 'a', b: 'b', c: 'c', d: 'd', e: 'e', f: 'f' });
+const OV_WITH = Object.freeze({ 'any-shape': 'any', ...SHAPE_KEY });
+export function markCrossing(html, el) {
+  const s = String(html);
+  if ((el.key === undefined && el.overlap === undefined) || !s.startsWith('<')) return s;
+  const end = s.indexOf('>');
+  if (end < 0) return s;
+  let tag = s.slice(0, end), add = '';
+  if (el.key !== undefined) { if (!Object.hasOwn(SHAPE_KEY, el.key)) throw new Error('design kit: a shape key is one of a to f'); add += ` data-ovk="${SHAPE_KEY[el.key]}"`; }
+  if (el.overlap !== undefined) {
+    const o = el.overlap;
+    if (!o || o.allow !== true || !Object.hasOwn(OV_WITH, o.with)) throw new Error('design kit: overlap names a shape key or any-shape and allow: true');
+    add += ` data-ov="${OV_WITH[o.with]}"`;
+    if (o.outline !== undefined) {
+      const col = o.outline.colour, w = o.outline.w;
+      if (!COLOUR_NAMES.includes(col) || !Number.isInteger(w) || w < 2 || w > 12) throw new Error('design kit: an outline is a colour role and 2 to 12 px');
+      const vars = `--k-olc:var(--c-${col});--k-olw:${w}px;`;
+      tag = / class="/.test(tag) ? tag.replace(/ class="/, ' class="k-olt ') : `${tag} class="k-olt"`;
+      tag = / style="/.test(tag) ? tag.replace(/ style="/, ` style="${vars}`) : `${tag} style="${vars.slice(0, -1)}"`;
+    }
+  }
+  return tag + add + s.slice(end);
 }
 
 // ======== stable element addresses ========

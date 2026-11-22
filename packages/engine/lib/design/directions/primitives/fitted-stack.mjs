@@ -16,7 +16,7 @@ export const SPEC = {
     padBelowEm: num(0, 0.3, 'Space under each line', 'Extra room under every line in em, for a shadow or a descender (lines mode).'),
     sizes: list(int(24, 400, 'Size', 'Pixels.'), 8, 'Sizes', 'From the largest down; the largest that fits is used (block).', { min: 1 }), align: en(ALIGNS, 'Align', 'Left, centre or right.', 'left'),
   },
-  common: ['place', 'bleed', 'z', 'when', 'ink', 'grow', 'minH', 'w', 'h', 'before', 'nudgeX', 'alignSelf', 'textShadow'],
+  common: ['place', 'bleed', 'z', 'when', 'ink', 'grow', 'minH', 'w', 'h', 'before', 'nudgeX', 'alignSelf', 'textShadow', 'overlap'],
   required: ['mode'],
 };
 

@@ -9,7 +9,7 @@ import {
   LIMITS, LOOK_SCHEMA, ORIGIN, PAGE, PLACE_FORMS, PLACE_MODIFIERS, POST_FIELDS, POST_ITEMS, POST_REQUIRED, REQUIRED_OWN, SECTIONS, SECTION_NAMES, SIZE_RANGE, TEXT_FIELDS, TOP_ONLY, VALIGNS, descriptorOf, keysOf,
 } from './look-elements.mjs';
 import { FILL_ROLES, compositionStaticChecks, gridOf, styleOf } from './look-static.mjs';
-import { VAULT_REF } from './look-desc.mjs';
+import { OVERLAP_MAX, SHAPE_KEYS, VAULT_REF } from './look-desc.mjs';
 import { INLINE, POST_LISTS } from './post-spec.mjs';
 import { PRIMITIVES } from './look-elements.mjs';
 
@@ -466,6 +466,31 @@ function acceptsProblems(a, i, comp, path, ctx, errs) {
   if (!(Number.isInteger(a.maxChars) && a.maxChars >= 1 && a.maxChars <= POST_FIELDS[a.field].max)) push(errs, ctx, `${path}.maxChars`, `must be a whole number of characters from 1 to ${POST_FIELDS[a.field].max}`);
 }
 
+// ---- shape keys and words that cross a shape's edge on purpose (overlap) ----
+// A key names a filled shape (once per composition); an overlap names a key of the same composition (not a box the words sit in) or any-shape,
+// says allow: true, and at most OVERLAP_MAX texts of a composition carry one. Messages quote only the fixed key letters.
+function crossingRules(nodes, ctx, errs) {
+  const keyed = nodes.filter((n) => typeof n.el.key === 'string' && SHAPE_KEYS.includes(n.el.key));
+  const seen = new Set();
+  for (const n of keyed) {
+    if (seen.has(n.el.key)) push(errs, ctx, `${n.path}.key`, `names a shape ${n.el.key}, which another shape of the composition already is; give each shape its own key`);
+    seen.add(n.el.key);
+    const el = n.el;
+    const filled = n.type === 'box' ? el.fill !== undefined || el.gradient !== undefined : n.type === 'sticker' ? (el.shape ?? 'circle') !== 'seal' : n.type === 'icon-badge' ? el.shape !== 'none' : true;
+    if (!filled) push(errs, ctx, `${n.path}.key`, n.type === 'box' ? 'names a box with no fill; only a filled shape has an edge to cross' : 'names a shape the edge check does not judge (a seal, or an icon without its badge)');
+  }
+  const crossing = nodes.filter((n) => n.el.overlap !== undefined && isObj(n.el.overlap));
+  if (crossing.length > OVERLAP_MAX) push(errs, ctx, `${crossing[OVERLAP_MAX].path}.overlap`, `at most ${OVERLAP_MAX} texts of a composition may cross a shape's edge`);
+  for (const n of crossing) {
+    const o = n.el.overlap;
+    if (o.allow !== true) push(errs, ctx, `${n.path}.overlap.allow`, 'must be true; leave overlap out to keep the edge check');
+    if (typeof o.with !== 'string' || o.with === 'any-shape' || !SHAPE_KEYS.includes(o.with)) continue;
+    const target = keyed.find((k) => k.el.key === o.with);
+    if (!target) { push(errs, ctx, `${n.path}.overlap.with`, `names shape ${o.with}, but no shape of the composition has key ${o.with}`); continue; }
+    for (let a = n.parent; a; a = a.parent) if (a === target) { push(errs, ctx, `${n.path}.overlap.with`, `names shape ${o.with}, the box the words sit in; words inside a shape cannot cross its edge (place them on their own)`); break; }
+  }
+}
+
 const COMP_KEYS = ['kind', 'name', 'describe', 'ground', 'fields', 'accepts', 'calm', 'fit', 'elements'];
 
 function compositionProblems(c, i, ctx, errs) {
@@ -544,6 +569,11 @@ function compositionProblems(c, i, ctx, errs) {
   const measures = (x) => (x.type === 'fitted-stack' && (x.el.field ?? 'headline') === 'headline') || (x.type === 'text' && ['headline', 'quote'].includes(x.el.field) && x.el.dropWhenTight !== true);
   if (st.nodes.some((x) => x.type === 'text' && x.el.follow === true) && !st.nodes.some(measures)) push(errs, ctx, `${st.nodes.find((x) => x.type === 'text' && x.el.follow === true).path}.follow`, 'needs a headline text or a fitted headline in the composition to follow');
   if (droppers.length && !st.nodes.some(measures)) push(errs, ctx, `${droppers[0].path}.dropWhenTight`, 'needs a headline text or a fitted headline in the composition to measure');
+  crossingRules(st.nodes, ctx, errs);
+  for (const n of st.nodes.filter((x) => x.type === 'backdrop')) {
+    if (n.parent !== null) push(errs, ctx, n.path, 'a pattern goes at the top of the composition (give it the place of the panel it decorates and a layer)');
+    for (const k of ['colour', 'second']) if (typeof n.el[k] === 'string' && COLOUR_NAMES.includes(n.el[k]) && !ctx.fillRoles.includes(n.el[k])) push(errs, ctx, `${n.path}.${k}`, `must be ${FILL_ROLES_HELP} (${list(ctx.fillRoles)})`);
+  }
   if (errs.length === before) compositionStaticChecks(c, st.nodes, cctx, path, errs, push);
 }
 

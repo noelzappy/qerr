@@ -50,6 +50,7 @@ const ALLOWED_CLASSES = new Set([
   'k-logo', 'logo-inv', 'ly-logo',                                                                         // logoHtml(), only when the brand switched its logo on
   'k-grad', 'k-overlay', 'k-graphic', 'k-tinted',                                                          // gradient(), overlay(), graphic() and a recoloured graphic
   'k-em-b', 'k-ic', 'k-icb', 'k-tape', 'k-paper', 'k-paper-c', 'k-badge-i',                               // EMPH bold, an icon (iconSvg: an icon badge, a row's tile, an icon on a headline's badge), tape(), paper(), badge()
+  'k-backdrop', 'k-bd-svg', 'k-olt',                                                                        // backdrop() and its svg; words crossing a shape with an outline (markCrossing)
 ]);
 // The classes with no rule in kit.css: the page and picture classes live in other sheets (cv, ph, post), the rest are hooks the runtime or the checks read.
 const NO_RULE = new Set(['cv', 'k-multiply', 'k-grain', 'k-em-n', 'k-shape-circle', 'k-shape-pill', 'k-shape-tile', 'k-numeral-n', 'k-numeral-u', 'logo-inv', 'ly-logo']);
@@ -82,6 +83,14 @@ const STOP = `${VAR} \\d{1,3}%`, GRAD_AT = '(?:center|top|bottom|left|right|left
 GRAMMAR.background = `(?:${VAR}|linear-gradient\\(\\d{1,3}deg,${STOP}(?:,${STOP}){1,2}\\)|radial-gradient\\((?:circle|ellipse) at ${GRAD_AT},${STOP}(?:,${STOP}){1,2}\\))`;
 GRAMMAR.transform = `(?:rotate\\(${NUM}deg\\)(?: skewX\\(${NUM}deg\\)| scaleX\\(-1\\))?|scaleX\\(-1\\))`;
 GRAMMAR.filter = `drop-shadow\\(${PXV} 0 0 ${VAR}\\)`;
+// a backdrop: its paths (a palette fill, or a palette stroke of whole pixels), its fixed fade masks, its blob mesh (two to four radial blobs of
+// palette roles at whole percentages); words crossing a shape with an outline: a palette colour and whole pixels as two custom properties
+const MASK = '(?:linear-gradient\\(to (?:bottom|top|left|right),#000 30%,transparent 100%\\)|radial-gradient\\(ellipse at center,#000 30%,transparent 75%\\)|radial-gradient\\(ellipse at center,transparent 35%,#000 85%\\))';
+GRAMMAR['-webkit-mask-image'] = `(?:${GRAMMAR['-webkit-mask-image']}|${MASK})`; GRAMMAR['mask-image'] = `(?:${GRAMMAR['mask-image']}|${MASK})`;
+GRAMMAR.fill = `(?:${VAR}|none)`; GRAMMAR.stroke = VAR; GRAMMAR['stroke-width'] = PXV;
+const BLOB = `radial-gradient\\(circle at \\d{1,3}% \\d{1,3}%,${VAR} 0%,transparent \\d{1,3}%\\)`;
+GRAMMAR.background = `(?:${GRAMMAR.background}|${BLOB}(?:,${BLOB}){1,3})`;
+GRAMMAR['--k-olc'] = VAR; GRAMMAR['--k-olw'] = PXV;
 const RULES = Object.fromEntries(Object.entries(GRAMMAR).map(([k, v]) => [k, new RegExp(`^${v}$`)]));
 const FONT_TOKEN = /^(?:'[A-Za-z0-9 ]{1,40}'|[A-Za-z-]{1,20})$/;
 const fontStackOk = (v) => { const rest = v.replace(/^var\(--(?:display|label|font|mono)\),/, ''); return rest !== '' && rest.split(',').every((t) => FONT_TOKEN.test(t)); };
@@ -286,12 +295,15 @@ function bindingLook() {
     elements: [
       { type: 'paper-texture', place: { inset: 'page' }, strength: 0.3, grain: 'coarse' },
       { type: 'taped-photo', place: G(8, 5, 7, 1), rot: -4, mount: 12, fill: 'paper-warm', keyline: 3, tapeOn: 'all', tapeColour: 'muted', tapeLength: 120, tapeWidth: 36, treat: ['grey'], shadow: 'soft' },
-      { type: 'icon-badge', icon: 'heart', size: 46, badge: 80, fill: 'gold', ink: 'on-accent', ring: { w: 4, colour: 'paper' }, shadow: 'soft', rot: 'sticker', place: { px: { x: 900, y: 40 } } },
+      { type: 'icon-badge', icon: 'heart', size: 46, badge: 80, fill: 'gold', ink: 'on-accent', ring: { w: 4, colour: 'paper' }, shadow: 'soft', rot: 'sticker', place: { px: { x: 900, y: 40 } }, key: 'a' },
+      { type: 'backdrop', pattern: 'dots', colour: 'field', scale: 30, density: 0.4, opacity: 0.12, angle: 30, mask: 'fade-down', place: { inset: 'page' } },
+      { type: 'block', colour: 'dark', place: { px: { x: 600, y: 1150, w: 424, h: 150 } }, key: 'b' },
+      T('label', { style: 'label', ink: 'paper', overlap: { with: 'b', allow: true, outline: { colour: 'ink', w: 3 } } }, { px: { x: 400, y: 1180 } }),
       { type: 'meta-row', tone: 'ink' },
       { type: 'numeral', field: 'big', sizes: [320, 280, 240], unit: { field: 'unit', style: 'body', at: 'top-right' }, baselineAt: 'page', place: G(1, 12, 2, 5) },
       T('big', { style: 'label', format: 'pad2' }, G(1, 3, 7, 1)),
       T('big', { style: 'label', format: 'roman' }, G(4, 3, 7, 1)),
-      T('headline', { style: 'display', ladder: { by: 'headline', steps: [[30, 36], [70, 30]], maxLines: 3 }, emphasis: 'bold', icons: { colour: 'on-field', badge: 'field' } }, G(1, 12, 8, 1)),
+      T('headline', { style: 'display', ladder: { by: 'headline', steps: [[30, 36], [70, 30]], maxLines: 3 }, emphasis: 'bold', icons: { colour: 'on-field', badge: 'field' }, overlap: { with: 'a', allow: true } }, G(1, 12, 8, 1)),
     ] });
   // ---- list ----
   c.push({ kind: 'list', name: 'Tiles', describe: 'A fitted headline in block mode, numbered rows on tiles with alternating fills and turns.', ground: 'field',
@@ -425,7 +437,8 @@ function bindingLook() {
       { type: 'sticker', shape: 'seal', size: 180, field: 'label', place: { px: { x: 400, y: 1000 } }, ink: 'ink' },
       { type: 'rule', weight: 4, colour: 'ink', place: { px: { x: 56, y: 1250, w: 968 } } },
       { type: 'graphic', ref: GRAPHIC_REF, at: 'bottom-right', size: 's', rot: -4, flip: true, tint: 'paper', z: 1 },
-      { type: 'box', place: { px: { x: 56, y: 1100, w: 300, h: 100 } }, gradient: { kind: 'radial', stops: ['paper', 'soft'], at: 'left top', shape: 'circle' } },
+      { type: 'box', place: { px: { x: 56, y: 1100, w: 300, h: 100 } }, gradient: { kind: 'radial', stops: ['paper', 'soft'], at: 'left top', shape: 'circle' }, key: 'c' },
+      { type: 'backdrop', pattern: 'blobs', colour: 'paper', second: 'soft', scale: 160, density: 1, opacity: 0.4, seed: 42, place: { px: { x: 56, y: 40, w: 968, h: 600 } }, radius: 40 },
     ] });
   look.compositions = c;
   return clone(look);

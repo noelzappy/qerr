@@ -30,6 +30,16 @@ const WORD = { item: 'list item', meta: 'meta line', folio: 'folio', url: 'websi
 const MIN_SCALE = 0.62;
 const PUSHED = new Set(['panel', 'outside', 'avoid']);
 const parseRgb = (c) => { const m = c.match(/[\d.]+/g).map(Number); return luminance(m[0], m[1], m[2]); };
+// The contrast of one measured part of a text over the pixels behind it (stat: the 5th and 95th percentile luminance of those pixels): light text
+// against the brightest, dark text against the darkest. Words with an outline (a look's overlap.outline, at least 3% of their size wide) may
+// instead read by the outline: the outline must reach the same target on those pixels AND the letters on the outline; the better way counts.
+export function partContrast(r, stat, target) {
+  const tl = parseRgb(r.color), against = (l) => contrastRatio(l, l >= 0.18 ? stat.p95 : stat.p05);
+  const plain = against(tl);
+  if (!r.outline || !(r.outline.w >= 0.03 * r.size) || !/rgb/.test(String(r.outline.color))) return plain;
+  const ol = parseRgb(r.outline.color), outlined = Math.min(against(ol), contrastRatio(tl, ol));
+  return plain >= target ? plain : Math.max(plain, outlined);
+}
 
 // A phone screen is always a pre-framed capture: the tool never draws a phone around a plain screenshot.
 const isPhoneScreen = (spec, layout) => (spec.template === 'screen' && (spec.device ?? 'phone') === 'phone') || spec.template === 'product' || (layout ? layoutUsesPhone(layout) : false);
@@ -196,7 +206,15 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
 
     // 1b. A post's design checks: emptiness, scale, levels of type and the grid (checks.mjs findPostProblems).
     if (isPost) {
-      const pm = await page.evaluate('window.__ds.postMetrics()');
+      // a decorative pattern covers the page only where its pixels show it, read against the page colour with everything else hidden
+      let patternCells = [];
+      if (await page.evaluate('window.__ds.hasPatterns()')) {
+        await page.evaluate('window.__ds.patternMode(true)');
+        const shot = await page.screenshotPng();
+        await page.evaluate('window.__ds.patternMode(false)');
+        patternCells = await page.evaluate(`window.__ds.patternCover(${JSON.stringify(shot.toString('base64'))})`);
+      }
+      const pm = await page.evaluate(`window.__ds.postMetrics(${JSON.stringify({ patternCells })})`);
       postEls = pm.els;
       const bad = findPostProblems(pm, { grid: out.post.grid });
       if (bad.length) throw new DesignError(explainPostProblems(bad, out.post));
@@ -218,17 +236,18 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
       await page.evaluate('window.__ds.hide(true)');
       const png = await page.screenshotPng();
       await page.evaluate('window.__ds.hide(false)');
-      const stats = await page.evaluate(`window.__ds.analyse(${JSON.stringify(png.toString('base64'))}, ${JSON.stringify(checked.map((r) => r.rects))})`);
+      // words that cross a shape's edge on purpose (a look's overlap) are judged part by part: each side of the edge on its own pixels
+      const samples = checked.flatMap((r) => (r.parts && r.parts.length ? r.parts : [r.rects]).map((rects) => ({ r, rects })));
+      const stats = await page.evaluate(`window.__ds.analyse(${JSON.stringify(png.toString('base64'))}, ${JSON.stringify(samples.map((x) => x.rects))})`);
       const failing = [];
       ratios = {};
-      checked.forEach((r, i) => {
+      samples.forEach(({ r }, i) => {
         if (!stats[i]) return;
-        const tl = parseRgb(r.color);
-        const ratio = contrastRatio(tl, tl >= 0.18 ? stats[i].p95 : stats[i].p05);
         const key = THRESHOLD_KEY[r.role];
-        ratios[key] = Math.min(ratios[key] ?? Infinity, ratio);
         const target = isPost ? postContrastNeed(brand, key, { size: r.size, weight: r.weight }) : need(key);
-        if (ratio < target) failing.push({ role: r.role, key, ratio, need: target });
+        const ratio = partContrast(r, stats[i], target);
+        ratios[key] = Math.min(ratios[key] ?? Infinity, ratio);
+        if (ratio < target && !failing.some((f) => f.r === r && f.ratio <= ratio)) { const k = failing.findIndex((f) => f.r === r); if (k >= 0) failing.splice(k, 1); failing.push({ r, role: r.role, key, ratio, need: target }); }
       });
       const body = failing.filter((f) => f.key !== 'url');
       if (isPhoto && spec.scrim !== 'none' && body.length && peak < brand.photo.scrimCap - 1e-9) {

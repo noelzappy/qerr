@@ -15,7 +15,7 @@ export const SPEC = {
     shape: en(BADGE_SHAPES, 'Badge', 'A round badge, a badge with rounded corners, or the icon alone.', 'circle'),
     badge: int(40, 600, 'Badge size', 'The side of the badge in pixels (about twice the icon when left out); larger than the icon.'),
   },
-  common: ['place', 'rot', 'z', 'when', 'fill', 'ink', 'ring', 'shadow', 'before', 'nudgeX', 'alignSelf'],
+  common: ['place', 'rot', 'z', 'when', 'fill', 'ink', 'ring', 'shadow', 'before', 'nudgeX', 'alignSelf', 'key'],
   required: ['icon'],
 };
 

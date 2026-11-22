@@ -400,6 +400,8 @@ window.__ds = {
     const mark = (r, grow) => { const x0 = Math.max(0, Math.floor((r.x0 - grow) / cell)), x1 = Math.min(cols - 1, Math.floor((r.x1 + grow - 0.01) / cell)), y0 = Math.max(0, Math.floor((r.y0 - grow) / cell)), y1 = Math.min(rows - 1, Math.floor((r.y1 + grow - 0.01) / cell)); for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) cov[y * cols + x] = 1; };
     for (const t of texts) for (const r of t.rects) mark(r, 10);
     for (const el of document.querySelectorAll('img[data-user], [data-fill]')) { const b = el.getBoundingClientRect(); if (b.width > 1 && b.height > 1) mark(box(b), 0); }
+    // a decorative pattern covers only the 20 px cells where the page's pixels show it (patternCover, measured by the renderer)
+    for (const k of (o && Array.isArray(o.patternCells) ? o.patternCells : [])) if (Number.isInteger(k) && k >= 0 && k < cov.length) cov[k] = 1;
     // the largest empty rectangle (histogram method)
     const hgt = new Int32Array(cols); let bestA = 0, bx = 0, by = 0, bw = 0, bh = 0;
     for (let y = 0; y < rows; y++) {
@@ -439,6 +441,8 @@ window.__ds = {
       const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.display === 'none') continue;
       const rr = el.closest('[data-role]'), role = rr ? rr.dataset.role : '';
       if (role === 'logo') continue;
+      // words a look lets cross the edge of a shape on purpose (overlap: data-ov, "any" or the shape's key)
+      const ovEl = el.closest('[data-ov]'), ov = ovEl ? ovEl.getAttribute('data-ov') : '';
       ctx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
       const lines = [], g = document.createRange(), txt = n.nodeValue;
       for (let i = 0; i < txt.length; i++) {
@@ -449,14 +453,14 @@ window.__ds = {
       }
       for (const L of lines) {
         const mt = ctx.measureText(L.s), top = L.y0 + (mt.fontBoundingBoxAscent ?? (L.y1 - L.y0) * 0.8);
-        inks.push({ role, frame: tiltKey(el), text: L.s.trim().slice(0, 30), x0: L.x0, x1: L.x1, y0: top - mt.actualBoundingBoxAscent, y1: top + mt.actualBoundingBoxDescent });
+        inks.push({ role, frame: tiltKey(el), text: L.s.trim().slice(0, 30), x0: L.x0, x1: L.x1, y0: top - mt.actualBoundingBoxAscent, y1: top + mt.actualBoundingBoxDescent, ...(ov ? { ov } : {}) });
       }
     }
     const SKIP_SHAPE = '.k-frame,.k-keyline,.k-seal,.k-printmat,.k-echo';
     // a shape counts when it can be seen: a colour other than the page's, or a picture behind it (a paper box on a paper page is only a layout box)
     const pageBg = getComputedStyle(document.querySelector('.cv') || document.body).backgroundColor, pics = [...document.querySelectorAll('img')].map((i) => box(i.getBoundingClientRect()));
     const seen = (el, b) => { const bg = getComputedStyle(el).backgroundColor; if (/^rgba\(.*, 0\)$/.test(bg) || bg === 'transparent') return true; return bg !== pageBg || pics.some((p) => Math.min(p.x1, b.right) > Math.max(p.x0, b.left) && Math.min(p.y1, b.bottom) > Math.max(p.y0, b.top)); };
-    const shapes = [...document.querySelectorAll('[data-fill]')].filter((el) => !el.matches(SKIP_SHAPE) && !turned(el) && getComputedStyle(el).clipPath === 'none' && seen(el, el.getBoundingClientRect())).map((el) => ({ ...box(el.getBoundingClientRect()), frame: tiltKey(el) })).filter((b) => b.x1 - b.x0 > 0.5 && b.y1 - b.y0 > 0.5 && !(b.x1 - b.x0 >= W * 0.97 && b.y1 - b.y0 >= H * 0.97));
+    const shapes = [...document.querySelectorAll('[data-fill]')].filter((el) => !el.matches(SKIP_SHAPE) && !turned(el) && getComputedStyle(el).clipPath === 'none' && seen(el, el.getBoundingClientRect())).map((el) => ({ ...box(el.getBoundingClientRect()), frame: tiltKey(el), ...(el.hasAttribute('data-ovk') ? { key: el.getAttribute('data-ovk') } : {}) })).filter((b) => b.x1 - b.x0 > 0.5 && b.y1 - b.y0 > 0.5 && !(b.x1 - b.x0 >= W * 0.97 && b.y1 - b.y0 >= H * 0.97));
     for (const [e, t] of tilts) e.style.transform = t;
     const calm = document.querySelector('[data-calm]');
     // a rectangle for every element a builder marked (kit numberElements): { el: "2.0", x0, y0, x1, y1 } in document order, keyed by its index path
@@ -501,12 +505,37 @@ window.__ds = {
     };
     const rectsT = (el) => { const rs = rectsOf(el), a = tiltOf(el); return a ? rs.flatMap((r) => slices(r, a)) : rs; };
     const avoidEls = [...document.querySelectorAll('[data-avoid]')], objEls = [...document.querySelectorAll('[data-obj]')];
+    // Words a look lets cross the edge of a shape (data-ov) are measured for contrast PART BY PART: their rectangles are cut at the edges of
+    // the shapes they may cross, and each side (inside each shape, outside all of them) is judged on its own pixels, so text running from a
+    // dark panel onto a light page must read on both.
+    const ovShapes = (ov) => [...document.querySelectorAll(ov === 'any' ? '[data-fill]' : '[data-ovk="' + (/^[a-f]$/.test(ov) ? ov : '-') + '"]')].map((e) => box(e.getBoundingClientRect())).filter((b) => b.x1 - b.x0 > 1 && b.y1 - b.y0 > 1);
+    const partsOf = (rects, ov) => {
+      const shapes = ovShapes(ov);
+      let pieces = rects.map((r) => ({ r, tag: '' }));
+      shapes.forEach((S, k) => {
+        const next = [];
+        for (const p of pieces) {
+          const r = p.r, ix0 = Math.max(r.x0, S.x0), ix1 = Math.min(r.x1, S.x1), iy0 = Math.max(r.y0, S.y0), iy1 = Math.min(r.y1, S.y1);
+          if (ix1 - ix0 <= 0 || iy1 - iy0 <= 0) { next.push(p); continue; }
+          next.push({ r: { x0: ix0, x1: ix1, y0: iy0, y1: iy1 }, tag: p.tag + '.' + k });
+          for (const o of [{ x0: r.x0, x1: r.x1, y0: r.y0, y1: iy0 }, { x0: r.x0, x1: r.x1, y0: iy1, y1: r.y1 }, { x0: r.x0, x1: ix0, y0: iy0, y1: iy1 }, { x0: ix1, x1: r.x1, y0: iy0, y1: iy1 }]) if (o.x1 - o.x0 >= 2 && o.y1 - o.y0 >= 2) next.push({ r: o, tag: p.tag });
+        }
+        pieces = next;
+      });
+      const groups = {};
+      for (const p of pieces) if (p.r.x1 - p.r.x0 >= 2 && p.r.y1 - p.r.y0 >= 2) (groups[p.tag] = groups[p.tag] || []).push(p.r);
+      return Object.values(groups);
+    };
     const roles = [...document.querySelectorAll('[data-role]')].map((el, i) => {
       // An SVG figure and the poster logo's wordmark (a picture with no text in it) are measured on their box.
       const svg = el instanceof SVGElement, cs = getComputedStyle(el), whole = svg || el.dataset.role === 'logo';
       const b = whole ? el.getBoundingClientRect() : null;
+      const rects = whole ? (b.width > 1 && b.height > 1 ? [box(b)] : []) : rectsT(el), ovEl = whole ? null : el.closest('[data-ov]');
+      // an outline round the letters (overlap.outline): its colour and width, for the contrast of each part
+      const olw = ovEl && el.closest('.k-olt') ? parseFloat(cs.webkitTextStrokeWidth) || 0 : 0;
       return {
-        i, role: el.dataset.role, rects: whole ? (b.width > 1 && b.height > 1 ? [box(b)] : []) : rectsT(el), color: svg ? cs.fill : cs.color,
+        i, role: el.dataset.role, rects, color: svg ? cs.fill : cs.color,
+        ...(ovEl ? { parts: partsOf(rects, ovEl.getAttribute('data-ov')) } : {}), ...(olw > 0 ? { outline: { color: cs.webkitTextStrokeColor, w: olw } } : {}),
         overX: svg ? 0 : el.scrollWidth - el.clientWidth, text: (el.getAttribute('aria-label') || el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 50),
         size: parseFloat(cs.fontSize), weight: parseInt(cs.fontWeight, 10) || 400, optical: parseFloat(el.closest('[data-optical]')?.dataset.optical) || 0, min: +(el.dataset.min || 0), nested: !!(el.parentElement && el.parentElement.closest('[data-role]')),
         onpanel: el.hasAttribute('data-onpanel'), inAvoid: avoidEls.map((a, k) => (a.contains(el) ? k : -1)).filter((k) => k >= 0),
@@ -766,6 +795,39 @@ window.__ds = {
       el.style.height = h + 'px'; el.dataset.alpha = alpha.toFixed(2);
       el.style.background = 'linear-gradient(to bottom,' + rgba(alpha) + ' 0,' + rgba(alpha) + ' ' + Math.max(hold, 24) + 'px,' + rgba(0) + ' ' + h + 'px)';
     }
+  },
+  // Decorative patterns (kit backdrop, [data-pattern]) for the emptiness check: hasPatterns() says whether the page has one; patternMode(true)
+  // hides everything but the patterns, so a screenshot shows each on the page colour alone; patternCover(b64) reads that screenshot and returns
+  // the 20 px cells of the postMetrics grid where a pattern is visible: in a window round the cell (twice the pattern's spacing, inside the
+  // pattern's box) the brightest and darkest 5% of the pixels differ by at least PATTERN_SEEN:1. A quiet pattern stays empty space.
+  hasPatterns() { return !!document.querySelector('[data-pattern]'); },
+  patternMode(on) { document.documentElement.classList.toggle('measure-pattern', !!on); },
+  async patternCover(b64) {
+    const SEEN = 1.5, cell = 20, W = innerWidth, H = innerHeight, cols = Math.ceil(W / cell), rows = Math.ceil(H / cell);
+    const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+    const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+    const x = cv.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0);
+    const d = x.getImageData(0, 0, cv.width, cv.height).data, lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const L = new Float32Array(cv.width * cv.height);
+    for (let i = 0, k = 0; k < L.length; i += 4, k++) L[k] = 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]);
+    const out = new Set();
+    for (const el of document.querySelectorAll('[data-pattern]')) {
+      const b = el.getBoundingClientRect(), bx0 = Math.max(0, b.left), by0 = Math.max(0, b.top), bx1 = Math.min(cv.width, b.right), by1 = Math.min(cv.height, b.bottom);
+      if (bx1 - bx0 < 2 || by1 - by0 < 2) continue;
+      const half = Math.min(120, Math.max(20, +el.getAttribute('data-scale') || 40));
+      for (let cy = Math.floor(by0 / cell); cy < Math.min(rows, Math.ceil(by1 / cell)); cy++) for (let cx = Math.floor(bx0 / cell); cx < Math.min(cols, Math.ceil(bx1 / cell)); cx++) {
+        const mx = cx * cell + cell / 2, my = cy * cell + cell / 2;
+        if (mx < bx0 || mx > bx1 || my < by0 || my > by1) continue;
+        const x0 = Math.max(bx0, mx - half), x1 = Math.min(bx1, mx + half), y0 = Math.max(by0, my - half), y1 = Math.min(by1, my + half);
+        const step = Math.max(1, Math.floor(Math.sqrt(((x1 - x0) * (y1 - y0)) / 900))), s = [];
+        for (let yy = Math.floor(y0); yy < y1; yy += step) for (let xx = Math.floor(x0); xx < x1; xx += step) s.push(L[yy * cv.width + xx]);
+        if (s.length < 9) continue;
+        s.sort((a, c) => a - c);
+        const lo = s[Math.round(0.05 * (s.length - 1))], hi = s[Math.round(0.95 * (s.length - 1))];
+        if ((hi + 0.05) / (lo + 0.05) >= SEEN) out.add(cy * cols + cx);
+      }
+    }
+    return [...out];
   },
   async analyse(b64, rects) {
     const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
