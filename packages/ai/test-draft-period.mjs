@@ -189,6 +189,7 @@ test('the draft prompt has its own Occasions and Tools sections', () => {
     const p = loadPrompt('draft', { direction });
     assert.match(p.text, /# Occasions\n/);
     assert.match(p.text, /never say or imply that the brand does something for an occasion/i);
+    assert.match(p.text, /at least one post in four takes one of the occasions/);
     assert.match(p.text, /# Tools\n/);
     assert.match(p.text, /`search_facts`/);
     assert.match(p.text, /`found`/);

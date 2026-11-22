@@ -208,7 +208,7 @@ For a look written as data the kinds come from the engine's `lookBrief` instead,
 (`variant`, `name`, `describe` and the variant's own `fields`).
 
 `prompts/draft.md` is one file; the parts that differ are between `<!-- if direction -->`, `<!-- else -->` and `<!-- end -->`
-lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-19`, serves both kinds of brand and a brand without a
+lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-20`, serves both kinds of brand and a brand without a
 direction gets what it got under `draft-11`, except for the confirmed-only rule. The direction part teaches: choose the kind from
 the content (a number is a `figure`; steps or reasons a `list`; a date and place an `event`; a price or "new" an `offer`; a picture
 that carries the post a `photo`; a house line a `quote`; otherwise a `statement`); write to the budgets (headline at most 70, aim
@@ -280,7 +280,9 @@ a picture-less design is for a post no unused photo fits. Whether a look can dra
 own: the shipped Clean look, for example, draws pictures only in its `photo` and `offer` designs.
 
 `draft-19` adds two sections of its own at the end, `# Occasions` and `# Tools` (see "Occasions" and "Tools while drafting" below);
-nothing else in the prompt changed.
+nothing else in the prompt changed. A live December draft with `draft-19` used none of the occasions it was given, so `draft-20` asks
+for at least one post in four to take an occasion when one fits, says a seasonal post still stands on a cited fact, and asks `plan` to
+name the occasions used and why any were left out.
 
 A batch is not one template filled in again and again: `comboProblems` in `postcheck.mjs` refuses a post whose design (its kind and
 named variant; a kind in all its variants when none is named) the batch already uses as often as the limit allows: 2, or a fifth of
@@ -451,7 +453,7 @@ number absent from the pages, or duplicate a vault item or an earlier candidate.
 ## Prompts
 
 `packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`, `brand-site.md`, `picture.md`. They are brand-neutral: they read the `brand` brief above.
-The first line is `<!-- version: draft-19 -->` (now `draft-19`, `rewrite-7`); the version is returned in `notes.promptVersion`. Change a prompt by editing
+The first line is `<!-- version: draft-20 -->` (now `draft-20`, `rewrite-7`); the version is returned in `notes.promptVersion`. Change a prompt by editing
 the file, bumping its version and reviewing the diff. Tests pin the versions' format only, not the wording.
 
 A brand pack can replace any of them with its own `prompts/<name>.md` (for example `brands/acme/prompts/draft.md`), with
