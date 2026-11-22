@@ -99,7 +99,8 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   item's `role` is chosen when it is made and may be changed on the picture's page ("Use as"; `PATCH /api/vault/:id` with `role`,
   which checks the stored file and makes the item unconfirmed again; only a graphic may be marked recolourable, `tintable`). A
   cut-out or graphic must be a PNG or WebP with an alpha
-  channel, at least 256 px on its longer side (`services/image-header.ts`, which reads only the file header). The upload page
+  channel, at least 256 px on its longer side (`services/image-header.ts`, which reads only the file header). Any picture, whatever its
+  role, is refused above 16384 px on a side or 100 megapixels (a small file claiming a huge canvas would make Chrome decode it). The upload page
   asks `POST /api/vault/file-check?role=` (multipart, nothing stored) before it makes an item, so a refused file leaves no empty
   item; `POST /api/vault/:id/file` checks again. `GET /api/vault/graphics` is the compact list of cut-outs and graphics the
   look editor offers; a cut-out or graphic a post or look still uses cannot be deleted (`services/graphics.ts`). The AI is
