@@ -483,9 +483,15 @@ window.__ds = {
       }
       const g = document.createRange(); g.selectNodeContents(el);
       const rs = [...g.getClientRects()].filter((b) => b.width > 1 && b.height > 1).map(box);
-      // a phrase on a marker highlight bar (.k-hl, a bar as tall as the capitals) is judged on the band the bar covers: the middle 65%; so are
-      // the words in a pill (.k-pl), whose text box can be taller than the pill in a display face with tall ascent and descent (Anton)
-      if (el.parentElement && (el.parentElement.classList.contains('k-hl') || el.parentElement.classList.contains('k-pl'))) { const half = 0.325 * parseFloat(getComputedStyle(el).fontSize); for (const r of rs) { const c = (r.y0 + r.y1) / 2; r.y0 = c - half; r.y1 = c + half; } }
+      // a phrase on a marker highlight bar (.k-hl, a bar as tall as the capitals) is judged on the band the bar covers: the middle 65%
+      if (el.parentElement && el.parentElement.classList.contains('k-hl')) { const half = 0.325 * parseFloat(getComputedStyle(el).fontSize); for (const r of rs) { const c = (r.y0 + r.y1) / 2; r.y0 = c - half; r.y1 = c + half; } }
+      // the words of a headline pill (.k-pl) are judged on the pill they sit on: a face with a tall ascent and descent (Anton) has a text
+      // rectangle taller than the pill, whose edges would otherwise read the page round the pill as the words' background
+      if (el.parentElement && el.parentElement.classList.contains('k-pl')) {
+        const p = el.parentElement.getBoundingClientRect();
+        for (const r of rs) { r.y0 = Math.max(r.y0, p.top); r.y1 = Math.min(r.y1, p.bottom); r.x0 = Math.max(r.x0, p.left); r.x1 = Math.min(r.x1, p.right); }
+        return rs.filter((r) => r.x1 - r.x0 > 1 && r.y1 - r.y0 > 1);
+      }
       return rs;
     };
     // A text inside a turned box ([data-tilt] = degrees, kit c.box) reports the bounding box of each of its lines, whose corners reach

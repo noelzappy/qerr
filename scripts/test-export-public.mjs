@@ -53,6 +53,7 @@ test('the fictional Pennyhive and Tallyho packs are public like the demo, and a 
     assert.ok(fs.existsSync(path.join(out, 'brands/tallyho/brand.json')));
     assert.equal(isPrivatePack('brands/tallyho/brand.json'), false);
     assert.equal(isPrivatePack('brands/northbeam/brand.json'), false);
+    assert.equal(isPrivatePack('brands/outabout/brand.json'), false);
   } finally { fs.rmSync(root, { recursive: true, force: true }); fs.rmSync(path.dirname(out), { recursive: true, force: true }); }
 });
 

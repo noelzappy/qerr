@@ -284,9 +284,9 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
 
 // ---- the engine's own looks, written as data ----
 export { lookBrief };
-const SHIPPED_IDS = Object.freeze(['retail', 'swiss', 'soft', 'bloom', 'clean', 'loud', 'ledger', 'studio', 'roast', 'plate']);
+const SHIPPED_IDS = Object.freeze(['retail', 'swiss', 'soft', 'bloom', 'clean', 'loud', 'ledger', 'studio', 'roast', 'plate', 'guide']);
 let shipped = null;
-// The shipped looks (lib/design/looks/<id>.look.json), read once, validated as shipped looks and deep frozen: { retail, swiss, soft, bloom, clean, loud, ledger, studio, roast, plate } as the raw look
+// The shipped looks (lib/design/looks/<id>.look.json), read once, validated as shipped looks and deep frozen: { retail, swiss, soft, bloom, clean, loud, ledger, studio, roast, plate, guide } as the raw look
 // data (origin "shipped"). A brand copies one into brand.looks (origin "copy:shipped:<id>") to change it; draw one with
 // renderPostWithLook(look, spec, ctx, { shipped: true }). A shipped file the validator refuses is an engine bug, so it throws.
 export function shippedLooks() {

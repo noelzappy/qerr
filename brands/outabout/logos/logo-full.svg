@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1792" height="338" viewBox="0 0 1792 338" role="img" aria-label="Outabout">
+  <circle cx="169" cy="169" r="148.7" fill="#0D0D0D"/>
+  <circle cx="169" cy="169" r="67.6" fill="none" stroke="#FF7A1F" stroke-width="33.8"/>
+  <circle cx="236.6" cy="101.4" r="25.3" fill="#FF7A1F"/>
+  <circle cx="472" cy="182" r="60" fill="none" stroke="#0D0D0D" stroke-width="40"/>
+  <line x1="602" y1="122" x2="602" y2="182" stroke="#0D0D0D" stroke-width="40" stroke-linecap="round"/>
+  <path d="M722 182 A60 60 0 0 1 602 182" fill="none" stroke="#0D0D0D" stroke-width="40" stroke-linecap="round"/>
+  <line x1="722" y1="122" x2="722" y2="242" stroke="#0D0D0D" stroke-width="40" stroke-linecap="round"/>
+  <line x1="822" y1="242" x2="822" y2="73.2" stroke="#0D0D0D" stroke-width="40" stroke-linecap="round"/>
+  <line x1="788" y1="122" x2="864" y2="122" stroke="#0D0D0D" stroke-width="40" stroke-linecap="round"/>
+  <circle cx="994" cy="182" r="60" fill="none" stroke="#0D0D0D" stroke-width="40"/>
+  <line x1="1054" y1="242" x2="1054" y2="122" stroke="#0D0D0D" stroke-width="40" stroke-linecap="round"/>
+  <line x1="1124" y1="242" x2="1124" y2="50" stroke="#0D0D0D" stroke-width="40" stroke-linecap="round"/>
+  <circle cx="1184" cy="182" r="60" fill="none" stroke="#0D0D0D" stroke-width="40"/>
+  <circle cx="1374" cy="182" r="60" fill="none" stroke="#0D0D0D" stroke-width="40"/>
+  <line x1="1504" y1="122" x2="1504" y2="182" stroke="#0D0D0D" stroke-width="40" stroke-linecap="round"/>
+  <path d="M1624 182 A60 60 0 0 1 1504 182" fill="none" stroke="#0D0D0D" stroke-width="40" stroke-linecap="round"/>
+  <line x1="1624" y1="122" x2="1624" y2="242" stroke="#0D0D0D" stroke-width="40" stroke-linecap="round"/>
+  <line x1="1724" y1="242" x2="1724" y2="73.2" stroke="#0D0D0D" stroke-width="40" stroke-linecap="round"/>
+  <line x1="1690" y1="122" x2="1766" y2="122" stroke="#0D0D0D" stroke-width="40" stroke-linecap="round"/>
+</svg>
