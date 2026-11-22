@@ -3,8 +3,6 @@
 //   GET    /                      the settings in force, whether they are saved, the logos, the font and the contrast checks
 //   PUT    /                      save the settings (checked by the engine's own brand validator before they are stored)
 //   POST   /preview               what unsaved settings would give: the page colours, the contrast checks, the adjusted colours
-//   POST   /direction-samples     { settings, direction }: sample posts (a statement, a figure, a photo or a second statement, a list)
-//                                 drawn in that design direction with the brand as it would be saved; nothing is saved
 //   PUT    /advanced              a brand.json fragment and the optional dot map, for people who know the engine's brand file
 //   POST   /logo/:which           the full logo or the mark (PNG); :which is full | mark
 //   GET    /logo/:which           the uploaded file
@@ -37,10 +35,8 @@ import { requireRole, requireUser } from '../middleware.js';
 import { enqueueTracked } from '../services/activity.js';
 import {
   advancedSchema, applyProposal, assetsOf, baseBrand, bodyFont, brandFromProfile, fontFileKeys, proposalOf, brandProblems, brandSettingsSchema, contrastChecks, explicitRoles, paletteChanges, currentSettings, mapProblems, splitPackBrand, syncBrand,
-  DIRECTIONS, familyWeightsOf, nearestWeights, storedWeights, type AssetFont, type BrandAssets,
+  familyWeightsOf, nearestWeights, storedWeights, type AssetFont, type BrandAssets,
 } from '../services/brand-settings.js';
-import { directionSamples } from '../services/direction-samples.js';
-import { oneAtATime } from '../services/render.js';
 import { fetchGoogleFont, findGoogleFont, GOOGLE_FONT_CATEGORIES, GOOGLE_FONTS, GoogleFontError } from '../services/google-fonts.js';
 import { privateKey } from '../storage/types.js';
 import { sniffImage } from './vault.js';
@@ -181,18 +177,6 @@ export function brandRoutes(deps: Deps): Hono<AppEnv> {
     const p = await profile();
     const brand = brandFromProfile({ settings, ...profileFields(p) }, settings);
     return c.json(look(settings, brand, p?.advanced));
-  });
-
-  // Sample posts in a design direction, drawn with the unsaved settings (one Chrome at a time; nothing is stored). The body is
-  // checked before anything is drawn.
-  const directionSamplesBody = z.strictObject({
-    settings: brandSettingsSchema,
-    direction: z.string().refine((d) => DIRECTIONS.includes(d), `Choose one of ${DIRECTIONS.join(', ')} for the design direction`),
-  });
-  app.post('/direction-samples', async (c) => {
-    const body = await readJson(c, directionSamplesBody);
-    await syncBrand(deps);
-    return c.json(await directionSamples(deps, body, { lock: oneAtATime }));
   });
 
   app.put('/', async (c) => {

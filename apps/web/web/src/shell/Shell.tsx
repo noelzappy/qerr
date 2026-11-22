@@ -67,7 +67,7 @@ function NewMenu({ isAdmin }: { isAdmin: boolean }) {
         <DropdownMenuItem onSelect={() => navigate('/batches/new')}><PenLine aria-hidden="true" /> New batch by hand</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate('/vault/new')}><BookOpen aria-hidden="true" /> Add a fact</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate('/library?upload=1')}><ImagePlus aria-hidden="true" /> Upload pictures</DropdownMenuItem>
-        {isAdmin && <DropdownMenuItem onSelect={() => navigate('/settings/references')}><Upload aria-hidden="true" /> Add a design reference</DropdownMenuItem>}
+        {isAdmin && <DropdownMenuItem onSelect={() => navigate('/settings/looks/inspiration')}><Upload aria-hidden="true" /> Add a design reference</DropdownMenuItem>}
       </DropdownMenuContent>
     </DropdownMenu>
   );

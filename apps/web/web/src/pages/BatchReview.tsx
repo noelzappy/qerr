@@ -75,7 +75,7 @@ export function BatchReview() {
   const canGoLive = me?.role === 'admin' || (!!me && me.id === batch.ownerId);
   const noChannel = !!channels.data && !channels.data.channels.some((c) => c.connected);
   const blockedBy = action.kind === 'send-drafts'
-    ? (noChannel ? <>No channel is connected yet. <Link to="/settings/channels" className="font-medium text-primary underline-offset-4 hover:underline">Choose your channels</Link></> : sending ? 'A send is already running.' : null)
+    ? (noChannel ? <>No channel is connected yet. <Link to="/settings/channels" className="font-medium text-primary underline-offset-4 hover:underline">Connect your channels</Link></> : sending ? 'A send is already running.' : null)
     : action.kind === 'go-live'
       ? (!canGoLive ? 'Only an admin or the person who made this batch can schedule live.' : sending ? 'A send is already running.' : null)
       : null;

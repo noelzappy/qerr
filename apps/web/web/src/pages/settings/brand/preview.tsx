@@ -6,9 +6,8 @@ import { api } from '../../../api';
 import { Hint } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { DIRECTION_LABEL, validHex, type Direction, type BrandLook, type BrandSettings, type ContrastCheck, type PaletteChange } from '../brand-types';
+import { validHex, type BrandLook, type BrandSettings, type ContrastCheck, type PaletteChange } from '../brand-types';
 import { StyleSketch } from '../StyleSketch';
-import type { DirectionState } from './direction-samples';
 
 // Waits for typing to stop, then asks the server what these settings would give.
 export function useLook(s: BrandSettings | null, initial: BrandLook | null): BrandLook | null {
@@ -78,18 +77,11 @@ export function Readability({ checks }: { checks: ContrastCheck[] }) {
   );
 }
 
-interface SketchProps { s: BrandSettings; look: BrandLook | null; fallbackChecks: ContrastCheck[]; logo: string | null; artwork: string | null; font: string | null; dir?: DirectionState }
+interface SketchProps { s: BrandSettings; look: BrandLook | null; fallbackChecks: ContrastCheck[]; logo: string | null; artwork: string | null; font: string | null }
 
-// The sketch of the brand, or, when a design direction is chosen and its real samples are ready, those samples.
-function Samples({ s, look, logo, artwork, font, dir, className }: SketchProps & { className?: string }) {
-  const ready = s.style.direction && dir?.status === 'ready' && !dir.logosMissing ? dir.samples.filter((x) => x.ok && x.image).slice(0, 4) : [];
-  if (!s.style.direction || ready.length === 0) return <StyleSketch s={s} palette={look?.palette ?? null} logo={logo} artwork={artwork} font={font} compact className={className} />;
-  const name = DIRECTION_LABEL[s.style.direction as Direction];
-  return (
-    <div className={cn('grid grid-cols-2 gap-2', className)}>
-      {ready.map((x) => <img key={x.id} src={x.image} alt={`${name} sample: ${x.name}`} loading="lazy" className="aspect-[4/5] w-full rounded-sm border object-cover" />)}
-    </div>
-  );
+// The sketch of the brand (the pictures of a look are on Settings, Looks).
+function Samples({ s, look, logo, artwork, font, className }: SketchProps & { className?: string }) {
+  return <StyleSketch s={s} palette={look?.palette ?? null} logo={logo} artwork={artwork} font={font} compact className={className} />;
 }
 
 // Wide screens: the four sample pages stay beside the form while it is scrolled.

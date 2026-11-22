@@ -81,7 +81,7 @@ async function loadConfig(deps: Deps): Promise<AccountsConfig> {
   try {
     return await loadAccountsConfig(deps);
   } catch {
-    throw new HttpError(409, 'A stored Buffer key cannot be read. Ask an admin to enter the key again under Buffer accounts');
+    throw new HttpError(409, 'A stored Buffer key cannot be read. Ask an admin to enter the key again under Channels');
   }
 }
 

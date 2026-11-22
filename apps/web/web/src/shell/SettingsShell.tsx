@@ -5,16 +5,19 @@ import { cn } from '@/lib/utils';
 import { useSession } from '../session';
 import { LoadingBlock } from '@/components/kit';
 import { ActivityProvider } from './activity';
-import { isWideSettingsPath, SETTINGS } from './nav';
+import { useActiveLook } from '@/hooks/use-active-look';
+import { isWideSettingsPath, visibleSettings } from './nav';
 import { AccountMenu, AdminsOnly, Frame, SearchButton } from './Shell';
 
 // `wide` lets a page use the whole content area; the layout editor's two paths are wide without the flag.
 export function SettingsShell({ admin = false, wide = false }: { admin?: boolean; wide?: boolean }) {
   const { me, loading } = useSession();
   const location = useLocation();
+  const { active: lookActive } = useActiveLook();
   if (loading) return <div className="flex min-h-dvh items-center justify-center"><LoadingBlock /></div>;
   if (!me) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   const isAdmin = me.role === 'admin';
+  const sections = visibleSettings(isAdmin, lookActive);
   const sidebar = (
     <>
       <div className="flex flex-col gap-1">
@@ -25,7 +28,7 @@ export function SettingsShell({ admin = false, wide = false }: { admin?: boolean
       </div>
       <SearchButton />
       <nav aria-label="Settings" className="flex flex-col gap-3">
-        {SETTINGS.filter((s) => !s.adminOnly || isAdmin).map((section) => (
+        {sections.map((section) => (
           <div key={section.title} className="flex flex-col gap-0.5">
             <div className="px-2.5 pb-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">{section.title}</div>
             {section.items.map(({ to, label, icon: Icon }) => (

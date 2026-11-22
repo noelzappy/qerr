@@ -74,9 +74,22 @@ export async function lookLimits() {
   return { looks: e.MAX_LOOKS, compositions: e.LIMITS.compositions, perKind: e.LIMITS.perKind, definitionBytes: e.LIMITS.definitionBytes };
 }
 
+// The font library's families, for the look's typeface pickers: the family, the weights it has (lowest and highest across its
+// files), whether it has an italic and a width axis.
+export interface FontFamilyInfo { family: string; minWeight: number; maxWeight: number; italic: boolean; stretch: boolean }
+export async function fontFamilies(): Promise<FontFamilyInfo[]> {
+  const lib = await engineImport<{ fontLibrary(): Array<{ family: string; axes?: Json; files?: Array<{ style?: string; weight?: string; stretch?: string }> }> }>('design/font-library');
+  return lib.fontLibrary().map((f) => {
+    const w = (f.files ?? []).flatMap((x) => String(x.weight ?? '').split(' ').map(Number).filter(Number.isFinite));
+    return { family: f.family, minWeight: w.length ? Math.min(...w) : 400, maxWeight: w.length ? Math.max(...w) : 400, italic: (f.files ?? []).some((x) => x.style === 'italic'), stretch: (f.files ?? []).some((x) => !!x.stretch) || !!(f.axes && 'wdth' in f.axes) };
+  });
+}
+
 // ---- references ----------------------------------------------------------------------------------------------------------
 
 export const SLUG = /^[a-z0-9][a-z0-9-]{0,39}$/;
+// Addresses of the panel's Looks pages (/settings/looks/<slug>) that a look must not take.
+export const RESERVED_SLUGS = ['inspiration'];
 export interface LookRef { source: 'shipped' | 'own'; id: string }
 // 'shipped:retail' or 'own:my-look'. Anything else, an id with a ':' included, is not a reference.
 export function parseRef(ref: unknown): LookRef | null {
@@ -162,10 +175,18 @@ export const validationGate = (engine: Pick<EngineLook, 'validateLook'>): RunGat
 
 // ---- the renderer that does not exist yet --------------------------------------------------------------------------------
 
-export interface LookRenderer { preview(...args: unknown[]): Promise<unknown>; gate(...args: unknown[]): Promise<unknown> }
+export interface PreviewSample { kind: string; ok: boolean; image?: string; error?: string; warnings: string[] }
+export interface PreviewRequest { scope: LookScope; look: Json; kinds: string[] }
+export interface LookRenderer {
+  // One picture per kind the look has a composition for (or the kinds asked for), with the checks' warnings.
+  preview(req: PreviewRequest): Promise<{ samples: PreviewSample[] }>;
+  gate(...args: unknown[]): Promise<unknown>;
+}
 // Drawing a look (a preview, the render gate) needs the interpreter (a later step). Until then this is null and the routes answer
-// 501. When it exists, this is the one function that returns it.
-export function lookRenderer(): LookRenderer | null { return null; }
+// 501. When it exists, this is the one function that returns it (setLookRenderer connects it; tests use it for a stand-in).
+let renderer: LookRenderer | null = null;
+export function lookRenderer(): LookRenderer | null { return renderer; }
+export function setLookRenderer(r: LookRenderer | null): void { renderer = r; }
 export const PREVIEW_UNAVAILABLE = 'Previews of looks are not available yet';
 
 // ---- problems ------------------------------------------------------------------------------------------------------------
@@ -293,6 +314,27 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
     return { ref, source: 'own', look };
   }
 
+  // What a preview draws: a reference's look (shipped, or own with its drafts left out), or a look sent whole (checked first).
+  async function previewTarget(scope: LookScope, input: { ref?: string; look?: unknown }): Promise<{ look: Json; hash: string }> {
+    const eng = await lookEngine();
+    if ((input.ref === undefined) === (input.look === undefined)) throw badRequest('Send either ref or look');
+    let look: Json;
+    let isShipped = false;
+    if (input.ref !== undefined) {
+      const p = parseRef(input.ref);
+      if (!p) throw badRequest('That is not a look reference (shipped:<id> or own:<slug>)');
+      if (p.source === 'shipped') { const l = await shippedById(p.id); if (!l) throw notFound('Look not found'); look = clone(l); isShipped = true; }
+      else look = await assemble(await needRow(scope, p.id));
+    } else {
+      if (!isObj(input.look)) throw badRequest('look must be an object');
+      look = clone(input.look);
+      if (JSON.stringify(look).length > eng.LIMITS.definitionBytes) throw badRequest(`The look is larger than ${eng.LIMITS.definitionBytes / 1024} KB`);
+    }
+    // A shipped look passed validateLook(..., { shipped: true }) when it was loaded.
+    if (!isShipped) await checked(look, 'The look is not valid');
+    return { look, hash: eng.lookHash(look) };
+  }
+
   async function activeLook(scope: LookScope) {
     const ref = await activeRefOf(scope);
     return ref ? resolveLook(scope, ref) : null;
@@ -338,6 +380,7 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
     const base = slugify(wanted) || 'look';
     const taken = new Set((await prisma.brandLook.findMany({ where: { brandId: scope.brandId, slug: { startsWith: base } }, select: { slug: true } })).map((r) => r.slug));
     for (const l of await shipped()) taken.add(String(l.id));
+    for (const r of RESERVED_SLUGS) taken.add(r);
     if (!taken.has(base)) return base;
     for (let i = 2; i < 1000; i++) if (!taken.has(`${base}-${i}`)) return `${base}-${i}`;
     return `${base}-${randomUUID().slice(0, 4)}`;
@@ -368,7 +411,7 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
     let slug: string;
     if (opts.slug !== undefined) {
       if (!SLUG.test(opts.slug)) throw badRequest('A look id is lowercase letters, digits and - only (up to 40, starting with a letter or digit)');
-      if ((await shippedById(opts.slug)) || await findRow(scope, opts.slug)) throw conflict(`A look with the id "${opts.slug}" exists already; choose another id`);
+      if (RESERVED_SLUGS.includes(opts.slug) || (await shippedById(opts.slug)) || await findRow(scope, opts.slug)) throw conflict(`A look with the id "${opts.slug}" exists already; choose another id`);
       slug = opts.slug;
     } else slug = await freeSlug(scope, name);
     const definition: Json = { ...settings, id: slug, name, origin: `copy:${sourceRef}`, schema: eng.LOOK_SCHEMA };
@@ -607,7 +650,7 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
   }
 
   return {
-    resolveLook, activeLook, listLooks, getLook, lookBriefs, lookForPack,
+    resolveLook, activeLook, previewTarget, listLooks, getLook, lookBriefs, lookForPack,
     duplicateLook, updateLookSettings, deleteLook,
     saveCompositionDraft, discardCompositionDraft, publishComposition, addCompositionFrom,
     setCompositionEnabled, reorderCompositions, moveComposition, removeComposition,

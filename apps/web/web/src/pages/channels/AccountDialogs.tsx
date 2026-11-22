@@ -1,16 +1,13 @@
 import { useState, type FormEvent } from 'react';
-import { Plus } from 'lucide-react';
-import { toast } from 'sonner';
-import { api } from '../api';
+import { api } from '../../api';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { BusyButton, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FormPanel, MoreMenu, Notice, RowsSkeleton, TextField, ToneBadge, type Column } from '@/components/kit';
-import { useDocumentTitle, useLoad } from '../hooks';
-import { fieldErrors, formProblem } from '../lib/errors';
-import { dateInputValue, formatDate } from '../lib/format';
-import { networkLabel } from '../lib/labels';
+import { BusyButton, DataList, ErrorBlock, FieldGroup, FormPanel, Notice, RowsSkeleton, TextField, ToneBadge, type Column } from '@/components/kit';
+import { useLoad } from '../../hooks';
+import { fieldErrors, formProblem } from '../../lib/errors';
+import { dateInputValue } from '../../lib/format';
+import { networkLabel } from '../../lib/labels';
 import { confirmDiscard, useUnsavedGuard } from '@/hooks/use-unsaved-guard';
-import { SettingsPage } from './settings/section';
 
 export interface BufferAccount {
   id: string; name: string; keyLast4: string; keyExpiresAt: string | null; daysLeft: number | null; expired: boolean; expiryWarning: boolean;
@@ -28,88 +25,7 @@ const sm = 'max-sm:min-h-11';
 // One bordered container; the list's rows are separated by hairlines.
 const LIST = 'overflow-hidden rounded-lg border';
 
-function ExpiryBadge({ account }: { account: Pick<BufferAccount, 'keyExpiresAt' | 'daysLeft' | 'expired' | 'expiryWarning'> }) {
-  if (!account.keyExpiresAt) return <span className="text-muted-foreground">No expiry set</span>;
-  if (account.expired) return <ToneBadge tone="bad" dot>Expired {formatDate(account.keyExpiresAt)}</ToneBadge>;
-  const d = account.daysLeft ?? 0;
-  return <ToneBadge tone={account.expiryWarning ? 'warn' : 'good'} dot>{d <= 1 ? 'Expires within a day' : `${d} days left`}</ToneBadge>;
-}
-
-export function BufferAccounts() {
-  useDocumentTitle('Buffer accounts');
-  const list = useLoad(() => api.get<{ accounts: BufferAccount[] }>('/api/buffer-accounts').then((r) => r.accounts), []);
-  const [editing, setEditing] = useState<BufferAccount | 'new' | null>(null);
-  const [deleting, setDeleting] = useState<BufferAccount | null>(null);
-  const [checking, setChecking] = useState<BufferAccount | null>(null);
-
-  const accounts = list.data ?? [];
-  const expired = accounts.filter((a) => a.expired);
-  const soon = accounts.filter((a) => !a.expired && a.expiryWarning);
-
-  const columns: Column<BufferAccount>[] = [
-    { key: 'name', header: 'Name', primary: true, cell: (a) => <span className="font-mono">{a.name}</span> },
-    { key: 'key', header: 'Key', cell: (a) => <span className="whitespace-nowrap font-mono">{`•••• ${a.keyLast4}`}</span> },
-    { key: 'expiry', header: 'Key expiry', cell: (a) => <ExpiryBadge account={a} /> },
-    { key: 'org', header: 'Organisation', cell: (a) => (a.organizationId ? <span className="font-mono [overflow-wrap:anywhere]">{a.organizationId}</span> : <span className="text-muted-foreground">All it can reach</span>) },
-    {
-      key: 'actions', header: 'Actions', actions: true,
-      cell: (a) => (
-        <MoreMenu label={`Actions for ${a.name}`} items={[
-          { label: 'Check key', onSelect: () => setChecking(a) },
-          { label: 'Edit', onSelect: () => setEditing(a) },
-          { label: 'Delete account', tone: 'danger', onSelect: () => setDeleting(a) },
-        ]} />
-      ),
-    },
-  ];
-
-  return (
-    <>
-      <SettingsPage title="Buffer accounts" description="Keys are stored encrypted and cannot be shown again."
-        actions={<Button className={sm} onClick={() => setEditing('new')}><Plus aria-hidden="true" />Add an account</Button>}>
-      <div className="flex flex-col gap-4">
-        {expired.length > 0 && (
-          <Notice tone="bad" title="A Buffer key has expired.">
-            {expired.map((a) => a.name).join(', ')} can no longer send posts until you add a new key. Edit the account and paste the new key.
-          </Notice>
-        )}
-        {soon.length > 0 && (
-          <Notice tone="warn" title="A Buffer key expires within a week.">
-            {soon.map((a) => `${a.name} (${a.daysLeft} ${a.daysLeft === 1 ? 'day' : 'days'})`).join(', ')}. Make a new key in Buffer and add it here before then.
-          </Notice>
-        )}
-        <div className={LIST} aria-label="Buffer accounts">
-          {list.loading && !list.data ? <RowsSkeleton rows={4} />
-            : list.error ? <ErrorBlock message={list.error} onRetry={() => void list.reload()} />
-            : accounts.length === 0 ? <EmptyBlock title="No Buffer accounts yet">Add the account that holds your channels, then choose its channels under Channels.</EmptyBlock>
-            : <DataList caption="Buffer accounts" columns={columns} rows={accounts} rowKey={(a) => a.id} />}
-        </div>
-      </div>
-      </SettingsPage>
-
-      {editing && <AccountDialog key={editing === 'new' ? 'new' : editing.id} account={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={(created) => { setEditing(null); toast.success(created ? 'Buffer account added' : 'Buffer account saved'); void list.reload(); }} />}
-      {checking && <CheckDialog account={checking} onClose={() => setChecking(null)} />}
-
-      <ConfirmAction
-        open={!!deleting}
-        title="Delete this Buffer account?"
-        message={<>The account <strong>{deleting?.name}</strong> and its stored key will be deleted. This cannot be undone. It is refused while the account is used for routing or has deliveries on record.</>}
-        confirmLabel="Delete account"
-        danger
-        onCancel={() => setDeleting(null)}
-        onConfirm={async () => {
-          const a = deleting!;
-          await api.delete(`/api/buffer-accounts/${a.id}`);
-          setDeleting(null);
-          toast.success(`Account ${a.name} deleted`);
-          void list.reload();
-        }}
-      />
-    </>
-  );
-}
-
-function AccountDialog({ account, onClose, onSaved }: { account: BufferAccount | null; onClose: () => void; onSaved: (created: boolean) => void }) {
+export function AccountDialog({ account, onClose, onSaved }: { account: BufferAccount | null; onClose: () => void; onSaved: (created: boolean) => void }) {
   const [name, setName] = useState(account?.name ?? '');
   const [apiKey, setApiKey] = useState('');
   const [expires, setExpires] = useState(dateInputValue(account?.keyExpiresAt));
@@ -190,7 +106,7 @@ function AccountDialog({ account, onClose, onSaved }: { account: BufferAccount |
 }
 
 // Informational only: it asks Buffer what a key can reach and changes nothing.
-function CheckDialog({ account, onClose }: { account: BufferAccount; onClose: () => void }) {
+export function CheckDialog({ account, onClose }: { account: BufferAccount; onClose: () => void }) {
   const state = useLoad(() => api.post<CheckResult>(`/api/buffer-accounts/${account.id}/check`), [account.id]);
   const r = state.data;
   const channelColumns: Column<CheckResult['channels'][number]>[] = [

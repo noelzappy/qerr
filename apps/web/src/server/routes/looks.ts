@@ -6,7 +6,7 @@
 //   GET    /:ref                             one look in full (an own look with its drafts and gate records)
 //   POST   /duplicate                        { source, name?, slug? } a copy of a shipped or own look, as a draft of the brand's own
 //   POST   /validate                         { definition } what is wrong with a whole look, nothing stored: { problems }
-//   POST   /preview                          501 until the interpreter exists
+//   POST   /preview                          { ref | look, kinds? } one picture per kind with warnings and the look's hash; 501 until the interpreter exists
 //   PUT    /active                           { ref | null } the brand's look (a shipped look or a ready own one), null = classic layouts
 //   PUT    /:slug/settings                   { definition } the look without compositions
 //   POST   /:slug/compositions               { source, kind, index } copy one composition from any shipped look or an own look
@@ -27,7 +27,7 @@ import type { AppEnv, Deps } from '../deps.js';
 import { badRequest, HttpError, readJson } from '../http.js';
 import { requireRole, requireUser } from '../middleware.js';
 import { syncBrand } from '../services/brand-settings.js';
-import { brandScope, looksFor, lookCatalogue, lookLimits, lookRenderer, PREVIEW_UNAVAILABLE, SLUG } from '../services/looks.js';
+import { brandScope, fontFamilies, lookEngine, looksFor, lookCatalogue, lookLimits, lookRenderer, PREVIEW_UNAVAILABLE, SLUG } from '../services/looks.js';
 
 const REF = /^(shipped|own):[a-z0-9][a-z0-9-]{0,39}$/;
 const ref = z.string().regex(REF, 'Use shipped:<id> or own:<slug>');
@@ -37,6 +37,8 @@ const duplicateBody = z.object({ source: ref, name: z.string().trim().min(1).max
 const definitionBody = z.object({ definition }).strict();
 const addBody = z.object({ source: ref, kind: z.string().min(1).max(20), index: z.number().int().min(0).max(40) }).strict();
 const patchBody = z.object({ enabled: z.boolean().optional(), position: z.number().int().min(0).max(40).optional() }).strict();
+// One picture per kind: { ref } or { look } (a whole look, as the panel holds it), and optionally the kinds wanted.
+const previewBody = z.object({ ref: ref.optional(), look: definition.optional(), kinds: z.array(z.string().min(1).max(20)).max(7).optional() }).strict();
 const activeBody = z.object({ ref: ref.nullable() }).strict();
 
 export function looksBriefRoute(deps: Deps): Hono<AppEnv> {
@@ -58,7 +60,7 @@ export function lookRoutes(deps: Deps): Hono<AppEnv> {
 
   app.get('/', async (c) => {
     const list = await looks.listLooks(brandScope(c));
-    return c.json({ ...list, catalogue: await lookCatalogue(), limits: await lookLimits() });
+    return c.json({ ...list, catalogue: await lookCatalogue(), limits: await lookLimits(), fonts: await fontFamilies() });
   });
 
   app.post('/duplicate', async (c) => {
@@ -76,7 +78,17 @@ export function lookRoutes(deps: Deps): Hono<AppEnv> {
     if (!lookRenderer()) return c.json({ error: PREVIEW_UNAVAILABLE }, 501);
     throw new HttpError(500, 'The look renderer is not connected to this route yet');
   };
-  app.post('/preview', (c) => guardRenderer(c));
+  app.post('/preview', async (c) => {
+    const r = lookRenderer();
+    if (!r) return c.json({ error: PREVIEW_UNAVAILABLE }, 501);
+    const body = await readJson(c, previewBody);
+    const target = await looks.previewTarget(brandScope(c), body);
+    const eng = await lookEngine();
+    const bad = (body.kinds ?? []).find((k) => !eng.KINDS.includes(k));
+    if (bad) throw badRequest(`Unknown kind of post: ${bad.slice(0, 20)}`);
+    const answer = await r.preview({ scope: brandScope(c), look: target.look, kinds: body.kinds ?? eng.KINDS });
+    return c.json({ hash: target.hash, samples: answer.samples });
+  });
 
   app.put('/active', async (c) => {
     const body = await readJson(c, activeBody);

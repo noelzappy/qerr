@@ -70,7 +70,7 @@ export function DesignFields({ design, onChange, jsonError }: Props) {
         <>
           {locked && <Notice tone="warn">The advanced JSON below is not valid yet, so the fields above are paused. Fix it to carry on.</Notice>}
           {isPost ? (
-            <PostFields design={d} onChange={form} direction={postKinds.loading ? undefined : postKinds.direction} kinds={postKinds.kinds} limits={postKinds.limits} disabled={locked} />
+            <PostFields design={d} onChange={form} direction={postKinds.loading ? undefined : postKinds.direction} kinds={postKinds.kinds} limits={postKinds.limits} offered={postKinds.offered} disabled={locked} />
           ) : (
             <>
               {directed && !isCarousel && (

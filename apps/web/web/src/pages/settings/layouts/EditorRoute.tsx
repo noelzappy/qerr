@@ -13,7 +13,7 @@ import { LayoutEditor } from '../LayoutEditor';
 import { freeId, idFromName } from '../layout-model';
 import { blankLayout, type Layout, type LayoutsResponse, type StoredLayout } from '../layout-types';
 
-const Back = () => <Button asChild variant="outline"><Link to="/settings/layouts">Back to Layouts</Link></Button>;
+const Back = () => <Button asChild variant="outline"><Link to="/settings/layouts">Back to Classic layouts</Link></Button>;
 
 // A built-in layout copied into one of the brand's own (made on the server, off until switched on), then opened to edit.
 function CopyBuiltin({ id }: { id: string }) {

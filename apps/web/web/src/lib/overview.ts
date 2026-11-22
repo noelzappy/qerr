@@ -22,7 +22,7 @@ export interface OverviewPost {
   deliveries: Array<{ network: string; mode: string; status: string; bufferStatus: string | null }>;
 }
 
-export interface SetupStep { key: string; title: string; detail: string; to: string; done: boolean; missing?: 'provider' | 'budget' | null }
+export interface SetupStep { key: string; title: string; detail: string; to: string; done: boolean; missing?: 'provider' | 'budget' | 'account' | 'routes' | null }
 
 export interface HomeOverview {
   today: string;

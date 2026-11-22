@@ -10,8 +10,10 @@ import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, type BrandSettings } from
 import { Section } from '../section';
 import { ColourRoles, LookFields, TypeFields } from '../style-fields';
 import { ColourField } from './fields';
-import { DIRECTION_HINT, type BrandCtx } from './model';
+import { useActiveLook } from '@/hooks/use-active-look';
+import { LOOK_HINT, type BrandCtx } from './model';
 import { Changes, Readability } from './preview';
+import { ContrastDisplay } from './contrast-display';
 
 export function ColoursSection({ ctx }: { ctx: BrandCtx }) {
   const { s, set, fields, look, view } = ctx;
@@ -31,6 +33,7 @@ export function ColoursSection({ ctx }: { ctx: BrandCtx }) {
       )}
       <Changes changes={look?.changes ?? []} />
       <SelectField label="Corners" hint="How rounded cards, panels and buttons are." value={s.corners} onValueChange={(v) => set('corners', v as BrandSettings['corners'])} options={[{ value: 'square', label: 'Square' }, { value: 'soft', label: 'Softly rounded' }, { value: 'round', label: 'Round' }]} className="md:max-w-xs" />
+      <ContrastDisplay value={s.contrastDisplay} onChange={(v) => set('contrastDisplay', v)} error={fields.contrastDisplay} />
       <Readability checks={checks} />
       <details className="border-t pt-3" open={customised > 0}>
         <summary className="cursor-pointer text-[13.5px] font-medium">
@@ -44,9 +47,10 @@ export function ColoursSection({ ctx }: { ctx: BrandCtx }) {
 
 export function TypeSection({ ctx }: { ctx: BrandCtx }) {
   const { s, view } = ctx;
+  const lookActive = useActiveLook().active === true;
   return (
     <Section id="type" title="Type" description="How headlines, body text and labels are set. Leave a value empty to keep the brand's own.">
-      {s.style.direction && <Notice tone="info">{DIRECTION_HINT}</Notice>}
+      {(s.style.direction || lookActive) && <Notice tone="info">{LOOK_HINT}</Notice>}
       <p className="text-[13px] text-muted-foreground">Fonts you choose here are saved straight away, not with the Save bar.</p>
       <TypeFields
         style={s.style} headlineWeight={s.headlineWeight} fonts={view.fontSources} version={view.updatedAt ?? ''} busy={ctx.busy}
@@ -59,9 +63,10 @@ export function TypeSection({ ctx }: { ctx: BrandCtx }) {
 
 export function SurfacesSection({ ctx }: { ctx: BrandCtx }) {
   const { s, set } = ctx;
+  const lookActive = useActiveLook().active === true;
   return (
     <Section id="surfaces" title="Surfaces and photos" description="How cards and panels stand off the page, the texture behind pages, what happens to photos, and where the logo goes.">
-      {s.style.direction && <Notice tone="info">{DIRECTION_HINT}</Notice>}
+      {(s.style.direction || lookActive) && <Notice tone="info">{LOOK_HINT}</Notice>}
       <LookFields style={s.style} onChange={(style) => set('style', style)} artwork={ctx.artworkUrl} busy={ctx.busy === 'artwork'} onArtwork={ctx.uploadArtwork} onRemoveArtwork={ctx.askRemoveArtwork} />
     </Section>
   );

@@ -6,12 +6,13 @@
 // built-in poster or editorial page, where blocks sit at pixel rectangles and the page places its own logo and footer.
 import { useMemo, useState } from 'react';
 import { Braces, ChevronDown, ChevronRight, Copy, Pencil, Plus, Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { api } from '../../api';
 import { useDocumentTitle, useLoad } from '../../hooks';
 import { errorMessage } from '../../lib/errors';
-import { BusyButton, ConfirmAction, EmptyBlock, ErrorBlock, Hint, MoreMenu, SelectField, SwitchField } from '@/components/kit';
+import { useActiveLook } from '@/hooks/use-active-look';
+import { BusyButton, ConfirmAction, EmptyBlock, ErrorBlock, Hint, MoreMenu, Notice, SelectField, SwitchField } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -84,7 +85,8 @@ function BuiltinCard({ item, catalogue, canCopy, onCopy }: { item: BuiltinLayout
 }
 
 export function LayoutsPage() {
-  useDocumentTitle('Layouts');
+  useDocumentTitle('Classic layouts');
+  const lookActive = useActiveLook().active === true;
   const navigate = useNavigate();
   const list = useLoad(() => api.get<LayoutsResponse>('/api/settings/layouts'), []);
   const [start, setStart] = useState('blank');
@@ -108,7 +110,8 @@ export function LayoutsPage() {
   const room = !!data && items.length < data.max;
 
   return (
-    <SettingsPage title="Layouts">
+    <SettingsPage title="Classic layouts">
+      {lookActive && <Notice tone="info" actions={<Link to="/settings/looks" className="text-sm font-medium underline underline-offset-2">Open Looks</Link>}>A look is in use, so posts ignore these layouts.</Notice>}
       {list.error && <ErrorBlock message={list.error} onRetry={() => void list.reload()} />}
       {list.loading && !data && <div className="flex flex-col gap-3"><Skeleton className="h-16" /><Skeleton className="h-40" /></div>}
       {data && (

@@ -1,10 +1,8 @@
 // The sections of Brand and look, their addresses, and what a section needs from the page.
-import type { DirectionStates } from './direction-samples';
 import type { BrandLook, BrandSettings, BrandView, FontRole } from '../brand-types';
 
 export const SECTIONS = [
   { id: 'identity', title: 'Identity', look: false },
-  { id: 'direction', title: 'Design direction', look: true },
   { id: 'logos', title: 'Logos', look: true },
   { id: 'colours', title: 'Colours', look: true },
   { id: 'type', title: 'Type', look: true },
@@ -29,11 +27,10 @@ export function sectionFromHash(hash: string): SectionId | null {
 // Which section holds the field a server problem names (the path the server gives, such as `colours.primary`).
 export function sectionOfPath(path: string): SectionId {
   const head = path.split('.')[0] ?? '';
-  if (head === 'colours' || head === 'roles' || head === 'corners' || head === 'headlineWeight') return 'colours';
+  if (head === 'colours' || head === 'roles' || head === 'corners' || head === 'headlineWeight' || head === 'contrastDisplay') return 'colours';
   if (head === 'logo') return 'logos';
   if (head === 'style') {
     const second = path.split('.')[1];
-    if (second === 'direction') return 'direction';
     return second === 'type' ? 'type' : 'surfaces';
   }
   if (head === 'series') return 'post-types';
@@ -61,9 +58,7 @@ export interface BrandCtx {
   uploadArtwork: (file: File) => void;
   askRemoveArtwork: () => void;
   applyView: (next: BrandView) => void;
-  // Sample pictures of the design directions, kept by the page so they survive moving between sections.
-  directions: { states: DirectionStates; retry: () => void };
 }
 
-// Shown at the top of Type and of Surfaces and photos while a design direction is chosen.
-export const DIRECTION_HINT = 'Your design direction decides the layout and typeface of posts made as a kind of post; these settings still apply to posts made with the classic layouts.';
+// Shown at the top of Type and of Surfaces and photos while a look is in use.
+export const LOOK_HINT = 'Your look decides the layout and typeface of posts made as a kind of post; these settings still apply to posts made with the classic layouts.';

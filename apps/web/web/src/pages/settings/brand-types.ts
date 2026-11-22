@@ -22,15 +22,6 @@ export const LABEL_FONTS = ['mono', 'body', 'own'] as const;
 // The design directions: a whole look for posts made as a kind of post (null: the classic layouts).
 export const DIRECTIONS = ['editorial', 'swiss', 'retail'] as const;
 export type Direction = (typeof DIRECTIONS)[number];
-export const DIRECTION_LABEL: Record<Direction, string> = { editorial: 'Editorial', swiss: 'Swiss', retail: 'Retail' };
-export const DIRECTION_FEEL: Record<Direction, string> = {
-  editorial: 'Quiet and editorial: serif type, paper and ink, framed pictures',
-  swiss: 'Modern and systematic: one grid, one typeface, one accent',
-  retail: 'Bold and loud: heavy type, colour as a frame, stickers',
-};
-export type SampleId = 'statement' | 'figure' | 'photo' | 'statement-2' | 'list';
-export interface DirectionSample { id: SampleId; kind: string; variant: number; name: string; ok: boolean; image?: string; error?: string; warnings: string[] }
-export interface DirectionSamplesAnswer { direction: Direction; logosMissing: boolean; cached: boolean; samples: DirectionSample[] }
 
 export interface TypeRole { case: (typeof TYPE_CASES)[number]; tracking: number | null; weight: number | null }
 export interface StyleSettings {
@@ -81,6 +72,8 @@ export interface BrandSettings {
   roles: BrandRoles;
   headlineWeight: number;
   corners: 'square' | 'soft' | 'round';
+  // The contrast large headlines need (3 to 7); null: the standard 4.5.
+  contrastDisplay: number | null;
   style: StyleSettings;
   series: Array<{ key: string; name: string; ground: string; accent: string }>;
   spellings: Array<{ wrong: string; right: string }>;

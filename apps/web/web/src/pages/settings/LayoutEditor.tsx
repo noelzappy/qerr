@@ -328,7 +328,7 @@ export function LayoutEditor({ initial, stored, catalogue, takenIds, onSaved }: 
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-[88rem] flex-col gap-4 pb-10">
       <header className="sticky top-0 z-30 -mx-1 flex flex-col gap-2 border-b bg-background px-1 pb-2 pt-1">
-        <Breadcrumbs items={[{ label: 'Settings', to: '/settings/preferences' }, { label: 'Layouts', to: '/settings/layouts' }, { label: layout.name?.trim() || stored?.name || 'New layout' }]} />
+        <Breadcrumbs items={[{ label: 'Settings', to: '/settings/preferences' }, { label: 'Classic layouts', to: '/settings/layouts' }, { label: layout.name?.trim() || stored?.name || 'New layout' }]} />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Input aria-label="Layout name" value={layout.name ?? ''} maxLength={catalogue.layout.name.max} placeholder="Name this layout" onChange={(e) => setName(e.target.value)}
             className="h-9 min-w-40 flex-1 border-transparent bg-transparent px-2 text-base font-semibold shadow-none hover:border-input focus-visible:border-ring sm:max-w-md" />

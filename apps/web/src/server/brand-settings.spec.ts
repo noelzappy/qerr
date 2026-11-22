@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { CreateAiOptions } from './ai.js';
 import { aiImport } from './engine/root.js';
 import { pipelineEngine } from './engine/pipeline.js';
-import { brandSettingsSchema, brandState, contrast, contrastChecks, expandBrand, mergeAdvanced, mix, paletteChanges, resetBrandState, settingsFromBrand, syncBrand, baseBrand, type BrandSettings } from './services/brand-settings.js';
+import { brandSettingsSchema, brandState, contrast, contrastChecks, expandBrand, mergeAdvanced, mix, paletteChanges, resetBrandState, settingsFromBrand, syncBrand, baseBrand, withoutUnreadContrast, type BrandSettings } from './services/brand-settings.js';
 import { renderPost } from './services/render.js';
 import { seedBatch } from './testing-batches.js';
 import { createTestApp, type TestApp } from './testing.js';
@@ -167,6 +167,34 @@ describe('Settings, Brand', () => {
     expect((await api.post('/api/settings/brand/preview', { ...SETTINGS, colours: { ...SETTINGS.colours, primary: 'red' } })).status).toBe(400);
     const editor = t.api(await t.signIn(await t.createUser('editor')));
     expect((await editor.post('/api/settings/brand/preview', SETTINGS)).status).toBe(403);
+  });
+
+  it('keeps the contrast for large headlines: written only when set, read back, 3 to 7 only', async () => {
+    const api = await admin();
+    expect(SETTINGS.contrastDisplay).toBeNull();
+    expect((expandBrand(SETTINGS).contrast as Record<string, unknown>).display).toBeUndefined();
+    expect((expandBrand({ ...SETTINGS, contrastDisplay: 3.5 }).contrast as Record<string, unknown>).display).toBe(3.5);
+    const res = await api.put('/api/settings/brand', { ...SETTINGS, contrastDisplay: 7 });
+    expect(res.status).toBe(200);
+    expect(res.body.settings.contrastDisplay).toBe(7);
+    expect((await api.get('/api/settings/brand')).body.settings.contrastDisplay).toBe(7);
+    const engine = await import('@vesk/engine/design/brand' as string) as { validateBrand(b: unknown): string[] };
+    const written = activeBrand();
+    // The pack carries it when the engine reads it (the guard drops it, and says so in the log, when it does not).
+    if (engine.validateBrand({ ...written, contrast: { ...written.contrast, display: 99 } }).some((p) => /contrast\.display/.test(p))) expect(written.contrast.display).toBe(7);
+    expect(settingsFromBrand({ ...written, contrast: { ...written.contrast, display: 3.2 } }).contrastDisplay).toBe(3.2);
+    for (const bad of [2.9, 7.1]) expect((await api.put('/api/settings/brand', { ...SETTINGS, contrastDisplay: bad })).status).toBe(400);
+    expect((await api.put('/api/settings/brand', { ...SETTINGS, contrastDisplay: null })).body.settings.contrastDisplay).toBeNull();
+  });
+
+  it('drops contrast.display for an engine that does not read it, and keeps it for one that does', () => {
+    const brand = { contrast: { headline: 4.5, display: 5 } };
+    const reads = (b: any) => (b.contrast.display === 99 ? ['brand.json: contrast.display must be a ratio from 3 to 7'] : []);
+    const ignores = () => [];
+    expect(withoutUnreadContrast(brand, reads)).toBe(brand);
+    expect(withoutUnreadContrast(brand, ignores)).toEqual({ contrast: { headline: 4.5 } });
+    const none = { contrast: { headline: 4.5 } };
+    expect(withoutUnreadContrast(none, ignores)).toBe(none);
   });
 
   it('refuses settings the engine would refuse, and fields it does not know', async () => {

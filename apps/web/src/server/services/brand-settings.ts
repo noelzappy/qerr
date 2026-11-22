@@ -129,6 +129,9 @@ export const brandSettingsSchema = z.object({
   roles: rolesSchema,
   headlineWeight: z.number().int().refine((n) => (HEADLINE_WEIGHTS as readonly number[]).includes(n), 'Choose a weight from 300 to 700'),
   corners: z.enum(CORNERS),
+  // How strongly large headlines must stand out from what is behind them (a ratio, 3 to 7). null: the engine's own (4.5). Written
+  // to the pack as contrast.display only when set.
+  contrastDisplay: z.number().min(3, 'Choose a ratio from 3 to 7').max(7, 'Choose a ratio from 3 to 7').nullable().default(null),
   style: styleSettingsSchema,
   series: z.array(z.object({
     key: z.string().regex(tokens.SERIES_KEY, 'Use lowercase letters, digits and -'),
@@ -250,6 +253,7 @@ export function expandBrand(s: BrandSettings, base: Json = baseBrand()): Json {
   b.spelling = s.spellings.map((x) => ({ wrong: escapeRe(x.wrong), flags: '', right: x.right }));
   b.logos = { ...(base.logos as Json), wordmarkFrom: s.logo.wordmarkFrom, markGap: s.logo.markGap };
   b.style = engineStyle(s.style);
+  if (s.contrastDisplay !== null) b.contrast = { ...(isObj(b.contrast) ? b.contrast : {}), display: s.contrastDisplay };
   return b;
 }
 
@@ -301,6 +305,7 @@ export function settingsFromBrand(b: Json): BrandSettings {
     colours: { primary: g(b.accents, 'primary', '#2F5BB7'), accent: g(b.accents, 'gold', '#F0805F'), dark: g(b.text, 'ink', '#14213D'), light: g(grounds, 'soft', '#F5F7FB') },
     headlineWeight: (HEADLINE_WEIGHTS as readonly number[]).reduce((best, w) => (Math.abs(w - weight) < Math.abs(best - weight) ? w : best), 400),
     corners: radius <= 4 ? 'square' : radius >= 16 ? 'round' : 'soft',
+    contrastDisplay: isObj(b.contrast) && typeof b.contrast.display === 'number' && b.contrast.display >= 3 && b.contrast.display <= 7 ? b.contrast.display : null,
     roles: {},
     style: styleSettingsFrom(b.style),
     series: series.length ? series : [{ key: 'posts', name: 'Posts', ground: 'light', accent: 'muted' }],
@@ -617,6 +622,18 @@ export function brandAndFiles(profile: ProfileFields, settings: BrandSettings = 
 }
 export const brandFromProfile = (profile: ProfileFields, settings?: BrandSettings): Json => brandAndFiles(profile, settings).brand;
 
+// contrast.display (the target for large headlines) is written only when the engine knows it: an engine that does not is not given
+// a key it would call unknown, so a brand never fails to be written because of it (the same guard as packWithLook for looks).
+let contrastLogged = false;
+export function withoutUnreadContrast(b: Json, validate: (b: Json) => string[] = brandProblems): Json {
+  if (!isObj(b.contrast) || b.contrast.display === undefined) return b;
+  const probe = validate({ ...b, contrast: { ...b.contrast, display: 99 } });
+  if (probe.some((p) => /contrast\.display/.test(p))) return b;
+  if (!contrastLogged) { contrastLogged = true; logger.warn('brand.contrast_display_unsupported', {}); }
+  const { display: _display, ...rest } = b.contrast;
+  return { ...b, contrast: rest };
+}
+
 // What is wrong with a brand.json, in the engine's words.
 export const brandProblems = (b: Json): string[] => engineBrand.validateBrand(b);
 export const mapProblems = (m: unknown): string[] => engineBrand.mapProblems(m);
@@ -730,6 +747,7 @@ async function materialise(deps: Deps, snap: BrandSnapshot, draft?: { settings: 
   if (layouts.length) brand.layouts = mergeLayouts(layouts, brand.layouts);
   // The active look (Settings, Looks), written as `looks` with style.direction naming it, once the engine reads looks (looks.ts).
   if (snap.profile?.activeLookRef) brand = packWithLook(brand, await looksFor(deps).lookForPack(brandScope()), brandProblems);
+  brand = withoutUnreadContrast(brand);
   const problems = brandProblems(brand);
   if (problems.length) throw new BrandNotValid(problems, draft ? 'The brand is not valid' : 'The saved brand is not valid');
   const dir = writePack(brand, files, fill);

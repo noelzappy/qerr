@@ -125,7 +125,7 @@ the same anatomy in both: header (title and description), a body that scrolls, a
 - **Ctrl/Cmd+K** opens the command palette (`shell/CommandPalette.tsx`). It searches pages, actions (add a fact, upload
   pictures, new batch...), batches, facts and pictures, and opens the one chosen.
 - The setup checklist on Home is one card. `GET /api/overview/home` returns each step as `{ key, title, detail, to, done }`,
-  and the AI step also carries `missing` (`'provider'`, `'budget'` or `null`), so the card says what is still needed.
+  and the AI step also carries `missing` (`'provider'`, `'budget'` or `null`), so the card says what is still needed. "Connect your channels" is one step (seven in all) with `missing` `'account'`, `'routes'` or `null`.
 
 ## Unsaved changes
 
@@ -156,7 +156,7 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
   `batches/editor/`). It is a page with breadcrumbs, not a side sheet: the form (words, date, networks, design) on the left and
   a live preview on the right (stacked on a phone). Network choices and captions are edited here and saved with the post.
   Designs are edited with a layout chooser, a picture picker and structured editors for figures, lists, carousel pages, tables
-  and cards; the raw design JSON is under "Advanced". When the brand has a design direction (`GET /api/posts/post-kinds` says so) a
+  and cards; the raw design JSON is under "Advanced". When the brand has a look or a design direction (`GET /api/posts/post-kinds` says so; with a look, `GET /api/looks/brief` supplies the kinds offered, the design names and the budgets) a
   new designed image is a *kind of post* (`editor/PostFields.tsx`, `editor/KindChooser.tsx`): Statement, Number, List, Quote, Picture,
   Event or Offer, each showing only its fields with character counters, and a "Look" choice (Automatic or one of the direction's
   compositions for that kind). Switching kind keeps the fields the new kind shares (`design-model.ts` `switchKind`). A post made with a
@@ -177,15 +177,18 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
 - **New batch** and **Draft with AI** are centred dialogs over the batch list (`/batches/new`, `/batches/ai-draft`).
 - **Facts** and **Pictures**: a fact has its own page, `/vault/:id` (`/vault/new` adds one); a picture has `/library/:id`, and
   uploading is the page `/library/upload` (`/library?upload=1` redirects there). The lists keep their filters in the URL.
-- **Settings:** Team, Buffer accounts and the AI provider forms are dialogs; Channels is one table with a row per network.
-- Brand and look has nine sections at `/settings/brand/<identity|direction|logos|colours|type|surfaces|post-types|voice|advanced>`
-  (`#logos` still opens the Logos section). Uploads and Advanced save the moment they are done; everything else waits for
-  Save. **Design direction** (`settings/brand/sections-direction.tsx`) shows Editorial, Swiss and Retail as radio cards, each with one line
-  on its feel and 3 or 4 real sample images from `POST /api/settings/brand/direction-samples` (asked one direction at a time, after the
-  form stops changing, only while the section is open or a direction is chosen; click a thumbnail to enlarge it). Choosing a card sets
-  `style.direction` in the form, and the pinned Preview shows that direction's real samples instead of the CSS sketch (the sketch
-  stays while they load, fail or wait for the logo). "None: classic layouts" leaves the direction unset. "Series" is called "Post types". "Other currencies to flag" is a list of words; a stored pattern that the list cannot
-  show is edited under Advanced.
+- **Settings:** Team and the AI provider forms are dialogs. **Channels** (`/settings/channels`, `pages/Channels.tsx`) holds the Buffer accounts (compact rows, a menu with Edit, Check key and Delete, dialogs as before; `/settings/accounts`, `/admin/accounts` and `/admin/routing` redirect here, `#accounts` scrolls to them) above the table of where each network posts. With no account the page is the "Connect Buffer" empty state and the table is disabled; with one account every row's account is preselected.
+- Brand and look has eight sections at `/settings/brand/<identity|logos|colours|type|surfaces|post-types|voice|advanced>`
+  (`#logos` still opens the Logos section; `/settings/brand/direction` and `#direction` go to Looks). Uploads and Advanced save the moment
+  they are done; everything else waits for Save. The old Design direction tab is gone: choosing a look is **Settings, Looks**. Colours has
+  **Contrast for large headlines** (Standard 4.5, High 7, or Custom 3 to 7, with a note below 4.5; `brand/contrast-display.tsx`). "Series" is
+  called "Post types". "Other currencies to flag" is a list of words; a stored pattern that the list cannot show is edited under Advanced.
+- **Looks** (`pages/settings/looks/`): `/settings/looks` (tabs Looks and Inspiration at `/settings/looks/inspiration`; the design references
+  moved there from their own menu entry, `/settings/references` redirects), `/settings/looks/:slug` and `/settings/looks/:slug/designs/:id`
+  (a placeholder until the design editor). The settings menu reads You, Brand (Brand and look, Looks, Classic layouts), Organisation (Team,
+  Channels, AI and search), Records; **Classic layouts** shows only while no look is active (`useActiveLook`, from `GET /api/looks/brief`).
+  An active look is locked: the page says so, controls are read only and Duplicate makes a copy to change. Routes used are listed in
+  apps/web/README.md, "The Looks pages (web)". The post editor takes kinds, design names and budgets from the active look.
 - A layout opens its own page, not a side sheet: `/settings/layouts/new` (with `?from=<starter>`, `?duplicate=<layout id>`
   or `?copy=<built-in id>`) and `/settings/layouts/:id`. Blocks are dragged and resized on a large canvas, snapped to the
   grid's cells, or placed with the number fields or in pixels. Keyboard: arrows move the selected block, Shift+arrows resize

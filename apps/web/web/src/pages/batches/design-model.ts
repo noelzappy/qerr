@@ -92,7 +92,11 @@ export const POST_LIMITS: PostLimits = {
   label: 28, headline: 70, sub: 140, big: 8, unit: 24, quote: 160, by: 40, meta: 40, tag: 16, items: { min: 2, max: 5, chars: 44 },
 };
 // What the server says about each kind (GET /api/posts/post-kinds).
-export interface PostKindInfo { kind: string; fields: string[]; required: string[]; variants: Array<{ variant: number; name: string; describe: string }> }
+export interface PostKindInfo {
+  kind: string; fields: string[]; required: string[];
+  // `budgets` (a look's design only): what the design needs and its longest text per field.
+  variants: Array<{ variant: number; name: string; describe: string; budgets?: Record<string, { required: boolean; max?: number; min?: number }> }>;
+}
 
 const CANON: PostFieldName[] = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag'];
 // The keys a post may carry besides its fields; the app's vaultItemId is stripped by the server before the engine sees it.

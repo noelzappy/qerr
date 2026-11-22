@@ -52,12 +52,11 @@ second invite.
 Then, as an admin, follow the setup steps on Home. Each one opens the page where it is done:
 
 1. Set up the brand, and upload the logos or draw a simple pair from the name (Settings, Brand and look).
-2. Add a Buffer account and run Check on it (Settings, Buffer accounts).
-3. Choose the account and channel for each network (Settings, Channels).
-4. Add an AI provider and a monthly budget (Settings, AI and search).
-5. Add the team's facts to Facts.
-6. Invite the team (Settings, Team).
-7. Draft the first batch with AI, or import one from `batches/`.
+2. Connect your channels: add a Buffer account and run Check on it, then choose the account and channel for each network (Settings, Channels).
+3. Add an AI provider and a monthly budget (Settings, AI and search).
+4. Add the team's facts to Facts.
+5. Invite the team (Settings, Team).
+6. Draft the first batch with AI, or import one from `batches/`.
 
 With `STORAGE_DRIVER=local` the files are written under `LOCAL_STORAGE_DIR` (default `apps/web/.data/storage`, git-ignored).
 Private files are opened through signed, expiring app URLs; the public prefix is served unsigned at `/_local-public/`,
@@ -74,7 +73,7 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
 - **Unsaved changes.** Editors use `useUnsavedGuard` and `confirmDiscard` from `web/src/hooks/use-unsaved-guard.tsx`: leaving
   or closing with edits that are not saved asks first; a save that succeeds does not.
 - **Home.** The setup checklist is one card. `GET /api/overview/home` returns each step as `{ key, title, detail, to, done }`
-  and, on the AI step, `missing` (`'provider'`, `'budget'` or `null`).
+  and, on the AI step, `missing` (`'provider'`, `'budget'` or `null`); the merged "Connect your channels" step (seven steps in all) carries `missing` too (`'account'`, `'routes'` or `null`).
 - **A batch** is Writing, In review, Scheduled or Done. Its page is a four-step flow: Write, Review, Send drafts to Buffer,
   Go live. Steps 1 and 2 show the posts (`/batches/:id`); steps 3 and 4 show the plan, the sending and the Buffer status
   (`/batches/:id/schedule`, and `/batches/:id/schedule?step=live`). `?post=<id>` opens the batch at that post; the calendar
@@ -93,8 +92,8 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   logos is a 409. Nothing is stored, and the drawing runs under the render lock, one at a time.
 - **Facts and Pictures.** A fact has its own page, `/vault/:id` (`/vault/new` adds one). A picture has `/library/:id`; uploading
   is the page `/library/upload` (`/library?upload=1` redirects there). List filters live in the URL.
-- **Dialogs.** New batch and Draft with AI open as centred dialogs (`/batches/new`, `/batches/ai-draft` still open them). The Team,
-  Buffer accounts and AI provider forms are dialogs too, and Channels is one table with a row per network.
+- **Dialogs.** New batch and Draft with AI open as centred dialogs (`/batches/new`, `/batches/ai-draft` still open them). The Team
+  and AI provider forms are dialogs too. Settings, Channels is one page with two sections: the Buffer accounts (compact rows, their forms are dialogs; `/settings/accounts`, `/admin/accounts` and `/admin/routing` redirect there, `#accounts` scrolls to the accounts) and a table with a row per network (where it posts).
 - **Conventions.** Field help is behind an info icon (kit `Hint`, `hintMode`); pages use `PageHeader` with `crumbs`; small forms
   use `FormPanel variant="dialog"`; secondary and destructive actions sit in `MoreMenu`; on a desktop only the content area and the
   sidebar scroll. See `web/README-ui.md`.
@@ -106,24 +105,18 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
 An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, `src/server/routes/brand.ts`):
 
 - **Identity:** name, website, tagline, what the brand does, time zone, language, and an optional single currency.
-- **Design direction:** a brand can choose one of the engine's design directions (`editorial`, `swiss` or `retail`, saved as
-  `style.direction` and kept in the settings' style block; "None: classic layouts" leaves it unset and changes nothing). A
-  direction decides how posts made as a *kind of post* (the engine's `post` template) are composed: typeface, layout, picture
-  treatment and emphasis. The section shows each direction as a card with real sample images. Nothing is saved while people look:
-  `POST /api/settings/brand/direction-samples` takes `{ settings, direction }` (the form's current, unsaved settings), writes a
-  temporary pack for them, and draws four sample `post` designs (statement, figure, photo or a second statement, list) with the
-  brand's own name and tagline and neutral sample text for the figure and the list (never a claim about the brand). The photo
-  sample is a rights-cleared photo from Pictures, or the engine's synthetic demo picture when the demo pack is in use. It answers
-  `{ direction, logosMissing, cached, samples: [{ id, kind, variant, name, ok, image (JPEG data URL), error, warnings }] }`, renders
-  one image at a time under the same lock as every other render, and keeps the answer for five minutes per (settings, direction)
-  so flipping between directions is instant. With the logos missing it draws nothing and says so. The engine does not say which
-  style controls a direction overrides, so none are disabled; Type and Surfaces and photos carry one line saying the direction
-  decides layout and typeface for kind-of-post designs. `GET /api/posts/post-kinds` (admin and editor) tells the post editor the
-  brand's direction, each kind's fields and required fields, the look (variant) names of the direction's compositions, and the
-  field limits, all read from the engine's registry.
+- **Design direction:** the old "Design direction" tab is gone: choosing how kinds of post are drawn is **Settings, Looks** (below). The
+  brand setting `style.direction` stays in the settings (an older choice keeps working; an active look overrides it in the pack).
+  `GET /api/posts/post-kinds` (admin and editor) tells the post editor the brand's direction, each kind's fields and required fields,
+  the look (variant) names of the direction's compositions, and the field limits, all read from the engine's registry; with a look in
+  force the editor also reads `GET /api/looks/brief` (see Settings, Looks). The `POST /api/settings/brand/direction-samples` route and its
+  service were removed with the tab.
 - **Logos:** the full logo and the mark, as PNGs. The page measures where the wordmark starts. "Draw a simple logo from the
   name" makes a plain pair in the browser.
-- **Colours:** four colours (primary, accent, dark, light), the headline weight and the corners. While people pick
+- **Colours:** four colours (primary, accent, dark, light), the headline weight, the corners and **contrast for large headlines**
+  (`contrastDisplay`: null = the engine's standard 4.5; 3 to 7, anything else is refused with a 400; written to the pack as
+  `contrast.display` only when set, and only when the engine's `validateBrand` knows the key (`withoutUnreadContrast` drops it, and logs
+  `brand.contrast_display_unsupported` once, for an engine that does not); read back from a pack's `contrast.display`). While people pick
   colours, the page asks `POST /api/settings/brand/preview` (nothing is saved). The answer gives the colours posts will
   use, which colours were adjusted, and 32 contrast checks: headlines, sub lines, labels and accent words on every page
   colour and on both slabs of a myth-and-fact page, against the brand's contrast limits.
@@ -136,15 +129,15 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
 - **Post types** (the engine's `series`): each with its page colour and headline style.
 - **Voice and visual direction:** in the team's own words, with names to spell exactly.
 
-The page has nine sections, each with its own address: `/settings/brand/<identity|direction|logos|colours|type|surfaces|post-types|voice|advanced>` (`/settings/brand#logos`, used by the setup checklist, still opens Logos). Uploads (logos, fonts, artwork) and Advanced save the moment they are done; everything else is one form that waits for Save, and asks before it is left with changes. "Other currencies to flag" is a list of words; a stored pattern that the list cannot show is edited under Advanced.
+The page has eight sections, each with its own address: `/settings/brand/<identity|logos|colours|type|surfaces|post-types|voice|advanced>` (`/settings/brand#logos`, used by the setup checklist, still opens Logos; `/settings/brand/direction` and `#direction` go to Settings, Looks). Uploads (logos, fonts, artwork) and Advanced save the moment they are done; everything else is one form that waits for Save, and asks before it is left with changes. "Other currencies to flag" is a list of words; a stored pattern that the list cannot show is edited under Advanced.
 - **Advanced:** a `brand.json` fragment merged over the rest, a dot map, and "Import a brand pack", which moves a pack's
   `brand.json`, logos and map in at once and keeps its exact colours and rules.
 
-**Settings, Design references** takes pictures the team likes. A background job (`analyse-reference`) sends each one to
+**Settings, Looks, Inspiration** (the design references; `/settings/looks/inspiration`, and `/settings/references` redirects there) takes pictures the team likes. A background job (`analyse-reference`) sends each one to
 the drafting provider's model with the versioned `reference` prompt. The model writes a style brief (summary, palette,
 type, layout, imagery, mood, what to avoid) that people can edit or switch off. The briefs that are switched on reach
 every draft and rewrite as `brand.references`, next to `brand.voice` and `brand.visualDirection`. The drafting model must
-be able to read images.
+be able to read images. On each described picture "Apply this look" proposes brand settings, and "Find the closest look" suggests a shipped look from the stored analysis alone (no AI call; "We can't tell from this picture yet" when the text settles fewer than two traits or no look is clearly closer); "Use this layout" (classic layouts) shows only while no look is active.
 
 How it reaches the engine (`src/server/services/brand-settings.ts`):
 
@@ -240,10 +233,11 @@ publishing a composition, switching on or off, reordering, adding, removing) or 
 
 | Route | Does |
 |---|---|
-| `GET /api/settings/looks` | `{ activeRef, shipped, own, catalogue, limits }` |
+| `GET /api/settings/looks` | `{ activeRef, shipped, own, catalogue, limits, fonts }` (`fonts`: the font library's families with their lowest and highest weight and whether they have an italic and a width axis, for the typeface pickers) |
 | `GET /api/settings/looks/:ref` | one look in full; an own look with its drafts and gate records |
 | `POST /api/settings/looks/duplicate` | `{ source, name?, slug? }` |
 | `POST /api/settings/looks/validate` | `{ problems }` for a whole look, nothing stored |
+| `POST /api/settings/looks/preview` | `{ ref }` or `{ look }` (a whole look as the panel holds it, validated first) and optionally `kinds`: `{ hash, samples: [{ kind, ok, image, error, warnings }] }`, one picture per kind, drawn by `lookRenderer()` (connected with `setLookRenderer`; 501 until then) |
 | `PUT /api/settings/looks/active` | `{ ref }`: a shipped look or an own look that is ready; `null` for classic layouts; writes the brand pack |
 | `PUT /api/settings/looks/:slug/settings` | `{ definition }`: the look without compositions, checked with the compositions it has; resets the gate |
 | `POST /api/settings/looks/:slug/compositions` | `{ source, kind, index }`: copy one composition from a shipped or an own look |
@@ -254,7 +248,7 @@ publishing a composition, switching on or off, reordering, adding, removing) or 
 | `DELETE /api/settings/looks/:slug` | refused while active |
 | `GET /api/looks/brief` | any signed-in person: `{ look }`, the active look's kinds, variants, fields and budgets (`lookBrief`), or `{ look: null }` |
 
-**Not available yet.** Drawing a look needs the interpreter, a later step: `POST /api/settings/looks/preview` and
+**Not available yet.** Drawing a look needs the interpreter, a later step: `POST /api/settings/looks/preview` (the route is built, tested with a stand-in renderer) and
 `POST /api/settings/looks/:slug/gate` answer 501 (`Previews of looks are not available yet`, behind `lookRenderer()`), and the gate
 only validates. The brand pack gets `looks` and `style.direction` for the active look only once the engine's `validateBrand`
 reads looks (`engineReadsLooks`, `packWithLook`); until then the choice is stored and `look.engine_unsupported` is logged once.
@@ -496,3 +490,26 @@ makes a real batch in `draft` state (`Batch.aiDraft` holds the drafter's notes a
 carry their vault sources and the AI's warnings, and vault photos are rendered by copying the file from the bucket. If the
 AI fails, the budget is used up or the answer is not valid, nothing is created and the audit log gets `ai.draft_batch.failed`.
 Details: [../../docs/ai.md](../../docs/ai.md).
+
+### The Looks pages (web)
+
+`/settings/looks` has two tabs, **Looks** and **Inspiration** (`/settings/looks/inspiration`). Looks shows "In use" (the active look, or
+Classic layouts; "Back to classic layouts" is in its menu), "Looks we ship" (**Use this look**, with a confirm saying new images use it and
+posts already made keep theirs, and **Customise**, which duplicates into the brand and opens the copy) and "Your looks" (status Draft,
+Ready or Needs attention with the first problem, origin, last changed; Open, Use when Ready, and a menu with Duplicate and Delete, whose
+refusal while active shows the server's reason). `/settings/looks/:slug` is a wide page, crumbs `Settings / Looks / <name>`, with the name
+editable in the header, a status chip, Save (with "You have changes that are not saved" and the unsaved guard), **Publish** (a dialog listing the
+check of every design, with a link to each failing design) and, when Ready and not active, **Use this look**. A look that is ACTIVE is locked
+(the server answers 409 to changes that alter what is drawn): the page says so, every control is read only and **Duplicate** offers a copy.
+Tabs: **Settings** (drawn from `lookCatalogue().sections`, so a setting the engine adds appears without UI work: Dials, Typefaces, Type,
+Page, Colour, Devices, Pictures, Logo; numbers show their range and an inline error, never clamped; server problems are mapped to the control
+by path), **Designs** (per kind: reorder, On/Off, status, Edit as a read-only detail, Duplicate within this look, Remove, "Add a design" from
+any shipped or own look, at most three per kind) and **Check** (the stored gate records; "Run the checks" shows the server's "not available
+yet" gracefully). `/settings/looks/:slug/designs/:id` is a placeholder page ("Editing a design's layout comes with the design editor").
+**Classic layouts** is in the menu only while no look is active (the page itself shows a one-line notice with a link to Looks otherwise).
+Sample pictures: `useLookSamples` asks `POST /api/settings/looks/preview` (debounced, stale requests cancelled, cached by the hash the server
+returns); while it answers 501 the strips show quiet placeholders named by kind and one line, and pictures appear by themselves when the server
+can draw. The post editor reads `GET /api/looks/brief` when a look is active: kinds without an enabled design are not offered, the "Look"
+choice lists the look's designs by name, and the field counters follow the chosen design's budgets (`editor/look-brief.ts`). Logic that needs no
+browser is in `web/src/pages/settings/looks/look-model.ts` (specs `src/web-look-model.spec.ts`, `web-look-brief.spec.ts`,
+`web-inspiration-fit.spec.ts`, `web-nav.spec.ts`).

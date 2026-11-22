@@ -1,5 +1,5 @@
 // The form for a `post` design: the kind of post, then only the fields that kind uses, each with its limit shown as a counter, and
-// the look (the brand's direction draws each kind in its own ways). Every change goes through withField, so an empty value is removed
+// the look (the brand's look draws each kind in its own ways). Every change goes through withField, so an empty value is removed
 // and the design carries nothing a post may not have. The server and the preview stay the authority on what is valid.
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -9,6 +9,7 @@ import { POST_LIMITS, postFieldsFor, seenLength, setVariant, switchKind, withFie
 import { HeadlineField } from './HeadlineField';
 import { FocalPicker, ZoomField } from './ImageOptions';
 import { KindChooser } from './KindChooser';
+import { budgetsFor } from './look-brief';
 import { ListEditor } from './ListEditor';
 import { PicturePicker } from './PicturePicker';
 import type { Json } from './types';
@@ -41,20 +42,23 @@ function Counted({ value, max, children, className }: { value: string; max: numb
   return <div className={cn('flex min-w-0 flex-col gap-1', className)}>{children}<Counter value={value} max={max} /></div>;
 }
 
-export function PostFields({ design, onChange, direction, kinds, limits, disabled }: {
+export function PostFields({ design, onChange, direction, kinds, limits, offered, disabled }: {
   design: Json;
   onChange: (next: Json) => void;
   // The brand's design direction: null when it has none, undefined while that is not yet known.
   direction: string | null | undefined;
   kinds?: PostKindInfo[];
   limits?: PostLimits | null;
+  // The kinds the brand's look draws (null or left out: every kind).
+  offered?: string[] | null;
   disabled?: boolean;
 }) {
   const d = design;
   const kind = text(d.kind);
-  const lim = limits ?? POST_LIMITS;
   const { fields, required } = postFieldsFor(kind, kinds);
-  const variants = kinds?.find((k) => k.kind === kind)?.variants ?? [];
+  const kindInfo = kinds?.find((k) => k.kind === kind);
+  const variants = kindInfo?.variants ?? [];
+  const lim = budgetsFor(limits ?? POST_LIMITS, kindInfo, typeof d.variant === 'number' ? d.variant : undefined);
   const set = (key: string, value: unknown) => onChange(withField(d, key, value));
   const needs = (f: string) => required.includes(f);
 
@@ -122,16 +126,16 @@ export function PostFields({ design, onChange, direction, kinds, limits, disable
   return (
     <div className="flex min-w-0 flex-col gap-3">
       {direction === null && (
-        <Notice tone="warn" actions={<Link to="/settings/brand/direction" className="text-sm font-medium underline underline-offset-2">Open Design direction</Link>}>
-          This brand has no design direction yet, so this post cannot be made. Choose one in Settings, Brand and look, Design direction.
+        <Notice tone="warn" actions={<Link to="/settings/looks" className="text-sm font-medium underline underline-offset-2">Open Looks</Link>}>
+          This brand has no look yet, so this post cannot be made. Choose one in Settings, Looks.
         </Notice>
       )}
-      <KindChooser value={kind} disabled={disabled} onChange={(k) => onChange(switchKind(d, k, kinds))} />
+      <KindChooser value={kind} offered={offered} disabled={disabled} onChange={(k) => onChange(switchKind(d, k, kinds))} />
       {body}
       {looks.length >= 2 && (
         <SelectField
           label="Look" value={variant === undefined ? '' : String(variant)} disabled={disabled}
-          hint={chosenLook?.describe || 'Automatic picks a look from the post, so a batch varies.'}
+          hint={chosenLook?.describe || 'Automatic picks a design from the post, so a batch varies.'}
           onValueChange={(v) => onChange(setVariant(d, v === '' ? undefined : Number(v)))}
           options={[{ value: '', label: 'Automatic' }, ...looks.map((v) => ({ value: String(v.variant), label: v.name }))]}
         />

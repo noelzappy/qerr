@@ -95,7 +95,7 @@ export function overviewRoutes(deps: Deps): Hono<AppEnv> {
       deps.prisma.delivery.count({ where: { OR: [{ status: { in: ['failed', 'unknown'] } }, { bufferStatus: 'failed' }] } }),
     ]);
     const isAdmin = user.role === 'admin';
-    let setup: Array<{ key: string; title: string; detail: string; to: string; done: boolean; missing?: 'provider' | 'budget' | null }> = [];
+    let setup: Array<{ key: string; title: string; detail: string; to: string; done: boolean; missing?: 'provider' | 'budget' | 'account' | 'routes' | null }> = [];
     let spend: { spentUsd: number; monthlyBudgetUsd: number | null } | null = null;
     if (isAdmin) {
       const [brand, accounts, routes, providers, vault, users, invites, batches, budget, spent] = await Promise.all([
@@ -113,12 +113,13 @@ export function overviewRoutes(deps: Deps): Hono<AppEnv> {
       const hasBudget = typeof budget === 'number' && budget > 0;
       // Which half of the AI step is still open: the step is done only with an enabled provider and a monthly budget above zero.
       const aiMissing = providers === 0 ? 'provider' : !hasBudget ? 'budget' : null;
+      // Which half of the channels step is still open: a Buffer account first, then a channel for at least one network.
+      const channelsMissing = accounts === 0 ? 'account' : routes === 0 ? 'routes' : null;
       spend = { spentUsd: spent, monthlyBudgetUsd: typeof budget === 'number' ? budget : null };
       setup = [
         { key: 'brand', title: 'Set up your brand', detail: 'Name, colours, voice and the look of your posts.', to: '/settings/brand', done: !!brand },
         { key: 'logo', title: 'Upload your logo', detail: 'Posts carry your logo; images are made once it is here.', to: '/settings/brand#logos', done: !!brand?.logoFullKey && !!brand.logoMarkKey },
-        { key: 'buffer', title: 'Connect Buffer', detail: 'Add the API key of the Buffer account that holds your channels.', to: '/settings/accounts', done: accounts > 0 },
-        { key: 'channels', title: 'Choose your channels', detail: 'Pick the channel each network posts to.', to: '/settings/channels', done: routes > 0 },
+        { key: 'channels', title: 'Connect your channels', detail: channelsMissing === 'account' ? 'Connect Buffer: add the API key of the account that holds your channels.' : 'Buffer is connected - now choose a channel for each network.', to: channelsMissing === 'account' ? '/settings/channels#accounts' : '/settings/channels', done: channelsMissing === null, missing: channelsMissing },
         { key: 'ai', title: 'Add an AI provider and a monthly budget', detail: 'A model drafts posts from your facts and describes your design references. It does not run until a monthly budget is set.', to: '/settings/ai', done: aiMissing === null, missing: aiMissing },
         { key: 'vault', title: 'Add your facts', detail: 'Confirmed facts, figures and photos are all the AI may use.', to: '/vault', done: vault > 0 },
         { key: 'team', title: 'Invite your team', detail: 'Editors draft and review; admins also change settings.', to: '/settings/team', done: users > 1 || invites > 0 },

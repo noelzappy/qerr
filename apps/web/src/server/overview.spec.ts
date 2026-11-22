@@ -54,7 +54,7 @@ describe('overview', () => {
     const admin = t.api(await t.signIn(await t.createUser('admin')));
     const home = await admin.get('/api/overview/home');
     const steps = Object.fromEntries(home.body.setup.map((s: { key: string; done: boolean }) => [s.key, s.done]));
-    expect(steps).toEqual({ brand: false, logo: false, buffer: false, channels: false, ai: false, vault: false, team: true, batch: true });
+    expect(steps).toEqual({ brand: false, logo: false, channels: false, ai: false, vault: false, team: true, batch: true });
     expect(home.body.spend).toEqual({ spentUsd: 0, monthlyBudgetUsd: null });
   });
 
@@ -69,6 +69,25 @@ describe('overview', () => {
 
     await t.prisma.appSetting.upsert({ where: { key: 'monthlyBudgetUsd' }, update: { value: 25 }, create: { key: 'monthlyBudgetUsd', value: 25 } });
     expect(await aiStep()).toMatchObject({ done: true, missing: null });
+  });
+
+  it('the channels step is one step that says which half is missing: the Buffer account, then the routes', async () => {
+    await seed();
+    const admin = t.api(await t.signIn(await t.createUser('admin')));
+    const home = async () => (await admin.get('/api/overview/home')).body.setup as Array<{ key: string; title: string; detail: string; to: string; done: boolean; missing?: string | null }>;
+    const step = async () => (await home()).find((s) => s.key === 'channels')!;
+    expect((await home()).length).toBe(7);
+    expect((await home()).some((s) => s.key === 'buffer')).toBe(false);
+
+    expect(await step()).toMatchObject({ title: 'Connect your channels', done: false, missing: 'account', to: '/settings/channels#accounts' });
+    expect((await step()).detail).toMatch(/^Connect Buffer/);
+
+    const account = await t.prisma.bufferAccount.create({ data: { name: 'main', keyCipher: 'x', keyVersion: 1, keyLast4: '0000' } });
+    expect(await step()).toMatchObject({ done: false, missing: 'routes', to: '/settings/channels' });
+    expect((await step()).detail).toMatch(/now choose a channel/);
+
+    await t.prisma.channelRoute.create({ data: { network: 'linkedin', accountId: account.id, channelId: 'chan-1', channelName: 'LinkedIn page' } });
+    expect(await step()).toMatchObject({ done: true, missing: null });
   });
 
   it('the channel list says which networks are routed and how many posts are coming for each', async () => {

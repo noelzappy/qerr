@@ -1,4 +1,4 @@
-// Settings, Design references: pictures the team likes (posts, posters, adverts, pages). The AI looks at each one and writes
+// Settings, Looks, Inspiration (the design references): pictures the team likes (posts, posters, adverts, pages). The AI looks at each one and writes
 // a style brief; drafts are given the briefs of the references that are switched on, so the images lean that way. People
 // can read and rewrite a brief, switch a reference off, or ask the AI to look again. The AI also proposes concrete style settings
 // (colours, type, surfaces, decoration, photo treatment); "Apply this look" shows them beside the brand as it is and saves them
@@ -6,18 +6,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { ImagePlus, Loader2, Palette } from 'lucide-react';
 import { toast } from 'sonner';
-import { api } from '../../api';
-import { useDocumentTitle, useLoad } from '../../hooks';
-import { errorMessage } from '../../lib/errors';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../../../api';
+import { useLoad } from '../../../hooks';
+import { errorMessage } from '../../../lib/errors';
 import { BusyButton, ConfirmAction, ErrorBlock, Hint, MoreMenu, Notice, SwitchField, TextField, ToneBadge, type MoreMenuItem } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { ApplyLook } from './ApplyLook';
-import { ReferenceLayout } from './ReferenceLayout';
-import type { DesignReference } from './brand-types';
-import { shrinkImage } from './logo-tools';
-import { SettingsPage } from './section';
+import { ApplyLook } from '../ApplyLook';
+import { ReferenceLayout } from '../ReferenceLayout';
+import type { DesignReference } from '../brand-types';
+import { shrinkImage } from '../logo-tools';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { closestLook, lookTraits, referenceTraits, type ClosestLook } from './inspiration-fit';
+import { lookApi } from './looks-api';
+import type { Json, LooksAnswer } from './look-types';
 
 const STATUS: Record<DesignReference['status'], { tone: 'quiet' | 'info' | 'good' | 'bad'; label: string }> = {
   pending: { tone: 'info', label: 'Waiting for the AI' },
@@ -26,7 +30,7 @@ const STATUS: Record<DesignReference['status'], { tone: 'quiet' | 'info' | 'good
   failed: { tone: 'bad', label: 'Could not be described' },
 };
 
-function ReferenceCard({ r, onChange, onRemove }: { r: DesignReference; onChange: (r: DesignReference) => void; onRemove: () => void }) {
+function ReferenceCard({ r, onChange, onRemove, lookActive, onClosest }: { r: DesignReference; onChange: (r: DesignReference) => void; onRemove: () => void; lookActive: boolean; onClosest: () => void }) {
   const [brief, setBrief] = useState(r.brief ?? '');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
@@ -47,7 +51,8 @@ function ReferenceCard({ r, onChange, onRemove }: { r: DesignReference; onChange
     finally { setBusy(''); }
   }
   const menu: MoreMenuItem[] = [
-    ...(r.status === 'ready' && r.analysis?.composition ? [{ label: 'Use this layout', onSelect: () => setComposing(true) }] : []),
+    ...(r.status === 'ready' && r.analysis ? [{ label: 'Find the closest look', onSelect: onClosest }] : []),
+    ...(!lookActive && r.status === 'ready' && r.analysis?.composition ? [{ label: 'Use this layout', onSelect: () => setComposing(true) }] : []),
     { label: busy === 'again' ? 'Describing...' : 'Describe again', disabled: working || busy === 'again', onSelect: () => void again() },
     { label: 'Remove', tone: 'danger' as const, onSelect: onRemove },
   ];
@@ -90,13 +95,26 @@ function ReferenceCard({ r, onChange, onRemove }: { r: DesignReference; onChange
           : r.status === 'ready' && r.analysis && <Hint about="Apply this look">Describe it again to get style settings you can apply to your brand.</Hint>}
       </div>
       {r.analysis?.proposal && <ApplyLook reference={r} open={applying} onClose={() => setApplying(false)} />}
-      {r.analysis?.composition && <ReferenceLayout reference={r} open={composing} onClose={() => setComposing(false)} />}
+      {!lookActive && r.analysis?.composition && <ReferenceLayout reference={r} open={composing} onClose={() => setComposing(false)} />}
     </li>
   );
 }
 
-export function ReferencesPage() {
-  useDocumentTitle('Design references');
+// The Inspiration tab of Looks. `looks` (the list of looks, when loaded) lets a picture suggest the closest shipped look.
+export function InspirationPanel({ looks, activeRef }: { looks: LooksAnswer | null; activeRef: string | null }) {
+  const navigate = useNavigate();
+  const [closest, setClosest] = useState<{ r: DesignReference; fit: ClosestLook | null } | null>(null);
+  const [copying, setCopying] = useState(false);
+  const [copyError, setCopyError] = useState('');
+  const defs = useLoad(async () => Promise.all((looks?.shipped ?? []).map(async (l) => ({ ref: l.ref, name: l.name, definition: (await lookApi.get(l.ref)).definition as Json }))), [looks?.shipped.map((l) => l.ref).join(',') ?? '']);
+  function find(r: DesignReference) {
+    const candidates = (defs.data ?? []).map((l) => ({ ref: l.ref, name: l.name, traits: lookTraits(l.definition) }));
+    setClosest({ r, fit: closestLook(referenceTraits(r.analysis), candidates) });
+  }
+  async function customise(ref: string) {
+    setCopying(true); setCopyError('');
+    try { navigate(`/settings/looks/${(await lookApi.duplicate(ref)).slug}`); } catch (e) { setCopyError(errorMessage(e)); setCopying(false); }
+  }
   const list = useLoad(() => api.get<{ references: DesignReference[]; max: number }>('/api/settings/brand/references'), []);
   const [items, setItems] = useState<DesignReference[]>([]);
   const [note, setNote] = useState('');
@@ -136,7 +154,8 @@ export function ReferencesPage() {
   const max = list.data?.max ?? 24;
   const on = items.filter((r) => r.enabled && r.status === 'ready').length;
   return (
-    <SettingsPage title="Design references" description="Pictures whose style you like. Drafts lean towards the ones switched on.">
+    <>
+      <p className="-mt-3 text-[13px] text-muted-foreground">Posts and pages you like. The AI leans towards them when drafting, and can suggest the closest look.</p>
       <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
         <TextField className="min-w-60 flex-1" label="What you like about it" optional value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} placeholder="The calm layout and the big numbers"
           hint="JPEG, PNG, WebP or GIF. Large pictures are scaled down first. The AI describes each picture, and drafts are told to lean towards these styles alongside the visual direction in Brand and look." />
@@ -148,7 +167,7 @@ export function ReferencesPage() {
       {list.error ? <ErrorBlock message={list.error} onRetry={() => void list.reload()} />
         : list.loading && !list.data ? <Skeleton className="h-48 rounded-lg" />
         : items.length === 0 ? <p className="py-6 text-center text-[13.5px] text-muted-foreground">No design references yet.</p>
-        : <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{items.map((r) => <ReferenceCard key={r.id} r={r} onChange={(n) => setItems((cur) => cur.map((x) => (x.id === n.id ? n : x)))} onRemove={() => setRemoving(r)} />)}</ul>}
+        : <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{items.map((r) => <ReferenceCard key={r.id} r={r} lookActive={activeRef !== null} onClosest={() => find(r)} onChange={(n) => setItems((cur) => cur.map((x) => (x.id === n.id ? n : x)))} onRemove={() => setRemoving(r)} />)}</ul>}
       <ConfirmAction
         open={!!removing}
         title="Remove this design reference?"
@@ -164,6 +183,24 @@ export function ReferencesPage() {
         }}
         onCancel={() => setRemoving(null)}
       />
-    </SettingsPage>
+      <Dialog open={!!closest} onOpenChange={(o) => { if (!o) { setClosest(null); setCopyError(''); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>The closest look</DialogTitle>
+            <DialogDescription className="sr-only">A suggestion from what the AI wrote about this picture.</DialogDescription>
+          </DialogHeader>
+          {closest?.fit
+            ? (
+              <div className="flex flex-col gap-3 text-[13.5px]">
+                <p><strong className="font-semibold">{closest.fit.name}</strong> is closest: {closest.fit.reasons.join(', ')}.</p>
+                <p className="text-[12.5px] text-muted-foreground">From what is written about the picture, not from the picture itself.</p>
+                {copyError && <Notice tone="bad">{copyError}</Notice>}
+                <div className="flex flex-wrap gap-2"><BusyButton loading={copying} onClick={() => void customise(closest.fit!.ref)}>Customise {closest.fit.name}</BusyButton></div>
+              </div>
+            )
+            : <p className="text-[13.5px]">We can't tell from this picture yet.</p>}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

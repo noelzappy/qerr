@@ -6,7 +6,7 @@ import { pipelineEngine } from './engine/pipeline.js';
 import { engineImport } from './engine/root.js';
 import { logger } from './log.js';
 import { currentSettings, resetBrandState, syncBrand } from './services/brand-settings.js';
-import { brandScope, createLooks, engineReadsLooks, formatRef, looksFor, packWithLook, parseRef, resetLookLogs, shippedLooks, type GateRecord } from './services/looks.js';
+import { brandScope, createLooks, setLookRenderer, engineReadsLooks, formatRef, looksFor, packWithLook, parseRef, resetLookLogs, shippedLooks, type GateRecord } from './services/looks.js';
 import { createTestApp, type TestApp } from './testing.js';
 
 let t: TestApp;
@@ -56,6 +56,9 @@ describe('references', () => {
     // a generated id never lands on a shipped one either
     const res = await api.post(`${BASE}/duplicate`, { source: 'shipped:swiss', name: 'Retail' });
     expect(res.body.look.slug).toBe('retail-2');
+    // an address of the panel's own pages is never a look's id
+    expect((await api.post(`${BASE}/duplicate`, { source: 'shipped:retail', slug: 'inspiration' })).status).toBe(409);
+    expect((await api.post(`${BASE}/duplicate`, { source: 'shipped:retail', name: 'Inspiration' })).body.look.slug).toBe('inspiration-2');
   });
 });
 
@@ -88,6 +91,11 @@ describe('the list', () => {
     expect(body.own[0]).toMatchObject({ ref: 'own:mine', slug: 'mine', status: 'draft', origin: 'shipped:retail', gate: null, needsAttention: false });
     expect(Object.keys(body.catalogue)).toEqual(expect.arrayContaining(['elements', 'kinds', 'sections']));
     expect(body.limits).toMatchObject({ looks: 20, perKind: 3, compositions: 21, definitionBytes: 262144 });
+    // the font library's families, for the typeface pickers
+    const archivo = body.fonts.find((f: { family: string }) => f.family === 'Archivo');
+    expect(archivo).toMatchObject({ family: 'Archivo' });
+    expect(archivo.minWeight).toBeLessThanOrEqual(400);
+    expect(archivo.maxWeight).toBeGreaterThanOrEqual(800);
   });
 
   it('reads one look in full: shipped as it is, own with its drafts', async () => {
@@ -433,6 +441,60 @@ describe('what is not available yet', () => {
     }
     const editor = t.api(await t.signIn(await t.createUser('editor')));
     expect((await editor.post(`${BASE}/preview`, {})).status).toBe(403);
+  });
+});
+
+describe('previews of a whole look (with a stand-in renderer)', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+  afterEach(() => setLookRenderer(null));
+  const standIn = () => {
+    const seen: Array<{ kinds: string[]; look: Record<string, any> }> = [];
+    setLookRenderer({
+      preview: async ({ look, kinds }) => { seen.push({ kinds, look }); return { samples: kinds.map((kind) => ({ kind, ok: true, image: PNG, warnings: [] })) }; },
+      gate: async () => ({}),
+    });
+    return seen;
+  };
+
+  it('answers 501 without a renderer, before looking at the body', async () => {
+    const api = await admin();
+    const res = await api.post(`${BASE}/preview`, { ref: 'shipped:retail' });
+    expect(res.status).toBe(501);
+    expect(res.body.error).toBe('Previews of looks are not available yet');
+  });
+
+  it('draws one picture per kind for a reference and returns the look hash', async () => {
+    const seen = standIn();
+    const api = await admin();
+    const res = await api.post(`${BASE}/preview`, { ref: 'shipped:retail', kinds: ['photo', 'list'] });
+    expect(res.status).toBe(200);
+    expect(res.body.samples).toEqual([{ kind: 'photo', ok: true, image: PNG, warnings: [] }, { kind: 'list', ok: true, image: PNG, warnings: [] }]);
+    const eng = await (await import('./services/looks.js')).lookEngine();
+    expect(res.body.hash).toBe(eng.lookHash((await shippedLooks()).find((l) => l.id === 'retail')));
+    expect(seen[0]!.kinds).toEqual(['photo', 'list']);
+    // all kinds when none are asked for
+    expect((await api.post(`${BASE}/preview`, { ref: 'shipped:swiss' })).body.samples).toHaveLength(eng.KINDS.length);
+  });
+
+  it('draws a look sent whole, checks it first, and refuses a bad body', async () => {
+    standIn();
+    const api = await admin();
+    const retail = (await shippedLooks()).find((l) => l.id === 'retail')!;
+    const ok = await api.post(`${BASE}/preview`, { look: { ...JSON.parse(JSON.stringify(retail)), origin: 'copy:shipped:retail' } });
+    expect(ok.status).toBe(200);
+    const bad = await api.post(`${BASE}/preview`, { look: { ...JSON.parse(JSON.stringify(retail)), origin: 'copy:shipped:retail', dials: { tilt: 99 } } });
+    expect(bad.status).toBe(400);
+    expect(bad.body.details[0].path).toMatch(/dials/);
+    expect((await api.post(`${BASE}/preview`, {})).status).toBe(400);
+    expect((await api.post(`${BASE}/preview`, { ref: 'shipped:retail', look: {} })).status).toBe(400);
+    expect((await api.post(`${BASE}/preview`, { ref: 'shipped:retail', kinds: ['nope'] })).status).toBe(400);
+    expect((await api.post(`${BASE}/preview`, { ref: 'own:missing' })).status).toBe(404);
+  });
+
+  it('keeps previews for admins', async () => {
+    standIn();
+    const editor = t.api(await t.signIn(await t.createUser('editor')));
+    expect((await editor.post(`${BASE}/preview`, { ref: 'shipped:retail' })).status).toBe(403);
   });
 });
 

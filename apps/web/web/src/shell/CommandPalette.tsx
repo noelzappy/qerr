@@ -10,7 +10,8 @@ import { api } from '../api';
 import { useDebounced } from '../hooks';
 import { useSession } from '../session';
 import { kindLabel } from '../lib/labels';
-import { MAIN, SETTINGS } from './nav';
+import { useActiveLook } from '@/hooks/use-active-look';
+import { MAIN, visibleSettings } from './nav';
 
 type Group = 'Go to' | 'Actions' | 'Batches' | 'Facts' | 'Pictures';
 const GROUPS: Group[] = ['Actions', 'Go to', 'Batches', 'Facts', 'Pictures'];
@@ -58,6 +59,7 @@ export function PaletteProvider({ children }: { children: ReactNode }) {
 function useStaticEntries(): Entry[] {
   const { me } = useSession();
   const isAdmin = me?.role === 'admin';
+  const { active: lookActive } = useActiveLook();
   return useMemo(() => {
     const out: Entry[] = [
       { id: 'a-ai', group: 'Actions', label: 'Draft posts with AI', icon: Sparkles, to: '/batches/ai-draft' },
@@ -67,15 +69,14 @@ function useStaticEntries(): Entry[] {
     ];
     if (isAdmin) {
       out.push({ id: 'a-invite', group: 'Actions', label: 'Invite someone', icon: UserPlus, to: '/settings/team?invite=1' });
-      out.push({ id: 'a-ref', group: 'Actions', label: 'Add a design reference', icon: Lightbulb, to: '/settings/references' });
+      out.push({ id: 'a-ref', group: 'Actions', label: 'Add a design reference', icon: Lightbulb, to: '/settings/looks/inspiration' });
     }
     for (const i of MAIN) out.push({ id: `p-${i.to}`, group: 'Go to', label: i.label, icon: i.icon, to: i.to });
-    for (const s of SETTINGS) {
-      if (s.adminOnly && !isAdmin) continue;
+    for (const s of visibleSettings(isAdmin, lookActive)) {
       for (const i of s.items) out.push({ id: `p-${i.to}`, group: 'Go to', label: i.label, hint: 'Settings', icon: i.icon, to: i.to });
     }
     return out;
-  }, [isAdmin]);
+  }, [isAdmin, lookActive]);
 }
 
 const matches = (e: Entry, q: string) => {

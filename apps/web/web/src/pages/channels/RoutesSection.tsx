@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
-import { api } from '../api';
+import { api } from '../../api';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BusyButton, ConfirmAction, ErrorBlock, Hint, MoreMenu, Notice, ToneBadge } from '@/components/kit';
 import { fromSelectValue, toSelectValue } from '@/lib/select-value';
-import { useDocumentTitle, useLoad } from '../hooks';
-import { formProblem } from '../lib/errors';
-import { formatDateTime } from '../lib/format';
-import { networkLabel } from '../lib/labels';
+import type { Loaded } from '../../hooks';
+import { formProblem } from '../../lib/errors';
+import { formatDateTime } from '../../lib/format';
+import { networkLabel } from '../../lib/labels';
 import { useUnsavedGuard } from '@/hooks/use-unsaved-guard';
-import { SettingsPage } from './settings/section';
+import { Section } from '../settings/section';
+import { baselineAccountId, routeIsDirty, routesBlockedReason } from './channels-logic';
 
 // One row per network; on phones each row stacks.
 const ROW = 'grid gap-x-3 gap-y-2 px-3.5 md:grid-cols-[7rem_minmax(0,1fr)_minmax(0,1fr)_9.5rem_5.5rem] md:items-center';
@@ -22,13 +22,13 @@ interface Route {
   accountId: string; accountName: string; channelId: string; channelName: string | null; updatedAt: string;
   stale: { keyExpired: boolean; expiryWarning: boolean; daysLeft: number | null; channelMissing: boolean | null };
 }
-interface RoutingRow { network: string; route: Route | null }
+export interface RoutingRow { network: string; route: Route | null }
 interface Channel { id: string; name: string; displayName: string | null; service: string; network: string | null; organizationId: string; isQueuePaused: boolean }
-interface AccountChannels { accountId: string; accountName: string; ok: boolean; error?: string; organizations: Array<{ id: string; name: string }>; channels: Channel[] }
+export interface AccountChannels { accountId: string; accountName: string; ok: boolean; error?: string; organizations: Array<{ id: string; name: string }>; channels: Channel[] }
 
 const channelText = (c: Channel) => `${c.displayName || c.name}${c.isQueuePaused ? ' (queue paused)' : ''}`;
 
-function RowsSkeleton() {
+function RouteSkeleton() {
   return (
     <Card className="gap-0 divide-y overflow-hidden p-0" role="status" aria-label="Asking Buffer for channels">
       {[0, 1, 2, 3].map((i) => <div key={i} className={`${ROW} py-3`}><Skeleton className="h-5 w-20" /><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></div>)}
@@ -47,17 +47,16 @@ function RouteSelect({ label, value, onValueChange, options, disabled, className
   );
 }
 
-export function Routing() {
-  useDocumentTitle('Channels');
-  const routing = useLoad(() => api.get<{ routing: RoutingRow[] }>('/api/routing').then((r) => r.routing), []);
+export function RoutesSection({ routing, channels, accountCount, onRefreshed }: { routing: Loaded<RoutingRow[]>; channels: Loaded<AccountChannels[]>; accountCount: number | null; onRefreshed: () => void }) {
   const [refreshing, setRefreshing] = useState(false);
-  const channels = useLoad(() => api.get<{ accounts: AccountChannels[] }>('/api/routing/channels').then((r) => r.accounts), []);
+  const blocked = routesBlockedReason(accountCount);
 
   async function refreshAll() {
     setRefreshing(true);
     try {
       channels.setData((await api.get<{ accounts: AccountChannels[] }>('/api/routing/channels?refresh=1')).accounts);
       await routing.reload();
+      onRefreshed();
       toast.success('Channels refreshed from Buffer');
     } catch (e) {
       toast.error(formProblem(e, []));
@@ -68,42 +67,42 @@ export function Routing() {
 
   const loading = (routing.loading && !routing.data) || (channels.loading && !channels.data);
   return (
-    <SettingsPage
-      title="Channels"
+    <Section
+      id="routes" title="Where each network posts"
       description="A batch cannot be sent to a network that has no route."
-      actions={<BusyButton variant="outline" loading={refreshing || channels.loading} onClick={() => void refreshAll()}><RefreshCw aria-hidden="true" />Refresh from Buffer</BusyButton>}
+      aside={<BusyButton variant="outline" loading={refreshing || channels.loading} disabled={!!blocked} onClick={() => void refreshAll()}><RefreshCw aria-hidden="true" />Refresh from Buffer</BusyButton>}
     >
-      {loading ? <RowsSkeleton />
+      {blocked && <p className="text-[13px] text-muted-foreground">{blocked}</p>}
+      {loading ? <RouteSkeleton />
         : routing.error ? <Card className="gap-0 p-0"><ErrorBlock message={routing.error} onRetry={() => void routing.reload()} /></Card>
         : channels.error ? <Card className="gap-0 p-0"><ErrorBlock message={channels.error} onRetry={() => void channels.reload()} /></Card>
         : (
           <div className="flex flex-col gap-3">
-            {(channels.data ?? []).length === 0 && <Notice tone="info" title="No Buffer accounts yet.">Add one under <Link to="/settings/accounts" className="font-medium underline underline-offset-2">Buffer accounts</Link>, then come back to choose channels.</Notice>}
             {(channels.data ?? []).filter((a) => !a.ok).map((a) => (
               <Notice key={a.accountId} tone="warn" title={`Could not list channels for ${a.accountName}.`}>{a.error ?? 'Buffer did not answer.'} Check the account's key.</Notice>
             ))}
-            <Card className="gap-0 divide-y overflow-hidden p-0" role="table" aria-label="Channel routes">
+            <Card className={`gap-0 divide-y overflow-hidden p-0 ${blocked ? 'opacity-60' : ''}`} role="table" aria-label="Channel routes" aria-disabled={!!blocked}>
               <div role="row" className={`${ROW} hidden h-9 bg-muted/60 font-mono text-[11.5px] font-medium uppercase tracking-wider text-muted-foreground md:grid`}>
                 <span role="columnheader">Network</span><span role="columnheader">Buffer account</span><span role="columnheader">Channel</span><span role="columnheader">Status</span><span role="columnheader" className="sr-only">Actions</span>
               </div>
               {(routing.data ?? []).map((row) => (
-                <NetworkRow key={row.network} row={row} accounts={channels.data ?? []} onChanged={() => void routing.reload()} />
+                <NetworkRow key={`${row.network}:${baselineAccountId(null, channels.data ?? [])}`} row={row} accounts={channels.data ?? []} disabled={!!blocked} onChanged={() => void routing.reload()} />
               ))}
             </Card>
           </div>
         )}
-    </SettingsPage>
+    </Section>
   );
 }
 
-function NetworkRow({ row, accounts, onChanged }: { row: RoutingRow; accounts: AccountChannels[]; onChanged: () => void }) {
+function NetworkRow({ row, accounts, disabled, onChanged }: { row: RoutingRow; accounts: AccountChannels[]; disabled: boolean; onChanged: () => void }) {
   const { network, route } = row;
-  const [accountId, setAccountId] = useState(route?.accountId ?? '');
+  const [accountId, setAccountId] = useState(() => baselineAccountId(route, accounts));
   const [channelId, setChannelId] = useState(route?.channelId ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [clearing, setClearing] = useState(false);
-  const dirty = accountId !== (route?.accountId ?? '') || channelId !== (route?.channelId ?? '');
+  const dirty = routeIsDirty(route, accounts, accountId, channelId);
   useUnsavedGuard(dirty);
 
   const account = accounts.find((a) => a.accountId === accountId);
@@ -149,7 +148,7 @@ function NetworkRow({ row, accounts, onChanged }: { row: RoutingRow; accounts: A
       <div className={ROW}>
         <h2 role="rowheader" className="text-[13.5px] font-medium">{name}</h2>
         <div role="cell" className="min-w-0">
-          <RouteSelect label={`${name}: Buffer account`} value={accountId} onValueChange={(v) => { setAccountId(v); setChannelId(''); setError(''); }} options={accountOptions} />
+          <RouteSelect label={`${name}: Buffer account`} value={accountId} onValueChange={(v) => { setAccountId(v); setChannelId(''); setError(''); }} options={accountOptions} disabled={disabled} />
         </div>
         <div role="cell" className="flex min-w-0 items-center gap-1">
           <RouteSelect label={`${name}: channel`} value={channelId} onValueChange={setChannelId} options={channelOptions} disabled={!account} />
@@ -180,7 +179,7 @@ function NetworkRow({ row, accounts, onChanged }: { row: RoutingRow; accounts: A
         onConfirm={async () => {
           await api.delete(`/api/routing/${network}`);
           setClearing(false);
-          setAccountId(''); setChannelId('');
+          setAccountId(baselineAccountId(null, accounts)); setChannelId('');
           toast.success(`${name} route cleared`);
           onChanged();
         }}
