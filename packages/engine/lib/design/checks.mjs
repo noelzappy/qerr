@@ -342,6 +342,8 @@ export function findPostProblems(m, { grid } = {}) {
   for (const i of m.inks ?? []) {
     for (const f of m.shapes ?? []) {
       if ((f.frame ?? '') !== (i.frame ?? '')) continue;
+      // a chart's own words against its own box: held to their cells instead (runtime postMetrics)
+      if (f.chart !== undefined && f.chart === i.chart) continue;
       const g = inkGap(i, f);
       if (Math.abs(g) < L.edge) { problems.push({ kind: 'edge', role: i.role, text: i.text, gap: Math.round(Math.abs(g)), inside: g < 0, crossing: g === 0 }); break; }
     }

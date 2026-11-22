@@ -1025,9 +1025,14 @@ A chart adds one more, with the layout checks (`findLayoutProblems`, kind `chart
 and every word of it stays inside the chart's box, measured on the page (`charts` in `measure()`); a mark or a word more than a pixel out is
 refused. Its words are ordinary measured text: each label and value is a run in a cell (`data-cell`) as large as the chart's geometry made
 room for, so a value too wide for its bar's slot is refused by the fit check (never drawn over its neighbour), and the contrast check reads
-the pixels under each word with the bars, lines and grid drawn and only the words hidden. A chart's box is a frame, not a coloured block, so
-the "text meets the edge of a block" rule does not read it (`.k-chart` beside the frame and keylines in `SKIP_SHAPE`); its words are held to
-their cells instead. The scale of bars, a donut and a progress bar always starts at zero (a bar's length is its value). A line, an area
+the pixels under each word with the bars, lines and grid drawn and only the words hidden. The chart's own words are exempt from the "text
+meets the edge of a block" rule against its own box, because they sit at its edges by design (labels on its foot, values on its bars): they are
+held to their cells instead (the fit check refuses a word that runs out of its slot) and their ink to the box (the `chart` check above). Every
+other text keeps 10 px off a chart's box like off any block (the box is added to the shapes in `postMetrics()` with its index, and a word
+inside it is matched to it). The data marks (bars, a line and its dots, a donut's share, a progress bar's fill, tagged `data-mark`; not the
+grid, the baseline, a track or an area's light fill) need 3:1 against the surface behind them (WCAG 2.2, 1.4.11, `MARK_CONTRAST` in
+`render.mjs`): the page samples points inside each mark's fill or stroke, reads them as drawn (a see-through colour as it looks) and again
+with the words and the marks hidden, and judges the worse side as for text; a mark below 3:1 is a warning that names it. The scale of bars, a donut and a progress bar always starts at zero (a bar's length is its value). A line, an area
 or a sparkline starts at zero too, unless its look sets `trim` on the chart element (an explicit choice of the look, refused on a design that
 draws bars): then the axis may start at the round value just below the lowest point, and never below zero for positive data.
 
@@ -1473,7 +1478,7 @@ badge (`icon-badge`), a mark of fine rings round a brand-colour disc (keylines a
 |---|---|---|
 | `statement/0` Gradient hero | statement | deep page with a glow and a mark above (two fine rings round a brand-colour disc, an accent dot); label chip, a big white headline at the foot, sub, optional button; also the cover and closing page of a carousel |
 | `statement/1` Trust card | statement | pale page, one white card: a shield on a brand-colour badge, a two-tone headline and sub; the label under the card |
-| `figure/0` Big number | figure | deep page with a glow; the figure fitted across the page, the unit beside a change pill (the tag), the sub under a hairline. With a `chart` (3 to 8 points) the figure sits higher and bars, an area or a line of the months behind it fill the middle: grey-green marks with the highlighted point in the accent, values and labels in the light body colour, a baseline, rounded bar ends; bars start at zero |
+| `figure/0` Big number | figure | deep page with a glow; the figure fitted across the page, the unit beside a change pill (the tag), the sub under a hairline. With a `chart` (3 to 8 points) the figure sits higher and bars, an area or a line of the months behind it fill the middle: grey-green marks with the highlighted point in white, values and labels in the light body colour, a baseline, rounded bar ends; bars start at zero |
 | `figure/1` Balance card | figure | pale page, a white card like an account balance: label, figure, unit and change pill; the sub under it |
 | `figure/2` Step | figure | white page, centred: the step number on a brand-colour tile, a two-tone headline and sub, the page number top right; the body pages of a how-it-works carousel |
 | `list/0` Features | list | white page, two-tone headline; each item on a ruled row with a tick on a round badge; optional button |

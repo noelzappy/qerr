@@ -179,3 +179,5 @@
    their colours palette roles (--c-*); the words are runs in cells the engine placed. ======== */
 .k-chart{display:block;overflow:visible}
 .k-chart-s{display:block;overflow:hidden;pointer-events:none}
+/* while the page reads what is behind a chart's data marks (runtime hideMarks) */
+.measure-marks [data-mark]{visibility:hidden}

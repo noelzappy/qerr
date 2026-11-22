@@ -29,6 +29,8 @@ const POST_KEY = { ...EDITORIAL_KEY, item: 'sub', meta: 'label', folio: 'label' 
 const WORD = { item: 'list item', meta: 'meta line', folio: 'folio', url: 'website', foot: 'footer label', logo: 'logo', art: 'artefact label', artbody: 'artefact text', label: 'label' };
 const MIN_SCALE = 0.62;
 const PUSHED = new Set(['panel', 'outside', 'avoid']);
+// The non-text contrast a chart's data marks need against the surface behind them (WCAG 2.2, 1.4.11).
+export const MARK_CONTRAST = 3;
 const parseRgb = (c) => { const m = c.match(/[\d.]+/g).map(Number); return luminance(m[0], m[1], m[2]); };
 
 // A phone screen is always a pre-framed capture: the tool never draws a phone around a plain screenshot.
@@ -243,6 +245,30 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
       }
       for (const f of failing) warnings.push(`low contrast: the ${WORD[f.role] ?? f.key} text is ${ratioBelow(f.ratio, f.need)}:1 against the ${isPhoto ? 'picture' : 'surface'} behind it (needs ${f.need}:1)${isPhoto ? (spec.scrim === 'none' ? '; scrim is off' : '; the scrim is already at its cap, choose another photo or move the text to a calmer part with textAt/focal') : ''}`);
       break;
+    }
+    // 3b. A chart's data marks (bars, a line and its dots, a donut's share, a progress bar's fill) against the surface behind them: 3:1 (WCAG
+    // 1.4.11, non-text contrast), measured on the pixels with the words and the marks hidden, on the worse side as for text.
+    if (isPost) {
+      const marks = await page.evaluate('window.__ds.chartMarks()');
+      if (marks.length) {
+        // the mark as drawn (its own pixels, so a see-through colour is read as it looks), then what is behind it
+        const rects = JSON.stringify(marks.map((mk) => mk.rects));
+        await page.evaluate('window.__ds.hide(true)');
+        const drawn = await page.screenshotPng();
+        await page.evaluate('window.__ds.hideMarks(true)');
+        const behind = await page.screenshotPng();
+        await page.evaluate('window.__ds.hideMarks(false); window.__ds.hide(false)');
+        const ink = await page.evaluate(`window.__ds.analyse(${JSON.stringify(drawn.toString('base64'))}, ${rects})`);
+        const stats = await page.evaluate(`window.__ds.analyse(${JSON.stringify(behind.toString('base64'))}, ${rects})`);
+        const worst = {};
+        marks.forEach((mk, i) => {
+          if (!stats[i] || !ink[i]) return;
+          const ml = ink[i].p50, ratio = contrastRatio(ml, ml >= 0.18 ? stats[i].p95 : stats[i].p05);
+          worst[mk.what] = Math.min(worst[mk.what] ?? Infinity, ratio);
+        });
+        const WHAT = { bar: 'bars', line: 'line', dot: 'dots', arc: 'donut', fill: 'progress bar' };
+        for (const [what, ratio] of Object.entries(worst)) if (ratio < MARK_CONTRAST) warnings.push(`low contrast: the chart's ${WHAT[what] ?? what} ${what === 'bar' || what === 'dot' ? 'are' : 'is'} ${ratioBelow(ratio, MARK_CONTRAST)}:1 against the surface behind ${what === 'bar' || what === 'dot' ? 'them' : 'it'} (needs ${MARK_CONTRAST}:1)`);
+      }
     }
     if (isPhoto && peak > (spec.scrimPeak ?? brand.photo.scrimStart) + 1e-9) notes.push(`scrim raised to ${peak.toFixed(2)} to reach the contrast targets`);
     if (fade > 0) notes.push(`footer fade ${fade.toFixed(2)} added so the website is readable`);

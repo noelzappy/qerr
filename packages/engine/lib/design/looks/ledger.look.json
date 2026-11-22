@@ -736,7 +736,7 @@
           ],
           "colours": {
             "mark": "rule-field",
-            "highlight": "gold",
+            "highlight": "white",
             "track": "rule-dark",
             "grid": "rule-dark"
           },

@@ -534,24 +534,27 @@ export function makeContext(args) {
     const col = { mark: o.colours?.mark ?? 'primary', highlight: o.colours?.highlight ?? o.colours?.mark ?? 'accent', track: o.colours?.track ?? 'rule-soft', grid: o.colours?.grid ?? 'rule' };
     for (const v of Object.values(col)) colour(v);
     const paths = [];
-    const fillP = (d, c0, extra = '') => paths.push(`<path d="${d}" style="fill:${colour(c0)}${extra}"></path>`);
-    const strokeP = (d, c0, sw, cap = 'round', extra = '') => paths.push(`<path d="${d}" style="fill:none;stroke:${colour(c0)};stroke-width:${px(sw)}px;stroke-linecap:${cap};stroke-linejoin:round${extra}"></path>`);
+    // a mark that carries the data (a bar, a progress bar's fill, a donut's share, a line and its dots) is tagged data-mark with what it is, a
+    // fixed word: the page measures it against the surface behind it (WCAG 1.4.11, 3:1); the grid, the baseline, a track and an area's
+    // light fill are not data marks
+    const fillP = (d, c0, extra = '', mark = '') => paths.push(`<path${mark ? ` data-mark="${mark}"` : ''} d="${d}" style="fill:${colour(c0)}${extra}"></path>`);
+    const strokeP = (d, c0, sw, cap = 'round', extra = '', mark = '') => paths.push(`<path${mark ? ` data-mark="${mark}"` : ''} d="${d}" style="fill:none;stroke:${colour(c0)};stroke-width:${px(sw)}px;stroke-linecap:${cap};stroke-linejoin:round${extra}"></path>`);
     const axis = o.axis ?? 'baseline';
     if (axis === 'grid') for (const g of L.grid ?? []) strokeP(g.vertical ? `M${px(g.x)} ${px(g.y0)}V${px(g.y1)}` : `M${px(g.x0)} ${px(g.y)}H${px(g.x1)}`, col.grid, 1, 'butt', ';opacity:0.5');
-    if (L.bars) for (const b of L.bars) if (b.w >= 0.5 && b.h >= 0.5) fillP(roundRect(b.x, b.y, b.w, b.h, b.r, kind === 'hbar' ? (b.neg ? 'left' : 'right') : (b.neg ? 'bottom' : 'top')), b.i === hi ? col.highlight : col.mark);
-    if (L.track) { fillP(roundRect(L.track.x, L.track.y, L.track.w, L.track.h, L.track.r, 'all'), col.track); if (L.bar.w > 0.5) fillP(roundRect(L.bar.x, L.bar.y, L.bar.w, L.bar.h, L.bar.r, 'all'), col.highlight); }
-    if (L.ring) { const R = L.ring; strokeP(circlePath(R.cx, R.cy, R.r), col.track, R.t, 'butt'); if (R.share > 0) strokeP(arcPath(R.cx, R.cy, R.r, R.share), col.highlight, R.t, radius > 0 && R.share < 0.9999 ? 'round' : 'butt'); }
+    if (L.bars) for (const b of L.bars) if (b.w >= 0.5 && b.h >= 0.5) fillP(roundRect(b.x, b.y, b.w, b.h, b.r, kind === 'hbar' ? (b.neg ? 'left' : 'right') : (b.neg ? 'bottom' : 'top')), b.i === hi ? col.highlight : col.mark, '', 'bar');
+    if (L.track) { fillP(roundRect(L.track.x, L.track.y, L.track.w, L.track.h, L.track.r, 'all'), col.track); if (L.bar.w > 0.5) fillP(roundRect(L.bar.x, L.bar.y, L.bar.w, L.bar.h, L.bar.r, 'all'), col.highlight, '', 'fill'); }
+    if (L.ring) { const R = L.ring; strokeP(circlePath(R.cx, R.cy, R.r), col.track, R.t, 'butt'); if (R.share > 0) strokeP(arcPath(R.cx, R.cy, R.r, R.share), col.highlight, R.t, radius > 0 && R.share < 0.9999 ? 'round' : 'butt', '', 'arc'); }
     if (L.points) {
       const line = L.points.map((p, i) => `${i ? 'L' : 'M'}${px(p.x)} ${px(p.y)}`).join('');
       if (kind === 'area') fillP(`${line}L${px(L.points[L.points.length - 1].x)} ${px(L.floor)}L${px(L.points[0].x)} ${px(L.floor)}Z`, col.mark, ';opacity:0.18');
-      strokeP(line, col.mark, stroke);
+      strokeP(line, col.mark, stroke, 'round', '', 'line');
       const mk = o.marks ?? 'none', vs = data.values, mx = vs.indexOf(Math.max(...vs)), mn = vs.indexOf(Math.min(...vs));
       const dotted = new Set(mk === 'all' ? vs.map((_, i) => i) : mk === 'end' ? [vs.length - 1] : mk === 'minmax' ? [mn, mx, vs.length - 1] : []);
       // the highlighted point and the point whose value is written always carry a dot, in the highlight colour
       if (hi >= 0) dotted.add(hi);
       if (L.valueAt !== undefined) dotted.add(L.valueAt);
       const lit = (i) => i === hi || i === L.valueAt || (hi < 0 && L.valueAt === undefined && i === vs.length - 1);
-      if (L.dot > 0) for (const i of [...dotted].sort((a, b) => a - b)) { const p = L.points[i]; fillP(circlePath(p.x, p.y, L.dot), lit(i) ? col.highlight : col.mark); }
+      if (L.dot > 0) for (const i of [...dotted].sort((a, b) => a - b)) { const p = L.points[i]; fillP(circlePath(p.x, p.y, L.dot), lit(i) ? col.highlight : col.mark, '', 'dot'); }
     }
     if (axis !== 'none' && L.base && !share) strokeP(L.base.vertical ? `M${px(L.base.x)} ${px(L.base.y0)}V${px(L.base.y1)}` : `M${px(L.base.x0)} ${px(L.base.y)}H${px(L.base.x1)}`, col.grid, 2, 'butt');
     const svg = `<svg class="abs k-chart-s" data-deco aria-hidden="true" width="${px(w)}" height="${px(h)}" viewBox="0 0 ${px(w)} ${px(h)}" style="left:0;top:0">${paths.join('')}</svg>`;

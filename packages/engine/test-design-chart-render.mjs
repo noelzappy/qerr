@@ -16,6 +16,7 @@ import { SIZES } from './lib/design/sizes.mjs';
 import { normaliseDesign, validateDesign } from './lib/design/spec.mjs';
 import { CHARTS as LEDGER_CHARTS, NORMAL as LEDGER_NORMAL } from './testlib/ledger-copy.mjs';
 import { CHARTS as CLEAN_CHARTS, NORMAL as CLEAN_NORMAL } from './testlib/clean-copy.mjs';
+import { paletteBrand } from './testlib/retail-copy.mjs';
 
 const chrome = findChrome();
 const skip = chrome ? false : 'Google Chrome was not found';
@@ -34,12 +35,20 @@ const draw = async (brand, spec) => {
   return renderImage(browser, brand, { spec: normaliseDesign(spec), sizeName: 'feed', outFile: path.join(tmp, `c${n++}.png`) }, { tmpDir: tmp });
 };
 
-test('the shipped chart designs pass every check: the ledger Big number with bars, an area and a line; the clean Number with a sparkline', { skip }, async () => {
+// the three sets of brand colours the shipped looks are drawn in (test-design-look-equivalence.mjs): the demo's, a dark one and a pale one
+const COLOURS = {
+  demo: {},
+  dark: paletteBrand({ name: 'Night Kitchen', light: '#EFEAE0', ink: '#10151F', primary: '#1B2A41', gold: '#F2B84B', deep: '#8A5A00' }),
+  pale: paletteBrand({ name: 'Pale Mill', light: '#F5F0E6', ink: '#2A2418', primary: '#9C3B16', gold: '#EADFC0', deep: '#9A7B2E' }),
+};
+test('the shipped chart designs pass every check in three sets of colours, the marks included: the ledger Big number with bars, an area and a line; the clean Number with a sparkline', { skip }, async () => {
   const ledger = asCopy(shippedLooks().ledger), clean = asCopy(shippedLooks().clean);
-  for (const [look, copy, charts, id] of [[ledger, LEDGER_NORMAL, LEDGER_CHARTS, 'ledger/figure/0'], [clean, CLEAN_NORMAL, CLEAN_CHARTS, 'clean/figure/0']]) {
-    for (const chart of charts[id]) {
-      const r = await draw(brandOf(look), { template: 'post', kind: 'figure', variant: 0, ...copy[id], chart });
-      assert.deepEqual(r.warnings, [], `${id} ${chart.kind ?? 'default'}: ${r.warnings.join(' | ')}`);
+  for (const [set, colours] of Object.entries(COLOURS)) {
+    for (const [look, copy, charts, id] of [[ledger, LEDGER_NORMAL, LEDGER_CHARTS, 'ledger/figure/0'], [clean, CLEAN_NORMAL, CLEAN_CHARTS, 'clean/figure/0']]) {
+      for (const chart of charts[id]) {
+        const r = await draw(brandOf(look, colours), { template: 'post', kind: 'figure', variant: 0, ...copy[id], chart });
+        assert.deepEqual(r.warnings, [], `${set} ${id} ${chart.kind ?? 'default'}: ${r.warnings.join(' | ')}`);
+      }
     }
   }
 });
@@ -51,7 +60,7 @@ const trial = (el = {}, ground = 'paper') => ({
     kind: 'statement', name: 'Trial', describe: 'A headline and a chart, for the tests.', ground, fields: { headline: { required: true, max: 60 }, chart: {} },
     elements: [
       { type: 'text', field: 'headline', style: 'display', size: 96, place: { px: { x: 80, y: 200, w: 920, h: 200 } } },
-      { type: 'chart', place: { px: { x: 80, y: 480, w: 920, h: 520 } }, kinds: ['bar', 'hbar', 'line', 'area', 'spark', 'donut', 'progress'], colours: { mark: 'field', highlight: 'gold', track: 'light-tint', grid: 'rule' }, ...Object.fromEntries(Object.entries({ ink: 'ink', ...el }).filter(([, v]) => v !== undefined)) },
+      { type: 'chart', place: { px: { x: 80, y: 480, w: 920, h: 520 } }, kinds: ['bar', 'hbar', 'line', 'area', 'spark', 'donut', 'progress'], colours: { mark: 'field', highlight: 'accent', track: 'light-tint', grid: 'rule' }, ...Object.fromEntries(Object.entries({ ink: 'ink', ...el }).filter(([, v]) => v !== undefined)) },
     ],
   }],
 });
@@ -65,6 +74,34 @@ test('every kind draws on a plain page and passes the checks', { skip }, async (
     const r = await draw(brand, { template: 'post', kind: 'statement', headline: 'Groups save more', chart });
     assert.deepEqual(r.warnings, [], `${chart.kind}: ${r.warnings.join(' | ')}`);
   }
+});
+
+test('the data marks are held to 3:1 against the surface behind them (WCAG 1.4.11), measured on the pixels as drawn', { skip }, async () => {
+  // a faint colour on the paper page: the demo's light tint (about 1.1:1 on white), for every kind of mark in turn
+  const faint = (colours) => brandOf(trial({ colours: { mark: 'field', highlight: 'accent', track: 'rule-soft', grid: 'rule', ...colours } }));
+  const cases = [
+    [{ highlight: 'light-tint' }, series([1450, 1600, 1720], { kind: 'bar', unit: 'currency', highlight: 'last' }), /the chart's bars are [0-9.]+:1 against the surface behind them \(needs 3:1\)/],
+    [{ mark: 'light-tint' }, series([820, 860, 845, 910], { kind: 'line' }), /the chart's line is [0-9.]+:1 against the surface behind it \(needs 3:1\)/],
+    [{ highlight: 'light-tint' }, { kind: 'donut', unit: 'percent', series: [{ label: 'Reached', value: 72 }] }, /the chart's donut is [0-9.]+:1/],
+    [{ highlight: 'light-tint' }, { kind: 'progress', unit: 'currency', total: 2000, series: [{ label: 'Pot', value: 1250 }] }, /the chart's progress bar is [0-9.]+:1/],
+  ];
+  for (const [colours, chart, re] of cases) {
+    const r = await draw(faint(colours), { template: 'post', kind: 'statement', headline: 'Groups save more', chart });
+    assert.ok(r.warnings.some((w) => re.test(w)), `${chart.kind}: ${r.warnings.join(' | ') || 'no warning'}`);
+  }
+  // the same marks in a colour that reads pass: the track and the grid are not data marks, so their light colours are fine
+  const ok = await draw(faint({}), { template: 'post', kind: 'statement', headline: 'Groups save more', chart: { kind: 'donut', unit: 'percent', series: [{ label: 'Reached', value: 72 }] } });
+  assert.deepEqual(ok.warnings, []);
+});
+
+test('other words keep 10 px off a chart\'s box like off any block; the chart\'s own words, at its edges by design, are held to their cells instead', { skip }, async () => {
+  // the headline's one line starts 50 px above the chart's box: its ink runs into the box
+  const near = trial();
+  near.compositions[0].elements[0] = { ...near.compositions[0].elements[0], place: { px: { x: 80, y: 430, w: 920, h: 120 } } };
+  await assert.rejects(draw(brandOf(near), { template: 'post', kind: 'statement', headline: 'Groups save more', chart: series([900, 1900, 2900], { unit: 'currency' }) }), /the headline "[^"]+" (is only \d+ px from|runs into) the edge of a block or rule/);
+  // the chart's labels sit on its bottom edge and its values above its bars: no edge problem for them
+  const r = await draw(brandOf(trial({ kinds: ['bar'] })), { template: 'post', kind: 'statement', headline: 'Groups save more', chart: series([900, 1900, 2900], { unit: 'currency' }) });
+  assert.deepEqual(r.warnings, []);
 });
 
 test('a value too wide for its slot is refused by the fit check, never drawn over its neighbour', { skip }, async () => {

@@ -441,7 +441,7 @@ window.__ds = {
     const turned = (el) => { for (let e = el; e && e !== document.body; e = e.parentElement) { const tf = getComputedStyle(e).transform; if (tf && tf !== 'none') return true; } return false; };
     // text and a shape are only compared in the same frame: both outside any turned box, or both inside the same turned boxes
     const tiltKey = (el) => { const k = []; for (let e = el; e && e !== document.body; e = e.parentElement) if (e.hasAttribute('data-tilt')) k.push(tilts.findIndex((t) => t[0] === e)); return k.join('.'); };
-    const ctx = document.createElement('canvas').getContext('2d'), inks = [];
+    const ctx = document.createElement('canvas').getContext('2d'), inks = [], chartEls = [...document.querySelectorAll('[data-chart]')];
     const walker2 = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n = walker2.nextNode(); n; n = walker2.nextNode()) {
       if (!n.nodeValue.trim()) continue;
@@ -459,15 +459,19 @@ window.__ds = {
       }
       for (const L of lines) {
         const mt = ctx.measureText(L.s), top = L.y0 + (mt.fontBoundingBoxAscent ?? (L.y1 - L.y0) * 0.8);
-        inks.push({ role, frame: tiltKey(el), text: L.s.trim().slice(0, 30), x0: L.x0, x1: L.x1, y0: top - mt.actualBoundingBoxAscent, y1: top + mt.actualBoundingBoxDescent });
+        const inChart = el.closest('[data-chart]');
+        inks.push({ role, frame: tiltKey(el), text: L.s.trim().slice(0, 30), x0: L.x0, x1: L.x1, y0: top - mt.actualBoundingBoxAscent, y1: top + mt.actualBoundingBoxDescent, ...(inChart ? { chart: chartEls.indexOf(inChart) } : {}) });
       }
     }
-    // (a chart's box, .k-chart, holds its marks and words but has no colour of its own: its words are held to their cells instead)
+    // A chart's box (.k-chart) is a shape for every text but its own: other words keep 10 px off it like off any block, while the chart's
+    // own labels and values, set at its edges by design, are held instead to their cells (the fit check refuses a word that runs out of its
+    // slot) and their ink to the chart's box (checks.mjs, kind "chart"); their contrast is measured on the pixels, bars and lines included.
     const SKIP_SHAPE = '.k-frame,.k-keyline,.k-seal,.k-printmat,.k-echo,.k-chart';
     // a shape counts when it can be seen: a colour other than the page's, or a picture behind it (a paper box on a paper page is only a layout box)
     const pageBg = getComputedStyle(document.querySelector('.cv') || document.body).backgroundColor, pics = [...document.querySelectorAll('img')].map((i) => box(i.getBoundingClientRect()));
     const seen = (el, b) => { const bg = getComputedStyle(el).backgroundColor; if (/^rgba\(.*, 0\)$/.test(bg) || bg === 'transparent') return true; return bg !== pageBg || pics.some((p) => Math.min(p.x1, b.right) > Math.max(p.x0, b.left) && Math.min(p.y1, b.bottom) > Math.max(p.y0, b.top)); };
     const shapes = [...document.querySelectorAll('[data-fill]')].filter((el) => !el.matches(SKIP_SHAPE) && !turned(el) && getComputedStyle(el).clipPath === 'none' && seen(el, el.getBoundingClientRect())).map((el) => ({ ...box(el.getBoundingClientRect()), frame: tiltKey(el) })).filter((b) => b.x1 - b.x0 > 0.5 && b.y1 - b.y0 > 0.5 && !(b.x1 - b.x0 >= W * 0.97 && b.y1 - b.y0 >= H * 0.97));
+    for (const [i, el] of chartEls.entries()) { if (turned(el)) continue; const b = box(el.getBoundingClientRect()); if (b.x1 - b.x0 > 0.5 && b.y1 - b.y0 > 0.5) shapes.push({ ...b, frame: tiltKey(el), chart: i }); }
     for (const [e, t] of tilts) e.style.transform = t;
     const calm = document.querySelector('[data-calm]');
     // a rectangle for every element a builder marked (kit numberElements): { el: "2.0", x0, y0, x1, y1 } in document order, keyed by its index path
@@ -475,6 +479,28 @@ window.__ds = {
     return { W, H, hs, texts, empty, blocks, inks, shapes, calm: calm ? parseFloat(calm.getAttribute('data-calm')) : null, els };
   },
   hide(on) { document.documentElement.classList.toggle('measure', !!on); },
+  // A chart's data marks ([data-chart] path[data-mark], kit c.chartSvg) hidden, so what is behind them can be read (hideMarks), and each
+  // mark as its colour and the pixels it covers (chartMarks): points on a grid over its box that fall inside its fill or its stroke, so a
+  // thin line is read where it is drawn, not across its whole box. The check (render.mjs) measures each against the surface behind it.
+  hideMarks(on) { document.documentElement.classList.toggle('measure-marks', !!on); },
+  chartMarks() {
+    const out = [];
+    for (const svg of document.querySelectorAll('[data-chart] svg')) {
+      const sb = svg.getBoundingClientRect();
+      for (const p of svg.querySelectorAll('path[data-mark]')) {
+        const cs = getComputedStyle(p), stroked = !!cs.stroke && cs.stroke !== 'none', sw = stroked ? parseFloat(cs.strokeWidth) || 0 : 0;
+        const bb = p.getBBox(), x0 = bb.x - sw / 2, y0 = bb.y - sw / 2, x1 = bb.x + bb.width + sw / 2, y1 = bb.y + bb.height + sw / 2;
+        const step = Math.max(1, Math.sqrt(((x1 - x0) * (y1 - y0)) / 900));
+        const rects = [];
+        for (let y = y0 + step / 2; y < y1; y += step) for (let x = x0 + step / 2; x < x1; x += step) {
+          const pt = new DOMPoint(x, y);
+          if (stroked ? p.isPointInStroke(pt) : p.isPointInFill(pt)) rects.push({ x0: sb.left + x - 0.5, y0: sb.top + y - 0.5, x1: sb.left + x + 0.5, y1: sb.top + y + 0.5 });
+        }
+        if (rects.length) out.push({ what: p.dataset.mark, colour: stroked ? cs.stroke : cs.fill, rects });
+      }
+    }
+    return out;
+  },
   measure() {
     const box = (b) => ({ x0: b.left, y0: b.top, x1: b.right, y1: b.bottom });
     const rectsOf = (el) => {
@@ -809,7 +835,7 @@ window.__ds = {
       if (!L.length) return null;
       L.sort((a, b) => a - b);
       const q = (p) => L[Math.min(L.length - 1, Math.round(p * (L.length - 1)))];
-      return { p05: q(0.05), p95: q(0.95), n: L.length };
+      return { p05: q(0.05), p50: q(0.5), p95: q(0.95), n: L.length };
     });
   },
 };
