@@ -51,6 +51,10 @@ describe('the AI-draft note', () => {
     expect(draw(<AiDraftCard notes={{ ...few, pictures: { posts: 2, of: 10, usablePhotos: 40 } }} />)).toContain('Only 2 of 10 posts have a picture, though 40 photos are ready in Pictures');
     expect(draw(<AiDraftCard notes={{ ...few, pictures: { posts: 6, of: 10, usablePhotos: 3 } }} />)).not.toContain('have a picture');
   });
+  it('opens Details for the seasonal note alone', () => {
+    const html = draw(<AiDraftCard notes={{ requested: 2, delivered: 2, seasonal: { occasions: [{ name: 'Christmas Day', date: '2026-12-25' }], used: [] } }} />);
+    expect(html).toContain('aria-expanded="false"');
+  });
   it('has no toggle when there is nothing more to say', () => {
     const html = draw(<AiDraftCard notes={{ requested: 2, delivered: 2 }} />);
     expect(html).not.toContain('aria-expanded');

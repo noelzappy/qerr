@@ -37,6 +37,10 @@ export interface AiDraftNotes {
   imageReasons?: Array<{ postId: string; reason: string }>;
   messages?: string[];
   pictures?: { posts?: number; of?: number; usablePhotos?: number };
+  // the occasions of the period the posts were planned around, and which post took which
+  seasonal?: { country?: string; occasions?: Array<{ name: string; date?: string; end?: string; kind?: string; source?: string }>; used?: Array<{ postId: string; occasion: string; date?: string }> };
+  // what the drafting tools did: vault and web searches, and facts found on the web (saved unconfirmed)
+  tools?: { calls?: number; searches?: Array<{ tool: string; query: string; results: number }>; vaultItemsFound?: number; foundOnTheWeb?: Array<{ id: string; title: string; sourceUrl: string; citedBy?: string[] }> };
 }
 
 export interface PostSummary {
