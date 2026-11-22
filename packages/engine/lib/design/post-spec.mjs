@@ -78,6 +78,8 @@ export function graphicsProblems(list, where) {
     else if (refs.has(g.ref)) e.push(`${w}: the same graphic is listed twice`);
     else refs.add(g.ref);
     if (typeof g.image !== 'string' || !g.image.trim() || g.image.includes('\0')) e.push(`${w}: image must be a file path`);
+    // the file is read from disk when the page is made: only a path relative to the repository that stays inside it (never absolute, never "..")
+    else if (path.isAbsolute(g.image) || path.win32.isAbsolute(g.image) || g.image.split(/[\\/]/).includes('..')) e.push(`${w}: image must be a path relative to the repository that stays inside the repository`);
     else if (!POST_GRAPHICS.exts.includes(path.extname(g.image).toLowerCase())) e.push(`${w}: image must be a PNG or WebP file (${POST_GRAPHICS.exts.join(' ')}) with a transparent background`);
     if (g.tintable !== undefined && typeof g.tintable !== 'boolean') e.push(`${w}: tintable must be true or false`);
   });

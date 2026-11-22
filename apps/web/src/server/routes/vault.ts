@@ -16,7 +16,7 @@ import { staleInfo } from '../services/vault-rules.js';
 import { describeError, logger } from '../log.js';
 import { privateKey } from '../storage/types.js';
 import { framingOfBytes, phoneFramedOf } from '../services/screen-framing.js';
-import { cutoutProblem, imageFacts } from '../services/image-header.js';
+import { cutoutProblem, imageFacts, pictureSizeProblem } from '../services/image-header.js';
 import { graphicUsage } from '../services/graphics.js';
 import type { Prisma } from '@prisma/client';
 
@@ -283,6 +283,8 @@ export function vaultRoutes(deps: Deps): Hono<AppEnv> {
     const kind = sniffImage(bytes);
     if (!kind) throw new HttpError(415, 'Only JPG, PNG, WebP and GIF images are accepted');
     const facts = imageFacts(bytes);
+    const tooLarge = pictureSizeProblem(facts);
+    if (tooLarge) throw new HttpError(415, tooLarge);
     if (role === 'cutout' || role === 'graphic') {
       const why = cutoutProblem(facts, role);
       if (why) throw new HttpError(415, why);
