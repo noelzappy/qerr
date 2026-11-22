@@ -18,6 +18,16 @@ describe('gallery pictures as design nodes', () => {
     const out = withoutVaultIds(post([{ image: 'a.jpg', vaultItemId: 'v1', caption: 'Ama' }, { image: 'b.jpg', vaultItemId: 'v2' }])) as { gallery: unknown[] };
     expect(out.gallery).toEqual([{ image: 'a.jpg', caption: 'Ama' }, { image: 'b.jpg' }]);
   });
+  it('treats the gallery of each carousel post page like the post\'s own: listed, stripped and named by page', async () => {
+    const carousel = { template: 'carousel', pages: [post([{ image: 'design/assets/demo/object-jar.jpg' }]), post([{ image: 'a.jpg', vaultItemId: 'v1', caption: 'Ama' }, { image: '../../etc/secret.jpg' }])] };
+    const nodes = designNodes(carousel);
+    expect(nodes).toHaveLength(6);
+    expect(nodes).toContainEqual({ image: '../../etc/secret.jpg' });
+    const out = withoutVaultIds(carousel) as { pages: { gallery: unknown[] }[] };
+    expect(out.pages[1].gallery).toEqual([{ image: 'a.jpg', caption: 'Ama' }, { image: '../../etc/secret.jpg' }]);
+    const problems = await designProblems(carousel);
+    expect(problems.some((p) => /design page 2 gallery picture 2: image "\.\.\/\.\.\/etc\/secret\.jpg" must be a file under design\/assets\//.test(p))).toBe(true);
+  });
   it('refuses a gallery picture outside design/assets that is not a vault photo, naming the picture', async () => {
     const problems = await designProblems(post([{ image: 'design/assets/demo/object-jar.jpg' }, { image: '../../etc/secret.jpg' }]));
     expect(problems.some((p) => /design gallery picture 2: image "\.\.\/\.\.\/etc\/secret\.jpg" must be a file under design\/assets\//.test(p))).toBe(true);

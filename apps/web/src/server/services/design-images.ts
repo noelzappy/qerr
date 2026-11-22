@@ -16,30 +16,42 @@ type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
 
 // The design, each carousel page and each picture of a post's row of round pictures (`gallery`: { image, vaultItemId?, caption? }), as the
-// objects that may hold an `image`. A gallery picture is checked, copied and rights-checked exactly like the post's own picture.
+// objects that may hold an `image`. A gallery picture is checked, copied and rights-checked exactly like the post's own picture, on a post
+// and on each post page of a carousel alike.
 const galleryOf = (o: Json): Json[] => (o.template === 'post' && Array.isArray(o.gallery) ? o.gallery.filter(isObj) : []);
+const pagesOf = (o: Json): Json[] => (Array.isArray(o.pages) ? o.pages.filter(isObj) : []);
 export function designNodes(design: unknown): Json[] {
   if (!isObj(design)) return [];
-  return [design, ...galleryOf(design), ...(Array.isArray(design.pages) ? design.pages.filter(isObj) : [])];
+  return [design, ...galleryOf(design), ...pagesOf(design).flatMap((p) => [p, ...galleryOf(p)])];
 }
 
-// A copy without the app's own `vaultItemId` field (on the design, its pages and its gallery pictures), which the engine's validators do not know.
+// A copy without the app's own `vaultItemId` field (on the design, its pages and the gallery pictures of either), which the engine's
+// validators do not know.
 export function withoutVaultIds(design: unknown): unknown {
   if (!isObj(design)) return design;
   const strip = (p: unknown) => (isObj(p) ? Object.fromEntries(Object.entries(p).filter(([k]) => k !== 'vaultItemId')) : p);
-  const copy: Json = { ...design };
-  delete copy.vaultItemId;
-  if (Array.isArray(copy.pages)) copy.pages = copy.pages.map(strip);
-  if (copy.template === 'post' && Array.isArray(copy.gallery)) copy.gallery = copy.gallery.map(strip);
+  const stripNode = (p: unknown): unknown => {
+    if (!isObj(p)) return p;
+    const out = strip(p) as Json;
+    if (out.template === 'post' && Array.isArray(out.gallery)) out.gallery = out.gallery.map(strip);
+    return out;
+  };
+  const copy = stripNode(design) as Json;
+  if (Array.isArray(copy.pages)) copy.pages = copy.pages.map(stripNode);
   return copy;
 }
 
-// How a problem names a node: the design, "design page 2" (1-based, as before) or "design gallery picture 1".
+// How a problem names a node: the design, "design page 2" (1-based, as before), "design gallery picture 1" or
+// "design page 2 gallery picture 1".
 function nodeName(design: unknown, node: Json): string {
   if (node === design || !isObj(design)) return 'design';
   const g = galleryOf(design).indexOf(node);
   if (g >= 0) return `design gallery picture ${g + 1}`;
-  return `design page ${(Array.isArray(design.pages) ? design.pages.filter(isObj) : []).indexOf(node) + 1}`;
+  const pages = pagesOf(design);
+  const p = pages.indexOf(node);
+  if (p >= 0) return `design page ${p + 1}`;
+  const at = pages.findIndex((page) => galleryOf(page).includes(node));
+  return at >= 0 ? `design page ${at + 1} gallery picture ${galleryOf(pages[at]).indexOf(node) + 1}` : 'design';
 }
 
 const insideAssets = (file: string): boolean => {
