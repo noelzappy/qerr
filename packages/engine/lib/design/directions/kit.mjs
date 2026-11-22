@@ -550,7 +550,7 @@ export function makeContext(args) {
       if (!text) return '';
       const run = c.run({
         html: new Markup(isValue ? esc(text) : text), role: isValue ? 'meta' : 'label', family: fam(isValue ? o.valueFamily : o.labelFamily, 'label'), size: isValue ? valueSize : labelSize, lead: 1.2,
-        weight: isValue ? o.valueWeight : o.labelWeight, track: isValue ? o.valueTrack : o.track, upper: !isValue && o.upper ? true : undefined, colour: isValue ? o.valueInk ?? 'ink' : o.labelInk ?? 'muted', nowrap: true,
+        weight: isValue ? o.valueWeight : o.labelWeight, track: isValue ? o.valueTrack : o.track, upper: !isValue && o.upper ? true : undefined, colour: isValue ? o.valueInk ?? 'ink' : o.labelInk ?? 'body', nowrap: true,
       });
       return boxEl({ x: l.x, y: l.y, w: l.w, h: l.h, cell: true, flex: 'row', align: 'center', justify: l.align === 'right' ? 'end' : l.align === 'center' ? 'center' : undefined, skipGrid: true }, run);
     }).join('');

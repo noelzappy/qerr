@@ -47,8 +47,8 @@ export function sizes(el, look) {
   if ((el.values ?? true) && kinds.some((k) => k !== 'spark')) out.push(el.valueSize ?? labelSizeOf(el, look));
   return out.filter(Number.isFinite);
 }
-// the labels stand on the ground in the element's ink (else muted), the values in the element's ink (else ink): checked like every ink
-export const inks = (el) => (el.ink === undefined ? ['muted', 'ink'] : []);
+// the labels stand on the ground in the element's ink (else body), the values in the element's ink (else ink): checked like every ink
+export const inks = (el) => (el.ink === undefined ? ['body', 'ink'] : []);
 export function fonts(el, look) {
   const T = look.type, labelRole = T.label.role === 'mono' ? 'mono' : 'label', vf = el.valueFont ?? 'label';
   const vRole = vf === 'label' ? labelRole : vf;
@@ -78,7 +78,7 @@ export function render(c, p, env) {
     kind, w, h, colours: p.colours, axis: p.axis ?? 'baseline', values: p.values ?? true, labels: p.labels ?? true, radius: p.radius ?? 0, stroke: p.stroke, thickness: p.thickness,
     trim: p.trim && LINE_KINDS.includes(kind) ? true : undefined, marks: p.marks, labelSize, valueSize, labelFamily, valueFamily: vf === 'label' ? labelFamily : vf,
     labelWeight: L.weight, valueWeight: vf === 'display' ? T.display.weight : vf === 'text' ? T.body.weight : L.weight, track: L.track, valueTrack: vf === 'label' ? L.track : undefined, upper: p.upper || undefined,
-    labelInk: env.ink ?? 'muted', valueInk: env.ink ?? 'ink',
+    labelInk: env.ink ?? 'body', valueInk: env.ink ?? 'ink',
   });
   if (b.flow) return c.chartSvg({ ...o, flow: true, alignSelf: b.alignSelf, nudge: env.nudge });
   return c.chartSvg({ ...o, x: b.x, y: b.y, right: b.right, bottom: b.bottom, z: env.z });
