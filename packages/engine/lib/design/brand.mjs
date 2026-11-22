@@ -9,6 +9,7 @@ import { validateLooks } from './look.mjs';
 import { readBrandAsset, readBrandImage } from './assets.mjs';
 import { numbersProblems } from './chart.mjs';
 import { emojiIn } from './emoji.mjs';
+import { isCountryCode } from '../countries.mjs';
 import {
   ACCENT_DEVICES, ACCENT_STYLES, ARTWORK_FITS, DECORATION_ON, DECORATIONS, FONT_ROLES, FOOTERS, GRADIENT_NAMES, GROUND_ALIASES, GROUND_NAMES, HEX, LOGO_PLACES,
   DIRECTIONS, PHOTO_TREATMENTS, SERIES_KEY, SHADOW_NAMES, STYLE_COLOURS, STYLE_DEFAULTS, SURFACES, TYPE_CASES, groundName, isDarkColour,
@@ -158,6 +159,8 @@ export function validateBrand(b) {
     try { if (ok) new Intl.DateTimeFormat('en', { timeZone: b.timezone }); } catch { ok = false; }
     if (!ok) errors.push('brand.json: timezone must be an IANA time zone such as Europe/London');
   }
+  // where the brand works, for the holidays and observances the AI is offered (optional): an ISO 3166-1 alpha-2 code such as IE
+  if (b.country !== undefined && !isCountryCode(b.country)) errors.push('brand.json: country must be a two-letter ISO 3166-1 code in capitals, such as IE or GH');
   // What the AI is told about the brand beyond its name: the voice, the language, the visual direction and the style briefs of
   // the design references people uploaded. Plain text for the model only; none of it is ever placed in a rendered page. (What a
   // reference changes in the pixels arrives as checked `style` and colour values, once an admin accepts it in Settings.)

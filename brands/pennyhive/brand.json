@@ -4,6 +4,7 @@
   "tagline": "Save as a hive, see every penny.",
   "descriptor": "A savings-club app: groups save on a set day, and every member sees the pot. A fictional brand for testing.",
   "timezone": "Europe/Dublin",
+  "country": "IE",
   "money": {
     "local": "Pennyhive works in euros (€) only",
     "foreign": "US\\$|\\$|£|\\b(?:dollars?|pounds? sterling|rupees?|yen|nairas?)\\b"
