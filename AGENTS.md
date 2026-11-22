@@ -46,7 +46,9 @@ These apply to anyone who changes or runs this repository or a Vesk deployment.
     passes the engine's `validateBrand`; never bypass it. A photo needs a licence that allows commercial use and a record
     of where it came from (a vault photo's source and licence, or a line in
     `packages/engine/design/assets/photos/CREDITS.md`); do not use tight portraits of identifiable people or imply that
-    pictured people are customers. Brand names are written as the brand's spelling rules say; no emoji. Never weaken a
+    pictured people are customers. The one exception (approved by the owner on 22 Nov 2026) is a look's portrait picture
+    (`avatar`) of the person a quote is by: it may show that person's face only when the vault item records their consent,
+    which approval enforces; it is still read, enlarged and checked like every picture. Brand names are written as the brand's spelling rules say; no emoji. Never weaken a
     design check (contrast, enlargement, text fit, pixel size) to make an image pass: change the words, the picture or the
     crop. Look at every rendered image before you call it done. One Chrome at a time: do not run renders in parallel. A
     render replaces only the images a render made; never overwrite or drop files a person uploaded to a post by hand.
