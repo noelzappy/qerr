@@ -67,6 +67,15 @@ export function changedPaths(look: Json, baseline: Json, nodes: string[]): strin
   }
   return [...out];
 }
+// How many single values the nodes hold (an object counts what is inside it; a list, a font or a tuple is one value).
+export function leafCount(sections: Record<string, Desc>, nodes: string[]): number {
+  const count = (d: Desc | undefined): number => (!d ? 0 : d.kind === 'object' && d.props ? Object.values(d.props).reduce((n, x) => n + count(x), 0) : 1);
+  return nodes.reduce((n, path) => {
+    let cur: Desc | undefined = { kind: 'object', props: sections };
+    for (const k of parsePath(path)) cur = typeof k === 'string' ? cur?.props?.[k] : undefined;
+    return n + count(cur);
+  }, 0);
+}
 export const changedCount = (look: Json, baseline: Json, nodes: string[]): number => changedPaths(look, baseline, nodes).length;
 
 // The look with the group's nodes put back to the baseline's values (a node the baseline lacks is removed).

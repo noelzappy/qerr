@@ -56,6 +56,8 @@ export function LookPage({ initial, list, activeRef, onActive }: { initial: OwnD
   const invalid = Object.keys(own).length > 0 || !!nameProblem;
 
   const order = kindOrder(cat);
+  // The designs' definitions, kept as one array while they do not change (Fine-tune's guard works them out once per look).
+  const compDefs = useMemo(() => look.compositions.map((c) => c.definition), [look.compositions]);
   const target = useMemo(() => (invalid ? null : { look: lookForPreview(draft, look.compositions, order) }), [invalid, draft, look.compositions]);
   const samples = useLookSamples(target);
 
@@ -130,7 +132,7 @@ export function LookPage({ initial, list, activeRef, onActive }: { initial: OwnD
         <div className="grid gap-x-10 gap-y-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:items-start">
           <LookSamples state={samples} kinds={order} lookName={look.name} className="md:sticky md:top-4" />
           <div className="max-w-2xl">
-            <SettingsTab ctx={{ look: draft, catalogue: cat, fonts: list.fonts, errors, disabled: false, onChange: change }} comps={look.compositions.map((c) => c.definition)}
+            <SettingsTab ctx={{ look: draft, catalogue: cat, fonts: list.fonts, errors, disabled: false, onChange: change }} comps={compDefs}
               originRef={look.origin.startsWith('copy:') ? look.origin : null} saved={settingsOf(look.definition)} onLook={setDraft} />
             <div className="mt-4"><FormProblem error={error} lines={mapped.other} /></div>
           </div>

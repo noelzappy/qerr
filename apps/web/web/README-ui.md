@@ -8,7 +8,7 @@ stylesheet are gone: everything is Tailwind utilities, the theme tokens and the 
 | Path | What |
 | --- | --- |
 | `src/components/ui/*` | shadcn components (button, input, textarea, label, select, checkbox, switch, dialog, alert-dialog, sheet, drawer, table, badge, card, tabs, dropdown-menu, sonner, alert, skeleton, tooltip, popover). Owned by us: edit freely. |
-| `src/components/kit/` | The one shared kit, imported from `@/components/kit`: `TextField`, `FormField`, `Notice`, `FormPanel` (see below), `PageHeader`, `DataList`, field wrappers, `SegmentedField` (2 to 4 choices, or chips for a longer list, as one radio group: use it instead of a dropdown for small choices and filters), `TagInput` (the one tag control: chips, Enter, comma or Add), `FilledTag` (the "Auto" / "From the file name" mark beside a value the app filled in), states (`RowsSkeleton`, `EmptyBlock`, `ErrorBlock`, `LoadingBlock`, `Pager`, `BusyButton`), `ConfirmAction`, badges. Add new shared composites here. `src/components/*.tsx` holds the domain pieces (activity parts, network icon, post row). Shared hooks that are not data loading are in `src/hooks/` (`use-media-query.ts`); the data hooks are in `src/hooks.ts`. |
+| `src/components/kit/` | The one shared kit, imported from `@/components/kit`: `TextField`, `FormField`, `Notice`, `FormPanel` (see below), `PageHeader`, `DataList`, field wrappers, `SegmentedField` (2 to 4 choices, or chips for a longer list, as one radio group: use it instead of a dropdown for small choices and filters), `TagInput` (the one tag control: chips, Enter, comma or Add), `FilledTag` (the "Auto" / "From the file name" mark beside a value the app filled in), states (`RowsSkeleton`, `EmptyBlock`, `ErrorBlock`, `LoadingBlock`, `Pager`, `BusyButton`), `ConfirmAction`, badges, `PresetNumber` (named presets in a segmented row, each with an optional picture of its value, and "Custom…" for the exact number with its range and step; it shows which preset a value is or Custom, and never snaps a value). Add new shared composites here. `src/components/*.tsx` holds the domain pieces (activity parts, network icon, post row). Shared hooks that are not data loading are in `src/hooks/` (`use-media-query.ts`); the data hooks are in `src/hooks.ts`. |
 | `src/index.css` | Tailwind import, fonts, theme tokens (light and dark). |
 | `src/lib/utils.ts` | `cn()` for class names. |
 | `src/lib/theme.ts` | `initTheme()`, `setTheme('light' \| 'dark' \| 'system')`, `useTheme()`. |
@@ -192,7 +192,7 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
 - Brand and look has eight sections at `/settings/brand/<identity|logos|colours|type|surfaces|post-types|voice|advanced>`
   (`#logos` still opens the Logos section; `/settings/brand/direction` and `#direction` go to Looks). Uploads and Advanced save the moment
   they are done; everything else waits for Save. The old Design direction tab is gone: choosing a look is **Settings, Looks**. Colours has
-  **Contrast for large headlines** (Standard 4.5, High 7, or Custom 3 to 7, with a note below 4.5; `brand/contrast-display.tsx`). "Series" is
+  **Contrast for large headlines** (Standard 4.5, High 7, or Custom 3 to 7, with a note below 4.5; `brand/contrast-display.tsx`, drawn by the kit's `PresetNumber`). "Series" is
   called "Post types". "Other currencies to flag" is a list of words; a stored pattern that the list cannot show is edited under Advanced.
 - **Looks** (`pages/settings/looks/`): `/settings/looks` (tabs Looks and Inspiration at `/settings/looks/inspiration`; the design references
   moved there from their own menu entry, `/settings/references` redirects), `/settings/looks/:slug` and `/settings/looks/:slug/designs/:id`
@@ -207,12 +207,20 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
   words), Space (Tight, Standard, Airy, scaled from the look's origin), Pictures (As shot, Greyscale, Colour tint, Punchy, and Grain)
   and Logo (Off or in a corner, and a size), then Details, which has no choice. Each choice is a preset (`presets.ts`) that says which
   option the values match now and writes only the values it owns; a look that fits none shows a "Custom" chip and nothing is snapped.
-  Every group has a closed "Fine-tune" link that opens that group's exact values (the catalogue-driven controls, compact, the range in
-  the tooltip) with "n values changed from the original" and "Reset this group" (to the origin look, else as opened). Every catalogue
+  Every group has a closed "Fine-tune" link. It opens the group's grouped controls (`settings/fine-controls.ts`, drawn by `fine-tune.tsx`
+  with the kit's `PresetNumber`): twelve in all, Typeface (Text size, which moves the body, list and label sizes together as a share of
+  the original; Line height, body with lists 0.2 closer; Label letter spacing; Weights, a strip of "Ag" samples per library font instead
+  of nine checkboxes, where a weight a type setting or a design uses cannot be switched off), Headline voice (Letter spacing, Line height),
+  Space (Margins, all four sides; Gap between columns) and Details (Rule thickness, Frame, Shadow, Wordmark strength). Each maps one
+  number onto its catalogue values (specced in `src/web-look-finetune.spec.ts`), shows Custom when they do not all follow it, and is
+  guarded: a preset or a typed number that would break the grid, a frame a design draws or a design's rules (design-health in the
+  browser, then `POST /api/settings/looks/validate`) is not offered or not written, with a sentence. Below them a closed "Exact values (n)"
+  disclosure holds the group's exact values (the catalogue-driven controls, compact, the range in the tooltip), then "n values changed
+  from the original" and "Reset this group" (to the origin look, else as opened). Every catalogue
   value is in exactly one group's Fine-tune (`groups.ts`; what no group names falls to Details, so a setting the engine adds appears
   there). Font weights are not asked for: `weights.ts` works out what the type settings and designs need and writes it whenever a
   choice or a dial changes; the manual list is in Typeface's Fine-tune.
-  The typeface cards load their real family: `settings/load-fonts.ts` registers the family's woff2 files (listed with each family by `GET /api/settings/looks`, served by `GET /api/settings/looks/fonts/:family/:file`) with the browser's FontFace API under the alias `Look <family>`, once per family, and shows the sample in it; where FontFace is missing nothing happens. The sample and design-preview hooks ignore an answer marked `superseded` (the server replaced that request by a newer one from the same person). A server problem on a value opens its group's Fine-tune.
+  The typeface cards load their real family: `settings/load-fonts.ts` registers the family's woff2 files (listed with each family by `GET /api/settings/looks`, served by `GET /api/settings/looks/fonts/:family/:file`) with the browser's FontFace API under the alias `Look <family>`, once per family, and shows the sample in it; where FontFace is missing nothing happens. The sample and design-preview hooks ignore an answer marked `superseded` (the server replaced that request by a newer one from the same person). A server problem on a value opens its group's Fine-tune and exact values.
 - **The design editor** (`pages/settings/looks/DesignEditor.tsx`, at `/settings/looks/:slug/designs/:id`, Edit on the Designs tab) builds a look's
   design (one composition) entirely from the panel. The composition JSON is the state; `design-model.ts` (pure, specced in
   `src/web-design-editor.spec.ts` over every composition of both shipped looks) reads and writes it by the engine catalogue's descriptors and never clamps:

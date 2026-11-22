@@ -13,6 +13,7 @@ export { FormPanel } from './form-panel';
 export { FormProblem, Lines, Notice } from './notice';
 export { MoreMenu, type MoreMenuItem } from './more-menu';
 export { PageHeader } from './page-header';
+export { PresetNumber, presetChoice, presetIndex, numberProblem, type NumberPreset, type PresetNumberProps } from './preset-number';
 export { EmptyBlock, ErrorBlock, LoadingBlock, Pager, RowsSkeleton } from './states';
 export { FilledTag } from './filled-tag';
 export { SegmentedField, type SegmentOption } from './segmented-field';

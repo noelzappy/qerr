@@ -13,6 +13,8 @@ export const lookApi = {
   duplicate: (source: string, name?: string) => body(api.post<{ look: OwnDetail }>(`${B}/duplicate`, { source, ...(name ? { name } : {}) })),
   remove: (slug: string) => api.delete<{ ok: true }>(`${B}/${slug}`),
   use: (ref: string | null) => api.put<{ activeRef: string | null }>(`${B}/active`, { ref }),
+  // What the engine says about a whole definition, nothing stored (Fine-tune checks a number before it writes it).
+  validate: (definition: Json, signal?: AbortSignal) => api.post<{ problems: Problem[] }>(`${B}/validate`, { definition }, signal),
   saveSettings: (slug: string, definition: Json) => body(api.put<{ look: OwnDetail }>(`${B}/${slug}/settings`, { definition })),
   addDesign: (slug: string, source: string, kind: string, index: number) => body(api.post<{ look: OwnDetail }>(`${B}/${slug}/compositions`, { source, kind, index })),
   enableDesign: (slug: string, id: string, enabled: boolean) => body(api.patch<{ look: OwnDetail }>(`${B}/${slug}/compositions/${id}`, { enabled })),
