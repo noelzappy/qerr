@@ -19,7 +19,7 @@ const PAGE_SIZE = 25;
 
 const KIND_OPTIONS = VAULT_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }));
 const STATUS_OPTIONS = [{ value: 'confirmed', label: 'Confirmed' }, { value: 'unconfirmed', label: 'Unconfirmed' }];
-const STALE_OPTIONS = [{ value: 'true', label: 'Stale only' }, { value: 'false', label: 'Not stale' }];
+const STALE_OPTIONS = [{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }];
 
 // A small picture beside a photo or screen, so the list shows what the item is.
 function Thumb({ item }: { item: VaultItem }) {
@@ -105,10 +105,10 @@ export function Vault() {
       <FilterBar
         ariaLabel="Filter your facts"
         search={{ value: q, onChange: onFilter(setQ), placeholder: 'Search facts' }}
-        selects={[
-          { key: 'kind', label: 'Kind', allLabel: 'All kinds', value: kind, onChange: onFilter(setKind), options: KIND_OPTIONS },
-          { key: 'status', label: 'Status', allLabel: 'Any status', value: status, onChange: onFilter(setStatus), options: STATUS_OPTIONS },
-          { key: 'stale', label: 'Out of date', allLabel: 'Either', value: stale, onChange: onFilter(setStale), options: STALE_OPTIONS },
+        filters={[
+          { key: 'status', label: 'Status', allLabel: 'Any', value: status, onChange: onFilter(setStatus), options: STATUS_OPTIONS },
+          { key: 'stale', label: 'Out of date', allLabel: 'Any', value: stale, onChange: onFilter(setStale), options: STALE_OPTIONS },
+          { key: 'kind', label: 'Kind', allLabel: 'All', value: kind, onChange: onFilter(setKind), options: KIND_OPTIONS, display: 'chips' },
         ]}
         tag={{ value: tag, onChange: onFilter(setTag) }}
         active={filtered}

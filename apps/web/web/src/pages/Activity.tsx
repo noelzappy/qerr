@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { EmptyBlock, ErrorBlock, FormPanel, Notice, PageHeader, Pager, RowsSkeleton, SelectField, SwitchField } from '@/components/kit';
+import { EmptyBlock, ErrorBlock, FormPanel, Notice, PageHeader, Pager, RowsSkeleton, SegmentedField, SelectField, SwitchField } from '@/components/kit';
 import { FailureText } from '@/components/failure-text';
 import { RunProgress, RunResult, RunStatusBadge, runSummary } from '@/components/activity-parts';
 import { useActivity, useActivityRun } from '@/hooks/use-activity';
@@ -14,7 +14,7 @@ import { useDocumentTitle } from '../hooks';
 import { formatDateTime } from '../lib/format';
 
 const PAGE_SIZE = 25;
-const STATUS_OPTIONS = [
+const STATUS_OPTIONS: Array<{ value: 'all' | 'active' | 'done' | 'failed'; label: string }> = [
   { value: 'all', label: 'Everything' }, { value: 'active', label: 'In progress' }, { value: 'done', label: 'Done' }, { value: 'failed', label: 'Failed' },
 ];
 const KIND_OPTIONS = [{ value: '', label: 'All kinds' }, ...Object.entries(KIND_LABEL).map(([value, label]) => ({ value, label }))];
@@ -23,7 +23,7 @@ export function Activity() {
   useDocumentTitle('Activity');
   const { id } = useParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState('all');
+  const [status, setStatus] = useState<(typeof STATUS_OPTIONS)[number]['value']>('all');
   const [kind, setKind] = useState('');
   const [showSystem, setShowSystem] = useState(false);
   const [page, setPage] = useState(1);
@@ -45,8 +45,8 @@ export function Activity() {
       <PageHeader title="Activity" />
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-2" role="search" aria-label="Filter the activity">
-          <SelectField hideLabel className="w-36 max-sm:w-[calc(50%-0.25rem)]" label="Status" value={status} onValueChange={(v) => { setStatus(v); setPage(1); }} options={STATUS_OPTIONS} />
-          <SelectField hideLabel className="w-40 max-sm:w-[calc(50%-0.25rem)]" label="Kind of work" value={kind} onValueChange={(v) => { setKind(v); setPage(1); }} options={KIND_OPTIONS} />
+          <SegmentedField label="Status" hideLabel value={status} onChange={(v) => { setStatus(v); setPage(1); }} options={STATUS_OPTIONS} />
+          <SelectField hideLabel className="w-44 max-sm:w-full" label="Kind of work" value={kind} onValueChange={(v) => { setKind(v); setPage(1); }} options={KIND_OPTIONS} />
           <SwitchField className="sm:ml-2" label="Show automatic status checks" checked={showSystem} onCheckedChange={(v) => { setShowSystem(v); setPage(1); }} />
         </div>
         <div className="overflow-hidden rounded-lg border" aria-label="Activity">
