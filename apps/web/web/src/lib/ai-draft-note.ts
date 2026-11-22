@@ -6,6 +6,8 @@ export interface DraftReport {
   delivered?: number;
   rejected?: Array<{ id: string | null; reasons: string[] }>;
   messages?: string[];
+  // How many posts carry a picture, and how many usable photos the vault offered the AI.
+  pictures?: { posts?: number; of?: number; usablePhotos?: number };
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -52,5 +54,17 @@ export function draftSummary(notes: DraftReport): DraftSummary {
   return { headline, followUp, why };
 }
 
-// Messages from the AI that only repeat the headline are left out; the rest are technical and go under "Details".
-export const detailMessages = (notes: DraftReport): string[] => (notes.messages ?? []).filter((m) => !/requested posts passed the checks/i.test(m));
+// When fewer than half the posts carry a picture, one plain line says so and what to do, shown with the note (not under "Details"):
+// a vault with fewer usable photos than posts asks for more photos; a vault with enough says the drafts did not use them.
+export function pictureNote(notes: DraftReport): string | null {
+  const p = notes.pictures;
+  if (!p || typeof p.posts !== 'number' || typeof p.of !== 'number' || !p.of || p.posts * 2 >= p.of) return null;
+  const photos = typeof p.usablePhotos === 'number' ? p.usablePhotos : 0;
+  const count = `Only ${p.posts} of ${p.of} posts ${p.posts === 1 ? 'has' : 'have'} a picture`;
+  return photos < p.of
+    ? `${count}: confirm more photos in Pictures (with their rights settled) to get richer posts.`
+    : `${count}, though ${photos} photos are ready in Pictures: add one to a post, or ask the AI again.`;
+}
+
+// Messages from the AI that only repeat the headline (or the picture line above) are left out; the rest are technical and go under "Details".
+export const detailMessages = (notes: DraftReport): string[] => (notes.messages ?? []).filter((m) => !/requested posts passed the checks/i.test(m) && !(notes.pictures && /posts have a picture/i.test(m)));

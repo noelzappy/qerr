@@ -669,7 +669,9 @@ characters are ever shown.
 
 Every AI call is saved in `ai_calls`; month-to-date spend on the AI settings page is the sum of this month's costs. `draft-batch`
 makes a real batch in `draft` state (`Batch.aiDraft` holds the drafter's notes and shows the "AI draft" badge): the posts
-carry their vault sources and the AI's warnings, and vault photos are rendered by copying the file from the bucket. If the
+carry their vault sources and the AI's warnings, and vault photos are rendered by copying the file from the bucket. The batch's
+AI-draft note says in plain sight when fewer than half the posts carry a picture (`aiDraft.pictures`), and whether to confirm more
+photos in Pictures or to add the photos that are already there. If the
 AI fails, the budget is used up or the answer is not valid, nothing is created and the audit log gets `ai.draft_batch.failed`.
 Details: [../../docs/ai.md](../../docs/ai.md).
 
