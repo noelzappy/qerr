@@ -264,6 +264,9 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
       if (lightPage && bg === 'dark') { Object.assign(vars, { white: pal.ink, dark: pal.paper, field: pal.paper, 'on-field': pal.ink, 'body-dark': pal.body, 'muted-dark': p.mutedPaper }); bg = 'paper'; }
       inner = c.scope(vars, made);
     }
+    // the logo's wordmark takes the ink of the ground the page actually has (this post's ground, after a dark page turned light), not of the
+    // grounds the composition may have
+    c.dark = bg === 'dark' || bg === 'field';
     html = numberElements(inner);
     fonts = fontFacesFor(fontNeedsFor(look, fontUsage(look, comp.data), brand), wordsOfPage(spec, brand, (c.folio.n ? tokens.folio(c.folio.n, c.folio.total) : '')));
     root = `--bg:var(--c-${bg});${paletteCss(pal)};--f-display:${lookStack(tokens, 'display')};--f-text:${lookStack(tokens, 'text')};--f-label:${lookStack(tokens, 'label')};--f-mono:${lookStack(tokens, 'mono')};--k-grain:${grainUri(tokens.grain)};${lookRoot(look, tokens)}`;

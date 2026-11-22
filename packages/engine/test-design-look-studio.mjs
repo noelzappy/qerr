@@ -16,6 +16,7 @@ import { Browser, findChrome } from './lib/design/chrome.mjs';
 import { renderImage } from './lib/design/render.mjs';
 import { normaliseDesign } from './lib/design/spec.mjs';
 import { NORMAL, STRESS, MINIMAL } from './testlib/studio-copy.mjs';
+import { paletteBrand } from './testlib/retail-copy.mjs';
 
 const look = JSON.parse(fs.readFileSync(new URL('./lib/design/looks/studio.look.json', import.meta.url), 'utf8'));
 const walkEls = (els, fn) => { for (const e of els) { fn(e); if (e.children) walkEls(e.children, fn); } };
@@ -109,6 +110,23 @@ test('Swipe and its arrow show on a carousel page with a next page only', () => 
 test('a pill keeps the punctuation right after it on its line', () => {
   const body = renderPostWithLook({ ...look, origin: 'copy:shipped:studio' }, { template: 'post', kind: 'statement', variant: 0, name: 'p', headline: 'Bring us [[a sketch]], we plan it' }, { size: SIZES.feed, brand: brand(), image: () => '', imageSize: () => null }, { shipped: false }).body;
   assert.match(body, /<span style="white-space:nowrap"><span class="k-pl k-pl-soft"[^>]*><span class="k-pl-t" data-role="accent">a sketch<\/span><\/span>,<\/span>/);
+});
+
+test('the logo takes the ink of the page it sits on, also when a dark page turned light for a brand whose colour does not read on its dark', () => {
+  // Pale Mill: its red does not read on its dark ground, so the one-accent pages on the dark ground are drawn on the cream paper instead
+  const pale = { ...brand(), ...paletteBrand({ name: 'Pale Mill', light: '#F5F0E6', ink: '#2A2418', primary: '#9C3B16', gold: '#EADFC0', deep: '#9A7B2E' }) };
+  const at = (b, kind, variant) => renderPostWithLook({ ...look, origin: 'copy:shipped:studio' }, { template: 'post', kind, variant, name: 'l', ...NORMAL[`studio/${kind}/${variant}`], image: 'design/assets/demo/object-jar.jpg' }, { size: SIZES.feed, brand: b, image: () => 'data:image/png;base64,iVBORw0KGgo=', imageSize: () => ({ w: 800, h: 600 }) }, { shipped: false }).body;
+  const ground = (body) => /--bg:var\(--c-([a-z-]+)\)/.exec(body)[1];
+  const logo = (body) => /<div class="abs k-logo"[^>]*>(<span class="[^"]*"|<img)/.exec(body)?.[1];
+  for (const [kind, variant] of [['photo', 1], ['photo', 2], ['statement', 1], ['quote', 0]]) {
+    const flipped = at(pale, kind, variant);
+    assert.equal(ground(flipped), 'paper', `${kind}/${variant}: the dark page turned light`);
+    assert.equal(logo(flipped), '<img', `${kind}/${variant}: the full-colour logo on the light page, not the light wordmark`);
+  }
+  // a page that stays on a colour keeps the light wordmark
+  const red = at(pale, 'photo', 0);
+  assert.equal(ground(red), 'field');
+  assert.match(logo(red), /^<span class="logo-inv ly-logo"$/);
 });
 
 test('rows take their number and rule colours from the look; the ribbon is two clipped boxes across the corner', () => {
