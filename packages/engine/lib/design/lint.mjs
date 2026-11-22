@@ -53,9 +53,12 @@ export function lintText(fields, sizeName, brand) {
 }
 
 // Collects the text fields of a normalised spec (a carousel has one set per page): every text that appears in the image.
-const TEXT_KEYS = ['headline', 'sub', 'eyebrow', 'label', 'headRight', 'caption', 'title', 'big', 'line', 'myth', 'factLead', 'fact', 'quote', 'note', 'by', 'unit', 'meta', 'tag'];
+const TEXT_KEYS = ['headline', 'sub', 'eyebrow', 'label', 'headRight', 'caption', 'title', 'big', 'line', 'myth', 'factLead', 'fact', 'quote', 'note', 'by', 'unit', 'meta', 'tag', 'cta'];
 function fieldsOfOne(o) {
   const out = TEXT_KEYS.filter((k) => typeof o[k] === 'string').map((k) => ({ field: k, text: o[k] }));
+  // a post's info rows (the value; the label is a fixed word) and the names under its round pictures
+  (Array.isArray(o.info) ? o.info : []).forEach((r, i) => { if (r && typeof r.value === 'string') out.push({ field: `info ${i + 1}`, text: r.value }); });
+  (Array.isArray(o.gallery) ? o.gallery : []).forEach((p, i) => { if (p && typeof p.caption === 'string') out.push({ field: `picture ${i + 1} name`, text: p.caption }); });
   for (const k of ['pills', 'checks', 'items']) (Array.isArray(o[k]) ? o[k] : []).forEach((t, i) => out.push({ field: `${k.slice(0, -1)} ${i + 1}`, text: t }));
   (o.stats ?? []).forEach((s, i) => out.push({ field: `stat ${i + 1} number`, text: s[0] }, { field: `stat ${i + 1} label`, text: s[1] }));
   const art = o.artefact ?? (o.columns || o.register || o.rows ? o : null);

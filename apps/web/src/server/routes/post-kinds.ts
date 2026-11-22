@@ -17,7 +17,10 @@ import { brandState, DIRECTIONS, syncBrand } from '../services/brand-settings.js
 interface Composition { id: string; name: string; describe: string; fields: string[] }
 interface EngineCore { ROOT: string }
 interface EngineTokens { DIRECTIONS: string[]; POST_KINDS: string[] }
-interface EnginePostSpec { POST_FIELDS: Record<string, { max: number }>; POST_ITEMS: { min: number; max: number; chars: number }; POST_REQUIRED: Record<string, string[]> }
+interface EnginePostSpec {
+  POST_FIELDS: Record<string, { max: number }>; POST_ITEMS: { min: number; max: number; chars: number }; POST_REQUIRED: Record<string, string[]>;
+  POST_INFO: { min: number; max: number; value: number }; POST_GALLERY: { min: number; max: number; caption: number }; INFO_KEYS: string[];
+}
 interface EngineDirections {
   compositionsFor(direction: string, kind: string): Composition[];
   lookOfBrand(brand: unknown): Record<string, unknown> | null;
@@ -28,10 +31,12 @@ const core = await engineImport<EngineCore>('core');
 const tokens = await engineImport<EngineTokens>('design/tokens');
 const postSpec = await engineImport<EnginePostSpec>('design/post-spec');
 const directions = await engineImport<EngineDirections>('design/directions/index');
+const icons = await engineImport<{ ICON_NAMES: string[] }>('design/icons');
 
 // The order fields are listed in.
-const FIELD_ORDER = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag'];
-const LIMITED = ['label', 'headline', 'sub', 'big', 'unit', 'quote', 'by', 'meta', 'tag'];
+// (cta, info and gallery come last: the button's words, the info rows, the row of round pictures; only a look written as data draws them)
+const FIELD_ORDER = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag', 'cta', 'info', 'gallery'];
+const LIMITED = ['label', 'headline', 'sub', 'big', 'unit', 'quote', 'by', 'meta', 'tag', 'cta'];
 
 // The brand.json in force (the pack syncBrand wrote), as written, or null.
 function brandInForce(): Record<string, unknown> | null {
@@ -66,7 +71,11 @@ export function postKindsRoutes(deps: Deps): Hono<AppEnv> {
         variants: own ? (own[kind]?.variants ?? []).map((v) => ({ variant: v.variant, name: v.name, describe: v.describe })) : direction ? directions.compositionsFor(direction, kind).map((comp, variant) => ({ variant, name: comp.name, describe: comp.describe })) : [],
       };
     });
-    const limits = { ...Object.fromEntries(LIMITED.map((f) => [f, postSpec.POST_FIELDS[f]!.max])), items: { ...postSpec.POST_ITEMS } };
+    const limits = {
+      ...Object.fromEntries(LIMITED.map((f) => [f, postSpec.POST_FIELDS[f]!.max])), items: { ...postSpec.POST_ITEMS },
+      info: { min: postSpec.POST_INFO.min, max: postSpec.POST_INFO.max, chars: postSpec.POST_INFO.value }, gallery: { min: postSpec.POST_GALLERY.min, max: postSpec.POST_GALLERY.max, chars: postSpec.POST_GALLERY.caption },
+      infoKeys: [...postSpec.INFO_KEYS], icons: [...icons.ICON_NAMES],
+    };
     return c.json({ direction, kinds, limits });
   });
 

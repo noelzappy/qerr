@@ -10,6 +10,8 @@ import {
 } from './look-elements.mjs';
 import { FILL_ROLES, compositionStaticChecks, gridOf, styleOf } from './look-static.mjs';
 import { VAULT_REF } from './look-desc.mjs';
+import { INLINE, POST_LISTS } from './post-spec.mjs';
+import { PRIMITIVES } from './look-elements.mjs';
 
 export const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const SAFE = /^[A-Za-z0-9 ._+-]{0,24}$/;
@@ -229,7 +231,21 @@ function typeRules(el, path, ctx, errs) {
       const role = textFontRole(el, ctx.look), fonts = isObj(ctx.look?.fonts) ? ctx.look.fonts : {}, f = fonts[role] ?? (role === 'mono' ? fonts.label : undefined);
       if (isObj(f) && f.source === 'library' && Array.isArray(f.weights) && !f.weights.includes(el.weight)) bad(`is ${el.weight}, which fonts.${role}.weights does not list (${list(f.weights)}); add it there`, 'weight');
     }
+    // pills and icons are the headline's inline marks, set in a text the page does not rebuild (a fitted headline keeps its words only)
+    for (const k of ['pills', 'icons']) {
+      if (el[k] === undefined) continue;
+      if (!INLINE.fields.includes(el.field) || (el.part !== undefined && el.part !== 'all')) bad(`draws the marks of a whole headline; show the headline (part all) to use ${k}`, k);
+      else if (el.tiltBar === true || el.vertical !== undefined) bad('cannot go with tiltBar or vertical', k);
+    }
+    if (isObj(el.pills)) {
+      const shape = el.pills.shape ?? 'pill';
+      if (shape === 'outline' && el.pills.fill !== undefined) bad('an outline pill has no fill; leave fill out or choose another shape', 'pills.fill');
+      if (shape !== 'outline' && el.pills.fill === undefined) bad(`a ${shape} needs a fill`, 'pills');
+      if (typeof el.pills.fill === 'string' && COLOUR_NAMES.includes(el.pills.fill) && !ctx.fillRoles.includes(el.pills.fill)) bad(`must be ${FILL_ROLES_HELP} (${list(ctx.fillRoles)})`, 'pills.fill');
+    }
   }
+  // a primitive's own rules (directions/primitives/<name>.mjs rules(el, bad))
+  if (Object.hasOwn(PRIMITIVES, t) && typeof PRIMITIVES[t].rules === 'function') PRIMITIVES[t].rules(el, bad);
   if (el.corners !== undefined && el.corners !== 'all' && el.radius === undefined) bad('says which corners to round but gives no radius', 'corners');
   if (el.corners !== undefined && el.corners !== 'all' && el.radius === 'oval') bad('an oval has no corners to choose', 'corners');
   if (t === 'block' && el.skew !== undefined && el.skew !== 0 && (el.radius !== undefined || el.shadow !== undefined || el.place === undefined)) bad('is drawn only on a plain block with a place, with no rounded corners and no shadow', 'skew');
@@ -414,9 +430,10 @@ function element(el, path, ctx, errs, st, parent, depth, comp, slot = false) {
 // ---- the composition ----
 function fieldSpecProblems(name, f, kind, path, ctx, errs) {
   if (!isObj(f)) return push(errs, ctx, path, 'must be an object like { "required": true, "max": 60 }');
-  if (name === 'items') {
+  if (hasOwn(POST_LISTS, name)) {
+    const L = POST_LISTS[name];
     unknownKeys(f, ['required', 'min', 'max'], path, ctx, errs);
-    for (const k of ['min', 'max']) if (f[k] !== undefined && !(Number.isInteger(f[k]) && f[k] >= POST_ITEMS.min && f[k] <= POST_ITEMS.max)) push(errs, ctx, `${path}.${k}`, `must be a whole number from ${POST_ITEMS.min} to ${POST_ITEMS.max}`);
+    for (const k of ['min', 'max']) if (f[k] !== undefined && !(Number.isInteger(f[k]) && f[k] >= L.min && f[k] <= L.max)) push(errs, ctx, `${path}.${k}`, `must be a whole number from ${L.min} to ${L.max}`);
     if (Number.isInteger(f.min) && Number.isInteger(f.max) && f.min > f.max) push(errs, ctx, path, 'min is more than max');
   } else if (name === 'image') {
     unknownKeys(f, ['required'], path, ctx, errs);
@@ -432,9 +449,11 @@ function acceptsProblems(a, i, comp, path, ctx, errs) {
   if (!isObj(a)) return push(errs, ctx, path, 'must be an object like { "field": "headline", "part": "pre", "maxChars": 22 }');
   if (typeof a.field !== 'string' || !FIELD_NAMES.includes(a.field)) return push(errs, ctx, `${path}.field`, `must be one of ${list(FIELD_NAMES)}`);
   if (isObj(comp.fields) && !hasOwn(comp.fields, a.field)) push(errs, ctx, `${path}.field`, `names ${show(a.field)}, which the composition does not declare`);
-  if (a.field === 'items') {
+  if (a.field === 'image') return push(errs, ctx, `${path}.field`, 'a picture has no length to judge');
+  if (hasOwn(POST_LISTS, a.field)) {
+    const L = POST_LISTS[a.field];
     unknownKeys(a, ['field', 'min', 'max'], path, ctx, errs);
-    for (const k of ['min', 'max']) if (a[k] !== undefined && !(Number.isInteger(a[k]) && a[k] >= 1 && a[k] <= POST_ITEMS.max)) push(errs, ctx, `${path}.${k}`, `must be a whole number from 1 to ${POST_ITEMS.max}`);
+    for (const k of ['min', 'max']) if (a[k] !== undefined && !(Number.isInteger(a[k]) && a[k] >= 1 && a[k] <= L.max)) push(errs, ctx, `${path}.${k}`, `must be a whole number from 1 to ${L.max}`);
     if (a.min === undefined && a.max === undefined) push(errs, ctx, path, 'needs min or max');
     if (Number.isInteger(a.min) && Number.isInteger(a.max) && a.min > a.max) push(errs, ctx, path, 'min is more than max');
     return;

@@ -373,9 +373,12 @@ function bindingLook() {
       T('meta', { style: 'label', ink: 'on-field', split: { sep: '·', pick: 1 } }, G(1, 6, 7, 1)),
       T('meta', { style: 'label', ink: 'on-field', split: { sep: '·', pick: 'rest' } }, G(7, 6, 7, 1)),
     ] });
-  c.push({ kind: 'event', name: 'Card', describe: 'A card picture, the day and the month as figures.', ground: 'soft',
-    fields: { image: {}, headline: { required: true, max: 70 }, meta: { required: true, max: 40 } },
+  c.push({ kind: 'event', name: 'Card', describe: 'A card picture, the day and the month as figures, an info block, a button and a row of round pictures.', ground: 'soft',
+    fields: { image: {}, headline: { required: true, max: 70 }, meta: { required: true, max: 40 }, cta: { max: 24 }, info: { max: 3 }, gallery: { max: 4 } },
     elements: [
+      { type: 'info-rows', place: { px: { x: 60, y: 1060, w: 600, h: 200 } }, rule: 'hair', valueStyle: 'label', when: { present: 'info' } },
+      { type: 'button', place: { px: { x: 700, y: 1180, w: 320, h: 100 } }, size: 24, icon: 'arrow-right', when: { present: 'cta' } },
+      { type: 'photo-row', place: { px: { x: 700, y: 560, w: 320, h: 160 } }, ring: { w: 4, colour: 'paper' }, when: { present: 'gallery' } },
       { type: 'photo', place: { px: { x: 60, y: 60, w: 600, h: 700 } }, shape: 'card', border: 14, tint: 'gold', rot: 'card', treat: ['multiply'] },
       T('meta', { style: 'numeral', size: 220, format: 'day' }, { px: { x: 700, y: 60 } }),
       T('meta', { style: 'display', size: 90, format: 'month', upper: true }, { px: { x: 700, y: 330 } }),

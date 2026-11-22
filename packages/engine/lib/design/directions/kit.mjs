@@ -7,6 +7,8 @@
 import { esc, fmtE, hs, px } from '../../../design/templates/common.mjs';
 import { paletteCss } from './colour.mjs';
 import { fontAlias } from '../font-library.mjs';
+import { ICONS } from '../icons.mjs';
+import { INFO_KEYS, INLINE, POST_GALLERY, POST_INFO, seenText, withoutMarks } from '../post-spec.mjs';
 
 // ---- markup that is safe to place in the page ----
 export class Markup extends String {}
@@ -123,11 +125,37 @@ function folioOf({ folio }) {
 
 // The parts of a text around its first *emphasis phrase*: { pre, phrase, post } as plain strings (pre is the text before it, trimmed; a text
 // with no emphasis is all `pre`). Pure; compositions use it to make rules about a part of the headline (see accepts in directions/index.mjs).
+// The inline marks ([[pill]] words, {{icon}}) are taken out first: the parts are plain words.
 export function emphasisParts(raw) {
-  const t = typeof raw === 'string' ? raw.replace(/\\n|\n/g, ' ') : '', mt = /\*([^*]+)\*/.exec(t);
+  const t = typeof raw === 'string' ? withoutMarks(raw.replace(/\\n|\n/g, ' ')) : '', mt = /\*([^*]+)\*/.exec(t);
   return mt ? { pre: t.slice(0, mt.index).trim(), phrase: mt[1].trim(), post: t.slice(mt.index + mt[0].length).trim() } : { pre: t.trim(), phrase: '', post: '' };
 }
-const visible = (s) => String(s).replace(/\*/g, '').replace(/\\n|\n/g, '');
+const visible = (s) => seenText(s);
+
+// ---- the inline marks of a headline (post-spec.mjs INLINE) ----
+// Pills: [[words]] as a span of a fixed shape class, its colours palette roles (validated here again); the words inside are the escaped
+// text and judged as the accent role on the pill. Icons: {{name}} as the engine's own SVG (icons.mjs), decoration in the text's colour.
+const PILL_SHAPES = Object.freeze({ pill: 'k-pl-round', soft: 'k-pl-soft', outline: 'k-pl-line' });
+// one icon as inline SVG from the fixed table: the path is the engine's own constant, never data
+export function iconSvg(name, { colour, cls: extra } = {}) {
+  if (!Object.hasOwn(ICONS, name)) throw new Error('design kit: an icon must be one of the engine\'s icons');
+  const k = extra === undefined ? '' : extra === 'btn' ? ' k-ic-btn' : (() => { throw new Error('design kit: icon class'); })();
+  return `<svg class="k-ic${k}" viewBox="0 0 24 24" aria-hidden="true" data-deco${colour ? ` style="fill:${colour_(colour)}"` : ''}><path d="${esc(ICONS[name].d)}"/></svg>`;
+}
+// The escaped, formatted html of a headline with its marks set: o.pills ({ shape, fill, ink }) draws pills, else the words stay plain;
+// o.icons ({ colour? }) draws icons, else they are left out. An unknown {{name}} stays as the escaped text it is.
+function inlineMarks(html, o) {
+  const pill = o.pills;
+  if (pill !== undefined && (!pill || !Object.hasOwn(PILL_SHAPES, pill.shape ?? 'pill'))) throw new Error('design kit: pills must be { shape, fill, ink }');
+  let out = html.replace(/\[\[([^[\]*{}<>\n\\]{1,120})\]\]/g, (all, words) => {
+    if (!pill) return words;
+    const shape = pill.shape ?? 'pill', bg = shape === 'outline' ? '' : `background:${colour_(pill.fill)};`;
+    return `<span class="k-pl ${PILL_SHAPES[shape]}" style="${bg}color:${colour_(pill.ink)}"><span class="k-pl-t" data-role="accent">${words}</span></span>`;
+  });
+  out = out.replace(/\{\{([a-z][a-z-]{0,19})\}\}/g, (all, name) => (!Object.hasOwn(ICONS, name) ? all : o.icons ? iconSvg(name, { colour: o.icons.colour }) : ''));
+  return out.replace(/ {2,}/g, ' ');
+}
+const colour_ = (name) => { if (!COLOUR_NAMES.includes(name)) throw new Error(`design kit: "${String(name).slice(0, 30)}" is not a palette colour`); return `var(--c-${name})`; };
 
 // the builders that refuse the old free-string options (extra, cls, attrs)
 const FREE = ['extra', 'cls', 'attrs'];
@@ -183,18 +211,22 @@ export function makeContext(args) {
       return { lefts: [...lefts, ...(tokens.extraLines ?? [])], rights, centre: W / 2 };
     },
     // ---- the words (the only way spec text reaches the page)
-    has: (f) => (f === 'items' ? Array.isArray(spec.items) && spec.items.length > 0 : typeof spec[f] === 'string' && spec[f] !== ''),
+    has: (f) => (f === 'items' || f === 'info' || f === 'gallery' ? Array.isArray(spec[f]) && spec[f].length > 0 : typeof spec[f] === 'string' && spec[f] !== ''),
     chars: (f) => (typeof spec[f] === 'string' ? [...visible(spec[f])].length : 0),
     wordCount: (f) => (typeof spec[f] === 'string' ? visible(spec[f]).trim().split(/\s+/).filter(Boolean).length : 0),
     // plain escaped text (no emphasis, one line)
-    text: (f) => new Markup(typeof spec[f] === 'string' ? esc(spec[f]) : ''),
+    // (a headline's inline marks are taken out: its pill words plain, its icons left out)
+    text: (f) => new Markup(typeof spec[f] === 'string' ? esc(INLINE.fields.includes(f) ? withoutMarks(spec[f]) : spec[f]) : ''),
     // text with the emphasis phrase (*phrase*) as <em data-role="accent"> and \n as <br>: the engine's own formatter
     // { highlight: true } puts the emphasis on a highlight bar: the phrase is wrapped in a span the bar is painted on (a bar on the
     // measured text itself would be hidden with it when the page reads the pixels behind the type)
     // o.breakBefore: the emphasis phrase starts a new line (a <br> before it, unless it opens the text or follows a break)
+    // o.pills ({ shape: pill | soft | outline, fill, ink }) and o.icons ({ colour? }): how a headline's [[pill]] words and {{icon}} marks are
+    // drawn; without them the pill words are plain and the icons left out (kit inlineMarks)
     fmt: (f, o = {}) => {
       if (typeof spec[f] !== 'string') return new Markup('');
       let html = fmtE(spec[f]);
+      if (INLINE.fields.includes(f)) html = inlineMarks(html, o);
       // "No. 1" is one unit: never broken between the abbreviation and its number
       html = html.replace(/\b(No|Nos)\. (?=\d)/g, '$1.\u00a0');
       if (o.highlight) html = html.replace(/<em data-role="accent">([^<]*)<\/em>/g, '<span class="k-hl"><em data-role="accent">$1</em></span>');
@@ -204,6 +236,13 @@ export function makeContext(args) {
     // the emphasis phrase's plain text, or ''
     emphasis: (f = 'headline') => (typeof spec[f] === 'string' ? /\*([^*]+)\*/.exec(spec[f])?.[1] ?? '' : ''),
     items: () => (Array.isArray(spec.items) ? spec.items.map((t) => new Markup(esc(t))) : []),
+    // the rows of an info block as Markup { key, value }: only rows whose key is one of the fixed words and whose value is a text, at most
+    // POST_INFO.max of them (the spec was checked; this holds whatever reaches it)
+    info: () => (Array.isArray(spec.info) ? spec.info.filter((r) => r && typeof r === 'object' && INFO_KEYS.includes(r.key) && typeof r.value === 'string' && r.value.trim())
+      .slice(0, POST_INFO.max).map((r) => ({ key: new Markup(esc(r.key)), value: new Markup(esc(r.value)) })) : []),
+    // the pictures of a row: { image (the path, for c.galleryPhoto), caption (Markup, '' without one) }, at most POST_GALLERY.max
+    gallery: () => (Array.isArray(spec.gallery) && typeof args.image === 'function' ? spec.gallery.filter((p) => p && typeof p === 'object' && typeof p.image === 'string' && p.image !== '')
+      .slice(0, POST_GALLERY.max).map((p) => ({ image: p.image, caption: new Markup(typeof p.caption === 'string' ? esc(p.caption) : '') })) : []),
     brand: new Markup(esc(brandName)),
     // the brand's web address as a plain host (no scheme, no path), '' without one
     site: new Markup(esc(String(brand.website ?? '').replace(/^[a-z]+:\/\//i, '').replace(/\/.*$/, '').slice(0, 60))),
@@ -213,6 +252,8 @@ export function makeContext(args) {
     // the folio as the direction sets it ("No. 07", "07/12")
     folioText: () => new Markup(folio.n ? esc(tokens.folio(folio.n, folio.total)) : ''),
     m, markup, emphasisParts: (f = 'headline') => emphasisParts(spec[f]),
+    // an icon of the engine's own set (icons.mjs) as Markup; o: { colour (a palette role), cls: 'btn' }
+    icon: (name, o = {}) => new Markup(iconSvg(name, o)),
     hasImage: typeof spec.image === 'string' && spec.image !== '' && typeof args.image === 'function',
     // the picture's own size (width, height) in pixels, or null
     imageDims: () => (c.hasImage ? args.imageSize?.(spec.image) ?? null : null),
@@ -399,6 +440,18 @@ export function makeContext(args) {
     const fadeCss = o.blend ? (() => { const f = P(o.fade ?? 160, 'fade'); if (f < 0 || f > 400) throw new Error('design kit: fade must be from 0 to 400 px'); return f > 0 ? `;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 ${f}px);mask-image:linear-gradient(to bottom,transparent 0,#000 ${f}px)` : ''; })() : '';
     return `<div class="${classes}" data-el${o.blend ? ` data-blend="${o.blend}"` : ''} style="${place(o)}${fadeCss}${o.z !== undefined ? `;z-index:${P(o.z, 'z')}` : ''}${radius ? `;${radius}` : ''}${o.soft !== undefined ? `;box-shadow:${softCss(o.soft)}` : ''}"><img data-user${o.blend === 'ground' ? ' data-bsample' : ''} data-name="${esc(spec.image)}" data-fit="cover" src="${args.image(spec.image)}" alt="" style="object-position:${fo}${tr}">${treat.includes('multiply') ? `<i class="k-mul" style="background:${colour(o.tint ?? 'primary')}"></i>` : ''}${treat.includes('grain') ? '<i class="k-gr"></i>' : ''}</div>`;
   };
+  // One picture of a row of round pictures (c.gallery()), in the flow of its row: a circle of d px, cropped to cover from the centre, read as
+  // every picture is (img[data-user]: its enlargement is checked). o: d, image (a path c.gallery() gave), treat, tint, ring { w, colour }, soft.
+  c.galleryPhoto = (o) => {
+    const p = typeof o.image === 'string' && Array.isArray(spec.gallery) && spec.gallery.some((g) => g && g.image === o.image) ? o.image : null;
+    if (!p) throw new Error('design kit: galleryPhoto shows a picture of the post\'s gallery');
+    const treat = Array.isArray(o.treat) ? o.treat : [];
+    for (const t of treat) if (!['grey', 'multiply', 'grain', 'punch'].includes(t)) throw new Error(`design kit: photo treatment "${String(t).slice(0, 20)}"`);
+    const d = P(o.d, 'd'), shadows = [];
+    if (o.ring) shadows.push(`0 0 0 ${P(o.ring.w, 'ring')}px ${colour(o.ring.colour)}`);
+    if (o.soft !== undefined) shadows.push(softCss(o.soft));
+    return `<div class="k-flow ph k-photo k-round${treat.map((t) => ` k-${t}`).join('')}" data-el style="width:${d}px;height:${d}px;border-radius:50%;flex:none${shadows.length ? `;box-shadow:${shadows.join(',')}` : ''}"><img data-user data-name="${esc(p)}" data-fit="cover" src="${args.image(p)}" alt="" style="object-position:50% 50%">${treat.includes('multiply') ? `<i class="k-mul" style="background:${colour(o.tint ?? 'primary')}"></i>` : ''}${treat.includes('grain') ? '<i class="k-gr"></i>' : ''}</div>`;
+  };
   // A framed print: the picture inset in a paper border with a keyline, and a caption strip beneath. The outer box is (x, y, w, h);
   // border px of paper; caption: Markup placed under the picture inside the border (kept to the label size).
   c.print = (o) => {
@@ -457,7 +510,8 @@ export function makeContext(args) {
       flexCss(o), nudgeCss(o.nudge),
       o.z !== undefined ? `z-index:${P(o.z, 'z')}` : ''].filter(Boolean).join(';');
     const v = variantOf(tokens, o.variant);
-    return `<div class="${o.flow ? 'k-flow' : 'abs'} k-box${base ? ` ${base}` : ''}${v ? ` ${v}` : ''}" data-el${o.fill || o.gradient ? ' data-fill' : ''}${o.unrot ? ' data-unrot' : ''}${rot ? ` data-tilt="${P(rot, 'rot')}"` : ''}${rot || o.skipGrid ? ' data-grid="skip"' : ''} style="${css}">${inner}</div>`;
+    // cell: the text inside must stay inside this box (the fit check's cell rule: an info value, a button's words)
+    return `<div class="${o.flow ? 'k-flow' : 'abs'} k-box${base ? ` ${base}` : ''}${v ? ` ${v}` : ''}" data-el${o.cell ? ' data-cell' : ''}${o.fill || o.gradient ? ' data-fill' : ''}${o.unrot ? ' data-unrot' : ''}${rot ? ` data-tilt="${P(rot, 'rot')}"` : ''}${rot || o.skipGrid ? ' data-grid="skip"' : ''} style="${css}">${inner}</div>`;
   };
   c.box = (o, inner = '') => boxEl(o, inner);
   // A band: a full-width slab turned by rot degrees, wider than the page (overscan px each side) so its ends never show. y, h: where its
@@ -471,7 +525,8 @@ export function makeContext(args) {
     const rsize = o.steps !== undefined ? o.steps[0] : o.size;
     const sz = o.scale ? hs(n(rsize, 'size')) : `${P(rsize, 'size')}px`;
     const css = [`display:block`, `font-family:${c.fontVar(o.family ?? 'display')}`, `font-size:${sz}`, `line-height:${o.lead === undefined ? 1 : P(o.lead, 'lead')}`, o.track !== undefined ? `letter-spacing:${P(o.track, 'track')}em` : '',
-      o.weight !== undefined ? `font-weight:${P(o.weight, 'weight')}` : '', o.colour ? `color:${colour(o.colour)}` : '', o.upper ? 'text-transform:uppercase' : '', o.nowrap ? 'white-space:nowrap' : '', shadowCss(o.textShadow), flexCss(o), nudgeCss(o.nudge)].filter(Boolean).join(';');
+      o.weight !== undefined ? `font-weight:${P(o.weight, 'weight')}` : '', o.colour ? `color:${colour(o.colour)}` : '', o.upper ? 'text-transform:uppercase' : '', o.nowrap ? 'white-space:nowrap' : '', shadowCss(o.textShadow), flexCss(o), nudgeCss(o.nudge),
+      o.textAlign === 'center' || o.textAlign === 'right' ? `text-align:${o.textAlign}` : ''].filter(Boolean).join(';');
     const v = variantOf(tokens, o.variant);
     return `<span class="k-t k-run${v ? ` ${v}` : ''}${emphClass(o.emph)}${o.dfont ? ' k-dfont' : ''}" data-role="${ROLES.has(o.role ?? 'label') ? o.role ?? 'label' : 'label'}" data-el${o.scale ? ' data-scaled' : ''}${followAttr(o)}${stepAttrs(o)} data-grid="skip" style="${css}">${body}</span>`;
   };

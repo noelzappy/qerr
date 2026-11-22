@@ -15,19 +15,31 @@ import { screenFraming } from './screen-framing.js';
 type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
 
-// The design and each carousel page, as the objects that may hold an `image`.
+// The design, each carousel page and each picture of a post's row of round pictures (`gallery`: { image, vaultItemId?, caption? }), as the
+// objects that may hold an `image`. A gallery picture is checked, copied and rights-checked exactly like the post's own picture.
+const galleryOf = (o: Json): Json[] => (o.template === 'post' && Array.isArray(o.gallery) ? o.gallery.filter(isObj) : []);
 export function designNodes(design: unknown): Json[] {
   if (!isObj(design)) return [];
-  return [design, ...(Array.isArray(design.pages) ? design.pages.filter(isObj) : [])];
+  return [design, ...galleryOf(design), ...(Array.isArray(design.pages) ? design.pages.filter(isObj) : [])];
 }
 
-// A copy without the app's own `vaultItemId` field, which the engine's validators do not know.
+// A copy without the app's own `vaultItemId` field (on the design, its pages and its gallery pictures), which the engine's validators do not know.
 export function withoutVaultIds(design: unknown): unknown {
   if (!isObj(design)) return design;
+  const strip = (p: unknown) => (isObj(p) ? Object.fromEntries(Object.entries(p).filter(([k]) => k !== 'vaultItemId')) : p);
   const copy: Json = { ...design };
   delete copy.vaultItemId;
-  if (Array.isArray(copy.pages)) copy.pages = copy.pages.map((p) => (isObj(p) ? Object.fromEntries(Object.entries(p).filter(([k]) => k !== 'vaultItemId')) : p));
+  if (Array.isArray(copy.pages)) copy.pages = copy.pages.map(strip);
+  if (copy.template === 'post' && Array.isArray(copy.gallery)) copy.gallery = copy.gallery.map(strip);
   return copy;
+}
+
+// How a problem names a node: the design, "design page 2" (1-based, as before) or "design gallery picture 1".
+function nodeName(design: unknown, node: Json): string {
+  if (node === design || !isObj(design)) return 'design';
+  const g = galleryOf(design).indexOf(node);
+  if (g >= 0) return `design gallery picture ${g + 1}`;
+  return `design page ${(Array.isArray(design.pages) ? design.pages.filter(isObj) : []).indexOf(node) + 1}`;
 }
 
 const insideAssets = (file: string): boolean => {
@@ -49,7 +61,7 @@ async function screenProblems(deps: Pick<Deps, 'prisma' | 'storage'>, design: un
     if (!need) continue;
     const framing = await screenFraming(deps, item);
     if (!framing || framing === need) continue;
-    const where = node === design ? 'design' : `design page ${designNodes(design).indexOf(node)}`;
+    const where = nodeName(design, node);
     out.push(need === 'phone'
       ? `${where}: "${item.title}" is a desktop screenshot, but this layout shows a phone and needs a phone screen (a capture with the phone already drawn around it). Pick a phone screen, or a layout made for a desktop screenshot`
       : `${where}: "${item.title}" is a phone screen, but this layout shows a desktop screenshot. Pick a desktop screenshot, or a layout that shows a phone`);
@@ -62,8 +74,8 @@ async function screenProblems(deps: Pick<Deps, 'prisma' | 'storage'>, design: un
 export async function designProblems(design: unknown, deps?: Pick<Deps, 'prisma' | 'storage'>): Promise<string[]> {
   const engine = await pipelineEngine();
   const problems = engine.designBlockProblems(withoutVaultIds(design), { root: engine.root });
-  designNodes(design).forEach((node, i) => {
-    const where = node === design ? 'design' : `design page ${i}`;
+  designNodes(design).forEach((node) => {
+    const where = nodeName(design, node);
     if ('vaultItemId' in node && (typeof node.vaultItemId !== 'string' || !node.vaultItemId)) problems.push(`${where}: vaultItemId must be the id of a vault photo`);
     if (typeof node.image === 'string' && !node.vaultItemId && !insideAssets(node.image)) {
       problems.push(`${where}: image "${node.image}" must be a file under design/assets/ or a vault photo (set vaultItemId)`);

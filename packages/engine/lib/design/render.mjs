@@ -73,6 +73,15 @@ export function preparePage(brand, job) {
       dims.set(g.image, imageSize(buf));
     }
   }
+  // a post's row of round pictures (gallery): each read and checked the same way (readImageBytes: inside the root, an allowed, genuine image)
+  if (spec.template === 'post' && Array.isArray(spec.gallery)) {
+    for (const p of spec.gallery) {
+      if (!p || typeof p !== 'object' || typeof p.image !== 'string' || images.has(p.image)) continue;
+      const { type, buf } = readImageBytes(p.image, { root: brand.root });
+      images.set(p.image, `data:${type};base64,${buf.toString('base64')}`);
+      dims.set(p.image, imageSize(buf));
+    }
+  }
   const out = tpl(spec, { size: S, brand, counter: job.counter, folio: job.folio, date: job.date, layouts, image: (p) => images.get(p) ?? (() => { throw new DesignError(`image not loaded: ${p}`); })(), imageSize: (p) => dims.get(p) ?? null });
   return { S, spec, layout, out };
 }

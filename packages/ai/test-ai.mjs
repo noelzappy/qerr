@@ -440,7 +440,7 @@ test('draftBatch: a good post passes, the vault photo is resolved by id, the bat
   assert.deepEqual(p.warnings, []);
   assert.deepEqual(batch.defaultNetworks, ['instagram', 'linkedin', 'facebook', 'x']);
   assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
-  assert.equal(notes.promptVersion, 'draft-12');
+  assert.equal(notes.promptVersion, 'draft-13');
   assert.equal(notes.model, 'claude-sonnet-5-5');
   assert.equal(notes.seriesMix['the-numbers'], 1);
   assert.equal(notes.usage.costUsd > 0, true);
@@ -823,12 +823,12 @@ const draftIn = (root, ...answers) => {
 };
 const askedOf = (f, i = 0) => { const c = f.calls[i].body.messages[0].content; return JSON.parse(c.slice(c.indexOf('{'))); };
 
-test('direction brand: gets draft-12 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
+test('direction brand: gets draft-13 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
   await withDirection('editorial', async (root) => {
     const vault = [...VAULT, { id: 'scr-1', kind: 'screen', title: 'Passbook', body: 'The passbook.', status: 'confirmed', file: 'design/assets/screens/p.png', framing: 'phone' }];
     const { f, ai } = draftIn(root, { posts: [dirPost()] }, { posts: [] });
     const { batch, notes } = await ai.draftBatch(req({ vault }));
-    assert.equal(notes.promptVersion, 'draft-12');
+    assert.equal(notes.promptVersion, 'draft-13');
     assert.equal(f.calls[0].body.system, loadPrompt('draft', { direction: true }).text);
     assert.notEqual(f.calls[0].body.system, loadPrompt('draft').text);
     assert.match(f.calls[0].body.system, /never use the same kind three posts running/);
@@ -941,10 +941,10 @@ test('direction brand: a post may not use an unconfirmed picture, and a photo po
   });
 });
 
-test('the prompts keep one file with a direction section: draft-12 and rewrite-5 differ by brand type only where they must', () => {
+test('the prompts keep one file with a direction section: draft-13 and rewrite-5 differ by brand type only where they must', () => {
   const plain = loadPrompt('draft'), dir = loadPrompt('draft', { direction: true });
-  assert.equal(plain.version, 'draft-12');
-  assert.equal(dir.version, 'draft-12');
+  assert.equal(plain.version, 'draft-13');
+  assert.equal(dir.version, 'draft-13');
   assert.match(plain.text, /the only templates you may use/);
   assert.match(plain.text, /Only confirmed, current items/);
   assert.match(dir.text, /Only confirmed, current items/);
@@ -1455,5 +1455,82 @@ test('draftBatch: without a money setting in the brand no currency is flagged', 
   await withBrand((b) => { delete b.money; }, async () => {
     const post = (await draftWith([usdPost('It costs 25 dollars a month.', 'Only 25 dollars a month')]).ai.draftBatch(req({ vault: [...VAULT, USD_FACT] }))).batch.posts[0];
     assert.deepEqual(post.warnings.filter((w) => /currency/.test(w)), []);
+  });
+});
+
+// ---------- a look written as data with pills, icons, an info block, a button and a row of round pictures ----------
+const { shippedLooks } = await import('@vesk/engine/design/directions/index');
+function partsLook() {
+  const PX = (x, y, w, h) => ({ px: { x, y, w, h } });
+  return {
+    ...structuredClone(shippedLooks().swiss), id: 'ai-parts', origin: 'copy:shipped:swiss', name: 'Parts',
+    compositions: [
+      { kind: 'statement', name: 'Plain', describe: 'A plain headline.', ground: 'paper', fields: { headline: { required: true, max: 60 } },
+        elements: [{ type: 'text', field: 'headline', style: 'display', size: 96, place: PX(64, 200, 952, 400) }] },
+      { kind: 'offer', name: 'Parts', describe: 'Pills and icons, an info block, a button, a row of round pictures.', ground: 'paper',
+        fields: { headline: { required: true, max: 60 }, tag: { required: true, max: 16 }, cta: { max: 20 }, info: { max: 3 }, gallery: { min: 2, max: 3 } },
+        elements: [
+          { type: 'text', field: 'headline', style: 'display', size: 96, place: PX(64, 200, 952, 300), pills: { fill: 'accent', ink: 'on-accent' }, icons: {} },
+          { type: 'text', field: 'tag', style: 'label', place: PX(64, 140, 400, 40) },
+          { type: 'info-rows', place: PX(64, 560, 952, 260), valueStyle: 'label' },
+          { type: 'photo-row', place: PX(64, 860, 952, 260), captions: true },
+          { type: 'button', place: PX(64, 1160, 952, 110), size: 20, icon: 'arrow-right' },
+        ] },
+    ],
+  };
+}
+const withParts = (fn) => withBrand((b) => { b.looks = [partsLook()]; b.style = { ...(b.style ?? {}), direction: 'ai-parts' }; }, fn);
+const offerPost = (over = {}, design = {}) => good({
+  id: '01-offer', title: 'Agents', caption: 'Agents record each deposit on their phone.\n\n#AcmeSavings #Savings #the region', imageReason: 'Two market photos for the agents who work there.',
+  design: { template: 'post', kind: 'offer', tag: 'New', headline: 'Every deposit [[on record]] {{check}}', cta: 'Ask an agent', info: [{ key: 'Where', value: 'At the market' }], gallery: [{ image: 'vault:ph-3', caption: 'Market' }, { image: 'vault:ph-4' }], ...design },
+  sources: ['fact-1'], ...over,
+});
+
+test('a look with pills, icons, an info block, a button and round pictures: the model is told how to fill them, within each design\'s limits', async () => {
+  await withParts(async () => {
+    const f = fakeFetch(anthropicOk({ posts: [offerPost()] }), anthropicOk({ posts: [] }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    const { batch, notes } = await ai.draftBatch(req());
+    assert.equal(notes.promptVersion, 'draft-13');
+    assert.match(f.calls[0].body.system, /\[\[words\]\]` sets one or two runs of 1 to 3 words in a pill/);
+    const k = askedOf(f).design.kinds;
+    assert.match(k.offer.fields.headline.pills, /\[\[words\]\]/);
+    assert.match(k.offer.fields.headline.icons, /arrow-right/);
+    assert.equal(k.statement.fields.headline.pills, undefined, 'a kind whose designs draw no pills says nothing of them');
+    assert.deepEqual([k.offer.fields.info.min, k.offer.fields.info.max, k.offer.fields.info.chars], [1, 3, 40]);
+    assert.match(k.offer.fields.info.shape, /When, Where/);
+    assert.deepEqual([k.offer.fields.gallery.min, k.offer.fields.gallery.max, k.offer.fields.gallery.chars], [2, 3, 24]);
+    assert.equal(k.offer.fields.cta.budget, 20);
+    const d = batch.posts[0].design;
+    assert.deepEqual(d.gallery.map((g) => g.image), ['design/assets/photos/extra-3.jpg', 'design/assets/photos/extra-4.jpg'], 'gallery photos resolved from the vault');
+    assert.deepEqual(batch.posts[0].photoIds, ['ph-3', 'ph-4']);
+    assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
+  });
+});
+
+test('a look with pills and round pictures: marks where no design draws them, wrong counts, unknown labels, unsourced numbers and raw paths are rejected', async () => {
+  await withParts(async () => {
+    const posts = [
+      offerPost({ id: 'a', design: { template: 'post', kind: 'statement', headline: 'Every deposit [[on record]]' } }),
+      offerPost({ id: 'b' }, { gallery: [{ image: 'vault:ph-3' }, { image: 'vault:ph-4' }, { image: 'vault:ph-5' }, { image: 'vault:ph-6' }] }),
+      offerPost({ id: 'c' }, { info: [{ key: 'Opening', value: 'Daily' }] }),
+      offerPost({ id: 'd' }, { info: [{ key: 'When', value: 'From 7am, 99 stalls' }] }),
+      offerPost({ id: 'e' }, { headline: 'Every [[deposit on the record now]]' }),
+      offerPost({ id: 'f' }, { headline: 'Every deposit {{rocket}}' }),
+      offerPost({ id: 'g' }, { cta: 'Ask any of our friendly agents' }),
+      offerPost({ id: 'h' }, { gallery: [{ image: 'vault:ph-3' }, { image: 'design/assets/photos/x.jpg' }] }),
+    ];
+    const f = fakeFetch(anthropicOk({ posts }), anthropicOk({ posts: [] }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    await assert.rejects(ai.draftBatch(req({ count: 8 })), (e) => {
+      const by = Object.fromEntries(e.notes.rejected.map((r) => [r.id, r.reasons.join(' ')]));
+      const checks = {
+        a: /no statement design of this look draws pills/, b: /draws 2 to 3/, c: /key must be one of/, d: /image text \(info 1\) has numbers? not found in its sources: .*99/,
+        e: /holds 5 words/, f: /is not one of the icons/, g: /cta is 30 characters/, h: /is not a vault photo/,
+      };
+      const failed = Object.entries(checks).filter(([id, re]) => !re.test(by[id] ?? ''));
+      if (failed.length) console.log(failed.map(([id]) => `${id}: ${by[id]}`).join('\n'));
+      return !failed.length;
+    });
   });
 });

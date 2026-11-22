@@ -13,7 +13,7 @@ import { capTrim } from './kit.mjs';
 const clean = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== false));
 const FLOWING = new Set(['box', 'text', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'sticker', 'rule', 'block']);
 // the role (what a text is, for the checks) from the field it shows
-const ROLE_OF = { headline: 'headline', quote: 'headline', big: 'stat', sub: 'sub', items: 'item', label: 'label', meta: 'meta', by: 'label', tag: 'label', unit: 'label' };
+const ROLE_OF = { headline: 'headline', quote: 'headline', big: 'stat', sub: 'sub', items: 'item', label: 'label', meta: 'meta', by: 'label', tag: 'label', unit: 'label', cta: 'label' };
 const SOURCE_ROLE = { brand: 'label', folio: 'folio', index: 'label' };
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const ROMAN = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
@@ -78,7 +78,9 @@ export function renderComposition(look, comp, c) {
     if (el.format) return { html: formatted(f, el.format), role };
     if (el.part && el.part !== 'all') { const p = c.emphasisParts(f); return { html: c.m`${p[el.part] ?? ''}`, role }; }
     const bar = BAR.has(el.emphasis);
-    return { html: c.fmt(f, bar ? { highlight: true, ...(el.emphasis === 'own-line-bar' ? { breakBefore: true } : {}) } : {}), role };
+    // a headline's [[pill]] words and {{icon}} marks, drawn only when the element says how (else plain words, no icons)
+    const marks = clean({ pills: el.pills ? clean({ shape: el.pills.shape ?? 'pill', fill: el.pills.fill, ink: el.pills.ink }) : undefined, icons: el.icons ? clean({ colour: el.icons.colour }) : undefined });
+    return { html: c.fmt(f, { ...(bar ? { highlight: true, ...(el.emphasis === 'own-line-bar' ? { breakBefore: true } : {}) } : {}), ...marks }), role };
   };
 
   // ---- places ----
@@ -299,7 +301,8 @@ export function fontUsage(look, comp) {
         case 'meta-row': styleUse('label', {}); break;
         case 'wordmark-pattern': add('display', T.display.weight); break;
         case 'glyph': add('display', T.display.weight); break;
-        default: break;
+        // a primitive that sets type says which fonts (directions/primitives/<name>.mjs fonts(el, look) -> [[role, weight], ...])
+        default: if (typeof PRIMITIVES[el.type]?.fonts === 'function') for (const [role, weight] of PRIMITIVES[el.type].fonts(el, look)) add(role, weight); break;
       }
       if (el.children && el.type !== 'sticker') visit(el.children);
     }

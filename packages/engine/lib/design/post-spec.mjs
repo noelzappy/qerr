@@ -4,6 +4,7 @@
 // because compositions only ever write these fields through their escaping helpers (lib/design/directions/kit.mjs).
 import path from 'node:path';
 import { DIRECTIONS, POST_KINDS } from './tokens.mjs';
+import { ICON_NAMES } from './icons.mjs';
 
 export { POST_KINDS };
 export const POST_TEMPLATES = ['post'];
@@ -11,16 +12,55 @@ export const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
 // The fields of a post, with their limits. Lengths count what is seen: the asterisks of an emphasis and the line breaks do not count.
 export const POST_FIELDS = {
   label: { max: 28 }, headline: { max: 70, emphasis: true }, sub: { max: 140 }, big: { max: 8 }, unit: { max: 24 },
-  quote: { max: 160 }, by: { max: 40 }, meta: { max: 40 }, tag: { max: 16 },
+  quote: { max: 160 }, by: { max: 40 }, meta: { max: 40 }, tag: { max: 16 }, cta: { max: 24 },
 };
 export const POST_ITEMS = { min: 2, max: 5, chars: 44 };
+// An info block: 1 to 4 labelled rows ({ key, value }), the key one of a fixed list of words (never free text), the value one line of up to 40
+// characters. A row of round pictures (gallery): 2 to 5 { image, caption? }, the caption one line of up to 24 characters (a name, a product).
+export const POST_INFO = { min: 1, max: 4, value: 40 };
+export const INFO_KEYS = ['When', 'Where', 'Date', 'Time', 'Place', 'Book on', 'Tickets', 'Price', 'Entry', 'Who', 'Host', 'Call', 'Online', 'Starts', 'Ends', 'Open'];
+export const POST_GALLERY = { min: 2, max: 5, caption: 24 };
+// The lists of a post counted by entries: { min, max } of each (a look's composition may narrow them).
+export const POST_LISTS = { items: POST_ITEMS, info: POST_INFO, gallery: POST_GALLERY };
+
+// The inline marks of a headline, besides its *emphasis*: [[words]] sets one to three words in a pill, {{name}} places an icon of the engine's
+// fixed set (icons.mjs). At most INLINE.pills pills and INLINE.icons icons; a pill holds plain words only (no emphasis, icon or bracket), an
+// emphasis holds no pill or icon. Only the headline takes them. A composition that draws no pills shows the words plainly and leaves icons out.
+export const INLINE = Object.freeze({ fields: ['headline'], pills: 2, icons: 2, pillWords: 3, pillChars: 24 });
+export const pillMarks = () => /\[\[([^[\]*{}\n\\]{1,40})\]\]/g;
+export const iconMarks = () => /\{\{([a-z][a-z-]{0,19})\}\}/g;
+const STRAY = /\[\[|\]\]|\{\{|\}\}/;
+// The words of a text without its inline marks (an icon leaves nothing), and what is seen of it for counting (an icon counts as two characters).
+export const withoutMarks = (v) => String(v).replace(iconMarks(), '').replace(pillMarks(), '$1').replace(/ {2,}/g, ' ');
+export const seenText = (v) => String(v).replace(iconMarks(), '■■').replace(pillMarks(), '$1').replace(/\*/g, '').replace(/\\n|\n/g, '');
+
+// The problems of the inline marks of one text of a post (sentences without a place; empty when fine).
+export function markProblems(text, field) {
+  if (typeof text !== 'string') return [];
+  if (!INLINE.fields.includes(field)) return STRAY.test(text) ? [`${field} takes no [[pill]] words or {{icon}} marks; only the headline does`] : [];
+  const out = [], pills = [...text.matchAll(pillMarks())], icons = [...text.matchAll(iconMarks())];
+  const rest = text.replace(pillMarks(), 'x').replace(iconMarks(), 'x');
+  if (STRAY.test(rest)) out.push(`${field} has a [[ or {{ that is not closed, or marks something a mark cannot hold (a pill is [[one to three plain words]], an icon is {{name}})`);
+  if (pills.length > INLINE.pills) out.push(`${field} has ${pills.length} pills; the most is ${INLINE.pills}`);
+  for (const p of pills) {
+    const words = p[1].trim().split(/\s+/).filter(Boolean);
+    if (!words.length) out.push(`${field} has an empty pill`);
+    else if (words.length > INLINE.pillWords) out.push(`a pill in ${field} holds ${words.length} words; a pill holds 1 to ${INLINE.pillWords}`);
+    else if ([...p[1].trim()].length > INLINE.pillChars) out.push(`a pill in ${field} is ${[...p[1].trim()].length} characters; the most is ${INLINE.pillChars}`);
+  }
+  if (pills.length && !withoutMarks(text.replace(pillMarks(), '')).replace(/[*\s]|\\n/g, '')) out.push(`the pills in ${field} are the whole text; set only one to three words in a pill`);
+  if (icons.length > INLINE.icons) out.push(`${field} has ${icons.length} icons; the most is ${INLINE.icons}`);
+  for (const m of icons) if (!ICON_NAMES.includes(m[1])) out.push(`{{${m[1]}}} in ${field} is not one of the icons (${ICON_NAMES.join(', ')})`);
+  for (const m of text.matchAll(/\*([^*]+)\*/g)) if (/\[\[|\{\{/.test(m[1])) { out.push(`the *emphasis* in ${field} holds a pill or an icon; keep them apart`); break; }
+  return out;
+}
 export const MAX_VARIANT = 9;
 // What every kind needs, by field (a list is "items").
 export const POST_REQUIRED = {
   statement: ['headline'], figure: ['big'], list: ['headline', 'items'], quote: ['quote'], photo: ['image', 'headline'], event: ['headline', 'meta'], offer: ['headline', 'tag'],
 };
 // The keys a post design may carry besides its fields (a batch's file name and sizes, the network sizes).
-const OWN = ['template', 'kind', 'variant', 'sizes', 'name', 'networkSizes', 'image', 'focal', 'zoom', 'items', 'graphics'];
+const OWN = ['template', 'kind', 'variant', 'sizes', 'name', 'networkSizes', 'image', 'focal', 'zoom', 'items', 'graphics', 'info', 'gallery'];
 // The brand graphics and cut-outs a post hands to its look (the app fills this from the vault for the graphics the look's pieces name):
 // [{ ref: the vault item's id, image: a PNG or WebP file with transparency, tintable: whether a piece may recolour it }]. Checked here by
 // shape; the files are read and checked (type, size, transparency) when the page is made (render.mjs preparePage).
@@ -45,7 +85,8 @@ export function graphicsProblems(list, where) {
 }
 export const POST_KEYS = [...OWN, ...Object.keys(POST_FIELDS)];
 
-const seen = (v) => String(v).replace(/\*/g, '').replace(/\\n|\n/g, '');
+const seen = (v) => seenText(v);
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const clip = (v) => String(v).slice(0, 40);
 const isNum = (v, lo, hi) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
 
@@ -59,7 +100,7 @@ export function postProblems(d, where = 'design', { direction, focalOk, brief } 
   if (brief) e.push(...briefProblems(d, where, brief));
   if (brief) { /* the look is the direction */ } else if (direction === null) e.push(`${where}: a post is drawn in the brand's design direction, and this brand has none; set style.direction in brand.json to one of ${DIRECTIONS.join(', ')} (Settings, Brand and look)`);
   else if (direction !== undefined && !DIRECTIONS.includes(direction)) e.push(`${where}: the brand's design direction "${clip(direction)}" is not one of ${DIRECTIONS.join(', ')}`);
-  for (const k of Object.keys(d)) if (!POST_KEYS.includes(k)) e.push(`${where}: "${clip(k)}" is not a field of a post (fields: ${[...Object.keys(POST_FIELDS), 'items', 'image', 'focal', 'zoom'].join(', ')}; also kind, variant)`);
+  for (const k of Object.keys(d)) if (!POST_KEYS.includes(k)) e.push(`${where}: "${clip(k)}" is not a field of a post (fields: ${[...Object.keys(POST_FIELDS), 'items', 'info', 'gallery', 'image', 'focal', 'zoom'].join(', ')}; also kind, variant)`);
   if (d.variant !== undefined && !(Number.isInteger(d.variant) && d.variant >= 0 && d.variant <= MAX_VARIANT)) e.push(`${where}: variant must be a whole number from 0 to ${MAX_VARIANT} (leave it out and the post picks one itself)`);
   for (const [f, { max }] of Object.entries(POST_FIELDS)) {
     const v = d[f];
@@ -68,6 +109,7 @@ export function postProblems(d, where = 'design', { direction, focalOk, brief } 
     if (f !== 'headline' && f !== 'quote' && f !== 'sub' && /[\r\n]|\\n/.test(v)) e.push(`${where}: ${f} must be one line`);
     const n = [...seen(v)].length;
     if (n > max) e.push(`${where}: ${f} is ${n} characters; the most is ${max}`);
+    for (const p of markProblems(v, f)) e.push(`${where}: ${p}`);
   }
   if (d.items !== undefined) {
     const { min, max, chars } = POST_ITEMS;
@@ -76,8 +118,10 @@ export function postProblems(d, where = 'design', { direction, focalOk, brief } 
       if (typeof t !== 'string' || !t.trim()) e.push(`${where}: items[${i}] must be a non-empty text`);
       else if (/[\r\n]|\\n/.test(t)) e.push(`${where}: items[${i}] must be one line`);
       else if ([...seen(t)].length > chars) e.push(`${where}: items[${i}] is ${[...seen(t)].length} characters; the most is ${chars}`);
+      else if (markProblems(t, 'items').length) e.push(`${where}: items[${i}] takes no [[pill]] words or {{icon}} marks; only the headline does`);
     });
   }
+  e.push(...infoProblems(d.info, where), ...galleryProblems(d.gallery, where));
   if (d.image !== undefined) {
     if (typeof d.image !== 'string' || !d.image.trim()) e.push(`${where}: image must be a file path`);
     else if (!IMAGE_EXTS.includes(path.extname(d.image).toLowerCase())) e.push(`${where}: image "${clip(d.image)}" must be ${IMAGE_EXTS.join(' ')}`);
@@ -109,9 +153,58 @@ function briefProblems(d, where, brief) {
     const room = Math.max(...budgets), n = [...seen(d[f])].length;
     if (n > room && n <= max) e.push(`${where}: ${f} is ${n} characters; the ${name} look draws it with up to ${room}`);
   }
-  if (Array.isArray(d.items)) {
-    const lo = Math.min(...pool.map((v) => v.fields?.items?.min ?? POST_ITEMS.min)), hi = Math.max(...pool.map((v) => v.fields?.items?.max ?? POST_ITEMS.max));
-    if (d.items.length < lo || d.items.length > hi) e.push(`${where}: the ${name} look draws ${lo} to ${hi} items, not ${d.items.length}`);
+  for (const [f, base] of Object.entries(POST_LISTS)) {
+    if (!Array.isArray(d[f])) continue;
+    // items keep the old rule (every variant counts); an info block or a row of pictures is judged on the variants that draw one
+    const drawing = f === 'items' ? pool : pool.filter((v) => v.fields?.[f]);
+    if (!drawing.length) continue;
+    const lo = Math.min(...drawing.map((v) => v.fields?.[f]?.min ?? base.min)), hi = Math.max(...drawing.map((v) => v.fields?.[f]?.max ?? base.max));
+    if (d[f].length < lo || d[f].length > hi) e.push(`${where}: the ${name} look draws ${lo} to ${hi} ${f === 'gallery' ? 'pictures in a row' : f === 'info' ? 'info rows' : 'items'}, not ${d[f].length}`);
   }
+  return e;
+}
+
+// One line of plain words: a non-empty text, one line, at most max seen characters, no inline marks. Returns a problem or null.
+function lineProblem(v, what, max) {
+  if (typeof v !== 'string' || !v.trim()) return `${what} must be a non-empty text`;
+  if (/[\r\n]|\\n/.test(v)) return `${what} must be one line`;
+  if (/\*|\[\[|\]\]|\{\{|\}\}/.test(v)) return `${what} takes no *emphasis*, [[pill]] or {{icon}} marks`;
+  const n = [...seen(v)].length;
+  return n > max ? `${what} is ${n} characters; the most is ${max}` : null;
+}
+// The rows of an info block: [{ key, value }], the key from INFO_KEYS (never echoed back), each key once.
+function infoProblems(info, where) {
+  if (info === undefined) return [];
+  const { min, max, value } = POST_INFO;
+  if (!Array.isArray(info) || info.length < min || info.length > max) return [`${where}: info must be a list of ${min} to ${max} rows like { "key": "When", "value": "Sat 12 Dec, 6pm" }`];
+  const e = [], keys = new Set();
+  info.forEach((r, i) => {
+    const at = `${where}: info[${i}]`;
+    if (!isObj(r)) { e.push(`${at} must be an object like { "key": "Where", "value": "The roastery" }`); return; }
+    for (const k of Object.keys(r)) if (k !== 'key' && k !== 'value') e.push(`${at}: "${clip(k)}" is not part of an info row (key, value)`);
+    if (!INFO_KEYS.includes(r.key)) e.push(`${at}.key must be one of ${INFO_KEYS.join(', ')}`);
+    else if (keys.has(r.key)) e.push(`${at}.key ${r.key} is used twice; use each label once`);
+    else keys.add(r.key);
+    const p = lineProblem(r.value, `info[${i}].value`, value);
+    if (p) e.push(`${where}: ${p}`);
+  });
+  return e;
+}
+// The pictures of a row of round pictures: [{ image, caption? }], each picture once.
+function galleryProblems(g, where) {
+  if (g === undefined) return [];
+  const { min, max, caption } = POST_GALLERY;
+  if (!Array.isArray(g) || g.length < min || g.length > max) return [`${where}: gallery must be a list of ${min} to ${max} pictures like { "image": "design/assets/photos/a.jpg", "caption": "Ama" }`];
+  const e = [], images = new Set();
+  g.forEach((p, i) => {
+    const at = `${where}: gallery[${i}]`;
+    if (!isObj(p)) { e.push(`${at} must be an object like { "image": "...", "caption": "..." }`); return; }
+    for (const k of Object.keys(p)) if (k !== 'image' && k !== 'caption') e.push(`${at}: "${clip(k)}" is not part of a picture in a row (image, caption)`);
+    if (typeof p.image !== 'string' || !p.image.trim()) e.push(`${at}.image must be a file path`);
+    else if (!IMAGE_EXTS.includes(path.extname(p.image).toLowerCase())) e.push(`${at}.image must be ${IMAGE_EXTS.join(' ')}`);
+    else if (images.has(p.image)) e.push(`${at}.image is used twice in the row; use each picture once`);
+    else images.add(p.image);
+    if (p.caption !== undefined) { const q = lineProblem(p.caption, `gallery[${i}].caption`, caption); if (q) e.push(`${where}: ${q}`); }
+  });
   return e;
 }

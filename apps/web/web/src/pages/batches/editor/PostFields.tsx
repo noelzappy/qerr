@@ -11,18 +11,21 @@ import { FocalPicker, ZoomField } from './ImageOptions';
 import { KindChooser } from './KindChooser';
 import { budgetsFor } from './look-brief';
 import { ListEditor } from './ListEditor';
+import { InfoEditor } from './InfoEditor';
+import { GalleryEditor } from './GalleryEditor';
 import { PicturePicker } from './PicturePicker';
 import type { Json } from './types';
 
 const text = (v: unknown) => (typeof v === 'string' ? v : '');
 
-type TextLimit = Exclude<keyof PostLimits, 'items'>;
+type TextLimit = Exclude<keyof PostLimits, 'items' | 'info' | 'gallery' | 'infoKeys' | 'icons'>;
 const LABELS: Record<string, string> = {
-  label: 'Label', headline: 'Headline', sub: 'Sub line', big: 'Big figure', unit: 'Unit', quote: 'Quotation', by: 'Said by', meta: 'Details', tag: 'Sticker text',
+  label: 'Label', headline: 'Headline', sub: 'Sub line', big: 'Big figure', unit: 'Unit', quote: 'Quotation', by: 'Said by', meta: 'Details', tag: 'Sticker text', cta: 'Button',
 };
 const HINTS: Record<string, string> = {
   label: 'A few words above the headline, such as Numbers or Tips.',
-  headline: 'One short phrase. Select words and press Highlight to make them stand out.',
+  headline: 'One short phrase. Select words and press Highlight to make them stand out, or Pill to set them in a pill (where the look draws pills).',
+  cta: 'What to do, in a few words, such as Book a seat.',
   sub: 'A line that adds to the headline.',
   big: 'The figure itself, such as 74% or 3x.',
   unit: 'What the figure counts, such as of tasks.',
@@ -91,11 +94,17 @@ export function PostFields({ design, onChange, direction, kinds, limits, offered
       case 'headline':
         return (
           <Counted key={f} value={text(d.headline)} max={lim.headline}>
-            <HeadlineField label="Headline" required={needs('headline')} hint={HINTS.headline} value={text(d.headline)} disabled={disabled} onChange={(v) => set('headline', v)} />
+            <HeadlineField label="Headline" required={needs('headline')} hint={HINTS.headline} value={text(d.headline)} disabled={disabled} onChange={(v) => set('headline', v)} marks icons={lim.icons} />
           </Counted>
         );
       case 'items':
         return <ListEditor key={f} label="Items" addLabel="Add an item" max={lim.items.max} maxChars={lim.items.chars} value={d.items} disabled={disabled} onChange={(v) => set('items', v)} />;
+      case 'cta':
+        return short('cta');
+      case 'info':
+        return <InfoEditor key={f} value={d.info} keys={lim.infoKeys} min={lim.info.min} max={lim.info.max} maxChars={lim.info.chars} disabled={disabled} onChange={(v) => set('info', v)} />;
+      case 'gallery':
+        return <GalleryEditor key={f} value={d.gallery} min={lim.gallery.min} max={lim.gallery.max} maxChars={lim.gallery.chars} disabled={disabled} onChange={(v) => set('gallery', v)} />;
       case 'image':
         return (
           <div key={f} className="flex min-w-0 flex-col gap-3">

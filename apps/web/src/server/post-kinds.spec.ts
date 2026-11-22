@@ -36,9 +36,13 @@ describe('GET /api/posts/post-kinds', () => {
       expect(k.required).toEqual(postSpec.POST_REQUIRED[k.kind]);
       expect(k.variants).toEqual([]);
     }
+    const spec = postSpec as unknown as { POST_INFO: { min: number; max: number; value: number }; POST_GALLERY: { min: number; max: number; caption: number }; INFO_KEYS: string[] };
+    const icons = await import('@vesk/engine/design/icons' as string) as { ICON_NAMES: string[] };
     expect(res.body.limits).toEqual({
-      ...Object.fromEntries(['label', 'headline', 'sub', 'big', 'unit', 'quote', 'by', 'meta', 'tag'].map((f) => [f, postSpec.POST_FIELDS[f]!.max])),
+      ...Object.fromEntries(['label', 'headline', 'sub', 'big', 'unit', 'quote', 'by', 'meta', 'tag', 'cta'].map((f) => [f, postSpec.POST_FIELDS[f]!.max])),
       items: { min: postSpec.POST_ITEMS.min, max: postSpec.POST_ITEMS.max, chars: postSpec.POST_ITEMS.chars },
+      info: { min: spec.POST_INFO.min, max: spec.POST_INFO.max, chars: spec.POST_INFO.value }, gallery: { min: spec.POST_GALLERY.min, max: spec.POST_GALLERY.max, chars: spec.POST_GALLERY.caption },
+      infoKeys: spec.INFO_KEYS, icons: icons.ICON_NAMES,
     });
   });
 

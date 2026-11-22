@@ -680,6 +680,10 @@ export function bindingsOf(el: Json, look: Json): Binding[] {
     case 'seam': return el.upper === 'field' ? [] : [{ field: 'image', sig: 'image|all' }];
     case 'rows': return el.each === 'items' ? [{ field: 'items', sig: 'items|rows' }] : [{ field: 'meta', sig: 'meta|rows' }];
     case 'meta-row': return (((look.devices as Json | undefined)?.metaRow as Json | undefined)?.cells as Json[] | undefined ?? []).some((c) => c.source === 'label') ? [{ field: 'label', sig: 'label|all' }] : [];
+    // the engine's primitives/info-rows.mjs, button.mjs and photo-row.mjs bindings()
+    case 'info-rows': return [{ field: 'info', sig: 'info|rows' }];
+    case 'button': return [{ field: f ?? 'cta', sig: sig(f ?? 'cta', 'button') }];
+    case 'photo-row': return [{ field: 'gallery', sig: 'gallery|row' }];
     default: return [];
   }
 }
@@ -859,7 +863,7 @@ export function whyNotAdd(comp: Json, type: string, cat: LookCatalogue, parentPa
   }
   if (type === 'meta-row' && (!(gridOf(look)?.head ?? 0) || !(look.devices as Json | undefined)?.metaRow)) return 'This look has no top label row; set one up in the look\'s settings (Page and Devices)';
   const kind = String(comp.kind), fields = cat.kinds[kind]?.fields ?? [];
-  const needs: Record<string, string[]> = { photo: ['image'], numeral: ['big', 'meta'], rows: ['items', 'meta'], 'mantra-rows': ['headline'], 'fitted-stack': ['headline', 'quote'] };
+  const needs: Record<string, string[]> = { photo: ['image'], numeral: ['big', 'meta'], rows: ['items', 'meta'], 'mantra-rows': ['headline'], 'fitted-stack': ['headline', 'quote'], 'info-rows': ['info'], 'photo-row': ['gallery'], button: ['cta', 'tag', 'label'] };
   if (needs[type] && !needs[type]!.some((f) => fields.includes(f))) return `A ${kind} post has no ${needs[type]!.map((f) => fieldLabel(f, cat).toLowerCase()).join(' or ')} to show`;
   const shown = new Set(shownFields(comp, look));
   if (needs[type] && type !== 'rows' && !needs[type]!.some((f) => fields.includes(f) && !shown.has(f))) return `${needs[type]!.filter((f) => fields.includes(f)).map((f) => fieldLabel(f, cat)).join(' and ')} ${needs[type]!.filter((f) => fields.includes(f)).length > 1 ? 'are' : 'is'} shown already; a design shows each field once`;
@@ -957,6 +961,9 @@ export function newElement(comp: Json, type: string, look: Json, cat: LookCatalo
     case 'gradient': el.gradient = { kind: 'linear', stops: ['field', 'dark'] }; size = { span: 99, rowSpan: 3 }; break;
     case 'overlay': el.colour = 'ink'; el.from = 'bottom'; size = { span: 99, rowSpan: 3 }; break;
     case 'graphic': el.at = 'bottom-right'; el.size = 'm'; break;
+    case 'info-rows': el.layout = 'beside'; size = { span: 99, rowSpan: 2, h: 220 }; break;
+    case 'button': { const f = free(['cta', 'tag', 'label']); if (f && f !== 'cta') el.field = f; el.shape = 'pill'; el.icon = 'arrow-right'; size = { span: 6, rowSpan: 1, w: 480, h: 110 }; break; }
+    case 'photo-row': el.size = 200; el.captions = true; size = { span: 99, rowSpan: 2, h: 260 }; break;
     default: break;
   }
   if (info.placement === 'required') {

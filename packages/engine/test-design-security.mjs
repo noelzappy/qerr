@@ -272,3 +272,33 @@ test('a brand carrying a hostile or invalid look is refused by validateBrand', a
   assert.ok(validateBrand({ ...raw, looks: Array.from({ length: 21 }, (_, i) => ({ ...own, id: `l${i}` })) }).length > 0, 'more than the most looks');
   assert.ok(validateBrand({ ...raw, style: { ...raw.style, direction: 'nope' } }).some((e) => /direction/.test(e)), 'a direction that names nothing');
 });
+
+// Pills, icons, info rows, buttons and round pictures (the full suite is test-design-look-parts.mjs): hostile words and paths through each new field
+// reach a post drawn by a look only as escaped text; an icon is only ever the engine's own path; a picture only the checked data: URI.
+test('looks: hostile pill words, icon names, info rows, button words and picture paths never reach a tag', async () => {
+  const { shippedLooks } = await import('./lib/design/directions/index.mjs');
+  const { ICONS } = await import('./lib/design/icons.mjs');
+  const look = { ...structuredClone(shippedLooks().swiss), id: 'sec-parts', origin: 'copy:shipped:swiss',
+    compositions: [{ kind: 'event', name: 'Parts', describe: 'Security check.', ground: 'paper',
+      fields: { headline: { required: true }, meta: { required: true }, cta: {}, info: {}, gallery: {} },
+      elements: [
+        { type: 'text', field: 'headline', style: 'display', size: 90, place: { px: { x: 64, y: 200, w: 952, h: 300 } }, pills: { fill: 'accent', ink: 'on-accent' }, icons: {} },
+        { type: 'text', field: 'meta', style: 'label', place: { px: { x: 64, y: 140, w: 952, h: 40 } } },
+        { type: 'info-rows', place: { px: { x: 64, y: 560, w: 952, h: 260 } }, valueStyle: 'label' },
+        { type: 'photo-row', place: { px: { x: 64, y: 860, w: 952, h: 260 } }, captions: true },
+        { type: 'button', place: { px: { x: 64, y: 1160, w: 952, h: 110 } }, size: 20, icon: 'arrow-right' },
+      ] }] };
+  const paths = new Set(Object.values(ICONS).map((i) => i.d));
+  for (const h of HOSTILE) {
+    const spec = { template: 'post', kind: 'event', name: 'sec', headline: `[[${h.slice(0, 20)}]] ${h} {{star}} {{${h}}}`, meta: h, cta: h,
+      info: [{ key: 'When', value: h }, { key: h, value: h }], gallery: [{ image: h, caption: h }, { image: `${h}.jpg`, caption: h }] };
+    assert.ok(validateDesign(spec, 'design', { direction: 'swiss' }).length > 0, `${h}: refused before drawing`);
+    const r = renderPostWithLook(look, spec, { size: SIZES.feed, brand: { ...brand, name: h }, image: () => PIXEL, imageSize: () => ({ w: 600, h: 600 }) }, { shipped: false });
+    const tags = [...r.body.matchAll(/<[^>]*>/g)].map((t) => t[0]);
+    assert.ok(!tags.some((t) => /<\/?script|\son[a-z]+=|javascript:/i.test(t.replace(/ data-name="[^"]*"/g, ''))), h);
+    assert.ok(!/[<>]/.test(r.body.replace(/<[^>]*>/g, '')), `${h}: no raw angle bracket in the text`);
+    for (const m of r.body.matchAll(/ d="([^"]*)"/g)) assert.ok(paths.has(m[1]) || /^M [\d.]+ [\d.]+ a /.test(m[1]), `${h}: a path from the icon table only`);
+    for (const m of r.body.matchAll(/ src="([^"]*)"/g)) assert.equal(m[1], PIXEL);
+    for (const m of r.body.matchAll(/ data-name="([^"]*)"/g)) assert.ok(!/["<>]/.test(m[1]));
+  }
+});
