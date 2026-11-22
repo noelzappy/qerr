@@ -41,6 +41,13 @@ test('lookBrief lists all seven kinds with the right variant counts', () => {
   for (const v of Object.values(b.kinds)) for (const x of v.variants) { assert.ok(x.name); assert.ok(x.describe.length > 40 && x.describe.length <= 300); }
 });
 
+test('lookBrief says which designs draw the headline\'s pills and icons', () => {
+  const marks = (kind) => lookBrief(look).kinds[kind].variants.map((v) => [v.name, v.marks]);
+  assert.deepEqual(marks('statement'), [['Shout', { pills: true, icons: true }], ['Letter', { pills: false, icons: true }], ['Centre stack', { pills: true, icons: true }]]);
+  assert.deepEqual(marks('figure').map(([, m]) => m), [{ pills: false, icons: false }, { pills: false, icons: false }]);
+  assert.deepEqual(marks('photo').map(([, m]) => m), [{ pills: true, icons: true }, { pills: true, icons: true }, { pills: false, icons: true }]);
+});
+
 test('it is set in Anton and Hanken Grotesk from the library, and names no colour, url, path or markup', () => {
   assert.equal(look.fonts.display.family, 'Anton');
   assert.equal(look.fonts.text.family, 'Hanken Grotesk');
