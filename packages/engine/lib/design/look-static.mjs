@@ -17,13 +17,13 @@ const ON_DARK = ['on-field', 'white', 'paper', 'body-field', 'body-dark', 'muted
 const ON_MID = ['on-primary', 'white', 'paper'];
 const ON_ACCENT = ['on-accent', 'ink', 'dark'];
 export const INK_ON = Object.freeze({
-  paper: ON_LIGHT, white: ON_LIGHT, soft: ON_LIGHT, 'paper-warm': ON_LIGHT, 'light-tint': ON_LIGHT,
+  paper: ON_LIGHT, white: ON_LIGHT, soft: ON_LIGHT, 'paper-warm': ON_LIGHT, 'light-tint': ON_LIGHT, 'tint-deep': ON_LIGHT,
   dark: ON_DARK, field: ON_DARK, 'field-deep': ON_DARK, ink: ON_DARK,
   primary: ON_MID, gold: ON_ACCENT, 'gold-deep': [...ON_ACCENT, 'white', 'paper'], accent: ON_ACCENT,
 });
 export const FILL_ROLES = Object.keys(INK_ON);
 // The role a page colour of a composition is drawn in.
-const GROUND_ROLE = Object.freeze({ paper: 'paper', field: 'field', dark: 'dark', accent: 'gold', soft: 'soft' });
+const GROUND_ROLE = Object.freeze({ paper: 'paper', field: 'field', dark: 'dark', accent: 'gold', soft: 'soft', tint: 'light-tint' });
 
 // ---- the page grid, resolved ----
 export function gridOf(look) {
@@ -43,7 +43,7 @@ export function rowSpanOf(grid, row, span) {
 }
 
 // ---- type styles and sizes ----
-const styleDefault = (el) => (el.field === 'headline' || el.field === 'quote' ? 'display' : el.field === 'big' ? 'numeral' : el.source || ['label', 'meta', 'tag', 'unit', 'by'].includes(el.field) ? 'label' : 'body');
+const styleDefault = (el) => (el.field === 'headline' || el.field === 'quote' ? 'display' : el.field === 'big' ? 'numeral' : el.source || el.word || ['label', 'meta', 'tag', 'unit', 'by'].includes(el.field) ? 'label' : 'body');
 export const styleOf = (el) => el.style ?? styleDefault(el);
 // The size of a style when an element gives none: the look's own (display and numeral have none).
 function styleSize(style, look) {

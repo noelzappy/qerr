@@ -112,15 +112,12 @@ export function place({ x, y, w, h, right, bottom }) {
 // The tracking a display size wants, in em: none below 40 px, tightening to the direction's value from 40 to 120 px.
 export const trackFor = (size, tight = -0.03) => +(tight * Math.min(1, Math.max(0, (size - 40) / 80))).toFixed(4);
 
-// The words of a post folio: from the job (the post's place in a batch), else a date, else a stable number from the words.
-function folioOf({ folio, date, seed }) {
+// The words of a post folio: from the job (the post's place in a batch, or a carousel page's place), else none. A number made up from
+// the words or the date would be an arbitrary figure on the page, so without a real place there is no folio at all.
+function folioOf({ folio }) {
   const clean = (v) => Number.isInteger(v) && v >= 1 && v <= 999;
   if (folio && clean(folio.n)) return { n: folio.n, total: clean(folio.total) ? folio.total : null };
-  const d = date ? new Date(date) : null;
-  if (d && !Number.isNaN(d.getTime())) return { n: d.getUTCDate(), total: null };
-  let h = 2166136261;
-  for (const ch of String(seed)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); }
-  return { n: ((h >>> 0) % 99) + 1, total: null };
+  return { n: null, total: null };
 }
 
 // The parts of a text around its first *emphasis phrase*: { pre, phrase, post } as plain strings (pre is the text before it, trimmed; a text
@@ -142,7 +139,7 @@ export function makeContext(args) {
   const { spec, brand, tokens, direction, kind, variant, comp, size: S } = args;
   const W = S.w, H = S.h, mg = tokens.margin, G = tokens.grid;
   const colW = (W - mg.left - mg.right - (G.cols - 1) * G.gutter) / G.cols;
-  const folio = folioOf({ folio: args.folio ?? (args.counter ? { n: args.counter.n, total: args.counter.total } : undefined), date: args.date, seed: [spec.name, spec.headline, spec.big, spec.quote, spec.label].filter(Boolean).join('|') });
+  const folio = folioOf({ folio: args.folio ?? (args.counter ? { n: args.counter.n, total: args.counter.total } : undefined) });
   const brandName = brand.name;
   const c = {
     direction, kind, variant, tokens, W, H, margin: mg, grid: G, colW, folio, comp,
@@ -178,11 +175,13 @@ export function makeContext(args) {
     emphasis: (f = 'headline') => (typeof spec[f] === 'string' ? /\*([^*]+)\*/.exec(spec[f])?.[1] ?? '' : ''),
     items: () => (Array.isArray(spec.items) ? spec.items.map((t) => new Markup(esc(t))) : []),
     brand: new Markup(esc(brandName)),
+    // the brand's web address as a plain host (no scheme, no path), '' without one
+    site: new Markup(esc(String(brand.website ?? '').replace(/^[a-z]+:\/\//i, '').replace(/\/.*$/, '').slice(0, 60))),
     brandChars: [...String(brandName)].length,
     // the label, else the brand's name
     labelOrBrand: () => new Markup(esc(typeof spec.label === 'string' && spec.label ? spec.label : brandName)),
     // the folio as the direction sets it ("No. 07", "07/12")
-    folioText: () => new Markup(esc(tokens.folio(folio.n, folio.total))),
+    folioText: () => new Markup(folio.n ? esc(tokens.folio(folio.n, folio.total)) : ''),
     m, markup, emphasisParts: (f = 'headline') => emphasisParts(spec[f]),
     hasImage: typeof spec.image === 'string' && spec.image !== '' && typeof args.image === 'function',
     // the picture's own size (width, height) in pixels, or null
@@ -267,7 +266,7 @@ export function makeContext(args) {
   // A filled bar in the flow of a group (an accent tick between a headline and its sub).
   c.flowBlock = (o) => `<i class="k-flow k-block" aria-hidden="true" data-el data-fill style="display:block;flex:none;${o.w === 'fill' ? 'align-self:stretch' : `width:${P(o.w, 'w')}px`};height:${P(o.h, 'h')}px;${o.dotted ? dots({ weight: o.h, colour: o.colour ?? 'accent' }, false) : `background:${colour(o.colour ?? 'accent')}`}${o.nudge ? `;${nudgeCss(o.nudge)}` : ''}"></i>`;
   // The folio at a place (right-aligned at x1 when align is right).
-  c.folioMark = (o) => c.type({ role: 'folio', family: o.family ?? 'label', html: c.folioText(), size: o.size ?? tokens.type.label.size, lead: 1.2, track: o.track ?? tokens.type.label.track, weight: o.weight ?? tokens.type.label.weight, upper: o.upper ?? tokens.type.label.upper !== false, colour: o.colour ?? 'muted', nowrap: true, num: o.num ?? 'lnum', ...o });
+  c.folioMark = (o) => !folio.n ? '' : c.type({ role: 'folio', family: o.family ?? 'label', html: c.folioText(), size: o.size ?? tokens.type.label.size, lead: 1.2, track: o.track ?? tokens.type.label.track, weight: o.weight ?? tokens.type.label.weight, upper: o.upper ?? tokens.type.label.upper !== false, colour: o.colour ?? 'muted', nowrap: true, num: o.num ?? 'lnum', ...o });
   // A vertical label running up the page (rotated 90 degrees counter-clockwise), its box starting at (x, y) and reading upward;
   // down: true turns it the other way, reading downward from (x, y) with its line box inside the margin.
   c.verticalLabel = (o) => {
@@ -339,7 +338,7 @@ export function makeContext(args) {
   // The frame: a solid border of thickness t on all four sides in a palette colour (it counts as fill, and text is never set on it).
   c.frame = (o) => { const t = P(o.t, 't'); return `<i class="abs k-frame" aria-hidden="true" data-el data-fill style="inset:0;border:${t}px solid ${colour(o.colour ?? 'field')}"></i>`; };
   // A keyline: a thin border box (the double border of an invitation).
-  c.keyline = (o) => `<i class="abs k-keyline" aria-hidden="true" data-el data-fill style="${place(o)};border:${P(o.weight ?? 1, 'weight')}px solid ${colour(o.colour ?? 'rule')}"></i>`;
+  c.keyline = (o) => `<i class="abs k-keyline" aria-hidden="true" data-el data-fill style="${place(o)};border:${P(o.weight ?? 1, 'weight')}px solid ${colour(o.colour ?? 'rule')}${o.radius !== undefined ? `;border-radius:${radiusCss(o.radius)}` : ''}"></i>`;
 
   // ---- the picture: the spec's image, art-directed ----
   // o: x, y, w, h; shape: rect | circle | arch | rounded; radius (rounded); treat: a list of 'grey' | 'multiply' | 'grain';
@@ -353,7 +352,11 @@ export function makeContext(args) {
     const tr = zoom > 1 ? `;transform:scale(${px(zoom)});transform-origin:${fo}` : '';
     const radius = shape === 'arch' ? `border-radius:${P(o.w / 2, 'w')}px ${P(o.w / 2, 'w')}px 0 0` : shape === 'circle' || shape === 'oval' ? 'border-radius:50%' : shape === 'pill' ? 'border-radius:999px' : shape === 'rounded' ? `border-radius:${P(o.radius ?? 24, 'radius')}px` : '';
     const classes = ['abs', 'ph', 'k-photo', ...treat.map((t) => `k-${t}`)].join(' ');
-    return `<div class="${classes}" data-el style="${place(o)}${o.z !== undefined ? `;z-index:${P(o.z, 'z')}` : ''}${radius ? `;${radius}` : ''}${o.soft !== undefined ? `;box-shadow:${softCss(o.soft)}` : ''}"><img data-user data-name="${esc(spec.image)}" data-fit="cover" src="${args.image(spec.image)}" alt="" style="object-position:${fo}${tr}">${treat.includes('multiply') ? `<i class="k-mul" style="background:${colour(o.tint ?? 'primary')}"></i>` : ''}${treat.includes('grain') ? '<i class="k-gr"></i>' : ''}</div>`;
+    // blend: 'ground' | 'fade': the top edge fades into the page over `fade` px (a fixed mask); 'ground' also lets the page take the picture's own
+    // plain edge colour (runtime.mjs ready(): the picture is read as shown, as the classic poster layouts do)
+    if (o.blend !== undefined && !['ground', 'fade'].includes(o.blend)) throw new Error('design kit: blend must be ground or fade');
+    const fadeCss = o.blend ? (() => { const f = P(o.fade ?? 160, 'fade'); if (f < 0 || f > 400) throw new Error('design kit: fade must be from 0 to 400 px'); return f > 0 ? `;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 ${f}px);mask-image:linear-gradient(to bottom,transparent 0,#000 ${f}px)` : ''; })() : '';
+    return `<div class="${classes}" data-el${o.blend ? ` data-blend="${o.blend}"` : ''} style="${place(o)}${fadeCss}${o.z !== undefined ? `;z-index:${P(o.z, 'z')}` : ''}${radius ? `;${radius}` : ''}${o.soft !== undefined ? `;box-shadow:${softCss(o.soft)}` : ''}"><img data-user${o.blend === 'ground' ? ' data-bsample' : ''} data-name="${esc(spec.image)}" data-fit="cover" src="${args.image(spec.image)}" alt="" style="object-position:${fo}${tr}">${treat.includes('multiply') ? `<i class="k-mul" style="background:${colour(o.tint ?? 'primary')}"></i>` : ''}${treat.includes('grain') ? '<i class="k-gr"></i>' : ''}</div>`;
   };
   // A framed print: the picture inset in a paper border with a keyline, and a caption strip beneath. The outer box is (x, y, w, h);
   // border px of paper; caption: Markup placed under the picture inside the border (kept to the label size).
@@ -369,14 +372,15 @@ export function makeContext(args) {
   // ---- the brand's logo: only when the brand switched it on (style.logo set to a corner) and, for a look, the look says `corner` (logo.default) ----
   c.logoHtml = () => {
     if (tokens.logoOn === false) return '';
-    const corner = brand.style?.logo;
+    const corner = tokens.logoCorner ?? brand.style?.logo;
+    if (!brand.logos) return '';
     if (!['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(corner)) return '';
     const h = tokens.logoHeight ?? 44, [fw, fh] = brand.logos.fullSize, k = h / fh;
     const right = corner.endsWith('right'), bottom = corner.startsWith('bottom');
-    const dark = Boolean(c.dark ?? comp?.dark);
+    const darkPage = Boolean(c.dark ?? comp?.dark), dark = darkPage || Boolean(c.blendPage);
     const pos = [right ? `right:${P(mg.right, 'margin')}px` : `left:${P(mg.left, 'margin')}px`, bottom ? `bottom:${P(mg.bottom, 'margin')}px` : `top:${P(mg.top, 'margin')}px`].join(';');
     const inner = dark
-      ? `<span class="logo-inv ly-logo" style="height:${P(h, 'h')}px"><img src="${brand.logoMarkSrc}" alt="" style="height:${P(h, 'h')}px"><i role="img" aria-label="${esc(brandName)}" style="height:${P(h, 'h')}px;background-size:auto ${P(h, 'h')}px;--lw:${P((fw - brand.logos.wordmarkFrom) * k, 'lw')}px;--lx:-${P(brand.logos.wordmarkFrom * k, 'lx')}px;--lm:${P(brand.logos.markGap * k, 'lm')}px"></i></span>`
+      ? `<span class="logo-inv ly-logo${darkPage ? '' : ' logo-ink'}" style="height:${P(h, 'h')}px"><img src="${brand.logoMarkSrc}" alt="" style="height:${P(h, 'h')}px"><i role="img" aria-label="${esc(brandName)}" style="height:${P(h, 'h')}px;background-size:auto ${P(h, 'h')}px;--lw:${P((fw - brand.logos.wordmarkFrom) * k, 'lw')}px;--lx:-${P(brand.logos.wordmarkFrom * k, 'lx')}px;--lm:${P(brand.logos.markGap * k, 'lm')}px"></i></span>`
       : `<img src="${brand.logoFullSrc}" alt="${esc(brandName)}" style="height:${P(h, 'h')}px;display:block">`;
     return `<div class="abs k-logo" data-avoid style="${pos}">${inner}</div>`;
   };
@@ -524,7 +528,7 @@ function kitExtras(c, brand, spec) {
     const body = safe(o.html ?? c.fmt('headline'), 'html');
     return `<div class="${o.flow ? 'k-flow' : 'abs'} k-t k-display k-fb${emphClass(o.emph)}" data-el data-role="${role}" data-grid="${o.grid ?? 'left'}" data-fitlines data-fitmode="${mode}" data-w="${P(o.w, 'w')}" data-h="${P(o.h, 'h')}"${o.sizes ? ` data-sizes="${sizesOf(o.sizes, 'sizes')}"` : ''}`
       + ` data-lead="${P(lead, 'lead')}" data-track="${P(track, 'track')}" data-max="${P(o.max ?? 5, 'max')}" data-align="${o.align === 'right' ? 'right' : o.align === 'center' ? 'center' : 'left'}" data-capem="${P(o.capEm ?? 0.7, 'capEm')}"`
-      + ` data-tt="${P(trim.top, 'trim')}" data-tb="${P(trim.bottom, 'trim')}"${o.stop ? ` data-stop="${o.stop}" data-gap="${P(o.gap ?? 32, 'gap')}"` : ''}${o.anchor === 'bottom' ? ' data-anchor="bottom"' : ''}`
+      + ` data-tt="${P(trim.top, 'trim')}" data-tb="${P(trim.bottom, 'trim')}"${o.stop ? ` data-stop="${o.stop}" data-gap="${P(o.gap ?? 32, 'gap')}"` : ''}${o.anchor === 'bottom' ? ` data-anchor="bottom" data-desc="${P(o.desc ?? 0.2, 'desc')}"` : ''}`
       + `${o.mode ?? ''} style="${css}">${body}</div>`;
   };
   // A headline at ONE size for all its lines, in lines balanced against each other: the largest of `sizes` (descending) at which it fits the

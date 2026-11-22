@@ -201,7 +201,7 @@ function typeRules(el, path, ctx, errs) {
   const bad = (t, sub) => push(errs, ctx, sub ? `${path}.${sub}` : path, t);
   const t = el.type;
   if (t === 'text') {
-    if ((el.field === undefined) === (el.source === undefined)) bad('needs exactly one of field or source');
+    if ([el.field, el.source, el.word].filter((v) => v !== undefined).length !== 1) bad('needs exactly one of field or source (or a fixed word)');
     const style = styleOf(el), [lo, hi] = SIZE_RANGE[style] ?? [14, 900];
     if (el.size !== undefined && el.ladder !== undefined) bad('gives size and ladder; use one');
     if (el.size !== undefined && Number.isFinite(el.size) && (el.size < lo || el.size > hi)) bad(`${style} type is sized from ${lo} to ${hi}`, 'size');
@@ -226,6 +226,8 @@ function typeRules(el, path, ctx, errs) {
       if (isObj(f) && f.source === 'library' && Array.isArray(f.weights) && !f.weights.includes(el.weight)) bad(`is ${el.weight}, which fonts.${role}.weights does not list (${list(f.weights)}); add it there`, 'weight');
     }
   }
+  if (el.corners !== undefined && el.corners !== 'all' && el.radius === undefined) bad('says which corners to round but gives no radius', 'corners');
+  if (el.corners !== undefined && el.corners !== 'all' && el.radius === 'oval') bad('an oval has no corners to choose', 'corners');
   if (t === 'block' && el.skew !== undefined && el.skew !== 0 && (el.radius !== undefined || el.shadow !== undefined || el.place === undefined)) bad('is drawn only on a plain block with a place, with no rounded corners and no shadow', 'skew');
   if (el.origin !== undefined && el.originPct !== undefined) bad('gives origin and originPct; use one', 'originPct');
   if ((el.origin !== undefined || el.originPct !== undefined) && el.rot === undefined) bad('is the point it turns about, so it needs rot', el.origin !== undefined ? 'origin' : 'originPct');
@@ -277,9 +279,15 @@ function typeRules(el, path, ctx, errs) {
   if (t === 'photo') {
     if (el.border !== undefined && !['print', 'card'].includes(el.shape)) bad('is the mount of a print or a card', 'border');
     if (el.radius !== undefined && el.shape !== 'rounded') bad('rounds a rounded picture', 'radius');
+    if (el.fade !== undefined && (el.blend === undefined || el.blend === 'none')) bad('is the fade of a picture that melts into the page (blend: ground or fade)', 'fade');
+    if (el.blend !== undefined && el.blend !== 'none') {
+      if (el.shape !== undefined && el.shape !== 'rect') bad('melts only a plain rectangle picture', 'blend');
+      for (const k of ['shadow', 'ring', 'rot', 'keyline', 'border', 'radius']) if (el[k] !== undefined) bad(`melts into the page, so it takes no ${k}`, 'blend');
+    }
   }
   if (t === 'seam' && !(el.leftY > el.rightY)) bad('must be more than rightY: the edge rises to the right', 'leftY');
   if (t === 'sticker') {
+    if (el.radius !== undefined && el.shape !== 'tile') bad('rounds a tile (circles and pills are already round)', 'radius');
     const hasKids = Array.isArray(el.children) && el.children.length > 0;
     if (el.field !== undefined && hasKids) bad('gives a field and text items; use one');
     if (el.field === undefined && !hasKids) bad('carries nothing: give it a field or text items');
@@ -405,7 +413,9 @@ function acceptsProblems(a, i, comp, path, ctx, errs) {
     if (Number.isInteger(a.min) && Number.isInteger(a.max) && a.min > a.max) push(errs, ctx, path, 'min is more than max');
     return;
   }
-  unknownKeys(a, ['field', 'part', 'maxChars'], path, ctx, errs);
+  unknownKeys(a, ['field', 'part', 'minChars', 'maxChars'], path, ctx, errs);
+  if (a.minChars !== undefined && !(Number.isInteger(a.minChars) && a.minChars >= 1 && a.minChars <= POST_FIELDS[a.field].max)) push(errs, ctx, `${path}.minChars`, `must be a whole number of characters from 1 to ${POST_FIELDS[a.field].max}`);
+  if (Number.isInteger(a.minChars) && Number.isInteger(a.maxChars) && a.minChars > a.maxChars) push(errs, ctx, path, 'minChars is more than maxChars');
   if (a.part !== undefined && !['all', 'pre', 'phrase'].includes(a.part)) push(errs, ctx, `${path}.part`, 'must be one of all, pre, phrase');
   else if (a.part !== undefined && a.part !== 'all' && !POST_FIELDS[a.field].emphasis) push(errs, ctx, `${path}.part`, 'splits at the emphasised phrase, which only the headline has');
   if (!(Number.isInteger(a.maxChars) && a.maxChars >= 1 && a.maxChars <= POST_FIELDS[a.field].max)) push(errs, ctx, `${path}.maxChars`, `must be a whole number of characters from 1 to ${POST_FIELDS[a.field].max}`);
@@ -505,6 +515,11 @@ function fontRules(look, ctx, errs, lib) {
       const files = fam.files.filter((x) => x.style === style);
       if (!files.length) { push(errs, ctx, `${p}.italic`, `${fam.family} has no ${style} style`); continue; }
       for (const w of Array.isArray(spec.weights) ? spec.weights : []) if (Number.isFinite(w) && !files.some((x) => { const [lo, hi] = bounds(x.weight); return w >= lo && w <= hi; })) push(errs, ctx, `${p}.weights`, `${show(w)} is outside the weights ${fam.family} has in ${style}`);
+    }
+    if (spec.opsz !== undefined && Number.isFinite(spec.opsz)) {
+      const ax = fam.axes?.opsz;
+      if (!ax) push(errs, ctx, `${p}.opsz`, `${fam.family} has no optical size axis`);
+      else if (spec.opsz < ax[0] || spec.opsz > ax[1]) push(errs, ctx, `${p}.opsz`, `${show(spec.opsz)} is outside the optical sizes ${fam.family} has (${ax[0]} to ${ax[1]})`);
     }
     if (spec.stretch !== undefined && Number.isFinite(spec.stretch)) {
       const ok = fam.files.some((x) => { const m = /^(\d+)% (\d+)%$/.exec(x.stretch ?? ''); return m && spec.stretch >= +m[1] && spec.stretch <= +m[2]; });

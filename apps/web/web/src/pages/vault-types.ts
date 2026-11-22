@@ -25,6 +25,11 @@ export interface VaultItem {
   createdAt: string;
   updatedAt: string;
   hasFile: boolean;
+  // Picture items: 'photo' (screens too), 'cutout' or 'graphic'; tintable graphics may be recoloured; pixel size read at upload.
+  role: 'photo' | 'cutout' | 'graphic';
+  tintable: boolean;
+  width: number | null;
+  height: number | null;
   // Only on list answers asked for with withFileUrls: a signed address, null when signing failed.
   fileUrl?: string | null;
   stale: boolean;

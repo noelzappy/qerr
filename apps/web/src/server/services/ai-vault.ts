@@ -32,7 +32,8 @@ export const kindFromAi = (kind: string): string => kind.replace(/-/g, '_');
 // photo or screen, with a file and its rights settled (rightsProblems). This is the rule that gates an approved post, so a draft
 // never starts from something the approval would refuse. The AI library applies the same rule to what it is sent
 // (packages/ai vault.mjs unusableReason) and rejects a post that cites or pictures anything else.
-export const usableForAi = (item: VaultItem, now: Date): boolean => sourceProblems(item, { now }).length === 0 && rightsProblems(item).length === 0;
+// Cut-outs and graphics are not ordinary pictures: only role 'photo' (and facts, which have it by default) is offered for now.
+export const usableForAi = (item: VaultItem, now: Date): boolean => item.role === 'photo' && sourceProblems(item, { now }).length === 0 && rightsProblems(item).length === 0;
 
 // What the AI is sent: only the usable items, in the library's shape. Unconfirmed items, research findings included, never go.
 export const vaultListForAi = (items: VaultItem[], now: Date): Json[] => items.filter((i) => usableForAi(i, now)).map((i) => vaultForAi(i, now));

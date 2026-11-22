@@ -305,7 +305,16 @@ export function explainProblems(problems, sizeName, lengths = {}) {
 //   SCALE      the headline (or the big numeral) is at least 2.6 times the size of the body text, when both exist;
 //   LEVELS     the page uses at most three sizes of type (within 2 px); a headline fitted line by line counts as one;
 //   GRID       every text block's edge sits on the margin or a column line (within 2 px), unless it is marked data-grid="skip".
-export const POST_LIMITS = Object.freeze({ emptyShare: 0.45, scale: 2.6, levels: 3, tol: 2 });
+//   EDGE       no line of text has its ink within 10 px of the edge of a filled block or rule (or crossing it), nor sits that close to
+//              the edge of the block it is inside (a descender touching a rule, a headline under a block, a price on its block's foot).
+export const POST_LIMITS = Object.freeze({ emptyShare: 0.45, scale: 2.6, levels: 3, tol: 2, edge: 10 });
+// How far the ink box i is from the filled shape f: a negative number is the room above or below the text inside f (its sides may stand
+// 12 px out or close, for a letter's side bearing and a headline pulled onto the margin), else the distance outside it (0 when they cross).
+export function inkGap(i, f) {
+  const inside = i.x0 >= f.x0 - 12 && i.x1 <= f.x1 + 12 && i.y0 >= f.y0 && i.y1 <= f.y1;
+  if (inside) return -Math.min(i.y0 - f.y0, f.y1 - i.y1);
+  return Math.hypot(Math.max(f.x0 - i.x1, i.x0 - f.x1, 0), Math.max(f.y0 - i.y1, i.y0 - f.y1, 0));
+}
 export function findPostProblems(m, { grid } = {}) {
   const problems = [], L = POST_LIMITS, hs = m.hs || 1;
   const limit = Number.isFinite(m.calm) ? Math.max(L.emptyShare, m.calm) : L.emptyShare;
@@ -322,6 +331,13 @@ export function findPostProblems(m, { grid } = {}) {
   const levels = []; for (const z of sizes) if (!levels.length || z - levels[levels.length - 1][levels[levels.length - 1].length - 1] > L.tol) levels.push([z]); else levels[levels.length - 1].push(z);
   const count = levels.length + (m.texts.some((t) => t.fit) ? 1 : 0);
   if (count > L.levels) problems.push({ kind: 'levels', count, sizes: [...levels.map((g) => Math.round(g.reduce((a, b) => a + b, 0) / g.length)), ...(m.texts.some((t) => t.fit) ? ['fitted headline'] : [])] });
+  for (const i of m.inks ?? []) {
+    for (const f of m.shapes ?? []) {
+      if ((f.frame ?? '') !== (i.frame ?? '')) continue;
+      const g = inkGap(i, f);
+      if (Math.abs(g) < L.edge) { problems.push({ kind: 'edge', role: i.role, text: i.text, gap: Math.round(Math.abs(g)), inside: g < 0, crossing: g === 0 }); break; }
+    }
+  }
   if (grid) {
     const near = (x, xs) => xs.reduce((best, v) => (Math.abs(v - x) < Math.abs(best - x) ? v : best), xs[0]);
     for (const b of m.blocks ?? []) {
@@ -340,6 +356,7 @@ export function explainPostProblems(problems, post = {}) {
     if (p.kind === 'empty') return `an empty area covers ${Math.round(p.share * 100)}% of the page (at most ${Math.round(p.limit * 100)}% is allowed here), at x ${Math.round(p.rect.x0)}-${Math.round(p.rect.x1)}, y ${Math.round(p.rect.y0)}-${Math.round(p.rect.y1)}: use longer words, a picture or another variant`;
     if (p.kind === 'scale') return `the headline is ${p.headline} px against ${p.body} px of body text, ${p.ratio.toFixed(2)} times (it needs at least ${POST_LIMITS.scale}): shorten the sub line or use another variant`;
     if (p.kind === 'levels') return `the page sets type in ${p.count} sizes (${p.sizes.join(', ')}); at most ${POST_LIMITS.levels} levels are allowed`;
+    if (p.kind === 'edge') return `the ${p.role || 'text'} "${p.text}" ${p.crossing ? 'runs into' : `is only ${p.gap} px ${p.inside ? 'inside' : 'from'}`} the edge of a block or rule (it needs ${POST_LIMITS.edge} px clear): move the text or the block, or shorten the words`;
     return `the ${p.role} "${p.text}" starts at x ${p.x}, which is not on the margin or a column line (nearest ${p.nearest})`;
   });
   return `The page does not meet the design rules${who}: ${[...new Set(lines)].join('; ')}.`;
