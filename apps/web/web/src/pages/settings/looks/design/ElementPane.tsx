@@ -12,7 +12,7 @@ import { AlignCenter, AlignLeft, AlignRight } from 'lucide-react';
 import { ConfirmAction } from '@/components/kit';
 import { cn } from '@/lib/utils';
 import {
-  bindField, declaredFields, elementName, fieldLabel, gridOf, inkChoices, placeForm, placeReadout, PLACE_FORM_WORDS, namedAngles, propsOf, pruneFields, readWhen, setPlace,
+  bindField, declaredFields, elementName, fieldLabel, gridOf, inkChoices, placeForm, placeReadout, PLACE_FORM_WORDS, namedAngles, propsOf, turnOptions, pruneFields, readWhen, setPlace,
   setPlaceForm, setProp, setRotation, setSource, summary, whenText, type DesignProblem, type Edit, type Json,
 } from '../design-model';
 import { AngleControl, BindingEditor, PlaceEditor, Segmented, ValueControl, word, type Ctx } from '../design-controls';
@@ -314,7 +314,7 @@ function TurnChips({ ctx, onError, error }: { ctx: Ctx; onError: (m: string) => 
     <div className="flex flex-col gap-1">
       <Label hint="The look’s own angles, so the design turns the way the look does.">Turn</Label>
       <Chips label="Turn" value={cur} custom disabled={ctx.disabled} onChange={(id) => onError(ctx.rotate(id === 'none' ? undefined : id))}
-        options={[{ value: 'none', label: 'None' }, ...named.map((a) => ({ value: a.name, label: word(a.name), title: `${a.deg}°` }))]} />
+        options={[{ value: 'none', label: 'Straight' }, ...turnOptions(named, ctx.look)]} />
       {error && <p className="text-[12.5px] font-medium text-destructive" role="alert">{error}</p>}
     </div>
   );
