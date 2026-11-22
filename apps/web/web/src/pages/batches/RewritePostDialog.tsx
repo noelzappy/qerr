@@ -13,6 +13,7 @@ import { useNow } from '@/hooks/use-now';
 import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsaved-guard';
 import { isActive } from '@/lib/activity';
 import { errorMessage, fieldErrors } from '../../lib/errors';
+import { rewriteChangedText } from '../../lib/labels';
 
 export const REWRITE_MAX = 500;
 
@@ -85,7 +86,12 @@ export function RewritePostDialog({ open, onClose, postId, unavailable, onRewrit
           <div className="flex flex-col gap-4">
             {isActive(run) && <RunProgress run={run} now={now} />}
             {run.status === 'failed' && <Notice tone="bad" title="The rewrite did not work."><FailureText text={run.error} /></Notice>}
-            {run.status === 'done' && <RunResult run={run} />}
+            {run.status === 'done' && (
+              <>
+                {rewriteChangedText((run.result as { changed?: unknown } | null)?.changed) && <p><strong className="font-medium">Changed:</strong> {rewriteChangedText((run.result as { changed?: unknown } | null)?.changed)}</p>}
+                <RunResult run={run} />
+              </>
+            )}
           </div>
         )}
       </FormPanel>

@@ -2,7 +2,7 @@
 // when there is a problem), the networks, and the few actions. Everything else is on the post's own page. Everything shown is
 // untrusted text and is only ever rendered as text.
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { useLoad } from '../../hooks';
 import { ChevronLeft, ChevronRight, ImageOff, Maximize2 } from 'lucide-react';
@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { tidyBlocker } from '../../lib/errors';
+import { blockerKind, tidyBlocker } from '../../lib/errors';
+import { splitNotes } from '../../lib/post-notes';
 import { postFlow } from './flow/status';
 import { NETWORKS } from './labels';
 import { goesTo, readNetworks } from './networks';
@@ -88,7 +89,8 @@ export function PostCard({ summary, batch, version, onChanged, deliveries, highl
   const state = readNetworks(post?.networks);
   const onNetwork = (n: string) => (post ? goesTo(state, batch.defaultNetworks, n) : batch.defaultNetworks.includes(n));
   const blockers = (detail?.blockers ?? []).map(tidyBlocker);
-  const warnings = detail?.warnings ?? [];
+  // What the AI only noted does not raise the chip; the post page lists it under "Notes from the AI".
+  const warnings = splitNotes(detail?.warnings ?? [], post?.warnings ?? []).warnings;
   const flow = postFlow({
     status: post?.status ?? summary.status,
     renderStatus: render,
@@ -98,6 +100,11 @@ export function PostCard({ summary, batch, version, onChanged, deliveries, highl
   });
   const problem = postProblem(flow, { blockers: post?.status === 'removed' ? [] : blockers, warnings, renderError: post?.renderError, noSources: !!detail && detail.sources.length === 0 });
   const title = post?.title ?? summary.title;
+  // Where the first blocker is fixed: the post (its design) for an unknown post type, the fact for an unconfirmed fact.
+  const kind = blockers[0] ? blockerKind(blockers[0]) : null;
+  const factHit = kind === 'fact' ? detail?.sources.find((s) => s.title && blockers[0]!.includes(`"${s.title}"`)) : undefined;
+  const fixLink = kind === 'post-type' ? { to: `/batches/${batch.id}/posts/${summary.id}`, label: 'Open the post' }
+    : factHit ? { to: `/vault/${factHit.id}`, label: 'Open the fact' } : null;
   const approved = (post?.status ?? summary.status) === 'approved';
   const working = render === 'queued' || render === 'rendering';
   const editTo = `/batches/${batch.id}/posts/${summary.id}`;
@@ -133,8 +140,9 @@ export function PostCard({ summary, batch, version, onChanged, deliveries, highl
 
         <PostChips flow={flow} problem={problem} />
         {blockers.length > 0 && post?.status !== 'removed' && (
-          <p className="line-clamp-2 text-[12.5px] text-destructive [overflow-wrap:anywhere]" title={blockers.join(' ')}>
+          <p className="text-[12.5px] text-destructive [overflow-wrap:anywhere]">
             {blockers[0]}{blockers.length > 1 ? ` (and ${blockers.length - 1} more)` : ''}
+            {fixLink && <> <Link to={fixLink.to} className="whitespace-nowrap font-medium underline underline-offset-4">{fixLink.label}</Link></>}
           </p>
         )}
         {a.error && (

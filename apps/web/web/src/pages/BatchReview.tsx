@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useMatch, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useDocumentTitle, useLoad } from '../hooks';
+import { detailMessages, draftSummary } from '../lib/ai-draft-note';
 import { errorMessage } from '../lib/errors';
 import type { ChannelsOverview } from '../lib/overview';
 import { useSession } from '../session';
@@ -286,24 +287,35 @@ function ReviewView({ data, reload, deliveriesByPost, focusPost, command, onComm
   );
 }
 
-// What the AI reported when it drafted this batch: how it was made, what it threw away and the pictures it wished for.
+// What the AI reported when it drafted this batch, in a few plain lines: how many posts, what the checks threw out (the reasons
+// behind "Why") and the technical notes behind "Details".
 function AiDraftCard({ notes }: { notes: AiDraftNotes }) {
-  const rejected = notes.rejected ?? [];
+  const s = draftSummary(notes);
   const suggestions = notes.imageSuggestions ?? [];
-  const messages = notes.messages ?? [];
+  const messages = detailMessages(notes);
+  const hasDetails = !!notes.plan || !!notes.promptVersion || !!notes.model || messages.length > 0 || suggestions.length > 0;
+  const toggle = 'flex min-h-8 w-fit cursor-pointer items-center text-[13px] font-medium underline-offset-4 hover:underline max-sm:min-h-11';
   return (
     <div className="mb-4">
       <Notice tone="info" title="Written by AI. Check every post and its sources before approving.">
-        <ul className="mt-1.5 list-disc space-y-1 pl-[18px] [overflow-wrap:anywhere]">
-          <li>
-            {notes.delivered ?? '?'} of {notes.requested ?? '?'} requested posts passed the automatic checks
-            {notes.promptVersion ? `, prompt ${notes.promptVersion}` : ''}{notes.model ? `, model ${notes.model}` : ''}.
-          </li>
-          {notes.plan && <li>Plan: {notes.plan}</li>}
-          {messages.map((m, i) => <li key={`m${i}`}>{m}</li>)}
-          {suggestions.map((s, i) => <li key={`s${i}`}>Picture wanted for {s.postId}: {s.suggestion}</li>)}
-          {rejected.map((r, i) => <li key={`r${i}`}>Left out {r.id ?? 'a post'}: {r.reasons.join('; ')}</li>)}
-        </ul>
+        <p className="mt-1.5">{s.headline}{s.followUp ? ` ${s.followUp}` : ''}</p>
+        {s.why.length > 0 && (
+          <details className="mt-1">
+            <summary className={toggle}>Why</summary>
+            <ul className="mt-1 list-disc space-y-1 pl-[18px] [overflow-wrap:anywhere]">{s.why.map((w, i) => <li key={i}>{w}</li>)}</ul>
+          </details>
+        )}
+        {hasDetails && (
+          <details className="mt-1">
+            <summary className={toggle}>Details</summary>
+            <ul className="mt-1 list-disc space-y-1 pl-[18px] [overflow-wrap:anywhere]">
+              {notes.plan && <li>Plan: {notes.plan}</li>}
+              {(notes.promptVersion || notes.model) && <li>{[notes.promptVersion ? `Prompt ${notes.promptVersion}` : '', notes.model ? `model ${notes.model}` : ''].filter(Boolean).join(', ')}</li>}
+              {messages.map((m, i) => <li key={`m${i}`}>{m}</li>)}
+              {suggestions.map((x, i) => <li key={`s${i}`}>Picture wanted for {x.postId}: {x.suggestion}</li>)}
+            </ul>
+          </details>
+        )}
       </Notice>
     </div>
   );

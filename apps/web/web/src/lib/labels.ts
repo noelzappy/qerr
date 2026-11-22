@@ -15,6 +15,20 @@ export const LICENCE_LABEL: Record<string, string> = { own: 'Our own', licensed:
 
 export const PROVIDER_KIND_LABEL: Record<string, string> = { anthropic: 'Anthropic', 'openai-compatible': 'OpenAI-compatible' };
 export const TASK_LABEL: Record<string, string> = { draft: 'Drafting batches', research: 'Research', rewrite: 'Rewriting posts' };
+// The parts of a post a rewrite can change, as the run's result names them.
+const REWRITE_PART: Record<string, string> = {
+  title: 'Title', caption: 'Caption', date: 'Date', time: 'Time', networks: 'Captions for single networks', design: 'Words on the image', sources: 'Linked facts',
+};
+export const rewritePartLabel = (key: string) => REWRITE_PART[key] ?? key;
+// "Caption and words on the image", or null when the result does not say.
+export function rewriteChangedText(changed: unknown): string | null {
+  if (!Array.isArray(changed)) return null;
+  const parts = changed.filter((k): k is string => typeof k === 'string').map(rewritePartLabel);
+  if (!parts.length) return 'Nothing needed changing';
+  const lower = parts.map((x, i) => (i ? x.toLowerCase() : x));
+  return lower.length > 1 ? `${lower.slice(0, -1).join(', ')} and ${lower[lower.length - 1]}` : lower[0]!;
+}
+
 export const SEARCH_KIND_LABEL: Record<string, string> = { brave: 'Brave Search', tavily: 'Tavily', exa: 'Exa' };
 
 // Audit actions, written as what happened. Unknown ones fall back to the code with the dots and underscores softened.

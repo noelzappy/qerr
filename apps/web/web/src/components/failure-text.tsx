@@ -7,7 +7,7 @@ export function FailureText({ text, className }: { text: string | null | undefin
   const f = readableFailure(text);
   return (
     <div className={cn('[overflow-wrap:anywhere]', className)}>
-      {f.summary}{f.advice ? ` ${f.advice}` : ''}
+      {f.summary}{f.advice ? ` ${f.advice}` : ''}{f.cutOff ? ' …' : ''}
       {f.details && (
         <details className="mt-1 text-[13px]">
           <summary className="w-fit cursor-pointer font-medium underline-offset-4 hover:underline max-sm:min-h-11">Show details</summary>
