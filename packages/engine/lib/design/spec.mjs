@@ -5,7 +5,7 @@ import { shapeProblems } from './checks.mjs';
 import { LIMITS, ledgerLayout } from './figures.mjs';
 import { COVER_SIZES, DEFAULT_SIZES, SIZE_NAMES } from './sizes.mjs';
 import { isPostCarousel, postCarouselProblems, postProblems } from './post-spec.mjs';
-import { lookBrief } from './look.mjs';
+import { lookBrief, postCompositionProblems } from './look.mjs';
 import { ACCENT_STYLES, ALIGNS, GROUND_ALIASES, GROUND_NAMES, POSTER_SIZES, SERIES_KEY, groundName } from './tokens.mjs';
 
 // The feed pages (one 1080 x 1350 page each, usable as pages of a carousel): first the poster pages of 2026-11-20 (one real
@@ -326,6 +326,9 @@ function checkOne(d, template, where, errors, opts = {}) {
   }
 }
 
+// A post's own design (its `composition`) is held to the brand's look as one of the look's compositions would be (look.mjs postCompositionProblems).
+const ownDesignOf = (look) => (look ? (comp, kind) => postCompositionProblems(comp, look, kind) : undefined);
+
 // Validates one design spec (the template plus its options). Returns a list of problems, empty when fine.
 // opts.series: the series keys of the brand file (callers that can read it pass them; without them only the key's shape is checked).
 // opts.layoutPage(page, where): the problems of a carousel page { template: "layout", layout: "<id>", ... }, one of the brand's
@@ -351,7 +354,7 @@ export function validateDesign(d, where = 'design', opts = {}) {
     }
   }
   if (d.template === 'carousel' && isPostCarousel(d)) {
-    errors.push(...postCarouselProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null, emoji: opts.emoji === true }));
+    errors.push(...postCarouselProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null, emoji: opts.emoji === true, ownDesign: ownDesignOf(opts.look) }));
     return errors;
   }
   if (d.template === 'carousel') {
@@ -367,7 +370,7 @@ export function validateDesign(d, where = 'design', opts = {}) {
     return errors;
   }
   if (d.template === 'post') {
-    errors.push(...postProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null, emoji: opts.emoji === true }));
+    errors.push(...postProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null, emoji: opts.emoji === true, ownDesign: ownDesignOf(opts.look) }));
     return errors;
   }
   checkOne(d, d.template, where, errors, opts);

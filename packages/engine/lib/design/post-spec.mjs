@@ -71,7 +71,7 @@ export const POST_REQUIRED = {
   statement: ['headline'], figure: ['big'], list: ['headline', 'items'], quote: ['quote'], photo: ['image', 'headline'], event: ['headline', 'meta'], offer: ['headline', 'tag'],
 };
 // The keys a post design may carry besides its fields (a batch's file name and sizes, the network sizes).
-const OWN = ['template', 'kind', 'variant', 'sizes', 'name', 'networkSizes', 'image', 'focal', 'zoom', 'items', 'graphics', 'info', 'gallery', 'chart', 'avatar'];
+const OWN = ['template', 'kind', 'variant', 'sizes', 'name', 'networkSizes', 'image', 'focal', 'zoom', 'items', 'graphics', 'info', 'gallery', 'chart', 'avatar', 'composition'];
 // The brand graphics and cut-outs a post hands to its look (the app fills this from the vault for the graphics the look's pieces name):
 // [{ ref: the vault item's id, image: a PNG or WebP file with transparency, tintable: whether a piece may recolour it }]. Checked here by
 // shape; the files are read and checked (type, size, transparency) when the page is made (render.mjs preparePage).
@@ -109,8 +109,15 @@ const isNum = (v, lo, hi) => typeof v === 'number' && Number.isFinite(v) && v >=
 // the look's own compositions, and `direction` is not looked up among the engine's).
 // emoji: whether the brand turns emoji on (brand.json "emoji"); off (the default), any emoji in a text is refused; on, each text takes at most
 // EMOJI_MAX real emoji (emoji.mjs).
-export function postProblems(d, where = 'design', { direction, focalOk, brief, emoji = false } = {}) {
+// ownDesign(composition, kind): the problems of a post's own composition held to the brand's look (look.mjs postCompositionProblems, passed by
+// spec.mjs when the brand's direction is a look); without it a post that carries one is refused, as a code direction cannot draw it.
+export function postProblems(d, where = 'design', { direction, focalOk, brief, emoji = false, ownDesign } = {}) {
   const e = [];
+  // a post's own design (one composition, the look's schema, drawn with the look's settings in place of a variant of the look)
+  if (d.composition !== undefined) {
+    if (typeof ownDesign !== 'function') e.push(`${where}: composition: a post's own design is drawn with the brand's look, and this brand's design direction is not a look`);
+    else for (const p of ownDesign(d.composition, d.kind).slice(0, 12)) e.push(`${where}: composition: ${p}`);
+  }
   if (!POST_KINDS.includes(d.kind)) e.push(`${where}: kind must be one of ${POST_KINDS.join(', ')} (got "${clip(d.kind)}")`);
   if (brief) e.push(...briefProblems(d, where, brief));
   if (brief) { /* the look is the direction */ } else if (direction === null) e.push(`${where}: a post is drawn in the brand's design direction, and this brand has none; set style.direction in brand.json to one of ${DIRECTIONS.join(', ')} (Settings, Brand and look)`);

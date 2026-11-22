@@ -202,6 +202,28 @@ export function lookCompositionGraphics(look, kind, index) {
   return { kind, variant: index, name: typeof comp.name === 'string' ? comp.name : `${kind} ${index + 1}`, refs: compositionGraphicRefs(comp) };
 }
 
+// ---- a post's own design ----
+// A post may carry its own composition (design.composition): one composition in this schema, for the post's kind, drawn with the brand's look in
+// place of a variant of the look (directions/index.mjs renderPostWithLook). It is held to exactly what a composition of the look is held to:
+// the look with its compositions replaced by this one passes validateLook (every bound, fixed list, palette role, element type and static
+// check, with the look's own grounds, fonts, angles and grid). A shipped look is held as its own copy. At most OWN_DESIGN.bytes of JSON.
+export const OWN_DESIGN = Object.freeze({ bytes: 64 * 1024 });
+// The look a post's own design is drawn with: the look's settings and this one composition.
+export function lookWithOwnDesign(look, comp) {
+  const base = isObj(look) ? look : {};
+  return { ...base, ...(base.origin === 'shipped' ? { origin: `copy:shipped:${typeof base.id === 'string' ? base.id : 'look'}` } : {}), compositions: [comp] };
+}
+// -> [problem sentences], empty when the post's own design can be drawn with the look. kind: the post's kind.
+export function postCompositionProblems(comp, look, kind) {
+  if (!isObj(comp)) return ['must be one design: an object like { "kind": "statement", "name": "...", "ground": "paper", "fields": {...}, "elements": [...] }'];
+  let size = 0;
+  try { size = JSON.stringify(comp).length; } catch { return ['cannot be written as JSON']; }
+  if (size > OWN_DESIGN.bytes) return [`is ${Math.round(size / 1024)} KB; a post's own design is at most ${OWN_DESIGN.bytes / 1024} KB`];
+  if (typeof kind === 'string' && comp.kind !== kind) return [`is a design of ${typeof comp.kind === 'string' && KINDS.includes(comp.kind) ? `a ${comp.kind}` : 'another kind of'} post; this post is a ${kind}`];
+  if (!isObj(look)) return ['needs the brand\'s look to be drawn with'];
+  return validateLook(lookWithOwnDesign(look, comp), 'design').map((p) => p.replace(/^design(?: "[^"]*")?: compositions\[0\](?:\.|: )?/, '').replace(/^design(?: "[^"]*")?: /, 'the look: ').trim());
+}
+
 // ---- normalise and hash ----
 const hasDefaults = (desc) => desc.default !== undefined || (desc.kind === 'object' && Object.values(desc.props).some(hasDefaults));
 function fill(desc, v) {

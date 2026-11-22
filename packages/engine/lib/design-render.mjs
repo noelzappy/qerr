@@ -79,12 +79,22 @@ const brandWarnings =(spec, brand) => [...new Set(spec.sizes.flatMap((s) => lint
 // `folio` ({ n, total }): the post's place in its batch, shown in a look's folio cell; without it a single post has no folio.
 // `png` (tests only: the template baseline harness, testlib/template-baseline.mjs) writes lossless PNG files instead of JPEGs,
 // so that a pixel comparison sees real differences and not the JPEG encoder's noise. Posts are always JPEGs.
-export async function renderDesignBlock({ root = ROOT, design, postId, outDir, stem, only, slides, layouts, png = false, folio, log = () => {} } = {}) {
+// A post's own design (design.composition, on the post or a page of a carousel of posts) is drawn in place of the look's variant. When it cannot be
+// drawn (the look changed since and refuses it, or a check of the finished page refuses it), the page is drawn with the look's own variant instead
+// and a note names the reason, so a post's own design never stops a post from being made. `strictOwn` (the AI's trial render) refuses instead.
+// The result says what happened: ownDesign { asked, used, reasons } (used: every page that asked for its own design was drawn with it).
+export async function renderDesignBlock({ root = ROOT, design, postId, outDir, stem, only, slides, layouts, png = false, folio, strictOwn = false, log = () => {} } = {}) {
   const fail = (error, extra = {}) => ({ ok: false, files: [], warnings: [], notes: [], error, ...extra });
   let spec, brand;
+  const own = { asked: hasOwnDesign(design), used: false, reasons: [] };
   try {
-    const problems = designBlockProblems(design, { root, layouts });
-    if (problems.length) return fail(problems.join('; '));
+    let problems = designBlockProblems(design, { root, layouts });
+    if (problems.length && own.asked && !strictOwn) {
+      // the post's own design no longer passes (the look changed): the post is drawn with the look's variant, and says why
+      const base = designBlockProblems(withoutOwnDesign(design), { root, layouts });
+      if (!base.length) { own.reasons.push(...problems.map((p) => p.replace(/^design(?: page \d+)?: composition: /, ''))); design = withoutOwnDesign(design); problems = []; }
+    }
+    if (problems.length) return fail(problems.join('; '), own.asked ? { ownDesign: own } : {});
     if (!outDir) return fail('outDir is required');
     brand = loadBrand({ root });
     if (layouts) brand = { ...brand, layouts };
@@ -116,6 +126,7 @@ export async function renderDesignBlock({ root = ROOT, design, postId, outDir, s
     }
   }
   const notes = [];
+  if (own.reasons.length) notes.push(`the post's own design was not used (${own.reasons.slice(0, 2).join('; ').slice(0, 300)}); the look's design drew it`);
   const chrome = findChrome();
   if (!chrome) return fail(NO_CHROME, { warnings });
   const converter = detectConverter();
@@ -128,7 +139,7 @@ export async function renderDesignBlock({ root = ROOT, design, postId, outDir, s
   }
   const stop = () => browser.close();
   process.once('exit', stop);
-  const made = [];
+  const made = [], pageOwn = [];
   let pdf;
   try {
     for (const f of files) {
@@ -136,15 +147,27 @@ export async function renderDesignBlock({ root = ROOT, design, postId, outDir, s
       const carousel = spec.template === 'carousel';
       const imageSpec = carousel ? { ...spec.pages[f.slide], sizes: spec.sizes } : spec;
       const counter = carousel ? { n: f.slide + 1, total: spec.pages.length } : undefined;
+      const job = (s) => renderImage(browser, brand, { spec: s, sizeName: f.size, outFile: abs, counter, ...(!carousel && folio ? { folio } : {}) }, { tmpDir, converter });
       try {
-        const r = await renderImage(browser, brand, { spec: imageSpec, sizeName: f.size, outFile: abs, counter, ...(!carousel && folio ? { folio } : {}) }, { tmpDir, converter });
+        let r;
+        if (imageSpec.composition !== undefined) {
+          try { r = await job(imageSpec); pageOwn.push(true); } catch (e) {
+            if (!(e instanceof DesignError) || strictOwn) throw e;
+            // a check refused the post's own design: the look's own variant draws the page, and the note says why
+            own.reasons.push(e.message);
+            notes.push(`${f.file}: the post's own design was not used (${e.message.slice(0, 300)}); the look's design drew it`);
+            pageOwn.push(false);
+            const { composition: _own, ...plain } = imageSpec;
+            r = await job(plain);
+          }
+        } else r = await job(imageSpec);
         made.push({ size: f.size, slide: f.slide, file: f.file, abs, w: r.w, h: r.h });
         warnings.push(...r.warnings.map((w) => `${f.file}: ${w}`));
         notes.push(...r.notes.map((n) => `${f.file}: ${n}`));
         log(`ok ${f.file} ${r.w}x${r.h}`);
       } catch (e) {
         if (!(e instanceof DesignError)) throw e;
-        return fail(`${f.file}: ${e.message}`, { files: made, warnings, notes });
+        return fail(`${f.file}: ${e.message}`, { files: made, warnings, notes, ...(own.asked ? { ownDesign: { ...own, used: false } } : {}) });
       }
     }
     // A carousel's PDF is made only when every size of it was rendered (not when `only` cut some out).
@@ -164,5 +187,15 @@ export async function renderDesignBlock({ root = ROOT, design, postId, outDir, s
     process.removeListener('exit', stop);
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
-  return { ok: true, files: made, warnings, notes, ...(pdf ? { pdf } : {}) };
+  if (own.asked) own.used = pageOwn.length > 0 && pageOwn.every(Boolean) && !own.reasons.length;
+  return { ok: true, files: made, warnings, notes, ...(pdf ? { pdf } : {}), ...(own.asked ? { ownDesign: own } : {}) };
+}
+
+// Whether a design block carries a post's own design (on the post, or on a page of a carousel of posts), and the block without it.
+export const hasOwnDesign = (d) => !!d && typeof d === 'object' && (d.composition !== undefined || (Array.isArray(d.pages) && d.pages.some((p) => p && typeof p === 'object' && p.composition !== undefined)));
+export function withoutOwnDesign(d) {
+  if (!d || typeof d !== 'object') return d;
+  const { composition: _c, ...rest } = d;
+  if (Array.isArray(rest.pages)) rest.pages = rest.pages.map((p) => { if (!p || typeof p !== 'object') return p; const { composition: _p, ...q } = p; return q; });
+  return rest;
 }

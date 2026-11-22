@@ -15,7 +15,7 @@ import { displayTarget } from '../checks.mjs';
 import { fontFacesFor } from '../font-library.mjs';
 import { grainUri, makeContext, numberElements, rootCss } from './kit.mjs';
 import fs from 'node:fs';
-import { canonicalJson, compositionDevice, compositionGraphicRefs, lookBrief, normaliseLook, validateLook } from '../look.mjs';
+import { canonicalJson, compositionDevice, compositionGraphicRefs, lookBrief, lookWithOwnDesign, normaliseLook, postCompositionProblems, validateLook } from '../look.mjs';
 import { POST_FIELDS, POST_ITEMS, POST_KINDS, POST_LISTS, POST_REQUIRED, seenText } from '../post-spec.mjs';
 import { accentPlan, paletteCss } from './colour.mjs';
 import { EMOJI_ALIAS, SYMBOLS_ALIAS, emojiFacesFor, fontAlias, symbolFacesFor } from '../font-library.mjs';
@@ -200,11 +200,31 @@ function bodyOnField(cp) {
 export function renderPostWithLook(look, spec, ctx, { shipped = false } = {}) {
   const r = resolveLook(look, { shipped });
   if (r.problems.length) throw new DesignError(`this look cannot be drawn: ${r.problems.slice(0, 4).join('; ')}${r.problems.length > 4 ? `; and ${r.problems.length - 4} more` : ''}`);
+  // A post's own design (spec.composition): the look's settings with this one composition, validated as the look's own compositions are; it
+  // draws the post in place of a variant. Every refusal is a DesignError that says so, so the caller can draw the look's variant instead.
+  if (spec.composition !== undefined) {
+    const own = ownDesign(look, spec);
+    if (own.problem) throw new DesignError(`this post's own design cannot be drawn: ${own.problem}`);
+    return draw({ spec, ctx, comp: own.comp, tokens: tokensFromLook(own.look, ctx.brand), direction: own.look.id, used: 0, fellBackFrom: null, code: false, look: own.look, own: true });
+  }
   const list = r.comps[spec.kind] ?? [];
   if (!list.length) throw new DesignError(`the ${r.look.id} look has no ${spec.kind} composition`);
   const { used, fellBackFrom } = pickVariant(spec, list, r.look.id);
   const comp = list[used], tokens = tokensFromLook(r.look, ctx.brand);
   return draw({ spec, ctx, comp, tokens, direction: r.look.id, used, fellBackFrom, code: false, look: r.look });
+}
+
+// A post's own composition resolved with the look: { look, comp } (the adapted composition), or { problem } (why it cannot draw this post).
+export function ownDesign(look, spec) {
+  const bad = postCompositionProblems(spec.composition, look, spec.kind);
+  if (bad.length) return { problem: `${bad.slice(0, 3).join('; ')}${bad.length > 3 ? `; and ${bad.length - 3} more` : ''}` };
+  const r = resolveLook(lookWithOwnDesign(look, spec.composition), { shipped: false });
+  const comp = r.problems.length ? null : r.comps[spec.kind]?.[0];
+  if (!comp) return { problem: r.problems[0] ?? `it is not a ${spec.kind} design` };
+  if (typeof comp.accepts === 'function' && !comp.accepts(spec)) return { problem: 'it does not take these words (its accepts rules)' };
+  const pic = typeof spec.image === 'string' && spec.image !== '';
+  if (comp.data.fields.image?.required && !pic) return { problem: 'it needs a picture and the post has none' };
+  return { look: r.look, comp };
 }
 
 // The composition of a look written as data that will draw `spec` (a post), chosen as renderPostWithLook chooses it (the named or hashed
@@ -213,6 +233,12 @@ export function renderPostWithLook(look, spec, ctx, { shipped = false } = {}) {
 export function postCompositionGraphics(look, spec, { shipped = false } = {}) {
   const r = resolveLook(look, { shipped });
   if (r.problems.length || !isObjSpec(spec)) return null;
+  // a post's own design places its own graphics, and those of the look's variant it falls back to when a check refuses it
+  if (spec.composition !== undefined) {
+    const own = ownDesign(look, spec), base = postCompositionGraphics(look, { ...spec, composition: undefined }, { shipped });
+    if (own.problem) return base;
+    return { kind: spec.kind, variant: 0, name: own.comp.name, own: true, refs: [...new Set([...compositionGraphicRefs(own.comp.data), ...(base?.refs ?? [])])] };
+  }
   const list = r.comps[spec.kind] ?? [];
   if (!list.length) return null;
   let used;
@@ -226,6 +252,11 @@ const isObjSpec = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 export function postCompositionDevice(look, spec, { shipped = false } = {}) {
   const r = resolveLook(look, { shipped });
   if (r.problems.length || !isObjSpec(spec)) return null;
+  if (spec.composition !== undefined) {
+    const own = ownDesign(look, spec);
+    if (!own.problem) return { kind: spec.kind, variant: 0, name: own.comp.name, own: true, device: compositionDevice(own.comp.data) };
+    return postCompositionDevice(look, { ...spec, composition: undefined }, { shipped });
+  }
   const list = r.comps[spec.kind] ?? [];
   if (!list.length) return null;
   let used;
@@ -266,7 +297,7 @@ export function rotatedGround(look, ground, spec) {
   return rot[h % rot.length];
 }
 
-function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, look }) {
+function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, look, own = false }) {
   const brand = ctx.brand;
   const c = makeContext({ spec, brand, tokens, direction, kind: spec.kind, variant: used, comp, size: ctx.size, image: ctx.image, imageSize: ctx.imageSize, counter: ctx.counter, folio: ctx.folio, date: ctx.date });
   if (c.hasImage === false && comp.fields.includes('image') && spec.kind === 'photo') throw new DesignError('a photo post needs an image');
@@ -320,13 +351,15 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
     root = `--bg:var(--c-${bg});${paletteCss(pal)};--f-display:${lookStack(tokens, 'display', e)};--f-text:${lookStack(tokens, 'text', e)};--f-label:${lookStack(tokens, 'label', e)};--f-mono:${lookStack(tokens, 'mono', e)};--k-grain:${grainUri(tokens.grain)};${lookRoot(look, tokens)}`;
     sheet = ['kit']; rootClass = 'k-look';
   }
-  const body = `<div class="cv post ${rootClass}${classes ? ` ${classes}` : ''}" data-kind="${spec.kind}" data-comp="${comp.id}"${comp.calm ? ` data-calm="${comp.calm.maxShare}"` : ''}${comp.levels ? ` data-levels="${Math.trunc(comp.levels.max)}" data-ratio="${num4(comp.levels.ratio)}"` : ''} style="${root}">${html}${c.logoHtml()}</div>`;
+  // a post's own design is named for what it is, never as variant 0 of the look
+  const compId = own ? `${direction}/${spec.kind}/own` : comp.id;
+  const body = `<div class="cv post ${rootClass}${classes ? ` ${classes}` : ''}" data-kind="${spec.kind}" data-comp="${compId}"${comp.calm ? ` data-calm="${comp.calm.maxShare}"` : ''}${comp.levels ? ` data-levels="${Math.trunc(comp.levels.max)}" data-ratio="${num4(comp.levels.ratio)}"` : ''} style="${root}">${html}${c.logoHtml()}</div>`;
   const m = tokens.margin;
   const f = look ? (comp.fitSpec === 'frame' ? { pad: tokens.frame.t + tokens.frame.pad, top: tokens.frame.t + tokens.frame.pad, bottom: tokens.frame.t + tokens.frame.pad } : comp.fitSpec && typeof comp.fitSpec === 'object' ? comp.fitSpec : {}) : comp.fit ?? {};
   return {
     body, bodyClass: 'post-page', bodyAttrs: 'data-post="1"', sheet, css: fonts.css, warnings,
     fit: { pad: f.pad ?? m.left, top: f.top ?? m.top, bottom: f.bottom ?? m.bottom },
-    post: { direction, kind: spec.kind, variant: used, ...(fellBackFrom ? { fellBackFrom } : {}), id: comp.id, name: comp.name, calm: comp.calm?.maxShare ?? null, levels: comp.levels ?? null, grid: c.gridLines(), fonts: fonts.files },
+    post: { direction, kind: spec.kind, variant: used, ...(fellBackFrom ? { fellBackFrom } : {}), ...(own ? { own: true } : {}), id: compId, name: own ? `the post's own design "${comp.name}"` : comp.name, calm: comp.calm?.maxShare ?? null, levels: comp.levels ?? null, grid: c.gridLines(), fonts: fonts.files },
   };
 }
 

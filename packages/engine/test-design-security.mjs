@@ -358,3 +358,37 @@ test('charts: hostile labels, kinds, units, numbers and a hostile currency never
     assert.ok(!/NaN|Infinity|undefined/.test(body), chart.kind);
   }
 });
+
+// A post's own design (design.composition) is untrusted data written by the AI or a person: it is held to the brand's look by the same validator
+// as the look's compositions, refused without a look, and drawn only after it passes; the art layer it may carry is numbers and palette roles only.
+test('a post\'s own design: hostile values are refused before drawing and never echoed; a valid one with art draws only numbers and palette roles', () => {
+  const pack = JSON.parse(fs.readFileSync(path.join(ROOT, 'brands', 'kettleworks', 'brand.json'), 'utf8'));
+  const look = pack.looks[0];
+  const base = () => { const c = JSON.parse(JSON.stringify(look.compositions.find((x) => x.kind === 'statement'))); c.elements.unshift({ type: 'art', place: { inset: 'page' }, z: 0, shapes: [{ shape: 'circle', cx: 100, cy: 100, r: 200, colour: 'soft' }, { shape: 'path', d: [['M', 0, 0], ['Q', 100, 900, 900, 900]], stroke: 4 }] }); return c; };
+  const post = (composition, extra = {}) => ({ template: 'post', kind: 'statement', headline: 'Words', composition, ...extra });
+  const ctx = { size: SIZES.feed, brand: { ...brand, looks: [look], style: { ...brand.style, direction: look.id } }, image: () => PIXEL, imageSize: () => ({ w: 1, h: 1 }) };
+  for (const h of HOSTILE) {
+    const edits = [
+      (c) => { c.name = h; }, (c) => { c.elements[0].shapes[0].colour = h; }, (c) => { c.elements[0].shapes[1].d = [['M', 0, 0], [h, 1, 1]]; }, (c) => { c.elements[0].shapes[1].d = h; },
+      (c) => { c.elements[1].fill = h; }, (c) => { c.ground = h; }, (c) => { c.elements[0][h] = 1; }, (c) => { c.elements[0].shapes[0].cx = h; }, (c) => { c.elements[0].shapes[0].blend = h; },
+    ];
+    for (const edit of edits) {
+      const c = base(); edit(c);
+      const e = validateDesign(post(c), 'design', { look });
+      // a name of plain words is a name (it never reaches the page); everything else is refused
+      if (!e.length) { assert.equal(c.name, h); continue; }
+      for (const m of e) assert.ok(!/<script|javascript:|onerror|url\(/i.test(m), `${h}: echoed (${m})`);
+      assert.throws(() => renderPostWithLook(look, post(c), ctx), /own design cannot be drawn/);
+    }
+  }
+  // the words of the post, hostile, through a valid own design with art: only escaped text, numbers and palette roles reach the tags
+  for (const h of HOSTILE) {
+    const r = renderPostWithLook(look, post(base(), { headline: h.slice(0, 60), sub: h.slice(0, 100), label: h.slice(0, 28) }), { ...ctx, brand: { ...ctx.brand, name: h } });
+    const tags = [...r.body.matchAll(/<[^>]*>/g)].map((t) => t[0]);
+    assert.ok(!tags.some((t) => /<\/?script|onerror|onload|javascript:|url\(x/i.test(t)), h);
+    assert.ok(!/[<>]/.test(r.body.replace(/<[^>]*>/g, '')), h);
+    for (const m of r.body.matchAll(/<path d="([^"]*)" style="([^"]*)"/g)) assert.match(m[1], /^[MLQCZAa0-9 .-]+$/);
+  }
+  // without a look there is nothing to draw it with
+  assert.ok(validateDesign(post(base()), 'design', { direction: 'retail' }).some((m) => /drawn with the brand's look/.test(m)));
+});
