@@ -127,6 +127,7 @@ the same anatomy in both: header (title and description), a body that scrolls, a
   (blockers, `useBlocker`) work for every page.
 - **Ctrl/Cmd+K** opens the command palette (`shell/CommandPalette.tsx`). It searches pages, actions (add a fact, upload
   pictures, new batch...), batches, facts and pictures, and opens the one chosen.
+- The first setup is a guided flow at `/setup/<step>` (`pages/setup/`, its own frame outside the shell; rules in `pages/setup/flow.ts`). Home's checklist links the brand, logo, channels, AI and batch steps into it.
 - The setup checklist on Home is one card. `GET /api/overview/home` returns each step as `{ key, title, detail, to, done }`,
   and the AI step also carries `missing` (`'provider'`, `'budget'` or `null`), so the card says what is still needed. "Connect your channels" is one step (seven in all) with `missing` `'account'`, `'routes'` or `null`.
 

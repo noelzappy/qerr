@@ -90,6 +90,16 @@ describe('POST /api/suggest/brand-from-site', () => {
     expect(await t.prisma.auditLog.count({ where: { action: 'ai.suggest_brand_from_site' } })).toBe(1);
   });
 
+  it('takes the brand name the guided setup sends along, and reads only the page', async () => {
+    const { admin } = await setup();
+    fake.site = () => page(HOME);
+    fake.fetch = async () => reply(SUGGESTION);
+    const res = await admin.post('/api/suggest/brand-from-site', { website: 'kettle.example', name: 'Kettleworks' });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ...SUGGESTION, source: { url: 'https://kettle.example/' } });
+    expect((await admin.post('/api/suggest/brand-from-site', { website: 'kettle.example', other: 'x' })).status).toBe(400);
+  });
+
   it('refuses private, loopback and link-local addresses before anything is fetched or sent', async () => {
     const { admin } = await setup();
     fake.site = () => page(HOME);

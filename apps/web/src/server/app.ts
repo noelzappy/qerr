@@ -28,6 +28,7 @@ import { localStorageRoutes } from './routes/local-storage.js';
 import { reviewRoutes } from './routes/review.js';
 import { routingRoutes } from './routes/routing.js';
 import { scheduleRoutes } from './routes/schedule.js';
+import { setupRoutes } from './routes/setup.js';
 import { suggestRoutes } from './routes/suggest.js';
 import { userRoutes } from './routes/users.js';
 import { vaultRoutes } from './routes/vault.js';
@@ -158,6 +159,7 @@ export function createAppAndDeps(input: AppDeps | Deps, options: { webDir?: stri
   app.route('/api/settings/series', seriesSettingsRoutes(deps));
   app.route('/api/series', seriesReadRoutes(deps));
   app.route('/api/overview', overviewRoutes(deps));
+  app.route('/api/setup', setupRoutes(deps));
   app.route('/api/settings', aiSettingsRoutes(deps));
   app.route('/api/vault', vaultRoutes(deps));
   app.route('/api/batches', batchesRoutes(deps));

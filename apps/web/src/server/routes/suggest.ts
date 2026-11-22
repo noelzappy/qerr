@@ -1,7 +1,7 @@
 // AI suggestions a person reviews before anything is saved. Nothing here writes a brand setting or a vault item.
 //
 //   GET  /api/suggest                       whether suggestions can run now: { available, reason }   (admin, editor)
-//   POST /api/suggest/brand-from-site       { website } -> { descriptor?, tagline?, voice?, visualDirection?, colours?, source }  (admin)
+//   POST /api/suggest/brand-from-site       { website, name? } -> { descriptor?, tagline?, voice?, visualDirection?, colours?, source }  (admin)
 //   POST /api/suggest/picture-description   { vaultItemId } as JSON, or a picture as multipart (`file`, optional `title`,
 //                                           `role`) -> { title?, description, tags?, peopleVisible }                     (admin, editor)
 //
@@ -27,7 +27,8 @@ export const MAX_SUGGEST_PICTURE_BYTES = 5 * 1024 * 1024;
 const PICTURE_ROLES = ['photo', 'screen', 'cutout', 'graphic'] as const;
 const hex = z.string().regex(/^#[0-9A-F]{6}$/);
 
-const siteBody = z.strictObject({ website: z.string().trim().min(1, 'Give the website address').max(300, 'Keep the address to 300 characters') });
+// `name` (the brand's name, which the guided first setup sends along) is accepted and not used: the page is the only source.
+const siteBody = z.strictObject({ website: z.string().trim().min(1, 'Give the website address').max(300, 'Keep the address to 300 characters'), name: z.string().max(120).optional() });
 const pictureBody = z.strictObject({ vaultItemId: z.string().trim().min(1).max(64) });
 
 // What may reach the browser: the library already checked these, and they are checked again here.
