@@ -67,6 +67,8 @@ export interface BrandSettings {
   tagline: string;
   descriptor: string;
   timezone: string;
+  // Where the brand works (ISO 3166-1 alpha-2): drafts are offered its holidays and observances. null: not said.
+  country: string | null;
   language: string;
   money: { local: string; foreign: string } | null;
   // How numbers are written in charts (decimal mark, thousands separator, currency sign and where it goes); null: the engine's default.

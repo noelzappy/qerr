@@ -28,6 +28,7 @@ import { SettingsPage } from './section';
 import { SECTIONS, isSection, sectionFromHash, sectionOfPath, sectionPath, type BrandCtx, type SectionId } from './brand/model';
 import { PreviewBar, PreviewRail, useLook } from './brand/preview';
 import { IdentitySection, LogosSection } from './brand/sections-identity';
+import { withCountryFromZone } from '../../lib/countries';
 import { ColoursSection, PostTypesSection, SurfacesSection, TypeSection } from './brand/sections-look';
 import { AdvancedSection, VoiceSection } from './brand/sections-words';
 import { FieldProblemsProvider, UploadStatusProvider, useFieldProblemsState, useUploadStatusState } from './brand/status';
@@ -56,7 +57,8 @@ export function BrandSettingsPage() {
   const status = useUploadStatusState();
   const { problems, report } = useFieldProblemsState();
 
-  useEffect(() => { if (data.data) { setView(data.data); setS(data.data.settings); } }, [data.data]);
+  // A brand that names no country gets the one its time zone means, filled in for the person (and marked so) until they save.
+  useEffect(() => { if (data.data) { setView(data.data); setS(withCountryFromZone(data.data.settings)); } }, [data.data]);
   const savedLook = useMemo(() => (view ? { checks: view.checks, changes: view.changes, palette: view.palette, explicit: view.explicit } : null), [view]);
   const look = useLook(s, savedLook);
   const dirty = useMemo(() => !!view && !!s && JSON.stringify(view.settings) !== JSON.stringify(s), [view, s]);

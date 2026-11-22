@@ -2,7 +2,7 @@
 // what the first save of the brand keeps, the typing kept across a reload, how a suggestion fills the form, and the logo's colours.
 import { describe, expect, it } from 'vitest';
 import {
-  aiDraftBlocker, applySuggestion, brandSettingsFor, clearDraft, cleanWebsite, DRAFT_KEY, emptyDraft, initialLook, languageFor, loadDraft, loadSiteColours,
+  aiDraftBlocker, applySuggestion, brandSettingsFor, clearDraft, cleanWebsite, countryFromZone, withZone, DRAFT_KEY, emptyDraft, initialLook, languageFor, loadDraft, loadSiteColours,
   nextStep, prevStep, providerBody, readBudget, readSuggestion, resumeStep, saveDraft, saveSiteColours, setupLinkForHomeStep, shouldLandOnSetup, stepStates,
   typeInDraft, type SetupStatus,
 } from '../web/src/pages/setup/flow';
@@ -116,6 +116,17 @@ describe('what the brand step saves', () => {
   it('on a later visit changes only the fields of the step', () => {
     const s = brandSettingsFor(example, { ...typed, voice: 'Friendly' }, false);
     expect(s).toMatchObject({ name: 'Fernhill Bakery', voice: 'Friendly', money: example.money, spellings: example.spellings, series: example.series, visualDirection: 'Green fields' });
+  });
+  it('fills the country in from the time zone, follows a new zone until the person picks one, and saves it', () => {
+    expect(typed.country).toBe('IE');
+    expect(countryFromZone(typed)).toBe(true);
+    expect(brandSettingsFor(example, typed, true).country).toBe('IE');
+    const moved = withZone(typed, 'Africa/Accra');
+    expect([moved.country, countryFromZone(moved)]).toEqual(['GH', true]);
+    const chosen = withZone({ ...typed, country: 'GB' }, 'Africa/Accra');
+    expect([chosen.country, countryFromZone(chosen)]).toEqual(['GB', false]);
+    expect(emptyDraft('UTC', 'British English').country).toBe('');
+    expect(brandSettingsFor(example, { ...typed, country: '' }, true).country).toBeNull();
   });
   it('tidies the website as posts print it', () => {
     expect(cleanWebsite(' HTTPS://www.fernhill.example/// ')).toBe('www.fernhill.example');
