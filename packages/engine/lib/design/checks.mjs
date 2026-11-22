@@ -377,7 +377,15 @@ export function swashProblems(m) {
 // resolved its border-radius: a circle, an ellipse, a pill or a rounded box) is judged on its real outline, not its bounding box: words
 // inside its box but past its curve are outside it, and words near its curve are measured to the curve.
 export function inkGap(i, f) {
-  if (isRounded(f)) return roundedGap(i, f);
+  if (isRounded(f)) {
+    // letter by letter when the page gave each letter's ink (postMetrics glyphs): any letter across the curve is a crossing; all inside,
+    // the least room; all outside, the least distance; some in and some out, a crossing too
+    const gs = Array.isArray(i.glyphs) ? i.glyphs.filter((q) => Array.isArray(q) && q.length === 4 && q.every(Number.isFinite)) : [];
+    if (!gs.length) return roundedGap(i, f);
+    const gaps = gs.map(([x0, y0, x1, y1]) => roundedGap({ x0, y0, x1, y1 }, f, 0));
+    if (gaps.some((g) => g === 0) || (gaps.some((g) => g < 0) && gaps.some((g) => g > 0))) return 0;
+    return gaps.every((g) => g < 0) ? Math.max(...gaps) : Math.min(...gaps);
+  }
   const inside = i.x0 >= f.x0 - 12 && i.x1 <= f.x1 + 12 && i.y0 >= f.y0 && i.y1 <= f.y1;
   if (inside) return -Math.min(i.y0 - f.y0, f.y1 - i.y1);
   return Math.hypot(Math.max(f.x0 - i.x1, i.x0 - f.x1, 0), Math.max(f.y0 - i.y1, i.y0 - f.y1, 0));
@@ -396,11 +404,11 @@ export function shapeSpanAt(f, x) {
   return [top, bottom];
 }
 export const insideShape = (f, x, y) => { if (!isRounded(f)) return x >= f.x0 && x <= f.x1 && y >= f.y0 && y <= f.y1; const s = shapeSpanAt(f, x); return !!s && y >= s[0] && y <= s[1]; };
-function roundedGap(i, f) {
+function roundedGap(i, f, slack = 12) {
   const step = 1, xs = [];
-  // inside: the ink (its sides may stand 12 px out, as for a straight block) lies within the shape at every x it spans; the room is the
-  // least room above or below it there, measured to the curve
-  const mid = (i.x0 + i.x1) / 2, sx0 = Math.min(i.x0 + 12, mid), sx1 = Math.max(i.x1 - 12, mid);
+  // inside: the ink (a line's sides may stand 12 px out, as for a straight block; a single letter's may not) lies within the shape at every
+  // x it spans; the room is the least room above or below it there, measured to the curve
+  const mid = (i.x0 + i.x1) / 2, sx0 = Math.min(i.x0 + slack, mid), sx1 = Math.max(i.x1 - slack, mid);
   for (let x = sx0; x <= sx1 + 1e-9; x += step) xs.push(Math.min(x, sx1));
   let room = Infinity, inside = true;
   for (const x of xs) {

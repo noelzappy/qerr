@@ -167,6 +167,13 @@ test('edges: a circle, an ellipse and a rounded box are judged on their real out
   const card = { x0: 100, y0: 100, x1: 900, y1: 500, frame: '', rad: [[40, 40], [40, 40], [40, 40], [40, 40]] };
   assert.equal(inkGap({ x0: 140, y0: 200, x1: 600, y1: 240 }, card), -100);
   assert.equal(edges({ x0: 102, y0: 104, x1: 300, y1: 130 }, card).length, 1, 'in the corner, past the curve: crossing');
+  // letter by letter when the page gives each letter's ink: a line whose box corner pokes past the curve where no letter stands is inside
+  // (an 's' near the curve, the descender of a 'y' far from it); a letter across the curve is a crossing
+  const line = { x0: 120, y0: 560, x1: 520, y1: 640 };
+  assert.equal(inkGap(line, circle), 0, 'the line\'s box alone crosses the curve');
+  const glyphs = [[200, 560, 250, 600], [440, 560, 500, 640]];
+  assert.ok(inkGap({ ...line, glyphs }, circle) < -10, 'its letters are well inside');
+  assert.equal(inkGap({ ...line, glyphs: [[110, 560, 160, 610], ...glyphs] }, circle), 0, 'a letter across the curve');
   // square shapes are judged as before
   assert.equal(inkGap({ x0: 140, y0: 200, x1: 600, y1: 240 }, { x0: 100, y0: 100, x1: 900, y1: 500 }), -100);
 });

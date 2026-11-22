@@ -473,12 +473,15 @@ window.__ds = {
         if (!txt[i].trim()) continue;
         g.setStart(n, i); g.setEnd(n, i + 1); const b = g.getClientRects()[0]; if (!b || b.width < 0.5 || b.height < 1) continue;
         const L = lines.find((l) => Math.abs(l.y0 - b.top) < 2); const ch = cs.textTransform === 'uppercase' ? txt[i].toUpperCase() : txt[i];
-        if (L) { L.x0 = Math.min(L.x0, b.left); L.x1 = Math.max(L.x1, b.right); L.s += ch; } else lines.push({ y0: b.top, y1: b.bottom, x0: b.left, x1: b.right, s: ch });
+        if (L) { L.x0 = Math.min(L.x0, b.left); L.x1 = Math.max(L.x1, b.right); L.s += ch; L.cs.push([b.left, b.right, ch]); } else lines.push({ y0: b.top, y1: b.bottom, x0: b.left, x1: b.right, s: ch, cs: [[b.left, b.right, ch]] });
       }
       for (const L of lines) {
         const mt = ctx.measureText(L.s), top = L.y0 + (mt.fontBoundingBoxAscent ?? (L.y1 - L.y0) * 0.8);
         const inChart = el.closest('[data-chart]');
-        inks.push({ role, frame: tiltKey(el), text: L.s.trim().slice(0, 30), x0: L.x0, x1: L.x1, y0: top - mt.actualBoundingBoxAscent, y1: top + mt.actualBoundingBoxDescent, ...(ov ? { ov } : {}), ...(inChart ? { chart: chartEls.indexOf(inChart) } : {}) });
+        // each letter's own ink box (its advance across, its ink up and down), for a rounded shape's curve (checks.mjs inkGap): a line's
+        // box is its tallest letter over its widest extent, and its corners stand where no letter is
+        const glyphs = L.cs.map(([x0, x1, ch]) => { const m = ctx.measureText(ch); return [x0, top - m.actualBoundingBoxAscent, x1, top + m.actualBoundingBoxDescent].map((v) => Math.round(v * 10) / 10); }).filter((q) => q[3] > q[1]);
+        inks.push({ role, frame: tiltKey(el), text: L.s.trim().slice(0, 30), x0: L.x0, x1: L.x1, y0: top - mt.actualBoundingBoxAscent, y1: top + mt.actualBoundingBoxDescent, glyphs, ...(ov ? { ov } : {}), ...(inChart ? { chart: chartEls.indexOf(inChart) } : {}) });
       }
     }
     // A chart's box (.k-chart) is a shape for every text but its own: other words keep 10 px off it like off any block, while the chart's
