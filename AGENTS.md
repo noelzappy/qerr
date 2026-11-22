@@ -71,6 +71,12 @@ These apply to anyone who changes or runs this repository or a Qerr deployment.
     more, times the next smaller one, and the headline the largest). Add `levels` only as a design decision, never to get
     one failing page through. A decorative `swash` is drawn only against a headline word and never covers other text
     (the page checks every point of it), unless its design sets `overlap`, which lets it cross only its own headline.
+    The art layer (a look's or a post's `art` element) is decorative vector shapes only: palette roles or gradients of them, bounded
+    numbers and fixed lists, at most 24 shapes and 400 path points in a composition, never text; it never covers a letter (the page
+    refuses it), the words are measured for contrast on it, and it counts against emptiness only where its pixels show. A post's own
+    design (`design.composition`, written by the AI designer or a person) is one composition of the look's schema, held to the same
+    validator as the look's own compositions and to every check on the finished page; when a check refuses it, the post is drawn with
+    the look's design and says why. Never let either skip a check or set an allowance (`overlap`, `backdrop`, `levels`) to pass.
     Look at every rendered image before you call it done. One Chrome at a time: do not run renders in parallel. A
     deployment may set `RENDER_CONCURRENCY` above 1 (approved by the owner on 22 Nov 2026) so its server draws several images at
     once, held to that many by the engine's lock; leave it at 1 on development machines and in agent work. A
@@ -80,7 +86,9 @@ These apply to anyone who changes or runs this repository or a Qerr deployment.
     checked files embedded as `data:` URIs) or validated numbers and fixed lists. Never write a raw `${spec.x}` into HTML,
     a style, a URL or script, never add a template that does, never loosen the validation in
     `packages/engine/lib/design/spec.mjs`, the page's Content-Security-Policy or the request blocking in
-    `packages/engine/lib/design/chrome.mjs`, and keep `packages/engine/test-design-security.mjs` green.
+    `packages/engine/lib/design/chrome.mjs`, and keep `packages/engine/test-design-security.mjs` green. A post's own design and its art
+    are data too: they reach the page only through the interpreter, after validation, as numbers, palette roles and fixed lists; the AI
+    designer never writes HTML, CSS, script or a picture.
 12. **Keep paths relative to the repository.** No absolute paths, no references to other projects or folders on one
     machine. `BRAND_DIR` and every brand file path are relative to the repository root and stay inside it.
 13. **Several accounts and storage.** Each post goes only through the Buffer account its network is routed to (Settings,

@@ -162,6 +162,7 @@ A `post` design says what the post is and gives its words; the brand's look (or 
 | `image`, `vaultItemId`, `focal`, `zoom` | The post's picture, as for the other templates. |
 | `graphics` | The files of the brand graphics and cut-outs a look's pieces name, by vault id; see design.md. Leave it out: the web app fills it from the vault when the images are made, and refuses a design that sets it. |
 | `sizes`, `name`, `networkSizes` | As below; `sizes` is `["feed"]` only. |
+| `composition` | Optional: the post's own design, one composition in the look's schema for the post's kind (what the AI designer writes, or a person in the design editor). It is drawn with the look in use (its fonts, colours and type) in place of the look's own design of the kind, and held to exactly what a composition of the look is held to; a batch whose post carries one that does not pass is refused, and a brand without a look cannot carry one. When the look later refuses it, or a check of the finished page does, the post is drawn with the look's own design and a warning says why. At most 64 KB. See design.md, "A post's own design". |
 
 A field the chosen design does not draw is left out of the image with a warning. A carousel of post pages is
 `{ "template": "carousel", "pages": [ { "template": "post", ... }, ... ] }`, 2 to 10 pages, every page a post page. The full
@@ -171,7 +172,10 @@ File names: `<stem>-<size>.jpg` for single images (`01-what-is-acme-feed.jpg`), 
 carousel, `<stem>-<size>-<n>.jpg` for a carousel in several sizes. The engine also writes `<stem>.pdf`, a PDF of a
 carousel's pages for LinkedIn documents; the web app does not keep it yet.
 
-The block itself is not part of the duplicate-protection hash (the media file names are). Changing the words in a design
+The block itself is not part of the duplicate-protection hash (the media file names are); a post's own design (`composition`)
+is part of the block, so changing or switching it makes new images, which take an approval back like any other new images (after the
+post is in Buffer, see "What changes the duplicate-protection hash" below). The app keeps a post's other
+design (`designAlt`) only in its database; it is never part of a batch file. Changing the words in a design
 block and rendering again produces a new image under the same name; after a post is in Buffer, see "What changes the
 duplicate-protection hash" below.
 

@@ -1315,6 +1315,7 @@ stored. At most 21 compositions, at most 3 of a kind.
 | `avatar` | The post's `avatar`: one portrait picture of the person quoted, round, rounded or square, cropped round its focal point, with an optional ring in a colour role; beside the name in a row, or above it |
 | `device` | The post's picture, a bare app screenshot, on a phone (camera island or notch, side buttons) or a tablet the engine draws round it in a light, dark or brand-colour finish, with a small lean and a soft shadow; a capture that already has its phone drawn is shown as it is |
 | `backdrop` | A decorative background: dots, halftone, a grid, stripes, rings, waves, a soft blob mesh, confetti, plus marks, a checker or the page grain, in one or two colour roles, over the page, a panel's area or fading out |
+| `art` | Decorative vector shapes behind or around the words: circles, ellipses, rounded rectangles, rings, arcs, lines, paths of M/L/Q/C/Z commands, dots and stripes, in colour roles or gradients of them; at most 24 shapes and 400 path points a composition (see "The art layer") |
 
 A `text` with `source: "swipe"` writes "Swipe" and the engine's arrow icon, only on a carousel page that has a page after it (its place in the carousel); on a
 single post, a post placed in a batch and the last page it is empty. A pill and the punctuation right after it (`[[an app]],`) are kept on one line, the mark snug against the pill (the pill drops its outer margin on that side and the page pulls the mark in by its own side bearing, so its ink starts 0.02 em after the pill's edge in any face), and a pill's
@@ -1574,6 +1575,38 @@ validator, and `test-design-look-equivalence.mjs` draws every shipped look from 
 The retail price tag (figure/0) sets its figure as large as the stage allows (up to 930 px, centred) with the unit fitted on a full-width accent block
 under it, in the code composition and the look alike. A folio is written only from the post's real place (its position in its batch, or a carousel
 page's); without one a page has no folio, never a number made up from the words or the date. The partial `testlib/looks/*.sample.json` stay as test fixtures.
+
+**The art layer (`art`).** A composition may carry decorative vector shapes behind or around the words: `{ "type": "art", "place": ..., "z": 0,
+"shapes": [...] }`, placed at the top of the composition (never in a box). A shape is one of `circle` (`cx`, `cy`, `r`), `ellipse` (`rx`, `ry`),
+`rect` (`x`, `y`, `w`, `h`, `radius`), `ring` (`r`, `stroke`), `arc` (`r`, `from`, `sweep`, `stroke`, `cap`), `line` (`x1`, `y1`, `x2`, `y2`,
+`stroke`, `cap`), `path` (`d`: a list of `["M", x, y]`, `["L", x, y]`, `["Q", x1, y1, x, y]`, `["C", x1, y1, x2, y2, x, y]`, `["Z"]`, starting with M,
+up to 100 commands; filled, or a line with `stroke`), `dots` (a field of dots: `x`, `y`, `w`, `h`, `gap`, `size`) and `stripes` (`gap`, `width`,
+`angle`). Positions are whole thousandths of the art's box (0 to 1000 is the box; -1000 to 2000 runs past it, where the box clips it), radii and
+corners thousandths of its shorter side (a circle stays round when the box is resized), widths, gaps and dot sizes whole pixels. Every shape takes
+`colour` (a colour role a panel can be filled with) or, for a circle, ellipse or rectangle, a `gradient` of two or three such roles (linear or
+radial, as a box's), `opacity` 0.05 to 1, `rot` -180 to 180 (dots and stripes turn by their own angle) and `blend` (normal, multiply, screen,
+overlay, soft-light). At most **24 shapes and 400 path points in a composition** (`directions/art-geom.mjs` `ART_LIMITS`; a line counts two
+points, every other shape one, a field at most 3000 marks). The geometry is pure (`artGeometry`): numbers rounded to a tenth of a pixel in one
+`<path>` per shape, or a box of a palette colour or gradient for a circle, ellipse or rectangle; no `url(`, no id, no free string reaches the page.
+On a page that takes its colour from the picture (`fromPicture`) the roles are the picture's own, so the art follows the picture's colours. It is
+never text, and every check still applies: the contrast check measures the words on the finished pixels, art included; **the page refuses a shape
+painted over any letter** (runtime `artCover` asks the browser what is painted at five points of every letter a shape reaches; checks.mjs kind
+`art`), so art goes behind the words (a lower layer, listed first) or beside them; and the emptiness check counts it as covering the page only
+where its pixels show it, like a pattern (`data-pattern`). The design editor offers it under Shapes (Art): the shapes as chips, a colour, a
+strength, moves, a size step and Delete, with the exact numbers under Fine-tune. Tests: `test-design-own.mjs`, `test-design-look-render.mjs`
+(every shape through the style grammar), `test-design-look.mjs` (the fuzz), `test-design-security.mjs`.
+
+**A post's own design (`composition`).** A `post` design may carry `composition`: one composition in this schema, for the post's kind. It is drawn
+with the brand's look in use (its fonts, colours, type, logo, the picture-colour rule) in place of the look's variant (`renderPostWithLook`, the
+page's `data-comp` ends in `/own`), and held to exactly what the look's own compositions are held to: the look with its compositions replaced by
+this one passes `validateLook` (`look.mjs postCompositionProblems`, `lookWithOwnDesign`; at most 64 KB). `validateDesign` refuses one without a
+look, of another kind, or that the look refuses; a batch's validation holds it to the brand's look too (`validateBatch` passes `ownLook`). It
+goes through every check on the rendered pixels. `renderDesignBlock` never lets it stop a post: when the look refuses it (the look changed
+since) or a check of the finished page refuses it, the page is drawn with the look's own variant and a note names the reason; the result says
+`ownDesign: { asked, used, reasons }`. `strictOwn: true` (the AI designer's trial render) refuses instead. A brand graphic the design names is
+attached with the look's (`postCompositionGraphics` returns both). Who writes one: the AI designer (`packages/ai/src/design.mjs`, docs/ai.md)
+and a person in the design editor (the web app's "Edit this post's design"). `picture-probe.mjs probePicture` reads a picture's thumbnail and the
+colour of its edges for the AI, in one Chrome behind the lock.
 
 **Pages that make sense without their caption, and without a picture** (22 Nov 2026). Where a design leaves a large pale shape, the shape holds
 words (`test-design-look-context.mjs`). The Clean (`offer/0` Product), Soft (`offer/0` Price pill) and Bloom (`offer/0` Badge) offers without a

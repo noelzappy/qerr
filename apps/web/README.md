@@ -631,6 +631,7 @@ handlers are plain functions (`src/server/jobs/handlers.ts`), so tests call them
 | `refresh-sweep` | none | Cron, every 15 minutes: enqueues `refresh-delivery` for batches that have deliveries to check. |
 | `draft-batch` | `{ actorId, brief }` | Asks the AI for a batch and imports it as a draft batch owned by `actorId`, marked as an AI draft, with a render queued for each design (see AI, below). Queued by `POST /api/batches/ai-draft`. |
 | `research-run` | `{ actorId?, topics? }` | Calls the AI adapter (below). |
+| `redesign-batch` | `{ batchId, actorId, postIds? }` | The AI designer (below): composes a new design for each single post of the batch (or the ones named), keeping the words; one at a time per batch. Queued by `POST /api/batches/:id/redesign`, and run inside `draft-batch` when the brief's `design` is `ai`. |
 | `rewrite-post` | `{ postId, instruction, apply?, actorId? }` | Asks the AI to rewrite one post from its linked facts. With `apply` (what `POST /api/posts/:id/rewrite` sets) the answer is saved as an edit by `actorId` through the same checks as `PATCH /api/posts/:id`: title, caption, per-network captions, date, time, design and sources; approval is taken off and a changed design is made again. The run keeps the caption before and after. Without `apply` it only returns the answer. |
 
 ## Rewrite a post with AI
@@ -643,6 +644,36 @@ no linked facts that still exist, or a rewrite of the post is already queued or 
 Editing rules are the ones of `PATCH /api/posts/:id` (a removed post is refused; there is no other guard, so a post already in Buffer is
 changed in Qerr only, as with a manual edit). `GET /api/posts/:id` carries `rewrite: { available, reason }` so the post page can say why the
 action cannot start without exposing provider details. The run is titled "Rewrite: <post>" (kind "Rewrite a post" in Activity).
+
+## The AI designer
+
+The AI composes each single post's design in the look's own composition schema; the engine validates it, checks it and draws it
+(`src/server/services/ai-design.ts`, the library's `designBatch`, `docs/ai.md` "The AI designer", `docs/design.md` "A post's own design").
+
+- **Draft with AI** takes `design: "look" | "ai"` in its brief (`draftBriefSchema`; the sheet's Design choice: The look's designs, the
+  default, or AI-designed). With `ai` the drafted batch is designed before the job ends; its result carries `aiDesign: { designed, of }`.
+- **Redesign with AI**: `POST /api/batches/:id/redesign` (admin, editor) takes `{ postIds? }` and queues `redesign-batch` (`202 { queued,
+  alreadyQueued, activityId }`); `409` when no provider is ticked for drafting, no budget is set, or the batch has no single post the look
+  draws. For each post the job copies its vault photos next to the run, has the engine probe its picture (a small thumbnail and its edge
+  colour, `probePicture`), and asks the AI; the AI's design is checked by the engine's validator and by a trial render of the post with it
+  (`renderDesignBlock` with `strictOwn`), with one repair round. A design that passes is saved through the same edit as a person's
+  (`patchPost`: the batch checks, an approval taken back, the images made again); a post the AI could not design well keeps the look's
+  design, and the run's result lists it with the reason. Every call goes through the AI service (budget, `ai_calls`, cost per call).
+- **Two designs per post**: the design a post had before (the look's, or the AI's) is kept on the post (`posts.designAlt`: `{ design, media,
+  warnings, savedAt }`), its images copied under keys of their own (`renders/.../alt-<random>-...`) so a later render never overwrites them.
+  `POST /api/posts/:id/design/switch` (admin, editor) switches to it: the words stay as they are now, the other design's images are used when
+  the words are the same as when they were made (else the post is drawn again), the design it leaves becomes the other one, and an approval is
+  taken back as for every edit. `GET /api/posts/:id` carries `aiDesigned`, `ownDesignUsed` (false when a check refused the post's own design
+  and the look's design drew it; the warning starts "the post's own design was not used") and `otherDesign: { aiDesigned, media, savedAt }`;
+  a batch's post summaries carry `aiDesigned`, `ownDesignUsed` and `hasOtherDesign`. The post page shows both designs side by side with the
+  switch; post cards show an "AI-designed" tag (or "AI design not used").
+- **Edit this post's design** (`/batches/:id/posts/:postId/design`, `pages/batches/PostDesignPage.tsx`) opens the post's own design in the
+  design editor (layers, canvas, properties, the art layer's own pane): `GET /api/posts/:id/own-design` (the catalogue, the look's settings and
+  the design to start from), `POST /api/posts/:id/own-design/check` `{ definition }` (the engine's problems), `POST /api/posts/:id/own-design/preview`
+  `{ definition }` (the real picture of this post with its words and picture, every check, and the rectangle of each element) and
+  `PUT /api/posts/:id/own-design` `{ definition }` (saves it; the post is drawn again; a post that had the look's design keeps it to switch back to).
+- **Rendering**: when the look in use no longer takes a post's own design, or a check of the finished page refuses it, the render job still
+  makes the post's images, with the look's design, and adds a design warning naming the reason (`OWN_DESIGN_NOT_USED`). Approval rules are unchanged.
 
 ## AI suggestions
 
@@ -670,7 +701,7 @@ AI's answer could not be used after one retry. In the web app, Brand and look, V
 ## AI
 
 The app never imports `@qerr/ai` directly. `src/server/ai.ts` is the seam: if the `@qerr/ai` workspace package is installed
-it is loaded and its `createAI({ providers, search, budget, log })` must return `{ draftBatch, research, rewrite, analyseReference, suggestBrandFromSite, describePicture, findOccasions }`
+it is loaded and its `createAI({ providers, search, budget, log })` must return `{ draftBatch, research, rewrite, analyseReference, suggestBrandFromSite, describePicture, findOccasions, designBatch }`
 (and the module's `occasionsFor`, the calendar, is loaded with `loadOccasions()`)
 (the input and result types are in `ai.ts`). The library is an ordinary dependency of the app. Providers (Anthropic or OpenAI-compatible), the search provider and the
 monthly budget are set by an admin under AI and search (a provider's prices per million tokens too, which the budget needs to see its cost); their keys are encrypted at rest and only the last four

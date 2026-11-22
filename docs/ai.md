@@ -450,9 +450,31 @@ number absent from the pages, or duplicate a vault item or an earlier candidate.
 - Keys are only sent in headers (or Tavily's bearer header), never put in URLs, logs or errors.
 - Drafts only ever come back as data; nothing here sends anything to Buffer.
 
+## The AI designer (`src/design.mjs`)
+
+`designBatch(rt, { posts, check?, onProgress? })` composes each post's design in the look's own composition schema
+(`packages/engine/lib/design/look.mjs`), never HTML, CSS, canvas or a picture: data the engine validates, checks and draws like any composition
+of the look (see design.md, "A post's own design" and "The art layer"). The owner's reasons for this and not free code: quality, no brand drift,
+editable designs, and the same security model (AGENTS.md rule 11).
+
+- **One call per post** (`rt.llm('design', { using: 'draft' })`: the draft provider, the budget, one `ai_calls` row and a cost per call). A per-post
+  call is the cheaper of the two that are still good: the model looks at that post's picture only, and a failure costs one post.
+- **What the model is given**: the system prompt `src/prompts/design.md` (versioned, `design-1`); a compact catalogue built from the engine's own
+  tables (`designCatalogue()`: every element type with its own properties and ranges, the common properties, the places, the art layer's shapes and
+  caps; a brand graphic, a device and the top label row are not offered); the look's settings (canvas, fonts, type, colour, devices, photo, logo,
+  dials) and the brand's palette as role names with their colours; the brand brief; the post's kind and words; the picture's thumbnail as an image
+  part (at most 384 px, from the engine's `probePicture`) with its size, its edge colour and whether the page could take that colour; the designs
+  already made in this batch (`batchSoFar`: ground, picture place, element types), so the batch varies; and examples: the look's own designs of the
+  kind (valid with these settings) and one each from two other shipped looks.
+- **What comes back** is held to an output schema (`DESIGN_SCHEMA`: `{ why, composition }`, the composition's top keys), then to the engine's
+  validator for a post's own design (`postCompositionProblems`), then to `check(id, composition)`, the app's trial render of the post with it
+  (every check of the finished page, no fallback). When validation or the check fails the model gets **one repair round** with the reasons; if that
+  fails too, the post keeps the look's design (`composition: null`, with the reasons). The budget stops the rest of the batch the same way.
+- `notes`: `{ task: 'design', promptVersion, usage, designed, of }`. Tests: `test-design.mjs` (fake provider only).
+
 ## Prompts
 
-`packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`, `brand-site.md`, `picture.md`. They are brand-neutral: they read the `brand` brief above.
+`packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`, `brand-site.md`, `picture.md`, `design.md` (`design-1`). They are brand-neutral: they read the `brand` brief above.
 The first line is `<!-- version: draft-20 -->` (now `draft-20`, `rewrite-7`); the version is returned in `notes.promptVersion`. Change a prompt by editing
 the file, bumping its version and reviewing the diff. Tests pin the versions' format only, not the wording.
 
@@ -493,6 +515,10 @@ the drafter's `notes` kept on the batch (shown with an "AI draft" badge), and a 
 Vault photos are offered to the library with a made-up path named after their id; the app swaps it for `vaultItemId`, and
 the render job copies the real file from the private bucket. If the AI fails, the monthly budget is used up or the answer does
 not pass the checks, no batch is made and the reason is written to the audit log as `ai.draft_batch.failed`.
+
+Draft with AI's Design choice (AI-designed) and Redesign with AI on a batch call `designBatch` through the `redesign-batch` work
+(`src/server/services/ai-design.ts`): the app probes each post's picture, supplies the trial render as `check`, and saves a design that passes as
+the post's own, keeping the post's other design to switch back to. See the web app's README, "The AI designer".
 
 `POST /api/suggest/brand-from-site` and `POST /api/suggest/picture-description` call `suggestBrandFromSite` and `describePicture`
 directly (not as jobs) and return the suggestion; see the web app's README, "AI suggestions".
