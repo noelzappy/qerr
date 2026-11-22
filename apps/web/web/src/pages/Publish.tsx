@@ -7,9 +7,9 @@ import { api } from '../api';
 import { useAppInfo } from '../app-info';
 import { useDocumentTitle, useLoad } from '../hooks';
 import { NetworkIcon } from '@/components/network-icon';
+import { NetworkFilter } from '@/components/network-toggles';
 import { dayLabel, PostRow, PostRows } from '@/components/post-row';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -207,13 +207,7 @@ export function Publish() {
             <Button key={v} size="sm" variant={view === v ? 'secondary' : 'ghost'} aria-pressed={view === v} className="h-7 px-2.5 max-sm:h-10" onClick={() => set('view', v)}>{label}</Button>
           ))}
         </div>
-        <Select value={network || 'all'} onValueChange={(v) => set('network', v === 'all' ? '' : v)}>
-          <SelectTrigger size="sm" className="w-36" aria-label="Channel"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All channels</SelectItem>
-            {['instagram', 'linkedin', 'facebook', 'x'].map((n) => <SelectItem key={n} value={n}>{networkLabel(n)}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <NetworkFilter value={network} onChange={(v) => set('network', v)} />
         <Button size="sm" variant="outline" className="ml-auto max-sm:h-11" onClick={() => navigate('/batches/new')}><Plus aria-hidden="true" /> New batch</Button>
       </header>
 
