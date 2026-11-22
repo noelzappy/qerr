@@ -18,11 +18,13 @@ Vesk is a web app (`apps/web`). Home, Create, Facts, Pictures, Publish, Activity
 - **Settings** covers:
   - Brand and look: identity, logos (or a simple logo drawn from the name), colours with a live preview and contrast
     checks, post types, voice, visual direction, and the import of an existing brand pack.
-  - Looks: how every kind of post is drawn (shipped looks, or the brand's own copies), with two more tabs: Series, the brand's
+  - Looks: how every kind of post is drawn (the shipped looks, such as Clean, Soft, Bloom, Retail and Swiss, or the brand's own
+    copies, each design edited in a visual design editor), with two more tabs: Series, the brand's
     named recurring formats ("Tip of the week": a kind of post, the look's designs, a numbered mark, how often), which AI drafts
     plan into each batch, and Inspiration, pictures the AI describes as style briefs that guide every draft. With a look, a post
-    may be a carousel of post pages (a cover, body pages and a closing page), one image per page.
-  - Layouts: the brand's own page compositions, blocks dragged and resized on a canvas, each layout on its own page, checked and drawn by the
+    may be a carousel of post pages (a cover, body pages and a closing page), one image per page. A newly saved brand starts on
+    the Clean look.
+  - Classic layouts (in the menu only while no look is in use): the brand's own page compositions, blocks dragged and resized on a canvas, each layout on its own page, checked and drawn by the
     engine like the built-in pages; posts and the AI can use them. The built-in layouts are listed too, read only, and can be
     duplicated into a layout of the brand's own on the built-in poster or editorial page.
   - The team, the Buffer accounts, the channels, the AI providers with a monthly budget, and the audit log.
@@ -30,8 +32,9 @@ Vesk is a web app (`apps/web`). Home, Create, Facts, Pictures, Publish, Activity
 Under it are two libraries with no dependencies, which the app imports:
 
 - **The engine** (`packages/engine`, `@vesk/engine`). It renders finished, on-brand post images with headless Google
-  Chrome (poster pages with one strong picture, editorial pages with ledger and passbook cards, real product screens in
-  framed phones and desktop windows, photo posts, and carousels with a PDF; see [docs/design.md](docs/design.md)), and it
+  Chrome or Chromium (post pages drawn by a look, poster pages with one strong picture, editorial pages with ledger and
+  passbook cards, real product screens in framed phones and desktop windows, photo posts, and carousels with a PDF; see
+  [docs/design.md](docs/design.md)), and it
   turns each approved post into one Buffer post per channel (Instagram, LinkedIn, Facebook and X) through Buffer's GraphQL
   API, with the duplicate guard, the media checks and the rate limits. The channels can belong to one Buffer account or
   to several.
@@ -44,17 +47,19 @@ render with until an admin sets the real one, and a second fictional finance bra
 
 Licence: MIT, see [LICENSE](LICENSE).
 
-## Status: never run against the real Buffer API
+## Status: no post sent through the real Buffer API yet
 
-Vesk has been tested only against a fake Buffer and fake or local storage. It has not talked to the real Buffer API,
-because no API key existed when it was written. Everything it knows about Buffer (endpoint, field names, enum values)
-comes from Buffer's public documentation and has not been confirmed on a live account. Read
-[docs/buffer-api-notes.md](docs/buffer-api-notes.md) for the full list of unverified points, and follow "The first run
-against real Buffer" below before trusting it with a month of posts.
+Vesk has been tested against a fake Buffer and fake or local storage. Against the real Buffer API it has run once, a
+read-only check on 22 Nov 2026: the account check's two queries (organisations, then channels), which confirmed the
+endpoint, the bearer authentication, those two queries and that Buffer calls X `twitter`. No post, draft or other
+mutation has been sent. Everything else it knows about Buffer (the mutations, field names, enum values) comes from
+Buffer's public documentation and has not been confirmed on a live account. Read
+[docs/buffer-api-notes.md](docs/buffer-api-notes.md) for what is confirmed and the full list of unverified points, and
+follow "The first run against real Buffer" below before trusting it with a month of posts.
 
-The routing across several Buffer accounts, the X network and the copy of media to S3-compatible storage (Hetzner Object
-Storage was the target) have the same status: they are tested against fakes only. **Nothing has run against a real
-Buffer account or a real Hetzner bucket yet.** The S3 signer is checked against AWS's published signing examples, which
+The routing across several Buffer accounts, sending to X and the copy of media to S3-compatible storage (Hetzner Object
+Storage was the target) are tested against fakes only. **No post has been sent to a real Buffer account, and nothing
+has run against a real Hetzner bucket yet.** The S3 signer is checked against AWS's published signing examples, which
 proves the signature maths, not that Hetzner accepts it.
 
 ## What it is and is not
@@ -69,8 +74,9 @@ It is:
 
 It is not:
 
-- A design editor. The templates are fixed; the brand sets their colours, fonts and logos, and people choose the words,
-  the picture and a few options.
+- A free-form design tool. Every page is drawn from data the engine checks: a look's designs or a layout, edited in the
+  admin panel from fixed lists of pieces and bounded settings, never as markup or CSS. The brand sets the colours, fonts
+  and logos, and people choose the words, the picture and a few options.
 - A general social media manager. It only creates, lists and deletes the posts it made, through Buffer. It never talks
   to Instagram, LinkedIn, Facebook or X directly.
 - A media host for anyone else. Buffer takes media by public URL only, so the app copies the files of each post it sends
@@ -78,11 +84,13 @@ It is not:
 - A WhatsApp tool (WhatsApp is not a Buffer channel), and not wired to TikTok (Buffer supports it; Vesk knows Instagram,
   LinkedIn, Facebook and X).
 
-Besides the fixed templates there is an optional second way to draw a post, the `post` template. A post says what it is
-(`kind`: statement, figure, list, quote, photo, event or offer) and the brand's design direction (`style.direction` in
-`brand.json`: `editorial`, `swiss` or `retail`) decides how it is drawn, with its own fonts, grid and checks. A brand without a
-direction is unaffected, and a `post` design is then refused with a message. Today each direction draws the `statement` kind
-only; the other kinds are being built. See "Design directions and the post template" in [docs/design.md](docs/design.md).
+There are two ways to draw a post. With a **look** (Settings, Looks), a post uses the `post` template: it says what it is
+(`kind`: statement, figure, list, quote, photo, event or offer) and the look decides how it is drawn, with its own fonts,
+grid, devices and checks. A look is data (`brand.looks`, named by `style.direction` in the pack the app writes); the
+engine ships several, and a brand may copy one and change it. A newly saved brand starts on the shipped Clean look. The
+engine also has three directions written as code (`editorial`, `swiss`, `retail`) that a pack, or a brand saved with an
+older choice, can name in `style.direction` instead. With neither, the **classic layouts** draw the post: the fixed
+templates and the brand's own layouts, and a `post` design is refused with a message. See "Design directions and the post template" and "Looks as data" in [docs/design.md](docs/design.md).
 
 ## Quick start
 
@@ -125,9 +133,10 @@ npm run build && npm run migrate && npm start      # or `npm run dev` with `npm 
 Open the invite link the server logs on its first start, choose a name and a password, and sign in. Then follow the
 setup steps on Home; each opens the page where it is done:
 
-1. Set up the brand, and upload the logos or draw a simple pair from the name (Settings, Brand and look).
-2. Add a Buffer account and run Check on it (Settings, Buffer accounts).
-3. Choose the account and channel for each network (Settings, Channels).
+1. Set up the brand (Settings, Brand and look). Saving it starts the brand on the Clean look (Settings, Looks).
+2. Upload the logos, or draw a simple pair from the name (Settings, Brand and look, Logos).
+3. Connect the channels (Settings, Channels): add a Buffer account and run Check on it, then choose the account and
+   channel for each network.
 4. Add an AI provider and a monthly budget (Settings, AI and search).
 5. Add the team's facts to Facts.
 6. Invite the team (Settings, Team).
@@ -160,7 +169,7 @@ entered by an admin in Settings and stored encrypted with `APP_ENCRYPTION_KEY` (
 key can be rotated). After saving, the app shows only their last four characters; they are never returned to the
 browser, logged or put in a job payload. A new deployment can be seeded with them once through `SEED_SECRETS_B64` (see
 section 4a of [deploy/README.md](deploy/README.md)). Buffer keys expire (30 days by default), so expect to replace them
-in Settings, Buffer accounts.
+in Settings, Channels, under Buffer accounts.
 
 ## The brand and the design references
 
@@ -175,13 +184,18 @@ colours, the page shows the colours posts will use and the contrast checks. Ever
 logos are uploaded. [apps/web/README.md](apps/web/README.md) ("The brand") says how the four colours are spread over the
 engine's tokens and fitted for contrast.
 
-**Design references** (Settings, Design references) are pictures the team likes: a post, a poster, an advert, a page. A
+**Design references** (Settings, Looks, Inspiration) are pictures the team likes: a post, a poster, an advert, a page. A
 background job sends each to the drafting provider's model, which writes a style brief (summary, palette, type, layout,
 imagery, mood, what to avoid). People can edit a brief or switch it off; the briefs that are on reach every draft and
 rewrite as part of the brand. They are taste, not facts: the prompts tell the model to follow them where the hard rules
 leave room and never to quote them as claims. The drafting model must be able to read images.
 
-**Layouts** (Settings, Layouts) are the brand's own compositions: blocks (a headline, a photo, a colour panel, figures, the
+**Looks** (Settings, Looks) decide how each kind of post is drawn: pick a shipped look, or customise a copy of one, its
+settings (dials, typefaces, type, page, colour, devices, pictures, logo) and its designs (at most three per kind), each edited in
+a visual design editor and checked by the engine with sample, stress and minimal copy before it is published. Series and
+Inspiration are tabs of the same page. See "Looks as data" in [docs/design.md](docs/design.md).
+
+**Layouts** (Settings, Classic layouts, in the menu while no look is in use) are the brand's own compositions: blocks (a headline, a photo, a colour panel, figures, the
 logo) placed in slots on a grid, with options from fixed lists, edited visually (conditions and page-colour cases included) or
 as JSON. No one writes markup or CSS: the engine checks every layout,
 draws it in the brand's look and checks each image like a built-in page. A post picks one in its design, the AI is told
@@ -321,9 +335,9 @@ thing that stops a second send from creating a duplicate.
 
 ## The first run against real Buffer
 
-Do this once, before the first real batch, because nothing here has been proved against real Buffer.
+Do this once, before the first real batch, because no post has been sent through real Buffer yet.
 
-1. Add one Buffer account in Settings, Buffer accounts, and run Check. It must list the organisation and the channels you
+1. Add one Buffer account in Settings, Channels, and run Check. It must list the organisation and the channels you
    expect; route one network to one channel in Settings, Channels.
 2. Make a batch with one post, approve it, and send it as a draft to that channel only.
 3. Open Buffer and look at the draft: the text with its line breaks and hashtags, the date and time in the right time
@@ -344,12 +358,14 @@ account, routing a post across two accounts, X caption limits, secret masking, s
 (against the examples AWS publishes), upload key naming, idempotent upload and refusal of files outside the send folder,
 and the web app's routes, roles, jobs and pages against a real Postgres.
 
-Not verified against real Buffer (see [docs/buffer-api-notes.md](docs/buffer-api-notes.md)): the endpoint and auth, the
-`createPost` and `deletePost` mutations and their input and result types, every enum value, `saveToDraft`, video
-thumbnail offsets, the `channels` and `posts` queries, the draft status value, whether Buffer fetches media from the
-bucket, and the real rate-limit behaviour. Also not verified against anything real: that Hetzner Object Storage accepts
-the signed requests and serves the copied files publicly under the bucket policy you set; what Buffer calls X in its
-`service` field and whether its `createPost` takes X posts with the fields Vesk sends; whether one person may run several
+Confirmed against real Buffer by the read-only check of 22 Nov 2026: the endpoint and bearer authentication, the
+`organizations` and `channels` queries, and that an X channel's `service` is `twitter`. Not verified against real Buffer
+(see [docs/buffer-api-notes.md](docs/buffer-api-notes.md)): the `createPost` and `deletePost` mutations and their input
+and result types, every enum value, `saveToDraft`, video thumbnail offsets, the `posts` query, the draft status value,
+the order and number of images Buffer keeps in a carousel, whether Buffer fetches media from the bucket, and the real
+rate-limit behaviour. Also not verified against anything real: that Hetzner Object Storage accepts the signed requests
+and serves the copied files publicly under the bucket policy you set; whether Buffer's `createPost` takes X posts with
+the fields Vesk sends; whether one person may run several
 free Buffer accounts (a question about Buffer's terms, see [docs/spec/web-app.md](docs/spec/web-app.md)); and whether
 Buffer's rate limits are per key, per account or per organisation (Vesk treats them as per account).
 
@@ -369,7 +385,7 @@ npm run typecheck --workspace @vesk/web
 ```
 
 `npm test` needs no keys and no network: Buffer, the AI providers and the bucket are faked. The render tests need Google
-Chrome (`CHROME_PATH`) and are skipped with a message without it; the web app's tests need Postgres 16 on
+Chrome or Chromium (`CHROME_PATH`) and are skipped with a message without it; the web app's tests need Postgres 16 on
 `127.0.0.1:55440` (a throwaway `docker run -d -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:55440:5432 postgres:16` will do).
 
 The engine tests, in `packages/engine/`:
@@ -390,6 +406,10 @@ The engine tests, in `packages/engine/`:
   template through `renderDesignBlock`.
 - `test-design-security.mjs`: hostile text in every field of every template stays inert; the page's
   Content-Security-Policy and request blocking.
+- `test-design-directions.mjs`, `test-design-look*.mjs`, `test-design-post-carousel.mjs`, `test-design-series.mjs`: the
+  `post` template, the code directions, looks as data (the schema, the renderer, every shipped look through every check,
+  the hooks the web app and the AI library use), carousels of post pages and named series.
+- `test-design-find-chrome.mjs`: finding Chrome, then Chromium, and the message when neither is there.
 - `test-brand-pack.mjs`: `BRAND_DIR`, the demo pack and the brand file's optional fields.
 - `test-brand-pennyhive.mjs`: the Pennyhive pack loads, its spelling rules hold, and its example batch passes the post
   checks in its direction.
@@ -420,8 +440,8 @@ at the repository root, and `apps/web/.data/` with the local storage driver. Non
 - [apps/web/README.md](apps/web/README.md): the web app: install, commands, environment variables, the brand, seeding,
   roles, jobs, AI and known limits.
 - [deploy/README.md](deploy/README.md): deploying with Docker Compose (Dokploy as the worked example).
-- [docs/design.md](docs/design.md): the images: every template and option, pictures and screenshots, the automatic checks,
-  the photo rules.
+- [docs/design.md](docs/design.md): the images: every template and option, the `post` template and looks as data,
+  pictures and screenshots, the automatic checks, the photo rules.
 - [docs/batch-format.md](docs/batch-format.md): every field of a batch, including the `design` block.
 - [docs/ai.md](docs/ai.md): the AI library: its interface, configuration, checks, safety rules, prompts and cost logging.
 - [docs/buffer-api-notes.md](docs/buffer-api-notes.md): what Vesk relies on in Buffer's API, and what is unconfirmed.
