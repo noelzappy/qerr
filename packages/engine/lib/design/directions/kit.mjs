@@ -153,12 +153,14 @@ export function iconSvg(name, { colour, cls: extra, size } = {}) {
 function inlineMarks(html, o) {
   const pill = o.pills;
   if (pill !== undefined && (!pill || !Object.hasOwn(PILL_SHAPES, pill.shape ?? 'pill'))) throw new Error('design kit: pills must be { shape, fill, ink }');
-  // a pill and the punctuation right after it ("[[an app]],") stay on one line: a comma never starts a line after a pill
+  // a pill and the punctuation right after it ("[[an app]],") stay on one line: a comma never starts a line after a pill; the pill then
+  // drops its outer margin on that side (k-pl-end) and the page pulls the mark (k-pl-p) in by its own side bearing (runtime ready), so its
+  // ink sits snug against the pill's edge
   let out = html.replace(/\[\[([^[\]*{}<>\n\\]{1,120})\]\]([,.;:!?]{0,3})/g, (all, words, stop) => {
     if (!pill) return words + stop;
     const shape = pill.shape ?? 'pill', bg = shape === 'outline' ? '' : `background:${colour_(pill.fill)};`;
-    const one = `<span class="k-pl ${PILL_SHAPES[shape]}" style="${bg}color:${colour_(pill.ink)}"><span class="k-pl-t" data-role="accent">${words}</span></span>`;
-    return stop ? `<span style="white-space:nowrap">${one}${stop}</span>` : one;
+    const one = (end) => `<span class="k-pl ${PILL_SHAPES[shape]}${end ? ' k-pl-end' : ''}" style="${bg}color:${colour_(pill.ink)}"><span class="k-pl-t" data-role="accent">${words}</span></span>`;
+    return stop ? `<span class="k-pl-stop">${one(true)}<span class="k-pl-p">${stop}</span></span>` : one(false);
   });
   const badge = o.icons?.badge === undefined ? '' : colour_(o.icons.badge);
   out = out.replace(/\{\{([a-z][a-z-]{0,19})\}\}/g, (all, name) => (!Object.hasOwn(ICONS, name) ? all : !o.icons ? '' : badge ? `<span class="k-icb" style="background:${badge}">${iconSvg(name, { colour: o.icons.colour })}</span>` : iconSvg(name, { colour: o.icons.colour })));
