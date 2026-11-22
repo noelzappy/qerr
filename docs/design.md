@@ -894,7 +894,20 @@ that is empty, over its limit or on two lines where one is required is refused, 
 | `by` | 40 | one line |
 | `meta` | 40 | one line, for example the date and place of an event |
 | `tag` | 16 | one line, the words of a seal or sticker |
+| `cta` | 24 | one line, the words of a button (a look's `button` element), for example "Book a seat" |
+| `info` | 1 to 4 rows | `{ "key", "value" }`: `key` one of When, Where, Date, Time, Place, Book on, Tickets, Price, Entry, Who, Host, Call, Online, Starts, Ends, Open (`INFO_KEYS`, never free text), each once; `value` one line of up to 40, no marks |
+| `gallery` | 2 to 5 pictures | `{ "image", "caption"? }`: each picture once, read and checked like `image`; `caption` one line of up to 24 (a name, a product) |
 | `image`, `focal`, `zoom` | as elsewhere | `.jpg .jpeg .png .webp .gif`; zoom 1 to 3 |
+
+**Words in pills and inline icons.** Besides its `*emphasis*`, a headline (and only a headline) may mark up to two runs of one to three words as
+`[[pill words]]` and place up to two icons as `{{name}}`, the name one of the engine's own icons (`lib/design/icons.mjs`: arrow-right,
+arrow-up-right, check, plus, star, spark, heart, bolt, leaf, calendar, clock, pin, ticket, tag, gift, phone, mail, user, play, dot). A pill holds
+plain words only (no emphasis, icon or bracket), an emphasis holds no pill or icon, and a pill is never the whole headline. The brackets do
+not count towards the length; an icon counts as two characters. A look draws the pills and icons only where its headline `text` says how
+(`pills`, `icons`); anywhere else the pill words are set plainly and the icons are left out, so the same post reads in every look. Icons
+are SVG paths from that fixed table, filled in the colour of the words; no SVG, path or URL ever comes from a post or a look.
+`cta`, `info` and `gallery` are drawn only by a look written as data, in its `statement`, `photo`, `event` and `offer` compositions (`cta` also in
+`list`), within each composition's own counts (`fields.info.min`/`max`, `fields.gallery.min`/`max`, `fields.cta.max`).
 
 Required per kind: `statement` needs `headline`; `figure` `big`; `list` `headline` and `items`; `quote` `quote`; `photo`
 `image` and `headline`; `event` `headline` and `meta`; `offer` `headline` and `tag`. A field the chosen composition does not
@@ -1142,6 +1155,14 @@ stored. At most 21 compositions, at most 3 of a kind.
 | `glyph` | A decorative mark from a fixed list (opening and closing quotes, `&`, `№`, arrows) |
 | `meta-row` | The top label row, built from the look's own cells |
 | `wordmark-pattern`, `scrim`, `punch-hole` | The brand name as texture, a dark fade behind text over a picture, a punched hole |
+| `info-rows` | The post's `info` rows (When, Where, Book on ...): a fixed label and its words on each row, beside or stacked |
+| `button` | A call to action shaped like a button: the `cta` (or `tag`, `label`) on one line in a pill, rounded or square box, with an optional icon |
+| `photo-row` | The post's `gallery`: two to five pictures in a row, each cropped to a circle, with optional names under them |
+
+A headline `text` also takes `pills` (`shape` pill, soft or outline; `fill`, a fill role, none for an outline; `ink`, which must read on the
+fill, or on the page for an outline) and `icons` (`colour`, a role; the words' own colour when left out): how its `[[pill]]` words and `{{icon}}`
+marks are drawn. Both are refused on any other field, on a part of the headline, with `tiltBar` or `vertical`, and they do not exist on a
+`fitted-stack` (the page rebuilds a fitted headline from its words, so its marks are always plain).
 
 Common to most: `place` (exactly one of a grid position, pixels, an anchor, or an inset of the page, margins or frame; a flow child of a
 box has none), `bleed`, `rot` (a named angle or -15 to 15), `origin` or `originPct`, `skew` (a plain block only), `z`, `when` (`{ present }` / `{ absent }`), `fill`, `ink`,
@@ -1250,6 +1271,13 @@ outside the margin.
 | `wordmark-pattern` | `size`, `altItalic`, `fade`, `fadeFrom`, `colour` |
 | `scrim` | `need`, `floor`, `cap`, `fade`, `colour` |
 | `punch-hole` | `size` |
+| `info-rows` | `layout` (beside, stacked), `labelSpan` (1 to 6 grid columns; beside only), `valueStyle` (body, item, label), `valueSize` (20 to 60), `maxLines` (1 or 2; the words step down to 82% first), `labelInk`, `rule`, `gap`, `upper`. Each value sits in a cell as tall as its lines (`data-cell`): words that still run out are refused by the fit check |
+| `button` | `field` (cta, tag, label), `shape` (pill, rounded, square), `size` (20 to 60), `font` (label, display, text), `upper`, `icon` (none or an icon name), `width` (hug, full), `align` (hugging only); `fill` and `ink` (default accent and on-accent, a pair from the ink table). The words never wrap; its place is their cell |
+| `photo-row` | `size` (80 to 400, the most a circle is across; smaller when the row needs the room, refused below 60), `gap`, `overlap` (needs gap 0 and a ring, no names), `align`, `captions`, `captionInk`, `treat`; `ring`, a soft `shadow`. It counts as a picture for the text-over-picture check |
+
+A primitive module may also export `bindings(el)`, `sizes(el, look)`, `inks(el)`, `inkPairs(el)`, `ownFill(el)`, `picture`, `fonts(el, look)`
+and `rules(el, bad)`: the static checks (`look-static.mjs`), the validator and the font embedding read these, so a new primitive is checked like
+the built-in elements without a change to those files.
 
 **What the schema grew to draw the two full looks.** Each is a table entry (catalogue, validator, fuzz) with a bounded value and a rule; none is an
 expression, a reference or a free string. A property that validates has an effect: what the renderer does not draw is refused or not in the schema
