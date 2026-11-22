@@ -18,8 +18,10 @@ import { createTestApp, type TestApp } from './testing.js';
 let t: TestApp;
 let root: string;
 let engine: PipelineEngine;
-beforeAll(async () => { t = await createTestApp(); engine = await pipelineEngine(); root = engine.root; });
-afterAll(() => { resetBrandState(); return t.close(); });
+// Chrome is kept out on purpose, whatever the machine has: the look renderer must stop where Chrome would start (see above)
+const chromeBefore = process.env.CHROME_PATH;
+beforeAll(async () => { process.env.CHROME_PATH = path.join(path.sep, 'nonexistent', 'chrome'); t = await createTestApp(); engine = await pipelineEngine(); root = engine.root; });
+afterAll(() => { if (chromeBefore === undefined) delete process.env.CHROME_PATH; else process.env.CHROME_PATH = chromeBefore; resetBrandState(); return t.close(); });
 beforeEach(async () => { await t.reset(); resetBrandState(); clearSampleCache(); });
 afterEach(() => setLookRenderer(null));
 

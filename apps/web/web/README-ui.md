@@ -121,6 +121,9 @@ the same anatomy in both: header (title and description), a body that scrolls, a
   value inside has a problem.
 - **Small forms** are `FormPanel variant="dialog"`; a form with many fields is a page.
 - **Secondary and destructive actions** sit in `MoreMenu`, so a row or a card shows its main action and one menu.
+- **AI suggestions** (`components/suggest/`) are shown, never applied by themselves: "Suggested by the AI" with Use (or Replace,
+  with Undo) and, for pictures, Edit. A used suggestion fills the editable field and is marked "Filled in by the AI"; a title a
+  person typed is kept. Why suggestions cannot run is said once (beside the action), not on every card.
 - **On a desktop only the content area and the sidebar scroll**; the window itself does not (`shell/Shell.tsx`).
 
 ## Navigation, routes and the palette

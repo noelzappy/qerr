@@ -18,7 +18,15 @@ import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsav
 import type { VaultItem } from '../vault-types';
 import { ChoiceRow } from '../batches/editor/ChoiceRow';
 import { applyForAll, editRow, makeRow, NO_FOR_ALL, rowPayload, validateRow, type ForAll, type UploadRow as Row } from './upload-rows';
-import { ACCEPT_BY_ROLE, asRole, fileProblem, KIND_OPTIONS, LICENCE_CHOICES, PEOPLE_CHOICES, peopleFlags, peopleOf, ROLE_ACCEPT_HINT, ROLE_NOUN, type Licence, type People, type PictureKind, type PictureRole } from './util';
+import { DescribeAllButton, PictureSuggest, PictureSuggestProvider, pictureSuggestionPatch } from '@/components/suggest/PictureSuggest';
+import { ACCEPT_BY_ROLE, asRole, fileProblem, humaniseFileName, KIND_OPTIONS, LICENCE_CHOICES, PEOPLE_CHOICES, peopleFlags, peopleOf, ROLE_ACCEPT_HINT, ROLE_NOUN, type Licence, type People, type PictureKind, type PictureRole } from './util';
+
+// What a picture suggestion changes on a card: the title only while it is still the one made from the file name, the description,
+// and the suggested tags added to the card's own.
+function suggestionChange(r: Row, s: Parameters<typeof pictureSuggestionPatch>[1]): Partial<Row> {
+  const p = pictureSuggestionPatch({ title: r.title, tags: r.tags.join(', ') }, s, r.titleAuto ? r.title : humaniseFileName(r.file.name));
+  return { ...(p.title !== r.title ? { title: p.title } : {}), body: p.body, tags: p.tags.split(',').map((t) => t.trim()).filter(Boolean) };
+}
 
 export function UploadPage() {
   useDocumentTitle('Upload pictures');
@@ -115,7 +123,7 @@ export function UploadPage() {
   const goBack = () => confirmDiscard(dirty && !busy, () => navigate(role === 'photo' ? '/library' : `/library?role=${role}`));
   const failed = rows.filter((r) => r.phase === 'error').length;
   return (
-    <div className="max-w-[900px]">
+    <PictureSuggestProvider><div className="max-w-[900px]">
       <PageHeader
         crumbs={[{ label: 'Pictures', to: role === 'photo' ? '/library' : `/library?role=${role}` }, { label: 'Upload' }]}
         title={role === 'photo' ? 'Upload pictures' : `Upload ${noun}s`}
@@ -151,13 +159,14 @@ export function UploadPage() {
 
         {rows.length > 1 && <ForAllBar count={rows.length} role={role} value={forAll} disabled={busy} onChange={changeForAll} />}
 
+        {rows.length > 0 && <DescribeAllButton disabled={busy} />}
         {rows.length > 0 && (
           <ul className="m-0 flex list-none flex-col divide-y overflow-hidden rounded-lg border p-0" aria-label="Pictures to upload">
             {rows.map((r) => <UploadRow key={r.key} row={r} role={role} disabled={busy} forAll={rows.length > 1 ? forAll : NO_FOR_ALL} onChange={(c) => edit(r.key, c)} onToggle={() => patch(r.key, { expanded: !r.expanded })} onRemove={() => remove(r.key)} />)}
           </ul>
         )}
       </div>
-    </div>
+    </div></PictureSuggestProvider>
   );
 }
 
@@ -212,6 +221,7 @@ export function UploadRow({ row: r, role, disabled, forAll, onChange, onToggle, 
             className="inline-flex min-h-6 items-center gap-1 rounded-sm font-medium text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-11">
             <ChevronDown className={cn('size-3.5 transition-transform', expanded && 'rotate-180')} aria-hidden="true" />More details
           </button>
+          <PictureSuggest id={r.key} source={{ file: r.file, title: r.title, role: r.kind === 'screen' ? 'screen' : role }} hasDescription={!!r.body.trim()} disabled={locked} onUse={(s) => onChange(suggestionChange(r, s))} />
           {!expanded && r.tags.length > 0 && <span className="truncate">{r.tags.map((t) => `#${t}`).join(' ')}</span>}
           <span className="truncate">{r.file.name} · {size}</span>
           {r.phase === 'working' && <span className="flex items-center gap-1.5" role="status"><Loader2 className="size-3.5 animate-spin" aria-hidden="true" />{r.status}</span>}

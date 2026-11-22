@@ -29,6 +29,13 @@ export interface ResearchResult {
 }
 export interface AnalyseReferenceInput { image: { mediaType: string; data: Buffer }; note?: string | null }
 export interface AnalyseReferenceResult { analysis: Record<string, unknown>; brief: string; notes?: Record<string, unknown> }
+// Suggestions a person reviews; nothing is saved by the library (src/suggest.mjs in @vesk/ai).
+export interface SuggestBrandFromSiteInput { website: string }
+export interface BrandSiteSuggestion { descriptor?: string; tagline?: string; voice?: string; visualDirection?: string; colours?: { primary?: string; accent?: string } }
+export interface SuggestBrandFromSiteResult { suggestion: BrandSiteSuggestion; source?: { url: string; title: string | null }; notes?: Record<string, unknown> }
+export interface DescribePictureInput { image: { mediaType: string; data: Buffer }; hints?: { title?: string; fileName?: string; role?: string } }
+export interface PictureSuggestion { title?: string; description: string; tags?: string[]; peopleVisible: boolean }
+export interface DescribePictureResult { suggestion: PictureSuggestion; notes?: Record<string, unknown> }
 export interface RewriteInput { post: Record<string, unknown>; instruction: string; vault: unknown[]; series?: unknown[] }
 
 export interface AI {
@@ -36,6 +43,8 @@ export interface AI {
   research(input: ResearchInput): Promise<ResearchResult>;
   rewrite(input: RewriteInput): Promise<Record<string, unknown>>;
   analyseReference(input: AnalyseReferenceInput): Promise<AnalyseReferenceResult>;
+  suggestBrandFromSite(input: SuggestBrandFromSiteInput): Promise<SuggestBrandFromSiteResult>;
+  describePicture(input: DescribePictureInput): Promise<DescribePictureResult>;
 }
 
 export interface AiModule {
