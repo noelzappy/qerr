@@ -684,7 +684,7 @@ export function validateLook(look, where = 'look', opts = {}) {
   if (typeof look.id !== 'string' || !ID.test(look.id)) push(errs, ctx, 'id', 'must be lowercase letters, digits and - (up to 40, starting with a letter or digit)');
   check({ kind: 'text', max: LIMITS.name }, look.name, 'name', ctx, errs);
   if (look.description !== undefined) check({ kind: 'text', max: LIMITS.description }, look.description, 'description', ctx, errs);
-  if (typeof look.origin !== 'string' || !(look.origin === 'shipped' ? shipped : ORIGIN.test(look.origin))) push(errs, ctx, 'origin', shipped ? 'must be "shipped", or "copy:shipped:" or "copy:own:" followed by an id' : 'must be "copy:shipped:" or "copy:own:" followed by an id (only the engine\'s own looks are "shipped")');
+  if (typeof look.origin !== 'string' || !(look.origin === 'shipped' ? shipped : ORIGIN.test(look.origin))) push(errs, ctx, 'origin', shipped ? 'must be "shipped", "starter", or "copy:shipped:" or "copy:own:" followed by an id' : 'must be "starter", or "copy:shipped:" or "copy:own:" followed by an id (only the engine\'s own looks are "shipped")');
   for (const s of SECTION_NAMES) {
     if (look[s] === undefined) { if (REQUIRED_SECTIONS.includes(s)) push(errs, ctx, s, 'is required'); continue; }
     check(SECTIONS[s], look[s], s, ctx, errs);

@@ -80,7 +80,8 @@ export { POST_FIELDS, POST_ITEMS, POST_REQUIRED };
 export const COLOUR_NAMES = Object.freeze(['paper', 'ink', 'white', 'dark', 'primary', 'field', 'on-field', 'gold', 'gold-deep', 'accent', 'accent-dark', 'on-accent', 'on-primary', 'body', 'soft', 'muted', 'body-dark', 'muted-dark', 'rule', 'rule-soft', 'rule-dark', 'rule-field', 'accent-type', 'body-field', 'field-deep', 'paper-warm', 'light-tint', 'field-text', 'tint-deep']);
 
 export const ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
-export const ORIGIN = /^copy:(shipped|own):[a-z0-9][a-z0-9-]{0,39}$/;
+// a copy of a shipped or own look, or "starter": made from the engine's blank starter (look-starter.mjs)
+export const ORIGIN = /^(copy:(shipped|own):[a-z0-9][a-z0-9-]{0,39}|starter)$/;
 // The feed page (1080 x 1350): the only size a look draws today (other sizes come with a later step).
 export const PAGE = Object.freeze({ w: 1080, h: 1350 });
 // The keys no look may carry, at any depth.
