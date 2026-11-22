@@ -102,5 +102,19 @@ export const directionKinds = (direction, brand) => Object.keys(describeKinds(di
 // What the model is given: the direction's name and each drawable kind with its fields and budgets.
 export const directionBrief = (direction, brand) => ({ direction, template: 'post', kinds: describeKinds(direction, brand) });
 
+// The brand's look in the shape of the engine's lookBrief ({ name, kinds: { kind: { variants: [{ index, name, fields: { f: { max } } }] } } }), for
+// planning named series against it: the look written as data when the brand has one, else the direction's own compositions. null: no direction.
+export function seriesBrief(brand) {
+  const direction = directionOf(brand), own = lookOfBrand(brand);
+  if (own) return lookBrief(own);
+  if (!direction) return null;
+  const kinds = {};
+  for (const kind of POST_KINDS) {
+    const comps = compositionsFor(direction, kind);
+    if (comps.length) kinds[kind] = { variants: comps.map((c, index) => ({ index, name: c.name, describe: c.describe, fields: Object.fromEntries(c.fields.map((f) => [f, c.words?.[f] ? { max: c.words[f] } : {}])) })) };
+  }
+  return { id: direction, name: direction, kinds };
+}
+
 // The emphasis phrases of a text: the parts between asterisks.
 export const emphasisIn = (text) => [...String(text ?? '').matchAll(/\*([^*]*)\*/g)].map((m) => m[1]);

@@ -16,6 +16,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsaved-guard';
 import { cn } from '@/lib/utils';
 import { DesignFields } from './DesignFields';
+import { SeriesPicker } from './editor/SeriesPicker';
+import { usePostKinds } from './editor/use-post-kinds';
+import type { SeriesRef } from './editor/series-model';
 import { RewritePostDialog } from './RewritePostDialog';
 import { CaptionFields, Counter } from './editor/CaptionFields';
 import { PreviewPane } from './editor/PreviewPane';
@@ -71,6 +74,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
     on: post ? currentFlags(base, batch.defaultNetworks) : Object.fromEntries(NETWORKS.map((n) => [n, batch.defaultNetworks.includes(n)])) as Record<string, boolean>,
     caps: currentCaptions(base),
     design: post?.design ?? null,
+    series: (post?.series ?? null) as SeriesRef | null,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [rev, post?.id, post?.updatedAt]);
 
@@ -81,6 +85,8 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
   const [on, setOn] = useState(initial.on);
   const [caps, setCaps] = useState(initial.caps);
   const [design, setDesign] = useState<DesignBlock | null>(initial.design);
+  const [series, setSeries] = useState<SeriesRef | null>(initial.series);
+  const postKinds = usePostKinds();
   const [jsonError, setJsonError] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const preview = usePreview(design, !!jsonError);
@@ -93,7 +99,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
   const dirty = !saved && (
     title !== initial.title || caption !== initial.caption || date !== initial.date || time !== initial.time
     || JSON.stringify(on) !== JSON.stringify(initial.on) || JSON.stringify(caps) !== JSON.stringify(initial.caps)
-    || JSON.stringify(design) !== JSON.stringify(initial.design)
+    || JSON.stringify(design) !== JSON.stringify(initial.design) || JSON.stringify(series) !== JSON.stringify(initial.series)
   );
   useUnsavedGuard(dirty);
 
@@ -127,6 +133,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
     const savedBase = readNetworks(next.post.networks);
     setCaption(next.post.caption); setDate(next.post.date); setTime(next.post.time);
     setOn(currentFlags(savedBase, batch.defaultNetworks)); setCaps(currentCaptions(savedBase)); setDesign(next.post.design ?? null);
+    setSeries(next.post.series ?? null);
     setJsonError('');
   }
   const [rewriting, setRewriting] = useState(false);
@@ -156,6 +163,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
         if (time !== initial.time) body.time = time;
         if (JSON.stringify(networks) !== JSON.stringify(buildNetworks(base, initial.on, initial.caps, batch.defaultNetworks))) body.networks = networks;
         if (JSON.stringify(design) !== JSON.stringify(initial.design)) body.design = design;
+        if (JSON.stringify(series) !== JSON.stringify(initial.series)) body.series = series;
         if (!Object.keys(body).length) { toast.success('Nothing was changed'); return; }
         const next = await api.patch<PostDetail>(`/api/posts/${post.id}`, body);
         const reset = post.status === 'approved' && next.post.status !== 'approved';
@@ -163,7 +171,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
         adopt(next);
       } else {
         const r = await api.post<{ posts: Array<{ id: string }> }>(`/api/batches/${batch.id}/posts`, {
-          posts: [{ title: title.trim(), caption, date, time, networks, ...(design ? { design } : {}) }],
+          posts: [{ title: title.trim(), caption, date, time, networks, ...(design ? { design } : {}), ...(series ? { series } : {}) }],
         });
         toast.success('Saved. The new post starts as Writing');
         setSaved(true);
@@ -287,7 +295,10 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
           </Section>
 
           <Section title="Design" id="post-design" className="scroll-mt-28">
-            <DesignFields design={design} jsonError={jsonError} onChange={(d, err) => { setDesign(d); setJsonError(err); }} />
+            {postKinds.direction !== null && !postKinds.loading && (
+              <SeriesPicker value={series} onChange={setSeries} design={design} onDesign={setDesign} kinds={postKinds.kinds} disabled={!!jsonError} />
+            )}
+            <DesignFields design={design} jsonError={jsonError} networks={NETWORKS.filter((n) => on[n])} onChange={(d, err) => { setDesign(d); setJsonError(err); }} />
             {fields.design && <p className="text-[13px] font-medium text-destructive" role="alert">{fields.design}</p>}
           </Section>
 

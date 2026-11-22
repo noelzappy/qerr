@@ -1,5 +1,6 @@
 // Settings, Looks: the gallery. "In use" (the brand's look, or Classic layouts), "Looks we ship" (use one, or customise a copy) and
-// "Your looks" (copies the brand made, with their status). A second tab, Inspiration, holds the design references. A look decides how
+// "Your looks" (copies the brand made, with their status). A second tab, Series, holds the brand's named recurring series (drawn by the
+// look in use); a third, Inspiration, the design references. A look decides how
 // every kind of post is drawn; changing the look in use changes new images only (posts already made keep theirs until remade).
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -14,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { SettingsPage } from '../section';
 import { InspirationPanel } from './Inspiration';
 import { SampleStrip } from './SampleStrip';
+import { SeriesPanel } from './SeriesPanel';
 import { kindOrder, kindsSummary, LOOK_STATUS, lookStatus, originText, whenText } from './look-model';
 import type { LooksAnswer, OwnSummary, ShippedSummary } from './look-types';
 import { afterLookChange, lookApi } from './looks-api';
@@ -28,8 +30,9 @@ const nameOfRef = (data: LooksAnswer, ref: string | null): string | null => {
   return [...data.shipped, ...data.own].find((l) => l.ref === ref)?.name ?? null;
 };
 
-function Tabs({ tab }: { tab: 'looks' | 'inspiration' }) {
-  const items = [{ id: 'looks', label: 'Looks', to: '/settings/looks' }, { id: 'inspiration', label: 'Inspiration', to: '/settings/looks/inspiration' }] as const;
+type Tab = 'looks' | 'series' | 'inspiration';
+function Tabs({ tab }: { tab: Tab }) {
+  const items = [{ id: 'looks', label: 'Looks', to: '/settings/looks' }, { id: 'series', label: 'Series', to: '/settings/looks/series' }, { id: 'inspiration', label: 'Inspiration', to: '/settings/looks/inspiration' }] as const;
   return (
     <nav aria-label="Looks" className="-mb-2">
       <ul className="flex gap-1 border-b">
@@ -90,8 +93,8 @@ function InUse({ data, kinds, onChange, onClassic }: { data: LooksAnswer; kinds:
   );
 }
 
-export function LooksPage({ tab = 'looks' }: { tab?: 'looks' | 'inspiration' }) {
-  useDocumentTitle(tab === 'looks' ? 'Looks' : 'Inspiration');
+export function LooksPage({ tab = 'looks' }: { tab?: Tab }) {
+  useDocumentTitle(tab === 'looks' ? 'Looks' : tab === 'series' ? 'Series' : 'Inspiration');
   const data = useLoad(() => lookApi.list(), []);
   const navigate = useNavigate();
   const appInfo = useAppInfo();
@@ -113,6 +116,7 @@ export function LooksPage({ tab = 'looks' }: { tab?: 'looks' | 'inspiration' }) 
     <SettingsPage title="Looks" description={PURPOSE} crumbs={[{ label: 'Settings', to: '/settings/preferences' }, { label: 'Looks' }]}>
       <Tabs tab={tab} />
       {tab === 'inspiration' ? <InspirationPanel looks={d ?? null} activeRef={d?.activeRef ?? null} />
+        : tab === 'series' ? <SeriesPanel />
         : data.error ? <ErrorBlock message={data.error} onRetry={() => void data.reload()} />
         : !d ? <div className="flex flex-col gap-4"><Skeleton className="h-32 rounded-lg" /><Skeleton className="h-48 rounded-lg" /></div>
         : (

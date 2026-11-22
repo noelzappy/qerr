@@ -19,6 +19,8 @@ import { proposalOf, syncBrand } from './brand-settings.js';
 import { layoutProblems } from './layouts.js';
 import { loadPost, patchPost, patchPostInput } from './posts.js';
 import { splitNetworks, joinNetworks, type NetworkOverride } from './post-model.js';
+import { brandScope } from './looks.js';
+import { seriesFor } from './series.js';
 
 const isKind = (k: string): k is (typeof VAULT_KINDS)[number] => (VAULT_KINDS as readonly string[]).includes(k);
 const SOURCE_NOTES_MAX = 20_000;
@@ -154,10 +156,14 @@ async function rewriteNow(deps: Deps, payload: z.infer<typeof rewritePayload>, h
   const sources = post.sources.length
     ? await deps.prisma.vaultItem.findMany({ where: { id: { in: post.sources }, deletedAt: null } })
     : [];
+  // a post of a named series keeps it: the library writes its mark back from the series (the model never numbers it)
+  const own = post.seriesId ? await deps.prisma.brandSeries.findFirst({ where: { id: post.seriesId, brandId: brandScope().brandId }, select: { slug: true } }) : null;
+  const series = own ? (await seriesFor(deps).forDrafting(brandScope())).filter((x) => x.slug === own.slug) : [];
   let result: Record<string, unknown>;
   try {
     result = await ai.rewrite({
-      post: { id: post.postKey, postKey: post.postKey, title: post.title, date: post.date, time: post.time, caption: post.caption, networks: splitNetworks(post.networks).overrides, design: post.design, sources: post.sources },
+      post: { id: post.postKey, postKey: post.postKey, title: post.title, date: post.date, time: post.time, caption: post.caption, networks: splitNetworks(post.networks).overrides, design: post.design, sources: post.sources, ...(own && post.seriesNumber ? { series: { slug: own.slug, number: post.seriesNumber } } : {}) },
+      ...(series.length ? { series } : {}),
       instruction: payload.instruction,
       // Not filtered here: the library hides what is not usable and says why when the post still cites it.
       vault: sources.map((i) => vaultForAi(i, deps.now())),
@@ -338,6 +344,7 @@ async function draftNow(deps: Deps, payload: z.infer<typeof draftPayload>, handl
       where: { deletedAt: null, status: 'confirmed' },
       orderBy: { updatedAt: 'desc' }, take: 500,
     });
+    const recurring = await seriesFor(deps).forDrafting(brandScope());
     let result: DraftBatchResult;
     try {
       await ensureScreenFraming(deps, items);
@@ -348,6 +355,8 @@ async function draftNow(deps: Deps, payload: z.infer<typeof draftPayload>, handl
         count: brief.count ?? 10,
         ...(brief.channels ? { channels: brief.channels } : {}),
         ...(brief.guidance ? { guidance: brief.guidance } : {}),
+        // the brand's enabled named series, each with its next number (planned into the period by the drafter)
+        recurring,
         timezone,
         onProgress: (p: { step: string; done?: number; total?: number }) => handle.progress(p),
       } as Parameters<typeof ai.draftBatch>[0]);

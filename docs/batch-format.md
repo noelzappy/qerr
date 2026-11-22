@@ -45,6 +45,7 @@ rules as a file.
 | `media` | list | no | File names. The app does not import files: a post that names media and has no `design` gets a warning to upload its images in the app before it is approved. See "Media". |
 | `skip` | list | no | Networks to leave out: any of `instagram`, `linkedin`, `facebook`, `x`. Default: none. Skipping every network the post would go to is an error. |
 | `networks` | object | no | Per-network overrides. Keys must be `instagram`, `linkedin`, `facebook` or `x`. Naming `x` here (even as `"x": {}`) sends this post to X even when `defaultNetworks` does not list it. |
+| `series` | object | no | `{ "slug": "tip-of-the-week", "number": 12 }`: the brand's named series this post belongs to (Settings, Looks, Series) and its number in it. `slug` is lowercase letters, digits and `-`; `number` 1 to 9999. Not sent to Buffer and not part of the duplicate-protection hash. On import, a slug the brand has no series for is dropped with a warning. The mark the reader sees ("Tip #12") is in the design's own `label` or `tag`; this field only links the post to its series. Not the same as `design.series` (a classic layout's series key, below). |
 | `sources` | list | no | Ids of vault items the post's claims come from (the AI fills it in). An id that is not in the vault is dropped with a warning. |
 | `warnings` | list | no | Notes for review (the AI fills them in). |
 
@@ -132,7 +133,7 @@ the images an earlier render made. The full guide, with every template and optio
 
 | Field | Applies to | Meaning |
 | --- | --- | --- |
-| `template` | all | Required: a poster template (`object`, `number`, `product`, `myth-fact`, `closing`), an editorial one (`cover`, `text`, `ledger`, `passbook`, `stats`, `screen`, `photo-story`), `photo`, `carousel` or `layout` with `layout` naming one of the brand's own layouts (`pagecover` is not allowed in a batch). A carousel's page is a poster or editorial template, or `layout` (see design.md, "Your own layouts"). |
+| `template` | all | Required: a poster template (`object`, `number`, `product`, `myth-fact`, `closing`), an editorial one (`cover`, `text`, `ledger`, `passbook`, `stats`, `screen`, `photo-story`), `photo`, `carousel` or `layout` with `layout` naming one of the brand's own layouts (`pagecover` is not allowed in a batch). A carousel's page is a poster or editorial template, or `layout` (see design.md, "Your own layouts"); or, for a brand with a look, every page is a `post` page (`{ "template": "post", "kind": ... }`, see design.md, "Carousels of post pages"). |
 | `series`, `label`, `ground`, `accent`, `headRight`, `headline`, `sub`, `myth`, `factLead`, `fact`, `big`, `line`, `stats`, `caption`, `artefact`, `columns`, `rows`, `days`, `register`, `beside`, `layout`, `device`, `framed`, `title`, `tilt`, `region`, `silk`, `dots`, `glow`, `fade`, `pills`, `checks`, `map`, `pages` | per template | The texts and content. See design.md. A carousel takes `pages`. |
 | `image` | `object`, `number`, `product`, `cover`, `stats`, `screen`, `photo-story`, `photo` | The picture: a file under `design/assets/` (for example `design/assets/demo/object-jar.jpg`), or, with `vaultItemId`, a vault photo (below). Any other path is refused. |
 | `vaultItemId` | wherever `image` is | The id of a vault photo or screen. The render copies that file from the private bucket and uses it instead of `image`, which must still be an image file name. The photo's rights are checked before the post can be approved. A carousel page may carry its own. |
@@ -152,8 +153,10 @@ duplicate-protection hash" below.
 
 ## Caption limits and warnings
 
-Warnings appear on the post in review. Most never block a send, so read them; a caption over the limit and an Instagram
-post without media block approval. Lengths count characters (code points), not bytes.
+Warnings appear on the post in review. Most never block a send, so read them; a caption over the limit, an Instagram
+post without media, and more images than a network takes in one post (Instagram 10 items, X 4 images: `MEDIA_LIMITS` in
+`packages/engine/lib/networks.mjs`) block approval. A carousel over a limit says so: remove pages or leave that network out.
+LinkedIn and Facebook limits through Buffer are not known, so none is enforced for them. Lengths count characters (code points), not bytes.
 
 | Network | Characters | Other |
 | --- | --- | --- |
@@ -171,10 +174,10 @@ All warnings:
 - caption longer than the network limit (blocks approval)
 - Instagram post with no media (blocks approval)
 - more than 30 hashtags on Instagram (a hashtag is `#` at the start or after whitespace, then letters, digits or `_`)
-- Instagram post with more than 10 items
+- Instagram post with more than 10 items (blocks approval)
 - Instagram type `carousel` (Buffer rejects it; use `post` with several images)
 - Instagram reel with no video
-- X post with more than 4 images, or with a `firstComment` (it is not sent)
+- X post with more than 4 images (blocks approval), or with a `firstComment` (it is not sent)
 - LinkedIn post that mixes video and images
 - several items including a video, on a network other than Instagram
 - a file that changed after its public copy was made (it must be copied again before it is sent)

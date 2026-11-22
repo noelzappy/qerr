@@ -162,8 +162,10 @@ field takes a quotation that is in a cited item (a quotation that is not in the 
 When the brand pack's `brand.json` has `style.direction` (`editorial`, `swiss` or `retail`; see [design.md](design.md), "Design
 directions and the post template"), the model designs with ONE template, `post`, instead of naming layouts or templates. Such a
 brand is offered no `layouts`, no screens and no old templates (`object`, `number`, `product`, `myth-fact`, `closing`, `photo`,
-`layout`), and **no carousels**: the engine does not accept a `post` as a carousel page (`PAGE_TEMPLATES` in `spec.mjs`), so there is
-nothing to offer. The design is `{ "template": "post", "kind": "<kind>", ...fields }`, `kind` being one of `statement`, `figure`,
+`layout`). Carousels are offered only as carousels of post pages (`{ "template": "carousel", "pages": [post, ...] }`, see
+[design.md](design.md), "Carousels of post pages"): a cover page, body pages and a closing page, 3 pages at least and at most
+`design.carousel.pages.max`, which is 10, or 4 when X is among the channels (`MEDIA_LIMITS` in the engine's `networks.mjs`). A carousel
+counts as its own kind for "never three running". The design is `{ "template": "post", "kind": "<kind>", ...fields }`, `kind` being one of `statement`, `figure`,
 `list`, `quote`, `photo`, `event`, `offer`.
 
 The request carries `design: { direction, template: 'post', kinds }`, built in `src/direction.mjs` from the engine's own registry
@@ -173,7 +175,7 @@ compositions draw, and for each text the hard `max` and the `budget` (the most t
 `variant` the engine may pick any composition of the kind, so the budget is the smallest one). Items carry `min`, `max`, `chars`.
 
 `prompts/draft.md` is one file; the parts that differ are between `<!-- if direction -->`, `<!-- else -->` and `<!-- end -->`
-lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-13`, serves both kinds of brand and a brand without a
+lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-14`, serves both kinds of brand and a brand without a
 direction gets what it got under `draft-11`, except for the confirmed-only rule. The direction part teaches: choose the kind from
 the content (a number is a `figure`; steps or reasons a `list`; a date and place an `event`; a price or "new" an `offer`; a picture
 that carries the post a `photo`; a house line a `quote`; otherwise a `statement`); write to the budgets (headline at most 70, aim
@@ -190,11 +192,25 @@ stated as "headline is 62 characters; ... draws at most 60. Shorten it to about 
 whole text, and asterisks only in `headline` and `quote`; a `variant` is removed and reported as a repair; the picture of any
 post is a vault `photo` item; numbers in `big`, `unit`, `meta`, `tag`, `items` and the other image texts must be in the cited
 items; and the same kind may not make three posts in a row by date (the third is rejected, `ctx.kinds`). With a look written as data
-(`draft-13`): `[[pill]]` words and `{{icon}}` marks in the headline only where a design of the kind draws them (the brief's headline lists
+(`draft-14`): `[[pill]]` words and `{{icon}}` marks in the headline only where a design of the kind draws them (the brief's headline lists
 `pills` / `icons`, with the icon names), `cta`, `info` (rows of a fixed label and a value) and `gallery` (vault photos with captions) only
 where the kind lists them, within each design's own counts and characters; the info values and picture names are image text, so their
 numbers are checked against the cited items like the others, and a gallery picture is a vault `photo` used once in the batch. `notes` gains `direction`
 and `kindMix`.
+
+### Named series
+
+`draftBatch` takes `recurring`: the brand's named series (the web app's Settings, Looks, Series), each `{ slug, name, kind, variants,
+mark?, markField?, cadence, weekday?, nextNumber }` (`lib/design/series.mjs` in the engine). Each is checked against the look in force
+(`seriesBrief` in `src/direction.mjs`, `seriesProblems`); one the look cannot draw is left out with a note, and a brand without a
+look plans none. `planSeries` gives the slots of the period at each cadence (weekly or fortnightly from the chosen weekday, monthly on
+its first one), numbered from `nextNumber`, at most one per post of the batch. The request carries the open slots as `seriesPlan`
+(date, series, name, kind, number, the variant, the mark), refreshed for each call. A post fills a slot by naming its slug in
+`series`: the check (`seriesOfPost` in `postcheck.mjs`) refuses a slug with no open slot or a post of another kind or a carousel,
+then the app (never the model) sets the slot's date, the design's variant and the mark ("Tip #12") in its field, reported as
+repairs; the series number is not taken for an unsourced number. After drafting, each series' posts are renumbered in date order
+from `nextNumber`, so a slot left unfilled leaves no gap. Each post carries `series: { slug, number }`; `notes.namedSeries` lists the
+numbers drafted per series and `notes.messages` the slots left out.
 
 `rewrite` uses the same file (`rewrite-5`): a direction brand's rewrite is told the kinds and budgets, to keep the post's `kind`
 and edit the words within the same budgets, and to redesign an old-template post as a `post`. A kind changed by the model is
@@ -256,7 +272,7 @@ number absent from the pages, or duplicate a vault item or an earlier candidate.
 ## Prompts
 
 `packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`. They are brand-neutral: they read the `brand` brief above.
-The first line is `<!-- version: draft-13 -->` (now `draft-13`, `rewrite-5`); the version is returned in `notes.promptVersion`. Change a prompt by editing
+The first line is `<!-- version: draft-14 -->` (now `draft-14`, `rewrite-5`); the version is returned in `notes.promptVersion`. Change a prompt by editing
 the file, bumping its version and reviewing the diff. Tests pin the versions' format only, not the wording.
 
 A brand pack can replace any of them with its own `prompts/<name>.md` (for example `brands/acme/prompts/draft.md`), with

@@ -4,7 +4,7 @@ import path from 'node:path';
 import { shapeProblems } from './checks.mjs';
 import { LIMITS, ledgerLayout } from './figures.mjs';
 import { COVER_SIZES, DEFAULT_SIZES, SIZE_NAMES } from './sizes.mjs';
-import { postProblems } from './post-spec.mjs';
+import { isPostCarousel, postCarouselProblems, postProblems } from './post-spec.mjs';
 import { lookBrief } from './look.mjs';
 import { ACCENT_STYLES, ALIGNS, GROUND_ALIASES, GROUND_NAMES, POSTER_SIZES, SERIES_KEY, groundName } from './tokens.mjs';
 
@@ -349,6 +349,10 @@ export function validateDesign(d, where = 'design', opts = {}) {
       if (!NETWORKS.includes(n)) errors.push(`${where}: networkSizes has an unknown network "${n}"`);
       else if (!parseSizes(d.sizes).includes(s)) errors.push(`${where}: networkSizes.${n} is "${s}", which is not in sizes`);
     }
+  }
+  if (d.template === 'carousel' && isPostCarousel(d)) {
+    errors.push(...postCarouselProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null }));
+    return errors;
   }
   if (d.template === 'carousel') {
     if (d.slides !== undefined) errors.push(`${where}: a carousel takes "pages" (the old "slides" and its title, step and end templates are gone)`);

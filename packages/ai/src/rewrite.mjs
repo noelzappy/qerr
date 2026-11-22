@@ -10,7 +10,7 @@ import { ROOT } from '@vesk/engine/core';
 
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 
-export async function rewrite(rt, { post, instruction, vault, channels } = {}) {
+export async function rewrite(rt, { post, instruction, vault, channels, series } = {}) {
   if (!isObj(post) || typeof post.id !== 'string') throw new AIError('post must be a post object with an id', { code: 'config' });
   if (typeof instruction !== 'string' || !instruction.trim() || instruction.length > 1500) throw new AIError('instruction must be a text of 1 to 1500 characters', { code: 'config' });
   const now = rt.now();
@@ -38,7 +38,9 @@ export async function rewrite(rt, { post, instruction, vault, channels } = {}) {
     system: prompt.text, schema: POST_JSON_SCHEMA, maxTokens: 3000,
     messages: [{ role: 'user', content: `Revise this post.\n\n${JSON.stringify(request)}` }],
     validate: (data) => {
-      const r = checkPost({ ...data, id: post.id }, { ...ctx, takenIds: new Set() });
+      // a post of a named series stays in it with its number (the app's, never the model's); its mark is kept when the series is given
+      const { series: _ignored, ...answer } = data;
+      const r = checkPost({ ...answer, id: post.id, ...(isObj(post.series) ? { series: post.series } : {}) }, { ...ctx, takenIds: new Set(), seriesList: Array.isArray(series) ? series : [] });
       if (r.ok) { ok = r; return []; }
       return r.reasons;
     },

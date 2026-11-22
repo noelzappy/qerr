@@ -17,7 +17,7 @@ export interface CreateAiOptions {
 }
 
 export type AiProgress = { step: string; done?: number; total?: number };
-export interface DraftBatchInput { vault: unknown[]; series: unknown; period: unknown; count: number; channels: string[]; brand: unknown; timezone: string; onProgress?: (p: AiProgress) => void }
+export interface DraftBatchInput { vault: unknown[]; series: unknown; period: unknown; count: number; channels: string[]; brand: unknown; timezone: string; recurring?: unknown[]; onProgress?: (p: AiProgress) => void }
 // notes: what the drafter reports (prompt version, model, usage, rejected posts, repairs, image suggestions, messages).
 export interface DraftBatchResult { batch: Record<string, unknown>; notes?: Record<string, unknown> }
 export interface ResearchInput { topics: string[]; vault: unknown[]; since?: string; onProgress?: (p: AiProgress) => void }
@@ -29,7 +29,7 @@ export interface ResearchResult {
 }
 export interface AnalyseReferenceInput { image: { mediaType: string; data: Buffer }; note?: string | null }
 export interface AnalyseReferenceResult { analysis: Record<string, unknown>; brief: string; notes?: Record<string, unknown> }
-export interface RewriteInput { post: Record<string, unknown>; instruction: string; vault: unknown[] }
+export interface RewriteInput { post: Record<string, unknown>; instruction: string; vault: unknown[]; series?: unknown[] }
 
 export interface AI {
   draftBatch(input: DraftBatchInput): Promise<DraftBatchResult>;

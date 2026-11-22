@@ -7,6 +7,7 @@ import { ROOT, maskSecrets, zonedToUtcIso } from './lib/core.mjs';
 import { createClient } from './lib/client.mjs';
 import { buildInput, contentHash, resolveItems, validateBatch } from './lib/batch.mjs';
 import { decide, planRows, runPush, runStatus } from './lib/push.mjs';
+import { MEDIA_LIMITS } from './lib/networks.mjs';
 
 const KEY = 'sk_test_SECRET_KEY_12345';
 const BASE = 'https://media.example.com/launch';
@@ -283,7 +284,9 @@ test('warnings: limits, hashtags, missing Instagram media, carousel size, Linked
   assert.match(w, /a: caption is 2201 characters, instagram allows 2200/);
   assert.match(w, /b: 31 hashtags/);
   assert.match(w, /b: Instagram needs media/);
-  assert.match(w, /c: 11 items, Instagram allows 10/);
+  assert.match(w, /c: 11 items, Instagram allows 10 in one post; remove pages from the carousel or leave Instagram out/);
+  const ten = validateBatch({ timezone: 'UTC', defaultTime: '09:00', mediaRoot: 'm', posts: [{ id: 'e', date: '2026-12-01', caption: 'e', media: Array.from({ length: MEDIA_LIMITS.instagram }, (_, i) => `${i}.jpg`), skip: ['facebook', 'linkedin'] }] }).batch;
+  assert.doesNotMatch(resolveItems(ten).flatMap((i) => i.warnings).join('|'), /Instagram allows/, 'exactly the limit is fine');
   assert.match(w, /d: LinkedIn does not take video mixed with images/);
 });
 

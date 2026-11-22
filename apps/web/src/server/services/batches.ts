@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { audit, type AuditActor } from '../audit.js';
 import type { Deps } from '../deps.js';
 import { HttpError } from '../http.js';
+import { brandScope } from './looks.js';
+import { seriesFor } from './series.js';
 import { pipelineEngine } from '../engine/pipeline.js';
 import { enqueueTracked } from './activity.js';
 import { designProblems, withoutVaultIds } from './design-images.js';
@@ -29,6 +31,8 @@ export const networksSchema = z.strictObject({
   x: override.optional(),
 });
 export const designSchema = z.record(z.string(), z.unknown());
+// A post's link to one of the brand's named series (services/series.ts) and its number in it.
+export const seriesRefInput = z.strictObject({ id: z.string().uuid(), number: z.number().int().min(1).max(9999) });
 
 export const postInput = z.strictObject({
   postKey: z.string().regex(POST_KEY_RE, 'Use letters, digits, . _ - only, and not just dots').optional(),
@@ -39,6 +43,7 @@ export const postInput = z.strictObject({
   networks: networksSchema.optional(),
   design: designSchema.nullish(),
   sources: z.array(z.string().min(1).max(64)).max(50).optional(),
+  series: seriesRefInput.nullish(),
 });
 export type PostInput = z.infer<typeof postInput>;
 
@@ -101,6 +106,9 @@ export interface StagedPost {
   design: Record<string, unknown> | null;
   sources: string[];
   warnings: string[];
+  // the brand's named series the post belongs to, and its number in it
+  seriesId?: string | null;
+  seriesNumber?: number | null;
 }
 
 // Every error the engine and our design rules find in these posts, with the batch header, all listed together.
@@ -153,6 +161,7 @@ async function insertBatch(
             networks: s.networks as Prisma.InputJsonValue,
             design: s.design ? (s.design as Prisma.InputJsonValue) : undefined,
             media: [], renderStatus: s.design ? 'queued' : 'none', sources: s.sources, warnings: s.warnings,
+            ...(s.seriesId ? { seriesId: s.seriesId, seriesNumber: s.seriesNumber ?? null } : {}),
           },
         }),
       );
@@ -174,8 +183,17 @@ function stageManual(inputs: PostInput[], defaultTime: string, startAt = 0): Sta
       postKey, title: p.title, date: p.date, time: p.time ?? defaultTime, caption: p.caption,
       networks: joinNetworks(skip, overrides as Record<string, NetworkOverride>),
       design: p.design ?? null, sources: p.sources ?? [], warnings: [],
+      ...(p.series ? { seriesId: p.series.id, seriesNumber: p.series.number } : {}),
     };
   });
+}
+
+// A series a post names must be one of the brand's.
+async function unknownSeries(deps: Pick<Deps, 'prisma'>, staged: StagedPost[]): Promise<string[]> {
+  const ids = [...new Set(staged.map((s) => s.seriesId).filter((x): x is string => !!x))];
+  if (!ids.length) return [];
+  const found = new Set((await deps.prisma.brandSeries.findMany({ where: { id: { in: ids }, brandId: brandScope().brandId }, select: { id: true } })).map((r) => r.id));
+  return staged.filter((s) => s.seriesId && !found.has(s.seriesId)).map((s) => `post ${s.postKey}: the series is not one of the brand's series`);
 }
 
 // Sources must exist in the vault. Manual posts refuse unknown ids (a typo); imported drafts turn them into warnings.
@@ -194,6 +212,7 @@ export async function createBatch(deps: Deps, actor: AuditActor & { id: string }
   const errors = await problemsOf({ name, timezone: input.timezone, defaultTime: input.defaultTime, defaultNetworks }, staged, deps);
   const missing = await missingSources(deps, staged.flatMap((s) => s.sources));
   for (const id of missing) errors.push(`source ${id} is not in the vault`);
+  errors.push(...(await unknownSeries(deps, staged)));
   if (errors.length) throw unprocessable('The batch is not valid', errors);
   const period = datesOf(staged);
   const { batch, posts } = await insertBatch(
@@ -213,6 +232,7 @@ export async function addPosts(deps: Deps, actor: AuditActor & { id: string }, b
   const taken = new Set(batch.posts.map((p) => p.postKey));
   const errors = (await problemsOf(batch, staged, deps)).concat(staged.filter((s) => taken.has(s.postKey)).map((s) => `post ${s.postKey}: duplicate id`));
   for (const id of await missingSources(deps, staged.flatMap((s) => s.sources))) errors.push(`source ${id} is not in the vault`);
+  errors.push(...(await unknownSeries(deps, staged)));
   if (errors.length) throw unprocessable('The post is not valid', errors);
   const posts: Post[] = [];
   for (const [i, s] of staged.entries()) {
@@ -222,6 +242,7 @@ export async function addPosts(deps: Deps, actor: AuditActor & { id: string }, b
           batchId, postKey: s.postKey, position: start + i, title: s.title, date: s.date, time: s.time, caption: s.caption,
           networks: s.networks as Prisma.InputJsonValue, design: s.design ? (s.design as Prisma.InputJsonValue) : undefined,
           media: [], renderStatus: s.design ? 'queued' : 'none', sources: s.sources, warnings: [],
+          ...(s.seriesId ? { seriesId: s.seriesId, seriesNumber: s.seriesNumber ?? null } : {}),
         },
       }),
     );
@@ -270,6 +291,9 @@ export async function importEngineBatch(deps: Deps, actor: AuditActor & { id: st
   const importWarnings: string[] = [];
   const allSourceIds = posts.flatMap((p) => strings(p.sources));
   const unknown = await missingSources(deps, allSourceIds);
+  // A post's named series, by slug (the engine checked its shape): one the brand has none of is dropped with a warning.
+  const slugOf = (p: Record<string, unknown>) => { const r = asRecord(p.series); return typeof r.slug === 'string' ? r.slug : null; };
+  const seriesIds = await seriesFor(deps).bySlug(brandScope(), posts.map(slugOf).filter((x): x is string => !!x));
 
   const staged: StagedPost[] = posts.map((p) => {
     const warnings = strings(p.warnings);
@@ -292,7 +316,10 @@ export async function importEngineBatch(deps: Deps, actor: AuditActor & { id: st
       warnings.push(msg);
       importWarnings.push(msg);
     }
+    const slug = slugOf(p), seriesId = slug ? seriesIds.get(slug) : undefined;
+    if (slug && !seriesId) { const msg = `Post ${id} names the series "${slug}", which this brand does not have, so it is not linked to a series`; warnings.push(msg); importWarnings.push(msg); }
     return {
+      ...(seriesId ? { seriesId, seriesNumber: Number(asRecord(p.series).number) } : {}),
       postKey: id, title: typeof p.title === 'string' && p.title ? p.title : id, date: String(p.date),
       time: typeof p.time === 'string' ? p.time : valid.defaultTime, caption: String(p.caption),
       networks: joinNetworks(strings(p.skip), overrides),

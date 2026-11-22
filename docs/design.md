@@ -949,6 +949,25 @@ A composition may declare `accepts(spec)`. When the chosen variant (named, or ch
 variant of the kind is used, wrapping round, and the render's notes say which one was drawn instead; when none accepts it, the post
 is refused. Retail's Mantra uses it for its 22 character rule.
 
+### Carousels of post pages
+
+A carousel may be made of post pages, drawn by the brand's look like single posts:
+
+```json
+{ "template": "carousel", "name": "tips", "pages": [
+  { "template": "post", "kind": "statement", "label": "Tips", "headline": "Three ways to *save more*" },
+  { "template": "post", "kind": "list", "headline": "Start small", "items": ["Set a weekly amount", "Save on pay day"] },
+  { "template": "post", "kind": "statement", "headline": "Start *this week*", "sub": "Open the app and set a goal." } ] }
+```
+
+- 2 to 10 pages. Page 1 is the cover, the last page the closing page, the pages between are the body: a page's place is its role,
+  and nothing else marks it. Each page names its own `kind` (and `variant`, if wanted) and is checked by `postProblems` exactly as a
+  single post is, against the brand's look (`postCarouselProblems` in `lib/design/post-spec.mjs`).
+- Every page must be a post page: post pages and the older templates do not mix in one carousel. The carousel itself takes only
+  `template`, `pages`, `sizes` (feed), `name` and `networkSizes`; `sizes`, `name` and `networkSizes` are refused on a page.
+- The renderer makes one image per page, in order (`<stem>-1.jpg`, `<stem>-2.jpg`, ...), each drawn with its place in the
+  carousel, so a look's folio reads "02/03", and a PDF of the pages as for any carousel.
+
 ### What the engine checks on a post
 
 Every check of the other templates still runs unchanged: text fit, contrast measured on the pixels behind the text, the

@@ -72,6 +72,7 @@ export function App() {
               <Route path="/settings/brand/:section?" element={<BrandSettingsPage />} />
               <Route path="/settings/looks" element={<LooksPage />} />
               <Route path="/settings/looks/inspiration" element={<LooksPage tab="inspiration" />} />
+              <Route path="/settings/looks/series" element={<LooksPage tab="series" />} />
               <Route path="/settings/looks/:slug" element={<LookRoute />} />
               <Route path="/settings/looks/:slug/designs/:id" element={<DesignRoute />} />
               <Route path="/settings/layouts" element={<LayoutsPage />} />

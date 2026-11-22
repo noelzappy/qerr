@@ -11,6 +11,7 @@ import { detectConverter } from './design/convert.mjs';
 import { lintText, textFieldsOf } from './design/lint.mjs';
 import { DesignError, renderImage, renderPdf } from './design/render.mjs';
 import { outputFiles, pdfFile } from './design/spec.mjs';
+import { usesPostTemplate } from './design/post-spec.mjs';
 import { loadLayouts, normalisePostDesign, postDesignProblems, usesLayouts } from './design/layout.mjs';
 
 // Every problem with a design block, as the batch validator would list them. No Chrome needed.
@@ -20,8 +21,10 @@ export function designBlockProblems(design, { root = ROOT, layouts } = {}) {
   const series = loadSeries({ root });
   // A `post` design needs the brand's design direction (style.direction); it is only looked up for one.
   // When the direction is a look written as data (brand.looks), the post is held to that look's compositions and budgets (its brief).
-  const direction = design?.template === 'post' ? loadDirection({ root }) : undefined;
-  const look = design?.template === 'post' ? loadLook({ root }) ?? undefined : undefined;
+  // A carousel of post pages is held to the same: each page is a post.
+  const post = usesPostTemplate(design);
+  const direction = post ? loadDirection({ root }) : undefined;
+  const look = post ? loadLook({ root }) ?? undefined : undefined;
   const errors = postDesignProblems(design, 'design', { series, direction, look, layouts: usesLayouts(design) ? layouts ?? loadLayouts({ root }) : [] });
   if (design?.template === 'pagecover') errors.push('design: page-cover makes profile and cover images, not post images, so it cannot be used in a batch');
   return errors;

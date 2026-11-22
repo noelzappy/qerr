@@ -39,6 +39,7 @@ export async function postView(deps: Pick<Deps, 'storage'>, post: Post) {
     renderError: post.renderError,
     sources: post.sources,
     warnings: post.warnings,
+    series: post.seriesId ? { id: post.seriesId, number: post.seriesNumber ?? 1 } : null,
     status: post.status,
     approvedById: post.approvedById,
     approvedAt: post.approvedAt,

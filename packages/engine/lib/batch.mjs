@@ -2,11 +2,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, sha256, sha256File, validTimeZone, zonedToUtcIso } from './core.mjs';
-import { CLASSIC_NETWORKS, LIMITS, NETWORKS } from './networks.mjs';
+import { CLASSIC_NETWORKS, LIMITS, MEDIA_LIMITS, NETWORKS } from './networks.mjs';
 import { captionLimitFor } from './accounts.mjs';
 import { validateBatchDesigns } from './design/batch.mjs';
 import { loadSeries } from './design/brand.mjs';
 import { loadLayouts } from './design/layout.mjs';
+import { seriesRefProblems } from './design/series.mjs';
 
 export { NETWORKS, CLASSIC_NETWORKS, LIMITS };
 export const DEFAULT_FACEBOOK_TYPE = 'post';
@@ -68,6 +69,8 @@ export function validateBatch(raw, { fallbackName = 'batch', root = ROOT } = {})
     if (!dateOk) errors.push(`${where}: date "${date}" must be a real date like 2026-12-01`);
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) errors.push(`${where}: time "${time}" must look like 09:00`);
     if (typeof p.caption !== 'string' || !p.caption.trim()) errors.push(`${where}: caption is required`);
+    // The named series the post belongs to (the brand's, Settings, Looks, Series); not sent to Buffer and not part of the hash.
+    errors.push(...seriesRefProblems(p.series, where));
 
     const skip = p.skip ?? [];
     if (!Array.isArray(skip) || skip.some((s) => !NETWORKS.includes(s))) errors.push(`${where}: skip must be a list of ${NETWORKS.join(', ')}`);
@@ -136,11 +139,11 @@ function warningsFor(item) {
   const images = media.length - videos;
   if (network === 'instagram') {
     if (!media.length) w.push('Instagram needs media and this post has none');
-    if (media.length > 10) w.push(`${media.length} items, Instagram allows 10 in one post`);
+    if (media.length > MEDIA_LIMITS.instagram) w.push(`${media.length} items, Instagram allows ${MEDIA_LIMITS.instagram} in one post; remove pages from the carousel or leave Instagram out`);
     if (type === 'carousel') w.push('Buffer rejects type "carousel" for Instagram; use "post" with several images');
     if (type === 'reel' && !videos) w.push('reel without a video');
   }
-  if (network === 'x' && images > 4) w.push(`${images} images, X allows 4`);
+  if (network === 'x' && images > MEDIA_LIMITS.x) w.push(`${images} images, X allows ${MEDIA_LIMITS.x}; remove pages from the carousel or leave X out`);
   if (network === 'x' && item.firstComment) w.push('firstComment is not sent to X (no X metadata is known); put it in the caption or drop it');
   if (network === 'linkedin' && videos && images) w.push('LinkedIn does not take video mixed with images');
   if (media.length > 1 && videos && network !== 'instagram') w.push('several items including a video; most networks take one video alone');

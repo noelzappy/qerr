@@ -5,6 +5,7 @@ import path from 'node:path';
 import type { Batch, Post } from '@prisma/client';
 import type { Deps } from '../deps.js';
 import { pipelineEngine, type EngineItem } from '../engine/pipeline.js';
+import { isHardWarning } from './approval-rules.js';
 import { currencyWarnings } from './currency-check.js';
 import { designProblems, photosOfDesign } from './design-images.js';
 import { POST_KEY_RE, rawBatchForEngine } from './post-model.js';
@@ -17,9 +18,6 @@ export interface ApprovalReport {
   // The draft's own warnings plus the ones computed now (soft: they never block).
   warnings: string[];
 }
-
-// Engine warnings that mean the post cannot go out. The rest are shown as warnings.
-const HARD = [/^caption is \d+ characters/, /^Instagram needs media/];
 
 // The routing and caption limits the engine needs to judge a post, without any key.
 async function routingForPlanning(deps: Pick<Deps, 'prisma'>) {
@@ -74,7 +72,7 @@ export async function approvalReport(deps: Pick<Deps, 'prisma' | 'now' | 'storag
     for (const w of item.warnings) {
       const line = `${item.network}: ${w}`;
       // A design whose render is not ok already has its own blocker above; its "needs media" would repeat it.
-      if (HARD.some((re) => re.test(w))) {
+      if (isHardWarning(w)) {
         if (!(post.design && post.renderStatus !== 'ok' && /^Instagram needs media/.test(w))) blockers.push(line);
       } else warnings.push(line);
     }

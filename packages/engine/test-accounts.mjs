@@ -260,7 +260,8 @@ test('x caption limit warnings: 280 by default, per account when raised, and the
   const elsewhere = { ...routing, x: { account: 'B', channelId: 'x1' } };
   assert.match(warn(resolveItems(mk(), { routing: elsewhere, accounts: paid }))[0], /allows 280/);
   assert.equal(warn(resolveItems(mk({ caption: 'z'.repeat(280) }), { routing, accounts })).length, 0, 'exactly 280 is fine');
-  assert.match(warn(resolveItems(mk({ media: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg'], caption: 'ok' }), { routing, accounts })).join('|'), /5 images, X allows 4/);
+  assert.match(warn(resolveItems(mk({ media: ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg'], caption: 'ok' }), { routing, accounts })).join('|'), /5 images, X allows 4; remove pages from the carousel or leave X out/);
+  assert.doesNotMatch(warn(resolveItems(mk({ media: ['1.jpg', '2.jpg', '3.jpg', '4.jpg'], caption: 'ok' }), { routing, accounts })).join('|'), /X allows/, 'four images is fine');
   assert.match(warn(resolveItems(mk({ caption: 'ok', networks: { x: { firstComment: 'later' } } }), { routing, accounts })).join('|'), /firstComment is not sent to X/);
 });
 

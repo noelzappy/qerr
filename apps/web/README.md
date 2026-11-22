@@ -130,6 +130,11 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
   fixed label and a short line each) and Round pictures (2 to 5 from the Pictures page, each with an optional name). A gallery picture is
   a design node like the post's own picture: the same path rule, vault copy and rights checks (`services/design-images.ts`). The
   `POST /api/settings/brand/direction-samples` route and its service were removed with the tab.
+  With a look, the post editor's Design offers **Single image** or **Carousel**: a carousel is a cover, body pages and a closing page, each a
+  post page of its own kind (moved, added before the closing page, removed; 2 to 10), drawn as one image per page and sent in that order. It
+  warns when a network the post goes to takes fewer images (Instagram 10, X 4), and approval is blocked until pages are removed or that network
+  is left out. Above the design, **Series** puts the post in one of the brand's named series with its number, which sets its kind, its design
+  when the series chose some, and the mark in its label or tag.
 - **Logos:** the full logo and the mark, as PNGs. The page measures where the wordmark starts. "Draw a simple logo from the
   name" makes a plain pair in the browser.
 - **Colours:** four colours (primary, accent, dark, light), the headline weight, the corners and **contrast for large headlines**
@@ -275,6 +280,26 @@ try changes without touching posts.
 | `POST /api/settings/looks/:slug/publish` | the look is `ready`: it validates and every enabled composition has a passing gate record for its current definition (the checks are run now for any that has none, in one Chrome run; a failure names the design and the reason) |
 | `DELETE /api/settings/looks/:slug` | refused while active (the only change that is) |
 | `GET /api/looks/brief` | any signed-in person: `{ look }`, the active look's kinds, variants, fields and budgets (`lookBrief`), or `{ look: null }` |
+
+**Named series** (`/api/settings/series`, `src/server/routes/series.ts`, `src/server/services/series.ts`, admins only; table `brand_series`,
+migration `20261201000000_brand_series`). A series is a recurring format of the brand ("Tip of the week"): a `kind` of post, up to three of the
+active look's designs of that kind (`variants`, remembered with the look they were chosen in, `lookRef`, and ignored while another look is in
+use), an optional `mark` with `{n}` or `{nn}` for the number (`Tip #{n}`) written into the post's `label` or `tag` (`markField`), a `cadence`
+(`weekly`, `fortnightly`, `monthly`), an optional `weekday` (0 Monday) and a `firstNumber`. Every create and change is checked by the engine's
+`seriesProblems` against the look in use (no look: 400); at most 12 per brand. The next number is worked out, never stored: one more than the
+highest `seriesNumber` of a live post of the series, or `firstNumber`. A post links to a series with `Post.seriesId` and `Post.seriesNumber`
+(`PATCH /api/posts/:id { series: { id, number } | null }`, also on new posts; a change does not take an approval back, since the reader sees
+only the design's own label); deleting a series keeps its posts and drops the link. An imported batch links a post's `series: { slug, number }`
+by slug and warns about a slug the brand has none of. The AI draft job passes the enabled series with their next numbers (`forDrafting`) to
+`draftBatch` as `recurring`, and a rewrite of a series post keeps its mark.
+
+| Route | What it does |
+| --- | --- |
+| `GET /api/settings/series` | `{ series: [{ id, slug, name, kind, variants, lookRef, mark, markField, cadence, weekday, firstNumber, enabled, position, nextNumber, posts, nextMark, designsInLook, problems }], look: { ref, name, kinds: { kind: [{ index, name, fields }] } } \| null, limits }` |
+| `POST /api/settings/series` | `{ name, kind, variants?, mark?, markField?, cadence, weekday?, firstNumber?, enabled? }` (201) |
+| `PATCH /api/settings/series/:id` | any of those, or `{ enabled }` / `{ position }` alone |
+| `DELETE /api/settings/series/:id` | remove it; its posts lose the link and keep their words |
+| `GET /api/series` | admins and editors: `{ series }`, the same rows, for the post editor |
 
 **The design editor** (`/settings/looks/:slug/designs/:id`, `apps/web/web/src/pages/settings/looks/`; see `web/README-ui.md`) edits one composition as
 JSON (`design-model.ts`, pure and specced over every composition of both shipped looks), checks the draft as it is edited with the `validate` route, draws it
@@ -535,7 +560,12 @@ Details: [../../docs/ai.md](../../docs/ai.md).
 
 ### The Looks pages (web)
 
-`/settings/looks` has two tabs, **Looks** and **Inspiration** (`/settings/looks/inspiration`). Looks shows "In use" (the active look, or
+`/settings/looks` has three tabs, **Looks**, **Series** (`/settings/looks/series`) and **Inspiration** (`/settings/looks/inspiration`).
+Series sits in Looks because a series is drawn by the look in use: its list shows each series with a one-line summary ("Statement · weekly
+on Tuesdays · next Tip #15"), an On switch (only switched-on series are planned into AI drafts), a flag when its designs belong to another
+look or the look cannot draw it, and Edit and Delete; Add and Edit open a side panel of visual choices (kind, the look's designs, how often,
+which day), the mark with a live "Reads: Tip #15", and Fine-tune for where the mark goes and the first number. Without a look in use the
+tab points to Looks. Looks shows "In use" (the active look, or
 Classic layouts; "Back to classic layouts" is in its menu), "Looks we ship" (**Use this look**, with a confirm saying new images use it and
 posts already made keep theirs, and **Customise**, which duplicates into the brand and opens the copy) and "Your looks" (status Draft,
 Ready or Needs attention with the first problem, origin, last changed; Open, Use when Ready, and a menu with Duplicate and Delete, whose

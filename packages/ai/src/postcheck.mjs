@@ -1,15 +1,16 @@
 // Checks one AI-written post against the vault and the engine's rules. Nothing a model wrote is trusted:
 // it either passes here, is repaired in a way that is reported, or is rejected with reasons.
-import { LIMITS, NETWORKS } from '@vesk/engine/networks';
+import { LIMITS, MEDIA_LIMITS, NETWORKS } from '@vesk/engine/networks';
 import { foreignMoneyWarning, lintText, textFieldsOf } from '@vesk/engine/design/lint';
 import { POSTER_TEMPLATES } from '@vesk/engine/design/spec';
 import { normalisePostDesign, postDesignProblems, screenDeviceOf } from '@vesk/engine/design/layout';
 import { layoutImageKind } from './context.mjs';
 import { EMOJI_G, fixSpelling, isTitleCase, numberKeys, quoteIsSourced, quotesIn, trimToLimit, unsourcedNumbers, usSpellings } from './facts.mjs';
 import { MEDIA_KINDS, foreignMoneyPattern, mentionsForeignMoney, unusableReason } from './vault.mjs';
-import { EMPHASIS_FIELDS, directionKinds, emphasisIn, kindBrief } from './direction.mjs';
-import { seenText } from '@vesk/engine/design/post-spec';
+import { POST_PAGES, seenText } from '@vesk/engine/design/post-spec';
+import { applySeriesSlot, seriesMark, seriesRefProblems } from '@vesk/engine/design/series';
 import { lookOfBrand } from '@vesk/engine/design/directions/index';
+import { EMPHASIS_FIELDS, directionKinds, emphasisIn, kindBrief } from './direction.mjs';
 
 // The drafting assistant may only use the poster pages (a real photo or a framed phone screen on a pale ground), a full-bleed photo,
 // carousels of poster pages, and the brand's own layouts (template "layout", when the brand has some, as a post or as a carousel
@@ -69,7 +70,17 @@ function vaultItemOf(image, ctx) {
 function templateProblems(design, ctx) {
   // A brand with a design direction designs with the `post` template only: it says what the post is, the direction draws it. (A
   // carousel's pages cannot be `post` designs in the engine, so carousels are not offered to such a brand.)
-  if (ctx.direction) return design.template === 'post' ? [] : [`template "${design.template}" is not allowed: this brand has the "${ctx.direction}" design direction, so every post is designed with template "post" and a kind (${directionKinds(ctx.direction, ctx.brand).join(', ')}); carousels and the older templates are not used`];
+  if (ctx.direction) {
+    if (design.template === 'post') return [];
+    if (design.template === 'carousel' && Array.isArray(design.pages)) {
+      const bad = design.pages.map((p, i) => [p, i]).filter(([p]) => p?.template !== 'post');
+      if (bad.length) return bad.map(([p, i]) => `carousel page ${i + 1} uses template "${String(p?.template).slice(0, 20)}", which is not allowed: this brand has the "${ctx.direction}" design direction, so every carousel page is a post page (template "post" and a kind)`);
+      const max = maxPagesFor(ctx.channels);
+      if (design.pages.length > max) return [`the carousel has ${design.pages.length} pages; ${max < POST_PAGES.max ? `X takes ${max} images in one post, so a carousel for these channels has at most ${max}` : `a carousel has at most ${max}`}. Use fewer body pages`];
+      return [];
+    }
+    return [`template "${design.template}" is not allowed: this brand has the "${ctx.direction}" design direction, so every post is designed with template "post" and a kind (${directionKinds(ctx.direction, ctx.brand).join(', ')}), or as a carousel of post pages; the older templates are not used`];
+  }
   if (design.template === 'post') return ['template "post" needs a brand with a design direction (style.direction), and this brand has none; use one of the other templates'];
   if (!ALLOWED_TEMPLATES.includes(design.template) || (design.template === 'layout' && !ctx.layouts?.length)) return [`template "${design.template}" is not allowed; use ${ALLOWED_LIST}, or photo or carousel${ctx.layouts?.length ? ', or layout with one of the brand\'s layouts' : ''}`];
   if (design.template !== 'carousel' || !Array.isArray(design.pages)) return [];
@@ -111,6 +122,11 @@ function imageKindProblems(design, ctx) {
   }
   return out;
 }
+
+// The most pages a carousel may have for these channels: the fewest images any of them takes in one post (Instagram 10, X 4).
+export const maxPagesFor = (channels) => Math.min(POST_PAGES.max, ...(Array.isArray(channels) ? channels : []).map((n) => MEDIA_LIMITS[n] ?? Infinity));
+// The kind a design counts as for "never three in a row": a post's kind; a carousel is its own kind.
+export const kindOfDesign = (d) => (d?.template === 'carousel' ? 'carousel' : d?.kind);
 
 // Every image of a design in page order (a carousel's pages, or the one image), repeats kept.
 // (a post's row of round pictures counts too, each picture after the post's own)
@@ -156,6 +172,10 @@ const designProblems = (design, ctx) => postDesignProblems(design, 'design', { l
 // `variant` (checkPost removes one; the engine varies it). Everything else is the engine's own validator
 // (designProblems). Returns a list of problems.
 function postKindProblems(design, ctx) {
+  if (design.template === 'carousel' && Array.isArray(design.pages)) return design.pages.flatMap((p, i) => (p?.template === 'post' ? onePostKindProblems(p, ctx).map((x) => `carousel page ${i + 1}: ${x}`) : []));
+  return onePostKindProblems(design, ctx);
+}
+function onePostKindProblems(design, ctx) {
   const out = [], d = design;
   if (d.template !== 'post') return out;
   const brief = ctx.direction ? kindBrief(ctx.direction, d.kind, ctx.brand) : null;
@@ -214,16 +234,41 @@ const hasStar = (v) => typeof v === 'string' && v.includes('*');
 
 // Never the same kind three posts running (in date order): ctx.kinds is the kinds of the posts already accepted, { date, time?, kind }.
 function kindRunProblems(design, date, ctx) {
-  if (design.template !== 'post' || !Array.isArray(ctx.kinds) || !ctx.kinds.length || typeof date !== 'string') return [];
-  const all = [...ctx.kinds, { date, time: '', kind: design.kind, self: true }].sort((a, b) => `${a.date} ${a.time ?? ''}`.localeCompare(`${b.date} ${b.time ?? ''}`));
+  const kind = kindOfDesign(design);
+  if ((design.template !== 'post' && kind !== 'carousel') || !Array.isArray(ctx.kinds) || !ctx.kinds.length || typeof date !== 'string') return [];
+  const all = [...ctx.kinds, { date, time: '', kind, self: true }].sort((a, b) => `${a.date} ${a.time ?? ''}`.localeCompare(`${b.date} ${b.time ?? ''}`));
   const at = all.findIndex((x) => x.self);
   for (let s = Math.max(0, at - 2); s <= at && s + 2 < all.length; s++) {
-    if (all[s].kind === all[s + 1].kind && all[s + 1].kind === all[s + 2].kind) return [`three posts in a row (by date) would be "${design.kind}" posts; choose a different kind for this one`];
+    if (all[s].kind === all[s + 1].kind && all[s + 1].kind === all[s + 2].kind) return [`three posts in a row (by date) would be ${kind === 'carousel' ? 'carousels' : `"${kind}" posts`}; choose a different kind for this one`];
   }
   return [];
 }
 
-// checkPost(raw, ctx) -> { ok, post, reasons, repairs, imageSuggestion }
+// A post of a named series. raw.series is a slug (a draft: the post takes the plan's open slot of that series, ctx.seriesSlots, on its date
+// or else the earliest) or { slug, number } (a rewrite of a post already in a series, ctx.seriesList when known). The app, never the model,
+// sets the slot's date, the composition and the mark; the model writes the words. -> { problems, repairs, design?, ref?, date? }
+function seriesOfPost(raw, design, date, ctx) {
+  const out = { problems: [], repairs: [] };
+  if (typeof raw.series === 'string') {
+    const open = (ctx.seriesSlots ?? []).filter((s) => s.slug === raw.series);
+    if (!open.length) { out.problems.push(`series "${raw.series.slice(0, 40)}" has no open slot in this batch; use a series from seriesPlan, or leave series out`); return out; }
+    const slot = open.find((s) => s.date === date) ?? open[0];
+    if (design?.template !== 'post') out.problems.push(`a "${slot.name}" post is a single ${slot.kind} post (template "post"), not a ${design?.template === 'carousel' ? 'carousel' : 'design of another template'}`);
+    else if (design.kind !== slot.kind) out.problems.push(`"${slot.name}" posts are ${slot.kind} posts; write this one as kind "${slot.kind}"`);
+    if (out.problems.length) return out;
+    const field = slot.markField ?? 'label';
+    if (slot.mark !== undefined && design[field] !== undefined && design[field] !== slot.mark) out.repairs.push(`${field} set to the series mark "${slot.mark}"`);
+    if (slot.date !== date) out.repairs.push(`date moved from ${date} to ${slot.date}, the date of "${slot.name}" #${slot.number}`);
+    return { ...out, design: applySeriesSlot(design, slot), ref: { slug: slot.slug, number: slot.number }, date: slot.date };
+  }
+  const p = seriesRefProblems(raw.series, 'series');
+  if (p.length) return { ...out, problems: p };
+  const ref = { slug: raw.series.slug, number: raw.series.number }, known = (ctx.seriesList ?? []).find((s) => s.slug === ref.slug);
+  const mark = known?.mark && design?.template === 'post' ? { [known.markField ?? 'label']: seriesMark(known.mark, ref.number) } : {};
+  return { ...out, design: { ...design, ...mark }, ref, date };
+}
+
+// checkPost(raw, ctx) ->{ ok, post, reasons, repairs, imageSuggestion }
 // ctx: { byId: Map, byFile: Map, channels, period: {from,to}|null, seriesKeys, brand, now, takenIds: Set, tagline,
 //        usedImages?: Map<imageId, postId> (a batch draft: pictures other posts already use), requireImageReason?: boolean }
 export function checkPost(raw, ctx) {
@@ -255,7 +300,7 @@ export function checkPost(raw, ctx) {
 
   // design: template list, images, engine validation
   let design = raw.design;
-  let photoIds = [];
+  let photoIds = [], series, seriesDate;
   if (!isObj(design)) reasons.push('design block is missing');
   else if (templateProblems(design, ctx).length) reasons.push(...templateProblems(design, ctx));
   else {
@@ -269,10 +314,17 @@ export function checkPost(raw, ctx) {
       if (g.changed) repairs.push("ground set to photo so the page matches the picture's background");
     }
     if (!r.problems.length) {
-      if (design.template === 'post' && design.variant !== undefined && !kindBrief(ctx.direction, design.kind, ctx.brand)?.variants) { const { variant: _v, ...rest } = design; design = rest; repairs.push('variant removed: the design direction chooses the variant itself'); }
+      const dropVariant = (p) => { if (p?.template !== 'post' || p.variant === undefined || kindBrief(ctx.direction, p.kind, ctx.brand)?.variants) return p; const { variant: _v, ...rest } = p; repairs.push('variant removed: the design direction chooses the variant itself'); return rest; };
+      design = design.template === 'carousel' && Array.isArray(design.pages) ? { ...design, pages: design.pages.map(dropVariant) } : dropVariant(design);
+      // a post of a named series: the app sets its date, kind, design and mark from the plan (never the model)
+      if (raw.series !== undefined) {
+        const s = seriesOfPost(raw, design, date, ctx);
+        if (s.problems.length) reasons.push(...s.problems);
+        else { design = s.design; series = s.ref; seriesDate = s.date; repairs.push(...s.repairs); }
+      }
       const engine = designProblems(design, ctx);
       reasons.push(...engine);
-      if (!engine.length && design.template === 'post') reasons.push(...postKindProblems(design, ctx), ...kindRunProblems(design, date, ctx));
+      if (!engine.length && (design.template === 'post' || (ctx.direction && design.template === 'carousel'))) reasons.push(...postKindProblems(design, ctx), ...kindRunProblems(design, seriesDate ?? date, ctx));
     }
   }
   const imageReason = typeof raw.imageReason === 'string' ? raw.imageReason.trim().slice(0, 200) : '';
@@ -299,6 +351,8 @@ export function checkPost(raw, ctx) {
   const sourceText = sourceItems.map((i) => `${i.title ?? ''} ${i.body ?? ''}`).join('\n');
   const allowed = numberKeys(sourceText);
   allowed.add(date.slice(0, 4));
+  // the series number is the app's own count, not a claim
+  if (series) for (const k of numberKeys(String(series.number))) allowed.add(k);
   const imageFields = textFieldsOf(normalisePostDesign(design, ctx.layouts));
   const texts = [{ where: 'caption', text: caption }, ...Object.entries(networkCaptions).map(([n, text]) => ({ where: `${n} caption`, text })), ...imageFields.map((f) => ({ where: `image text (${f.field})`, text: f.text }))];
   for (const { where, text } of texts) {
@@ -336,6 +390,6 @@ export function checkPost(raw, ctx) {
   if (us.length) warnings.push(`possible US spelling (the house style is UK): ${us.join(', ')}`);
   for (const w of Array.isArray(raw.warnings) ? raw.warnings : []) if (typeof w === 'string' && w.trim()) warnings.push(w.trim().slice(0, 200));
 
-  const post = { id, date, ...(raw.time ? { time: raw.time } : {}), title: raw.title.trim(), caption, ...(Object.keys(networks).length ? { networks } : {}), design, sources, photoIds, warnings: [...new Set(warnings)] };
+  const post = { id, date: seriesDate ?? date, ...(series ? { series } : {}), ...(raw.time ? { time: raw.time } : {}), title: raw.title.trim(), caption, ...(Object.keys(networks).length ? { networks } : {}), design, sources, photoIds, warnings: [...new Set(warnings)] };
   return { ok: true, post, reasons: [], repairs, ...(imageReason && photoIds.length ? { imageReason } : {}), imageSuggestion: typeof raw.imageSuggestion === 'string' ? raw.imageSuggestion.slice(0, 300) : undefined };
 }
