@@ -1676,6 +1676,7 @@ test('a chart: numbers not in the cited items, a kind or a count the design does
       return !failed.length;
     });
   });
+});
 
 // ---------- a look with a portrait picture on its quote and a phone drawn round a bare screenshot (the ledger look) ----------
 function ledgerCopy() { return { ...structuredClone(shippedLooks().ledger), id: 'ai-ledger', origin: 'copy:shipped:ledger', name: 'Ledger copy' }; }
