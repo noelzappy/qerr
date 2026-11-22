@@ -74,7 +74,7 @@ export function lookCatalogue() {
       describe: { kind: 'text', max: LIMITS.description, label: 'Description', help: 'One or two sentences on how it looks and when to use it, for people and the AI.' },
       ground: { kind: 'oneOf', values: GROUNDS, label: 'Page colour', help: 'The page colour, or a list of cases ({ when, ground }) with the last having no condition.', maxCases: LIMITS.groundCases },
       fields: { kind: 'fields', label: 'Fields', help: 'The post fields it shows, each with whether it is required and its longest text (never more than a post allows).' },
-      accepts: { kind: 'accepts', label: 'Accepts', help: 'Rules on the words it can draw; when they fail the next variant of the kind is used.', max: LIMITS.accepts, parts: ['all', 'pre', 'phrase'] },
+      accepts: { kind: 'accepts', label: 'Accepts', help: 'Rules on the words it can draw (at most maxChars and, optionally, at least minChars characters of a part of the headline); when they fail the next variant of the kind is used.', max: LIMITS.accepts, parts: ['all', 'pre', 'phrase'] },
       calm: { kind: 'object', props: { maxShare: { kind: 'number', min: 0.45, max: 0.8, step: 0.01 } }, label: 'Empty space', help: 'A deliberately empty area, as a share of the page (0.45 to 0.8).' },
       fit: { kind: 'oneOf', values: ['margins', 'frame'], props: { pad: [0, 300], top: [0, 300], bottom: [0, 300] }, label: 'Text fit', help: 'The margins text must stay inside.' },
       elements: { kind: 'elements', label: 'Elements', help: 'The layers, back to front.', maxNodes: LIMITS.nodes, maxDepth: LIMITS.depth },

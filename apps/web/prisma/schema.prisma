@@ -247,6 +247,15 @@ model VaultItem {
   // screens only: true when the file is a pre-framed phone capture (transparent, as the engine tests it), false for a plain
   // screenshot, null when not known yet (read from the file when first needed)
   phoneFramed     Boolean?
+  // picture items only: 'photo' | 'cutout' (a person or product on a transparent background) | 'graphic' (a shape, sticker or mark)
+  role            String    @default("photo")
+  // graphics: single-colour artwork a look may recolour with a brand colour role
+  tintable        Boolean   @default(false)
+  // pixel size read from the file header when uploaded (null for files stored before this)
+  width           Int?
+  height          Int?
+  // the owning brand, as BrandLook.brandId
+  brandId         String    @default("brand")
   // 'own' | 'licensed' | 'rights_to_confirm' | null
   licence         String?
   licenceNotes    String?
@@ -259,6 +268,7 @@ model VaultItem {
 
   @@index([kind])
   @@index([status])
+  @@index([brandId, role])
   @@map("vault_items")
 }
 

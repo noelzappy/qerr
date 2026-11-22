@@ -59,7 +59,47 @@ window.__ds = {
       if (e.uniform && !low) this.flush(cv, e, type); else box.classList.add('band');
       sampled.push({ name: i.getAttribute('data-name'), rgb: e.rgb, uniform: e.uniform, grain: e.grain, drift: e.drift, shift: e.shift, treatment: treat ? treat.treatment : null, ...(low ? { lowContrast: type.ratio, need: +need.text } : {}) });
     }
+    // A look's picture that melts into the page (kit photo blend: "ground"): the same reading as above, on a look page. When the picture's
+    // top and side edges are one plain colour the page takes that colour, the type and the logo's wordmark follow it, and the picture runs
+    // into it (its top edge also fades, see the kit); when they are not, only the fade shows. Nothing is guessed: no reading, no change.
+    for (const i of document.querySelectorAll('img[data-bsample]')) {
+      if (!i.naturalWidth) continue;
+      const cv = i.closest('.k-look'); if (!cv || treat === false) continue;
+      const nw = i.naturalWidth, nh = i.naturalHeight, bw = i.offsetWidth, bh = i.offsetHeight;
+      const s = Math.max(bw / nw, bh / nh), sw = bw / s, sh = bh / s;
+      const pos = (i.style.objectPosition || '50% 50%').match(/([\d.]+)%\s+([\d.]+)%/), fx = pos ? +pos[1] / 100 : 0.5, fy = pos ? +pos[2] / 100 : 0.5;
+      const tf = getComputedStyle(i).transform, z = tf && tf !== 'none' ? new DOMMatrix(tf).a || 1 : 1;
+      const vw = sw / z, vh = sh / z, vx = (nw - sw) * fx + (sw - vw) * fx, vy = (nh - sh) * fy + (sh - vh) * fy;
+      const grab = (x, y, w, h) => {
+        const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h));
+        const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(i, x, y, w, h, 0, 0, c.width, c.height);
+        return treatPixels(g.getImageData(0, 0, c.width, c.height).data, treat);
+      };
+      const e = classifyEdge({ topWidth: Math.max(1, Math.round(vw)), top: grab(vx, vy, vw, vh * 0.03), left: grab(vx, vy, vw * 0.03, vh * 0.3), right: grab(vx + vw * 0.97, vy, vw * 0.03, vh * 0.3) });
+      if (e.uniform) { const type = this.typeForLook(cv, e.columns); if (type.ratio >= (+need.text || 0)) this.flushLook(cv, e, type); }
+    }
     return { broken, unframed, sampled, fontOk: faces.slice(0, 2).every((f) => document.fonts.check(f)) };
+  },
+  // The colour roles of a look page as numbers: --c-<name> read as #rrggbb ([r, g, b] or null).
+  lookRole(cv, name) { const v = getComputedStyle(cv).getPropertyValue('--c-' + name).trim(); return /^#[0-9a-f]{6}$/i.test(v) ? [1, 3, 5].map((k) => parseInt(v.slice(k, k + 2), 16)) : null; },
+  lum(c) { const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; },
+  // The type for a look page on these column colours: the palette's white or its ink, whichever has the higher contrast against the worst column.
+  typeForLook(cv, cols) {
+    const ink = this.lookRole(cv, 'ink') || [11, 31, 26], white = this.lookRole(cv, 'white') || [255, 255, 255];
+    const worst = (fg) => Math.min(...cols.map((c) => { const x = this.lum(c), y = this.lum(fg); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }));
+    const w = worst(white), k = worst(ink), light = w > k;
+    return { light, ratio: light ? w : k, worst };
+  },
+  // The page takes the picture's edge (the one colour, or its twelve column colours side by side) and the look's type roles follow the ground.
+  flushLook(cv, e, type) {
+    const cols = e.columns, flat = e.drift < 1;
+    cv.style.setProperty('--bg', flat ? 'rgb(' + e.rgb.join(',') + ')' : 'linear-gradient(to right,' + cols.map((c, k) => 'rgb(' + c.join(',') + ') ' + (((k + 0.5) / cols.length) * 100).toFixed(2) + '%').join(',') + ')');
+    cv.setAttribute('data-sampled', '');
+    const val = (n) => getComputedStyle(cv).getPropertyValue('--c-' + n).trim();
+    if (type.light) for (const [k, from] of [['ink', 'white'], ['body', 'body-dark'], ['muted', 'muted-dark'], ['accent-type', 'accent-dark'], ['rule', 'rule-dark']]) { const v = val(from); if (v) cv.style.setProperty('--c-' + k, v); }
+    for (const l of cv.querySelectorAll('.logo-inv')) l.classList.toggle('logo-ink', !type.light);
+    const acc = this.lookRole(cv, 'accent-type');
+    if (!acc || type.worst(acc) < 4.5) cv.style.setProperty('--c-accent-type', val('ink'));
   },
   // The brand's photo treatment as the page draws it: its kind from the page's class (styleClasses) and its colours and strength
   // from the variables brand.css draws it with (--ph-c, --ph-lo, --ph-hi, --ph-k). null without one; false if a colour cannot be
@@ -383,10 +423,45 @@ window.__ds = {
       const u = rects.reduce((a, r) => ({ x0: Math.min(a.x0, r.x0), x1: Math.max(a.x1, r.x1) }), { x0: Infinity, x1: -Infinity });
       blocks.push({ role: el.dataset.role, mode, x0: u.x0 + (parseFloat(el.dataset.optical) || 0), x1: u.x1, text: (el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 30) });
     }
+    // The ink of every line of text and the straight filled shapes on the page, for the "text meets the edge of a block" check
+    // (checks.mjs findPostProblems, kind edge). A line's ink runs from the top of its tallest letter to the bottom of its lowest
+    // (measured with the line's own font: a descender counts), across the line's width; turned text and turned shapes are left out.
+    // (a turned box, data-tilt, is measured straight: its text and its shapes turn together)
+    const tilts = [...document.querySelectorAll('[data-tilt]')].map((e) => [e, e.style.transform]); for (const [e] of tilts) e.style.transform = 'none';
+    const turned = (el) => { for (let e = el; e && e !== document.body; e = e.parentElement) { const tf = getComputedStyle(e).transform; if (tf && tf !== 'none') return true; } return false; };
+    // text and a shape are only compared in the same frame: both outside any turned box, or both inside the same turned boxes
+    const tiltKey = (el) => { const k = []; for (let e = el; e && e !== document.body; e = e.parentElement) if (e.hasAttribute('data-tilt')) k.push(tilts.findIndex((t) => t[0] === e)); return k.join('.'); };
+    const ctx = document.createElement('canvas').getContext('2d'), inks = [];
+    const walker2 = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = walker2.nextNode(); n; n = walker2.nextNode()) {
+      if (!n.nodeValue.trim()) continue;
+      const el = n.parentElement; if (!el || el.closest('script,style,[data-deco]') || turned(el)) continue;
+      const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+      const rr = el.closest('[data-role]'), role = rr ? rr.dataset.role : '';
+      if (role === 'logo') continue;
+      ctx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+      const lines = [], g = document.createRange(), txt = n.nodeValue;
+      for (let i = 0; i < txt.length; i++) {
+        if (!txt[i].trim()) continue;
+        g.setStart(n, i); g.setEnd(n, i + 1); const b = g.getClientRects()[0]; if (!b || b.width < 0.5 || b.height < 1) continue;
+        const L = lines.find((l) => Math.abs(l.y0 - b.top) < 2); const ch = cs.textTransform === 'uppercase' ? txt[i].toUpperCase() : txt[i];
+        if (L) { L.x0 = Math.min(L.x0, b.left); L.x1 = Math.max(L.x1, b.right); L.s += ch; } else lines.push({ y0: b.top, y1: b.bottom, x0: b.left, x1: b.right, s: ch });
+      }
+      for (const L of lines) {
+        const mt = ctx.measureText(L.s), top = L.y0 + (mt.fontBoundingBoxAscent ?? (L.y1 - L.y0) * 0.8);
+        inks.push({ role, frame: tiltKey(el), text: L.s.trim().slice(0, 30), x0: L.x0, x1: L.x1, y0: top - mt.actualBoundingBoxAscent, y1: top + mt.actualBoundingBoxDescent });
+      }
+    }
+    const SKIP_SHAPE = '.k-frame,.k-keyline,.k-seal,.k-printmat,.k-echo';
+    // a shape counts when it can be seen: a colour other than the page's, or a picture behind it (a paper box on a paper page is only a layout box)
+    const pageBg = getComputedStyle(document.querySelector('.cv') || document.body).backgroundColor, pics = [...document.querySelectorAll('img')].map((i) => box(i.getBoundingClientRect()));
+    const seen = (el, b) => { const bg = getComputedStyle(el).backgroundColor; if (/^rgba\(.*, 0\)$/.test(bg) || bg === 'transparent') return true; return bg !== pageBg || pics.some((p) => Math.min(p.x1, b.right) > Math.max(p.x0, b.left) && Math.min(p.y1, b.bottom) > Math.max(p.y0, b.top)); };
+    const shapes = [...document.querySelectorAll('[data-fill]')].filter((el) => !el.matches(SKIP_SHAPE) && !turned(el) && getComputedStyle(el).clipPath === 'none' && seen(el, el.getBoundingClientRect())).map((el) => ({ ...box(el.getBoundingClientRect()), frame: tiltKey(el) })).filter((b) => b.x1 - b.x0 > 0.5 && b.y1 - b.y0 > 0.5 && !(b.x1 - b.x0 >= W * 0.97 && b.y1 - b.y0 >= H * 0.97));
+    for (const [e, t] of tilts) e.style.transform = t;
     const calm = document.querySelector('[data-calm]');
     // a rectangle for every element a builder marked (kit numberElements): { el: "2.0", x0, y0, x1, y1 } in document order, keyed by its index path
     const els = [...document.querySelectorAll('[data-el]')].map((el) => { const b = el.getBoundingClientRect(); return { el: el.getAttribute('data-el'), x0: b.left, y0: b.top, x1: b.right, y1: b.bottom }; });
-    return { W, H, hs, texts, empty, blocks, calm: calm ? parseFloat(calm.getAttribute('data-calm')) : null, els };
+    return { W, H, hs, texts, empty, blocks, inks, shapes, calm: calm ? parseFloat(calm.getAttribute('data-calm')) : null, els };
   },
   hide(on) { document.documentElement.classList.toggle('measure', !!on); },
   measure() {
@@ -506,6 +581,15 @@ window.__ds = {
     this.swScrims();
     return out;
   },
+  // data-anchor="bottom": the lines stand at the foot of the room the box was given, the lowest letters (a descender, data-desc em) on its bottom
+  // edge, so any empty space of the cell is above the text and not under it.
+  swAnchor(box, H, height, size) {
+    if (box.dataset.anchor !== 'bottom') return;
+    const shift = Math.max(0, H - height - (+box.dataset.desc || 0.2) * size);
+    if (!shift) return;
+    if (box.classList.contains('abs')) box.style.top = (parseFloat(box.style.top) || 0) + shift + 'px';
+    else box.style.marginTop = (parseFloat(getComputedStyle(box).marginTop) || 0) + shift + 'px';
+  },
   swBlock(box) {
     const d = box.dataset, W = +d.w, lead = +d.lead, max = +d.max || 5, align = d.align || 'left', capEm = +d.capem, tt = +d.tt, tb = +d.tb;
     const sizes = d.sizes.split(',').map(Number), H = this.swRoom(box), words = this.swWords(box), real = words.filter((w) => !w.br);
@@ -548,6 +632,7 @@ window.__ds = {
       row.appendChild(this.swLine(box, ws, 0)); box.appendChild(row);
     }
     box.dataset.optical = String(+optical.toFixed(2));
+    this.swAnchor(box, H, pick.height, s);
     const natural = real.reduce((t, w, i) => t + wid([w], 'w' + i), 0);
     const floorLines = Math.max(1, Math.min(max, Math.floor((H / floor - capEm) / lead) + 1));
     const est = Math.max(1, Math.floor(chars * Math.min(1, (floorLines * W) / ((natural / 100) * floor) * 0.85)));
@@ -591,7 +676,9 @@ window.__ds = {
       for (const [i, s] of pick.sized.entries()) { s.z = Math.floor(s.z * k * 10) / 10; box.children[i].style.fontSize = s.z + 'px'; box.children[i].style.marginLeft = (-(s.left / 100) * s.z) + 'px'; }
     }
     box.dataset.optical = String(+Math.max(...pick.sized.map((s) => (s.left / 100) * s.z)).toFixed(2));
-    const zs = pick.sized.map((s) => s.z), natural = ink(words.map((w) => w.parts.map((p) => p.t).join('')).join(' ')).width;
+    const zs = pick.sized.map((s) => s.z);
+    this.swAnchor(box, H, pick.h, zs[zs.length - 1]);
+    const natural = ink(words.map((w) => w.parts.map((p) => p.t).join('')).join(' ')).width;
     const est = Math.max(1, Math.floor(chars * Math.min(1, ((H / (floor * (capEm + gapEm))) * W) / ((natural / 100) * floor) * 0.8)));
     return { ok, lines: zs.length, sizes: zs, height: Math.round(pick.h), h: Math.round(H), est, chars, min: Math.min(...zs), floor };
   },

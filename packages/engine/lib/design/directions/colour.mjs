@@ -102,7 +102,7 @@ export const paletteCss = (p) => Object.entries({
   accent: p.accentText, 'accent-dark': p.accentOnDark, 'on-accent': p.onAccent, 'on-primary': p.onPrimary, body: p.body, soft: p.soft, muted: p.muted,
   'body-dark': p.bodyOnDark, 'muted-dark': p.mutedOnDark, rule: p.rule, 'rule-soft': p.ruleSoft, 'rule-dark': p.ruleOnDark, 'rule-field': p.ruleOnField,
   'accent-type': p.accentType, 'body-field': p.bodyOnField,
-  'field-deep': p.fieldDeep, 'paper-warm': p.paperWarm, 'light-tint': p.lightTint, 'field-text': p.fieldText,
+  'tint-deep': p.tintDeep, 'field-deep': p.fieldDeep, 'paper-warm': p.paperWarm, 'light-tint': p.lightTint, 'field-text': p.fieldText,
 }).map(([k, v]) => `--c-${k}:${v}`).join(';');
 
 // ---- additions for the retail direction (generic: any direction may use them) ----
@@ -116,7 +116,7 @@ export const textSafe = (colour, ground, toward, need = 4.5) => deepen(colour, g
 // (a photo card), a light ground tinted with the field (every second row of a list), the field as type on paper.
 function extraRoles({ paper, black, white, field, primary }, need) {
   return {
-    fieldDeep: mix(field, black, 0.2), paperWarm: mix(paper, '#ffffff', 0.45), lightTint: mix(paper, field, 0.12),
+    fieldDeep: mix(field, black, 0.2), paperWarm: mix(paper, '#ffffff', 0.45), lightTint: mix(paper, field, 0.12), tintDeep: mix(paper, field, 0.26),
     fieldText: textSafe(primary, paper, black, Math.min(need, 4.5)),
   };
 }

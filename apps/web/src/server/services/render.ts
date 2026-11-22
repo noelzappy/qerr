@@ -80,7 +80,11 @@ async function renderNow(deps: Deps, postId: string, handle: RunHandle): Promise
     }
 
     handle.progress({ step: 'Drawing the images' });
+    // The folio is the post's number in its batch (removed posts do not count).
+    const siblings = await deps.prisma.post.findMany({ where: { batchId: post.batchId, status: { not: 'removed' } }, select: { id: true }, orderBy: { position: 'asc' } });
+    const at = siblings.findIndex((s) => s.id === post.id);
     const result = await engine.renderDesignBlock({
+      ...(at >= 0 ? { folio: { n: at + 1, total: siblings.length } } : {}),
       root: engine.root,
       design: withoutVaultIds(spec),
       postId: post.postKey,

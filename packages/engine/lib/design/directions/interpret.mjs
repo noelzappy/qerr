@@ -30,12 +30,14 @@ const originOf = (el) => (el.originPct ? `${el.originPct[0]}% ${el.originPct[1]}
 export function renderComposition(look, comp, c) {
   const T = c.tokens, W = c.W, H = c.H, m = c.margin, frame = T.frame, grid = gridOf(look);
   const shadowOf = look.devices.shadow;
+  // a page whose picture may give it its colour (the type and the logo's wordmark then follow the ground the page takes)
+  if (JSON.stringify(comp.elements).includes('"blend":"ground"')) c.blendPage = true;
   const tilt = look.dials?.tilt ?? 1;
   const angle = (v) => (v === undefined || v === 0 ? 0 : typeof v === 'number' ? +(v * tilt).toFixed(4) : (T.device.rot[v] ?? 0));
   const len = (v, side = 'left') => (typeof v === 'number' ? v : v === 'margin' ? m[side] : v === 'gutter' ? T.grid.gutter : v === 'col' ? c.colW : v === 'frame' ? frame.t : frame.t + frame.pad);
   const whenOk = (w) => !w || ((w.present === undefined || has(w.present)) && (w.absent === undefined || !has(w.absent)));
   const has = (f) => (f === 'image' ? c.hasImage : c.has(f));
-  const shadowObj = (s) => (s === undefined ? undefined : s === 'hard' ? { x: shadowOf.x, y: shadowOf.y, colour: shadowOf.colour } : { x: s.x, y: s.y, colour: s.colour ?? 'ink' });
+  const shadowObj = (s) => (s === undefined ? undefined : s === 'soft' || s === 'lift' ? { soft: s } : s === 'hard' ? { x: shadowOf.x, y: shadowOf.y, colour: shadowOf.colour } : { x: s.x, y: s.y, colour: s.colour ?? 'ink' });
   const stickerFill = look.colour.sticker === 'primary' ? { fill: 'primary', ink: 'on-primary' } : { fill: 'gold', ink: 'on-accent' };
   // the headline the "leave out when tight" element measures: the first headline text of the composition
   let headEl = null;
@@ -62,6 +64,8 @@ export function renderComposition(look, comp, c) {
     return d.day && d.mm ? c.m`${d.day.padStart(2, '0')}.${String(d.mm).padStart(2, '0')}` : c.m``;
   };
   const wordsOf = (el) => {
+    if (el.word !== undefined) return { html: c.m`${el.word}`, role: 'label' };
+    if (el.source === 'site') return { html: c.site, role: 'label' };
     if (el.source === 'brand') return { html: c.brand, role: SOURCE_ROLE.brand };
     if (el.source === 'folio') return { html: c.folioText(), role: 'folio' };
     if (el.source === 'index') return { html: c.m``, role: 'label' };
@@ -157,8 +161,8 @@ export function renderComposition(look, comp, c) {
       case 'rule': return ruleEl(el, env);
       case 'block': return blockEl(el, env);
       case 'frame': return c.frame({ t: el.t ?? frame.t, colour: el.colour });
-      case 'keyline': return c.keyline(clean({ ...env.box, weight: el.weight, colour: el.colour }));
-      case 'glyph': return c.glyph(clean({ ...env.box, text: el.glyph, size: el.size, lead: 1, colour: el.colour, weight: T.type.display.weight, stretch: el.stretch, textShadow: env.textShadow }));
+      case 'keyline': return c.keyline(clean({ ...env.box, weight: el.weight, colour: el.colour, radius: el.radius }));
+      case 'glyph': return c.glyph(clean({ ...env.box, text: el.glyph, size: el.size, lead: 1, colour: el.colour, weight: T.type.display.weight, stretch: el.stretch, textShadow: env.textShadow, z: env.z }));
       default: throw new Error(`look: no renderer for ${el.type}`);
     }
   }
@@ -171,7 +175,7 @@ export function renderComposition(look, comp, c) {
     const kids = walk(el.children ?? [], { kind: 'box', w: inner, h, ink: env.ink, skipGrid: env.skipGrid || rot !== 0, flexDir: el.flow, stretch: el.align === 'stretch' });
     return c.box(clean({
       ...env.box, fill: el.fill, ink: el.ink, rot: rot || undefined, origin: rot ? originOf(el) : undefined, shadow: env.shadowOpt, ring: el.ring, border: el.border ? { w: el.border.w, colour: el.border.colour, style: el.border.style } : undefined,
-      pad, radius: el.radius, flex: el.children?.length ? el.flow : undefined, justify: el.justify === 'start' ? undefined : el.justify, align: el.align === 'start' ? undefined : el.align, gap: el.gap || undefined,
+      pad, radius: el.radius, corners: el.radius !== undefined && el.corners !== 'all' ? el.corners : undefined, flex: el.children?.length ? el.flow : undefined, justify: el.justify === 'start' ? undefined : el.justify, align: el.align === 'start' ? undefined : el.align, gap: el.gap || undefined,
       z: env.z, nudge: env.nudge, unrot: rot && fittedInside(el) ? true : undefined, flexNone: env.box.flow && P.flexDir === 'row' && w !== undefined ? true : undefined,
     }), kids);
   }
@@ -179,11 +183,12 @@ export function renderComposition(look, comp, c) {
   function photoEl(el, env) {
     if (!c.hasImage) return '';
     const treat = el.treat ?? look.photo.treat ?? [], b = env.box, shape = el.shape;
-    const turned = env.rot !== 0 || el.shadow || el.ring;
+    const softShadow = typeof el.shadow === 'string' && el.shadow !== 'hard' ? el.shadow : undefined;
+    const turned = env.rot !== 0 || (el.shadow && !softShadow) || el.ring;
     const inner = (x, y) => {
       if (shape === 'print') return c.print(clean({ x, y, w: b.w, h: b.h, border: el.border, keyline: el.keyline || 1, treat, caption: 0 }));
       if (shape === 'card') return c.box({ x, y, w: b.w, h: b.h, fill: 'paper-warm', pad: el.border ?? 8 }, c.photo({ x: 0, y: 0, w: b.w - 2 * (el.border ?? 8), h: b.h - 2 * (el.border ?? 8), treat, tint: el.tint ?? look.photo.tint }));
-      return c.photo(clean({ x, y, w: b.w, h: b.h, right: b.right, bottom: b.bottom, shape, treat, tint: el.tint ?? look.photo.tint, radius: typeof el.radius === 'number' ? el.radius : undefined }))
+      return c.photo(clean({ x, y, w: b.w, h: b.h, right: b.right, bottom: b.bottom, shape, treat, tint: el.tint ?? look.photo.tint, radius: typeof el.radius === 'number' ? el.radius : undefined, soft: softShadow, z: env.z, blend: el.blend && el.blend !== 'none' ? el.blend : undefined, fade: el.blend && el.blend !== 'none' ? el.fade : undefined }))
         + (el.keyline ? c.keyline({ x, y, w: b.w, h: b.h, weight: el.keyline }) : '');
     };
     if (!turned) return inner(b.x, b.y);
@@ -192,14 +197,14 @@ export function renderComposition(look, comp, c) {
 
   function ruleEl(el, env) {
     const weight = typeof el.weight === 'number' ? el.weight : look.devices.rule[el.weight] ?? 1;
-    if (env.box.flow) return c.flowBlock({ w: env.box.w ?? 'fill', h: el.vertical ? (env.box.h ?? weight) : weight, colour: el.colour });
-    return c.rule(clean({ x: env.box.x, y: env.box.y, w: env.box.w, h: env.box.h, weight, vertical: el.vertical || undefined, colour: el.colour }));
+    if (env.box.flow) return c.flowBlock({ w: env.box.w ?? 'fill', h: el.vertical ? (env.box.h ?? weight) : weight, colour: el.colour, dotted: el.style === 'dotted' || undefined });
+    return c.rule(clean({ x: env.box.x, y: env.box.y, w: env.box.w, h: env.box.h, weight, vertical: el.vertical || undefined, colour: el.colour, dotted: el.style === 'dotted' || undefined }));
   }
   function blockEl(el, env) {
     const b = env.box, plain = !el.radius && !env.shadowOpt && !b.flow;
     if (plain) return c.block(clean({ ...b, colour: el.colour, rot: env.rot || undefined, skew: el.skew || undefined }));
     if (b.flow && !el.radius && !env.shadowOpt && !env.rot && b.h !== undefined) return c.flowBlock({ w: b.w ?? 'fill', h: b.h, colour: el.colour });
-    return c.box(clean({ ...b, fill: el.colour, radius: el.radius, shadow: env.shadowOpt, rot: env.rot || undefined, flexNone: b.flow || undefined, nudge: env.nudge, z: env.z }), '');
+    return c.box(clean({ ...b, fill: el.colour, radius: el.radius, corners: el.radius !== undefined && el.corners !== 'all' ? el.corners : undefined, shadow: env.shadowOpt, rot: env.rot || undefined, flexNone: b.flow || undefined, nudge: env.nudge, z: env.z }), '');
   }
 
   // ---- stickers: a shape with the words fitted inside ----
@@ -222,7 +227,7 @@ export function renderComposition(look, comp, c) {
     const pad = el.pad === undefined ? undefined : padOf(el.pad);
     return c.shape(clean({
       shape, size: hug ? undefined : size, w: hug ? undefined : typeof el.w === 'number' ? el.w : undefined, h: el.h ?? (hug ? size : undefined), x: b.x, y: b.y, right: b.right, bottom: b.bottom, flow: b.flow || undefined, alignSelf: b.alignSelf,
-      fill: el.fill ?? stickerFill.fill, ink: el.ink ?? stickerFill.ink, rot: env.rot || undefined, ring: el.ring, shadow: env.shadowOpt, pad, z: P.kind === 'page' ? el.z || undefined : undefined, nudge: env.nudge, flexNone: b.flow || undefined,
+      fill: el.fill ?? stickerFill.fill, ink: el.ink ?? stickerFill.ink, radius: shape === 'tile' && el.radius !== undefined ? el.radius : undefined, rot: env.rot || undefined, ring: el.ring, shadow: env.shadowOpt, pad, z: P.kind === 'page' ? el.z || undefined : undefined, nudge: env.nudge, flexNone: b.flow || undefined,
     }), words.join(''));
   }
 
@@ -290,7 +295,7 @@ export function fontUsage(look, comp) {
         case 'fitted-stack': case 'mantra-rows': add('display', T.display.weight); break;
         case 'numeral': add(el.family ?? 'display', el.weight ?? T.display.weight); if (el.unit) styleUse(el.unit.style ?? 'label', {}); break;
         case 'sticker': add('display', T.display.weight); if (el.children) visit(el.children); break;
-        case 'rows': styleUse(el.textStyle ?? 'item', {}); if (el.number && el.number !== 'none') { styleUse(el.numberTile ? 'display' : (el.numberStyle ?? 'label'), el.numberTile ? { weight: 900 } : {}); } if (el.keys) styleUse('label', {}); break;
+        case 'rows': styleUse(el.textStyle ?? 'item', {}); if (el.number && el.number !== 'none') { styleUse(el.numberTile ? 'display' : (el.numberStyle ?? 'label'), el.numberTile ? { weight: T.display.weight } : {}); } if (el.keys) styleUse('label', {}); break;
         case 'meta-row': styleUse('label', {}); break;
         case 'wordmark-pattern': add('display', T.display.weight); break;
         case 'glyph': add('display', T.display.weight); break;

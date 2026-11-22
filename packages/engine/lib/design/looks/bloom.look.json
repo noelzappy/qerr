@@ -1,0 +1,1588 @@
+{
+  "schema": 1,
+  "id": "bloom",
+  "name": "Bloom",
+  "description": "Warm, soft and organic: cream paper, one warm accent, arch and oval windows, big circles, thin round keylines and a soft serif with italic emphasis over a quiet sans.",
+  "origin": "shipped",
+  "canvas": {
+    "feed": {
+      "margin": {
+        "top": 80,
+        "right": 80,
+        "bottom": 80,
+        "left": 80
+      },
+      "grid": {
+        "cols": 6,
+        "gutter": 24,
+        "rows": 0,
+        "head": 0
+      },
+      "extraLines": [
+        106
+      ]
+    }
+  },
+  "fonts": {
+    "display": {
+      "source": "library",
+      "family": "Fraunces",
+      "weights": [
+        400,
+        500
+      ],
+      "italic": true,
+      "opsz": 48
+    },
+    "text": {
+      "source": "library",
+      "family": "Hanken Grotesk",
+      "weights": [
+        400,
+        500
+      ]
+    },
+    "label": {
+      "source": "library",
+      "family": "Hanken Grotesk",
+      "weights": [
+        500,
+        600
+      ]
+    },
+    "mono": {
+      "source": "library",
+      "family": "Hanken Grotesk",
+      "weights": [
+        500
+      ]
+    }
+  },
+  "type": {
+    "display": {
+      "lead": 1.02,
+      "track": -0.012,
+      "weight": 500,
+      "case": "as-typed",
+      "ladder": [
+        1,
+        0.9,
+        0.82
+      ],
+      "trim": "none",
+      "optical": false
+    },
+    "body": {
+      "size": 32,
+      "lead": 1.45,
+      "weight": 400,
+      "strength": 0.8
+    },
+    "item": {
+      "size": 40,
+      "lead": 1.2,
+      "weight": 500
+    },
+    "label": {
+      "size": 30,
+      "track": 0.01,
+      "weight": 500,
+      "upper": false,
+      "role": "label"
+    },
+    "numeral": {
+      "track": -0.03,
+      "figures": "lining"
+    }
+  },
+  "colour": {
+    "logic": "one-accent",
+    "field": "primary",
+    "sticker": "primary",
+    "accentAsType": "when-contrast",
+    "grounds": [
+      "paper"
+    ]
+  },
+  "devices": {
+    "rule": {
+      "hair": 1,
+      "heavy": 4
+    },
+    "frame": {
+      "t": 0,
+      "pad": 0
+    },
+    "highlight": {
+      "pad": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "tilt": 0
+    },
+    "shadow": {
+      "x": 0,
+      "y": 0,
+      "colour": "ink"
+    },
+    "angles": {
+      "sticker": 0,
+      "bar": 0,
+      "block": 0,
+      "band": 0,
+      "card": 0,
+      "price": 0
+    },
+    "folio": "no",
+    "wordmark": {
+      "opacity": 0.03,
+      "sep": "dot"
+    }
+  },
+  "photo": {
+    "treat": [],
+    "tint": "primary"
+  },
+  "logo": {
+    "default": "off",
+    "height": 44
+  },
+  "dials": {
+    "tilt": 0,
+    "density": 0,
+    "weightShift": 0
+  },
+  "compositions": [
+    {
+      "kind": "statement",
+      "name": "Moon",
+      "describe": "A big pale moon behind the headline, which breaks out of it on the left in a soft serif with the emphasis in italic; a small colour dot on the moon's edge, a keyline label and the sub line at the foot. Use for a short statement of up to 60 characters.",
+      "ground": "paper",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 60
+        },
+        "sub": {
+          "max": 125
+        }
+      },
+      "elements": [
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 150,
+              "y": 200,
+              "w": 900,
+              "h": 900
+            }
+          },
+          "fill": "light-tint",
+          "radius": "full",
+          "z": 0
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 880,
+              "y": 150,
+              "w": 64,
+              "h": 64
+            }
+          },
+          "fill": "primary",
+          "radius": "full",
+          "z": 1
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 80
+            }
+          },
+          "ink": "ink",
+          "radius": "full",
+          "border": {
+            "w": 2,
+            "colour": "primary"
+          },
+          "pad": [
+            11,
+            26,
+            12,
+            26
+          ],
+          "when": {
+            "present": "label"
+          },
+          "z": 5,
+          "children": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "nowrap": true
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 237,
+              "y": 330,
+              "w": 640,
+              "h": 640
+            }
+          },
+          "flow": "column",
+          "justify": "center",
+          "align": "start",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "emphasis": "italic",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    22,
+                    132
+                  ],
+                  [
+                    34,
+                    112
+                  ],
+                  [
+                    48,
+                    100
+                  ],
+                  [
+                    60,
+                    90
+                  ]
+                ],
+                "maxLines": 4,
+                "maxH": 600
+              },
+              "w": 640
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": 80,
+              "bottom": 80,
+              "w": 600
+            }
+          },
+          "flow": "column",
+          "z": 2,
+          "when": {
+            "present": "sub"
+          },
+          "children": [
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "when": {
+                "present": "sub"
+              },
+              "w": 600
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "statement",
+      "name": "Oval",
+      "describe": "A tall deep-colour oval in the middle of a cream page, with a thin outline round it, the headline set in it in white with the emphasis in italic and the sub line under it. Calm and ceremonial. Use for a headline of up to 44 characters.",
+      "ground": "paper",
+      "fit": "margins",
+      "accepts": [
+        {
+          "field": "headline",
+          "part": "all",
+          "maxChars": 44
+        }
+      ],
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 44
+        },
+        "sub": {
+          "max": 100
+        }
+      },
+      "elements": [
+        {
+          "type": "keyline",
+          "place": {
+            "px": {
+              "x": 126,
+              "y": 66,
+              "w": 828,
+              "h": 1048
+            }
+          },
+          "weight": 2,
+          "colour": "primary",
+          "radius": "oval"
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 150,
+              "y": 90,
+              "w": 780,
+              "h": 1000
+            }
+          },
+          "fill": "field",
+          "ink": "on-field",
+          "radius": "oval",
+          "flow": "column",
+          "justify": "center",
+          "align": "center",
+          "gap": 30,
+          "pad": [
+            0,
+            100,
+            0,
+            100
+          ],
+          "z": 1,
+          "children": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "align": "center",
+              "nowrap": true,
+              "when": {
+                "present": "label"
+              }
+            },
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "emphasis": "italic",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    16,
+                    132
+                  ],
+                  [
+                    30,
+                    112
+                  ],
+                  [
+                    44,
+                    100
+                  ]
+                ],
+                "maxLines": 4,
+                "maxH": 560
+              },
+              "w": 580,
+              "align": "center"
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": 80,
+              "right": 80,
+              "bottom": 80
+            }
+          },
+          "flow": "column",
+          "align": "center",
+          "when": {
+            "present": "sub"
+          },
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "when": {
+                "present": "sub"
+              },
+              "w": 760,
+              "align": "center"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "figure",
+      "name": "Arch figure",
+      "describe": "The figure inside a tall deep-colour arch with a thin arch outline round it, its unit under it in a quiet label; the keyline label and the sub line below on the left. Use for a single number, price or percentage of up to 8 characters.",
+      "ground": "paper",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "big": {
+          "required": true,
+          "max": 8
+        },
+        "unit": {
+          "max": 24
+        },
+        "sub": {
+          "max": 125
+        }
+      },
+      "elements": [
+        {
+          "type": "keyline",
+          "place": {
+            "px": {
+              "x": 166,
+              "y": 76,
+              "w": 748,
+              "h": 928
+            }
+          },
+          "weight": 2,
+          "colour": "primary",
+          "radius": "arch"
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 190,
+              "y": 100,
+              "w": 700,
+              "h": 880
+            }
+          },
+          "fill": "field",
+          "ink": "on-field",
+          "radius": "arch",
+          "flow": "column",
+          "justify": "end",
+          "align": "center",
+          "pad": [
+            0,
+            0,
+            150,
+            0
+          ],
+          "gap": 8,
+          "children": [
+            {
+              "type": "fitted-stack",
+              "field": "big",
+              "mode": "lines",
+              "cap": 330,
+              "floor": 130,
+              "maxLines": 1,
+              "align": "center",
+              "trail": true,
+              "lead": 0.9,
+              "w": 540,
+              "h": 400
+            },
+            {
+              "type": "text",
+              "field": "unit",
+              "style": "label",
+              "align": "center",
+              "nowrap": true,
+              "when": {
+                "present": "unit"
+              }
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": 80,
+              "right": 80,
+              "bottom": 80
+            }
+          },
+          "flow": "column",
+          "align": "start",
+          "gap": 24,
+          "z": 2,
+          "children": [
+            {
+              "type": "box",
+              "ink": "ink",
+              "radius": "full",
+              "border": {
+                "w": 2,
+                "colour": "primary"
+              },
+              "pad": [
+                11,
+                26,
+                12,
+                26
+              ],
+              "when": {
+                "present": "label"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "nowrap": true
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "when": {
+                "present": "sub"
+              },
+              "w": 760
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "list",
+      "name": "Garden list",
+      "describe": "A keyline label and a serif headline under a pale oval, then the points one under another, each with a small round colour number and a dotted line above it. Airy and unhurried. Use for two to five short points, steps or reasons.",
+      "ground": "paper",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.55
+      },
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 44
+        },
+        "items": {
+          "required": true,
+          "min": 2,
+          "max": 5
+        }
+      },
+      "elements": [
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 720,
+              "y": -300,
+              "w": 440,
+              "h": 470
+            }
+          },
+          "fill": "light-tint",
+          "radius": "oval",
+          "z": 0
+        },
+        {
+          "type": "box",
+          "place": {
+            "inset": "margins"
+          },
+          "flow": "column",
+          "justify": "between",
+          "align": "stretch",
+          "z": 2,
+          "children": [
+            {
+              "type": "box",
+              "flow": "column",
+              "align": "start",
+              "gap": 30,
+              "children": [
+                {
+                  "type": "box",
+                  "ink": "ink",
+                  "radius": "full",
+                  "border": {
+                    "w": 2,
+                    "colour": "primary"
+                  },
+                  "pad": [
+                    11,
+                    26,
+                    12,
+                    26
+                  ],
+                  "when": {
+                    "present": "label"
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "field": "label",
+                      "style": "label",
+                      "nowrap": true
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "emphasis": "italic",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        20,
+                        124
+                      ],
+                      [
+                        32,
+                        110
+                      ],
+                      [
+                        44,
+                        98
+                      ]
+                    ],
+                    "maxLines": 4,
+                    "maxH": 520
+                  },
+                  "w": 800
+                }
+              ]
+            },
+            {
+              "type": "rows",
+              "each": "items",
+              "number": "1",
+              "numberStyle": "display",
+              "numberSize": 40,
+              "numberTile": {
+                "size": 60,
+                "fill": "primary",
+                "ink": "on-primary",
+                "radius": "full"
+              },
+              "textStyle": "item",
+              "textSize": 40,
+              "gap": 97,
+              "pad": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "rowMinH": 124,
+              "rule": "heavy",
+              "ruleStyle": "dotted",
+              "ruleEnd": true,
+              "ink": "ink"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "quote",
+      "name": "Arch quote",
+      "describe": "The quotation set in the middle of a tall pale arch under a big colour opening quotation mark, the source centred under the arch and a keyline label above. Use for a quotation of up to about 150 characters.",
+      "ground": "paper",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "quote": {
+          "required": true,
+          "max": 150
+        },
+        "by": {
+          "max": 40
+        }
+      },
+      "elements": [
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 140,
+              "y": 90,
+              "w": 800,
+              "h": 960
+            }
+          },
+          "fill": "light-tint",
+          "radius": "arch"
+        },
+        {
+          "type": "glyph",
+          "glyph": "“",
+          "size": 260,
+          "colour": "primary",
+          "place": {
+            "px": {
+              "x": 484,
+              "y": 210
+            }
+          },
+          "z": 3
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 220,
+              "y": 410,
+              "w": 640,
+              "h": 560
+            }
+          },
+          "flow": "column",
+          "justify": "center",
+          "align": "center",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "quote",
+              "style": "display",
+              "align": "center",
+              "emphasis": "italic",
+              "ladder": {
+                "by": "quote",
+                "steps": [
+                  [
+                    40,
+                    92
+                  ],
+                  [
+                    80,
+                    80
+                  ],
+                  [
+                    110,
+                    72
+                  ],
+                  [
+                    150,
+                    66
+                  ]
+                ],
+                "maxLines": 8,
+                "maxH": 540
+              },
+              "w": 640
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": 80,
+              "right": 80,
+              "top": 1100
+            }
+          },
+          "flow": "column",
+          "align": "center",
+          "gap": 20,
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "align": "center",
+              "weight": 600,
+              "ink": "primary",
+              "when": {
+                "present": "label"
+              }
+            },
+            {
+              "type": "text",
+              "field": "by",
+              "style": "label",
+              "align": "center",
+              "weight": 600,
+              "ink": "ink",
+              "when": {
+                "present": "by"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "photo",
+      "name": "Arch window",
+      "describe": "The picture in a tall arch window on the right with a thin arch outline round it, a round colour sticker on its edge, a keyline label and the sub line in the narrow column on the left and the headline in a soft serif across the foot. Use for a photograph with a headline of up to 56 characters.",
+      "ground": "paper",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "image": {
+          "required": true
+        },
+        "headline": {
+          "required": true,
+          "max": 56
+        },
+        "sub": {
+          "max": 100
+        },
+        "tag": {
+          "max": 16
+        }
+      },
+      "elements": [
+        {
+          "type": "keyline",
+          "place": {
+            "px": {
+              "x": 416,
+              "y": 56,
+              "w": 608,
+              "h": 808
+            }
+          },
+          "weight": 2,
+          "colour": "primary",
+          "radius": "arch"
+        },
+        {
+          "type": "photo",
+          "place": {
+            "px": {
+              "x": 440,
+              "y": 80,
+              "w": 560,
+              "h": 760
+            }
+          },
+          "shape": "arch"
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 80
+            }
+          },
+          "ink": "ink",
+          "radius": "full",
+          "border": {
+            "w": 2,
+            "colour": "primary"
+          },
+          "pad": [
+            11,
+            26,
+            12,
+            26
+          ],
+          "when": {
+            "present": "label"
+          },
+          "z": 5,
+          "children": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "nowrap": true
+            }
+          ]
+        },
+        {
+          "type": "sticker",
+          "shape": "circle",
+          "size": 200,
+          "place": {
+            "px": {
+              "x": 350,
+              "y": 170
+            }
+          },
+          "fill": "primary",
+          "ink": "on-primary",
+          "field": "tag",
+          "fit": {
+            "cap": 56,
+            "floor": 28,
+            "w": 150,
+            "h": 100,
+            "maxLines": 2
+          },
+          "when": {
+            "present": "tag"
+          },
+          "z": 4
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 520,
+              "w": 316,
+              "h": 320
+            }
+          },
+          "flow": "column",
+          "justify": "end",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "when": {
+                "present": "sub"
+              },
+              "w": 316
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 920,
+              "w": 920,
+              "h": 350
+            }
+          },
+          "flow": "column",
+          "align": "start",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "emphasis": "italic",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    26,
+                    116
+                  ],
+                  [
+                    40,
+                    104
+                  ],
+                  [
+                    56,
+                    94
+                  ]
+                ],
+                "maxLines": 3,
+                "maxH": 340
+              },
+              "w": 920
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "photo",
+      "name": "Oval portrait",
+      "describe": "The picture in a tall oval over a big pale circle, a colour pill sticker overlapping its foot, a keyline label above and the headline in a soft serif with the sub line below. Use for a photograph with a headline of up to 44 characters.",
+      "ground": "paper",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "image": {
+          "required": true
+        },
+        "headline": {
+          "required": true,
+          "max": 44
+        },
+        "sub": {
+          "max": 90
+        },
+        "tag": {
+          "max": 16
+        }
+      },
+      "elements": [
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 330,
+              "y": 60,
+              "w": 750,
+              "h": 750
+            }
+          },
+          "fill": "light-tint",
+          "radius": "full",
+          "z": 0
+        },
+        {
+          "type": "photo",
+          "place": {
+            "px": {
+              "x": 130,
+              "y": 150,
+              "w": 560,
+              "h": 760
+            }
+          },
+          "shape": "oval",
+          "z": 1
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 211,
+              "y": 836
+            }
+          },
+          "fill": "paper",
+          "ink": "ink",
+          "radius": "full",
+          "pad": [
+            12,
+            26,
+            13,
+            26
+          ],
+          "when": {
+            "present": "label"
+          },
+          "z": 5,
+          "children": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "nowrap": true
+            }
+          ]
+        },
+        {
+          "type": "sticker",
+          "shape": "pill",
+          "w": "hug",
+          "minW": 140,
+          "maxW": 380,
+          "h": 84,
+          "fit": {
+            "cap": 34,
+            "floor": 24,
+            "maxLines": 1,
+            "h": 48
+          },
+          "field": "tag",
+          "fill": "primary",
+          "ink": "on-primary",
+          "pad": [
+            0,
+            32,
+            0,
+            32
+          ],
+          "place": {
+            "px": {
+              "x": 600,
+              "y": 690
+            }
+          },
+          "when": {
+            "present": "tag"
+          },
+          "z": 4
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 950,
+              "w": 920,
+              "h": 320
+            }
+          },
+          "flow": "column",
+          "align": "start",
+          "gap": 22,
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "emphasis": "italic",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    24,
+                    112
+                  ],
+                  [
+                    34,
+                    102
+                  ],
+                  [
+                    44,
+                    94
+                  ]
+                ],
+                "maxLines": 2,
+                "maxH": 230
+              },
+              "w": 920
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "when": {
+                "present": "sub"
+              },
+              "w": 800
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "event",
+      "name": "Invitation arch",
+      "describe": "The day and the month in a tall deep-colour arch on the left, the keyline label with the time and the place beside it, and the headline in a soft serif with the sub line across the foot. Use for an event with a date, up to about 50 characters of headline.",
+      "ground": "paper",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 20
+        },
+        "headline": {
+          "required": true,
+          "max": 50
+        },
+        "meta": {
+          "required": true,
+          "max": 40
+        },
+        "sub": {
+          "max": 100
+        }
+      },
+      "elements": [
+        {
+          "type": "keyline",
+          "place": {
+            "px": {
+              "x": 56,
+              "y": 86,
+              "w": 548,
+              "h": 648
+            }
+          },
+          "weight": 2,
+          "colour": "primary",
+          "radius": "arch"
+        },
+        {
+          "type": "sticker",
+          "shape": "tile",
+          "w": 500,
+          "h": 600,
+          "radius": "arch",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 110
+            }
+          },
+          "fill": "field",
+          "ink": "on-field",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "meta",
+              "format": "day",
+              "style": "display",
+              "size": 250,
+              "weight": 500,
+              "lead": 1,
+              "track": -0.03,
+              "align": "center"
+            },
+            {
+              "type": "text",
+              "field": "meta",
+              "format": "month",
+              "style": "label",
+              "size": 30,
+              "upper": true,
+              "track": 0.1,
+              "align": "center",
+              "before": 8
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 709,
+              "y": 110,
+              "w": 291,
+              "h": 600
+            }
+          },
+          "flow": "column",
+          "justify": "between",
+          "align": "stretch",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "weight": 600,
+              "ink": "primary",
+              "when": {
+                "present": "label"
+              }
+            },
+            {
+              "type": "box",
+              "flow": "column",
+              "align": "start",
+              "gap": 24,
+              "children": [
+                {
+                  "type": "rule",
+                  "weight": "heavy",
+                  "style": "dotted",
+                  "colour": "rule"
+                },
+                {
+                  "type": "text",
+                  "field": "meta",
+                  "split": {
+                    "sep": "·",
+                    "pick": 1
+                  },
+                  "style": "label",
+                  "size": 32,
+                  "weight": 600,
+                  "ink": "ink"
+                },
+                {
+                  "type": "text",
+                  "field": "meta",
+                  "split": {
+                    "sep": "·",
+                    "pick": 2
+                  },
+                  "style": "label",
+                  "size": 32,
+                  "weight": 600,
+                  "ink": "ink"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 850,
+              "w": 920,
+              "h": 420
+            }
+          },
+          "flow": "column",
+          "align": "start",
+          "gap": 26,
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "emphasis": "italic",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    26,
+                    112
+                  ],
+                  [
+                    40,
+                    102
+                  ],
+                  [
+                    50,
+                    94
+                  ]
+                ],
+                "maxLines": 3,
+                "maxH": 330
+              },
+              "w": 920
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "when": {
+                "present": "sub"
+              },
+              "w": 800,
+              "dropWhenTight": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "offer",
+      "name": "Badge",
+      "describe": "A keyline label and a big soft serif headline over a round picture on the right with a big round colour badge carrying the price on its edge; with no picture a pale circle takes its place. The sub line sits at the foot. Use for a product or deal with a short price or offer tag.",
+      "ground": "paper",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 56
+        },
+        "tag": {
+          "required": true,
+          "max": 16
+        },
+        "sub": {
+          "max": 100
+        },
+        "image": {}
+      },
+      "elements": [
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 80
+            }
+          },
+          "ink": "ink",
+          "radius": "full",
+          "border": {
+            "w": 2,
+            "colour": "primary"
+          },
+          "pad": [
+            11,
+            26,
+            12,
+            26
+          ],
+          "when": {
+            "present": "label"
+          },
+          "z": 5,
+          "children": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "nowrap": true
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 170,
+              "w": 920,
+              "h": 330
+            }
+          },
+          "flow": "column",
+          "align": "start",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "emphasis": "italic",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    24,
+                    124
+                  ],
+                  [
+                    40,
+                    110
+                  ],
+                  [
+                    56,
+                    96
+                  ]
+                ],
+                "maxLines": 3,
+                "maxH": 330
+              },
+              "w": 920
+            }
+          ]
+        },
+        {
+          "type": "photo",
+          "place": {
+            "px": {
+              "x": 390,
+              "y": 540,
+              "w": 610,
+              "h": 610
+            }
+          },
+          "shape": "circle",
+          "z": 1,
+          "when": {
+            "present": "image"
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 390,
+              "y": 540,
+              "w": 610,
+              "h": 610
+            }
+          },
+          "fill": "light-tint",
+          "radius": "full",
+          "z": 1,
+          "when": {
+            "absent": "image"
+          }
+        },
+        {
+          "type": "sticker",
+          "shape": "circle",
+          "size": 320,
+          "place": {
+            "px": {
+              "x": 120,
+              "y": 760
+            }
+          },
+          "fill": "primary",
+          "ink": "on-primary",
+          "field": "tag",
+          "fit": {
+            "cap": 100,
+            "floor": 44,
+            "w": 240,
+            "h": 170,
+            "maxLines": 2
+          },
+          "ring": {
+            "w": 10,
+            "colour": "paper"
+          },
+          "z": 4
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": 80,
+              "bottom": 80,
+              "w": 600
+            }
+          },
+          "flow": "column",
+          "when": {
+            "present": "sub"
+          },
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "when": {
+                "present": "sub"
+              },
+              "w": 600
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

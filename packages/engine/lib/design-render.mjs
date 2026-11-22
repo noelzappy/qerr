@@ -33,9 +33,10 @@ const brandWarnings = (spec, brand) => [...new Set(spec.sizes.flatMap((s) => lin
 // `only` limits the sizes rendered (a list of size names). `outDir` is resolved against root; `stem` overrides the file name stem.
 // `layouts` replaces the brand's layouts for this render (the layout editor's preview). `slides` limits a carousel's pages
 // rendered (a list of page indexes, from 0: the layout editor's preview of one page of a carousel).
+// `folio` ({ n, total }): the post's place in its batch, shown in a look's folio cell; without it a single post has no folio.
 // `png` (tests only: the template baseline harness, testlib/template-baseline.mjs) writes lossless PNG files instead of JPEGs,
 // so that a pixel comparison sees real differences and not the JPEG encoder's noise. Posts are always JPEGs.
-export async function renderDesignBlock({ root = ROOT, design, postId, outDir, stem, only, slides, layouts, png = false, log = () => {} } = {}) {
+export async function renderDesignBlock({ root = ROOT, design, postId, outDir, stem, only, slides, layouts, png = false, folio, log = () => {} } = {}) {
   const fail = (error, extra = {}) => ({ ok: false, files: [], warnings: [], notes: [], error, ...extra });
   let spec, brand;
   try {
@@ -93,7 +94,7 @@ export async function renderDesignBlock({ root = ROOT, design, postId, outDir, s
       const imageSpec = carousel ? { ...spec.pages[f.slide], sizes: spec.sizes } : spec;
       const counter = carousel ? { n: f.slide + 1, total: spec.pages.length } : undefined;
       try {
-        const r = await renderImage(browser, brand, { spec: imageSpec, sizeName: f.size, outFile: abs, counter }, { tmpDir, converter });
+        const r = await renderImage(browser, brand, { spec: imageSpec, sizeName: f.size, outFile: abs, counter, ...(!carousel && folio ? { folio } : {}) }, { tmpDir, converter });
         made.push({ size: f.size, slide: f.slide, file: f.file, abs, w: r.w, h: r.h });
         warnings.push(...r.warnings.map((w) => `${f.file}: ${w}`));
         notes.push(...r.notes.map((n) => `${f.file}: ${n}`));

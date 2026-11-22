@@ -293,7 +293,8 @@
               "rowSpan": 6,
               "alignY": "top"
             }
-          }
+          },
+          "valign": "bottom"
         },
         {
           "type": "text",
@@ -428,7 +429,7 @@
             }
           },
           "flow": "column",
-          "gap": 48,
+          "gap": 84,
           "align": "stretch",
           "children": [
             {
@@ -460,6 +461,12 @@
                   5,
                   44
                 ]
+              ],
+              "pad": [
+                24,
+                0,
+                0,
+                0
               ]
             }
           ]
@@ -969,9 +976,9 @@
           "fill": "accent",
           "ink": "on-accent",
           "pad": [
-            16,
+            40,
             24,
-            24,
+            44,
             81
           ],
           "flow": "column",
@@ -1009,7 +1016,8 @@
               "rowSpan": 4,
               "alignY": "bottom"
             }
-          }
+          },
+          "valign": "bottom"
         }
       ]
     }
