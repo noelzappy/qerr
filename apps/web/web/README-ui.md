@@ -8,7 +8,7 @@ stylesheet are gone: everything is Tailwind utilities, the theme tokens and the 
 | Path | What |
 | --- | --- |
 | `src/components/ui/*` | shadcn components (button, input, textarea, label, select, checkbox, switch, dialog, alert-dialog, sheet, drawer, table, badge, card, tabs, dropdown-menu, sonner, alert, skeleton, tooltip, popover). Owned by us: edit freely. |
-| `src/components/kit/` | The one shared kit, imported from `@/components/kit`: `TextField`, `FormField`, `Notice`, `FormPanel` (see below), `PageHeader`, `DataList`, field wrappers, states (`RowsSkeleton`, `EmptyBlock`, `ErrorBlock`, `LoadingBlock`, `Pager`, `BusyButton`), `ConfirmAction`, badges. Add new shared composites here. `src/components/*.tsx` holds the domain pieces (activity parts, network icon, post row). Shared hooks that are not data loading are in `src/hooks/` (`use-media-query.ts`); the data hooks are in `src/hooks.ts`. |
+| `src/components/kit/` | The one shared kit, imported from `@/components/kit`: `TextField`, `FormField`, `Notice`, `FormPanel` (see below), `PageHeader`, `DataList`, field wrappers, `SegmentedField` (2 to 4 choices, or chips for a longer list, as one radio group: use it instead of a dropdown for small choices and filters), `TagInput` (the one tag control: chips, Enter, comma or Add), `FilledTag` (the "Auto" / "From the file name" mark beside a value the app filled in), states (`RowsSkeleton`, `EmptyBlock`, `ErrorBlock`, `LoadingBlock`, `Pager`, `BusyButton`), `ConfirmAction`, badges. Add new shared composites here. `src/components/*.tsx` holds the domain pieces (activity parts, network icon, post row). Shared hooks that are not data loading are in `src/hooks/` (`use-media-query.ts`); the data hooks are in `src/hooks.ts`. |
 | `src/index.css` | Tailwind import, fonts, theme tokens (light and dark). |
 | `src/lib/utils.ts` | `cn()` for class names. |
 | `src/lib/theme.ts` | `initTheme()`, `setTheme('light' \| 'dark' \| 'system')`, `useTheme()`. |
@@ -113,6 +113,9 @@ the same anatomy in both: header (title and description), a body that scrolls, a
   than about 90 characters appears only in the info icon beside the title; a short one is one muted line under it.
 - **Small forms** are `FormPanel variant="dialog"`; a form with many fields is a page.
 - **Secondary and destructive actions** sit in `MoreMenu`, so a row or a card shows its main action and one menu.
+- **AI suggestions** (`components/suggest/`) are shown, never applied by themselves: "Suggested by the AI" with Use (or Replace,
+  with Undo) and, for pictures, Edit. A used suggestion fills the editable field and is marked "Filled in by the AI"; a title a
+  person typed is kept. Why suggestions cannot run is said once (beside the action), not on every card.
 - **On a desktop only the content area and the sidebar scroll**; the window itself does not (`shell/Shell.tsx`).
 
 ## Navigation, routes and the palette
@@ -124,6 +127,7 @@ the same anatomy in both: header (title and description), a body that scrolls, a
   (blockers, `useBlocker`) work for every page.
 - **Ctrl/Cmd+K** opens the command palette (`shell/CommandPalette.tsx`). It searches pages, actions (add a fact, upload
   pictures, new batch...), batches, facts and pictures, and opens the one chosen.
+- The first setup is a guided flow at `/setup/<step>` (`pages/setup/`, its own frame outside the shell; rules in `pages/setup/flow.ts`). Home's checklist links the brand, logo, channels, AI and batch steps into it.
 - The setup checklist on Home is one card. `GET /api/overview/home` returns each step as `{ key, title, detail, to, done }`,
   and the AI step also carries `missing` (`'provider'`, `'budget'` or `null`), so the card says what is still needed. "Connect your channels" is one step (seven in all) with `missing` `'account'`, `'routes'` or `null`.
 

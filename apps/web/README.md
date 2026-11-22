@@ -51,14 +51,19 @@ database is reachable. On the first start with no users, the server logs one lin
 invite link for `BOOTSTRAP_ADMIN_EMAIL`. Open it, choose a name and a password, then sign in. Restarting does not make a
 second invite.
 
-Then, as an admin, follow the setup steps on Home. Each one opens the page where it is done:
+Then, as an admin, go through the guided setup. After the first sign-in an admin whose brand was never saved lands on it
+(`/setup/<step>`); Home's setup steps open the matching step, and Settings stays the place to change things later:
 
-1. Set up the brand, and upload the logos or draw a simple pair from the name (Settings, Brand and look).
-2. Connect your channels: add a Buffer account and run Check on it, then choose the account and channel for each network (Settings, Channels).
-3. Add an AI provider and a monthly budget (Settings, AI and search).
-4. Add the team's facts to Facts.
-5. Invite the team (Settings, Team).
-6. Draft the first batch with AI, or import one from `batches/`.
+1. Your brand: the name and the website, with the tagline, the description and the voice offered from the website when the AI
+   is set up; the time zone and the language come from the browser.
+2. Your logo: upload it (the small mark is cut from its left when it has one) or draw a simple pair from the name, then pick
+   the colours from the ones read from the logo.
+3. Your look: one of the shipped looks (Clean is chosen first).
+4. Channels: add a Buffer account and run Check on it, then choose the account and channel for each network.
+5. AI: the provider (the model and its prices follow the choice), a monthly budget and an optional search key.
+6. The first batch: draft it with AI, or start empty. Facts and the team are added from Home's steps.
+
+Brand, logo, channels and AI can also be done in Settings (Brand and look, Channels, AI and search), as before.
 
 With `STORAGE_DRIVER=local` the files are written under `LOCAL_STORAGE_DIR` (default `apps/web/.data/storage`, git-ignored).
 Private files are opened through signed, expiring app URLs; the public prefix is served unsigned at `/_local-public/`,
@@ -74,6 +79,18 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   pictures. The router is `createBrowserRouter` with one catch-all route.
 - **Unsaved changes.** Editors use `useUnsavedGuard` and `confirmDiscard` from `web/src/hooks/use-unsaved-guard.tsx`: leaving
   or closing with edits that are not saved asks first; a save that succeeds does not.
+- **The guided setup** (`web/src/pages/setup/`, routes `/setup/brand|logo|look|channels|ai|batch`; `/setup` opens the step to
+  pick up at). One screen per step with a progress line, Back, and "Skip for later" on the logo, channels and AI steps;
+  "Finish later" leaves it. Each step saves through the route Settings already uses (`PUT /api/settings/brand`, the logo
+  uploads, `PUT /api/settings/looks/active`, `/api/buffer-accounts`, `/api/routing`, `/api/settings/ai/*`). `GET /api/setup`
+  (admins) says where each step stands, read from what is saved, plus `progress` (`done`, `skipped`, `left`, `finished`);
+  `PUT /api/setup/progress` takes `{ step, state: 'done'|'skipped' }`, `{ left: true }` or `{ finished: true }`. An admin with
+  no saved brand who has neither left nor finished the setup is sent to it from Home. The first save of the brand keeps none of
+  the example brand's words (tagline, description, voice, spellings, currency, post types). The brand step keeps its typing in
+  the tab's sessionStorage across a reload. Its "Fill in from your website" button calls `POST /api/suggest/brand-from-site`
+  (`{ website, name }` in, `{ descriptor?, tagline?, voice?, colours? }` out) only while the AI is ready, hides itself when the
+  route answers 404, 405 or 501, fills only empty fields (or earlier suggestions) and marks what it filled. The logo step reads
+  the logo's main colours in the browser with a canvas (`logo-colours.ts`).
 - **Home.** The setup checklist is one card. `GET /api/overview/home` returns each step as `{ key, title, detail, to, done }`
   and, on the AI step, `missing` (`'provider'`, `'budget'` or `null`); the merged "Connect your channels" step (seven steps in all) carries `missing` too (`'account'`, `'routes'` or `null`).
 - **A batch** is Writing, In review, Scheduled or Done. Its page is a four-step flow: Write, Review, Send drafts to Buffer,
@@ -110,6 +127,13 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   item; `POST /api/vault/:id/file` checks again. `GET /api/vault/graphics` is the compact list of cut-outs and graphics the
   look editor offers; a cut-out or graphic a post or look still uses cannot be deleted (`services/graphics.ts`). The AI is
   offered photos only.
+  Each upload card shows the title (from the file name, marked so until edited), the kind (guessed from the file name), the
+  description (required for photos), the licence and who is in the picture; tags, licence notes and the source link are under
+  More details. With two or more files, "For all pictures" sets the licence, the people and tags on every card; a card that
+  chose its own keeps it (`pages/library/upload-rows.ts`). A new fact's "Recorded on" starts as today and its title follows
+  the first words of the text until a title is typed, each marked as filled in (`pages/vault/fact-form.ts`); the three dates
+  fold into one "Dates" line. Small choices and the list filters are segmented buttons or chips (`SegmentedField` in the kit),
+  tags are chips everywhere (`TagInput`), and the batch page's Show menu gives a count beside each choice.
 - **Dialogs.** New batch and Draft with AI open as centred dialogs (`/batches/new`, `/batches/ai-draft` still open them). Both
   take the period as one tap (Next week, next month, the month after, or Custom with two dates; next month first). New batch
   names the batch from the dates ("December 2026", "Week of 30 November") until someone types a title, and keeps the time zone,
@@ -382,6 +406,11 @@ npm test                            # database vesk_test on 127.0.0.1:55440, cre
 TEST_DB_NAME=vesk_other npm test   # another database, so two runs do not clash
 ```
 
+The tests refuse to start when `@vesk/engine` or `@vesk/ai` resolves to another checkout of the repository (a git worktree
+without its own install finds the main checkout's packages by walking up the folders, and would test this app against
+another engine). Run `npm install` in the checkout, or link `node_modules/@vesk/engine` and `node_modules/@vesk/ai` to its
+own `packages/engine` and `packages/ai`.
+
 Set `TEST_DB_NAME` for another database name and `TEST_DATABASE_ADMIN_URL` for another server (default
 `postgresql://postgres:postgres@127.0.0.1:55440/postgres`). Test files are named `*.spec.ts` so the repository's root
 `node --test` does not pick them up. Helpers are in `src/server/testing.ts` and `src/server/testing-batches.ts`.
@@ -435,6 +464,7 @@ When `RATE_LIMIT` is on, each of these answers 429 with `Retry-After` once a buc
 | Password reset request | every request, per email; per address | 5; 20 |
 | Password reset confirm | failures per address (token guessing) | 10 |
 | Invite lookup and accept | failures per address (token guessing) | 20 |
+| AI suggestions (`/api/suggest/*` POSTs) | every request, per person; at most 3 at once per person | 60 |
 
 The per-email buckets mean someone who knows an address can lock that person out of sign-in for 15 minutes; an admin
 can still make a reset link. Buckets are in memory and clear on restart. Test apps default to `RATE_LIMIT=off`; pass
@@ -556,10 +586,33 @@ Editing rules are the ones of `PATCH /api/posts/:id` (a removed post is refused;
 changed in Vesk only, as with a manual edit). `GET /api/posts/:id` carries `rewrite: { available, reason }` so the post page can say why the
 action cannot start without exposing provider details. The run is titled "Rewrite: <post>" (kind "Rewrite a post" in Activity).
 
+## AI suggestions
+
+Suggestions a person reviews; nothing is saved by these routes (`src/server/routes/suggest.ts`):
+
+- `GET /api/suggest` (admin, editor): `{ available, reason }`, whether suggestions can run now and, if not, why in words for the page.
+- `POST /api/suggest/brand-from-site` (admin) takes `{ website, name? }` (the address as typed, up to 300 characters; a bare host gets `https://`; `name`, which the guided setup sends, is accepted and not used) and
+  answers `{ descriptor?, tagline?, voice?, visualDirection?, colours?: { primary?, accent? }, source: { url } }`. The home page is read
+  on the server by the AI library's safe page reader (public http(s) only, no private, loopback or link-local address, every redirect
+  checked again, the connection pinned to the checked address, 1 MB and 15 seconds); the library's `brand-site` prompt treats the page
+  as data, and the answer is checked by the library's schema and again by strict shapes here (lengths 200, 120, 900, 900; colours
+  `#RRGGBB` found on the page). `422` when the address is not public or the page cannot be read, with the reason.
+- `POST /api/suggest/picture-description` (admin, editor) takes `{ vaultItemId }` (a photo or screen with a file) as JSON, or a picture
+  as multipart (`file`, optional `title` and `role`), for the upload page before the item exists. It answers
+  `{ title?, description, tags?, peopleVisible }`. The type is read from the bytes; over 5 MB is `413` (the upload page scales pictures
+  down first). `peopleVisible` is a hint shown to the person and never sets "People can be recognised" or consent.
+
+Both use the provider ticked for drafting, answer `409` with the reason before anything is fetched or sent when there is none, no
+budget is set or the budget is used up, save one `ai_calls` row per call with the person who asked (a page read is a `fetch` row),
+write `ai.suggest_brand_from_site` or `ai.describe_picture` to the audit log (no page text, no picture), and answer `502` when the
+AI's answer could not be used after one retry. In the web app, Brand and look, Voice and spelling has "Suggest from website"
+(`components/suggest/BrandSiteSuggest.tsx`), and the upload page has "Describe with AI" on each picture and "Describe all with AI"
+(`components/suggest/PictureSuggest.tsx`); a used suggestion fills the editable field and is marked as the AI's.
+
 ## AI
 
 The app never imports `@vesk/ai` directly. `src/server/ai.ts` is the seam: if the `@vesk/ai` workspace package is installed
-it is loaded and its `createAI({ providers, search, budget, log })` must return `{ draftBatch, research, rewrite }`
+it is loaded and its `createAI({ providers, search, budget, log })` must return `{ draftBatch, research, rewrite, analyseReference, suggestBrandFromSite, describePicture }`
 (the input and result types are in `ai.ts`). The library is an ordinary dependency of the app. Providers (Anthropic or OpenAI-compatible), the search provider and the
 monthly budget are set by an admin under AI and search (a provider's prices per million tokens too, which the budget needs to see its cost); their keys are encrypted at rest and only the last four
 characters are ever shown.

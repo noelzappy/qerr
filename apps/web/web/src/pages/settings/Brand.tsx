@@ -213,7 +213,7 @@ export function BrandSettingsPage() {
         <SettingsPage
           title="Brand and look"
         >
-          {!view.saved && <Notice tone="info" title="Not saved yet">These are the example brand's settings. Nothing is used until you save your own.</Notice>}
+          {!view.saved && <Notice tone="info" title="Not saved yet">These are the example brand's settings. Nothing is used until you save your own. <Link to="/setup/brand" className="font-medium underline underline-offset-2">Use the guided setup</Link></Notice>}
           {view.saved && view.logosMissing && <Notice tone="warn" title="Images wait for your logo">Upload your logo and its mark, or draw a simple pair from your name.</Notice>}
 
           <nav aria-label="Sections of Brand and look" className="-mx-4 -mb-4 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0 [&::-webkit-scrollbar]:hidden">

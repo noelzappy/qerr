@@ -2,6 +2,7 @@
 import { AIError, redact } from './errors.mjs';
 import { complete } from './providers.mjs';
 import { createSearch } from './search.mjs';
+import { fetchPage } from './safe-fetch.mjs';
 
 export const TASKS = ['draft', 'research', 'rewrite'];
 
@@ -72,6 +73,21 @@ export function createRuntime({ providers = [], search, budget, log, prices = {}
       const t0 = Date.now();
       try { const p = await searcher.fetchPage(url); emit({ kind: 'fetch', provider: null, model: null, task: 'research', tokensIn: null, tokensOut: null, cost: 0, ms: Date.now() - t0, ok: true }); return p; }
       catch (e) { emit({ kind: 'fetch', provider: null, model: null, task: 'research', tokensIn: null, tokensOut: null, cost: 0, ms: Date.now() - t0, ok: false, error: redact(e?.message, secrets) }); throw e; }
+    },
+    // A page named by a person (a brand's own website), read through the same safe reader as research pages: public http(s)
+    // only, every redirect checked again, the connection pinned to the checked address, size and time capped. It needs no search
+    // provider. The budget is checked first, since the page is only read to be sent to a model. Logged as a "fetch".
+    readSite: async (task, url, opts = {}) => {
+      guard();
+      const t0 = Date.now();
+      try {
+        const p = await fetchPage(url, { transport: pageTransport, lookup, keepHtml: true, ...opts });
+        emit({ kind: 'fetch', provider: null, model: null, task, tokensIn: null, tokensOut: null, cost: 0, ms: Date.now() - t0, ok: true });
+        return p;
+      } catch (e) {
+        emit({ kind: 'fetch', provider: null, model: null, task, tokensIn: null, tokensOut: null, cost: 0, ms: Date.now() - t0, ok: false, error: redact(e?.message, secrets) });
+        throw e;
+      }
     },
     spentUsd: () => state.spentUsd,
     hasSearch: Boolean(searcher),
