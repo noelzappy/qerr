@@ -4,7 +4,7 @@
 // angles; text over a picture has a filled box or a dark fade under it; an element runs to a page edge only where it touches it.
 // The render-time checks (fit, contrast, enlargement, pixel size, the four post checks) still run on the pictures later; these catch
 // a look that could never pass them before anything is drawn.
-import { ANGLE_NAMES, LIMITS, PAGE, POST_REQUIRED } from './look-elements.mjs';
+import { ANGLE_NAMES, LIMITS, PAGE, POST_REQUIRED, PRIMITIVES } from './look-elements.mjs';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const list = (xs) => xs.join(', ');
@@ -66,11 +66,13 @@ function bindingsOf(node, look) {
     case 'seam': return el.upper === 'field' ? [] : [{ field: 'image', sig: 'image|all' }];
     case 'rows': return el.each === 'items' ? [{ field: 'items', sig: 'items|rows' }] : [{ field: 'meta', sig: 'meta|rows' }];
     case 'meta-row': return (look.devices?.metaRow?.cells ?? []).some((c) => c.source === 'label') ? [{ field: 'label', sig: 'label|all' }] : [];
-    default: return [];
+    default: return typeof PRIMITIVES[node.type]?.bindings === 'function' ? PRIMITIVES[node.type].bindings(el) : [];
   }
 }
 // Types whose bindings are not checked against the declared fields by their own descriptor.
-const BIND_CHECKED_HERE = ['photo', 'seam', 'rows', 'meta-row'];
+const BIND_CHECKED_HERE = ['photo', 'seam', 'rows', 'meta-row', 'info-rows', 'photo-row'];
+// A primitive that is a picture (text over it needs a filled box or a fade), by its module's `picture` flag.
+const isPicture = (n) => n.type === 'photo' || (n.type === 'seam' && n.el.upper !== 'field') || PRIMITIVES[n.type]?.picture === true;
 
 // ---- geometry (feed pixels) ----
 // The least height an element can take (one line of its smallest size; a box: its padding and what flows in it). An element whose
@@ -186,7 +188,7 @@ function touches(node, edge, g) {
   return edge === 'left' ? q.col === 1 : edge === 'right' ? q.col + q.span - 1 === g.cols : edge === 'top' ? q.row === undefined || q.row === 1 : q.row === undefined || q.row + (q.rowSpan ?? 1) - 1 === g.rows;
 }
 
-const TEXT_TYPES = ['text', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'meta-row'];
+const TEXT_TYPES = ['text', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'meta-row', 'info-rows'];
 
 // The type sizes a node sets (px) and whether it is a fitted headline.
 function sizesOf(node, look) {
@@ -200,6 +202,7 @@ function sizesOf(node, look) {
     add(el.textSize ?? styleSize(el.textStyle ?? 'item', look));
     if ((el.number ?? 'none') !== 'none') add(el.numberSize ?? styleSize(el.numberStyle ?? 'label', look));
   } else if (node.type === 'meta-row') add(look.type?.label?.size);
+  else if (typeof PRIMITIVES[node.type]?.sizes === 'function') for (const s of PRIMITIVES[node.type].sizes(el, look)) add(s);
   return out;
 }
 const levelCount = (sizes) => {
@@ -213,6 +216,7 @@ const hasFill = (n) => n.el.fill !== undefined && ['box', 'band'].includes(n.typ
 function backgrounds(node, comp, look) {
   for (let n = node; n; n = n.parent) {
     if (n.type === 'sticker') return [n.el.fill ?? (look.colour?.sticker === 'primary' ? 'primary' : 'gold')];
+    if (typeof PRIMITIVES[n.type]?.ownFill === 'function') return [PRIMITIVES[n.type].ownFill(n.el)];
     if (hasFill(n)) return [n.el.fill];
     if (n.type === 'seam') return [n.el.lower];
     if (n.type === 'rows' && (n.el.altFill || n.el.fill)) return n.el.altFill ?? [n.el.fill];
@@ -233,7 +237,7 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
   for (const n of nodes) {
     if (n.type === 'meta-row' && (!look.devices?.metaRow || !(g?.head > 0))) at(n, 'a top label row needs devices.metaRow and a top row (canvas.feed.grid.head above 0) in the look');
     if (n.type === 'frame' && !(look.devices?.frame?.t > 0) && n.el.t === undefined) at(n, 'the look has no frame thickness (devices.frame.t); give the frame its own thickness (t)');
-    if (['photo', 'seam', 'rows', 'meta-row'].includes(n.type)) {
+    if (BIND_CHECKED_HERE.includes(n.type)) {
       for (const b of bindingsOf(n, look)) if (!declared.includes(b.field)) at(n, `shows ${b.field}, which the composition does not declare; add it to the composition's fields first`);
     }
     if (n.type === 'rows' && n.el.each === 'meta-parts' && !declared.includes('meta')) at(n, 'shows the parts of meta, which the composition does not declare');
@@ -283,6 +287,18 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
       const t = el.numberTile;
       if (t && t.fill && t.ink) { const p = pairProblem(t.ink, t.fill); if (p) at(n, `numberTile: ${p}`); }
     }
+    // a headline's pills: their ink on their fill (an outline pill's ink on what the headline stands on)
+    if (n.type === 'text' && isObj(el.pills) && typeof el.pills.ink === 'string') {
+      const on = el.pills.fill !== undefined ? [el.pills.fill] : backgrounds(n, comp, look);
+      for (const bg of on) { const p = pairProblem(el.pills.ink, bg); if (p) { at(n, `pills: ${p}`); break; } }
+    }
+    // a primitive's own inks: on its own fill (inkPairs, when the look leaves the ink to it) and on what it stands on (inks)
+    const prim = PRIMITIVES[n.type];
+    if (prim && typeof prim.inkPairs === 'function' && el.ink === undefined) for (const [ink, fill] of prim.inkPairs(el)) { const p = pairProblem(ink, fill); if (p) at(n, p); }
+    if (prim && typeof prim.inks === 'function') {
+      const on = backgrounds(n, comp, look);
+      for (const ink of prim.inks(el)) for (const bg of on) { const p = pairProblem(ink, bg); if (p) { at(n, p); break; } }
+    }
   }
 
   // -- turned elements --
@@ -312,8 +328,8 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
   // -- text over a picture --
   if (g) {
     const cache = new Map();
-    const photos = nodes.filter((n) => n.type === 'photo' || (n.type === 'seam' && n.el.upper !== 'field'));
-    const backers = nodes.filter((n) => n.type === 'scrim' || n.type === 'block' || n.type === 'sticker' || hasFill(n) || (n.type === 'rows' && (n.el.fill || n.el.altFill))).map((n) => ({ n, rect: rectOf(n, look, g, cache), key: keyOf(topOf(n)) }));
+    const photos = nodes.filter(isPicture);
+    const backers = nodes.filter((n) => n.type === 'scrim' || n.type === 'block' || n.type === 'sticker' || hasFill(n) || typeof PRIMITIVES[n.type]?.ownFill === 'function' || (n.type === 'rows' && (n.el.fill || n.el.altFill))).map((n) => ({ n, rect: rectOf(n, look, g, cache), key: keyOf(topOf(n)) }));
     for (const s of nodes.filter((x) => x.type === 'seam')) {
       const y = Math.max(s.el.leftY, s.el.rightY);
       backers.push({ n: s, rect: { x0: 0, y0: y, x1: PAGE.w, y1: PAGE.h }, key: keyOf(s) + 0.5 });

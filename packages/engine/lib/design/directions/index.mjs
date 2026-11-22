@@ -16,7 +16,7 @@ import { fontFacesFor } from '../font-library.mjs';
 import { grainUri, makeContext, numberElements, rootCss } from './kit.mjs';
 import fs from 'node:fs';
 import { canonicalJson, lookBrief, normaliseLook, validateLook } from '../look.mjs';
-import { POST_FIELDS, POST_ITEMS, POST_KINDS, POST_REQUIRED } from '../post-spec.mjs';
+import { POST_FIELDS, POST_ITEMS, POST_KINDS, POST_LISTS, POST_REQUIRED, seenText } from '../post-spec.mjs';
 import { accentPlan, paletteCss } from './colour.mjs';
 import { fontAlias } from '../font-library.mjs';
 import { fontNeedsFor, tokensFromLook } from './look-tokens.mjs';
@@ -90,7 +90,13 @@ export function fontNeeds(tokens, comp, brand) {
   return [...needs.values()];
 }
 
-const wordsOfPage = (spec, brand, folioText) => [brand.name, folioText, ...['label', 'headline', 'sub', 'big', 'unit', 'quote', 'by', 'meta', 'tag'].map((f) => spec[f]), ...(Array.isArray(spec.items) ? spec.items : [])].filter((v) => typeof v === 'string').join(' ');
+// (every word the page may set picks the font subsets: the fields, the list items, an info block's labels and values and the pictures' names)
+const listWords = (spec) => [
+  ...(Array.isArray(spec.items) ? spec.items : []),
+  ...(Array.isArray(spec.info) ? spec.info.flatMap((r) => (r && typeof r === 'object' ? [r.key, r.value] : [])) : []),
+  ...(Array.isArray(spec.gallery) ? spec.gallery.map((p) => (p && typeof p === 'object' ? p.caption : undefined)) : []),
+];
+const wordsOfPage = (spec, brand, folioText) => [brand.name, folioText, ...['label', 'headline', 'sub', 'big', 'unit', 'quote', 'by', 'meta', 'tag', 'cta'].map((f) => spec[f]), ...listWords(spec)].filter((v) => typeof v === 'string').join(' ');
 
 // The template function of a `post`: (spec, ctx) -> { body, bodyClass, bodyAttrs, sheet, css, warnings, fit, post }.
 // ctx: { size, brand, counter?, folio?, date?, image(path), imageSize(path) } as for every page (render.mjs preparePage).
@@ -143,17 +149,17 @@ function adapt(look) {
     const index = (byKind[cp.kind] ??= []).length, tokensProbe = null;
     const groundOf = (spec) => {
       if (typeof cp.ground === 'string') return cp.ground;
-      const has = (f) => (f === 'items' ? Array.isArray(spec.items) && spec.items.length > 0 : f === 'image' ? typeof spec.image === 'string' && spec.image !== '' : typeof spec[f] === 'string' && spec[f] !== '');
+      const has = (f) => (Object.hasOwn(POST_LISTS, f) ? Array.isArray(spec[f]) && spec[f].length > 0 : f === 'image' ? typeof spec.image === 'string' && spec.image !== '' : typeof spec[f] === 'string' && spec[f] !== '');
       for (const g of cp.ground) if (!g.when || ((g.when.present === undefined || has(g.when.present)) && (g.when.absent === undefined || !has(g.when.absent)))) return g.ground;
       return cp.ground[cp.ground.length - 1].ground;
     };
-    const seen = (v) => [...String(v).replace(/\*/g, '').replace(/\\n|\n/g, '')].length;
+    const seen = (v) => [...seenText(v)].length;
     byKind[cp.kind].push({
       id: `${look.id}/${cp.kind}/${index}`, name: cp.name, describe: cp.describe, fields: Object.keys(cp.fields), words: Object.fromEntries(Object.entries(cp.fields).filter(([f, v]) => f !== 'items' && f !== 'image' && v.max).map(([f, v]) => [f, v.max])),
       ground: typeof cp.ground === 'string' ? cp.ground : cp.ground[cp.ground.length - 1].ground, groundOf, calm: cp.calm ? { maxShare: cp.calm.maxShare } : undefined, fitSpec: cp.fit,
       dark: groundDark(cp), bodyOnField: bodyOnField(cp),
       accepts: cp.accepts.length ? (spec) => cp.accepts.every((r) => {
-        if (r.field === 'items') { const n = Array.isArray(spec.items) ? spec.items.length : 0; return (r.min === undefined || n >= r.min) && (r.max === undefined || n <= r.max); }
+        if (Object.hasOwn(POST_LISTS, r.field)) { const n = Array.isArray(spec[r.field]) ? spec[r.field].length : 0; return (r.min === undefined || n >= r.min) && (r.max === undefined || n <= r.max); }
         if (typeof spec[r.field] !== 'string') return true;
         const part = r.part ?? 'all', t = part === 'all' ? spec[r.field] : emphasisParts(spec[r.field])[part];
         return seen(t) <= r.maxChars && (r.minChars === undefined || seen(t) >= r.minChars);
@@ -218,7 +224,7 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
   const classes = typeof out === 'object' && out.classes ? String(out.classes) : '';
   if (!/^[a-z0-9 _-]*$/.test(classes)) throw new Error(`${comp.id}: classes may only use lowercase letters, digits, space, - and _`);
   const warnings = [];
-  for (const f of ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'meta', 'tag', 'image']) if (spec[f] !== undefined && !comp.fields.includes(f)) warnings.push(`${f} is not used by the ${comp.name} composition (${comp.id}); it is left out of the image`);
+  for (const f of ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'meta', 'tag', 'image', 'cta', 'info', 'gallery']) if (spec[f] !== undefined && !comp.fields.includes(f)) warnings.push(`${f} is not used by the ${comp.name} composition (${comp.id}); it is left out of the image`);
   for (const [f, max] of Object.entries(comp.words)) {
     if (f === 'items') continue;
     if (spec[f] !== undefined && c.chars(f) > max) warnings.push(`the ${f} is ${c.chars(f)} characters; the ${comp.name} composition is designed for up to ${max}, so it may be set smaller than intended`);
@@ -298,6 +304,7 @@ export function postKinds(brand) {
         if (f === 'image') { fields[f] = {}; continue; }
         const have = vs.filter((v) => v.fields[f]);
         if (f === 'items') { fields[f] = { min: Math.min(...have.map((v) => v.fields.items.min ?? POST_ITEMS.min)), max: Math.max(...have.map((v) => v.fields.items.max ?? POST_ITEMS.max)), chars: POST_ITEMS.chars }; continue; }
+        if (f === 'info' || f === 'gallery') { const L = POST_LISTS[f]; fields[f] = { min: Math.min(...have.map((v) => v.fields[f].min ?? L.min)), max: Math.max(...have.map((v) => v.fields[f].max ?? L.max)), chars: f === 'info' ? L.value : L.caption }; continue; }
         const hard = POST_FIELDS[f]?.max;
         if (!hard) continue;
         fields[f] = { max: hard, ...(have.length ? { budget: Math.min(hard, ...have.map((v) => v.fields[f].max ?? hard)) } : {}) };

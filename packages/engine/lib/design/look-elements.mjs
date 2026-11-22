@@ -38,8 +38,14 @@ import * as metaRow from './directions/primitives/meta-row.mjs';
 import * as wordmarkPattern from './directions/primitives/wordmark-pattern.mjs';
 import * as scrim from './directions/primitives/scrim.mjs';
 import * as punchHole from './directions/primitives/punch-hole.mjs';
+import * as infoRows from './directions/primitives/info-rows.mjs';
+import * as button from './directions/primitives/button.mjs';
+import * as photoRow from './directions/primitives/photo-row.mjs';
+// the shapes of a headline's pills (kit.mjs PILL_SHAPES)
+export const PILL_SHAPES = ['pill', 'soft', 'outline'];
 export { ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS, METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SOFT_SHADOWS, CORNERS, ROUND_SHAPES, RULE_STYLES, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS, WORDS, BLENDS };
-export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 'mantra-rows': mantraRows, rows, seam, band, 'meta-row': metaRow, 'wordmark-pattern': wordmarkPattern, scrim, 'punch-hole': punchHole });
+export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 'mantra-rows': mantraRows, rows, seam, band, 'meta-row': metaRow, 'wordmark-pattern': wordmarkPattern, scrim, 'punch-hole': punchHole,
+  'info-rows': infoRows, button, 'photo-row': photoRow });
 
 export const LOOK_SCHEMA = 1;
 export const KINDS = [...POST_KINDS];
@@ -59,16 +65,19 @@ export const FORBIDDEN_KEYS = Object.freeze(['render', '__proto__', 'constructor
 // ---- the fields of a post, per kind ----
 // Which fields a composition of a kind may use (a superset of the compositions of the shipped directions); the required ones come
 // from POST_REQUIRED and must be declared required.
+// cta (a button's words), info (an info block's rows) and gallery (a row of round pictures) are the optional parts a post may add; they come last.
 export const KIND_FIELDS = Object.freeze({
-  statement: ['label', 'headline', 'sub'],
+  statement: ['label', 'headline', 'sub', 'cta', 'info', 'gallery'],
   figure: ['label', 'headline', 'big', 'unit', 'sub'],
-  list: ['label', 'headline', 'sub', 'items'],
+  list: ['label', 'headline', 'sub', 'items', 'cta'],
   quote: ['label', 'quote', 'by'],
-  photo: ['label', 'image', 'headline', 'sub', 'tag'],
-  event: ['label', 'image', 'headline', 'meta', 'sub', 'tag'],
-  offer: ['label', 'image', 'headline', 'tag', 'sub', 'unit'],
+  photo: ['label', 'image', 'headline', 'sub', 'tag', 'cta', 'info', 'gallery'],
+  event: ['label', 'image', 'headline', 'meta', 'sub', 'tag', 'cta', 'info', 'gallery'],
+  offer: ['label', 'image', 'headline', 'tag', 'sub', 'unit', 'cta', 'info', 'gallery'],
 });
-export const FIELD_NAMES = [...TEXT_FIELDS, 'items', 'image'];
+// the counted lists of a post (POST_LISTS) and its picture
+export const LIST_FIELDS = ['items', 'info', 'gallery'];
+export const FIELD_NAMES = [...TEXT_FIELDS, ...LIST_FIELDS, 'image'];
 
 // ---- the common properties of elements ----
 export const COMMON = Object.freeze({
@@ -163,6 +172,12 @@ const ELEMENTS_BASE = {
       tiltBar: bool('Line on a bar', 'Sets the whole line on a bar in the accent colour, turned by the look\'s highlight turn (a quote\'s source).', false),
       follow: bool('Follows the headline', 'Takes the size the composition\'s headline is set at (a date numeral that grows with the headline).', false),
       dropWhenTight: bool('Leave out when tight', 'Leaves this out when the composition\'s headline sets in three lines or more (at most one per composition).', false),
+      // the headline's inline marks (post-spec.mjs INLINE): without these the [[pill]] words are plain and the {{icon}} marks left out
+      pills: obj({
+        shape: en(PILL_SHAPES, 'Shape', 'A round pill, a softly rounded box, or a round outline in the ink colour.', 'pill'),
+        fill: role('Fill', 'The pill colour (leave out for an outline).'), ink: role('Ink', 'The colour of the words in the pill.'),
+      }, 'Words in pills', 'Sets the headline\'s [[marked]] words (one or two runs of one to three words) in pills.', ['ink']),
+      icons: obj({ colour: role('Colour', 'The icon colour; leave out for the colour of the words.') }, 'Inline icons', 'Draws the headline\'s {{icon}} marks, from the engine\'s own icons.'),
     },
     common: ['place', 'bleed', 'rot', 'origin', 'z', 'when', 'ink', 'w', 'before', 'nudgeX', 'alignSelf', 'textShadow'],
   },

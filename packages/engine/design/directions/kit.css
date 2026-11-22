@@ -124,3 +124,23 @@
 .k-look .k-dfont{font-stretch:var(--k-dstretch,100%)}
 /* a look's optical size for its display font (fonts.display.opsz): a fixed number written to --k-dvar by the engine */
 .k-look[style*="--k-dvar"] .k-display,.k-look[style*="--k-dvar"] .k-dfont{font-variation-settings:var(--k-dvar)}
+
+/* ======== words in pills, inline icons, info blocks, buttons and rows of round pictures (looks only: post-spec.mjs INLINE, the primitives
+   info-rows, button and photo-row). Colours arrive as palette roles (--c-*) on the element, shapes as these fixed classes. ======== */
+/* a pill round one to three words of a headline, never broken across lines */
+.k-pl{display:inline-block;white-space:nowrap;padding:.02em .3em .08em;margin:0 .03em;line-height:1;vertical-align:baseline;box-sizing:border-box}
+.k-pl-round{border-radius:999px}
+.k-pl-soft{border-radius:.2em}
+.k-pl-line{border-radius:999px;box-shadow:inset 0 0 0 .07em currentColor}
+/* the words of a pill keep the headline's own type, upright, in the pill's ink */
+.k-look .k-pl-t{font-style:normal;color:inherit}
+/* while the page reads the pixels behind its type, a pill stays: it is what its words sit on (its words, a [data-role], are hidden) */
+.measure .k-pl{visibility:visible}
+/* an icon of the engine's own set, in the colour of the text it sits in, about the height of the capitals */
+.k-ic{display:inline-block;width:.8em;height:.8em;vertical-align:-.06em;fill:currentColor;margin:0 .06em;overflow:visible}
+.k-ic path{fill-rule:evenodd}
+.k-ic-btn{width:1em;height:1em;vertical-align:middle;margin:0;flex:none}
+/* a round picture in a row (photo-row) */
+.post .k-round{overflow:hidden;border-radius:50%}
+/* a button: one line of words in a shape */
+.k-btn .k-run{white-space:nowrap}
