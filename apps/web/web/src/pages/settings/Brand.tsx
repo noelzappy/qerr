@@ -259,7 +259,7 @@ export function BrandSettingsPage() {
             <FormProblem error={error} lines={lines} />
             {problemList.length > 0 && <Notice tone="warn" title="Fix these before saving:">{problemList.join(' ')}</Notice>}
             <div className="flex flex-wrap items-center justify-end gap-3">
-              {dirty && <span className="text-[13px] text-muted-foreground" role="status">You have changes that are not saved.</span>}
+              {dirty && <span className="text-[13px] text-muted-foreground" role="status">Unsaved changes</span>}
               {dirty && <Button type="button" variant="ghost" onClick={() => setS(view.settings)}>Undo changes</Button>}
               <BusyButton type="submit" form="brand-form" loading={saving} disabled={(!dirty && view.saved) || problemList.length > 0}>{view.saved ? 'Save changes' : 'Save as our brand'}</BusyButton>
             </div>

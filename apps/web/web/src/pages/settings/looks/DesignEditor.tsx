@@ -232,8 +232,8 @@ export function DesignEditor({ initialLook, designId, list }: { initialLook: Own
         <Breadcrumbs items={[{ label: 'Settings', to: '/settings/preferences' }, { label: 'Looks', to: '/settings/looks' }, { label: look.name, to: `/settings/looks/${look.slug}?tab=designs` }, { label: String(comp.name ?? design.name) }]} />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Input aria-label="Name of the design" value={String(comp.name ?? '')} maxLength={cat.limits.name} disabled={readOnly} onChange={(e) => { const v = e.target.value; const why = apply((c) => setTop(c, 'name', v, cat), 'name'); if (why) setNotice(why); }}
-            className="h-9 min-w-40 flex-1 border-transparent bg-transparent px-2 text-[19px] font-semibold tracking-tight shadow-none hover:border-input focus-visible:border-ring sm:max-w-md md:text-[19px]" />
-          {dirty && <span role="status" className="inline-flex items-center gap-1.5 text-[12.5px] text-warning-foreground"><span className="size-2 rounded-full bg-warning" aria-hidden="true" /> You have changes that are not saved</span>}
+            className="-ml-2 h-9 min-w-40 flex-1 border-transparent bg-transparent px-2 text-[19px] font-semibold tracking-tight shadow-none hover:border-input focus-visible:border-ring sm:max-w-md md:text-[19px]" />
+          {dirty && <span role="status" className="inline-flex items-center gap-1.5 text-[12.5px] text-warning-foreground"><span className="size-2 rounded-full bg-warning" aria-hidden="true" /> Unsaved changes</span>}
           {!dirty && design.hasDraft && <span className="text-[12.5px] text-muted-foreground">Draft saved, not published</span>}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <Button type="button" size="icon" variant="ghost" aria-label="Undo" disabled={readOnly || undoStack.current.length === 0} onClick={undo} title="Undo"><Undo2 /></Button>
