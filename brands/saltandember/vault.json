@@ -85,7 +85,7 @@
     {
       "kind": "fact",
       "title": "Bookings",
-      "body": "Tables are booked on saltandember.example; the restaurant is in Harrowgate, an invented city.",
+      "body": "Tables are booked on saltandember.example; the restaurant is in Cindervale, an invented city.",
       "sourceNote": "Invented for the test brand.",
       "status": "confirmed",
       "tags": [

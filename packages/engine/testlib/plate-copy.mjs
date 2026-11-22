@@ -19,8 +19,8 @@ export const NORMAL = {
   'plate/quote/0': { label: 'The kitchen', quote: 'Fire is the oldest cook in the room. Our job is to *listen to it* and never hurry the meat.', by: 'Tomas Reyne, head chef' },
   'plate/photo/0': { label: 'From the fire', headline: 'Oak, ember and *patience*', sub: 'The grill is lit at dawn and the coals are ready by the first table.' },
   'plate/photo/1': { label: 'On the grill', headline: 'Mushrooms and peppers, *charred*' },
-  'plate/event/0': { label: 'Book a table', headline: 'A *fire-cooked* tasting menu', meta: 'Fridays in December', info: [{ key: 'When', value: 'Fridays in December, 19:30' }, { key: 'Where', value: 'Salt & Ember, Harrowgate' }, { key: 'Book on', value: 'saltandember.example' }], cta: 'Reserve a table' },
-  'plate/event/1': { label: 'Supper club', headline: 'A long table *by the fire*', meta: '18 Dec · 19:00 · Harrowgate', info: [{ key: 'Where', value: 'The back room, Salt & Ember' }, { key: 'Price', value: '€60 a guest, wine extra' }], cta: 'Book a seat' },
+  'plate/event/0': { label: 'Book a table', headline: 'A *fire-cooked* tasting menu', meta: 'Fridays in December', info: [{ key: 'When', value: 'Fridays in December, 19:30' }, { key: 'Where', value: 'Salt & Ember, Cindervale' }, { key: 'Book on', value: 'saltandember.example' }], cta: 'Reserve a table' },
+  'plate/event/1': { label: 'Supper club', headline: 'A long table *by the fire*', meta: '18 Dec · 19:00 · Cindervale', info: [{ key: 'Where', value: 'The back room, Salt & Ember' }, { key: 'Price', value: '€60 a guest, wine extra' }], cta: 'Book a seat' },
   'plate/offer/0': { label: 'Tonight\'s special', headline: 'Rib eye from the grill, *with frites*', tag: '€32', cta: 'Reserve tonight' },
 };
 export const STRESS = {
@@ -31,7 +31,7 @@ export const STRESS = {
   'plate/quote/0': { label: 'Notes from the kitchen', quote: 'Fire is the oldest cook in the room. Our job is to *listen to it*, to feed it oak and patience, and never to hurry the meat.', by: 'Tomas Reyne, head chef since day one' },
   'plate/photo/0': { label: 'From the fire, every night', headline: 'Oak, ember and a great deal of *patience*', sub: 'The grill is lit at dawn, fed with oak all day, and the coals are ready long before the first table.' },
   'plate/photo/1': { label: 'On the grill this week', headline: 'Mushrooms and sweet peppers, *charred*' },
-  'plate/event/0': { label: 'Book a table this month', headline: 'A *fire-cooked* tasting menu, six courses', meta: 'Every Friday in December', info: [{ key: 'When', value: 'Every Friday in December, from 19:30' }, { key: 'Where', value: 'Salt & Ember, Harrowgate' }, { key: 'Book on', value: 'saltandember.example/tables' }], cta: 'Reserve a table now' },
+  'plate/event/0': { label: 'Book a table this month', headline: 'A *fire-cooked* tasting menu, six courses', meta: 'Every Friday in December', info: [{ key: 'When', value: 'Every Friday in December, from 19:30' }, { key: 'Where', value: 'Salt & Ember, Cindervale' }, { key: 'Book on', value: 'saltandember.example/tables' }], cta: 'Reserve a table now' },
   'plate/event/1': { label: 'The supper club, monthly', headline: 'One long table, *by the fire*', meta: '18 Dec · 19:00 · The back room', info: [{ key: 'Where', value: 'The back room, Salt & Ember' }, { key: 'Price', value: '€60 a guest, wine to match extra' }, { key: 'Starts', value: 'Doors at 18:30, dinner at 19:00' }], cta: 'Book a seat at the table' },
   'plate/offer/0': { label: 'Tonight\'s special, only', headline: 'Rib eye from the grill with *frites and greens*', tag: '€32 a plate', cta: 'Reserve a table tonight' },
 };

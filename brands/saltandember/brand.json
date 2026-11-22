@@ -2,7 +2,7 @@
   "name": "Salt & Ember",
   "website": "saltandember.example",
   "tagline": "Cooked over fire, served after dark.",
-  "descriptor": "A grill restaurant in the invented city of Harrowgate: whole cuts cooked slowly over wood, a short seasonal menu and booked tables. A fictional brand for testing.",
+  "descriptor": "A grill restaurant in the invented city of Cindervale: whole cuts cooked slowly over wood, a short seasonal menu and booked tables. A fictional brand for testing.",
   "timezone": "Europe/Dublin",
   "money": {
     "local": "Salt & Ember prices in euros (€) only",
@@ -580,7 +580,7 @@
           "calm": {
             "maxShare": 0.55
           },
-          "describe": "A large fine serif headline on the pale page with the label in small capitals above it, and a near-black band across the foot holding the sub line and the brand name. Use for a statement of up to 56 characters.",
+          "describe": "A large fine serif headline on the pale page under a huge pale ampersand and the label in small capitals, and a near-black band across the foot holding the sub line and the brand name. Use for a statement of up to 56 characters.",
           "fields": {
             "label": {
               "max": 28
@@ -595,31 +595,50 @@
           },
           "elements": [
             {
+              "type": "glyph",
+              "glyph": "&",
+              "size": 760,
+              "colour": "tint-deep",
+              "place": {
+                "px": {
+                  "x": 470,
+                  "y": -90
+                }
+              },
+              "z": 0
+            },
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "ink": "accent-type",
+              "nowrap": true,
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 80
+                }
+              },
+              "when": {
+                "present": "label"
+              },
+              "z": 2
+            },
+            {
               "type": "box",
               "place": {
                 "px": {
                   "x": 80,
-                  "y": 80,
+                  "y": 160,
                   "w": 920,
-                  "h": 820
+                  "h": 740
                 }
               },
               "flow": "column",
-              "justify": "start",
+              "justify": "end",
               "align": "start",
-              "gap": 36,
               "z": 2,
               "children": [
-                {
-                  "type": "text",
-                  "field": "label",
-                  "style": "label",
-                  "ink": "accent-type",
-                  "nowrap": true,
-                  "when": {
-                    "present": "label"
-                  }
-                },
                 {
                   "type": "text",
                   "field": "headline",
@@ -646,7 +665,7 @@
                       ]
                     ],
                     "maxLines": 5,
-                    "maxH": 700
+                    "maxH": 640
                   },
                   "w": 920
                 }
