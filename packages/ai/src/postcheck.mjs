@@ -12,6 +12,7 @@ import { POST_PAGES, seenText } from '@qerr/engine/design/post-spec';
 import { applySeriesSlot, seriesMark, seriesRefProblems } from '@qerr/engine/design/series';
 import { lookOfBrand } from '@qerr/engine/design/directions/index';
 import { EMPHASIS_FIELDS, directionKinds, emphasisIn, kindBrief } from './direction.mjs';
+import { standAloneProblems } from './standalone.mjs';
 
 // The drafting assistant may only use the poster pages (a real photo or a framed phone screen on a pale ground), a full-bleed photo,
 // carousels of poster pages, and the brand's own layouts (template "layout", when the brand has some, as a post or as a carousel
@@ -288,6 +289,29 @@ function kindRunProblems(design, date, ctx) {
   return [];
 }
 
+// Within one batch one design (a kind in one variant) is used about twice at most, so the batch does not read as one template filled
+// in again and again. ctx.kinds holds the posts already accepted ({ kind, variant?, series? }); ctx.batchCount is the batch's size. Series
+// posts are left out (their kind and design are the series'). The limit grows with the batch and with a look that has few designs, so a
+// batch can always be filled: at least 2, a fifth of the batch, and the batch shared out over every design the look has.
+function comboProblems(design, ctx, inSeries) {
+  if (inSeries || design?.template !== 'post' || !Array.isArray(ctx.kinds) || !ctx.batchCount || !ctx.direction) return [];
+  const kinds = directionKinds(ctx.direction, ctx.brand);
+  const count = (k) => kindBrief(ctx.direction, k, ctx.brand)?.variants?.length || 1;
+  const designs = kinds.reduce((n, k) => n + count(k), 0) || 1;
+  const limit = Math.max(2, Math.ceil(ctx.batchCount / 5), Math.ceil(ctx.batchCount / designs));
+  const brief = kindBrief(ctx.direction, design.kind, ctx.brand);
+  const mine = ctx.kinds.filter((k) => !k.series && k.kind === design.kind);
+  if (design.variant === undefined || !brief?.variants) {
+    const most = limit * count(design.kind);
+    return mine.length >= most ? [`this batch already has ${mine.length} "${design.kind}" posts; a batch of ${ctx.batchCount} uses a kind at most ${most} times here. Choose another kind`] : [];
+  }
+  const same = mine.filter((k) => k.variant === design.variant).length;
+  if (same < limit) return [];
+  const name = brief.variants[design.variant]?.name ?? `variant ${design.variant}`;
+  const others = brief.variants.length > 1 ? 'another variant of it or another kind' : 'another kind';
+  return [`this batch already has ${same} "${design.kind}" posts in the ${name} design (variant ${design.variant}); a batch of ${ctx.batchCount} uses one design at most ${limit} times, so it does not look like one template repeated. Choose ${others}`];
+}
+
 // A post of a named series. raw.series is a slug (a draft: the post takes the plan's open slot of that series, ctx.seriesSlots, on its date
 // or else the earliest) or { slug, number } (a rewrite of a post already in a series, ctx.seriesList when known). The app, never the model,
 // sets the slot's date, the composition and the mark; the model writes the words. -> { problems, repairs, design?, ref?, date? }
@@ -370,7 +394,11 @@ export function checkPost(raw, ctx) {
       if (JSON.stringify(trimmed) !== JSON.stringify(design)) { design = trimmed; repairs.push(ctx.brand?.emoji === true ? 'emoji past the three a text may carry, or broken ones, removed from the image text' : 'emoji removed from the image text (they are off for this brand)'); }
       const engine = designProblems(design, ctx);
       reasons.push(...engine);
-      if (!engine.length && (design.template === 'post' || (ctx.direction && design.template === 'carousel'))) reasons.push(...postKindProblems(design, ctx), ...kindRunProblems(design, seriesDate ?? date, ctx));
+      if (!engine.length && (design.template === 'post' || (ctx.direction && design.template === 'carousel'))) {
+        reasons.push(...postKindProblems(design, ctx), ...kindRunProblems(design, seriesDate ?? date, ctx), ...comboProblems(design, ctx, Boolean(series)));
+        // the image is read without its caption: a figure says what it counts, a label names a topic, a headline names its subject
+        reasons.push(...standAloneProblems(design, { brief: (k) => (ctx.direction ? kindBrief(ctx.direction, k, ctx.brand) : null), inSeries: Boolean(series) }));
+      }
     }
   }
   const imageReason = typeof raw.imageReason === 'string' ? raw.imageReason.trim().slice(0, 200) : '';

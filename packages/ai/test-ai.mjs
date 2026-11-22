@@ -14,6 +14,7 @@ import { loadPrompt } from './src/prompts.mjs';
 import { brandBrief } from './src/context.mjs';
 import { isDuplicate } from './src/research.mjs';
 import { foreignMoneyPattern, mentionsForeignMoney } from './src/vault.mjs';
+import { pronounLean, standAloneProblems } from './src/standalone.mjs';
 
 const KEY = 'sk-ant-TESTKEY-1234567890abcdef';
 const res = (status, body, headers = {}) => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
@@ -440,7 +441,7 @@ test('draftBatch: a good post passes, the vault photo is resolved by id, the bat
   assert.deepEqual(p.warnings, []);
   assert.deepEqual(batch.defaultNetworks, ['instagram', 'linkedin', 'facebook', 'x']);
   assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
-  assert.equal(notes.promptVersion, 'draft-17');
+  assert.equal(notes.promptVersion, 'draft-18');
   assert.equal(notes.model, 'claude-sonnet-5-5');
   assert.equal(notes.seriesMix['the-numbers'], 1);
   assert.equal(notes.usage.costUsd > 0, true);
@@ -781,7 +782,7 @@ test('rewrite: returns a revised post through the same checks, keeps the id and 
   assert.equal(out.id, '01-numbers');
   assert.equal(out.networks.instagram.type, 'post');
   assert.equal(out.networks.x, undefined);
-  assert.equal(out.notes.promptVersion, 'rewrite-6');
+  assert.equal(out.notes.promptVersion, 'rewrite-7');
   assert.deepEqual(validateBatch({ name: 't', timezone: 'UTC', defaultTime: '09:00', mediaRoot: 'media/t', posts: [out] }, { fallbackName: 't' }).errors, []);
 });
 
@@ -814,7 +815,7 @@ async function withDirection(direction, fn) {
 }
 const dirPost = (over = {}, design = {}) => good({
   id: '01-notes', title: 'Notes', caption: 'Every euro is on the record.\n\n#AcmeSavings #Savings #the region', imageReason: undefined,
-  design: { template: 'post', kind: 'statement', label: 'Notes', headline: 'Every euro, *on the record*', sub: 'Members see their own record on their phone.', ...design },
+  design: { template: 'post', kind: 'statement', label: 'Our records', headline: 'Every euro, *on the record*', sub: 'Members see their own record on their phone.', ...design },
   sources: ['fact-1'], ...over,
 });
 const draftIn = (root, ...answers) => {
@@ -823,12 +824,12 @@ const draftIn = (root, ...answers) => {
 };
 const askedOf = (f, i = 0) => { const c = f.calls[i].body.messages[0].content; return JSON.parse(c.slice(c.indexOf('{'))); };
 
-test('direction brand: gets draft-17 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
+test('direction brand: gets draft-18 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
   await withDirection('editorial', async (root) => {
     const vault = [...VAULT, { id: 'scr-1', kind: 'screen', title: 'Passbook', body: 'The passbook.', status: 'confirmed', file: 'design/assets/screens/p.png', framing: 'phone' }];
     const { f, ai } = draftIn(root, { posts: [dirPost()] }, { posts: [] });
     const { batch, notes } = await ai.draftBatch(req({ vault }));
-    assert.equal(notes.promptVersion, 'draft-17');
+    assert.equal(notes.promptVersion, 'draft-18');
     assert.equal(f.calls[0].body.system, loadPrompt('draft', { direction: true }).text);
     assert.notEqual(f.calls[0].body.system, loadPrompt('draft').text);
     assert.match(f.calls[0].body.system, /never use the same kind three posts running/);
@@ -1067,10 +1068,10 @@ test('named series: numbers follow the date order with no gap, a wrong kind is r
   });
 });
 
-test('the prompts keep one file with a direction section: draft-17 and rewrite-6 differ by brand type only where they must', () => {
+test('the prompts keep one file with a direction section: draft-18 and rewrite-7 differ by brand type only where they must', () => {
   const plain = loadPrompt('draft'), dir = loadPrompt('draft', { direction: true });
-  assert.equal(plain.version, 'draft-17');
-  assert.equal(dir.version, 'draft-17');
+  assert.equal(plain.version, 'draft-18');
+  assert.equal(dir.version, 'draft-18');
   assert.match(plain.text, /the only templates you may use/);
   assert.match(plain.text, /Only confirmed, current items/);
   assert.match(dir.text, /Only confirmed, current items/);
@@ -1079,6 +1080,45 @@ test('the prompts keep one file with a direction section: draft-17 and rewrite-6
   assert.doesNotMatch(`${plain.text}${dir.text}`, /<!--/);
   assert.match(loadPrompt('rewrite', { direction: true }).text, /KEEP the post's `kind`/);
   assert.doesNotMatch(loadPrompt('rewrite').text, /KEEP the post's `kind`/);
+});
+
+test('the prompts say what stays exact and what the model words itself, and that every image stands alone', () => {
+  for (const [name, direction] of [['draft', false], ['draft', true], ['rewrite', false], ['rewrite', true]]) {
+    const t = loadPrompt(name, { direction }).text;
+    const at = `${name}${direction ? ' (direction)' : ''}`;
+    assert.match(t, /every number with its unit, sign or currency.*names and the brand's spellings, dates, prices,? and quotations \(word for word\)/s, at);
+    assert.match(t, /never copy an item's sentence onto the image/i, at);
+    assert.match(t, /never (get )?stronger than the item says/, at);
+    assert.match(t, /what it is about|what is this about/, at);
+    assert.match(t, /never leans? on "it", "they" or "this"/i, at);
+    assert.match(t, /introduced? on first use|Introduce a product or feature name/, at);
+    assert.match(t, /where a fact came from|Where a fact came from/i, at);
+    assert.doesNotMatch(t, /Write money exactly as the cited vault item writes it\./, at);
+  }
+  const dir = loadPrompt('draft', { direction: true }).text;
+  assert.match(dir, /A `figure`, an `offer` and a `statement` should normally carry a `sub` that explains/);
+  assert.match(dir, /In an `offer`, the headline or the `sub` says what is free or what is priced/);
+  assert.doesNotMatch(dir, /"label":"Numbers"|"label":"Notes"|a category such as "Numbers"/, 'the examples name a topic, never a generic label');
+  assert.doesNotMatch(dir, /`unit` is one or two plain words/);
+  assert.match(dir, /use one design \(a kind in one variant\) at most twice in a batch of up to ten posts/);
+  assert.match(dir, /Vary the shape of the headlines too, not every one "X is Y"/);
+});
+
+test('rewrite: a revision that leaves a bare figure is sent back with the stand-alone reason, and the fixed one is kept', async () => {
+  await withClean(async () => {
+    const original = { id: '01-members', date: '2026-12-02', title: 'Members', caption: '3,900+ members.', design: { template: 'post', kind: 'figure', label: 'The numbers', big: '3,900+', unit: 'members' }, sources: ['fig-2'] };
+    const bare = cleanPost({}, { label: 'The numbers', unit: 'members', sub: undefined });
+    const f = fakeFetch(anthropicOk(bare), anthropicOk(cleanPost()));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    const out = await ai.rewrite({ post: original, instruction: 'Make it warmer', vault: VAULT });
+    assert.equal(out.notes.promptVersion, 'rewrite-7');
+    assert.equal(f.calls.length, 2);
+    const retry = JSON.stringify(f.calls[1].body.messages);
+    assert.match(retry, /a figure needs a sub/);
+    assert.match(retry, /the label \\"The numbers\\" names no topic/);
+    assert.equal(out.design.label, 'Our members');
+    assert.match(out.design.sub, /Acme Savings/);
+  });
 });
 
 test('rewrite for a direction brand: keeps the post design within the budgets, and an old template is refused', async () => {
@@ -1090,7 +1130,7 @@ test('rewrite for a direction brand: keeps the post design within the budgets, a
     const out = await ai.rewrite({ post: original, instruction: 'Make it shorter', vault: VAULT });
     assert.equal(out.id, '01-notes');
     assert.equal(out.design.kind, 'statement');
-    assert.equal(out.notes.promptVersion, 'rewrite-6');
+    assert.equal(out.notes.promptVersion, 'rewrite-7');
     assert.equal(f.calls[0].body.system, loadPrompt('rewrite', { direction: true }).text);
     assert.equal(askedOf(f).design.direction, 'editorial');
     const old = anthropicOk(good({ caption: 'Agents record each deposit on their phone.\n\n#AcmeSavings', design: { template: 'closing', headline: 'Old' }, sources: ['fact-1'] }));
@@ -1617,7 +1657,7 @@ test('a look with pills, icons, an info block, a button and round pictures: the 
     const f = fakeFetch(anthropicOk({ posts: [offerPost()] }), anthropicOk({ posts: [] }));
     const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
     const { batch, notes } = await ai.draftBatch(req());
-    assert.equal(notes.promptVersion, 'draft-17');
+    assert.equal(notes.promptVersion, 'draft-18');
     assert.match(f.calls[0].body.system, /\[\[words\]\]` sets one or two runs of 1 to 3 words in a pill/);
     const k = askedOf(f).design.kinds;
     assert.match(k.offer.fields.headline.pills, /\[\[words\]\]/);
@@ -1675,7 +1715,7 @@ test('a look that draws a chart: the model is told its kinds, counts and shape, 
     const f = fakeFetch(anthropicOk({ posts: [chartPost()] }), anthropicOk({ posts: [] }));
     const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
     const { batch, notes } = await ai.draftBatch(req({ vault: [...VAULT, POTS] }));
-    assert.equal(notes.promptVersion, 'draft-17');
+    assert.equal(notes.promptVersion, 'draft-18');
     assert.match(f.calls[0].body.system, /`chart` \(when the kind lists it, mostly for a `figure`\)/);
     assert.match(f.calls[0].body.system, /When the cited items call their figures illustrative, say so on the image/);
     const k = askedOf(f).design.kinds;
@@ -1748,7 +1788,7 @@ test('a look with an avatar and a phone: the model is told the avatar\'s shape a
     const f = fakeFetch(anthropicOk({ posts: [quotePost(), phonePost({ date: '2026-12-04' })] }), anthropicOk({ posts: [] }));
     const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
     const { batch, notes } = await ai.draftBatch(req({ vault: PICS_VAULT, count: 2 }));
-    assert.equal(notes.promptVersion, 'draft-17');
+    assert.equal(notes.promptVersion, 'draft-18');
     assert.match(f.calls[0].body.system, /`avatar` \(when the kind lists it\): ONE picture of the person quoted/);
     assert.match(f.calls[0].body.system, /Put a screen only in such a variant, named with `"variant"`/);
     const asked = askedOf(f), k = asked.design.kinds;
@@ -1805,5 +1845,118 @@ test('a portrait picture counts as a picture of the batch: the same photo as an 
     const kept = r.batch?.posts ?? [], rejected = (r.batch ? r.notes : r.notes)?.rejected ?? [];
     assert.equal(kept.length, 1, 'one post keeps the picture');
     assert.ok(rejected.some((x) => /ph-agreed/.test(x.reasons.join(' '))), JSON.stringify(rejected));
+  });
+});
+
+// ---------- an image that stands alone: read without its caption, it says what it is about ----------
+test('stand-alone checks: a figure with no sub, a generic unit, a generic label and a headline leaning on a pronoun are flagged with a reason', () => {
+  const brief = (kind) => ({ figure: { fields: { label: {}, big: {}, unit: {}, sub: {} } }, statement: { fields: { label: {}, headline: {}, sub: {} } } })[kind] ?? null;
+  const fig = (d) => standAloneProblems({ template: 'post', kind: 'figure', big: '1,200+', ...d }, { brief }).join(' | ');
+  assert.match(fig({ unit: 'members' }), /a figure needs a sub: one sentence saying what is counted/);
+  assert.match(fig({ unit: 'members' }), /the unit "members" alone does not say what is counted/);
+  assert.match(fig({}), /a figure with neither unit nor sub is a bare number/);
+  assert.match(fig({ label: 'The numbers', unit: 'people saving in groups', sub: 'On Acme Savings, and the number grows every week.' }), /the label "The numbers" names no topic/);
+  for (const label of ['Numbers', 'Update', 'Info', 'the numbers.', 'NEWS']) assert.match(fig({ label, unit: 'people saving', sub: 'In groups on Acme Savings.' }), /names no topic/, label);
+  const st = (headline) => standAloneProblems({ template: 'post', kind: 'statement', label: 'Ask the assistant', headline }, { brief }).join(' | ');
+  for (const h of ['Ask the assistant in plain words, *it only reads*', 'It only reads', '*They* add up', 'This changes *everything*', 'Start free. *It stays free*', 'Its records are *yours*']) {
+    assert.match(st(h), /the headline leans on a pronoun/, h);
+  }
+  assert.equal(pronounLean('Ask the assistant in plain words, *it only reads*'), 'it only reads');
+  assert.equal(st("A club's record settles questions *by looking*"), '', 'no sub, nothing to repeat');
+  const subOf = (sub) => standAloneProblems({ template: 'post', kind: 'statement', label: 'Club records', headline: "A club's record settles questions *by looking*", sub }, { brief }).join(' | ');
+  assert.match(subOf('When every payment is written down for all to see, questions are settled by looking.'), /the sub repeats the headline's phrase "by looking"/);
+  assert.equal(subOf('On Pennyhive every payment and payout is written down where all members see it.'), '');
+  assert.equal(standAloneProblems({ template: 'post', kind: 'statement', headline: 'Save *together*', sub: 'Saving together is easier.' }, { brief }).join(''), '', 'a one-word emphasis is not held to it');
+});
+
+test('stand-alone checks: good posts pass, a design that draws no sub needs none, a series mark is the app\'s, and only a carousel\'s cover is held to a named subject', () => {
+  const brief = (kind) => ({ figure: { fields: { label: {}, big: {}, unit: {}, sub: {} }, variants: [{ fields: { big: {}, unit: {}, sub: {} } }, { fields: { big: {}, unit: {} } }] }, statement: { fields: { label: {}, headline: {}, sub: {} } }, list: { fields: { label: {}, headline: {}, items: {} } } })[kind] ?? null;
+  const ok = (d, o = {}) => assert.deepEqual(standAloneProblems({ template: 'post', ...d }, { brief, ...o }), [], JSON.stringify(d));
+  ok({ kind: 'figure', label: 'Our members', big: '1,200+', unit: 'people saving in groups', sub: 'On Acme Savings, and the number grows every week.' });
+  ok({ kind: 'figure', big: '1,200+', unit: 'members', sub: 'People saving in groups on Acme Savings.' });
+  ok({ kind: 'figure', variant: 1, big: '1,200+', unit: 'people saving in groups' });
+  for (const headline of ['The assistant answers questions, *it never moves money*', 'This Friday, *coffee on us*', 'Save together, *see every step*', 'Start free, keep your books', 'These three habits keep a club *calm*', 'Pick a day, it takes a minute']) {
+    ok({ kind: 'statement', label: 'Free plan', headline });
+  }
+  ok({ kind: 'statement', label: 'Notes', headline: 'Every deposit, *on the record*' }, { inSeries: true });
+  ok({ kind: 'list', label: 'Ask the assistant', headline: 'Three ways to *save better*', items: ['a', 'b'] });
+  assert.deepEqual(standAloneProblems({ template: 'carousel', pages: [{ template: 'post', kind: 'statement', headline: 'How a club *saves together*' }, { template: 'post', kind: 'statement', headline: 'It takes a minute a week' }] }, { brief }), []);
+  assert.match(standAloneProblems({ template: 'carousel', pages: [{ template: 'post', kind: 'statement', headline: 'It *only reads*' }, { template: 'post', kind: 'figure', big: '12', unit: 'members' }] }, { brief }).join(' | '), /carousel page 1: the headline leans on a pronoun.*carousel page 2: a figure needs a sub/);
+  assert.deepEqual(standAloneProblems({ template: 'number', big: '12' }, { brief }), [], 'only post designs');
+});
+
+const withClean = (fn) => withBrand((b) => { b.looks = [{ ...structuredClone(shippedLooks().clean), origin: 'copy:shipped:clean' }]; b.style = { ...(b.style ?? {}), direction: 'clean' }; }, fn);
+const cleanPost = (over = {}, design = {}) => good({
+  id: '01-members', title: 'Members', caption: '3,900+ members save daily with Acme Savings.\n\n#AcmeSavings #Savings #the region', imageReason: undefined,
+  design: { template: 'post', kind: 'figure', label: 'Our members', big: '3,900+', unit: 'people saving daily', sub: 'Members save in groups with Acme Savings and see every deposit.', ...design },
+  sources: ['fig-2'], ...over,
+});
+
+test('draftBatch with the Clean look: a figure that explains itself passes; a bare figure, a generic label and a pronoun headline are sent back with the reasons', async () => {
+  await withClean(async () => {
+    const statement = { kind: 'statement', big: undefined, unit: undefined, label: 'Our agents', sub: 'Agents record each deposit on their phone.' };
+    const posts = [
+      cleanPost({ id: 'ok' }),
+      cleanPost({ id: 'a', date: '2026-12-05' }, { unit: 'members', sub: undefined }),
+      cleanPost({ id: 'b', date: '2026-12-08' }, { label: 'The numbers' }),
+      cleanPost({ id: 'c', date: '2026-12-10', sources: ['fact-1'], caption: 'Agents record each deposit on their phone.\n\n#AcmeSavings #Savings' }, { ...statement, headline: 'Agents record deposits, *it only reads*' }),
+    ];
+    const replacement = cleanPost({ id: 'fixed', date: '2026-12-12', sources: ['fact-1'], caption: 'Agents record each deposit on their phone.\n\n#AcmeSavings #Savings' }, { ...statement, headline: 'Agents record *every deposit*' });
+    const f = fakeFetch(anthropicOk({ posts }), anthropicOk({ posts: [replacement] }), anthropicOk({ posts: [] }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    const { batch, notes } = await ai.draftBatch(req({ count: 2 }));
+    assert.equal(notes.promptVersion, 'draft-18');
+    assert.deepEqual(batch.posts.map((p) => p.id), ['ok', 'fixed']);
+    const by = Object.fromEntries(notes.rejected.map((r) => [r.id, r.reasons.join(' ')]));
+    assert.match(by.a, /a figure needs a sub/);
+    assert.match(by.a, /the unit "members" alone does not say what is counted/);
+    assert.match(by.b, /the label "The numbers" names no topic/);
+    assert.match(by.c, /the headline leans on a pronoun \("it only reads"\)/);
+    // the reasons go back to the model, which replaces the posts
+    assert.match(f.calls[1].body.messages[0].content, /a figure needs a sub/);
+    // the model is given the confirmed photos and the designs that draw them, and is told to prefer them
+    const asked = askedOf(f);
+    assert.ok(asked.vault.filter((i) => i.kind === 'photo').length >= 6, 'the usable photos are listed');
+    assert.ok(asked.design.kinds.photo.variants.every((v) => v.fields.image), 'the photo designs take a picture');
+    assert.ok(asked.design.kinds.offer.variants.some((v) => v.fields.image), 'an offer design takes a picture');
+    assert.match(f.calls[0].body.system, /Prefer posts with a picture\.\*\* .*Aim for most posts in a batch to carry a picture/);
+    assert.match(f.calls[0].body.system, /prefer a variant that lists `image`, and give it the photo/);
+    assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
+  });
+});
+
+test('a batch uses one design (kind and variant) about twice at most, and says when few posts carry a picture', async () => {
+  await withClean(async () => {
+    const st = { kind: 'statement', big: undefined, unit: undefined, label: 'Our agents', headline: 'Agents record *every deposit*', sub: 'On their phone, as it happens.' };
+    const agent = { sources: ['fact-1'], caption: 'Agents record each deposit on their phone.\n\n#AcmeSavings #Savings' };
+    const posts = [
+      cleanPost({ id: 'f1', date: '2026-12-02' }, { variant: 0 }),
+      cleanPost({ id: 's1', date: '2026-12-05', ...agent }, { ...st, variant: 0 }),
+      cleanPost({ id: 'f2', date: '2026-12-08' }, { variant: 0 }),
+      cleanPost({ id: 'f3', date: '2026-12-12' }, { variant: 0 }),
+    ];
+    const f = fakeFetch(anthropicOk({ posts }), anthropicOk({ posts: [] }), anthropicOk({ posts: [] }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    const { batch, notes } = await ai.draftBatch(req({ count: 4 }));
+    assert.deepEqual(batch.posts.map((p) => p.id), ['f1', 's1', 'f2']);
+    assert.match(allReasons({ notes }), /f3: this batch already has 2 "figure" posts in the Number design \(variant 0\); a batch of 4 uses one design at most 2 times/);
+    assert.deepEqual(notes.pictures, { posts: 0, of: 3, usablePhotos: 7 });
+    assert.match(notes.messages.join('\n'), /only 0 of 3 posts have a picture; the vault offered 7 usable photos, so ask again/);
+  });
+  await withClean(async () => {
+    const vault = VAULT.filter((i) => i.kind !== 'photo');
+    const f = fakeFetch(anthropicOk({ posts: [cleanPost()] }), anthropicOk({ posts: [] }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    const { notes } = await ai.draftBatch(req({ vault, count: 1 }));
+    assert.match(notes.messages.join('\n'), /only 0 of 1 posts have a picture; the vault offered 0 usable photo\(s\): confirm more photos, with their rights settled/);
+  });
+  // a post with its picture counts, and no note is written when most posts carry one
+  await withClean(async () => {
+    const photo = cleanPost({ imageReason: 'A street market, where the members save.' }, { kind: 'photo', variant: 0, big: undefined, unit: undefined, headline: 'Members save *every day*', sub: 'In groups with Acme Savings.', image: 'vault:ph-1' });
+    const f = fakeFetch(anthropicOk({ posts: [photo] }), anthropicOk({ posts: [] }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    const { notes } = await ai.draftBatch(req({ count: 1 }));
+    assert.deepEqual(notes.pictures, { posts: 1, of: 1, usablePhotos: 7 });
+    assert.doesNotMatch(notes.messages.join('\n'), /have a picture/);
   });
 });

@@ -207,11 +207,11 @@ For a look written as data the kinds come from the engine's `lookBrief` instead,
 (`variant`, `name`, `describe` and the variant's own `fields`).
 
 `prompts/draft.md` is one file; the parts that differ are between `<!-- if direction -->`, `<!-- else -->` and `<!-- end -->`
-lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-17`, serves both kinds of brand and a brand without a
+lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-18`, serves both kinds of brand and a brand without a
 direction gets what it got under `draft-11`, except for the confirmed-only rule. The direction part teaches: choose the kind from
 the content (a number is a `figure`; steps or reasons a `list`; a date and place an `event`; a price or "new" an `offer`; a picture
 that carries the post a `photo`; a house line a `quote`; otherwise a `statement`); write to the budgets (headline at most 70, aim
-for 45, one `*emphasis*` phrase of 1 to 4 words never the whole line, `sub` adds a fact and never repeats the headline, `label` 1 or
+for 45, one `*emphasis*` phrase of 1 to 4 words never the whole line, `sub` explains and never repeats the headline, `label` 1 or
 2 words, `big` as people say it with its sign or unit and `unit` what it counts, `items` parallel in grammar and length, `meta` as
 "12 Dec · 6pm · Place", `tag` at most 2 words or a price); vary the kinds (at least three kinds in five or more posts, never the same
 kind three posts running); use each picture once; set `variant` only where the kind lists `variants` (a look written as data
@@ -244,6 +244,52 @@ if named), used once in the batch with the other pictures; never with a `gallery
 three standard emoji per text when the brand's `emoji` is true, never in the brand name, a caption or a series mark; with it false, none.
 `notes` gains `direction` and `kindMix`.
 
+### Every image stands alone
+
+Most people see the image and never read the caption, so from `draft-18` (and `rewrite-7`) the prompts split what stays exact from
+what the model words itself, and ask that the words on each image answer three questions together: what it is about (the brand or the
+product, by name or a clear description), what the number or claim means, and why it matters to the reader.
+
+- **Exact**, as the cited item gives them: every number with its unit, sign or currency, names and the brand's spellings, dates, prices
+  and quotations (word for word). "Write money exactly as the item writes it" is about the sum itself, not the sentence around it.
+- **The model's own words**: everything else. A fact is said again in plain, clear words, with the same meaning and never stronger than
+  the item; an item's sentence is never copied onto the image just because it is there.
+- A headline names its subject (never "it", "they" or "this" for something the image does not name); a product or feature name the
+  reader may not know is introduced on first use ("<name>, the app's assistant"); a `figure`'s `unit` and `sub` say what is counted,
+  whose it is and why it matters; an `offer` says in its headline or `sub` what is free or priced; a label names the topic ("Our
+  members", "Free plan"), never a generic word. Where a fact came from ("a live figure from ...", the day it was read) goes in the
+  caption; "Illustrative figure." may stay on the image, short, at the end of the `sub`. When a design draws a `sub`, the model writes
+  one whenever it adds context; a figure, an offer and a statement normally carry one.
+
+`src/standalone.mjs` (`standAloneProblems`, called by `checkPost` for `post` designs and each post page of a carousel) sends back the
+worst cases with a reason, like every other check (the draft's replacement call, the rewrite's retry): a `figure` with no `sub` where
+its design (the named variant, else the kind) draws one; a `unit` that is one generic word (`members`, `people`, `users`, ...) with
+no `sub` or headline; a figure with neither; a label from a short fixed list (`The numbers`, `Numbers`, `Update`, `Info`, `News`, ...;
+not a named series' mark, which the app writes); a `sub` that repeats the headline's emphasis phrase of two words or more; and a
+headline (on a carousel, the cover's only) that opens on `it`, `they`, `he`, `she`, or `this`/`that`/`these`/`those` before a verb
+("This changes everything"), or ends on a short clause of three words or fewer that does ("..., it only reads"). The checks are a fixed
+word list and the first words of a clause, so they stay cheap and deterministic and do not judge style.
+
+### Pictures and variety
+
+`draft-18` also asks for posts with a picture: whenever a confirmed vault photo suits a post's subject, the model chooses a kind and
+variant that draws one (a variant that lists `image`) and gives it the photo, aiming for most posts in a batch to carry a picture; a
+single idea that a photo suits is a `photo` post rather than a `statement`, an `offer` takes a photo when its variant draws one, and
+a picture-less design is for a post no unused photo fits. Whether a look can draw a picture on a figure or a statement is the look's
+own: the shipped Clean look, for example, draws pictures only in its `photo` and `offer` designs.
+
+A batch is not one template filled in again and again: `comboProblems` in `postcheck.mjs` refuses a post whose design (its kind and
+named variant; a kind in all its variants when none is named) the batch already uses as often as the limit allows: 2, or a fifth of
+the batch, or the batch shared out over all the look's designs, whichever is most (`ctx.batchCount`). Named series posts are not
+counted. The prompt also asks for headlines of different shapes (an instruction, two short sentences, a full thought with a verb, now
+and then a question), not all "X is Y".
+
+`notes.pictures` is `{ posts, of, usablePhotos }`: how many delivered posts carry a picture and how many usable photos the vault
+offered. When fewer than half carry one, `notes.messages` says so, and the web app's AI-draft note shows one plain line next to its
+summary (not under Details): "Only 2 of 10 posts have a picture: confirm more photos in Pictures (with their rights settled) to get
+richer posts", or, when the vault offered at least as many photos as posts, that the photos are ready and a person can add one to a
+post or ask again (`pictureNote` in `web/src/lib/ai-draft-note.ts`).
+
 ### Named series
 
 `draftBatch` takes `recurring`: the brand's named series (the web app's Settings, Looks, Series), each `{ slug, name, kind, variants,
@@ -258,7 +304,7 @@ repairs; the series number is not taken for an unsourced number. After drafting,
 from `nextNumber`, so a slot left unfilled leaves no gap. Each post carries `series: { slug, number }`; `notes.namedSeries` lists the
 numbers drafted per series and `notes.messages` the slots left out.
 
-`rewrite` uses the same file (`rewrite-6`): a direction brand's rewrite is told the kinds and budgets, to keep the post's `kind`
+`rewrite` uses the same file (`rewrite-7`): a direction brand's rewrite is told the kinds and budgets, to keep the post's `kind`
 and edit the words within the same budgets, and to redesign an old-template post as a `post`. A kind changed by the model is
 shown in the post's `warnings`.
 
@@ -280,6 +326,8 @@ shown in the post's `warnings`.
      85,000 deposits");
      quotations of three words or more must appear in a source; the post must cite at least one item that exists;
    - a picture used twice in the batch, or one that shows another currency (see "The brand"), is rejected;
+   - a `post` image that does not stand alone (a bare figure, a generic label, a headline leaning on a pronoun; see "Every image
+     stands alone") is rejected with the reason;
    - repaired and reported: brand spelling, emoji in image text, duplicate or odd ids, an X caption over 280 (cut to whole sentences);
    - warned, not blocked: over-length Instagram or LinkedIn captions, more than
      30 hashtags, Title Case headlines, US spellings, headline and sub lengths.
@@ -318,7 +366,7 @@ number absent from the pages, or duplicate a vault item or an earlier candidate.
 ## Prompts
 
 `packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`, `brand-site.md`, `picture.md`. They are brand-neutral: they read the `brand` brief above.
-The first line is `<!-- version: draft-17 -->` (now `draft-17`, `rewrite-6`); the version is returned in `notes.promptVersion`. Change a prompt by editing
+The first line is `<!-- version: draft-18 -->` (now `draft-18`, `rewrite-7`); the version is returned in `notes.promptVersion`. Change a prompt by editing
 the file, bumping its version and reviewing the diff. Tests pin the versions' format only, not the wording.
 
 A brand pack can replace any of them with its own `prompts/<name>.md` (for example `brands/acme/prompts/draft.md`), with
