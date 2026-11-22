@@ -55,8 +55,19 @@ const HEADLINES: ReadonlyArray<readonly [string, string]> = [
   ['Everything is made by hand,', 'never in a hurry.'], ['Everything is made by hand, in small batches,', 'never in a hurry.'],
 ];
 const chars = (s: string) => [...s.replace(/\*/g, '')].length;
-function headline(max: number, scenario: CopyScenario, fill: number, preMax: number | null): string {
-  if (scenario === 'minimal') return 'Hello';
+// The shortest headline a design takes: a bare word, or, when its brief asks for a first part and an emphasised phrase (a Myth and fact
+// design: `accepts` rules on the headline's `pre` or `phrase`), the shortest two-part headline that meets each part's least length.
+function minimalHeadline(rules: ReadonlyArray<{ field?: string; part?: string; minChars?: number }>): string {
+  const parts = rules.filter((r) => r.field === 'headline' && (r.part === 'pre' || r.part === 'phrase'));
+  if (!parts.length) return 'Hello';
+  const least = (part: string) => Math.max(1, ...parts.filter((r) => r.part === part).map((r) => r.minChars ?? 1));
+  // the shortest of a few plain words with at least n characters
+  const pick = (list: readonly string[], n: number) => list.find((w) => w.length >= n) ?? words(list[list.length - 1]!, n, n);
+  return `${pick(['Old', 'Old way', 'The old way'], least('pre'))} *${pick(['new', 'the new', 'the new one', 'the new way now'], least('phrase'))}*`;
+}
+
+function headline(max: number, scenario: CopyScenario, fill: number, preMax: number | null, rules: ReadonlyArray<{ field?: string; part?: string; minChars?: number }> = []): string {
+  if (scenario === 'minimal') return minimalHeadline(rules);
   const total = Math.min(max, Math.max(10, Math.round(max * fill)));
   const ok = HEADLINES.filter(([pre, emph]) => chars(`${pre} ${emph}`) <= total && (preMax === null || chars(pre.replace(/,$/, '')) <= preMax));
   const pick = ok[ok.length - 1] ?? HEADLINES[0]!;
@@ -84,7 +95,7 @@ export function copyFor(kind: string, variant: Variant, scenario: CopyScenario, 
     const mini = scenario === 'minimal';
     const share = (m: number) => Math.max(3, Math.round(m * fill));
     switch (name) {
-      case 'headline': out.headline = headline(max, scenario, fill, preMax); break;
+      case 'headline': out.headline = headline(max, scenario, fill, preMax, variant.accepts as Array<{ field?: string; part?: string; minChars?: number }>); break;
       case 'big': out.big = [...(mini ? '7 kg' : scenario === 'stress' ? (fill >= 1 ? '1,250 kg' : fill >= 0.85 ? '125 kg' : fill >= 0.7 ? '12 kg' : '12') : '12')].slice(0, max).join(''); break;
       case 'items': {
         const lo = f.min ?? 2, hi = f.max ?? 5;

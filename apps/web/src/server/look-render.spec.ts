@@ -103,6 +103,18 @@ describe('the real renderer (the engine and Chrome)', () => {
     expect(publish.body.look.status).toBe('ready');
   }, 240_000);
 
+  it('publishes a copy of the shipped Clean look: its Myth and fact design takes the minimal copy', async () => {
+    connectLookRenderer(t.deps);
+    const api = await admin();
+    expect((await api.post(`${BASE}/duplicate`, { source: 'shipped:clean', slug: 'clean-copy', name: 'Clean copy' })).status).toBe(201);
+    const gate = await api.post(`${BASE}/clean-copy/gate`);
+    expect(gate.status).toBe(200);
+    for (const c of gate.body.look.compositions as Array<{ kind: string; name: string; gate: { passed: boolean; checks: GateCheck[] } }>) {
+      expect(c.gate.checks.filter((k) => !k.passed), `${c.kind}/${c.name}`).toEqual([]);
+    }
+    expect((await api.post(`${BASE}/clean-copy/publish`)).body.look.status).toBe('ready');
+  }, 300_000);
+
   it('draws a post with the look the brand uses, and refuses a layout the look does not have', async () => {
     connectLookRenderer(t.deps);
     const api = await admin();
@@ -290,6 +302,17 @@ describe('the font files for the typeface cards', () => {
 });
 
 describe('the copy a look is drawn with', () => {
+  it('gives a design whose headline needs a first part and an emphasised phrase a minimal headline with both', () => {
+    const variant = { index: 0, fields: { headline: { required: true, max: 60 } }, accepts: [{ field: 'headline', part: 'pre', minChars: 3, maxChars: 30 }, { field: 'headline', part: 'phrase', minChars: 5, maxChars: 30 }] } as unknown as Parameters<typeof copyFor>[1];
+    const h = String(copyFor('statement', variant, 'minimal').headline);
+    const m = /^(.+?) \*(.+)\*$/.exec(h);
+    expect(m, h).not.toBeNull();
+    expect(m![1]!.length).toBeGreaterThanOrEqual(3);
+    expect(m![2]!.length).toBeGreaterThanOrEqual(5);
+    expect(copyFor('statement', { ...variant, accepts: [] } as typeof variant, 'minimal').headline).toBe('Hello');
+  });
+
+
   it('stays inside the budgets of the look\'s own brief, for every design, scenario and attempt', async () => {
     const eng = await lookEngine();
     const { ATTEMPTS } = await import('./services/look-copy.js');
