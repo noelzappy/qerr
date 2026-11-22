@@ -8,7 +8,7 @@
 // or one inside a shape), data-deco (primitives), data-fill (from fill), data-el (index paths, kit numberElements).
 import { PRIMITIVES, COLOUR_NAMES } from '../look-elements.mjs';
 import { gridOf, rowSpanOf, styleOf } from '../look-static.mjs';
-import { capTrim } from './kit.mjs';
+import { capTrim, markCrossing } from './kit.mjs';
 
 const clean = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== null && v !== false));
 const FLOWING = new Set(['box', 'text', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'sticker', 'rule', 'block']);
@@ -154,15 +154,15 @@ export function renderComposition(look, comp, c) {
     if (spec) {
       // text-like primitives with a grid cell: alignY decides where the lines sit
       if (box.alignY === 'bottom' && el.type === 'fitted-stack') env.box = { ...env.box };
-      return String(spec.render(c, el, { ...env, box: env.box }));
+      return markCrossing(String(spec.render(c, el, { ...env, box: env.box })), el);
     }
     switch (el.type) {
-      case 'box': return boxEl(el, env, P, box);
-      case 'text': return textEl(el, env, P, box);
+      case 'box': return markCrossing(boxEl(el, env, P, box), el);
+      case 'text': return markCrossing(textEl(el, env, P, box), el);
       case 'photo': return photoEl(el, env);
-      case 'sticker': return sticker(el, P, flowing, env);
+      case 'sticker': return markCrossing(sticker(el, P, flowing, env), el);
       case 'rule': return ruleEl(el, env);
-      case 'block': return blockEl(el, env);
+      case 'block': return markCrossing(blockEl(el, env), el);
       case 'frame': return c.frame({ t: el.t ?? frame.t, colour: el.colour });
       case 'keyline': return c.keyline(clean({ ...env.box, weight: el.weight, colour: el.colour, radius: el.radius }));
       case 'glyph': return c.glyph(clean({ ...env.box, text: el.glyph, size: el.size, lead: 1, colour: el.colour, weight: T.type.display.weight, stretch: el.stretch, textShadow: env.textShadow, z: env.z }));

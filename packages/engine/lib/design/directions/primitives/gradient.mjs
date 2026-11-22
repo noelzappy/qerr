@@ -7,7 +7,7 @@ export const SPEC = {
   label: 'Gradient', group: 'Shapes', help: 'An area filled with a blend of two or three of the brand\'s colours: linear along a direction or radial from a point.',
   placement: 'required', flow: false, container: null, text: false,
   own: { gradient: gradientDesc() },
-  common: ['place', 'bleed', 'z', 'when', 'radius', 'corners'],
+  common: ['place', 'bleed', 'z', 'when', 'radius', 'corners', 'key'],
   required: ['gradient'],
 };
 export function render(c, p, env) {

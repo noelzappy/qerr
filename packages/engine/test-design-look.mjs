@@ -190,6 +190,7 @@ const EXAMPLES = {
   chart: { type: 'chart', kinds: ['bar', 'line'], place: AT(56, 600, 900, 400) },
   avatar: { type: 'avatar', size: 120, place: { px: { x: 56, y: 1100 } } },
   device: { type: 'device', place: AT(600, 300, 400, 840) },
+  backdrop: { type: 'backdrop', pattern: 'rings', at: 'right top', place: { inset: 'page' } },
 };
 const host = (...extra) => ({
   ...clone(SWISS), id: 'host', origin: 'copy:shipped:swiss',

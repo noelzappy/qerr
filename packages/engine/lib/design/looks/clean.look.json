@@ -682,7 +682,7 @@
     {
       "kind": "quote",
       "name": "Quote",
-      "describe": "The quotation large on the dark page under an opening quotation mark, the source under it and the label at the foot. Use for a quotation of up to about 160 characters.",
+      "describe": "The quotation large on the dark page under an opening quotation mark, the source under it and the label at the foot. Use for a quotation of up to about 160 characters. Fine rings in the brand colour spread from the bottom right corner.",
       "ground": "dark",
       "fit": "margins",
       "calm": {
@@ -701,6 +701,19 @@
         }
       },
       "elements": [
+        {
+          "type": "backdrop",
+          "pattern": "rings",
+          "colour": "field",
+          "scale": 64,
+          "density": 0.12,
+          "opacity": 0.5,
+          "at": "right bottom",
+          "mask": "fade-up",
+          "place": {
+            "inset": "page"
+          }
+        },
         {
           "type": "text",
           "source": "site",

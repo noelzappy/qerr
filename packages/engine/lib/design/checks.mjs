@@ -190,7 +190,10 @@ export function findLayoutProblems(m, S) {
   const bottom = Math.max(S.bottom ?? S.pad, m.header ? S.fbot ?? 0 : 0);
   const lim = { x0: S.pad - 3, x1: m.W - S.pad + 3, y0: m.header ? Math.max(S.top - 6, m.header.y1 + 10) : S.top - 6, y1: m.footer ? m.footer.y0 - 10 : m.H - bottom + 3 };
   const roles = m.roles.filter((r) => r.rects.length);
-  const own = roles.filter((r) => !r.nested);
+  // a text's own words and the words of the texts nested in it (a headline's emphasised phrase): where it reaches and what it runs into is
+  // judged on all of them (the role list's `within` is the index of the text a nested one sits in)
+  const top = (r) => { let t = r; for (let k = 0; k < 8 && t.nested && Number.isInteger(t.within) && m.roles[t.within]; k++) t = m.roles[t.within]; return t; };
+  const own = roles.filter((r) => !r.nested).map((r) => { const kids = roles.filter((k) => k !== r && k.nested && top(k) === r); return kids.length ? { ...r, rects: [...r.rects, ...kids.flatMap((k) => k.rects)] } : r; });
   for (const r of own) {
     if (EXEMPT_EDGE.has(r.role)) continue;
     const u = union(r.rects.map(core));
@@ -323,6 +326,8 @@ export function inkGap(i, f) {
   if (inside) return -Math.min(i.y0 - f.y0, f.y1 - i.y1);
   return Math.hypot(Math.max(f.x0 - i.x1, i.x0 - f.x1, 0), Math.max(f.y0 - i.y1, i.y0 - f.y1, 0));
 }
+// A line of ink allowed to cross the edge of shape f: its text names that shape's key (a to f) or any shape (data-ov="any"). Nothing else is.
+export const crossesOnPurpose = (i, f) => typeof i.ov === 'string' && (i.ov === 'any' || (/^[a-f]$/.test(i.ov) && f.key === i.ov));
 export function findPostProblems(m, { grid } = {}) {
   const problems = [], L = POST_LIMITS, hs = m.hs || 1;
   const limit = Number.isFinite(m.calm) ? Math.max(L.emptyShare, m.calm) : L.emptyShare;
@@ -344,6 +349,8 @@ export function findPostProblems(m, { grid } = {}) {
       if ((f.frame ?? '') !== (i.frame ?? '')) continue;
       // a chart's own words against its own box: held to their cells instead (runtime postMetrics)
       if (f.chart !== undefined && f.chart === i.chart) continue;
+      // words a look lets cross a shape's edge on purpose (overlap): only that pairing is not judged; every other shape still is
+      if (crossesOnPurpose(i, f)) continue;
       const g = inkGap(i, f);
       if (Math.abs(g) < L.edge) { problems.push({ kind: 'edge', role: i.role, text: i.text, gap: Math.round(Math.abs(g)), inside: g < 0, crossing: g === 0 }); break; }
     }

@@ -105,3 +105,15 @@ export const GRAPHIC_SIZES = Object.freeze({ s: 0.22, m: 0.34, l: 0.5, xl: 0.72 
 // A vault item named by a look: its id (a UUID, lowercase), nothing else; the file is found by the app and checked when the page is made.
 export const VAULT_REF = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const ref = (label, help) => d({ kind: 'ref' }, label, help);
+
+// ---- text that crosses the edge of a shape on purpose (an explicit, opt-in pairing) ----
+// A shape a text may cross is named with one of a fixed list of keys (never a free string); the text names that key, or any-shape.
+export const SHAPE_KEYS = ['a', 'b', 'c', 'd', 'e', 'f'];
+export const OVERLAP_WITH = ['any-shape', ...SHAPE_KEYS];
+// The most texts of one composition that may cross a shape's edge.
+export const OVERLAP_MAX = 3;
+
+// ---- decorative backgrounds (the backdrop primitive): patterns drawn from brand colour roles and bounded numbers ----
+export const BACKDROP_PATTERNS = ['dots', 'halftone', 'grid', 'stripes', 'rings', 'waves', 'blobs', 'confetti', 'plus', 'checker', 'grain'];
+// How a backdrop fades out: not at all, towards one side, or towards its edges all round.
+export const BACKDROP_MASKS = ['none', 'fade-down', 'fade-up', 'fade-left', 'fade-right', 'vignette', 'edges'];

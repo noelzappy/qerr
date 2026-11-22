@@ -29,6 +29,7 @@ import {
   angle, bool, d, en, field, int, length, list, num, obj, oneOf, role, text, tuple,
 } from './look-desc.mjs';
 import { GRADIENT_AT, GRADIENT_KINDS, GRADIENT_SHAPES, GRADIENT_STOPS, GRAPHIC_SIZES, GRAPHIC_SLOTS, OVERLAY_FROM, VAULT_REF, gradientDesc } from './look-desc.mjs';
+import { BACKDROP_MASKS, BACKDROP_PATTERNS, OVERLAP_MAX, OVERLAP_WITH, SHAPE_KEYS } from './look-desc.mjs';
 import * as fittedStack from './directions/primitives/fitted-stack.mjs';
 import * as numeral from './directions/primitives/numeral.mjs';
 import * as mantraRows from './directions/primitives/mantra-rows.mjs';
@@ -52,10 +53,12 @@ import * as avatar from './directions/primitives/avatar.mjs';
 import * as device from './directions/primitives/device.mjs';
 import * as ribbon from './directions/primitives/ribbon.mjs';
 import * as chart from './directions/primitives/chart.mjs';
+import * as backdrop from './directions/primitives/backdrop.mjs';
 // the shapes of a headline's pills (kit.mjs PILL_SHAPES)
 export const PILL_SHAPES = ['pill', 'soft', 'outline'];
 export { ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS, METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SOFT_SHADOWS, CORNERS, ROUND_SHAPES, RULE_STYLES, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS, WORDS, BLENDS };
 export { GRADIENT_AT, GRADIENT_KINDS, GRADIENT_SHAPES, GRADIENT_STOPS, GRAPHIC_SIZES, GRAPHIC_SLOTS, OVERLAY_FROM, VAULT_REF };
+export { BACKDROP_MASKS, BACKDROP_PATTERNS, OVERLAP_MAX, OVERLAP_WITH, SHAPE_KEYS };
 export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 'mantra-rows': mantraRows, rows, seam, band, 'meta-row': metaRow, 'wordmark-pattern': wordmarkPattern, scrim, 'punch-hole': punchHole,
   // gradients, colour over a picture, brand graphics and cut-outs
   gradient, overlay, graphic,
@@ -65,8 +68,8 @@ export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 
   // and a ribbon across a corner of the page
   'taped-photo': tapedPhoto, 'paper-texture': paperTexture, 'icon-badge': iconBadge, ribbon,
   // a chart drawn from the post's numbers (bars, a line, a sparkline, a donut, a progress bar), one portrait picture of the person quoted (the
-  // post's avatar), and a phone or tablet drawn round a bare screenshot
-  chart, avatar, device });
+  // post's avatar), a phone or tablet drawn round a bare screenshot, and a decorative background (a pattern of brand colours drawn from bounded numbers)
+  chart, avatar, device, backdrop });
 
 export const LOOK_SCHEMA = 1;
 export const KINDS = [...POST_KINDS];
@@ -141,6 +144,14 @@ export const COMMON = Object.freeze({
   }], 'Letter shadow', 'A hard shadow behind the letters: the look\'s ("hard") or your own.'),
   // a box filled with a gradient instead of one colour (not with fill)
   gradient: gradientDesc('Gradient fill', 'Fills it with a blend of two or three of the brand\'s colours instead of one (leave out fill).'),
+  // a name for a filled shape (one of a fixed list), so that a text may be allowed to cross its edge on purpose
+  key: en(SHAPE_KEYS, 'Name for crossing', 'Names this shape (a to f) so that a text of the composition may cross its edge on purpose (that text\'s overlap names it).'),
+  // a text that crosses the edge of a shape on purpose: the "text meets the edge of a block" check skips only this pairing
+  overlap: obj({
+    with: en(OVERLAP_WITH, 'Crosses', 'The shape whose edge the words may cross: a shape named with key (a to f), or any shape of the composition.'),
+    allow: bool('Allowed', 'Must be true: the words cross that edge on purpose. Leave overlap out to keep the edge check for every shape.'),
+    outline: obj({ colour: role('Colour', 'The outline colour.'), w: int(2, 12, 'Width', 'Pixels.') }, 'Outline', 'An outline round the letters, for words that must read on two grounds; the outline must itself reach the contrast on every part of the ground, and the ink on the outline.', ['colour', 'w']),
+  }, 'Crosses a shape\'s edge', 'Lets the words cross the edge of one shape on purpose (a headline breaking out of its panel or across a circle). Every part of the words is still measured for contrast on the pixels under it.', ['with', 'allow']),
 });
 // The properties only an item flowing in a box takes.
 export const FLOW_ONLY = ['grow', 'minH', 'w', 'h', 'before', 'nudgeX', 'alignSelf'];
@@ -180,7 +191,7 @@ const ELEMENTS_BASE = {
       flow: en(['column', 'row'], 'Direction', 'Items flow down a column or across a row.', 'column'), justify: en(JUSTIFIES, 'Spread along', 'Where the items sit along the direction.', 'start'),
       align: en(FLOW_ALIGNS, 'Across', 'How the items line up across the direction (stretch fills it).', 'start'), gap: int(0, 120, 'Gap', 'Pixels between items.', 0),
     },
-    common: ['place', 'bleed', 'rot', 'origin', 'originPct', 'z', 'when', 'fill', 'ink', 'shadow', 'ring', 'border', 'pad', 'radius', 'corners', 'grow', 'minH', 'w', 'h', 'before', 'nudgeX', 'alignSelf', 'gradient'],
+    common: ['place', 'bleed', 'rot', 'origin', 'originPct', 'z', 'when', 'fill', 'ink', 'shadow', 'ring', 'border', 'pad', 'radius', 'corners', 'grow', 'minH', 'w', 'h', 'before', 'nudgeX', 'alignSelf', 'gradient', 'key'],
   },
   text: {
     label: 'Text', group: 'Text', help: 'Words of the post (or the brand name, the folio, a list number) set in one of the look\'s type styles.',
@@ -207,7 +218,7 @@ const ELEMENTS_BASE = {
       }, 'Words in pills', 'Sets the headline\'s [[marked]] words (one or two runs of one to three words) in pills.', ['ink']),
       icons: obj({ colour: role('Colour', 'The icon colour; leave out for the colour of the words.'), badge: role('Badge', 'Sets each icon in a small round disc of this colour, like a sticker in the line; leave out for a plain icon.') }, 'Inline icons', 'Draws the headline\'s {{icon}} marks, from the engine\'s own icons.'),
     },
-    common: ['place', 'bleed', 'rot', 'origin', 'z', 'when', 'ink', 'w', 'before', 'nudgeX', 'alignSelf', 'textShadow'],
+    common: ['place', 'bleed', 'rot', 'origin', 'z', 'when', 'ink', 'w', 'before', 'nudgeX', 'alignSelf', 'textShadow', 'overlap'],
   },
   photo: {
     label: 'Picture', group: 'Pictures', help: 'The post\'s picture, cropped to a shape and treated in the look\'s way.',
@@ -235,7 +246,7 @@ const ELEMENTS_BASE = {
       textSize: int(14, 400, 'Text size', 'Pixels, when the size does not change with length.'),
       stretch: int(50, 150, 'Width of the letters', 'Font width in percent for the words, instead of the look\'s headline width (with fit; the display font must have it).'),
     },
-    common: ['place', 'rot', 'origin', 'originPct', 'z', 'when', 'fill', 'ink', 'shadow', 'ring', 'pad', 'radius', 'before', 'nudgeX', 'alignSelf'],
+    common: ['place', 'rot', 'origin', 'originPct', 'z', 'when', 'fill', 'ink', 'shadow', 'ring', 'pad', 'radius', 'before', 'nudgeX', 'alignSelf', 'key'],
   },
   rule: {
     label: 'Rule', group: 'Shapes', help: 'A line.', placement: 'required', flow: true, container: null, text: false,
@@ -245,7 +256,7 @@ const ELEMENTS_BASE = {
   block: {
     label: 'Colour block', group: 'Shapes', help: 'A solid block of colour (a bar, a square, a dot).', placement: 'required', flow: true, container: null, text: false,
     own: { colour: role('Colour', 'The block colour.', 'accent') },
-    common: ['place', 'bleed', 'rot', 'skew', 'origin', 'z', 'when', 'radius', 'corners', 'shadow', 'w', 'h', 'before'],
+    common: ['place', 'bleed', 'rot', 'skew', 'origin', 'z', 'when', 'radius', 'corners', 'shadow', 'w', 'h', 'before', 'key'],
   },
   frame: {
     label: 'Frame', group: 'Shapes', help: 'A solid border round the whole page, as thick as the look\'s frame.', placement: 'none', flow: false, container: null, text: false,

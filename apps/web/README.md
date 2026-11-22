@@ -364,6 +364,10 @@ A **Chart** piece (the post's `chart`) is added bound to the field, as bars in t
 or dark ground it takes an ink that reads there). Its choices come first as chips (`design/parts.tsx`, `design/chart-choices.ts`): what it is drawn as
 (bars, bars across, line, area, sparkline, donut, progress bar), the axis (none, a baseline, a light grid), the corners, values and labels on or off and, for
 a line kind only, "Start the axis near the data"; the colours, the dots, the line width, the thickness and the type sizes are under Fine-tune.
+A **Pattern** piece (`backdrop`) is chosen from thumbnails (`design/surfaces.tsx`: one per pattern, and a row of ready-made settings whose quiet ones keep
+words easy to read), with its colours as swatches and its strength and fade as chips; scale, density, strength, angle, seed and centre are under
+Fine-tune. A text or a fitted headline has a **Crosses a shape** group: No, one of the design's filled shapes by name, or Any shape; choosing a shape names
+it (its `key`) and sets the text's `overlap` in one step, and an outline for words that cross two grounds is under Fine-tune.
 
 **Drawing a look** (`services/look-render.ts`, connected in `src/server/index.ts` with `connectLookRenderer`). Everything goes through the render queue
 (`services/render-queue.ts`: posts, then previews, then gate jobs, under the engine's single Chrome lock; a newer request with the same key, one per person

@@ -229,6 +229,18 @@ function backgrounds(node, comp, look) {
   return gs.map((g) => GROUND_ROLE[g]);
 }
 
+// The colours of a named shape (its key) a crossing text must read on: a box's fill or gradient, a block's colour, a sticker's fill, a gradient
+// area's stops, a badge's fill.
+function shapeFills(n, look) {
+  const el = n.el;
+  if (n.type === 'box') return hasGradient(n) ? [...el.gradient.stops] : el.fill !== undefined ? [el.fill] : [];
+  if (n.type === 'block') return [el.colour ?? 'accent'];
+  if (n.type === 'sticker') return [el.fill ?? (look.colour?.sticker === 'primary' ? 'primary' : 'gold')];
+  if (n.type === 'gradient') return Array.isArray(el.gradient?.stops) ? [...el.gradient.stops] : [];
+  if (typeof PRIMITIVES[n.type]?.ownFill === 'function' && PRIMITIVES[n.type].ownFill(el) !== undefined) return [PRIMITIVES[n.type].ownFill(el)];
+  return [];
+}
+
 export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
   const look = ctx.look, g = gridOf(look);
   const at = (node, text) => push(errs, ctx, node.path, text);
@@ -285,7 +297,10 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
     const el = n.el;
     if (el.ink !== undefined) {
       const own = n.type === 'text' && el.tiltBar ? ['gold'] : backgrounds(n, comp, look);
-      for (const bg of own) { const p = pairProblem(el.ink, bg); if (p) { at(n, `${p}`); break; } }
+      // (words with an outline, overlap.outline, may read by the outline: the outline on the colour, the ink on the outline)
+      const ol = isObj(el.overlap) && isObj(el.overlap.outline) ? el.overlap.outline.colour : undefined;
+      const byOutline = (bg) => ol !== undefined && INK_ON[ol]?.includes(el.ink) && INK_ON[bg]?.includes(ol);
+      for (const bg of own) { const p = pairProblem(el.ink, bg); if (p && !byOutline(bg)) { at(n, `${p}`); break; } }
     }
     if (n.type === 'rows') {
       const t = el.numberTile;
@@ -302,6 +317,25 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
     if (prim && typeof prim.inks === 'function') {
       const on = backgrounds(n, comp, look);
       for (const ink of prim.inks(el)) for (const bg of on) { const p = pairProblem(ink, bg); if (p) { at(n, p); break; } }
+    }
+  }
+
+  // -- words that cross a shape's edge on purpose (overlap): the ink must read on the shape AND on what the words stand on outside it, unless
+  // an outline carries them (then the outline must read on both and the ink on the outline). The pixels of every part are measured again. --
+  for (const n of nodes) {
+    const o = n.el.overlap;
+    if (!isObj(o) || o.with === 'any-shape') continue;
+    const target = nodes.find((x) => x.el.key === o.with);
+    if (!target) continue;
+    const ink = inkOf(n), fills = shapeFills(target, look), on = [...fills, ...backgrounds(n, comp, look)];
+    // on each colour: the ink reads on it, or the outline reads on it and the ink reads on the outline
+    const ol = isObj(o.outline) ? o.outline.colour : undefined, inkOnOutline = ol !== undefined && !!ink && !!INK_ON[ol] && INK_ON[ol].includes(ink);
+    if (ol !== undefined && ink && INK_ON[ol] && !inkOnOutline) at(n, `its ink ${ink} does not read on its outline ${ol} (use ${list(INK_ON[ol])})`);
+    for (const bg of on) {
+      if (!INK_ON[bg] || !ink || INK_ON[bg].includes(ink)) continue;
+      if (inkOnOutline && INK_ON[bg].includes(ol)) continue;
+      at(n, `crosses the edge of shape ${o.with}, so its ink ${ink} must read on ${bg} too (use ${list(INK_ON[bg])}, or an outline that reads on ${bg})`);
+      break;
     }
   }
 

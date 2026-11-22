@@ -19,7 +19,7 @@ test('shippedLooks: retail, swiss, soft, bloom, clean, loud, ledger, studio, roa
   for (const [id, look] of Object.entries(s)) {
     assert.equal(look.id, id);
     assert.equal(look.origin, 'shipped');
-    assert.equal(look.compositions.length, ({ loud: 13, ledger: 12, studio: 17, roast: 12, plate: 10, guide: 10 })[id] ?? 9, 'nine compositions each; loud has thirteen, ledger twelve, studio seventeen, roast twelve, plate and guide ten');
+    assert.equal(look.compositions.length, ({ soft: 10, loud: 13, ledger: 12, studio: 17, roast: 12, plate: 10, guide: 10 })[id] ?? 9, 'nine compositions each; soft has ten, loud thirteen, ledger twelve, studio seventeen, roast twelve, plate and guide ten');
     assert.deepEqual(validateLook(look, id, { shipped: true }), []);
     assert.ok(Object.isFrozen(look) && Object.isFrozen(look.compositions) && Object.isFrozen(look.compositions[0].elements[0]));
     assert.throws(() => { look.compositions[0].name = 'x'; }, TypeError);
