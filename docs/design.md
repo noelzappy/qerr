@@ -1516,7 +1516,7 @@ paper, `on-field` to the ink, `body-dark` and `muted-dark` to the light greys), 
 ### The shipped looks and the engine's hooks
 
 `shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss, soft, bloom, clean, loud, ledger, studio, roast, plate, guide }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each: two
-statements, a figure, a list, a quote, two photos, an event and an offer; soft has ten (a third statement), loud thirteen, ledger twelve, see below, studio seventeen, roast twelve, plate ten and guide ten), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
+statements, a figure, a list, a quote, two photos, an event and an offer; clean has ten (a second figure, over a photo), soft eleven (a third statement and a second figure over a photo), loud thirteen, ledger twelve, see below, studio seventeen, roast twelve, plate ten and guide ten), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
 data counterpart of the code directions of the same name: retail is held to the code (the same budgets, names and grounds; geometry within 3 px of the
 code compositions in `test-design-look-equivalence.mjs`, with the deviations listed there: the roles of the unit and the date tile, and the wrapping
 highlight bar 0.12 em against 0.13 em); swiss is held to the approved prototype by eye. Soft (one sans in medium weights on pale tints of the brand colour, the logo top
@@ -1557,6 +1557,27 @@ validator, and `test-design-look-equivalence.mjs` draws every shipped look from 
 The retail price tag (figure/0) sets its figure as large as the stage allows (up to 930 px, centred) with the unit fitted on a full-width accent block
 under it, in the code composition and the look alike. A folio is written only from the post's real place (its position in its batch, or a carousel
 page's); without one a page has no folio, never a number made up from the words or the date. The partial `testlib/looks/*.sample.json` stay as test fixtures.
+
+**Pages that make sense without their caption, and without a picture** (22 Nov 2026). Where a design leaves a large pale shape, the shape holds
+words (`test-design-look-context.mjs`). The Clean (`offer/0` Product), Soft (`offer/0` Price pill) and Bloom (`offer/0` Badge) offers without a
+picture no longer draw an empty card or disc with the price in it: the card hugs its words at the foot of the page, the price pill (Bloom: the
+price badge) and the sub under it (Bloom: beside it) inside the card, so the sub says what the price buys; with a picture the sub stays under the
+picture as before. Soft's `statement/0` Quiet sets its sub in a white rounded card at the foot, with a smaller pale dome rising behind the card's
+right end; the big dome and the white circle are drawn only when the post has no sub. Clean and Soft set labels at 34 px (was 30),
+the largest a label may take, so the label is readable at feed size; within 2 px of the 32 px body text, it adds no level of type.
+
+**Page colours in turn (`colour.rotate`).** A look may list two or three light page colours (`paper`, `soft`, `tint`, each also in its
+`colour.grounds`) that a batch takes in turn: a composition whose page colour is one of them is drawn on the one the post's own words pick
+(an FNV-1a hash of its kind, headline, figure, quote, tag, label and sub: `rotatedGround` in `directions/index.mjs`), so posts without
+pictures do not all sit on one pale tint, and the same post always gets the same colour. Dark page colours never rotate in: a composition sets
+its words in inks for a light page. The look's static ink table checks every text against every colour of the rotation, and every page check
+runs on the colour the page really has. Clean rotates `paper` and `tint`, Soft `tint` and `soft` (its white pills and cards need a tinted page).
+The look settings show it under Colour, Fine-tune ("Page colours in turn"), drawn from the catalogue like `colour.grounds`.
+
+**A figure over a photo.** Clean's `figure/1` Number over photo and Soft's `figure/1` Big number over photo carry a figure with its unit line and sub on top and a
+required picture at the foot melting into the page (as their photo designs: a plain background becomes the page colour, otherwise the top
+edge fades); a figure without a picture keeps `figure/0`. A statement with a photo is the `photo` kind (Clean `photo/0` Object, Soft `photo/0`
+Foot photo): statement and list designs take no picture.
 
 **Loud** (`loud.look.json`, thirteen compositions) is loud and friendly, like a community app: Anton (a heavy condensed display face, shipped
 in the font library) in capitals with one or two words in a pill, on the brand colour (`field`), the accent or the dark colour, or over a darkened

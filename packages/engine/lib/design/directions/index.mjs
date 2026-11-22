@@ -124,6 +124,14 @@ function pickVariant(spec, list, direction) {
   // A composition may decline content it cannot draw well (accepts(spec) is false): the next variant of the kind, in order and
   // wrapping round, is used instead. When none accepts it, the post is refused.
   let used = variant;
+  // A look's design whose picture is required is passed over for a post without one, and a design that shows no picture for a post with one,
+  // when another design of the kind fits (the next in order): a figure without a picture never lands on "Number over photo", and a picture is
+  // not dropped while a design of its kind could show it. Only when no variant was asked for.
+  if (spec.variant === undefined) {
+    const pic = typeof spec.image === 'string' && spec.image !== '';
+    const fits = (c) => (c.data?.fields?.image ? (pic || !c.data.fields.image.required) : !pic);
+    if (!fits(list[used])) for (let i = 1; i < list.length; i++) { const j = (variant + i) % list.length; if (fits(list[j])) { used = j; break; } }
+  }
   for (let i = 0; i < list.length && typeof list[used].accepts === 'function' && !list[used].accepts(spec); i++) used = (used + 1) % list.length;
   if (typeof list[used].accepts === 'function' && !list[used].accepts(spec)) throw new DesignError(`no ${spec.kind} composition of the ${direction} direction can draw these words`);
   return { variant, used, fellBackFrom: used === variant ? null : list[variant].id };
@@ -246,6 +254,18 @@ const withEmoji = (fonts, words) => {
   return { css: fonts.css + e.css + s.css, files: [...fonts.files, ...e.files, ...s.files], emoji: !!e.css, symbols: !!s.css };
 };
 
+// The page colour of a post in a look that rotates its light page colours (colour.rotate): a composition whose page colour is in the rotation
+// is drawn on the colour of it the post's own words pick (an FNV-1a hash of its kind and main words), so a batch without pictures does not sit
+// on one colour, and the same post always gets the same one. Any other page colour stays as the composition says.
+export function rotatedGround(look, ground, spec) {
+  const rot = look?.colour?.rotate;
+  if (!Array.isArray(rot) || rot.length < 2 || !rot.includes(ground)) return ground;
+  const words = [spec.kind, ...['headline', 'big', 'quote', 'tag', 'label', 'sub'].map((f) => (typeof spec[f] === 'string' ? spec[f] : ''))].join('|');
+  let h = 0x811c9dc5;
+  for (const ch of words) { h ^= ch.codePointAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
+  return rot[h % rot.length];
+}
+
 function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, look }) {
   const brand = ctx.brand;
   const c = makeContext({ spec, brand, tokens, direction, kind: spec.kind, variant: used, comp, size: ctx.size, image: ctx.image, imageSize: ctx.imageSize, counter: ctx.counter, folio: ctx.folio, date: ctx.date });
@@ -272,7 +292,7 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
   const pal0 = palette(brand, comp.bodyOnField ? Math.max(displayTarget(brand), Number(brand.contrast?.sub) || 0) : displayTarget(brand));
   // accentAsType "field": the emphasised phrase is set in the deep field colour (always readable on the page and on a pale tint), not the accent
   const pal = look?.colour?.accentAsType === 'field' ? { ...pal0, accentType: pal0.field } : pal0;
-  let fonts, root, html, ground = code ? comp.ground : comp.groundOf(spec), sheet, rootClass;
+  let fonts, root, html, ground = code ? comp.ground : rotatedGround(look, comp.groundOf(spec), spec), sheet, rootClass;
   if (code) {
     html = numberElements(made);
     const words = wordsOfPage(spec, brand, (c.folio.n ? tokens.folio(c.folio.n, c.folio.total) : ''));

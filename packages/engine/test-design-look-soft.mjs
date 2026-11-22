@@ -13,7 +13,7 @@ test('the soft look loads, names itself and is registered as a shipped look', ()
   assert.equal(look.id, 'soft');
   assert.equal(look.name, 'Soft');
   assert.equal(look.origin, 'shipped');
-  assert.equal(look.compositions.length, 10);
+  assert.equal(look.compositions.length, 11);
   assert.equal(look.colour.logic, 'tonal');
   assert.equal(shippedLooks().soft.id, 'soft');
   assert.ok(look.description.length > 40 && look.description.length <= 300);
@@ -27,7 +27,7 @@ test('lookBrief lists all seven kinds with the right variant counts', () => {
   const b = lookBrief(look);
   assert.deepEqual(Object.keys(b.kinds).sort(), ['event', 'figure', 'list', 'offer', 'photo', 'quote', 'statement']);
   const counts = Object.fromEntries(Object.entries(b.kinds).map(([k, v]) => [k, v.variants.length]));
-  assert.deepEqual(counts, { statement: 3, figure: 1, list: 1, quote: 1, photo: 2, event: 1, offer: 1 });
+  assert.deepEqual(counts, { statement: 3, figure: 2, list: 1, quote: 1, photo: 2, event: 1, offer: 1 });
   for (const v of Object.values(b.kinds)) for (const x of v.variants) { assert.ok(x.name); assert.ok(x.describe.length > 40 && x.describe.length <= 300); }
 });
 
@@ -139,7 +139,7 @@ test('the catalogue lists the new properties with help in plain words', () => {
 });
 
 test('a ground may be tint, and tint-deep is a fill with dark inks only', () => {
-  const l = sample(); l.colour.grounds = ['tint', 'paper', 'field', 'dark'];
+  const l = sample(); l.colour.grounds = ['tint', 'paper', 'field', 'dark', 'soft'];
   assert.deepEqual(validateLook(l, 'soft', { shipped: true }), []);
   const bad = sample(); elOf(bad, 'statement', 'box').fill = 'tint-deep'; elOf(bad, 'statement', 'box').ink = 'on-field';
   assert.ok(validateLook(bad, 'soft', { shipped: true }).some((e) => /does not read/.test(e)));

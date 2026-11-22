@@ -23,7 +23,7 @@
 // `default` (what normaliseLook fills in).
 import { POST_FIELDS, POST_ITEMS, POST_KINDS, POST_REQUIRED } from './post-spec.mjs';
 import {
-  ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FONT_ROLES, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS,
+  ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, ROTATE_GROUNDS, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FONT_ROLES, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS,
   METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SOFT_SHADOWS, CORNERS, ROUND_SHAPES, RULE_STYLES, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS,
   WORDS, BLENDS,
   angle, bool, d, en, field, int, length, list, num, obj, oneOf, role, text, tuple,
@@ -336,6 +336,7 @@ export const SECTIONS = Object.freeze({
     logic: en(COLOUR_LOGICS, 'Colour logic', 'Tonal (paper and ink), one accent, or a colour field.'), field: en(['primary', 'dark'], 'Field', 'Which colour a field is.', 'primary'),
     sticker: en(['accent', 'primary'], 'Stickers', 'Which colour stickers are.', 'accent'), accentAsType: en(['never', 'when-contrast', 'field'], 'Accent as type', 'Whether the accent may be type: never, where it has enough contrast, or field: the emphasised phrase takes the deep colour of the field.', 'never'),
     grounds: list(en(GROUNDS, 'Page colour', 'A page colour.'), 5, 'Page colours', 'The page colours compositions may use.', { min: 1, unique: true }),
+    rotate: list(en(ROTATE_GROUNDS, 'Page colour', 'A light page colour.'), 3, 'Page colours in turn', 'Light page colours a batch takes in turn: a composition whose page colour is one of these is drawn on one of them, chosen from the post\'s own words, so a batch without pictures does not sit on one colour. Each must be in the page colours.', { min: 2, unique: true }),
   }, 'Colour', 'How the brand\'s colours are used.', ['logic', 'grounds']),
   devices: obj({
     rule: obj({ hair: int(1, 4, 'Hairline', 'Pixels.', 1), heavy: int(2, 12, 'Heavy rule', 'Pixels.', 4) }, 'Rules', 'The two rule weights.'),

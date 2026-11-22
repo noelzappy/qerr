@@ -1521,19 +1521,58 @@
         {
           "type": "box",
           "place": {
-            "px": {
-              "x": 390,
-              "y": 540,
-              "w": 610,
-              "h": 610
+            "anchor": {
+              "left": 80,
+              "right": 80,
+              "bottom": 80
             }
           },
           "fill": "light-tint",
           "radius": "full",
+          "pad": [
+            40,
+            56,
+            40,
+            40
+          ],
+          "flow": "row",
+          "align": "center",
+          "gap": 44,
           "z": 1,
           "when": {
             "absent": "image"
-          }
+          },
+          "children": [
+            {
+              "type": "sticker",
+              "shape": "circle",
+              "size": 230,
+              "fill": "primary",
+              "ink": "on-primary",
+              "field": "tag",
+              "fit": {
+                "cap": 100,
+                "floor": 44,
+                "w": 170,
+                "h": 122,
+                "maxLines": 2
+              },
+              "ring": {
+                "w": 10,
+                "colour": "paper"
+              }
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "ink": "ink",
+              "w": 550,
+              "when": {
+                "present": "sub"
+              }
+            }
+          ]
         },
         {
           "type": "sticker",
@@ -1565,35 +1604,6 @@
           }
         },
         {
-          "type": "sticker",
-          "shape": "circle",
-          "size": 320,
-          "place": {
-            "px": {
-              "x": 535,
-              "y": 685
-            }
-          },
-          "fill": "primary",
-          "ink": "on-primary",
-          "field": "tag",
-          "fit": {
-            "cap": 100,
-            "floor": 44,
-            "w": 240,
-            "h": 170,
-            "maxLines": 2
-          },
-          "ring": {
-            "w": 10,
-            "colour": "paper"
-          },
-          "z": 4,
-          "when": {
-            "absent": "image"
-          }
-        },
-        {
           "type": "box",
           "place": {
             "anchor": {
@@ -1604,7 +1614,7 @@
           },
           "flow": "column",
           "when": {
-            "present": "sub"
+            "present": "image"
           },
           "z": 2,
           "children": [

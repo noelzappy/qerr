@@ -17,6 +17,8 @@ export const SHORT_FIELDS = ['label', 'big', 'unit', 'by', 'meta', 'tag'];
 export const FONT_ROLES = ['display', 'text', 'label', 'mono'];
 // ---- fixed lists ----
 export const GROUNDS = ['paper', 'field', 'dark', 'accent', 'soft', 'tint'];
+// The page colours a look may rotate through (colour.rotate): the light ones only, as a composition sets its words in inks for a light page.
+export const ROTATE_GROUNDS = ['paper', 'soft', 'tint'];
 export const ANGLE_NAMES = ['sticker', 'bar', 'block', 'band', 'card', 'price'];
 export const LENGTH_TOKENS = ['margin', 'gutter', 'col', 'frame', 'frame+pad'];
 export const ORIGINS = ['center', 'left top', 'top', 'right top', 'left', 'right', 'left bottom', 'bottom', 'right bottom'];

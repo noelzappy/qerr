@@ -15,7 +15,7 @@ test('the clean look loads, names itself and is registered as a shipped look', (
   assert.equal(look.id, 'clean');
   assert.equal(look.name, 'Clean');
   assert.equal(look.origin, 'shipped');
-  assert.equal(look.compositions.length, 9);
+  assert.equal(look.compositions.length, 10);
   assert.equal(shippedLooks().clean.id, 'clean');
   assert.ok(look.description.length > 40 && look.description.length <= 300);
 });
@@ -27,7 +27,7 @@ test('validateLook reports no problem at all (fully strict: no allow-list)', () 
 test('lookBrief lists all seven kinds with the right variant counts', () => {
   const b = lookBrief(look);
   const counts = Object.fromEntries(Object.entries(b.kinds).map(([k, v]) => [k, v.variants.length]));
-  assert.deepEqual(counts, { statement: 2, figure: 1, list: 1, quote: 1, photo: 2, event: 1, offer: 1 });
+  assert.deepEqual(counts, { statement: 2, figure: 2, list: 1, quote: 1, photo: 2, event: 1, offer: 1 });
   for (const v of Object.values(b.kinds)) for (const x of v.variants) { assert.ok(x.name); assert.ok(x.describe.length > 40 && x.describe.length <= 300); }
 });
 

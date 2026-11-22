@@ -69,7 +69,7 @@
       "weight": 600
     },
     "label": {
-      "size": 30,
+      "size": 34,
       "track": 0.01,
       "weight": 600,
       "upper": false,
@@ -88,6 +88,10 @@
     "grounds": [
       "paper",
       "dark",
+      "tint"
+    ],
+    "rotate": [
+      "paper",
       "tint"
     ]
   },
@@ -550,6 +554,123 @@
               },
               "w": 760,
               "before": 12
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "figure",
+      "name": "Number over photo",
+      "describe": "One big figure on top with its unit line and a sub line saying what it counts, a picture at the foot melting into the page. For a number, price or percentage of up to 8 characters with a photograph.",
+      "ground": "paper",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "big": {
+          "required": true,
+          "max": 8
+        },
+        "unit": {
+          "max": 24
+        },
+        "sub": {
+          "max": 110
+        },
+        "image": {
+          "required": true
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "body",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 72,
+              "top": 76
+            }
+          }
+        },
+        {
+          "type": "photo",
+          "place": {
+            "px": {
+              "x": 0,
+              "y": 780,
+              "w": 1080,
+              "h": 570
+            }
+          },
+          "shape": "rect",
+          "blend": "ground",
+          "fade": 200,
+          "z": 0
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 72,
+              "y": 176,
+              "w": 936,
+              "h": 584
+            }
+          },
+          "flow": "column",
+          "align": "start",
+          "gap": 18,
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "ink": "body",
+              "nowrap": true,
+              "when": {
+                "present": "label"
+              }
+            },
+            {
+              "type": "fitted-stack",
+              "field": "big",
+              "mode": "lines",
+              "cap": 300,
+              "floor": 120,
+              "maxLines": 1,
+              "trail": true,
+              "lead": 0.95,
+              "w": 936,
+              "h": 300
+            },
+            {
+              "type": "text",
+              "field": "unit",
+              "style": "display",
+              "size": 64,
+              "emphasis": "none",
+              "ink": "accent-type",
+              "w": 936,
+              "when": {
+                "present": "unit"
+              }
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "ink": "ink",
+              "w": 760,
+              "before": 8,
+              "when": {
+                "present": "sub"
+              }
             }
           ]
         }
@@ -1351,19 +1472,63 @@
         {
           "type": "box",
           "place": {
-            "px": {
-              "x": 72,
-              "y": 672,
-              "w": 936,
-              "h": 460
+            "anchor": {
+              "left": 72,
+              "right": 72,
+              "bottom": 72
             }
           },
           "fill": "tint-deep",
           "radius": 40,
+          "pad": [
+            56,
+            56,
+            60,
+            56
+          ],
+          "flow": "column",
+          "align": "start",
+          "gap": 44,
           "z": 1,
           "when": {
             "absent": "image"
-          }
+          },
+          "children": [
+            {
+              "type": "sticker",
+              "shape": "pill",
+              "w": "hug",
+              "minW": 260,
+              "maxW": 600,
+              "h": 150,
+              "fit": {
+                "cap": 100,
+                "floor": 44,
+                "maxLines": 1,
+                "h": 100
+              },
+              "field": "tag",
+              "fill": "field",
+              "ink": "on-field",
+              "pad": [
+                0,
+                40,
+                0,
+                40
+              ],
+              "shadow": "lift"
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "ink": "ink",
+              "w": 824,
+              "when": {
+                "present": "sub"
+              }
+            }
+          ]
         },
         {
           "type": "sticker",
@@ -1400,40 +1565,6 @@
           }
         },
         {
-          "type": "sticker",
-          "shape": "pill",
-          "w": "hug",
-          "minW": 260,
-          "maxW": 600,
-          "h": 150,
-          "fit": {
-            "cap": 100,
-            "floor": 44,
-            "maxLines": 1,
-            "h": 100
-          },
-          "field": "tag",
-          "fill": "field",
-          "ink": "on-field",
-          "pad": [
-            0,
-            40,
-            0,
-            40
-          ],
-          "place": {
-            "px": {
-              "x": 120,
-              "y": 736
-            }
-          },
-          "shadow": "lift",
-          "z": 4,
-          "when": {
-            "absent": "image"
-          }
-        },
-        {
           "type": "box",
           "place": {
             "anchor": {
@@ -1443,7 +1574,7 @@
           },
           "flow": "column",
           "when": {
-            "present": "sub"
+            "present": "image"
           },
           "z": 2,
           "children": [
