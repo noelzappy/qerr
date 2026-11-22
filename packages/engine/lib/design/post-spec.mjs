@@ -5,6 +5,9 @@
 import path from 'node:path';
 import { DIRECTIONS, POST_KINDS } from './tokens.mjs';
 import { ICON_NAMES } from './icons.mjs';
+import { chartProblems, chartKindFor, POST_CHART } from './chart.mjs';
+
+export { POST_CHART };
 
 export { POST_KINDS };
 export const POST_TEMPLATES = ['post'];
@@ -60,7 +63,7 @@ export const POST_REQUIRED = {
   statement: ['headline'], figure: ['big'], list: ['headline', 'items'], quote: ['quote'], photo: ['image', 'headline'], event: ['headline', 'meta'], offer: ['headline', 'tag'],
 };
 // The keys a post design may carry besides its fields (a batch's file name and sizes, the network sizes).
-const OWN = ['template', 'kind', 'variant', 'sizes', 'name', 'networkSizes', 'image', 'focal', 'zoom', 'items', 'graphics', 'info', 'gallery'];
+const OWN = ['template', 'kind', 'variant', 'sizes', 'name', 'networkSizes', 'image', 'focal', 'zoom', 'items', 'graphics', 'info', 'gallery', 'chart'];
 // The brand graphics and cut-outs a post hands to its look (the app fills this from the vault for the graphics the look's pieces name):
 // [{ ref: the vault item's id, image: a PNG or WebP file with transparency, tintable: whether a piece may recolour it }]. Checked here by
 // shape; the files are read and checked (type, size, transparency) when the page is made (render.mjs preparePage).
@@ -102,7 +105,7 @@ export function postProblems(d, where = 'design', { direction, focalOk, brief } 
   if (brief) e.push(...briefProblems(d, where, brief));
   if (brief) { /* the look is the direction */ } else if (direction === null) e.push(`${where}: a post is drawn in the brand's design direction, and this brand has none; set style.direction in brand.json to one of ${DIRECTIONS.join(', ')} (Settings, Brand and look)`);
   else if (direction !== undefined && !DIRECTIONS.includes(direction)) e.push(`${where}: the brand's design direction "${clip(direction)}" is not one of ${DIRECTIONS.join(', ')}`);
-  for (const k of Object.keys(d)) if (!POST_KEYS.includes(k)) e.push(`${where}: "${clip(k)}" is not a field of a post (fields: ${[...Object.keys(POST_FIELDS), 'items', 'info', 'gallery', 'image', 'focal', 'zoom'].join(', ')}; also kind, variant)`);
+  for (const k of Object.keys(d)) if (!POST_KEYS.includes(k)) e.push(`${where}: "${clip(k)}" is not a field of a post (fields: ${[...Object.keys(POST_FIELDS), 'items', 'info', 'gallery', 'chart', 'image', 'focal', 'zoom'].join(', ')}; also kind, variant)`);
   if (d.variant !== undefined && !(Number.isInteger(d.variant) && d.variant >= 0 && d.variant <= MAX_VARIANT)) e.push(`${where}: variant must be a whole number from 0 to ${MAX_VARIANT} (leave it out and the post picks one itself)`);
   for (const [f, { max }] of Object.entries(POST_FIELDS)) {
     const v = d[f];
@@ -123,7 +126,7 @@ export function postProblems(d, where = 'design', { direction, focalOk, brief } 
       else if (markProblems(t, 'items').length) e.push(`${where}: items[${i}] takes no [[pill]] words or {{icon}} marks; only the headline does`);
     });
   }
-  e.push(...infoProblems(d.info, where), ...galleryProblems(d.gallery, where));
+  e.push(...infoProblems(d.info, where), ...galleryProblems(d.gallery, where), ...chartProblems(d.chart, where));
   if (d.image !== undefined) {
     if (typeof d.image !== 'string' || !d.image.trim()) e.push(`${where}: image must be a file path`);
     else if (!IMAGE_EXTS.includes(path.extname(d.image).toLowerCase())) e.push(`${where}: image "${clip(d.image)}" must be ${IMAGE_EXTS.join(' ')}`);
@@ -189,6 +192,17 @@ function briefProblems(d, where, brief) {
     if (!drawing.length) continue;
     const lo = Math.min(...drawing.map((v) => v.fields?.[f]?.min ?? base.min)), hi = Math.max(...drawing.map((v) => v.fields?.[f]?.max ?? base.max));
     if (d[f].length < lo || d[f].length > hi) e.push(`${where}: the ${name} look draws ${lo} to ${hi} ${f === 'gallery' ? 'pictures in a row' : f === 'info' ? 'info rows' : 'items'}, not ${d[f].length}`);
+  }
+  // a chart: only where a composition of the pool draws one, of a kind it draws (the look's chart elements list their kinds), with as many points as it takes
+  if (d.chart !== undefined && d.chart && typeof d.chart === 'object' && Array.isArray(d.chart.series)) {
+    const drawing = pool.filter((v) => v.fields?.chart);
+    if (!drawing.length) e.push(`${where}: the ${name} look draws no chart in a ${d.kind} post${d.variant !== undefined ? ' of this variant' : ''}`);
+    else if (!drawing.some((v) => chartKindFor(d.chart, v.fields.chart.kinds ?? []))) e.push(`${where}: the ${name} look draws ${[...new Set(drawing.flatMap((v) => v.fields.chart.kinds ?? []))].join(', ') || 'no'} charts in a ${d.kind} post, not this one${d.chart.kind === undefined ? ' (name its kind)' : ''}`);
+    else {
+      const n = d.chart.series.length, fits = drawing.filter((v) => chartKindFor(d.chart, v.fields.chart.kinds ?? []));
+      const lo = Math.min(...fits.map((v) => v.fields.chart.min ?? POST_CHART.min)), hi = Math.max(...fits.map((v) => v.fields.chart.max ?? POST_CHART.max));
+      if (n > 1 && (n < lo || n > hi)) e.push(`${where}: the ${name} look draws charts of ${lo} to ${hi} points, not ${n}`);
+    }
   }
   return e;
 }

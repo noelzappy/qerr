@@ -313,3 +313,48 @@ test('post graphics: a graphic file is a path relative to the repository that st
   }
   assert.deepEqual(graphicsProblems([{ ref: REF, image: 'design/assets/demo/mark.png' }, { ref: '7c9e6679-7425-40de-944b-e07fc1f90ae7', image: 'out/app-render/x/in/1-mark.webp' }], 'design'), []);
 });
+
+test('charts: hostile labels, kinds, units, numbers and a hostile currency never reach a tag; the marks are numbers and palette roles only', async () => {
+  const { shippedLooks } = await import('./lib/design/directions/index.mjs');
+  const look = { ...structuredClone(shippedLooks().swiss), id: 'sec-chart', origin: 'copy:shipped:swiss',
+    compositions: [{ kind: 'figure', name: 'Chart', describe: 'Security check.', ground: 'paper', fields: { big: { required: true }, chart: {} },
+      elements: [
+        { type: 'text', field: 'big', style: 'display', size: 200, place: { px: { x: 64, y: 100, w: 952, h: 260 } } },
+        { type: 'chart', place: { px: { x: 64, y: 500, w: 952, h: 500 } }, kinds: ['bar', 'hbar', 'line', 'area', 'spark', 'donut', 'progress'], axis: 'grid', radius: 12 },
+      ] }] };
+  const draw = (chart, b = brand) => renderPostWithLook(look, { template: 'post', kind: 'figure', name: 'sec', big: '12', chart }, { size: SIZES.feed, brand: b, image: () => PIXEL, imageSize: () => ({ w: 600, h: 600 }) }, { shipped: false }).body;
+  for (const h of [...HOSTILE, 'a‮b', 'x'.repeat(15)]) {
+    for (const chart of [{ kind: h, series: [{ value: 1 }, { value: 2 }] }, { unit: h, series: [{ value: 1 }, { value: 2 }] }, { highlight: h, series: [{ value: 1 }, { value: 2 }] },
+      { series: [{ label: h, value: 1 }, { value: 2 }] }, { series: [{ value: h }, { value: 2 }] }, { series: [{ value: 1, [h]: 1 }, { value: 2 }] }]) {
+      const e = validateDesign({ template: 'post', kind: 'figure', big: '12', chart }, 'design', { direction: 'swiss' });
+      const body = draw(chart);
+      // a label of plain words (no bracket, mark or control character, up to 14 characters) is words like any other: drawn, escaped
+      if (!e.length) {
+        assert.ok(chart.series[0].label === h, `${h}: only a plain label is taken`);
+        assert.ok(body.includes(esc(h)) && !/<\/?script|\son[a-z]+=/i.test(body), h);
+        continue;
+      }
+      assert.ok(e.some((m) => /chart/.test(m)), `${h}: refused before drawing`);
+      for (const m of e) assert.ok(!m.includes(h.slice(0, 16)) || h.length < 4, `${h}: not echoed (${m})`);
+      assert.ok(!/data-chart/.test(body), `${h}: a refused chart is not drawn`);
+    }
+  }
+  // a hostile currency in the brand's number format is refused by validateBrand and drawn as no currency at all
+  for (const cur of ['<b>', '"><script>', 'url(x)', '€;color:red']) {
+    assert.ok(validateBrand({ ...loadBrand(), numbers: { currency: cur } }).some((m) => /numbers\.currency/.test(m)), cur);
+    const body = draw({ unit: 'currency', series: [{ label: 'Jan', value: 1450 }, { label: 'Feb', value: 1600 }] }, { ...brand, numbers: { currency: cur } });
+    assert.match(body, /data-chart/);
+    assert.ok(!body.includes(cur) && !body.includes(esc(cur)), cur);
+  }
+  // every kind, at the edges of what a chart takes: the marks are commands and numbers, the styles palette roles and numbers
+  for (const chart of [{ kind: 'bar', series: [{ value: 1e9 }, { value: -1e9 }] }, { kind: 'hbar', series: [{ value: 0.01 }, { value: 0 }] }, { kind: 'line', series: Array.from({ length: 12 }, (_, i) => ({ value: i * 7 - 30 })) },
+    { kind: 'area', series: [{ value: 3 }, { value: 3 }] }, { kind: 'spark', series: [{ value: 1 }, { value: 9 }] }, { kind: 'donut', unit: 'percent', series: [{ value: 100 }] }, { kind: 'progress', total: 1, series: [{ value: 0 }] }]) {
+    const body = draw(chart);
+    assert.match(body, /data-chart/, chart.kind);
+    for (const m of body.matchAll(/<path d="([^"]*)" style="([^"]*)"/g)) {
+      assert.match(m[1], /^[MLHVAZa0-9 .-]+$/, `${chart.kind}: ${m[1]}`);
+      assert.match(m[2], /^fill:(?:none|var\(--c-[a-z-]+\))(?:;stroke:var\(--c-[a-z-]+\);stroke-width:[0-9.]+px;stroke-linecap:(?:round|butt);stroke-linejoin:round)?(?:;opacity:0\.\d+)?$/, `${chart.kind}: ${m[2]}`);
+    }
+    assert.ok(!/NaN|Infinity|undefined/.test(body), chart.kind);
+  }
+});

@@ -8,6 +8,7 @@
     "local": "Acme Savings works in euros (€) only",
     "foreign": "US\\$|\\$|£|\\b(?:dollars?|pounds? sterling|rupees?|yen|nairas?)\\b"
   },
+  "numbers": { "decimal": ".", "group": ",", "currency": "€", "currencyAt": "before" },
   "grounds": {
     "light": "#FFFFFF",
     "soft": "#F5F7FB",

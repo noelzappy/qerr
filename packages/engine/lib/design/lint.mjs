@@ -59,6 +59,8 @@ function fieldsOfOne(o) {
   // a post's info rows (the value; the label is a fixed word) and the names under its round pictures
   (Array.isArray(o.info) ? o.info : []).forEach((r, i) => { if (r && typeof r.value === 'string') out.push({ field: `info ${i + 1}`, text: r.value }); });
   (Array.isArray(o.gallery) ? o.gallery : []).forEach((p, i) => { if (p && typeof p.caption === 'string') out.push({ field: `picture ${i + 1} name`, text: p.caption }); });
+  // the labels of a chart's points (its values are numbers, checked as numbers by whoever reads the chart)
+  (o.chart && Array.isArray(o.chart.series) ? o.chart.series : []).forEach((p, i) => { if (p && typeof p.label === 'string') out.push({ field: `chart label ${i + 1}`, text: p.label }); });
   for (const k of ['pills', 'checks', 'items']) (Array.isArray(o[k]) ? o[k] : []).forEach((t, i) => out.push({ field: `${k.slice(0, -1)} ${i + 1}`, text: t }));
   (o.stats ?? []).forEach((s, i) => out.push({ field: `stat ${i + 1} number`, text: s[0] }, { field: `stat ${i + 1} label`, text: s[1] }));
   const art = o.artefact ?? (o.columns || o.register || o.rows ? o : null);

@@ -490,7 +490,7 @@
     {
       "kind": "figure",
       "name": "Big number",
-      "describe": "A deep page with a glow of the brand colour, the label chip at the top, one very large figure in white across the page, a small change pill (the tag, such as +12%) and what the figure counts beside it, and the sub line under a fine rule at the foot. Use for a single number of up to 8 characters.",
+      "describe": "A deep page with a glow of the brand colour, the label chip, one very large figure in white, a change pill (the tag) and what it counts, the sub line at the foot. With a chart of 3 to 8 points, bars or a line of the months behind the figure fill the middle. Figures of up to 8 characters.",
       "ground": "dark",
       "fit": "margins",
       "calm": {
@@ -512,6 +512,10 @@
         },
         "sub": {
           "max": 120
+        },
+        "chart": {
+          "min": 3,
+          "max": 8
         }
       },
       "elements": [
@@ -638,7 +642,110 @@
                 }
               ]
             }
-          ]
+          ],
+          "when": {
+            "absent": "chart"
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 300,
+              "w": 920,
+              "h": 400
+            }
+          },
+          "flow": "column",
+          "justify": "center",
+          "align": "stretch",
+          "gap": 36,
+          "z": 2,
+          "children": [
+            {
+              "type": "fitted-stack",
+              "field": "big",
+              "mode": "lines",
+              "cap": 260,
+              "floor": 140,
+              "maxLines": 1,
+              "trail": true,
+              "lead": 0.95,
+              "w": 920,
+              "h": 270,
+              "ink": "white"
+            },
+            {
+              "type": "box",
+              "flow": "row",
+              "justify": "between",
+              "align": "center",
+              "w": 920,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "unit",
+                  "style": "body",
+                  "weight": 500,
+                  "ink": "white",
+                  "nowrap": true,
+                  "when": {
+                    "present": "unit"
+                  }
+                },
+                {
+                  "type": "button",
+                  "field": "tag",
+                  "shape": "pill",
+                  "size": 30,
+                  "font": "display",
+                  "upper": false,
+                  "icon": "arrow-up-right",
+                  "fill": "gold",
+                  "ink": "on-accent",
+                  "when": {
+                    "present": "tag"
+                  }
+                }
+              ]
+            }
+          ],
+          "when": {
+            "present": "chart"
+          }
+        },
+        {
+          "type": "chart",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 736,
+              "w": 920,
+              "h": 280
+            }
+          },
+          "z": 2,
+          "when": {
+            "present": "chart"
+          },
+          "kinds": [
+            "bar",
+            "area",
+            "line"
+          ],
+          "colours": {
+            "mark": "rule-field",
+            "highlight": "gold",
+            "track": "rule-dark",
+            "grid": "rule-dark"
+          },
+          "axis": "baseline",
+          "values": true,
+          "labels": true,
+          "radius": 10,
+          "valueFont": "display",
+          "ink": "body-dark"
         },
         {
           "type": "box",

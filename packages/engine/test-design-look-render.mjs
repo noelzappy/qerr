@@ -50,6 +50,7 @@ const ALLOWED_CLASSES = new Set([
   'k-logo', 'logo-inv', 'ly-logo',                                                                         // logoHtml(), only when the brand switched its logo on
   'k-grad', 'k-overlay', 'k-graphic', 'k-tinted',                                                          // gradient(), overlay(), graphic() and a recoloured graphic
   'k-em-b', 'k-ic', 'k-icb', 'k-tape', 'k-paper', 'k-paper-c', 'k-badge-i',                               // EMPH bold, an icon (iconSvg: an icon badge, a row's tile, an icon on a headline's badge), tape(), paper(), badge()
+  'k-chart', 'k-chart-s',                                                                                  // chartSvg(): the chart's box and its marks
 ]);
 // The classes with no rule in kit.css: the page and picture classes live in other sheets (cv, ph, post), the rest are hooks the runtime or the checks read.
 const NO_RULE = new Set(['cv', 'k-multiply', 'k-grain', 'k-em-n', 'k-shape-circle', 'k-shape-pill', 'k-shape-tile', 'k-numeral-n', 'k-numeral-u', 'logo-inv', 'ly-logo']);
@@ -76,12 +77,15 @@ const GRAMMAR = {
   '--k-ol': PXV,
   // the seal's ring and its round text (svg): a border, the box model, the overflow of the svg and the fill of its text
   'box-sizing': 'border-box', overflow: 'visible', fill: VAR,
+  // a chart's marks (kit chartSvg): a palette fill or none, a palette stroke of a whole-pixel width with round or flat ends, an area's fixed opacity
+  stroke: VAR, 'stroke-width': PXV, 'stroke-linecap': '(?:round|butt)', 'stroke-linejoin': 'round',
 };
 // gradients (palette roles at fixed percentages, a whole-degree angle or one of nine points), a mirrored graphic and a recoloured one's drop shadow
 const STOP = `${VAR} \\d{1,3}%`, GRAD_AT = '(?:center|top|bottom|left|right|left top|right top|left bottom|right bottom)';
 GRAMMAR.background = `(?:${VAR}|linear-gradient\\(\\d{1,3}deg,${STOP}(?:,${STOP}){1,2}\\)|radial-gradient\\((?:circle|ellipse) at ${GRAD_AT},${STOP}(?:,${STOP}){1,2}\\))`;
 GRAMMAR.transform = `(?:rotate\\(${NUM}deg\\)(?: skewX\\(${NUM}deg\\)| scaleX\\(-1\\))?|scaleX\\(-1\\))`;
 GRAMMAR.filter = `drop-shadow\\(${PXV} 0 0 ${VAR}\\)`;
+GRAMMAR.fill = `(?:${VAR}|none)`;
 const RULES = Object.fromEntries(Object.entries(GRAMMAR).map(([k, v]) => [k, new RegExp(`^${v}$`)]));
 const FONT_TOKEN = /^(?:'[A-Za-z0-9 ]{1,40}'|[A-Za-z-]{1,20})$/;
 const fontStackOk = (v) => { const rest = v.replace(/^var\(--(?:display|label|font|mono)\),/, ''); return rest !== '' && rest.split(',').every((t) => FONT_TOKEN.test(t)); };
@@ -156,7 +160,9 @@ function bodyProblems(body, where) {
 // ---- building posts ----
 const FIELD_TEXTS = ['label', 'headline', 'sub', 'big', 'unit', 'quote', 'by', 'meta', 'tag'];
 const GRAPHIC_REF = '0f8fad5b-d9cb-469f-a165-70867728950e';
-const specOf = (kind, variant, texts) => ({ template: 'post', kind, variant, name: 'look-render-test', ...texts, items: [texts.headline ?? 'x', texts.headline ?? 'x'], image: IMAGE, graphics: [{ ref: GRAPHIC_REF, image: IMAGE, tintable: true }] });
+// (a chart with a minus, decimals, marks that need escaping in its labels and a point with no label: drawn wherever a composition shows one)
+const CHART = { kind: 'bar', unit: 'currency', highlight: 'max', series: [{ label: 'A&B "x"', value: 1 }, { label: "Q'2 `", value: -2.5 }, { value: 3 }] };
+const specOf = (kind, variant, texts) => ({ template: 'post', kind, variant, name: 'look-render-test', ...texts, items: [texts.headline ?? 'x', texts.headline ?? 'x'], image: IMAGE, graphics: [{ ref: GRAPHIC_REF, image: IMAGE, tintable: true }], chart: CHART });
 const allTexts = (h) => Object.fromEntries(FIELD_TEXTS.map((f) => [f, h]));
 // per kind, the composition list in order: { kind, variant, name }
 const listOf = (look) => { const per = {}; return look.compositions.map((cp) => ({ kind: cp.kind, name: cp.name, variant: (per[cp.kind] = (per[cp.kind] ?? -1) + 1) })); };
@@ -379,9 +385,10 @@ function bindingLook() {
       T('meta', { style: 'label', ink: 'on-field', split: { sep: '·', pick: 1 } }, G(1, 6, 7, 1)),
       T('meta', { style: 'label', ink: 'on-field', split: { sep: '·', pick: 'rest' } }, G(7, 6, 7, 1)),
     ] });
-  c.push({ kind: 'event', name: 'Card', describe: 'A card picture, the day and the month as figures, an info block, a button and a row of round pictures.', ground: 'soft',
-    fields: { image: {}, headline: { required: true, max: 70 }, meta: { required: true, max: 40 }, cta: { max: 24 }, info: { max: 3 }, gallery: { max: 4 } },
+  c.push({ kind: 'event', name: 'Card', describe: 'A card picture, the day and the month as figures, an info block, a button, a row of round pictures and a chart.', ground: 'soft',
+    fields: { image: {}, headline: { required: true, max: 70 }, meta: { required: true, max: 40 }, cta: { max: 24 }, info: { max: 3 }, gallery: { max: 4 }, chart: {} },
     elements: [
+      { type: 'chart', place: { px: { x: 60, y: 780, w: 600, h: 260 } }, kinds: ['bar', 'line', 'donut'], colours: { mark: 'field', highlight: 'gold', track: 'rule-soft', grid: 'rule' }, axis: 'grid', radius: 8, when: { present: 'chart' } },
       { type: 'info-rows', place: { px: { x: 60, y: 1060, w: 600, h: 200 } }, rule: 'hair', valueStyle: 'label', when: { present: 'info' } },
       { type: 'button', place: { px: { x: 700, y: 1180, w: 320, h: 100 } }, size: 24, icon: 'arrow-right', when: { present: 'cta' } },
       { type: 'photo-row', place: { px: { x: 700, y: 560, w: 320, h: 160 } }, ring: { w: 4, colour: 'paper' }, when: { present: 'gallery' } },
@@ -505,7 +512,7 @@ test('the purpose-built look draws every class family and every element the data
   const seen = new Set();
   for (const { kind, variant } of listOf(BINDING)) classesOf(renderPostWithLook(BINDING, { ...specOf(kind, variant, BENIGN), items: ['IA', 'IB', 'IC'] }, ctxFor(), { shipped: false }).body).forEach((c) => seen.add(c));
   const need = ['k-em-i', 'k-em-a', 'k-grey', 'k-multiply', 'k-grain', 'k-punch', 'k-mul', 'k-gr', 'k-shape-circle', 'k-shape-pill', 'k-shape-tile', 'k-shape-stamp', 'k-seal', 'k-printmat', 'k-wm-fade', 'k-vdown', 'k-vlabel',
-    'k-echo', 'k-fb', 'k-fit', 'k-fnum', 'k-numeral', 'k-hl', 'k-v-fill', 'k-scrim', 'k-frame', 'k-glyph', 'k-keyline', 'k-rule', 'k-block', 'k-run', 'k-dfont'];
+    'k-echo', 'k-fb', 'k-fit', 'k-fnum', 'k-numeral', 'k-hl', 'k-v-fill', 'k-scrim', 'k-frame', 'k-glyph', 'k-keyline', 'k-rule', 'k-block', 'k-run', 'k-dfont', 'k-chart', 'k-chart-s'];
   assert.deepEqual(need.filter((c) => !seen.has(c)), []);
   assert.deepEqual([...seen].filter((c) => !ALLOWED_CLASSES.has(c)), []);
 });

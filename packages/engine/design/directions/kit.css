@@ -169,3 +169,8 @@
 /* the icon of a round badge, centred, sized by the badge (font-size) */
 .k-badge-i{display:flex;align-items:center;justify-content:center;line-height:1}
 .k-badge-i .k-ic{width:1em;height:1em;margin:0;vertical-align:0}
+
+/* ======== a chart of the post's numbers (looks only: the chart primitive, kit c.chartSvg). The marks are inline SVG paths built from numbers,
+   their colours palette roles (--c-*); the words are runs in cells the engine placed. ======== */
+.k-chart{display:block;overflow:visible}
+.k-chart-s{display:block;overflow:hidden;pointer-events:none}

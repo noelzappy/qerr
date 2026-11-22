@@ -11,6 +11,7 @@ import {
 import { FILL_ROLES, compositionStaticChecks, gridOf, styleOf } from './look-static.mjs';
 import { VAULT_REF } from './look-desc.mjs';
 import { INLINE, POST_LISTS } from './post-spec.mjs';
+import { POST_CHART } from './chart.mjs';
 import { PRIMITIVES } from './look-elements.mjs';
 
 export const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -437,6 +438,11 @@ function fieldSpecProblems(name, f, kind, path, ctx, errs) {
     if (Number.isInteger(f.min) && Number.isInteger(f.max) && f.min > f.max) push(errs, ctx, path, 'min is more than max');
   } else if (name === 'image') {
     unknownKeys(f, ['required'], path, ctx, errs);
+  } else if (name === 'chart') {
+    // a chart's points: from 2 to 12 (a donut or progress bar draws one value whatever these say)
+    unknownKeys(f, ['required', 'min', 'max'], path, ctx, errs);
+    for (const k of ['min', 'max']) if (f[k] !== undefined && !(Number.isInteger(f[k]) && f[k] >= POST_CHART.min && f[k] <= POST_CHART.max)) push(errs, ctx, `${path}.${k}`, `must be a whole number of points from ${POST_CHART.min} to ${POST_CHART.max}`);
+    if (Number.isInteger(f.min) && Number.isInteger(f.max) && f.min > f.max) push(errs, ctx, path, 'min is more than max');
   } else {
     unknownKeys(f, ['required', 'max'], path, ctx, errs);
     const cap = POST_FIELDS[name].max;

@@ -23,6 +23,7 @@ import { fontNeedsFor, tokensFromLook } from './look-tokens.mjs';
 import { fontUsage, renderComposition } from './interpret.mjs';
 import { emphasisParts } from './kit.mjs';
 import crypto from 'node:crypto';
+import { CHART_UNITS, POST_CHART } from '../chart.mjs';
 import { COMPOSITIONS as EDITORIAL } from './editorial/compositions.mjs';
 import { TOKENS as EDITORIAL_TOKENS } from './editorial/tokens.mjs';
 import { COMPOSITIONS as RETAIL } from './retail/compositions.mjs';
@@ -239,7 +240,7 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
   const classes = typeof out === 'object' && out.classes ? String(out.classes) : '';
   if (!/^[a-z0-9 _-]*$/.test(classes)) throw new Error(`${comp.id}: classes may only use lowercase letters, digits, space, - and _`);
   const warnings = [...new Set(c.lookNotes ?? [])];
-  for (const f of ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'meta', 'tag', 'image', 'cta', 'info', 'gallery']) if (spec[f] !== undefined && !comp.fields.includes(f)) warnings.push(`${f} is not used by the ${comp.name} composition (${comp.id}); it is left out of the image`);
+  for (const f of ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'meta', 'tag', 'image', 'cta', 'info', 'gallery', 'chart']) if (spec[f] !== undefined && !comp.fields.includes(f)) warnings.push(`${f} is not used by the ${comp.name} composition (${comp.id}); it is left out of the image`);
   for (const [f, max] of Object.entries(comp.words)) {
     if (f === 'items') continue;
     if (spec[f] !== undefined && c.chars(f) > max) warnings.push(`the ${f} is ${c.chars(f)} characters; the ${comp.name} composition is designed for up to ${max}, so it may be set smaller than intended`);
@@ -319,6 +320,8 @@ export function postKinds(brand) {
         if (f === 'image') { fields[f] = {}; continue; }
         const have = vs.filter((v) => v.fields[f]);
         if (f === 'items') { fields[f] = { min: Math.min(...have.map((v) => v.fields.items.min ?? POST_ITEMS.min)), max: Math.max(...have.map((v) => v.fields.items.max ?? POST_ITEMS.max)), chars: POST_ITEMS.chars }; continue; }
+        // a chart: the kinds any composition of the kind draws, its point counts and its label length
+        if (f === 'chart') { fields[f] = { kinds: [...new Set(have.flatMap((v) => v.fields.chart.kinds ?? []))], min: Math.min(...have.map((v) => v.fields.chart.min ?? POST_CHART.min)), max: Math.max(...have.map((v) => v.fields.chart.max ?? POST_CHART.max)), chars: POST_CHART.label, units: [...CHART_UNITS] }; continue; }
         if (f === 'info' || f === 'gallery') { const L = POST_LISTS[f]; fields[f] = { min: Math.min(...have.map((v) => v.fields[f].min ?? L.min)), max: Math.max(...have.map((v) => v.fields[f].max ?? L.max)), chars: f === 'info' ? L.value : L.caption }; continue; }
         const hard = POST_FIELDS[f]?.max;
         if (!hard) continue;
