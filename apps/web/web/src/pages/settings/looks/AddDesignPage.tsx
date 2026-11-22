@@ -161,6 +161,7 @@ export function AddDesignPage() {
               <p className="text-[13px]">{replacing ? `${replacing} is replaced in ${t.name}.` : `It is added to ${t.name}, the look in use.`} Posts already drawn keep their images.</p>
             )}
 
+            {after.status === 'error' && !error && <Notice tone="warn">It does not pass the checks in {targetName} yet, so it cannot be added: {after.error}</Notice>}
             <FormProblem error={error} lines={lines} />
             {busy && <p role="status" className="flex items-center gap-1.5 text-[13px] text-muted-foreground"><Loader2 className="size-3.5 animate-spin" aria-hidden="true" />Checking the design in your look…</p>}
 
