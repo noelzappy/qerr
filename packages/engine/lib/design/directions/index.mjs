@@ -272,6 +272,9 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
       if (lightPage && bg === 'dark') { Object.assign(vars, { white: pal.ink, dark: pal.paper, field: pal.paper, 'on-field': pal.ink, 'body-dark': pal.body, 'muted-dark': p.mutedPaper }); bg = 'paper'; }
       inner = c.scope(vars, made);
     }
+    // the logo's wordmark takes the ink of the ground the page actually has (this post's ground, after a dark page turned light), not of the
+    // grounds the composition may have
+    c.dark = bg === 'dark' || bg === 'field';
     html = numberElements(inner);
     const words = wordsOfPage(spec, brand, (c.folio.n ? tokens.folio(c.folio.n, c.folio.total) : ''));
     fonts = withEmoji(fontFacesFor(fontNeedsFor(look, fontUsage(look, comp.data), brand), words), words);
@@ -291,9 +294,9 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
 
 // ---- the engine's own looks, written as data ----
 export { lookBrief };
-const SHIPPED_IDS = Object.freeze(['retail', 'swiss', 'soft', 'bloom', 'clean', 'loud', 'ledger']);
+const SHIPPED_IDS = Object.freeze(['retail', 'swiss', 'soft', 'bloom', 'clean', 'loud', 'ledger', 'studio', 'roast', 'plate', 'guide']);
 let shipped = null;
-// The shipped looks (lib/design/looks/<id>.look.json), read once, validated as shipped looks and deep frozen: { retail, swiss, soft, bloom, clean, loud, ledger } as the raw look
+// The shipped looks (lib/design/looks/<id>.look.json), read once, validated as shipped looks and deep frozen: { retail, swiss, soft, bloom, clean, loud, ledger, studio, roast, plate, guide } as the raw look
 // data (origin "shipped"). A brand copies one into brand.looks (origin "copy:shipped:<id>") to change it; draw one with
 // renderPostWithLook(look, spec, ctx, { shipped: true }). A shipped file the validator refuses is an engine bug, so it throws.
 export function shippedLooks() {

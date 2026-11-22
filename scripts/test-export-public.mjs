@@ -52,6 +52,18 @@ test('the fictional Pennyhive and Tallyho packs are public like the demo, and a 
     assert.equal(isPrivatePack('brands/pennyhive/brand.json'), false);
     assert.ok(fs.existsSync(path.join(out, 'brands/tallyho/brand.json')));
     assert.equal(isPrivatePack('brands/tallyho/brand.json'), false);
+    assert.equal(isPrivatePack('brands/northbeam/brand.json'), false);
+    assert.equal(isPrivatePack('brands/outabout/brand.json'), false);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); fs.rmSync(path.dirname(out), { recursive: true, force: true }); }
+});
+
+test('the fictional Kettleworks and Salt & Ember packs are public too', () => {
+  const root = repo({ ...FILES, 'brands/kettleworks/brand.json': '{"name":"Kettleworks Coffee"}\n', 'brands/saltandember/brand.json': '{"name":"Salt & Ember"}\n' });
+  const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ss-out-')), 'public');
+  try {
+    const r = exportPublic({ root, out, log() {} });
+    assert.deepEqual(r.leftOut, ['globex']);
+    for (const p of ['brands/kettleworks/brand.json', 'brands/saltandember/brand.json']) { assert.ok(fs.existsSync(path.join(out, p)), p); assert.equal(isPrivatePack(p), false); }
   } finally { fs.rmSync(root, { recursive: true, force: true }); fs.rmSync(path.dirname(out), { recursive: true, force: true }); }
 });
 

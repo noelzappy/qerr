@@ -251,6 +251,8 @@ function bindingLook() {
       { type: 'text', source: 'folio', format: 'pad2', style: 'label', place: G(7, 2, 8, 1) },
       { type: 'text', source: 'index', format: 'roman', style: 'label', place: G(9, 2, 8, 1) },
       { type: 'text', source: 'site', style: 'label', place: G(11, 2, 8, 1) },
+      { type: 'text', source: 'swipe', style: 'label', align: 'right', place: G(9, 4, 7, 1) },
+      { type: 'ribbon', corner: 'bottom-left', at: 120, w: 60, colour: 'primary', edge: 'ink', edgeW: 10 },
     ] });
 
   c.push({ kind: 'statement', name: 'Lines', describe: 'A fitted headline by lines, a sticker fitted to the label, a rule, a dot, a mark and a keyline.', ground: 'field', accepts: [{ field: 'headline', part: 'pre', maxChars: 70 }], calm: { maxShare: 0.6 },

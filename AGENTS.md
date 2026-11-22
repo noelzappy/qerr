@@ -29,8 +29,10 @@ These apply to anyone who changes or runs this repository or a Vesk deployment.
    `deploy/*.env.local` stay ignored. Do not add them to git, even for a test. The same goes for rendered images, stock
    photos (`packages/engine/design/assets/photos/*` except its `README.md` and `CREDITS.md`), app screenshots
    (`packages/engine/design/assets/screens/*` except its `README.md` and `SOURCES.md`) and database dumps: they can show
-   real people, names and amounts. The one exception is `packages/engine/design/assets/demo/`: synthetic pictures drawn
-   by `brands/demo/make-assets.mjs`, with no photograph, real person, place, organisation or amount in them.
+   real people, names and amounts. The one exception is synthetic pictures drawn by code, with no photograph, real person,
+   place, organisation or amount in them: `packages/engine/design/assets/demo/` (drawn by `brands/demo/make-assets.mjs`)
+   and the pictures a fictional brand pack's own `make-assets.mjs` draws inside that pack's folder (such as
+   `brands/kettleworks/pictures/`). Never commit a photograph into a pack.
 8. **Do not claim what you have not seen.** Vesk has never run against the real Buffer API or a real S3 bucket. Do not
    write that something works with Buffer or Hetzner, or mark a point confirmed in `docs/buffer-api-notes.md`, unless a
    real run showed it.
@@ -72,11 +74,11 @@ These apply to anyone who changes or runs this repository or a Vesk deployment.
     never changes the bucket's policy or ACLs; the public prefix must hold nothing but media meant to be posted. Never print the
     S3 secret or put it anywhere but the deployment's environment.
 14. **Brand packs.** A brand that lives in files (name, colours, logos, prompts, facts, example batches, known photos)
-    lives in its folder under `brands/`. Tests and examples use the fictional demo pack, `brands/demo`; the fictional
-    finance pack `brands/pennyhive` is the brand for trying the app and its looks, and the fictional polls and community
-    pack `brands/tallyho` shows off the loud look. All three are invented, with no real organisation, person, place or
-    amount. A private pack holds a company's own data: it is never copied into a public repository
-    (`scripts/export-public.mjs` leaves out every pack but the demo, Pennyhive and Tallyho).
+    lives in its folder under `brands/`. Tests and examples use the fictional demo pack, `brands/demo`. The fictional
+    packs, `brands/demo`, `brands/pennyhive` (for trying the app and its looks), `brands/tallyho` (the loud look),
+    `brands/northbeam` (studio), `brands/kettleworks` (roast), `brands/saltandember` (plate) and `brands/outabout` (guide),
+    are invented, with no real organisation, person, place or amount, and are the only packs `scripts/export-public.mjs`
+    copies into a public repository. A private pack holds a company's own data and is never copied into a public repository.
 
 Commit messages: imperative, conventional, one logical change per commit, for example `fix(web): refuse live sends in
 the past`.

@@ -1,0 +1,374 @@
+{
+  "name": "northbeam-example-posts",
+  "timezone": "Europe/London",
+  "defaultTime": "09:00",
+  "mediaRoot": "media/northbeam-example-posts",
+  "posts": [
+    {
+      "id": "01-what-we-bring",
+      "date": "2026-12-01",
+      "title": "What we bring to your team",
+      "caption": "Research, design, engineering and training: the four things we bring to a team. Swipe for how a project starts.\n\nhttps://northbeam.example\n\n#Northbeam #ProductDesign #ProductStudio",
+      "media": [
+        "01-what-we-bring-1.jpg",
+        "01-what-we-bring-2.jpg",
+        "01-what-we-bring-3.jpg"
+      ],
+      "design": {
+        "template": "carousel",
+        "pages": [
+          {
+            "template": "post",
+            "kind": "list",
+            "variant": 0,
+            "label": "What we do",
+            "headline": "What we bring to your *team.*",
+            "items": [
+              "Research",
+              "Design",
+              "Engineering",
+              "Training"
+            ]
+          },
+          {
+            "template": "post",
+            "kind": "statement",
+            "variant": 0,
+            "label": "Research first",
+            "headline": "We meet [[your customers]] before we open [[a design file]].",
+            "sub": "A week of interviews saves a month of rework."
+          },
+          {
+            "template": "post",
+            "kind": "statement",
+            "variant": 2,
+            "label": "Get in touch",
+            "headline": "Bring us the problem, not the *brief.*",
+            "sub": "Tell us what you are working on at northbeam.example."
+          }
+        ]
+      },
+      "networks": {
+        "instagram": {
+          "type": "carousel"
+        },
+        "x": {
+          "caption": "Research, design, engineering and training: what we bring to a team.\n\nhttps://northbeam.example"
+        }
+      }
+    },
+    {
+      "id": "02-sketch-to-plan",
+      "date": "2026-12-03",
+      "title": "From a sketch to a plan",
+      "caption": "Send us the sketch on the back of the envelope. We will come back with a plan you can test with real customers.\n\n#Northbeam #ProductDesign #ProductStudio",
+      "media": [
+        "02-sketch-to-plan-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "statement",
+        "variant": 0,
+        "label": "Studio notes",
+        "headline": "Bring us [[a sketch]] and we bring back [[a plan]].",
+        "sub": "Every project starts with the people who will use it."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Bring us a sketch and we bring back a plan you can test."
+        }
+      }
+    },
+    {
+      "id": "03-the-report",
+      "date": "2026-12-05",
+      "title": "The product teams report",
+      "caption": "Our report on how software teams decide what to build, from 1,200 people who answered. (Illustrative figures for a fictional brand.)\n\nRead it at https://northbeam.example\n\n#Northbeam #ProductDesign #ProductStudio",
+      "media": [
+        "03-the-report-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "statement",
+        "variant": 1,
+        "label": "The product teams report",
+        "headline": "Most teams track speed. *Few track what they ship.*",
+        "sub": "We asked 1,200 people who build software how they decide. Illustrative figures."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Most teams track speed. Few track what they ship. Our report on how teams decide. (Illustrative.)"
+        }
+      }
+    },
+    {
+      "id": "04-the-numbers",
+      "date": "2026-12-08",
+      "title": "The numbers",
+      "caption": "1,200 teams answered our questions on planning, testing and shipping this year. (Illustrative figure for a fictional brand.)\n\n#Northbeam #ProductDesign #ProductStudio",
+      "media": [
+        "04-the-numbers-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "figure",
+        "variant": 0,
+        "label": "The product teams report",
+        "big": "1,200",
+        "unit": "teams answered",
+        "sub": "Questions on planning, testing and shipping, from teams of every size. Illustrative figure."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "1,200 teams answered our questions this year. (Illustrative figure.)"
+        }
+      }
+    },
+    {
+      "id": "05-backend-developer",
+      "date": "2026-12-10",
+      "title": "We are hiring",
+      "caption": "We are hiring a backend developer to join a small team that ships with care. Apply by 2 January.\n\nhttps://northbeam.example\n\n#Northbeam #ProductDesign #ProductStudio",
+      "media": [
+        "05-backend-developer-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "list",
+        "variant": 1,
+        "label": "We are hiring",
+        "headline": "Backend Developer*.*",
+        "sub": "Join a small team that ships with care and talks to users every week.",
+        "items": [
+          "Four years on web backends",
+          "Writes tests before shipping",
+          "Explains trade-offs plainly",
+          "Enjoys pairing with designers"
+        ]
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "We are hiring a backend developer. Apply by 2 January at https://northbeam.example"
+        }
+      }
+    },
+    {
+      "id": "06-louder-launch",
+      "date": "2026-12-12",
+      "title": "A louder launch",
+      "caption": "When a launch goes quiet, the answer is rarely more noise. Go back to the people you built it for.\n\n#Northbeam #ProductDesign #ProductStudio",
+      "media": [
+        "06-louder-launch-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "quote",
+        "variant": 0,
+        "label": "Field notes",
+        "quote": "If nobody is asking for it, a louder launch will not *fix it.*",
+        "by": "Northbeam research lead"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "If nobody is asking for it, a louder launch will not fix it."
+        }
+      }
+    },
+    {
+      "id": "07-steady-launches",
+      "date": "2026-12-15",
+      "title": "Steady launches",
+      "caption": "We work beside your team every week: small teams, clear plans and launches that arrive when they said they would.\n\n#Northbeam #ProductDesign #ProductStudio",
+      "media": [
+        "07-steady-launches-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "photo",
+        "variant": 0,
+        "label": "Studio notes",
+        "headline": "Small teams, [[clear]] plans, steady launches.",
+        "sub": "We work beside your team every week.",
+        "image": "design/assets/photos/peg-figures-puzzle-circle.jpg"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Small teams, clear plans, steady launches."
+        }
+      }
+    },
+    {
+      "id": "08-larkford-make",
+      "date": "2026-12-17",
+      "title": "Larkford Make",
+      "caption": "See us at Larkford Make: a workshop on designing forms people finish, Thursday at 2.45pm.\n\n#Northbeam #ProductDesign #ProductStudio",
+      "media": [
+        "08-larkford-make-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "event",
+        "variant": 0,
+        "label": "See us at",
+        "headline": "Larkford Make*.*",
+        "sub": "Designing forms people finish",
+        "meta": "Hands-on session · Hall B",
+        "tag": "Workshop",
+        "image": "design/assets/photos/balanced-blocks-spheres-tan.jpg",
+        "info": [
+          {
+            "key": "When",
+            "value": "Thu 17 Dec, 2.45pm"
+          },
+          {
+            "key": "Where",
+            "value": "Main hall, Larkford"
+          }
+        ]
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "See us at Larkford Make: a workshop on designing forms people finish."
+        }
+      }
+    },
+    {
+      "id": "09-demo-evening",
+      "date": "2026-12-19",
+      "title": "Demo evening",
+      "caption": "An evening of short demos from teams we worked with this year, and time to talk. Free, booking needed.\n\nhttps://northbeam.example\n\n#Northbeam #ProductDesign #ProductStudio",
+      "media": [
+        "09-demo-evening-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "event",
+        "variant": 1,
+        "label": "Studio events",
+        "headline": "Demo evening: see what our clients built",
+        "meta": "Sat 19 Dec · 6pm · The Yard, Larkford",
+        "cta": "Save a seat",
+        "gallery": [
+          {
+            "image": "design/assets/photos/scout-coloured-pencils-row.jpg"
+          },
+          {
+            "image": "design/assets/photos/scout-yellow-arrow-asphalt.jpg"
+          },
+          {
+            "image": "design/assets/photos/scout-direction-signs-blue-wall.jpg"
+          }
+        ]
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Demo evening: short demos from teams we worked with this year. Free, booking needed."
+        }
+      }
+    },
+    {
+      "id": "10-fellowship",
+      "date": "2026-12-22",
+      "title": "The 2027 fellowship",
+      "caption": "Our 2027 fellowship is taking entries: ten weeks inside the studio on live client projects, with a mentor. Closes 9 January 2027.\n\nhttps://northbeam.example\n\n#Northbeam #ProductDesign #ProductStudio",
+      "media": [
+        "10-fellowship-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "offer",
+        "variant": 0,
+        "label": "Studio fellowship",
+        "headline": "Our 2027 fellowship is taking *entries.*",
+        "tag": "Fellowship",
+        "sub": "Ten weeks inside the studio on live client projects, with a mentor.",
+        "cta": "Entries close 9 Jan 2027"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Our 2027 fellowship is taking entries. Closes 9 January 2027."
+        }
+      }
+    },
+    {
+      "id": "11-one-question",
+      "date": "2026-12-29",
+      "title": "One question",
+      "caption": "Before features, before screens: what is the one question your customer needs answered?\n\n#Northbeam #ProductDesign #ProductStudio",
+      "media": [
+        "11-one-question-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "photo",
+        "variant": 1,
+        "label": "Work notes",
+        "headline": "Good software starts with [[one question]].",
+        "image": "design/assets/photos/scout-man-backpack-checking-phone.jpg",
+        "focal": "55% 70%",
+        "zoom": 1.2
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "Good software starts with one question."
+        }
+      }
+    },
+    {
+      "id": "12-worth-opening-twice",
+      "date": "2026-12-31",
+      "title": "Worth opening twice",
+      "caption": "Our design lead on what makes people come back to a tool: habits, trust and small details.\n\n#Northbeam #ProductDesign #ProductStudio",
+      "media": [
+        "12-worth-opening-twice-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "photo",
+        "variant": 2,
+        "label": "Northbeam talks",
+        "headline": "What makes a tool worth opening twice?",
+        "sub": "Our design lead on habits, trust and small details.",
+        "image": "design/assets/photos/scout-spiral-staircase-from-below.jpg"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        },
+        "x": {
+          "caption": "What makes a tool worth opening twice? Our design lead on habits, trust and small details."
+        }
+      }
+    }
+  ]
+}

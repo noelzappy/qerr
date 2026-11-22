@@ -1,0 +1,109 @@
+{
+  "note": "Starting vault for Outabout, a fictional what’s-on guide for Tallowmere (an invented city), used as a test brand. Every item is invented: no real company, person, place, venue or figure. The numbers are round and illustrative only. Imported once on an empty database; edit or delete in the app afterwards.",
+  "vault": [
+    {
+      "kind": "figure",
+      "title": "Plans each week",
+      "body": "Outabout lists 10 plans in Tallowmere every week (illustrative figure).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "sourceUrl": "https://outabout.example",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": [
+        "numbers",
+        "public"
+      ]
+    },
+    {
+      "kind": "figure",
+      "title": "Readers",
+      "body": "20,000 people read the weekly list (illustrative figure).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": [
+        "numbers",
+        "public"
+      ]
+    },
+    {
+      "kind": "fact",
+      "title": "What Outabout is",
+      "body": "Outabout is a what’s-on guide for Tallowmere: each Monday it posts the week’s plans, then a listing for each event, with when, where and how to book.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "background",
+        "public"
+      ]
+    },
+    {
+      "kind": "fact",
+      "title": "How plans are chosen",
+      "body": "A plan makes the list when it is open to anyone, has a date and a place, and costs little or nothing. Paid listings are always marked.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "background",
+        "public"
+      ]
+    },
+    {
+      "kind": "event",
+      "title": "Sunday social ride",
+      "body": "A slow, flat social ride round the quay on four-seat bikes, Sundays at 10am from the harbour steps.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "events",
+        "public"
+      ]
+    },
+    {
+      "kind": "event",
+      "title": "Night market",
+      "body": "The night market at the Old Ropeworks, Saturdays from 5pm to 11pm. Free entry.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "events",
+        "public"
+      ]
+    },
+    {
+      "kind": "event",
+      "title": "Bakery tasting morning",
+      "body": "Six breads and three pastries with the bakers at the quay bakery. Seats £8 (illustrative price).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "events",
+        "public"
+      ]
+    },
+    {
+      "kind": "news",
+      "title": "Now hiring",
+      "body": "Outabout is hiring a growth and partnerships intern to start in January.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "news",
+        "public"
+      ]
+    },
+    {
+      "kind": "fact",
+      "title": "Planned features (internal)",
+      "body": "An example of an internal note: plans that are not public yet. The tag not-for-posts tells reviewers to keep it out of posts.",
+      "sourceNote": "Example of an internal item.",
+      "status": "confirmed",
+      "tags": [
+        "internal",
+        "not-for-posts"
+      ]
+    }
+  ]
+}
