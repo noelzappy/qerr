@@ -20,7 +20,7 @@ import { ActivityMenu, ActivityProvider } from './activity';
 import { PaletteProvider, shortcutLabel, usePalette } from './CommandPalette';
 import { ErrorBoundary } from './ErrorBoundary';
 import { MAIN } from './nav';
-import { VeskLogo } from './VeskLogo';
+import { QerrLogo } from './QerrLogo';
 
 const initials = (name: string, email: string) => (name || email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join('') || '?';
 
@@ -182,7 +182,7 @@ export function AdminsOnly() {
     <>
       <PageHeader title="Admins only" />
       <EmptyBlock title="You do not have access to this page">
-        This part of Vesk is for admins. If you need something changed here, ask an admin to do it for you.
+        This part of Qerr is for admins. If you need something changed here, ask an admin to do it for you.
       </EmptyBlock>
     </>
   );
@@ -233,7 +233,7 @@ export function Frame({ sidebar, mobileTitle, children }: { sidebar: ReactNode; 
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetContent side="left" className="w-72 gap-3 overflow-y-auto bg-sidebar p-3 pt-4 sm:max-w-72">
             <SheetTitle className="sr-only">Menu</SheetTitle>
-            <SheetDescription className="sr-only">Pages of Vesk</SheetDescription>
+            <SheetDescription className="sr-only">Pages of Qerr</SheetDescription>
             {sidebar}
           </SheetContent>
         </Sheet>
@@ -257,7 +257,7 @@ export function Shell({ admin = false }: { admin?: boolean }) {
   const sidebar = (
     <>
       <div className="flex items-center justify-between gap-1 px-1.5 max-md:pr-9">
-        <Link to="/home" className="rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" aria-label="Vesk, home"><VeskLogo /></Link>
+        <Link to="/home" className="rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" aria-label="Qerr, home"><QerrLogo /></Link>
         <ActivityMenu />
       </div>
       <SidebarBody isAdmin={isAdmin} />
@@ -266,7 +266,7 @@ export function Shell({ admin = false }: { admin?: boolean }) {
   );
   return (
     <ActivityProvider>
-      <Frame sidebar={sidebar} mobileTitle={<Link to="/home" aria-label="Vesk, home"><VeskLogo /></Link>}>
+      <Frame sidebar={sidebar} mobileTitle={<Link to="/home" aria-label="Qerr, home"><QerrLogo className="h-6" /></Link>}>
         {admin && !isAdmin ? <AdminsOnly /> : <Outlet />}
       </Frame>
     </ActivityProvider>

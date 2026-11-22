@@ -12,7 +12,8 @@ stylesheet are gone: everything is Tailwind utilities, the theme tokens and the 
 | `src/index.css` | Tailwind import, fonts, theme tokens (light and dark). |
 | `src/lib/utils.ts` | `cn()` for class names. |
 | `src/lib/theme.ts` | `initTheme()`, `setTheme('light' \| 'dark' \| 'system')`, `useTheme()`. |
-| `src/shell/` | `Shell` (sidebar on desktop, Sheet menu on a phone), `nav.ts` (the one navigation list), `CommandPalette` (Ctrl/Cmd+K), `AuthLayout`, `PasswordFields`, `ErrorBoundary`. |
+| `src/shell/` | `Shell` (sidebar on desktop, Sheet menu on a phone), `nav.ts` (the one navigation list), `CommandPalette` (Ctrl/Cmd+K), `AuthLayout`, `PasswordFields`, `ErrorBoundary`, `QerrLogo` (the app's own logo as inline SVG; see `docs/brand/qerr-logo/README.md`). |
+| `public/` | Copied into the build as it is: the favicons (`favicon.svg`, `favicon-16/32/48.png`), `apple-touch-icon-180.png`, `app-icon-192/512.png`, `manifest.webmanifest`, and the logo's font in `fonts/schibsted-grotesk/` (OFL, credited in its README). |
 | `src/hooks/use-unsaved-guard.tsx` | `useUnsavedGuard`, `confirmDiscard`, `withoutGuard` and the dialog they share (see "Unsaved changes"). |
 | `components.json` (in `apps/web`) | shadcn config; the `@/` alias points to `web/src` (also in `vite.config.ts` and `tsconfig.web.json`). |
 
@@ -26,7 +27,7 @@ cd apps/web
 curl -s https://ui.shadcn.com/r/styles/new-york-v4/<name>.json | node -e "const j=JSON.parse(require('fs').readFileSync(0,'utf8'));for(const f of j.files)console.log(f.content.replace('from \"cn\"','from \"@/lib/utils\"'))" > web/src/components/ui/<name>.tsx
 ```
 
-Then check the JSON's `dependencies` (add exact versions with `npm install -w @vesk/web --save-exact`; most are in
+Then check the JSON's `dependencies` (add exact versions with `npm install -w @qerr/web --save-exact`; most are in
 `radix-ui` already) and `registryDependencies` (fetch those too). Keep exact versions in `package.json`, no `^`.
 `sonner.tsx` was changed to use `lib/theme.ts` instead of `next-themes`.
 
@@ -36,7 +37,8 @@ Defined in `src/index.css` from `packages/engine/design/brand.json` (the website
 `bg-background text-foreground`, `bg-card`, `bg-muted text-muted-foreground`, `bg-primary text-primary-foreground`
 (brand green `#2F6B5A`), `bg-accent` (mint), `border-border`, `border-input`, `ring-ring`, `text-destructive`, plus the
 status tokens `success`, `warning` / `warning-foreground`, `info`, and `gold` (logo gold `#FFB300`). `bg-sidebar*` for the sidebar.
-Never use literal colours or Tailwind palette colours (`bg-green-500`).
+Never use literal colours or Tailwind palette colours (`bg-green-500`). The logo's own colours are `--logo-ink` (ink, paper
+in dark mode, `text-logo-ink`) and `--logo-accent`; only `QerrLogo` uses them.
 
 - Fonts: Inter is the default (`font-sans`); IBM Plex Mono is `font-mono` and is for ids, figures and small caps labels
   (`font-mono text-[11px] uppercase tracking-wider text-muted-foreground`). Files are served from `/fonts`: the engine's own copies in `packages/engine/design/fonts`, served and built by a small plugin in `apps/web/vite.config.ts`; no font CDN.

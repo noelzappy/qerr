@@ -14,10 +14,14 @@
 @font-face { font-family: 'IBM Plex Mono'; font-weight: 400; font-style: normal; font-display: swap; src: url('/fonts/ibm-plex-mono-v23-400-latin-ext.woff2') format('woff2'); unicode-range: U+0100-02BA, U+20A0-20C4; }
 @font-face { font-family: 'IBM Plex Mono'; font-weight: 500; font-style: normal; font-display: swap; src: url('/fonts/ibm-plex-mono-v23-500-latin.woff2') format('woff2'); unicode-range: U+0000-00FF, U+2000-206F, U+2190-2193, U+2212; }
 @font-face { font-family: 'IBM Plex Mono'; font-weight: 500; font-style: normal; font-display: swap; src: url('/fonts/ibm-plex-mono-v23-500-latin-ext.woff2') format('woff2'); unicode-range: U+0100-02BA, U+20A0-20C4; }
+/* The Qerr wordmark (QerrLogo): Schibsted Grotesk ExtraBold, latin only, the web app's own copy in web/public/fonts
+   (OFL, see its README there). Nothing else uses it. */
+@font-face { font-family: 'Schibsted Grotesk'; font-weight: 800; font-style: normal; font-display: block; src: url('/fonts/schibsted-grotesk/schibsted-grotesk-v7-800-latin.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 
-/* Theme tokens: Vesk's own palette in shadcn's variable names (posts take their colours from the brand, not from here).
+/* Theme tokens: Qerr's own palette in shadcn's variable names (posts take their colours from the brand, not from here).
    The frame (sidebar) is a quiet grey and the page sits on it as a rounded panel, as in the reference dashboards; the one
-   accent is Vesk green. Dark mode follows the system unless the person picks a theme in Settings, Preferences. */
+   accent is green. The logo keeps its own colours (--logo-*: ink and paper, and the orange of its square). Dark mode follows
+   the system unless the person picks a theme in Settings, Preferences. */
 :root {
   color-scheme: light;
   --radius: 0.625rem;
@@ -54,6 +58,8 @@
   --sidebar-accent-foreground: #1b1c1a;
   --sidebar-border: #ebebe7;
   --sidebar-ring: #2b7a46;
+  --logo-ink: #1b1a18;
+  --logo-accent: #e0532f;
 }
 
 .dark {
@@ -91,6 +97,7 @@
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgb(255 255 255 / 0.08);
   --sidebar-ring: #8fd19e;
+  --logo-ink: #f7f6f2;
 }
 
 @theme inline {
@@ -101,6 +108,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --color-frame: var(--frame);
+  --color-logo-ink: var(--logo-ink);
   --color-brand-soft: var(--brand-soft);
   --color-background: var(--background);
   --color-foreground: var(--foreground);

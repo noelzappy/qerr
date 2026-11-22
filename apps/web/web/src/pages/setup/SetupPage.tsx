@@ -11,7 +11,7 @@ import { ErrorBlock, LoadingBlock } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { VeskLogo } from '../../shell/VeskLogo';
+import { QerrLogo } from '../../shell/QerrLogo';
 import { errorMessage } from '../../lib/errors';
 import { isStep, nextStep, resumeStep, STEPS, stepIndex, stepOf, stepPath, stepStates, type SetupStatus, type StepKey } from './flow';
 import type { StepProps } from './parts';
@@ -93,7 +93,7 @@ export function SetupPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-frame">
       <header className="flex items-center justify-between gap-3 px-4 py-3 md:px-8">
-        <VeskLogo />
+        <QerrLogo />
         <Button variant="ghost" size="sm" className="max-sm:min-h-11" onClick={() => void leave()}>Finish later</Button>
       </header>
       <main id="main" className="flex flex-1 justify-center px-4 pb-10 md:px-8">
