@@ -55,7 +55,8 @@ Then, as an admin, go through the guided setup. After the first sign-in an admin
 (`/setup/<step>`); Home's setup steps open the matching step, and Settings stays the place to change things later:
 
 1. Your brand: the name and the website, with the tagline, the description and the voice offered from the website when the AI
-   is set up; the time zone and the language come from the browser.
+   is set up; the time zone and the language come from the browser, and the country from the time zone (marked "From the time
+   zone" until changed; it picks the holidays AI drafts are offered).
 2. Your logo: upload it (the small mark is cut from its left when it has one) or draw a simple pair from the name, then pick
    the colours from the ones read from the logo.
 3. Your look: one of the shipped looks (Clean is chosen first).
@@ -138,9 +139,15 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   take the period as one tap (Next week, next month, the month after, or Custom with two dates; next month first). New batch
   names the batch from the dates ("December 2026", "Week of 30 November") until someone types a title, and keeps the time zone,
   the brand's, under "More". Draft with AI takes the number of posts as one tap too (5, 10, 15, 20, 30, or Custom).
-  Draft with AI first asks `GET /api/batches/ai-draft` (`{ ready, missing: 'provider' | 'budget' | null }`) and, when drafting
+  Draft with AI first asks `GET /api/batches/ai-draft` (`{ ready, missing: 'provider' | 'budget' | null, search }`) and, when drafting
   cannot run, says what is missing and where to add it instead of queuing a job that would fail; `POST /api/batches/ai-draft`
-  refuses with a 409 in the same two cases. The Team
+  refuses with a 409 in the same two cases. Under the dates, "This period" shows the occasions of those dates as chips
+  (`GET /api/batches/ai-draft/occasions?from=&to=`: the AI library's calendar for the brand's country, see docs/ai.md, "Occasions";
+  no AI runs), all ticked; the person may untick any and add up to five of their own (a text of up to 80 characters each). With a search
+  key, "Look for events this month" calls `POST /api/batches/ai-draft/occasions/web` (`{ periodStart, periodEnd, known }`): one web search
+  and one AI call through the drafting provider, with the budget, the call log and the cost, answering up to six more, each with its
+  source, added unticked and marked "from the web" (409 without a search provider or a brand country; nothing is saved). The ticked
+  ones go into the brief as `occasions: [{ name, date?, end?, observed?, kind, note?, source?, origin }]`. The Team
   and AI provider forms are dialogs too. The AI provider dialog fills what follows from the kind (`lib/ai-presets.ts`): Anthropic
   gets its address and a choice of model (Recommended `claude-sonnet-5-5`, Best quality `claude-opus-5-5`, Faster, cheaper
   `claude-haiku-5-5`) whose prices per million tokens come with it; OpenAI-compatible gets OpenAI's address and a model to type. The
@@ -159,7 +166,7 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
 
 An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, `src/server/routes/brand.ts`):
 
-- **Identity:** name, website, tagline, what the brand does, time zone, language, an optional single currency, and how the numbers of a chart are written (Numbers in charts: the decimal mark, the thousands separator, the currency sign before or after, a space before it or before %; brand.json `numbers`). The time zone
+- **Identity:** name, website, tagline, what the brand does, time zone, country (brand.json `country`, ISO 3166-1 alpha-2, checked by the engine; a brand that names none gets the country its time zone means, `lib/countries.ts`, marked "From the time zone" until saved or changed, and the AI drafts are offered its holidays and observances), language, an optional single currency, and how the numbers of a chart are written (Numbers in charts: the decimal mark, the thousands separator, the currency sign before or after, a space before it or before %; brand.json `numbers`). The time zone
   is the shared picker (`components/kit/time-zone-picker.tsx`, over the one list of zones in `lib/time-zones.ts`): the zone with its
   offset and time now, a short list of likely zones (the one chosen, this browser's, places on the same clock, UTC) and a search over
   every zone by city or offset; "From this browser" marks the zone the browser is in.
@@ -663,7 +670,8 @@ AI's answer could not be used after one retry. In the web app, Brand and look, V
 ## AI
 
 The app never imports `@qerr/ai` directly. `src/server/ai.ts` is the seam: if the `@qerr/ai` workspace package is installed
-it is loaded and its `createAI({ providers, search, budget, log })` must return `{ draftBatch, research, rewrite, analyseReference, suggestBrandFromSite, describePicture }`
+it is loaded and its `createAI({ providers, search, budget, log })` must return `{ draftBatch, research, rewrite, analyseReference, suggestBrandFromSite, describePicture, findOccasions }`
+(and the module's `occasionsFor`, the calendar, is loaded with `loadOccasions()`)
 (the input and result types are in `ai.ts`). The library is an ordinary dependency of the app. Providers (Anthropic or OpenAI-compatible), the search provider and the
 monthly budget are set by an admin under AI and search (a provider's prices per million tokens too, which the budget needs to see its cost); their keys are encrypted at rest and only the last four
 characters are ever shown.
@@ -684,7 +692,13 @@ characters are ever shown.
 
 Every AI call is saved in `ai_calls`; month-to-date spend on the AI settings page is the sum of this month's costs. `draft-batch`
 makes a real batch in `draft` state (`Batch.aiDraft` holds the drafter's notes and shows the "AI draft" badge): the posts
-carry their vault sources and the AI's warnings, and vault photos are rendered by copying the file from the bucket. If the
+carry their vault sources and the AI's warnings, and vault photos are rendered by copying the file from the bucket. The batch's
+AI-draft note says in plain sight when fewer than half the posts carry a picture (`aiDraft.pictures`), and whether to confirm more
+photos in Pictures or to add the photos that are already there. Its Details list the occasions the batch was planned around and the
+posts that took each (`aiDraft.seasonal`), and what the drafting tools searched (`aiDraft.tools`; each tool call and web search is an
+`ai_calls` row). A fact the AI took from a web search while drafting is saved as an unconfirmed vault item tagged
+`found-while-drafting` with its source, the post cites it and carries "Uses a fact found on the web: confirm it in Facts first", and
+approval refuses the post until a person confirms the fact. If the
 AI fails, the budget is used up or the answer is not valid, nothing is created and the audit log gets `ai.draft_batch.failed`.
 Details: [../../docs/ai.md](../../docs/ai.md).
 

@@ -43,6 +43,18 @@ describe('the AI-draft note', () => {
     expect(html).not.toContain('too long');
     expect(html).not.toContain('<summary');
   });
+  it('says in plain sight when few posts carry a picture, and what to do, without repeating it under Details', () => {
+    const few = { requested: 10, delivered: 10, pictures: { posts: 2, of: 10, usablePhotos: 3 }, messages: ['only 2 of 10 posts have a picture; the vault offered 3 usable photo(s)'] };
+    const html = draw(<AiDraftCard notes={few} />);
+    expect(html).toContain('Only 2 of 10 posts have a picture: confirm more photos in Pictures (with their rights settled) to get richer posts.');
+    expect(html).not.toContain('aria-expanded');
+    expect(draw(<AiDraftCard notes={{ ...few, pictures: { posts: 2, of: 10, usablePhotos: 40 } }} />)).toContain('Only 2 of 10 posts have a picture, though 40 photos are ready in Pictures');
+    expect(draw(<AiDraftCard notes={{ ...few, pictures: { posts: 6, of: 10, usablePhotos: 3 } }} />)).not.toContain('have a picture');
+  });
+  it('opens Details for the seasonal note alone', () => {
+    const html = draw(<AiDraftCard notes={{ requested: 2, delivered: 2, seasonal: { occasions: [{ name: 'Christmas Day', date: '2026-12-25' }], used: [] } }} />);
+    expect(html).toContain('aria-expanded="false"');
+  });
   it('has no toggle when there is nothing more to say', () => {
     const html = draw(<AiDraftCard notes={{ requested: 2, delivered: 2 }} />);
     expect(html).not.toContain('aria-expanded');

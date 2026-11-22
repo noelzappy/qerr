@@ -17,9 +17,16 @@ export interface CreateAiOptions {
 }
 
 export type AiProgress = { step: string; done?: number; total?: number };
-export interface DraftBatchInput { vault: unknown[]; series: unknown; period: unknown; count: number; channels: string[]; brand: unknown; timezone: string; recurring?: unknown[]; onProgress?: (p: AiProgress) => void }
-// notes: what the drafter reports (prompt version, model, usage, rejected posts, repairs, image suggestions, messages).
-export interface DraftBatchResult { batch: Record<string, unknown>; notes?: Record<string, unknown> }
+// An occasion of the batch's period (packages/ai occasions.mjs): from the calendar, the team's own, or found on the web (source).
+export interface Occasion { name: string; date?: string; end?: string; observed?: string; kind: 'holiday' | 'observance' | 'season' | 'commerce'; note?: string; source?: string }
+export interface DraftBatchInput { vault: unknown[]; series: unknown; period: unknown; count: number; channels: string[]; brand: unknown; timezone: string; recurring?: unknown[]; occasions?: Occasion[]; onProgress?: (p: AiProgress) => void }
+// A fact the model took from a web search while drafting: the app saves it as an unconfirmed vault item and points the posts
+// that cite `id` at the new item.
+export interface FoundFact { id: string; kind: string; title: string; body: string; sourceUrls: string[]; citedBy?: string[] }
+// notes: what the drafter reports (prompt version, model, usage, rejected posts, repairs, image suggestions, messages, seasonal, tools).
+export interface DraftBatchResult { batch: Record<string, unknown>; notes?: Record<string, unknown>; found?: FoundFact[] }
+export interface FindOccasionsInput { country: string; period: { from: string; to: string }; known?: Array<{ name: string }> }
+export interface FindOccasionsResult { occasions: Occasion[]; notes?: Record<string, unknown> }
 export interface ResearchInput { topics: string[]; vault: unknown[]; since?: string; onProgress?: (p: AiProgress) => void }
 export interface ResearchResult {
   items: Array<{ kind: string; title: string; body: string; sourceUrls: string[]; foundAt: string }>;
@@ -45,6 +52,7 @@ export interface AI {
   analyseReference(input: AnalyseReferenceInput): Promise<AnalyseReferenceResult>;
   suggestBrandFromSite(input: SuggestBrandFromSiteInput): Promise<SuggestBrandFromSiteResult>;
   describePicture(input: DescribePictureInput): Promise<DescribePictureResult>;
+  findOccasions(input: FindOccasionsInput): Promise<FindOccasionsResult>;
 }
 
 export interface AiModule {
@@ -54,4 +62,13 @@ export interface AiModule {
 export async function loadAI(): Promise<AiModule> {
   const { createAI } = await aiImport<AiModule>();
   return { createAI };
+}
+
+// The calendar of occasions (no AI and no network, so it is never faked): the holidays, observances, seasons and money moments of
+// a country in a window.
+export interface CalendarOccasion extends Occasion { id: string; date: string; country: string | null }
+interface OccasionsModule { occasionsFor(input: { country: string | null; from: string; to: string }): CalendarOccasion[]; OCCASION_COUNTRIES: string[] }
+export async function loadOccasions(): Promise<OccasionsModule> {
+  const { occasionsFor, OCCASION_COUNTRIES } = await aiImport<OccasionsModule>();
+  return { occasionsFor, OCCASION_COUNTRIES };
 }

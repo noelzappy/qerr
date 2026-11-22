@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useMatch, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useDocumentTitle, useLoad } from '../hooks';
-import { detailMessages, draftSummary } from '../lib/ai-draft-note';
+import { detailMessages, draftSummary, pictureNote, seasonalLines, toolLines } from '../lib/ai-draft-note';
 import { errorMessage } from '../lib/errors';
 import type { ChannelsOverview } from '../lib/overview';
 import { useSession } from '../session';
@@ -310,13 +310,16 @@ export function AiDraftCard({ notes }: { notes: AiDraftNotes }) {
   const s = draftSummary(notes);
   const suggestions = notes.imageSuggestions ?? [];
   const messages = detailMessages(notes);
+  const pictures = pictureNote(notes);
+  const seasonal = seasonalLines(notes);
   const technical = [
+    ...toolLines(notes),
     ...(notes.plan ? [`Plan: ${notes.plan}`] : []),
     ...((notes.promptVersion || notes.model) ? [[notes.promptVersion ? `Prompt ${notes.promptVersion}` : '', notes.model ? `model ${notes.model}` : ''].filter(Boolean).join(', ')] : []),
     ...messages,
     ...suggestions.map((x) => `Picture wanted for ${x.postId}: ${x.suggestion}`),
   ];
-  const hasDetails = !!s.followUp || s.why.length > 0 || technical.length > 0;
+  const hasDetails = !!s.followUp || s.why.length > 0 || technical.length > 0 || seasonal.length > 0;
   return (
     <div className="mb-4">
       <Notice
@@ -332,12 +335,19 @@ export function AiDraftCard({ notes }: { notes: AiDraftNotes }) {
         )}
       >
         Check every post and its sources before approving. <span className="text-muted-foreground">{s.headline}</span>
+        {pictures && <p className="mt-1">{pictures}</p>}
         {open && hasDetails && (
           <div id="ai-draft-details" className="mt-2 flex flex-col gap-2 text-[13px] [overflow-wrap:anywhere]">
             {(s.followUp || s.why.length > 0) && (
               <div>
                 {s.followUp && <p>{s.followUp}</p>}
                 {s.why.length > 0 && <ul className="mt-1 list-disc space-y-1 pl-[18px]">{s.why.map((w, i) => <li key={i}>{w}</li>)}</ul>}
+              </div>
+            )}
+            {seasonal.length > 0 && (
+              <div>
+                <p className="font-medium">Seasonal: the occasions this batch was planned around</p>
+                <ul className="mt-1 list-disc space-y-1 pl-[18px]">{seasonal.map((w, i) => <li key={i}>{w}</li>)}</ul>
               </div>
             )}
             {technical.length > 0 && <ul className="list-disc space-y-1 pl-[18px] text-muted-foreground">{technical.map((t, i) => <li key={i}>{t}</li>)}</ul>}

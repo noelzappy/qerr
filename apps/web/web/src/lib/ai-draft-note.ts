@@ -6,6 +6,35 @@ export interface DraftReport {
   delivered?: number;
   rejected?: Array<{ id: string | null; reasons: string[] }>;
   messages?: string[];
+  // How many posts carry a picture, and how many usable photos the vault offered the AI.
+  pictures?: { posts?: number; of?: number; usablePhotos?: number };
+  seasonal?: { occasions?: Array<{ name: string; date?: string; end?: string; source?: string }>; used?: Array<{ postId: string; occasion: string }> };
+  tools?: { calls?: number; searches?: Array<{ tool: string; query: string; results: number }>; foundOnTheWeb?: Array<{ title: string; sourceUrl: string; citedBy?: string[] }> };
+}
+
+const shortDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+// The "Seasonal" note: each occasion the draft was given, with its date and the posts planned around it. Empty without occasions.
+export function seasonalLines(notes: DraftReport): string[] {
+  const s = notes.seasonal;
+  if (!s?.occasions?.length) return [];
+  return s.occasions.map((o) => {
+    const posts = (s.used ?? []).filter((u) => u.occasion === o.name).map((u) => u.postId);
+    const when = o.date ? ` (${o.end ? `${shortDay(o.date)} – ${shortDay(o.end)}` : shortDay(o.date)})` : '';
+    return `${o.name}${when}${o.source ? ', from the web' : ''}: ${posts.length ? `${posts.join(', ')}` : 'no post'}`;
+  });
+}
+
+// What the drafting tools did, in a line or two, and each fact found on the web (saved unconfirmed in Facts).
+export function toolLines(notes: DraftReport): string[] {
+  const t = notes.tools;
+  if (!t) return [];
+  const searches = t.searches ?? [];
+  const vault = searches.filter((x) => x.tool === 'search_facts').length, web = searches.filter((x) => x.tool === 'search_web').length;
+  return [
+    ...(searches.length ? [`Searched ${[vault ? `the facts ${vault === 1 ? 'once' : `${vault} times`}` : '', web ? `the web ${web === 1 ? 'once' : `${web} times`}` : ''].filter(Boolean).join(' and ')}: ${searches.map((x) => `"${x.query}"`).join(', ')}`] : []),
+    ...(t.foundOnTheWeb ?? []).map((f) => `Found on the web, waiting in Facts to be confirmed: ${f.title} (${f.sourceUrl})${f.citedBy?.length ? `, used by ${f.citedBy.join(', ')}` : ''}`),
+  ];
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -52,5 +81,17 @@ export function draftSummary(notes: DraftReport): DraftSummary {
   return { headline, followUp, why };
 }
 
-// Messages from the AI that only repeat the headline are left out; the rest are technical and go under "Details".
-export const detailMessages = (notes: DraftReport): string[] => (notes.messages ?? []).filter((m) => !/requested posts passed the checks/i.test(m));
+// When fewer than half the posts carry a picture, one plain line says so and what to do, shown with the note (not under "Details"):
+// a vault with fewer usable photos than posts asks for more photos; a vault with enough says the drafts did not use them.
+export function pictureNote(notes: DraftReport): string | null {
+  const p = notes.pictures;
+  if (!p || typeof p.posts !== 'number' || typeof p.of !== 'number' || !p.of || p.posts * 2 >= p.of) return null;
+  const photos = typeof p.usablePhotos === 'number' ? p.usablePhotos : 0;
+  const count = `Only ${p.posts} of ${p.of} posts ${p.posts === 1 ? 'has' : 'have'} a picture`;
+  return photos < p.of
+    ? `${count}: confirm more photos in Pictures (with their rights settled) to get richer posts.`
+    : `${count}, though ${photos} photos are ready in Pictures: add one to a post, or ask the AI again.`;
+}
+
+// Messages from the AI that only repeat the headline (or the picture line above) are left out; the rest are technical and go under "Details".
+export const detailMessages = (notes: DraftReport): string[] => (notes.messages ?? []).filter((m) => !/requested posts passed the checks/i.test(m) && !(notes.pictures && /posts have a picture/i.test(m)));

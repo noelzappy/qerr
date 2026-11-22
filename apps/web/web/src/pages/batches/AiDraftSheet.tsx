@@ -1,4 +1,4 @@
-// "Draft with AI": says what to draft (period, how many posts, optional title and networks) and queues the job. The period and
+// "Draft with AI": says what to draft (period, the occasions of the period, how many posts, optional title and networks) and queues the job. The period and
 // the number of posts are one tap each (next month and 10 to start; Custom opens the exact fields). Once it is queued the panel
 // shows the run live (the step and how far it is) and, when it is done, a button to open the batch.
 import { useEffect, useState, type FormEvent } from 'react';
@@ -18,10 +18,13 @@ import { NETWORKS } from './labels';
 import { useAppInfo } from '../../app-info';
 import { ChoiceRow } from './editor/ChoiceRow';
 import { PeriodChips } from './PeriodChips';
+import { PeriodOccasions } from './PeriodOccasions';
+import { chosenOccasions, type OccasionChip } from './period-occasions';
 import { periodFor, todayIn } from './periods';
 import { useSession } from '../../session';
 
-type Readiness = { ready: boolean; missing: 'provider' | 'budget' | null };
+// `search`: a search provider is set up, so "Look for events this month" can run.
+type Readiness = { ready: boolean; missing: 'provider' | 'budget' | null; search?: boolean };
 
 // How many posts, as one tap; Custom opens a number field (1 to 30).
 export const POST_COUNTS = ['5', '10', '15', '20', '30'] as const;
@@ -38,6 +41,8 @@ export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => 
   const [customCount, setCustomCount] = useState(false);
   const [title, setTitle] = useState('');
   const [networks, setNetworks] = useState<string[]>([...NETWORKS]);
+  // "This period": the occasions of the dates, as chips (the calendar's ticked; the person's own and web finds added)
+  const [occasions, setOccasions] = useState<OccasionChip[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -73,7 +78,8 @@ export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => 
     setBusy(true);
     setError('');
     try {
-      const r = await api.post<{ activityId: string | null }>('/api/batches/ai-draft', { periodStart, periodEnd, count: n, channels: networks, ...(title.trim() ? { title: title.trim() } : {}) });
+      const chosen = chosenOccasions(occasions);
+      const r = await api.post<{ activityId: string | null }>('/api/batches/ai-draft', { periodStart, periodEnd, count: n, channels: networks, ...(title.trim() ? { title: title.trim() } : {}), ...(chosen.length ? { occasions: chosen } : {}) });
       if (r.activityId) setRunId(r.activityId);
       else { toast.success('Drafting started. The batch appears in the list when it is ready'); withoutGuard(onClose); }
     } catch (err) {
@@ -149,6 +155,8 @@ export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => 
         )}
         <FormProblem error={error} />
         <PeriodChips today={today} value={period} onChange={setPeriod} errors={{ from: fields.periodStart, to: fields.periodEnd }} />
+        <PeriodOccasions period={period} search={readiness?.search === true && !blocked} chips={occasions} onChange={setOccasions} />
+        {fields.occasions && <p className="text-[12.5px] font-medium text-destructive" role="alert">{fields.occasions}</p>}
         <ChoiceRow<string>
           legend="Number of posts" tip="Drafting takes a few minutes."
           value={customCount ? 'custom' : count}

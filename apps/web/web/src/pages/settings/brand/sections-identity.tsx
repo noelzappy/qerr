@@ -1,6 +1,7 @@
 // Brand and look, Identity and Logos.
 import { ImageUp, Wand2 } from 'lucide-react';
-import { BusyButton, CheckField, Hint, Notice, SelectField, SwitchField, TextField } from '@/components/kit';
+import { BusyButton, CheckField, FilledTag, Hint, Notice, SelectField, SwitchField, TextField } from '@/components/kit';
+import { countryAfterZoneChange, countryIsFilled, countryOptions } from '../../../lib/countries';
 import { TimeZonePicker } from '@/components/kit/time-zone-picker';
 import { Section } from '../section';
 import { FileField } from './fields';
@@ -12,6 +13,7 @@ import type { BrandCtx } from './model';
 import type { BrandNumbers } from '../brand-types';
 
 const LANGUAGES = ['British English', 'American English', 'Australian English', 'Canadian English', 'French', 'German', 'Spanish', 'Portuguese', 'Dutch', 'Italian'];
+const COUNTRIES = countryOptions();
 // The starting list when "one currency only" is switched on.
 const DEFAULT_FOREIGN = '\\$|£|€';
 
@@ -74,7 +76,15 @@ export function IdentitySection({ ctx }: { ctx: BrandCtx }) {
         <TextField label="Website" hint="As it should appear on posts, without https://" value={s.website} onChange={(e) => set('website', e.target.value)} error={fields.website} maxLength={120} required />
         <TextField label="Tagline" value={s.tagline} onChange={(e) => set('tagline', e.target.value)} error={fields.tagline} maxLength={160} required />
         <TextField label="What the brand does" optional hint="One line, for the AI" value={s.descriptor} onChange={(e) => set('descriptor', e.target.value)} error={fields.descriptor} maxLength={200} />
-        <TimeZonePicker label="Time zone" hint="Posts are planned in this time zone" value={s.timezone} onChange={(v) => set('timezone', v)} error={fields.timezone} />
+        <TimeZonePicker
+          label="Time zone" hint="Posts are planned in this time zone" value={s.timezone} error={fields.timezone}
+          onChange={(v) => { const next = countryAfterZoneChange(ctx.view.settings.country, s.country, s.timezone, v); set('timezone', v); if (next !== s.country) set('country', next); }}
+        />
+        <SelectField
+          label={<>Country{countryIsFilled(ctx.view.settings.country, s.country, s.timezone) && <FilledTag>From the time zone</FilledTag>}</>}
+          hint="Drafts are offered its holidays and observances" optional
+          value={s.country ?? ''} onValueChange={(v) => set('country', v || null)} options={COUNTRIES} placeholder="Choose a country" error={fields.country}
+        />
         <SelectField label="Language of the posts" value={s.language} onValueChange={(v) => set('language', v)} options={(LANGUAGES.includes(s.language) ? LANGUAGES : [s.language, ...LANGUAGES]).map((l) => ({ value: l, label: l }))} error={fields.language} />
       </div>
       <div className="flex flex-col gap-3">

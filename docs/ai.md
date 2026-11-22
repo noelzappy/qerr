@@ -60,7 +60,8 @@ The voice, the visual direction and the references are taste, not facts: the pro
 the hard rules leave room and never to quote them as claims.
 
 `draftBatch` may override `name`, `tagline`, `website` and `descriptor` with its `brand` argument; colours and file paths
-never reach the model. `timezone` defaults to the pack's `timezone`, then `UTC`. When the pack sets `money.foreign` (a
+never reach the model. `timezone` defaults to the pack's `timezone`, then `UTC`. The pack's optional `country` (ISO 3166-1
+alpha-2) goes into the draft request as `country` and picks the calendar of occasions (see "Occasions"). When the pack sets `money.foreign` (a
 pattern of other currencies), a post that uses a vault picture whose title, description or tags match it is rejected,
 with the `money.local` sentence in the reason. Without `money` every currency is allowed. A caption, a network's own caption or
 image text that matches `money.foreign` (words, symbols, any case; web addresses are left out) is not rejected, since a fact the post cites may
@@ -207,11 +208,11 @@ For a look written as data the kinds come from the engine's `lookBrief` instead,
 (`variant`, `name`, `describe` and the variant's own `fields`).
 
 `prompts/draft.md` is one file; the parts that differ are between `<!-- if direction -->`, `<!-- else -->` and `<!-- end -->`
-lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-17`, serves both kinds of brand and a brand without a
+lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-20`, serves both kinds of brand and a brand without a
 direction gets what it got under `draft-11`, except for the confirmed-only rule. The direction part teaches: choose the kind from
 the content (a number is a `figure`; steps or reasons a `list`; a date and place an `event`; a price or "new" an `offer`; a picture
 that carries the post a `photo`; a house line a `quote`; otherwise a `statement`); write to the budgets (headline at most 70, aim
-for 45, one `*emphasis*` phrase of 1 to 4 words never the whole line, `sub` adds a fact and never repeats the headline, `label` 1 or
+for 45, one `*emphasis*` phrase of 1 to 4 words never the whole line, `sub` explains and never repeats the headline, `label` 1 or
 2 words, `big` as people say it with its sign or unit and `unit` what it counts, `items` parallel in grammar and length, `meta` as
 "12 Dec · 6pm · Place", `tag` at most 2 words or a price); vary the kinds (at least three kinds in five or more posts, never the same
 kind three posts running); use each picture once; set `variant` only where the kind lists `variants` (a look written as data
@@ -244,6 +245,57 @@ if named), used once in the batch with the other pictures; never with a `gallery
 three standard emoji per text when the brand's `emoji` is true, never in the brand name, a caption or a series mark; with it false, none.
 `notes` gains `direction` and `kindMix`.
 
+### Every image stands alone
+
+Most people see the image and never read the caption, so from `draft-18` (and `rewrite-7`) the prompts split what stays exact from
+what the model words itself, and ask that the words on each image answer three questions together: what it is about (the brand or the
+product, by name or a clear description), what the number or claim means, and why it matters to the reader.
+
+- **Exact**, as the cited item gives them: every number with its unit, sign or currency, names and the brand's spellings, dates, prices
+  and quotations (word for word). "Write money exactly as the item writes it" is about the sum itself, not the sentence around it.
+- **The model's own words**: everything else. A fact is said again in plain, clear words, with the same meaning and never stronger than
+  the item; an item's sentence is never copied onto the image just because it is there.
+- A headline names its subject (never "it", "they" or "this" for something the image does not name); a product or feature name the
+  reader may not know is introduced on first use ("<name>, the app's assistant"); a `figure`'s `unit` and `sub` say what is counted,
+  whose it is and why it matters; an `offer` says in its headline or `sub` what is free or priced; a label names the topic ("Our
+  members", "Free plan"), never a generic word. Where a fact came from ("a live figure from ...", the day it was read) goes in the
+  caption; "Illustrative figure." may stay on the image, short, at the end of the `sub`. When a design draws a `sub`, the model writes
+  one whenever it adds context; a figure, an offer and a statement normally carry one.
+
+`src/standalone.mjs` (`standAloneProblems`, called by `checkPost` for `post` designs and each post page of a carousel) sends back the
+worst cases with a reason, like every other check (the draft's replacement call, the rewrite's retry): a `figure` with no `sub` where
+its design (the named variant, else the kind) draws one; a `unit` that is one generic word (`members`, `people`, `users`, ...) with
+no `sub` or headline; a figure with neither; a label from a short fixed list (`The numbers`, `Numbers`, `Update`, `Info`, `News`, ...;
+not a named series' mark, which the app writes); a `sub` that repeats the headline's emphasis phrase of two words or more; and a
+headline (on a carousel, the cover's only) that opens on `it`, `they`, `he`, `she`, or `this`/`that`/`these`/`those` before a verb
+("This changes everything"), or ends on a short clause of three words or fewer that does ("..., it only reads"). The checks are a fixed
+word list and the first words of a clause, so they stay cheap and deterministic and do not judge style.
+
+### Pictures and variety
+
+`draft-18` also asks for posts with a picture: whenever a confirmed vault photo suits a post's subject, the model chooses a kind and
+variant that draws one (a variant that lists `image`) and gives it the photo, aiming for most posts in a batch to carry a picture; a
+single idea that a photo suits is a `photo` post rather than a `statement`, an `offer` takes a photo when its variant draws one, and
+a picture-less design is for a post no unused photo fits. Whether a look can draw a picture on a figure or a statement is the look's
+own: the shipped Clean look, for example, draws pictures only in its `photo` and `offer` designs.
+
+`draft-19` adds two sections of its own at the end, `# Occasions` and `# Tools` (see "Occasions" and "Tools while drafting" below);
+nothing else in the prompt changed. A live December draft with `draft-19` used none of the occasions it was given, so `draft-20` asks
+for at least one post in four to take an occasion when one fits, says a seasonal post still stands on a cited fact, and asks `plan` to
+name the occasions used and why any were left out.
+
+A batch is not one template filled in again and again: `comboProblems` in `postcheck.mjs` refuses a post whose design (its kind and
+named variant; a kind in all its variants when none is named) the batch already uses as often as the limit allows: 2, or a fifth of
+the batch, or the batch shared out over all the look's designs, whichever is most (`ctx.batchCount`). Named series posts are not
+counted. The prompt also asks for headlines of different shapes (an instruction, two short sentences, a full thought with a verb, now
+and then a question), not all "X is Y".
+
+`notes.pictures` is `{ posts, of, usablePhotos }`: how many delivered posts carry a picture and how many usable photos the vault
+offered. When fewer than half carry one, `notes.messages` says so, and the web app's AI-draft note shows one plain line next to its
+summary (not under Details): "Only 2 of 10 posts have a picture: confirm more photos in Pictures (with their rights settled) to get
+richer posts", or, when the vault offered at least as many photos as posts, that the photos are ready and a person can add one to a
+post or ask again (`pictureNote` in `web/src/lib/ai-draft-note.ts`).
+
 ### Named series
 
 `draftBatch` takes `recurring`: the brand's named series (the web app's Settings, Looks, Series), each `{ slug, name, kind, variants,
@@ -258,7 +310,7 @@ repairs; the series number is not taken for an unsourced number. After drafting,
 from `nextNumber`, so a slot left unfilled leaves no gap. Each post carries `series: { slug, number }`; `notes.namedSeries` lists the
 numbers drafted per series and `notes.messages` the slots left out.
 
-`rewrite` uses the same file (`rewrite-6`): a direction brand's rewrite is told the kinds and budgets, to keep the post's `kind`
+`rewrite` uses the same file (`rewrite-7`): a direction brand's rewrite is told the kinds and budgets, to keep the post's `kind`
 and edit the words within the same budgets, and to redesign an old-template post as a `post`. A kind changed by the model is
 shown in the post's `warnings`.
 
@@ -280,6 +332,8 @@ shown in the post's `warnings`.
      85,000 deposits");
      quotations of three words or more must appear in a source; the post must cite at least one item that exists;
    - a picture used twice in the batch, or one that shows another currency (see "The brand"), is rejected;
+   - a `post` image that does not stand alone (a bare figure, a generic label, a headline leaning on a pronoun; see "Every image
+     stands alone") is rejected with the reason;
    - repaired and reported: brand spelling, emoji in image text, duplicate or odd ids, an X caption over 280 (cut to whole sentences);
    - warned, not blocked: over-length Instagram or LinkedIn captions, more than
      30 hashtags, Title Case headlines, US spellings, headline and sub lengths.
@@ -287,8 +341,89 @@ shown in the post's `warnings`.
 5. The batch is validated by the engine's own `validateBatch`; a post it refuses is dropped and reported. If nothing is left the call
    throws `no_valid_posts`.
 
-`notes`: `promptVersion`, `model`, `usage` (calls, tokens, cost or `"unknown"`), `plan`, `requested`, `delivered`, `seriesMix`,
-`rejected` (id and reasons), `repaired`, `direction` and `kindMix` (a direction brand only), `imageSuggestions` (stock-photo briefs; nothing is fetched or embedded) and `messages`.
+`notes`: `promptVersion`, `model`, `usage` (calls, tokens, cost or `"unknown"`, and `toolCalls` when tools ran), `plan`, `requested`, `delivered`, `seriesMix`,
+`rejected` (id and reasons), `repaired`, `direction` and `kindMix` (a direction brand only), `imageSuggestions` (stock-photo briefs; nothing is fetched or embedded),
+`seasonal` (with occasions: `country`, the `occasions` given and `used`, `{ postId, occasion, date }` for each post planned around one),
+`tools` (when a tool ran: `calls`, `searches` `{ tool, query, results }`, `vaultItemsFound`, `foundOnTheWeb`, `dropped`) and `messages`.
+`draftBatch` returns `{ batch, notes, found }`; `found` lists the facts taken from the web (below).
+
+## Occasions (`src/occasions.mjs`)
+
+A draft can be planned around the period: its public holidays, observances, seasons and shopping or money moments.
+`occasionsFor({ country, from, to })` returns the occasions that touch the window (at most 400 days), sorted by date, each
+`{ id, name, date, end?, kind, note, observed?, country }`, `kind` one of `holiday`, `observance`, `season`, `commerce`. No AI, no network.
+`country` is the brand's (brand.json `country`, an ISO 3166-1 alpha-2 code the engine's `validateBrand` checks against
+`packages/engine/lib/countries.mjs`). Covered: GH, NG, KE, ZA, GB, IE, US, CA, IN, AU, DE, FR, NL, ES, IT (`OCCASION_COUNTRIES`). Any other
+country, or none, gets the global occasions only: New Year's Day, Valentine's Day, International Women's Day, Easter Sunday, the start of
+Ramadan, Eid al-Fitr, Eid al-Adha, Black Friday, Cyber Monday, Christmas Eve, Christmas Day, New Year's Eve and the month-end payday (the
+last working day of each month). A country's own entry of the same id replaces a global one (Christmas Day becomes a `holiday`).
+
+How the dates are made, so each can be checked:
+- Fixed dates and weekday rules ("first Friday of December": Ghana's National Farmers' Day; "last Monday before 25 May": Victoria Day;
+  "fourth Thursday of November": US Thanksgiving, with Black Friday the day after and Cyber Monday three days later).
+- Easter by the anonymous Gregorian algorithm (Meeus, *Astronomical Algorithms*, ch. 8), and Good Friday, Easter Monday, Ascension
+  (+39), Whit Monday (+50), Shrove Tuesday (-47), Rose Monday (-48) and the UK and Irish Mothering Sunday (-21) from it.
+- Ramadan, Eid al-Fitr, Eid al-Adha and Nigeria's Eid-el-Maulud from the Umm al-Qura calendar through `Intl` (`islamic-umalqura`), and
+  Hanukkah (25 Kislev, eight nights) from `Intl`'s Hebrew calendar. Each Islamic note says the day depends on the moon and may differ by
+  one locally; on a Node without those calendars the entries are left out.
+- Diwali from a table for 2025 to 2030 (20 Oct 2025, 8 Nov 2026, 29 Oct 2027, 17 Oct 2028, 5 Nov 2029, 26 Oct 2030), as India's central
+  government holiday list and the major panchangs give the Lakshmi Puja day; a test checks each against a computed new moon. No other year.
+- Substitute days: GB bank holidays on a weekend move to the next working day not already a holiday (Christmas and Boxing Day
+  together), South Africa's Sunday holidays to the Monday (Public Holidays Act), US federal holidays to the Friday or Monday (OPM), Canada
+  Day on a Sunday to the Monday, and Australia Day on a weekend to the Monday. The entry keeps its date and gets `observed` and a sentence.
+- Special rules: Ireland's St Brigid's Day bank holiday (the first Monday of February, or 1 February when that is a Friday, since 2023),
+  the Dutch King's Day (26 April when the 27th is a Sunday), the French Fête des mères (last Sunday of May, or the first of June when
+  Pentecost falls on it), the French sales (Code de commerce D310-15-2), Oktoberfest (the first Saturday after 15 September to the first
+  Sunday of October, or 3 October when later), the first Sunday of Advent.
+- Money moments only where certain: the UK Self Assessment deadline (31 January) and tax year end (5 April), Ireland's 31 October paper
+  return deadline, Canada's 30 April filing deadline, Australia's end of financial year (30 June) and 31 October return deadline.
+  Back-to-school is a `season` with a range and a note that dates vary. Meteorological seasons for the temperate countries only.
+
+Sources: each country's government list of public holidays (gov.uk bank holidays, gov.ie public holidays, OPM federal holidays,
+canada.ca statutory holidays, India's central government holiday list, the Australian states' lists, the German, French, Dutch,
+Spanish and Italian national lists, the South African Public Holidays Act, the Kenyan, Nigerian and Ghanaian government
+announcements), read from memory of those sources while writing, not fetched. Left out because they were not certain: Ghana's
+7 January and 1 July and its 21 September holiday name (all changed by recent amendments), Kenya's 26 December and 10 October names,
+Italy's 4 October from 2026, the US tax day (it moves with weekends and DC's Emancipation Day), regional holidays (German states, Spanish
+regions, Scottish and Northern Irish ones except as a note), Holi and the other lunisolar Hindu festivals, and Mother's Day where it is
+not one clear rule (Ghana, Nigeria, Kenya). `test-occasions.mjs` pins the rules to known dates.
+
+A draft takes `occasions: [{ name, date?, end?, observed?, kind, note?, source? }]` (`cleanOccasions`: at most 40, names up to 80
+characters, dates real, ones outside the period dropped). The request carries them as `occasions` and the brand's `country`, and the
+prompt's `# Occasions` section says: plan posts around them where they genuinely fit the brand (a timely angle, a greeting, a themed tip),
+on the day or before it and never after, mark such a post `"occasion": "<name>"`, name an occasion and its date only as given, and never
+claim the brand does something for one unless a cited vault item says so. Occasions are allowed context, not vault facts: in
+`postcheck.mjs` the days of the month and the year of an occasion's dates (and a number in its name) are allowed in a post whose words
+name it (`occasionNumberKeys`: the name, or a distinctive word of it such as "christmas") or that declares it. Every other number still
+needs a cited item. A post marked for an occasion that goes out after it gets a warning. The `occasion` mark stays in the notes, never in
+the engine batch.
+
+`findOccasions({ country, period, known })` ("Look for events this month") runs one web search ("major events and festivities in
+<country> <month year>"), wraps the results as `<source>` data and asks the drafting provider (prompt `occasions.md`) for up to six more,
+each `{ name, date, end?, kind, note, source }` with `kind` never `holiday`. A proposal is dropped when its `sourceUrl` is not a returned
+result, its dates fall outside the period, it repeats a known name, or its name or note carries a number its result does not. The search
+and the AI call go through the budget and the call log like every other.
+
+## Tools while drafting (`src/draft-tools.mjs`)
+
+Each drafting call offers the model tools through `complete({ tools })` in `providers.mjs` (at most `MAX_DRAFT_TOOL_CALLS`, 8, over the
+whole draft; every round trip is a paid, logged call, the budget is checked before each, and each tool call is logged as `kind: "tool"`):
+- Anthropic: the tools go beside the answer tool with `tool_choice: { type: "any" }` (a tool call every turn; the answer tool finishes),
+  the model's `tool_use` blocks are run and sent back as `tool_result` blocks, and once the calls are used up the answer tool is forced.
+- OpenAI-compatible: `tools: [{ type: "function", function: { name, description, parameters } }]` with `tool_choice: "auto"`, the
+  message's `tool_calls` are run and answered with `{ role: "tool", tool_call_id }` messages, then the JSON answer; at the cap
+  `tool_choice: "none"`. A server that answers 400 about tools is asked again without them.
+The JSON-output contract is unchanged: the answer is the same schema, checked the same way.
+
+- `search_facts({ query, kind? })` searches every usable vault item (confirmed, current, rights settled; never pictures, which are all in
+  the request) by title (3), tags (2) and body (1), and returns up to 8 compact items the model may cite. So the request lists only the
+  top 40 facts (those that mention a chosen occasion first) and says how many more there are (`tools.factsNotListed`).
+- `search_web({ query })`, only with a search provider, returns five results as `<source>` blocks marked as data, never instructions.
+  A fact the model wants from one goes in the answer's `found` list (`{ id: "found-…", kind, title, body, sourceUrl }`) and is cited by
+  that id. A find is kept only when its `sourceUrl` is a result this draft returned and every number in it is in that result's text, and
+  it repeats no vault item. A post citing a kept find passes the source check but gets the warning "Uses a fact found on the web: confirm
+  it in Facts first"; a post citing anything else that is not usable is rejected as before. The app saves each find as an unconfirmed
+  vault item (tag `found-while-drafting`) and points the post's sources at it, so approval refuses the post until a person confirms it.
 
 ## Research
 
@@ -318,7 +453,7 @@ number absent from the pages, or duplicate a vault item or an earlier candidate.
 ## Prompts
 
 `packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`, `brand-site.md`, `picture.md`. They are brand-neutral: they read the `brand` brief above.
-The first line is `<!-- version: draft-17 -->` (now `draft-17`, `rewrite-6`); the version is returned in `notes.promptVersion`. Change a prompt by editing
+The first line is `<!-- version: draft-20 -->` (now `draft-20`, `rewrite-7`); the version is returned in `notes.promptVersion`. Change a prompt by editing
 the file, bumping its version and reviewing the diff. Tests pin the versions' format only, not the wording.
 
 A brand pack can replace any of them with its own `prompts/<name>.md` (for example `brands/acme/prompts/draft.md`), with
@@ -336,6 +471,10 @@ the same version line. The pack's file is used when it exists, the library's oth
 
 ## Weak or unverified
 
+- Tools were offered to a real Anthropic model (`claude-sonnet-5-5`) in two December 2026 drafts for the Pennyhive test brand (country
+  IE, no search key, so only `search_facts`): the requests with `tool_choice: any` were accepted, but the model answered straight away
+  and never called `search_facts`, so a real tool round trip has not been seen. With `draft-20` one post of five took an occasion
+  (Christmas Eve); with `draft-19` none did. OpenAI-compatible tool calling, `search_web` and `findOccasions` were run only against fakes.
 - Not run against real Brave, Tavily, Exa or any OpenAI-compatible server. Brave's `page_age`/`age` and Tavily's
   `include_published_date`, and Exa's `contents.text.maxCharacters`, were not confirmed in the docs read.
 - Page reads through the real transport were run once against `example.com` only; redirect handling and the pinned lookup are covered by tests with fake transports, not by a real redirecting site.

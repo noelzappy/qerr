@@ -12,6 +12,9 @@ import { POST_PAGES, seenText } from '@qerr/engine/design/post-spec';
 import { applySeriesSlot, seriesMark, seriesRefProblems } from '@qerr/engine/design/series';
 import { lookOfBrand } from '@qerr/engine/design/directions/index';
 import { EMPHASIS_FIELDS, directionKinds, emphasisIn, kindBrief } from './direction.mjs';
+import { standAloneProblems } from './standalone.mjs';
+import { occasionNumberKeys } from './occasions.mjs';
+import { WEB_FACT_WARNING } from './draft-tools.mjs';
 
 // The drafting assistant may only use the poster pages (a real photo or a framed phone screen on a pale ground), a full-bleed photo,
 // carousels of poster pages, and the brand's own layouts (template "layout", when the brand has some, as a post or as a carousel
@@ -288,6 +291,29 @@ function kindRunProblems(design, date, ctx) {
   return [];
 }
 
+// Within one batch one design (a kind in one variant) is used about twice at most, so the batch does not read as one template filled
+// in again and again. ctx.kinds holds the posts already accepted ({ kind, variant?, series? }); ctx.batchCount is the batch's size. Series
+// posts are left out (their kind and design are the series'). The limit grows with the batch and with a look that has few designs, so a
+// batch can always be filled: at least 2, a fifth of the batch, and the batch shared out over every design the look has.
+function comboProblems(design, ctx, inSeries) {
+  if (inSeries || design?.template !== 'post' || !Array.isArray(ctx.kinds) || !ctx.batchCount || !ctx.direction) return [];
+  const kinds = directionKinds(ctx.direction, ctx.brand);
+  const count = (k) => kindBrief(ctx.direction, k, ctx.brand)?.variants?.length || 1;
+  const designs = kinds.reduce((n, k) => n + count(k), 0) || 1;
+  const limit = Math.max(2, Math.ceil(ctx.batchCount / 5), Math.ceil(ctx.batchCount / designs));
+  const brief = kindBrief(ctx.direction, design.kind, ctx.brand);
+  const mine = ctx.kinds.filter((k) => !k.series && k.kind === design.kind);
+  if (design.variant === undefined || !brief?.variants) {
+    const most = limit * count(design.kind);
+    return mine.length >= most ? [`this batch already has ${mine.length} "${design.kind}" posts; a batch of ${ctx.batchCount} uses a kind at most ${most} times here. Choose another kind`] : [];
+  }
+  const same = mine.filter((k) => k.variant === design.variant).length;
+  if (same < limit) return [];
+  const name = brief.variants[design.variant]?.name ?? `variant ${design.variant}`;
+  const others = brief.variants.length > 1 ? 'another variant of it or another kind' : 'another kind';
+  return [`this batch already has ${same} "${design.kind}" posts in the ${name} design (variant ${design.variant}); a batch of ${ctx.batchCount} uses one design at most ${limit} times, so it does not look like one template repeated. Choose ${others}`];
+}
+
 // A post of a named series. raw.series is a slug (a draft: the post takes the plan's open slot of that series, ctx.seriesSlots, on its date
 // or else the earliest) or { slug, number } (a rewrite of a post already in a series, ctx.seriesList when known). The app, never the model,
 // sets the slot's date, the composition and the mark; the model writes the words. -> { problems, repairs, design?, ref?, date? }
@@ -337,7 +363,11 @@ export function checkPost(raw, ctx) {
   const unknown = sources.filter((s) => !ctx.byId.has(s));
   if (unknown.length) reasons.push(`sources name items that are not in the vault: ${unknown.join(', ')}`);
   const sourceItems = sources.map((s) => ctx.byId.get(s)).filter(Boolean);
+  // (a fact the model found on the web while drafting is cited but flagged: the app creates it unconfirmed and blocks approval)
+  const fromWeb = sourceItems.filter((i) => ctx.webFound?.has(i.id));
+  if (fromWeb.length) warnings.push(WEB_FACT_WARNING);
   for (const i of sourceItems) {
+    if (fromWeb.includes(i)) continue;
     const why = unusableReason(i, { now: ctx.now });
     if (why) reasons.push(`source ${i.id}${i.title ? ` ("${String(i.title).slice(0, 50)}")` : ''} ${why}, so a post may not cite it; use only the items in the vault list`);
   }
@@ -370,7 +400,11 @@ export function checkPost(raw, ctx) {
       if (JSON.stringify(trimmed) !== JSON.stringify(design)) { design = trimmed; repairs.push(ctx.brand?.emoji === true ? 'emoji past the three a text may carry, or broken ones, removed from the image text' : 'emoji removed from the image text (they are off for this brand)'); }
       const engine = designProblems(design, ctx);
       reasons.push(...engine);
-      if (!engine.length && (design.template === 'post' || (ctx.direction && design.template === 'carousel'))) reasons.push(...postKindProblems(design, ctx), ...kindRunProblems(design, seriesDate ?? date, ctx));
+      if (!engine.length && (design.template === 'post' || (ctx.direction && design.template === 'carousel'))) {
+        reasons.push(...postKindProblems(design, ctx), ...kindRunProblems(design, seriesDate ?? date, ctx), ...comboProblems(design, ctx, Boolean(series)));
+        // the image is read without its caption: a figure says what it counts, a label names a topic, a headline names its subject
+        reasons.push(...standAloneProblems(design, { brief: (k) => (ctx.direction ? kindBrief(ctx.direction, k, ctx.brand) : null), inSeries: Boolean(series) }));
+      }
     }
   }
   const imageReason = typeof raw.imageReason === 'string' ? raw.imageReason.trim().slice(0, 200) : '';
@@ -401,6 +435,8 @@ export function checkPost(raw, ctx) {
   if (series) for (const k of numberKeys(String(series.number))) allowed.add(k);
   const imageFields = textFieldsOf(normalisePostDesign(design, ctx.layouts));
   const texts = [{ where: 'caption', text: caption }, ...Object.entries(networkCaptions).map(([n, text]) => ({ where: `${n} caption`, text })), ...imageFields.map((f) => ({ where: `image text (${f.field})`, text: f.text }))];
+  // an occasion the request chose is context, not a claim: its name and its dates may be written without a source (occasions.mjs)
+  if (ctx.occasions?.length) for (const k of occasionNumberKeys([raw.title, ...texts.map((x) => x.text)].join('\n'), ctx.occasions, raw.occasion)) allowed.add(k);
   for (const { where, text } of texts) {
     const bad = unsourcedNumbers(text, allowed);
     if (bad.length) reasons.push(`${where} has ${bad.length === 1 ? 'a number' : 'numbers'} not found in its sources: ${bad.join(', ')}`);

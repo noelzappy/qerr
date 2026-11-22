@@ -2,6 +2,7 @@
 // lands and where they pick up again, what the first save of the brand keeps from the example brand, the typing kept across a
 // reload, and how an AI suggestion fills the form without overwriting what a person typed.
 import type { BrandSettings } from '../settings/brand-types';
+import { COUNTRY_CODES, countryForZone } from '../../lib/countries';
 
 export const STEPS = [
   { key: 'brand', title: 'Your brand', skippable: false },
@@ -73,19 +74,26 @@ export function stepStates(s: SetupStatus | null, current: StepKey): Record<Step
 // suggestion may replace them and the page can mark them; `colours` are the website's colours, offered on the logo step.
 export interface BrandDraft {
   name: string; website: string; tagline: string; descriptor: string; voice: string; timezone: string; language: string;
+  // ISO 3166-1 alpha-2, or empty; filled in from the time zone until the person picks one
+  country: string;
   suggested: Array<'tagline' | 'descriptor' | 'voice'>;
   colours: string[];
 }
 export const DRAFT_TEXT = ['name', 'website', 'tagline', 'descriptor', 'voice', 'timezone', 'language'] as const;
 
 export function emptyDraft(timezone: string, language: string): BrandDraft {
-  return { name: '', website: '', tagline: '', descriptor: '', voice: '', timezone, language, suggested: [], colours: [] };
+  return { name: '', website: '', tagline: '', descriptor: '', voice: '', timezone, language, country: countryForZone(timezone) ?? '', suggested: [], colours: [] };
 }
 
 // The draft a saved brand gives: the words it has, for editing them again.
 export function draftFromSettings(s: BrandSettings): BrandDraft {
-  return { name: s.name, website: s.website, tagline: s.tagline, descriptor: s.descriptor, voice: s.voice, timezone: s.timezone, language: s.language, suggested: [], colours: [] };
+  return { name: s.name, website: s.website, tagline: s.tagline, descriptor: s.descriptor, voice: s.voice, timezone: s.timezone, language: s.language, country: s.country ?? countryForZone(s.timezone) ?? '', suggested: [], colours: [] };
 }
+
+// The country is still the one filled in from the time zone (the page marks it so).
+export const countryFromZone = (d: BrandDraft): boolean => !!d.country && d.country === countryForZone(d.timezone);
+// A new time zone: the country follows it while it is still the one filled in (or empty); a country the person chose stays.
+export const withZone = (d: BrandDraft, timezone: string): BrandDraft => ({ ...d, timezone, country: !d.country || countryFromZone(d) ? countryForZone(timezone) ?? d.country : d.country });
 
 // A person typed in a field: it is theirs from now on, so no suggestion replaces it.
 export function typeInDraft(d: BrandDraft, field: (typeof DRAFT_TEXT)[number], value: string): BrandDraft {
@@ -107,7 +115,7 @@ export function loadDraft(store: KV | null): BrandDraft | null {
   const text = (k: string, max: number) => (typeof o[k] === 'string' ? (o[k] as string).slice(0, max) : '');
   return {
     name: text('name', 80), website: text('website', 120), tagline: text('tagline', 160), descriptor: text('descriptor', 200), voice: text('voice', 4000),
-    timezone: text('timezone', 60), language: text('language', 60),
+    timezone: text('timezone', 60), language: text('language', 60), country: COUNTRY_CODES.includes(text('country', 2)) ? text('country', 2) : countryForZone(text('timezone', 60)) ?? '',
     suggested: Array.isArray(o.suggested) ? o.suggested.filter((f): f is BrandDraft['suggested'][number] => f === 'tagline' || f === 'descriptor' || f === 'voice') : [],
     colours: Array.isArray(o.colours) ? o.colours.filter((c): c is string => typeof c === 'string' && HEX.test(c)).slice(0, 8) : [],
   };
@@ -168,7 +176,7 @@ export function applySuggestion(d: BrandDraft, s: BrandSuggestion): { draft: Bra
 // type and shapes are a neutral start that the logo and look steps change. A brand that was saved before keeps everything except
 // the fields this step edits.
 export function brandSettingsFor(base: BrandSettings, d: BrandDraft, firstSave: boolean): BrandSettings {
-  const words = { name: d.name.trim(), website: cleanWebsite(d.website), tagline: d.tagline.trim(), descriptor: d.descriptor.trim(), voice: d.voice.trim(), timezone: d.timezone, language: d.language };
+  const words = { name: d.name.trim(), website: cleanWebsite(d.website), tagline: d.tagline.trim(), descriptor: d.descriptor.trim(), voice: d.voice.trim(), timezone: d.timezone, language: d.language, country: d.country || null };
   if (!firstSave) return { ...base, ...words };
   return {
     ...base, ...words,

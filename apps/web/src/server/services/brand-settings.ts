@@ -40,6 +40,7 @@ interface EngineTokens {
 const core = await engineImport<EngineCore>('core');
 const engineBrand = await engineImport<EngineBrand>('design/brand');
 const tokens = await engineImport<EngineTokens>('design/tokens');
+const countries = await engineImport<{ isCountryCode(v: unknown): boolean }>('countries');
 
 // The pack named in the environment when the process started (or the default), used whenever the database holds no brand.
 const CONFIGURED_BRAND_DIR = path.relative(core.ROOT, core.brandDir()).split(path.sep).join('/');
@@ -119,6 +120,8 @@ export const brandSettingsSchema = z.object({
   tagline: line(160).pipe(z.string().min(1, 'Give a short tagline')),
   descriptor: line(200).default(''),
   timezone: z.string().trim().refine(validZone, 'Choose a time zone such as Europe/London'),
+  // Where the brand works (ISO 3166-1 alpha-2, brand.json country): the AI is offered that country's holidays and observances.
+  country: z.string().trim().refine((c) => countries.isCountryCode(c), 'Choose a country from the list').nullable().default(null),
   language: line(60).default('British English'),
   money: z.object({
     local: line(200).pipe(z.string().min(1)),
@@ -214,6 +217,7 @@ export function expandBrand(s: BrandSettings, base: Json = baseBrand()): Json {
   const R = s.roles as { [G in RoleGroup]: Record<string, string | undefined> };
   Object.assign(b, { name: s.name, website: s.website, tagline: s.tagline, timezone: s.timezone, language: s.language });
   if (s.descriptor) b.descriptor = s.descriptor; else delete b.descriptor;
+  if (s.country) b.country = s.country; else delete b.country;
   if (s.money) b.money = s.money; else delete b.money;
   if (s.numbers) b.numbers = s.numbers; else delete b.numbers;
   for (const [k, v] of [['voice', s.voice], ['visualDirection', s.visualDirection]] as const) { if (v) b[k] = v; else delete b[k]; }
@@ -313,6 +317,7 @@ export function settingsFromBrand(b: Json): BrandSettings {
   return brandSettingsSchema.parse({
     name: b.name, website: b.website, tagline: b.tagline, descriptor: typeof b.descriptor === 'string' ? b.descriptor : '',
     timezone: typeof b.timezone === 'string' && validZone(b.timezone) ? b.timezone : 'UTC',
+    country: countries.isCountryCode(b.country) ? b.country : null,
     language: typeof b.language === 'string' ? b.language : 'British English',
     money: isObj(b.money) ? b.money : null,
     numbers: isObj(b.numbers) ? { decimal: '.', group: ',', currency: '', currencyAt: 'before', currencySpace: false, percentSpace: false, ...b.numbers } : null,
@@ -361,7 +366,7 @@ export const advancedSchema = z.object({
 // A whole brand.json (a brand pack's) split for the database: the settings the form can show, and the rest kept as the
 // Advanced fragment so the pack's exact colours, shadows, type and rules survive. Logo and font file paths are dropped.
 // The pack's style block becomes the form's style settings (so it can be edited there), not part of the fragment.
-const IDENTITY_KEYS = ['name', 'website', 'tagline', 'descriptor', 'timezone', 'language', 'money', 'numbers', 'series', 'voice', 'visualDirection', 'emoji', 'references', 'logos', 'style'];
+const IDENTITY_KEYS = ['name', 'website', 'tagline', 'descriptor', 'timezone', 'country', 'language', 'money', 'numbers', 'series', 'voice', 'visualDirection', 'emoji', 'references', 'logos', 'style'];
 export function splitPackBrand(b: Json): { settings: BrandSettings; advanced: Json } {
   const settings = settingsFromBrand(b);
   const advanced: Json = {};

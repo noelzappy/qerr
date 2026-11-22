@@ -1,5 +1,5 @@
 // Step 1, Your brand: the name and the website, with the rest offered from the website by the AI when it is set up. The time
-// zone and the language come from the browser and stay one "Change" away. Saved with PUT /api/settings/brand (the first save
+// zone and the language come from the browser, and the country from the time zone (marked as filled in); all stay one "Change" away. Saved with PUT /api/settings/brand (the first save
 // makes the brand; see brandSettingsFor in flow.ts for what it keeps from the example brand).
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Sparkles } from 'lucide-react';
@@ -8,16 +8,19 @@ import { api, ApiError } from '../../api';
 import { useLoad } from '../../hooks';
 import { useAppInfo } from '../../app-info';
 import { errorMessage, fieldErrors } from '../../lib/errors';
-import { BusyButton, ErrorBlock, FormProblem, SelectField, TextAreaField, TextField } from '@/components/kit';
+import { BusyButton, ErrorBlock, FilledTag, FormProblem, SelectField, TextAreaField, TextField } from '@/components/kit';
+import { countryName, countryOptions } from '../../lib/countries';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { BrandView } from '../settings/brand-types';
 import {
-  applySuggestion, brandSettingsFor, clearDraft, detectZone, draftFromSettings, emptyDraft, languageFor, LANGUAGES, loadDraft, readSuggestion, saveDraft,
+  applySuggestion, brandSettingsFor, clearDraft, countryFromZone, detectZone, withZone, draftFromSettings, emptyDraft, languageFor, LANGUAGES, loadDraft, readSuggestion, saveDraft,
   saveSiteColours, sessionStore, typeInDraft, type BrandDraft,
 } from './flow';
 import { StepActions, StepHeader, SuggestedNote, type StepProps } from './parts';
 import { TimeZonePicker } from '@/components/kit/time-zone-picker';
+
+const COUNTRIES = countryOptions();
 
 // Whether this server has the suggestion route at all (another part of the app adds it); once it answers "not here", the button
 // stays hidden for the rest of the visit.
@@ -126,12 +129,19 @@ export function StepBrand({ status, reload, next }: StepProps) {
       <div className="flex flex-col gap-3 border-t pt-4">
         {!changing ? (
           <p className="flex flex-wrap items-center gap-x-2 text-[13px]">
-            <span>Posts are planned in <span className="font-medium">{d.timezone.replace(/_/g, ' ')}</span> time and written in <span className="font-medium">{d.language}</span>.</span>
+            <span>
+              Posts are planned in <span className="font-medium">{d.timezone.replace(/_/g, ' ')}</span> time and written in <span className="font-medium">{d.language}</span>
+              {d.country ? <>, with the holidays of <span className="font-medium">{countryName(d.country)}</span>{countryFromZone(d) && <FilledTag>From the time zone</FilledTag>}</> : <>; no country is set, so drafts get no local holidays</>}.
+            </span>
             <Button type="button" variant="link" size="sm" className="h-auto p-0 max-sm:min-h-11" onClick={() => setChanging(true)}>Change</Button>
           </p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
-            <TimeZonePicker label="Time zone" value={d.timezone} onChange={(z) => setD({ ...d, timezone: z })} error={fields.timezone} />
+            <TimeZonePicker label="Time zone" value={d.timezone} onChange={(z) => setD(withZone(d, z))} error={fields.timezone} />
+            <SelectField
+              label={<>Country{countryFromZone(d) && <FilledTag>From the time zone</FilledTag>}</>} optional hint="Drafts are offered its holidays and observances"
+              value={d.country} onValueChange={(c) => setD({ ...d, country: c })} options={COUNTRIES} placeholder="Choose a country" error={fields.country}
+            />
             <SelectField label="Language of the posts" value={d.language} onValueChange={(l) => setD({ ...d, language: l })} options={(LANGUAGES.includes(d.language) ? LANGUAGES : [d.language, ...LANGUAGES]).map((l) => ({ value: l, label: l }))} error={fields.language} />
           </div>
         )}

@@ -867,6 +867,8 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
   itself, `copy:shipped:<id>`). See "Looks as data: the schema".
 - **`timezone`** (optional): an IANA time zone such as `Europe/London`. The AI drafts in it and the web app shows it; a batch
   still names its own.
+- **`country`** (optional): where the brand works, an ISO 3166-1 alpha-2 code in capitals such as `IE` (`lib/countries.mjs`). AI drafts
+  are offered that country's holidays and observances (docs/ai.md, "Occasions"). Nothing in an image uses it.
 - **`money`** (optional): `{ "local": "...", "foreign": "..." }`. `local` is one sentence on what the brand's money is (the
   demo: "Acme Savings works in euros (€) only"); `foreign` is a regular expression, matched without case, of other
   currencies that pictures must not show and that texts are warned about: the brand lint (`lintText`, so image text in every

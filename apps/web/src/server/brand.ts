@@ -10,6 +10,8 @@ export interface BrandInfo {
   website: string;
   tagline: string;
   timezone: string;
+  // Where the brand works (brand.json "country", ISO 3166-1 alpha-2), or null when the brand does not say.
+  country: string | null;
   series: Array<{ key: string; name: string }>;
   logoMarkFile: string | null;
   // The brand's money (brand.json "money"): what it is, and a pattern (matched without regard to case) of other currencies.
@@ -59,6 +61,7 @@ export function readBrandInfo(file: string = core.brandFile('brand.json')): Bran
     website: text(raw.website, ''),
     tagline: text(raw.tagline, ''),
     timezone: validTimeZone(tz) ? tz : 'UTC',
+    country: typeof raw.country === 'string' && /^[A-Z]{2}$/.test(raw.country) ? raw.country : null,
     series,
     logoMarkFile,
     money: typeof m?.foreign === 'string' && m.foreign ? { local: typeof m.local === 'string' ? m.local : '', foreign: m.foreign } : null,

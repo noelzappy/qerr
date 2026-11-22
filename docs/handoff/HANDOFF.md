@@ -11,7 +11,7 @@ interface rules and glossary; `DIRECTIONS.md` is the art-direction brief for the
 - **People without code access must be able to build their own look entirely from the web panel.**
 - The owner sees the product as an AI-automated design and social tool ("an AI automated Canva alternative"): a brand
   sets up its look once, then the system writes posts, picks pictures, lays them out and checks them.
-- Quality bar: the owner compared new output with posts made by the earlier version (SusuPaa brand: photo blended into
+- Quality bar: the owner compared new output with posts made by the earlier version (the owner's own brand: photo blended into
   a page that takes the photo's colour, restrained two-tone headline, logo top-left and web address top-right, rounded
   myth/fact cards, big-number page with supporting figures) and preferred the earlier ones. He also showed four
   Instagram accounts as the standard to reach: Author Digital Labs, Jampolls, Gaderin, LaunchPad 26 (recurring series
@@ -44,7 +44,7 @@ Earlier work (interface overhaul, PR #2, e2e fixes) is on `main`. On this branch
 Three agents were stopped mid-work when the session moved. Their partial changes are in the checkpoint commit:
 
 - **Soft and Bloom looks** (`lib/design/looks/soft.look.json`, `bloom.look.json`, plus engine schema additions for
-  rounded shapes). Soft was being reworked around the SusuPaa reference: photo blended into a ground sampled from the
+  rounded shapes). Soft was being reworked around the owner's reference: photo blended into a ground sampled from the
   photo, two-tone headline, logo and web-address header, rounded myth/fact panels, big-number page with supporting
   pairs. Bloom: Fraunces headlines, arch photo windows, cream grounds. Check both validate and draw before going on.
 - **Fixes to weak designs** found in the end-to-end run: retail Number (figure/0) half empty; swiss Offer (headline
@@ -60,10 +60,10 @@ Three agents were stopped mid-work when the session moved. Their partial changes
 
 1. Bring the checkpoint to a working state: `npm run typecheck --workspace @qerr/web`, then the engine look tests
    (`node --test packages/engine/test-design-look*.mjs`), fix what the stopped agents left half done.
-2. Finish Soft (to the SusuPaa standard) and Bloom; render sheets with
+2. Finish Soft (to the standard of the owner's own posts) and Bloom; render sheets with
    `node packages/engine/scripts/direction-sheet.mjs --look <file>` and look at every image.
 3. Finish the weak-design fixes and the text-collides-with-shape check. Never loosen an existing check.
-4. **"Clean" look**: port the earlier SusuPaa style as a first-class look, probably the default.
+4. **"Clean" look**: port the earlier style of the owner's posts as a first-class look, probably the default.
 5. Engine gaps toward the reference accounts, each as a bounded, validated look capability usable in every look and
    in the design editor: brand graphics and cut-outs placed on designs (engine half of the graphics library),
    gradients; text over a full photo; words in pills and inline icons in headlines; info blocks (When / Where /
@@ -79,7 +79,7 @@ Three agents were stopped mid-work when the session moved. Their partial changes
 
 ## Open decisions for the owner
 
-- Use SusuPaa (finance) as the test brand instead of the coffee roaster "Emberwell Coffee"? (Most of the owner's new
+- Use the owner's own finance brand as the test brand instead of the coffee roaster "Emberwell Coffee"? (Most of the owner's new
   stock pictures are finance pictures.)
 - The "linked hands" picture is uploaded but blocked for the AI (people, no consent recorded).
 - Bright brand field colour is still deepened on retail designs that put small body text on it (Stack, Seam).

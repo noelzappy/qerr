@@ -238,16 +238,16 @@ describe('draft-batch', () => {
 
   it('says what drafting is missing, and refuses to queue a draft without a monthly budget', async () => {
     const editor = t.api(await t.signIn(await t.createUser('editor')));
-    expect((await editor.get('/api/batches/ai-draft')).body).toEqual({ ready: false, missing: 'provider' });
+    expect((await editor.get('/api/batches/ai-draft')).body).toEqual({ ready: false, missing: 'provider', search: false });
     const admin = t.api(await t.signIn(await t.createUser('admin')));
     expect((await admin.post('/api/settings/ai/providers', { name: 'Claude', kind: 'anthropic', model: MODEL, apiKey: KEY, tasks: ['draft'] })).status).toBe(201);
-    expect((await editor.get('/api/batches/ai-draft')).body).toEqual({ ready: false, missing: 'budget' });
+    expect((await editor.get('/api/batches/ai-draft')).body).toEqual({ ready: false, missing: 'budget', search: false });
     const refused = await editor.post('/api/batches/ai-draft', BRIEF);
     expect(refused.status).toBe(409);
     expect(refused.body.message ?? refused.body.error).toContain('No monthly AI budget is set');
     expect(t.jobs.enqueued.some((j) => j.name === 'draft-batch')).toBe(false);
     await admin.put('/api/settings/ai/budget', { monthlyBudgetUsd: 5 });
-    expect((await editor.get('/api/batches/ai-draft')).body).toEqual({ ready: true, missing: null });
+    expect((await editor.get('/api/batches/ai-draft')).body).toEqual({ ready: true, missing: null, search: false });
   });
 
   it('stops with a clear error and makes nothing when the monthly budget is used up', async () => {
