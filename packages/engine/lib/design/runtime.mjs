@@ -18,6 +18,16 @@ window.__ds = {
     // Every face the page declares (the sans, the mono, and the display and label fonts a brand may add) is loaded before anything
     // is measured.
     try { await Promise.all([...faces.map((f) => document.fonts.load(f)), ...[...document.fonts].map((f) => f.load().catch(() => null))]); await document.fonts.ready; } catch (e) {}
+    // Punctuation right after a headline pill (kit inlineMarks: "[[an app]],") sits snug against the pill: the mark is pulled in by its
+    // own left side bearing in the face it is set in, so its ink starts a hair (0.02 em) after the pill's edge. In em, so it holds when a
+    // headline is resized; never more than 0.15 em, and never pushed away.
+    for (const m of document.querySelectorAll('.k-pl-p')) {
+      const cs = getComputedStyle(m), fs = parseFloat(cs.fontSize), ch = (m.textContent || '').charAt(0);
+      if (!(fs > 0) || !ch) continue;
+      const g = document.createElement('canvas').getContext('2d'); g.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+      const lsb = -g.measureText(ch).actualBoundingBoxLeft;
+      if (Number.isFinite(lsb)) m.style.marginLeft = Math.max(-0.15, Math.min(0, 0.02 - lsb / fs)).toFixed(3) + 'em';
+    }
     const broken = [];
     await Promise.all([...document.images].map(async (i) => {
       try { if (!i.complete) await new Promise((res, rej) => { i.onload = res; i.onerror = rej; }); await i.decode(); } catch (e) {}
