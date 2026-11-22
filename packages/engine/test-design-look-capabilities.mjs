@@ -13,8 +13,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadBrand } from './lib/design/brand.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
-import { normaliseLook, validateLook } from './lib/design/look.mjs';
-import { renderPostWithLook } from './lib/design/directions/index.mjs';
+import { compositionGraphicRefs, lookCompositionGraphics, normaliseLook, validateLook } from './lib/design/look.mjs';
+import { postCompositionGraphics, renderPostWithLook } from './lib/design/directions/index.mjs';
+import { designGraphicNeeds } from './lib/design-render.mjs';
 import { COLOUR_NAMES, gradientCss } from './lib/design/directions/kit.mjs';
 import { graphicsProblems, postProblems } from './lib/design/post-spec.mjs';
 import { preparePage } from './lib/design/render.mjs';
@@ -296,4 +297,34 @@ test('the renderer reads a graphic only as a PNG or WebP with transparency, and 
     assert.throws(() => preparePage(b, job(liar)), /does not contain PNG data/);
     assert.throws(() => preparePage(b, job(path.join(tmp, 'missing.png'))), /not found/);
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+// ==================================================================================================== 6. which graphics a post needs
+test('the graphics a composition places are listed by id, and a post gets those of the composition that will draw it', () => {
+  const REF3 = 'a3bb189e-8bf9-4888-9912-ace4e6543002';
+  assert.deepEqual(compositionGraphicRefs({ elements: [GRAPHIC, { ...GRAPHIC, at: 'top-left' }, { type: 'graphic', ref: REF2 }, { type: 'graphic', ref: '../../etc/passwd' }, { type: 'box', children: [{ type: 'graphic', ref: REF3 }] }] }), [REF, REF2, REF3], 'each id once, in order, only well-formed ids, at any depth');
+  assert.deepEqual(compositionGraphicRefs({}), []);
+  const l = lookWith([GRAPHIC]);
+  l.compositions.push({ ...clone(l.compositions[0]), name: 'Second statement', elements: l.compositions[0].elements.map((e) => (e.type === 'graphic' ? { ...e, ref: REF2 } : e)) });
+  assert.deepEqual(lookCompositionGraphics(l, 'statement', 0), { kind: 'statement', variant: 0, name: 'Statement', refs: [REF] });
+  assert.deepEqual(lookCompositionGraphics(l, 'statement', 1), { kind: 'statement', variant: 1, name: 'Second statement', refs: [REF2] });
+  assert.deepEqual(lookCompositionGraphics(l, 'photo', 0)?.refs, []);
+  assert.equal(lookCompositionGraphics(l, 'statement', 2), null);
+  assert.equal(lookCompositionGraphics(l, 'quote', 0), null);
+  // a post: the variant it names, else the hashed one (as the renderer picks it)
+  assert.deepEqual(postCompositionGraphics(l, { template: 'post', kind: 'statement', variant: 1, headline: 'Words' }), { kind: 'statement', variant: 1, name: 'Second statement', refs: [REF2] });
+  for (const name of ['a', 'b', 'c', 'd']) {
+    const spec = { template: 'post', kind: 'statement', name, headline: 'Words' };
+    const drawn = renderPostWithLook(l, spec, { size: SIZES.feed, brand, image: () => PIXEL, imageSize: () => ({ w: 400, h: 800 }) });
+    assert.equal(postCompositionGraphics(l, spec).variant, drawn.post.variant, `the same composition as drawing it (${name})`);
+  }
+  // a composition that declines the words: the next that accepts them, as drawing does
+  const picky = clone(l);
+  picky.compositions[0].accepts = [{ field: 'headline', maxChars: 3 }];
+  assert.equal(postCompositionGraphics(picky, { template: 'post', kind: 'statement', variant: 0, headline: 'Long words' }).variant, 1);
+  assert.equal(postCompositionGraphics(l, { template: 'post', kind: 'quote', quote: 'x' }), null, 'no composition of the kind');
+  assert.equal(postCompositionGraphics({ id: 'broken' }, { template: 'post', kind: 'statement', headline: 'x' }), null, 'an invalid look');
+  // a design block with the brand in force (the demo pack, a code direction or none): nothing to hand over
+  assert.deepEqual(designGraphicNeeds({ template: 'post', kind: 'statement', headline: 'Words' }), []);
+  assert.deepEqual(designGraphicNeeds({ template: 'cover', headline: 'Words' }), []);
 });

@@ -28,6 +28,7 @@ import {
   LIMITS, LOOK_SCHEMA, ORIGINS, PAGE, PLACE_FORMS, PLACE_MODIFIERS, POST_FIELDS, POST_ITEMS, POST_REQUIRED, ROW_KEYS, SECTIONS, SIZE_RANGE, STICKER_SHAPES, PHOTO_SHAPES, PHOTO_TREATS, FORMATS, EMPHASES, STYLES,
   SPLIT_SEPARATORS, FORBIDDEN_KEYS, REQUIRED_OWN, descriptorOf, keysOf,
 } from './look-elements.mjs';
+import { VAULT_REF } from './look-desc.mjs';
 import { INK_ON } from './look-static.mjs';
 import { ICONS, ICON_NAMES } from './icons.mjs';
 import { INFO_KEYS, INLINE, POST_GALLERY, POST_INFO, POST_LISTS } from './post-spec.mjs';
@@ -127,6 +128,31 @@ export function lookBrief(look) {
     entry.variants.push({ index: entry.variants.length, name: c.name, describe: c.describe, fields, accepts: clone(Array.isArray(c.accepts) ? c.accepts : []) });
   }
   return { id: look?.id, name: look?.name, kinds };
+}
+
+// ---- brand graphics a composition places ----
+// The vault ids its `graphic` elements name (at any depth), in order, each once. Only well-formed ids (look-desc VAULT_REF) are listed;
+// the validator refuses any other. The app finds the files by these ids; a look never names a path.
+export function compositionGraphicRefs(comp) {
+  const out = [];
+  const walk = (list) => {
+    for (const el of Array.isArray(list) ? list : []) {
+      if (!isObj(el)) continue;
+      if (el.type === 'graphic' && typeof el.ref === 'string' && VAULT_REF.test(el.ref) && !out.includes(el.ref)) out.push(el.ref);
+      walk(el.children);
+      if (isObj(el.sticker)) walk([el.sticker]);
+    }
+  };
+  walk(comp?.elements);
+  return out;
+}
+// The composition `index` of `kind` in a look (as lookBrief numbers them) with the graphics it places: { kind, variant, name, refs },
+// or null when the look has no such composition. Read from the look as written; nothing is validated here.
+export function lookCompositionGraphics(look, kind, index) {
+  const comps = (Array.isArray(look?.compositions) ? look.compositions : []).filter((c) => isObj(c) && c.kind === kind);
+  const comp = Number.isInteger(index) ? comps[index] : undefined;
+  if (!comp) return null;
+  return { kind, variant: index, name: typeof comp.name === 'string' ? comp.name : `${kind} ${index + 1}`, refs: compositionGraphicRefs(comp) };
 }
 
 // ---- normalise and hash ----
