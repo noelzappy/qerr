@@ -960,8 +960,8 @@
           "type": "box",
           "place": {
             "grid": {
-              "col": 9,
-              "span": 4,
+              "col": 8,
+              "span": 5,
               "row": 2,
               "rowSpan": 3
             }
@@ -972,7 +972,7 @@
             16,
             24,
             24,
-            0
+            81
           ],
           "flow": "column",
           "justify": "end",

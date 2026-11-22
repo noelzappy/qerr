@@ -284,6 +284,8 @@ export const draftBriefSchema = z.strictObject({
   series: z.array(z.string().regex(/^[a-z0-9-]+$/).max(40)).min(1).max(12).optional(),
   channels: z.array(z.enum(NETWORK_NAMES)).min(1).max(4).optional(),
   timezone: z.string().min(1).max(64).optional(),
+  // The team's own words for this batch (what to cover, how varied); the AI treats them as preferences, never as facts.
+  guidance: z.string().trim().min(1).max(600).optional(),
 });
 export type DraftBrief = z.infer<typeof draftBriefSchema>;
 
@@ -345,6 +347,7 @@ async function draftNow(deps: Deps, payload: z.infer<typeof draftPayload>, handl
         period,
         count: brief.count ?? 10,
         ...(brief.channels ? { channels: brief.channels } : {}),
+        ...(brief.guidance ? { guidance: brief.guidance } : {}),
         timezone,
         onProgress: (p: { step: string; done?: number; total?: number }) => handle.progress(p),
       } as Parameters<typeof ai.draftBatch>[0]);

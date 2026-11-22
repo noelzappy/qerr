@@ -10,6 +10,7 @@
 // syncBrand wrote: its colours, fonts and logo), with the look given in place of its active one. A look and its text are data: the
 // engine validates the look (resolveLook) and the design (validateDesign) and builds the page; nothing here writes markup.
 import { createHash, randomUUID } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Deps } from '../deps.js';
@@ -17,7 +18,7 @@ import { pipelineEngine } from '../engine/pipeline.js';
 import { engineImport } from '../engine/root.js';
 import { describeError, logger } from '../log.js';
 import { brandState, syncBrand } from './brand-settings.js';
-import { ATTEMPTS, copyFor, type CopyScenario } from './look-copy.js';
+import { ATTEMPTS, copyFor, SAMPLE_PICTURES, type CopyScenario } from './look-copy.js';
 import {
   lookEngine, setLookRenderer, type CompositionPreview, type CompositionPreviewRequest, type CompositionRect, type GateCheck, type GateRenderRequest,
   type LookBrief, type LookRenderer, type PreviewRequest, type PreviewSample,
@@ -91,7 +92,8 @@ async function brandFor(deps: Deps, look: Json): Promise<BrandForLook> {
 
 // `fill`: the share of each field's stated limit the copy used (the stress copy may have to give some up)
 export interface Drawn { ok: boolean; image?: string; warnings: string[]; error?: string; rects: CompositionRect[]; busy?: boolean; fill?: number }
-interface DrawJob { kind: string; index: number; scenario: CopyScenario; draft?: undefined }
+// `anyVariant`: when this design cannot be drawn, the next design of the kind is tried (the strips: every kind gets a picture if any design can)
+interface DrawJob { kind: string; index: number; scenario: CopyScenario; anyVariant?: boolean }
 
 const BUSY = /another design run is already using chrome/i;
 
@@ -115,7 +117,20 @@ async function drawJobs(deps: Deps, look: Json, jobs: DrawJob[], opts: { withRec
     }
     for (const [n, job] of jobs.entries()) {
       if (opts.stop?.()) break;
-      out[n] = await drawOne(chrome, render, spec, browser, bl, briefs, look, job, path.join(runDir, `${n}.jpg`), engine.root, opts.withRects);
+      const file = path.join(runDir, `${n}.jpg`);
+      let d = await drawOne(chrome, render, spec, browser, bl, briefs, look, job, file, engine.root, opts.withRects);
+      if (!d.ok && job.anyVariant) {
+        const variants = briefs.kinds[job.kind]?.variants ?? [];
+        const first = d;
+        for (const v of variants) {
+          if (v.index === job.index) continue;
+          const alt = await drawOne(chrome, render, spec, browser, bl, briefs, look, { ...job, index: v.index }, file, engine.root, opts.withRects);
+          if (alt.ok) { d = { ...alt, warnings: [`Shown with the design "${v.name}": "${variants.find((x) => x.index === job.index)?.name ?? 'the first'}" could not be drawn with this brand`, ...alt.warnings] }; break; }
+        }
+        // none could: say why, shortly, for the tile's tooltip
+        if (!d.ok) d = { ...first, error: `${variants.length > 1 ? `No ${job.kind} design of this look can be drawn with this brand. ` : 'This design cannot be drawn with this brand. '}${first.error ?? ''}`.replace(/The text does not fit the post at the smallest size allowed \(82% of the designed size\): /, 'Text does not fit: ').slice(0, 300) };
+      }
+      out[n] = d;
     }
   } catch (err) {
     logger.error('look.render_failed', describeError(err));
@@ -126,6 +141,22 @@ async function drawJobs(deps: Deps, look: Json, jobs: DrawJob[], opts: { withRec
     fs.rmSync(path.join(engine.root, 'out', 'design-tmp'), { recursive: true, force: true });
   }
   return out;
+}
+
+// The copy the engine's own sheets draw the shipped looks with (testlib/retail-copy.mjs, swiss-copy.mjs: NORMAL, STRESS, MINIMAL_CHECKED, keyed
+// "<look>/<kind>/<variant>"), used only for a design of a shipped look, or a copy of one, that the generated copy cannot satisfy with this brand.
+const curated = new Map<string, Promise<Record<string, Json>>>();
+async function curatedCopy(root: string, look: Json, scenario: CopyScenario, kind: string, index: number): Promise<Json | null> {
+  const origin = String(look.origin ?? '');
+  const shipped = origin === 'shipped' ? String(look.id) : /^copy:shipped:([a-z0-9-]+)$/.exec(origin)?.[1];
+  if (!shipped || !/^(retail|swiss)$/.test(shipped)) return null;
+  const key = `${shipped}|${scenario}`;
+  if (!curated.has(key)) {
+    curated.set(key, import(/* @vite-ignore */ pathToFileURL(path.join(root, 'packages', 'engine', 'testlib', `${shipped}-copy.mjs`)).href)
+      .then((m: Record<string, Record<string, Json>>) => (scenario === 'minimal' ? m.MINIMAL_CHECKED ?? m.MINIMAL : scenario === 'stress' ? m.STRESS : m.NORMAL) ?? {}).catch(() => ({})));
+  }
+  const entry = (await curated.get(key)!)[`${shipped}/${kind}/${index}`];
+  return entry ? { ...entry } : null;
 }
 
 async function drawOne(
@@ -157,6 +188,23 @@ async function drawOne(
         continue;
       }
       throw e;
+    }
+  }
+  // the generated copy could not be drawn: the engine's own copy for this design, if it has one
+  if (!last.ok) {
+    const own = await curatedCopy(root, look, job.scenario, job.kind, job.index);
+    if (own) {
+      const withPicture = Object.hasOwn(variant.fields, 'image') ? { image: SAMPLE_PICTURES[job.kind] ?? 'design/assets/demo/object-jar.jpg' } : {};
+      const design: Json = { template: 'post', kind: job.kind, variant: job.index, name: `look-${job.scenario}`, ...own, ...withPicture };
+      if (!spec.validateDesign(design, 'design', { look }).length) {
+        try {
+          const r = await render.renderImage(browser, bl.brand, { spec: spec.normaliseDesign(design), sizeName: 'feed', outFile: file }, { tmpDir: path.join(root, 'out', 'design-tmp'), quality: JPEG_QUALITY });
+          const image = `data:image/jpeg;base64,${fs.readFileSync(file).toString('base64')}`;
+          fs.rmSync(file, { force: true });
+          const rects: CompositionRect[] = withRects ? (r.els ?? []).map((e) => ({ el: e.el, x: Math.round(e.x0 * 10) / 10, y: Math.round(e.y0 * 10) / 10, w: Math.round((e.x1 - e.x0) * 10) / 10, h: Math.round((e.y1 - e.y0) * 10) / 10 })) : [];
+          return { ok: true, image, warnings: [...new Set(r.warnings)], rects };
+        } catch (e) { if (!(e instanceof render.DesignError)) throw e; }
+      }
     }
   }
   return last;
@@ -201,7 +249,7 @@ export function createLookRenderer(deps: Deps): LookRenderer {
       }
       if (todo.length) {
         const run = await submit({ brandId: req.scope.brandId, class: 'preview', supersedeKey: `samples:${who(req.userId)}:${lookId(req.look)}`, deadline: Date.now() + PREVIEW_WAIT_MS },
-          () => drawJobs(deps, req.look, todo.map((kind) => ({ kind, index: 0, scenario: 'sample' as const })), { withRects: false, brand: bl }));
+          () => drawJobs(deps, req.look, todo.map((kind) => ({ kind, index: 0, scenario: 'sample' as const, anyVariant: true })), { withRects: false, brand: bl }));
         if (run.status === 'superseded') return { samples: [], superseded: true };
         if (run.status === 'expired') {
           for (const k of todo) samples.set(k, { kind: k, ok: false, error: 'The picture waited too long for its turn. Try again', warnings: [] });

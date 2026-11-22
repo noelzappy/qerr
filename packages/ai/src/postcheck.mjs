@@ -67,7 +67,7 @@ function vaultItemOf(image, ctx) {
 function templateProblems(design, ctx) {
   // A brand with a design direction designs with the `post` template only: it says what the post is, the direction draws it. (A
   // carousel's pages cannot be `post` designs in the engine, so carousels are not offered to such a brand.)
-  if (ctx.direction) return design.template === 'post' ? [] : [`template "${design.template}" is not allowed: this brand has the "${ctx.direction}" design direction, so every post is designed with template "post" and a kind (${directionKinds(ctx.direction).join(', ')}); carousels and the older templates are not used`];
+  if (ctx.direction) return design.template === 'post' ? [] : [`template "${design.template}" is not allowed: this brand has the "${ctx.direction}" design direction, so every post is designed with template "post" and a kind (${directionKinds(ctx.direction, ctx.brand).join(', ')}); carousels and the older templates are not used`];
   if (design.template === 'post') return ['template "post" needs a brand with a design direction (style.direction), and this brand has none; use one of the other templates'];
   if (!ALLOWED_TEMPLATES.includes(design.template) || (design.template === 'layout' && !ctx.layouts?.length)) return [`template "${design.template}" is not allowed; use ${ALLOWED_LIST}, or photo or carousel${ctx.layouts?.length ? ', or layout with one of the brand\'s layouts' : ''}`];
   if (design.template !== 'carousel' || !Array.isArray(design.pages)) return [];
@@ -149,23 +149,29 @@ const designProblems = (design, ctx) => postDesignProblems(design, 'design', { l
 function postKindProblems(design, ctx) {
   const out = [], d = design;
   if (d.template !== 'post') return out;
-  const brief = ctx.direction ? kindBrief(ctx.direction, d.kind) : null;
+  const brief = ctx.direction ? kindBrief(ctx.direction, d.kind, ctx.brand) : null;
   if (!brief) {
-    if (ctx.direction && typeof d.kind === 'string') out.push(`kind "${String(d.kind).slice(0, 20)}" cannot be drawn in the "${ctx.direction}" direction; use one of: ${directionKinds(ctx.direction).join(', ')}`);
+    if (ctx.direction && typeof d.kind === 'string') out.push(`kind "${String(d.kind).slice(0, 20)}" cannot be drawn in the "${ctx.direction}" direction; use one of: ${directionKinds(ctx.direction, ctx.brand).join(', ')}`);
     return out;
   }
   const visible = (v) => [...String(v).replace(/\*/g, '').replace(/\\n|\n/g, '')].length;
+  // A look written as data lists variants: one a post names is held to that variant's own fields and budgets.
+  const variant = d.variant !== undefined && brief.variants ? brief.variants[d.variant] : undefined;
+  if (d.variant !== undefined && brief.variants && !variant) out.push(`a ${d.kind} post has variants 0 to ${brief.variants.length - 1}, not ${JSON.stringify(d.variant).slice(0, 12)}; use one of them or leave variant out`);
+  if (variant) for (const [f, o] of Object.entries(variant.fields)) if (o.required && d[f] === undefined && f !== 'image') out.push(`the ${variant.name} variant of ${d.kind} needs ${f}`);
   for (const [f, v] of Object.entries(d)) {
     if (['template', 'kind', 'variant', 'sizes', 'name', 'networkSizes', 'focal', 'zoom'].includes(f)) continue;
-    if (f === 'image') { if (!brief.fields.image) out.push(`a ${d.kind} post does not draw a picture; remove image (only these kinds do: ${directionKinds(ctx.direction).filter((k) => kindBrief(ctx.direction, k).fields.image).join(', ') || 'none'})`); continue; }
+    if (f === 'image') { if (!brief.fields.image) out.push(`a ${d.kind} post does not draw a picture; remove image (only these kinds do: ${directionKinds(ctx.direction, ctx.brand).filter((k) => kindBrief(ctx.direction, k, ctx.brand).fields.image).join(', ') || 'none'})`); continue; }
     const spec = brief.fields[f];
+    if (variant && !variant.fields[f] && spec) { out.push(`the ${variant.name} variant of ${d.kind} does not draw ${f}; remove it or choose another variant (it takes: ${Object.keys(variant.fields).join(', ')})`); continue; }
     if (!spec) { out.push(`a ${d.kind} post does not draw ${f}; remove it (this kind takes: ${Object.keys(brief.fields).join(', ')})`); continue; }
     if (f === 'items') {
       if (Array.isArray(v)) v.forEach((t, i) => { if (typeof t === 'string' && visible(t) > spec.chars) out.push(`items[${i}] is ${visible(t)} characters; this direction draws items of at most ${spec.chars}. Shorten it and keep the items parallel in length`); });
       continue;
     }
     if (typeof v !== 'string') continue;
-    if (spec.budget && visible(v) > spec.budget) out.push(`${f} is ${visible(v)} characters; a ${d.kind} post in the "${ctx.direction}" direction draws at most ${spec.budget}. Shorten it to about ${Math.max(10, Math.floor(spec.budget * 0.75))}`);
+    const budget = variant?.fields[f]?.max ?? spec.budget;
+    if (budget && visible(v) > budget) out.push(`${f} is ${visible(v)} characters; a ${d.kind} post${variant ? ` in the ${variant.name} variant` : ''} in the "${ctx.direction}" direction draws at most ${budget}. Shorten it to about ${Math.max(10, Math.floor(budget * 0.75))}`);
     const marks = emphasisIn(v);
     if (EMPHASIS_FIELDS.includes(f)) {
       const stars = (v.match(/\*/g) ?? []).length;
@@ -238,7 +244,7 @@ export function checkPost(raw, ctx) {
       if (g.changed) repairs.push("ground set to photo so the page matches the picture's background");
     }
     if (!r.problems.length) {
-      if (design.template === 'post' && design.variant !== undefined) { const { variant: _v, ...rest } = design; design = rest; repairs.push('variant removed: the design direction chooses the variant itself'); }
+      if (design.template === 'post' && design.variant !== undefined && !kindBrief(ctx.direction, design.kind, ctx.brand)?.variants) { const { variant: _v, ...rest } = design; design = rest; repairs.push('variant removed: the design direction chooses the variant itself'); }
       const engine = designProblems(design, ctx);
       reasons.push(...engine);
       if (!engine.length && design.template === 'post') reasons.push(...postKindProblems(design, ctx), ...kindRunProblems(design, date, ctx));

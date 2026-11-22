@@ -70,7 +70,7 @@ const ladder = (list: readonly string[], n: number): string => [...list].sort((a
 const itemsChars = 44;
 
 // The post design (without kind and variant) for one variant of a look's brief.
-export function copyFor(kind: string, variant: Variant, scenario: CopyScenario, opts: { minimalMore?: boolean; fill?: number } = {}): Json {
+export function copyFor(kind: string, variant: Variant, scenario: CopyScenario, opts: { minimalMore?: boolean; fill?: number; drop?: readonly string[] | '*' } = {}): Json {
   const fill = opts.fill ?? (scenario === 'stress' ? 1 : 0.5);
   const fields = variant.fields as Record<string, { required?: boolean; max?: number; min?: number }>;
   const out: Json = {};
@@ -79,12 +79,13 @@ export function copyFor(kind: string, variant: Variant, scenario: CopyScenario, 
   for (const [name, f] of Object.entries(fields)) {
     if (name === 'image') { out.image = SAMPLE_PICTURES[kind] ?? DEFAULT_PICTURE; continue; }
     if (bare && !f.required) continue;
+    if (!f.required && name !== 'image' && (opts.drop === '*' || opts.drop?.includes(name))) continue;
     const max = f.max ?? 40;
     const mini = scenario === 'minimal';
     const share = (m: number) => Math.max(3, Math.round(m * fill));
     switch (name) {
       case 'headline': out.headline = headline(max, scenario, fill, preMax); break;
-      case 'big': out.big = mini ? '7 kg' : words(scenario === 'stress' ? (fill >= 1 ? '1,250 kg' : fill >= 0.85 ? '125 kg' : fill >= 0.7 ? '12 kg' : '12') : '12', max, max); break;
+      case 'big': out.big = [...(mini ? '7 kg' : scenario === 'stress' ? (fill >= 1 ? '1,250 kg' : fill >= 0.85 ? '125 kg' : fill >= 0.7 ? '12 kg' : '12') : '12')].slice(0, max).join(''); break;
       case 'items': {
         const lo = f.min ?? 2, hi = f.max ?? 5;
         const n = scenario === 'stress' ? hi : mini ? lo : Math.min(hi, Math.max(lo, 3));
@@ -105,8 +106,9 @@ export function copyFor(kind: string, variant: Variant, scenario: CopyScenario, 
 }
 
 // What to try, in order, for each scenario (the first that the engine's checks accept is the one drawn). The stress copy gives up at 50%.
-export const ATTEMPTS: Record<CopyScenario, ReadonlyArray<{ fill?: number; minimalMore?: boolean }>> = {
-  sample: [{ fill: 0.5 }, { fill: 0.65 }, { fill: 0.8 }, { fill: 0.4 }],
+export const ATTEMPTS: Record<CopyScenario, ReadonlyArray<{ fill?: number; minimalMore?: boolean; drop?: readonly string[] | '*' }>> = {
+  // a brand's own (wider) type may not hold a label, a tag or a long sub line that another brand's does: those optional fields are the first to go
+  sample: [{ fill: 0.5 }, { fill: 0.65 }, { fill: 0.8 }, { fill: 0.5, drop: ['label'] }, { fill: 0.35, drop: ['label', 'tag'] }, { fill: 0.35, drop: ['label', 'tag', 'unit', 'meta'] }, { fill: 0.4 }, { fill: 0.2, drop: ['label', 'tag'] }, { fill: 0.12, drop: ['label', 'tag', 'unit'] }, { fill: 0.12, drop: ['label', 'tag', 'unit', 'meta'] }, { fill: 0.25, drop: '*' }],
   stress: [{ fill: 1 }, { fill: 0.85 }, { fill: 0.7 }, { fill: 0.6 }, { fill: 0.5 }],
   minimal: [{ minimalMore: false }, { minimalMore: true }],
 };

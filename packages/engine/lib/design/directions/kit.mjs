@@ -77,7 +77,21 @@ const stepAttrs = (o) => {
   return ` data-steps="${list.map((v) => px(v)).join(',')}"${lines}${maxH}`;
 };
 const ROLES = new Set(['headline', 'stat', 'sub', 'item', 'label', 'meta', 'folio', 'accent']);
-export const COLOUR_NAMES = ['paper', 'ink', 'white', 'dark', 'primary', 'field', 'on-field', 'gold', 'gold-deep', 'accent', 'accent-dark', 'on-accent', 'on-primary', 'body', 'soft', 'muted', 'body-dark', 'muted-dark', 'rule', 'rule-soft', 'rule-dark', 'rule-field', 'accent-type', 'body-field', 'field-deep', 'paper-warm', 'light-tint', 'field-text'];
+export const COLOUR_NAMES = ['paper', 'ink', 'white', 'dark', 'primary', 'field', 'on-field', 'gold', 'gold-deep', 'accent', 'accent-dark', 'on-accent', 'on-primary', 'body', 'soft', 'muted', 'body-dark', 'muted-dark', 'rule', 'rule-soft', 'rule-dark', 'rule-field', 'accent-type', 'body-field', 'field-deep', 'paper-warm', 'light-tint', 'field-text', 'tint-deep'];
+// Soft shadows: fixed presets (a blurred, low-opacity ink shadow below), selected by name, never by a number from a composition.
+const SOFT = Object.freeze({ soft: '0 14px 34px -10px color-mix(in srgb,var(--c-ink) 24%,transparent)', lift: '0 30px 64px -18px color-mix(in srgb,var(--c-ink) 30%,transparent)' });
+const softCss = (v) => { if (!Object.hasOwn(SOFT, v)) throw new Error('design kit: soft shadow must be soft or lift'); return SOFT[v]; };
+// Corner radius: pixels, or a named round shape (full: a pill or circle, oval: an ellipse, arch: a rounded top), on all corners or on the
+// two corners of one side (corners: all | top | bottom | left | right).
+const CORNERS = Object.freeze({ all: [1, 1, 1, 1], top: [1, 1, 0, 0], bottom: [0, 0, 1, 1], left: [1, 0, 0, 1], right: [0, 1, 1, 0] });
+const radiusCss = (r, corners = 'all') => {
+  if (!Object.hasOwn(CORNERS, corners)) throw new Error('design kit: corners must be all, top, bottom, left or right');
+  if (r === 'oval') return '50%';
+  const q = r === 'arch' ? '999px' : r === 'full' ? '999px' : `${px(n(r, 'radius'))}px`;
+  if (r === 'arch') return '999px 999px 0 0';
+  if (typeof r === 'number' && (r < 0 || r > 200)) throw new Error('design kit: radius must be from 0 to 200 px');
+  return CORNERS[corners].map((on) => (on ? q : '0')).join(' ');
+};
 const colour = (name) => { if (!COLOUR_NAMES.includes(name)) throw new Error(`design kit: "${String(name).slice(0, 30)}" is not a palette colour (${COLOUR_NAMES.join(', ')})`); return `var(--c-${name})`; };
 const FAMILIES = ['display', 'text', 'label', 'mono'];
 const GRID_MODES = ['left', 'right', 'center', 'skip'];
@@ -154,6 +168,8 @@ export function makeContext(args) {
     fmt: (f, o = {}) => {
       if (typeof spec[f] !== 'string') return new Markup('');
       let html = fmtE(spec[f]);
+      // "No. 1" is one unit: never broken between the abbreviation and its number
+      html = html.replace(/\b(No|Nos)\. (?=\d)/g, '$1.\u00a0');
       if (o.highlight) html = html.replace(/<em data-role="accent">([^<]*)<\/em>/g, '<span class="k-hl"><em data-role="accent">$1</em></span>');
       if (o.breakBefore) html = html.replace(/(\s*)(<span class="k-hl">|<em data-role="accent">)/, (all, sp, tag, off, whole) => (off > 0 && !whole.slice(0, off).endsWith('<br>') ? `<br>${tag}` : all));
       return new Markup(html);
@@ -235,7 +251,7 @@ export function makeContext(args) {
       o.grow ? 'flex:1 1 0;min-height:0' : '', shadowCss(o.textShadow), flexCss(o), nudgeCss(o.nudge),
       o.stretch !== undefined ? `font-stretch:${n(o.stretch, 'stretch')}%` : '', o.padBelow !== undefined ? `--k-lpad:${P(o.padBelow, 'padBelow')}em` : ''].filter(Boolean).join(';');
     const v = variantOf(tokens, o.variant);
-    return `<div class="${o.flow ? 'k-flow' : 'abs'} k-t k-display k-fit${o.padBelow !== undefined ? ' k-lpad' : ''}${v ? ` ${v}` : ''}${emphClass(o.emph)}" data-el${keyAttr(o)}${o.trail ? ' data-trail' : ''}${o.what ? ` data-what="${cls(o.what)}"` : ''}${o.valign ? ` data-valign="${o.valign}"${auto ? '' : ` data-y="${P(o.y, 'y')}"`}` : ''} data-role="${o.role && ROLES.has(o.role) ? o.role : 'headline'}" data-grid="${o.grid ?? 'left'}" data-fitlines data-split${o.highlight ? ' data-hl' : ''} data-w="${fit ? 'fit' : P(o.w, 'w')}"${fit ? ` data-minw="${P(o.minW ?? 0, 'minW')}" data-maxw="${P(o.maxW ?? 10000, 'maxW')}"` : ''} data-h="${auto ? 'auto' : P(o.h, 'h')}" data-cap="${P(o.cap, 'cap')}" data-floor="${P(o.floor, 'floor')}" data-lead="${P(o.lead ?? D.lead, 'lead')}" data-track="${P(o.track ?? D.track, 'track')}" data-max="${P(o.max ?? 5, 'max')}" data-align="${o.align === 'right' ? 'right' : o.align === 'center' ? 'center' : 'left'}" style="${css}">${body}</div>`;
+    return `<div class="${o.flow ? 'k-flow' : 'abs'} k-t k-display k-fit${o.padBelow !== undefined ? ' k-lpad' : ''}${v ? ` ${v}` : ''}${emphClass(o.emph)}" data-el${keyAttr(o)}${o.trail ? ' data-trail' : ''}${o.what ? ` data-what="${cls(o.what)}"` : ''}${o.valign ? ` data-valign="${o.valign}"${auto ? '' : ` data-y="${P(o.y, 'y')}"`}` : ''} data-role="${o.role && ROLES.has(o.role) ? o.role : 'headline'}" data-grid="${o.grid ?? (o.align === 'center' ? 'center' : 'left')}" data-fitlines data-split${o.highlight ? ' data-hl' : ''} data-w="${fit ? 'fit' : P(o.w, 'w')}"${fit ? ` data-minw="${P(o.minW ?? 0, 'minW')}" data-maxw="${P(o.maxW ?? 10000, 'maxW')}"` : ''} data-h="${auto ? 'auto' : P(o.h, 'h')}" data-cap="${P(o.cap, 'cap')}" data-floor="${P(o.floor, 'floor')}" data-lead="${P(o.lead ?? D.lead, 'lead')}" data-track="${P(o.track ?? D.track, 'track')}" data-max="${P(o.max ?? 5, 'max')}" data-align="${o.align === 'right' ? 'right' : o.align === 'center' ? 'center' : 'left'}" style="${css}">${body}</div>`;
   };
 
   // A group: blocks that flow one under another (type() with flow: true), the whole box placed at x/y/right/bottom, gap px apart.
@@ -243,11 +259,13 @@ export function makeContext(args) {
 
   // ---- devices ----
   // A hairline: weight px thick, from x over w (horizontal) or from y over h (vertical). colour: a palette name.
-  c.rule = (o) => `<i class="abs k-rule" aria-hidden="true" data-el data-fill style="${place({ x: o.x, y: o.y, w: o.vertical ? o.weight ?? 1 : o.w, h: o.vertical ? o.h : o.weight ?? 1 })};background:${colour(o.colour ?? 'rule')}"></i>`;
+  // A dotted line: round dots as wide as the line is thick, along it (a radial gradient: numbers and a palette colour only).
+  const dots = (o, vertical) => { const t = P(o.weight ?? 1, 'weight'), c0 = colour(o.colour ?? 'rule'); return `background:radial-gradient(circle at 50% 50%,${c0} 0,${c0} ${px(t / 2 - 0.5)}px,transparent ${px(t / 2 + 0.5)}px) 0 0/${vertical ? `${t}px ${px(t * 2.4)}px repeat-y` : `${px(t * 2.4)}px ${t}px repeat-x`}`; };
+  c.rule = (o) => `<i class="abs k-rule" aria-hidden="true" data-el data-fill style="${place({ x: o.x, y: o.y, w: o.vertical ? o.weight ?? 1 : o.w, h: o.vertical ? o.h : o.weight ?? 1 })};${o.dotted ? dots(o, o.vertical) : `background:${colour(o.colour ?? 'rule')}`}"></i>`;
   // A filled block (an accent block, a band): colour a palette name; rot degrees; counts as deliberate fill for the emptiness check.
   c.block = (o) => `<i class="abs k-block" aria-hidden="true" data-el data-fill style="${place(o)};background:${colour(o.colour ?? 'accent')}${o.rot ? `;transform:rotate(${P(o.rot, 'rot')}deg)` : ''}${o.skew ? `;transform:rotate(${P(o.rot ?? 0, 'rot')}deg) skewX(${P(o.skew, 'skew')}deg)` : ''}"></i>`;
   // A filled bar in the flow of a group (an accent tick between a headline and its sub).
-  c.flowBlock = (o) => `<i class="k-flow k-block" aria-hidden="true" data-el data-fill style="display:block;flex:none;${o.w === 'fill' ? 'align-self:stretch' : `width:${P(o.w, 'w')}px`};height:${P(o.h, 'h')}px;background:${colour(o.colour ?? 'accent')}${o.nudge ? `;${nudgeCss(o.nudge)}` : ''}"></i>`;
+  c.flowBlock = (o) => `<i class="k-flow k-block" aria-hidden="true" data-el data-fill style="display:block;flex:none;${o.w === 'fill' ? 'align-self:stretch' : `width:${P(o.w, 'w')}px`};height:${P(o.h, 'h')}px;${o.dotted ? dots({ weight: o.h, colour: o.colour ?? 'accent' }, false) : `background:${colour(o.colour ?? 'accent')}`}${o.nudge ? `;${nudgeCss(o.nudge)}` : ''}"></i>`;
   // The folio at a place (right-aligned at x1 when align is right).
   c.folioMark = (o) => c.type({ role: 'folio', family: o.family ?? 'label', html: c.folioText(), size: o.size ?? tokens.type.label.size, lead: 1.2, track: o.track ?? tokens.type.label.track, weight: o.weight ?? tokens.type.label.weight, upper: o.upper ?? tokens.type.label.upper !== false, colour: o.colour ?? 'muted', nowrap: true, num: o.num ?? 'lnum', ...o });
   // A vertical label running up the page (rotated 90 degrees counter-clockwise), its box starting at (x, y) and reading upward;
@@ -282,7 +300,7 @@ export function makeContext(args) {
   };
   // A decorative glyph (a hanging opening quotation mark, a large ornament): texture, not type, so no role and no check reads it.
   // text: the glyph (escaped); positioned like type (x, y, right, bottom in px, in the nearest positioned box); size, lead, colour, family.
-  c.glyph = (o) => `<span class="abs k-glyph${variantOf(tokens, o.variant) ? ` ${variantOf(tokens, o.variant)}` : ''}" aria-hidden="true" data-el data-deco style="${place(o)};font-family:${c.fontVar(o.family ?? 'display')};font-size:${P(o.size, 'size')}px;line-height:${P(o.lead ?? 1, 'lead')};color:${colour(o.colour ?? 'accent')};font-weight:${P(o.weight ?? 300, 'weight')};white-space:nowrap${o.stretch !== undefined ? `;font-stretch:${n(o.stretch, 'stretch')}%` : ''}${o.textShadow ? `;${shadowCss(o.textShadow)}` : ''}">${esc(o.text ?? '')}</span>`;
+  c.glyph = (o) => `<span class="abs k-glyph${variantOf(tokens, o.variant) ? ` ${variantOf(tokens, o.variant)}` : ''}" aria-hidden="true" data-el data-deco style="${place(o)};font-family:${c.fontVar(o.family ?? 'display')};font-size:${P(o.size, 'size')}px;line-height:${P(o.lead ?? 1, 'lead')};color:${colour(o.colour ?? 'accent')};font-weight:${P(o.weight ?? 300, 'weight')};white-space:nowrap${o.z !== undefined ? `;z-index:${P(o.z, 'z')}` : ''}${o.stretch !== undefined ? `;font-stretch:${n(o.stretch, 'stretch')}%` : ''}${o.textShadow ? `;${shadowCss(o.textShadow)}` : ''}">${esc(o.text ?? '')}</span>`;
   // A date line ("12 Dec · 6pm · The roastery") read as a date tile: { line, count, first, day, month } as Markup, every piece escaped from the
   // raw text here (never a split of already-built markup). day and month are set only when the first piece looks like a date ("12 Dec",
   // "Sat 12 December", "Dec 12": one or two digits and a month name, kept to three letters); otherwise they are null and `first` is the piece.
@@ -328,14 +346,14 @@ export function makeContext(args) {
   // tint: palette colour for multiply. The brand's own photo treatment (tint, duotone, overlay) still applies (.ph).
   c.photo = (o) => {
     if (!c.hasImage) return '';
-    const shape = ['rect', 'circle', 'arch', 'rounded'].includes(o.shape) ? o.shape : 'rect', treat = Array.isArray(o.treat) ? o.treat : [];
+    const shape = ['rect', 'circle', 'arch', 'rounded', 'oval', 'pill'].includes(o.shape) ? o.shape : 'rect', treat = Array.isArray(o.treat) ? o.treat : [];
     for (const t of treat) if (!['grey', 'multiply', 'grain', 'punch'].includes(t)) throw new Error(`design kit: photo treatment "${t}"`);
     const fo = POSITION.test(spec.focalCss ?? '') ? spec.focalCss : '50% 50%';
     const zoom = Number.isFinite(Number(spec.zoom)) ? Math.min(3, Math.max(1, Number(spec.zoom))) : 1;
     const tr = zoom > 1 ? `;transform:scale(${px(zoom)});transform-origin:${fo}` : '';
-    const radius = shape === 'arch' ? `border-radius:${P(o.w / 2, 'w')}px ${P(o.w / 2, 'w')}px 0 0` : shape === 'circle' ? 'border-radius:50%' : shape === 'rounded' ? `border-radius:${P(o.radius ?? 24, 'radius')}px` : '';
+    const radius = shape === 'arch' ? `border-radius:${P(o.w / 2, 'w')}px ${P(o.w / 2, 'w')}px 0 0` : shape === 'circle' || shape === 'oval' ? 'border-radius:50%' : shape === 'pill' ? 'border-radius:999px' : shape === 'rounded' ? `border-radius:${P(o.radius ?? 24, 'radius')}px` : '';
     const classes = ['abs', 'ph', 'k-photo', ...treat.map((t) => `k-${t}`)].join(' ');
-    return `<div class="${classes}" data-el style="${place(o)}${radius ? `;${radius}` : ''}"><img data-user data-name="${esc(spec.image)}" data-fit="cover" src="${args.image(spec.image)}" alt="" style="object-position:${fo}${tr}">${treat.includes('multiply') ? `<i class="k-mul" style="background:${colour(o.tint ?? 'primary')}"></i>` : ''}${treat.includes('grain') ? '<i class="k-gr"></i>' : ''}</div>`;
+    return `<div class="${classes}" data-el style="${place(o)}${o.z !== undefined ? `;z-index:${P(o.z, 'z')}` : ''}${radius ? `;${radius}` : ''}${o.soft !== undefined ? `;box-shadow:${softCss(o.soft)}` : ''}"><img data-user data-name="${esc(spec.image)}" data-fit="cover" src="${args.image(spec.image)}" alt="" style="object-position:${fo}${tr}">${treat.includes('multiply') ? `<i class="k-mul" style="background:${colour(o.tint ?? 'primary')}"></i>` : ''}${treat.includes('grain') ? '<i class="k-gr"></i>' : ''}</div>`;
   };
   // A framed print: the picture inset in a paper border with a keyline, and a caption strip beneath. The outer box is (x, y, w, h);
   // border px of paper; caption: Markup placed under the picture inside the border (kept to the label size).
@@ -348,8 +366,9 @@ export function makeContext(args) {
       + (o.inner === false ? '' : `<i class="abs k-keyline" aria-hidden="true" style="${place(inner)};box-shadow:0 0 0 ${P(o.keyline ?? 1, 'keyline')}px ${colour(o.keylineColour ?? 'rule')}"></i>`);
   };
 
-  // ---- the brand's logo: only when the brand switched it on (style.logo set to a corner) ----
+  // ---- the brand's logo: only when the brand switched it on (style.logo set to a corner) and, for a look, the look says `corner` (logo.default) ----
   c.logoHtml = () => {
+    if (tokens.logoOn === false) return '';
     const corner = brand.style?.logo;
     if (!['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(corner)) return '';
     const h = tokens.logoHeight ?? 44, [fw, fh] = brand.logos.fullSize, k = h / fh;
@@ -377,13 +396,14 @@ export function makeContext(args) {
   const boxEl = (o, inner = '', base = '') => {
     const rot = Number(o.rot) || 0, shadows = [];
     if (o.ring) shadows.push(`0 0 0 ${P(o.ring.w, 'ring')}px ${colour(o.ring.colour)}`);
-    if (o.shadow) shadows.push(`${P(o.shadow.x ?? 0, 'shadow x')}px ${P(o.shadow.y ?? 0, 'shadow y')}px 0 ${colour(o.shadow.colour ?? 'ink')}`);
+    if (o.shadow?.soft !== undefined) shadows.push(softCss(o.shadow.soft));
+    else if (o.shadow) shadows.push(`${P(o.shadow.x ?? 0, 'shadow x')}px ${P(o.shadow.y ?? 0, 'shadow y')}px 0 ${colour(o.shadow.colour ?? 'ink')}`);
     if (o.origin !== undefined && !ORIGIN.test(o.origin)) throw new Error('design kit: box origin');
     if (o.border && !['solid', 'dashed'].includes(o.border.style ?? 'solid')) throw new Error('design kit: border style');
     if (o.slant !== undefined && (!Number.isFinite(o.slant) || o.slant < 0 || o.slant > 600)) throw new Error('design kit: slant must be from 0 to 600 px');
     const css = [place(o), o.minH !== undefined && o.grow === undefined ? `min-height:${P(o.minH, 'minH')}px` : '', o.fill ? `background:${colour(o.fill)}` : '', o.ink ? `color:${colour(o.ink)}` : '', rot ? `transform:rotate(${P(rot, 'rot')}deg)` : '', rot && o.origin ? `transform-origin:${o.origin}` : '',
       shadows.length ? `box-shadow:${shadows.join(',')}` : '', o.border ? `border:${P(o.border.w, 'border')}px ${o.border.style ?? 'solid'} ${colour(o.border.colour ?? 'ink')}` : '', o.pad !== undefined ? `padding:${padOf(o.pad)}` : '',
-      o.radius !== undefined ? `border-radius:${o.radius === 'full' ? '999px' : `${P(o.radius, 'radius')}px`}` : '',
+      o.radius !== undefined ? `border-radius:${radiusCss(o.radius, o.corners)}` : '',
       o.clip ? `clip-path:polygon(${o.clip.map(([px_, py]) => `${P(px_, 'clip x')}px ${P(py, 'clip y')}px`).join(',')})` : '',
       o.slant !== undefined ? `clip-path:polygon(0 ${P(o.slant, 'slant')}px,100% 0,100% 100%,0 100%)` : '',
       o.flex ? `display:flex;flex-direction:${o.flex === 'row' ? 'row' : 'column'};justify-content:${{ end: 'flex-end', center: 'center', between: 'space-between' }[o.justify] ?? 'flex-start'};align-items:${{ end: 'flex-end', center: 'center', stretch: 'stretch' }[o.align] ?? 'flex-start'}${o.gap ? `;gap:${P(o.gap, 'gap')}px` : ''}` : '',

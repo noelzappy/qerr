@@ -252,7 +252,7 @@ window.__ds = {
       const words = []; let cur = null;
       const push = () => { if (cur) { words.push(cur); cur = null; } };
       const walk = (nodes, em) => { for (const n of nodes) {
-        if (n.nodeType === 3) { for (const piece of n.nodeValue.split(/(\s+)/)) { if (!piece) continue; if (/^\s+$/.test(piece)) push(); else { cur = cur || { parts: [] }; cur.parts.push({ t: piece, em }); } } }
+        if (n.nodeType === 3) { for (const piece of n.nodeValue.split(/([ \t\n\r\f]+)/)) { if (!piece) continue; if (/^[ \t\n\r\f]+$/.test(piece)) push(); else { cur = cur || { parts: [] }; cur.parts.push({ t: piece, em }); } } }
         else if (n.nodeName === 'BR') { push(); words.push({ br: true }); }
         else walk(n.childNodes, em || n.nodeName === 'EM');
       } };
@@ -462,7 +462,7 @@ window.__ds = {
     const words = []; let cur = null;
     const push = () => { if (cur) { words.push(cur); cur = null; } };
     const walk = (nodes, em) => { for (const n of nodes) {
-      if (n.nodeType === 3) { for (const piece of n.nodeValue.split(/(\s+)/)) { if (!piece) continue; if (/^\s+$/.test(piece)) push(); else { cur = cur || { parts: [] }; cur.parts.push({ t: piece, em }); } } }
+      if (n.nodeType === 3) { for (const piece of n.nodeValue.split(/([ \t\n\r\f]+)/)) { if (!piece) continue; if (/^[ \t\n\r\f]+$/.test(piece)) push(); else { cur = cur || { parts: [] }; cur.parts.push({ t: piece, em }); } } }
       else if (n.nodeName === 'BR') { push(); words.push({ br: true }); }
       else walk(n.childNodes, em || n.nodeName === 'EM');
     } };

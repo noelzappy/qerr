@@ -58,6 +58,8 @@ export function tokensFromLook(look, brand) {
     grain: Object.freeze({ freq: 0.9, strength: 0.4 }),
     folio: FOLIO[D.folio ?? 'no'] ?? FOLIO.no,
     logoHeight: look.logo?.height ?? 44,
+    // a look owns its page: the brand's logo corner (classic chrome) shows only when the look itself says `corner`
+    logoOn: look.logo?.default === 'corner',
   });
 }
 
