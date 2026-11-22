@@ -6,7 +6,7 @@ import {
   nextStep, prevStep, providerBody, readBudget, readSuggestion, resumeStep, saveDraft, saveSiteColours, setupLinkForHomeStep, shouldLandOnSetup, stepStates,
   typeInDraft, type SetupStatus,
 } from '../web/src/pages/setup/flow';
-import { dominantColours, guessRoles } from '../web/src/pages/setup/logo-colours';
+import { dominantColours, guessRoles } from '../web/src/lib/logo-colours';
 import type { BrandSettings } from '../web/src/pages/settings/brand-types';
 
 function status(over: { brandSaved?: boolean; done?: Partial<Record<keyof SetupStatus['steps'], boolean>>; skipped?: SetupStatus['progress']['skipped']; left?: boolean; finished?: boolean } = {}): SetupStatus {

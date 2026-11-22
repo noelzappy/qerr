@@ -87,7 +87,8 @@ export function NumberInput({ label, value, desc, onChange, hint, disabled, opti
 // ---- a brand colour role as a swatch ----
 // A radio group: one tab stop (the chosen swatch, else the first), the arrow keys move the choice. `wordOf` names a role (default: the design
 // editor's words for the look's roles).
-export function RolePicker({ label, value, roles, swatches, onChange, optional, disabled, hint, wordOf = roleWord }: { label: ReactNode; value: string | undefined; roles: string[]; swatches: Swatches; onChange: (v: string | undefined) => string; optional?: boolean; disabled?: boolean; hint?: ReactNode; wordOf?: (role: string) => string }) {
+// `hideLabel`: the label is read out but not shown (a table cell whose column header names it); the chosen colour's name stays.
+export function RolePicker({ label, value, roles, swatches, onChange, optional, disabled, hint, wordOf = roleWord, hideLabel }: { label: ReactNode; value: string | undefined; roles: string[]; swatches: Swatches; onChange: (v: string | undefined) => string; optional?: boolean; disabled?: boolean; hint?: ReactNode; wordOf?: (role: string) => string; hideLabel?: boolean }) {
   const [error, setError] = useState('');
   const list = value && !roles.includes(value) ? [value, ...roles] : roles;
   const pick = (v: string | undefined) => setError(onChange(v));
@@ -103,8 +104,8 @@ export function RolePicker({ label, value, roles, swatches, onChange, optional, 
   };
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <div className="flex min-h-5 items-center gap-1 text-[13px] font-medium">{label}{optional && <span className="font-normal text-muted-foreground"> (optional)</span>}
-        <span className="ml-auto truncate font-normal text-muted-foreground">{value ? wordOf(value) : 'Not set'}</span></div>
+      <div className="flex min-h-5 items-center gap-1 text-[13px] font-medium"><span className={cn(hideLabel && 'sr-only')}>{label}</span>{optional && <span className="font-normal text-muted-foreground"> (optional)</span>}
+        <span className={cn('truncate font-normal text-muted-foreground', !hideLabel && 'ml-auto')}>{value ? wordOf(value) : 'Not set'}</span></div>
       <div role="radiogroup" aria-label={typeof label === 'string' ? label : undefined} className="flex flex-wrap gap-1.5" onKeyDown={onKey}>
         {optional && <button type="button" role="radio" aria-checked={value === undefined} aria-label="No colour" tabIndex={focusAt === 0 ? 0 : -1} disabled={disabled} onClick={() => pick(undefined)}
           className={cn('grid size-6 place-items-center rounded-full border bg-background text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:size-9', value === undefined && 'ring-2 ring-primary ring-offset-1')}><X className="size-3" aria-hidden="true" /></button>}

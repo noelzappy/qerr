@@ -6,7 +6,9 @@ import { api } from '../api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BusyButton, CheckField, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FilledTag, FormPanel, MoreMenu, Notice, SwitchField, TagChips, TextField, ToneBadge, type Column } from '@/components/kit';
+import { BusyButton, CheckField, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FilledTag, FormPanel, MoreMenu, Notice, PresetNumber, SwitchField, TagChips, TextField, ToneBadge, type Column } from '@/components/kit';
+import { ShareVisual } from './settings/brand/pickers';
+import { BUDGET_PRESETS } from '@/lib/ai-presets';
 import { FineTune } from '@/components/kit/fine-tune';
 import { SegmentedField } from '@/components/kit/segmented-field';
 import { PROVIDER_ADDRESS, addressIsDefault, modelPresets, modelSummary, newProviderDraft, presetFor, pricesFromModel, withKind, withModel, type ProviderDraft, type ProviderKind } from '../lib/ai-presets';
@@ -28,6 +30,7 @@ interface Settings {
   topics: string[];
 }
 const TASKS = ['draft', 'research', 'rewrite'] as const;
+// The monthly budgets offered first, in US dollars; any other amount is a custom one.
 const usd = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'USD' });
 const sm = 'max-sm:min-h-11';
 // One bordered container; the list's rows are separated by hairlines.
@@ -299,7 +302,10 @@ function BudgetCard({ budget, onChanged }: { budget: Settings['budget']; onChang
   return (
     <Section id="monthly-budget" title="Monthly budget" description="AI work stops for the month when this is reached." aside={<NotSaved show={dirty} />}>
       <form className="flex max-w-[520px] flex-col gap-3" onSubmit={(e) => void save(e)} noValidate>
-        <TextField label="Budget per month (US dollars)" type="number" inputMode="decimal" min={0} step="0.01" value={value} onChange={(e) => setValue(e.target.value)} error={error} />
+        <PresetNumber label="Budget per month (US dollars)" hint="The most the AI may spend each month. Each choice shows how much of it this month's spending is. Use 0 to stop AI spending."
+          presets={BUDGET_PRESETS.map((v) => ({ value: v, label: `$${v}`, visual: <ShareVisual share={budget.spentUsd / v} /> }))}
+          value={value.trim() === '' || !Number.isFinite(Number(value)) ? null : Number(value)} min={0} max={100000} step={0.01} unit="US dollars"
+          onChange={(v) => { setError(''); setValue(String(v)); }} onInvalid={(v) => setValue(Number.isNaN(v) ? '' : String(v))} error={error || undefined} />
         <p className="text-[13px] text-muted-foreground" aria-live="polite">
           Spent in {budget.month}: <strong className="text-foreground">{usd.format(budget.spentUsd)}</strong>
           {pct !== null && <> ({pct}% of the budget)</>}

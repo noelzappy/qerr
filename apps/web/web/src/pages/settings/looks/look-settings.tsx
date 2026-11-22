@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { blankFor, checkValue, getAt, groupSections, joinPath, labelFor, rangeText, readSetting, valueLabel } from './look-model';
 import type { Desc, FontFamilyInfo, Json, LookCatalogue } from './look-types';
 import { WeightStripRow } from './settings/fine-tune';
+import { FontFaceChoice } from './settings/font-choice';
 import { FONT_ROLES, weightStrip, type FontRole } from './settings/weights';
 
 export interface SettingsCtx {
@@ -188,7 +189,7 @@ function FontControl({ path, desc, ctx }: { path: string; desc: Desc; ctx: Setti
           options={[{ value: 'library', label: 'A font from our library' }, { value: 'brand', label: 'Our own font' }]}
           onValueChange={(v) => set(v === 'brand' ? { source: 'brand', role: ROLE_DEFAULT[roleKey] ?? 'sans' } : { source: 'library', family: ctx.fonts[0]?.family ?? '', weights: [400] })} />
         {source === 'library'
-          ? <SelectField label="Typeface" value={String(value.family ?? '')} disabled={ctx.disabled} options={ctx.fonts.map((f) => ({ value: f.family, label: f.family }))} onValueChange={(v) => set({ ...value, family: v })} />
+          ? <FontFaceChoice label="Typeface" value={String(value.family ?? '')} disabled={ctx.disabled} fonts={ctx.fonts} onChange={(v) => set({ ...value, family: v })} />
           : <SelectField label="Which of our fonts" hint="The font your brand uploaded in Brand and look, Type." value={String(value.role ?? '')} disabled={ctx.disabled}
               options={(desc.forms?.brand?.props?.role?.values ?? []).map((r) => ({ value: String(r), label: OWN_ROLE[String(r)] ?? String(r) }))} onValueChange={(v) => set({ ...value, role: v })} />}
       </div>

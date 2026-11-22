@@ -90,7 +90,7 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   the tab's sessionStorage across a reload. Its "Fill in from your website" button calls `POST /api/suggest/brand-from-site`
   (`{ website, name }` in, `{ descriptor?, tagline?, voice?, colours? }` out) only while the AI is ready, hides itself when the
   route answers 404, 405 or 501, fills only empty fields (or earlier suggestions) and marks what it filled. The logo step reads
-  the logo's main colours in the browser with a canvas (`logo-colours.ts`).
+  the logo's main colours in the browser with a canvas (`lib/logo-colours.ts`, shared with Brand and look, Colours).
 - **Home.** The setup checklist is one card. `GET /api/overview/home` returns each step as `{ key, title, detail, to, done }`
   and, on the AI step, `missing` (`'provider'`, `'budget'` or `null`); the merged "Connect your channels" step (seven steps in all) carries `missing` too (`'account'`, `'routes'` or `null`).
 - **A batch** is Writing, In review, Scheduled or Done. Its page is a four-step flow: Write, Review, Send drafts to Buffer,
@@ -200,7 +200,11 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
 - **Logo placement and photo look** (Surfaces and photos): where the logo sits (it moves on posters, editorial pages and photo posts, with what
   shares its edge; a layout's own logo block stays where the layout puts it) and the photo treatment, whose colour is judged on the
   photo as treated. See "The brand file" in [docs/design.md](../../docs/design.md).
-- **Post types** (the engine's `series`): each with its page colour and headline style.
+- **Post types** (the engine's `series`): each with its page colour (a row of swatches) and headline style.
+- Choices on this page are drawn as pictures (photo treatments, decorations, the logo's place, the second half of a headline, weights),
+  and numbers are presets with "Custom…" for the exact value. With a logo uploaded, Colours offers the logo's own colours (read in the
+  browser; nothing is sent anywhere), and Fine-tune shows the 20 colour roles as swatches, each Automatic or Set by you, with its hex code
+  one click away. The logo's offsets can be measured from the uploaded logo.
 - **Voice and visual direction:** in the team's own words, with names to spell exactly, and the switch for emoji in post images
   (off by default; on, each text on an image may carry up to three standard emoji, never the brand name).
 

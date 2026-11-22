@@ -6,6 +6,9 @@
 //   <PresetNumber label="Letter spacing" min={-0.06} max={0.02} step={0.005} unit="em" value={track} onChange={setTrack}
 //     presets={[{ value: -0.04, label: 'Tight' }, { value: -0.02, label: 'Snug' }, { value: 0, label: 'Normal' }]} />
 //
+// `empty` adds a first choice that means no number at all (for example "The brand's own"): it is chosen while the value is null,
+// and choosing it calls `empty.onChoose`.
+//
 // `onChange` gets a preset's value or a typed number inside the range. A typed number outside it (or nothing) is not passed on: the
 // control says what range to use, and `onInvalid` hears it for a form that must refuse to save meanwhile.
 import { useEffect, useId, useState, type ReactNode } from 'react';
@@ -57,9 +60,13 @@ export interface PresetNumberProps {
   note?: string;
   disabled?: boolean;
   className?: string;
+  // A first choice for no number (null), with its own words and picture.
+  empty?: { label: string; visual?: ReactNode; onChoose: () => void };
+  // Shown after the legend's words (an AutoTag, a "Measure" button).
+  tag?: ReactNode;
 }
 
-export function PresetNumber({ label, hint, presets, value, onChange, min, max, step, unit, tolerance, custom, customStart, onInvalid, error, note, disabled, className }: PresetNumberProps) {
+export function PresetNumber({ label, hint, presets, value, onChange, min, max, step, unit, tolerance, custom, customStart, onInvalid, error, note, disabled, className, empty, tag }: PresetNumberProps) {
   const id = useId();
   const [customOpen, setCustomOpen] = useState(false);
   const [text, setText] = useState(value === null || !Number.isFinite(value) ? '' : String(value));
@@ -68,13 +75,15 @@ export function PresetNumber({ label, hint, presets, value, onChange, min, max, 
   useEffect(() => {
     if (value !== null && Number.isFinite(value) && Number(text) !== value) { setText(String(value)); setTypedProblem(''); }
   }, [value]);
-  const choice = presetChoice(value, presets, { tolerance, custom, customOpen });
+  const isEmpty = !!empty && value === null && !customOpen;
+  const choice = isEmpty ? 'empty' : presetChoice(value, presets, { tolerance, custom, customOpen });
   const problem = error || typedProblem;
   const name = typeof label === 'string' ? label : 'Value';
+  const chooseEmpty = () => { setCustomOpen(false); setTypedProblem(''); setText(''); empty?.onChoose(); };
   const pick = (i: number) => { setCustomOpen(false); setTypedProblem(''); setText(String(presets[i]!.value)); onChange(presets[i]!.value); };
   const openCustom = () => {
     setCustomOpen(true);
-    if (customStart !== undefined && presetIndex(value, presets, tolerance) !== null) onChange(customStart);
+    if (customStart !== undefined && (value === null || presetIndex(value, presets, tolerance) !== null)) onChange(customStart);
   };
   const type = (t: string) => {
     setText(t);
@@ -89,9 +98,17 @@ export function PresetNumber({ label, hint, presets, value, onChange, min, max, 
       <legend className="mb-1 flex items-center gap-1 text-[13px] font-medium">
         {label}
         {hint && <Hint about={label}>{hint}</Hint>}
+        {tag}
       </legend>
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex max-w-full flex-wrap rounded-md border bg-muted/40 p-0.5">
+          {empty && (
+            <label className={cn(seg, disabled && 'cursor-not-allowed opacity-60')}>
+              <input type="radio" name={id} className="sr-only" checked={choice === 'empty'} disabled={disabled} onChange={chooseEmpty} />
+              {empty.visual && <span aria-hidden="true" className="flex items-center justify-center">{empty.visual}</span>}
+              <span>{empty.label}</span>
+            </label>
+          )}
           {presets.map((p, i) => (
             <label key={`${p.value}-${p.label}`} className={cn(seg, disabled && 'cursor-not-allowed opacity-60')}>
               <input type="radio" name={id} className="sr-only" checked={choice === i} disabled={disabled} onChange={() => pick(i)} />

@@ -207,8 +207,7 @@ export function initialLook(activeRef: string | null, shipped: Array<{ ref: stri
 // The choices behind "Model": the model id and its prices (US dollars per million tokens) follow the choice, so nobody types
 // them. Exact values stay editable under Fine-tune. One table for the setup and Settings, AI (lib/ai-presets.ts).
 export { ANTHROPIC_MODELS } from '../../lib/ai-presets';
-export const BUDGET_PRESETS = [10, 25, 50, 100] as const;
-export const DEFAULT_BUDGET = 25;
+export { BUDGET_PRESETS, DEFAULT_BUDGET } from '../../lib/ai-presets';
 
 // The provider body the setup sends (the same POST /api/settings/ai/providers as Settings, AI).
 export function providerBody(o: { kind: 'anthropic' | 'openai-compatible'; apiKey: string; model: string; baseUrl?: string; input: number | null; output: number | null }) {

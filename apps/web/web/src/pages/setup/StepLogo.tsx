@@ -13,7 +13,8 @@ import { cn } from '@/lib/utils';
 import type { BrandView } from '../settings/brand-types';
 import { measureLogo, simpleLogos } from '../settings/logo-tools';
 import { loadSiteColours, sessionStore } from './flow';
-import { coloursOfImage, guessRoles, markFromLogo, type Colours } from './logo-colours';
+import { coloursOfImage, guessRoles, type Colours } from '@/lib/logo-colours';
+import { markFromLogo } from './logo-mark';
 import { StepActions, StepHeader, SuggestedNote, type StepProps } from './parts';
 
 const ROLES: Array<{ key: keyof Colours; label: string }> = [

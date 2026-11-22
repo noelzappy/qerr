@@ -3,22 +3,22 @@
 // checks every value again before anything is saved.
 import { type ReactNode } from 'react';
 import { ImageUp, RotateCcw, Trash2 } from 'lucide-react';
-import { Hint, SelectField } from '@/components/kit';
+import { Hint } from '@/components/kit';
 import { SegmentedField } from '@/components/kit/segmented-field';
 import { Button } from '@/components/ui/button';
-import { ColourControl, FileField, NumberField } from './brand/fields';
+import { FileField } from './brand/fields';
 import {
-  ACCENT_DEVICES, ARTWORK_FITS, DECORATION_ON, DECORATIONS, DISPLAY_FONTS, FOOTERS, LABEL_FONTS, LOGO_PLACES, PHOTO_TREATMENTS, ROLE_GROUPS, ROLE_LABEL, STYLE_COLOURS, SURFACES, TYPE_CASES, WEIGHT_NAME,
+  ARTWORK_FITS, DECORATION_ON, DISPLAY_FONTS, FOOTERS, LABEL_FONTS, ROLE_GROUPS, ROLE_LABEL, STYLE_COLOURS, SURFACES, TYPE_CASES,
   emptyRoles, optionsOf, type BrandRoles, type FontRole, type FontSource, type Palette, type RoleGroup, type StyleSettings, type TypeRole,
 } from './brand-types';
+import { AccentPicker, DecorationPicker, LogoPlacePicker, PhotoTreatmentPicker, WeightPicker, type SampleColours } from './brand/pickers';
+import { ArtworkOpacityField, DecorationStrengthField, HeadlineSizeField, PhotoStrengthField, TrackingField } from './brand/preset-fields';
+import { RoleTile } from './brand/role-grid';
 import { RoleFont } from './font-source';
 import { RolePicker } from './looks/design-controls';
 import type { Swatches } from './looks/design-colours';
 
-const WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
 const HEADLINE_WEIGHTS = [300, 400, 500, 600, 700];
-const DEFAULT = '';
-const weightOption = (w: number) => ({ value: String(w), label: `${w} ${WEIGHT_NAME[w] ?? ''}`.trim() });
 // Short words for a segment, with the full sentence as its tooltip.
 const short = (list: readonly string[], words: Record<string, string>, where?: Parameters<typeof optionsOf>[1]) =>
   optionsOf(list, where).map((o) => ({ value: o.value, label: words[o.value] ?? o.label, title: o.label }));
@@ -48,20 +48,6 @@ const ROLE_SETS: Array<{ title: string; groups: RoleGroup[] }> = [
   { title: 'Panels and cards', groups: ['surfaces', 'slabs'] },
 ];
 
-function RoleSwatch({ group, k, value, set, onSet, onReset }: { group: RoleGroup; k: string; value: string | undefined; set: boolean; onSet: (v: string) => void; onReset: () => void }) {
-  const label = ROLE_LABEL[`${group}.${k}`] ?? k;
-  return (
-    <li className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-[13px] font-medium">{label}</span>
-        <span className={set ? 'shrink-0 text-[12px] font-medium text-foreground' : 'shrink-0 text-[12px] text-muted-foreground'}>{set ? 'Set by you' : 'Automatic'}</span>
-      </div>
-      <ColourControl label={label} value={value ?? ''} onChange={onSet} compact allowEmpty />
-      {set && <Button type="button" variant="ghost" size="sm" className="self-start" onClick={onReset}><RotateCcw aria-hidden="true" /> Reset to automatic</Button>}
-    </li>
-  );
-}
-
 export function ColourRoles({ roles, palette, onChange }: { roles: BrandRoles; palette: Palette | null; onChange: (r: BrandRoles) => void }) {
   const setCount = Object.values(roles).reduce((n, g) => n + Object.values(g).filter(Boolean).length, 0);
   const put = (group: RoleGroup, key: string, v: string | undefined) => {
@@ -81,9 +67,10 @@ export function ColourRoles({ roles, palette, onChange }: { roles: BrandRoles; p
       {ROLE_SETS.map((set) => (
         <fieldset key={set.title} className="flex flex-col gap-1.5">
           <legend className="mb-1.5 text-[13.5px] font-semibold">{set.title}</legend>
-          <ul className="grid gap-3 md:grid-cols-2">
+          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {set.groups.flatMap((group) => ROLE_GROUPS[group].keys.map((k) => (
-              <RoleSwatch key={`${group}.${k}`} group={group} k={k} value={roles[group][k] ?? paletteValue(palette, group, k)} set={!!roles[group][k]} onSet={(v) => put(group, k, v)} onReset={() => put(group, k, undefined)} />
+              <RoleTile key={`${group}.${k}`} label={ROLE_LABEL[`${group}.${k}`] ?? k} value={roles[group][k] ?? paletteValue(palette, group, k)} set={!!roles[group][k]}
+                onSet={(v) => put(group, k, v || undefined)} onReset={() => put(group, k, undefined)} />
             )))}
           </ul>
         </fieldset>
@@ -112,12 +99,9 @@ function TypeRoleFields({ title, hint, role, onChange, font, weight, fontFile, p
       <div className="grid gap-3 sm:grid-cols-2">
         {part !== 'classic' && font}
         <SegmentedField label="Case" value={role.case} onValueChange={(v) => onChange({ ...role, case: v as TypeRole['case'] })} options={optionsOf(TYPE_CASES)} />
-        <NumberField
-          label="Letter spacing" hint="Tighter or wider letters. 0 is normal; try 0.02 for a little more air. Leave empty to use the brand's."
-          min={-0.1} max={0.3} emptyAllowed value={role.tracking} onChange={(v) => onChange({ ...role, tracking: v })}
-        />
-        {weight ?? <SelectField label="Weight" hint="How heavy the letters are." value={role.weight === null ? DEFAULT : String(role.weight)} onValueChange={(v) => onChange({ ...role, weight: v === DEFAULT ? null : Number(v) })} options={[{ value: DEFAULT, label: "The brand's own" }, ...WEIGHTS.map(weightOption)]} />}
       </div>
+      <TrackingField value={role.tracking} onChange={(v) => onChange({ ...role, tracking: v })} />
+      {weight ?? <WeightPicker label="Weight" hint="How heavy the letters are." value={role.weight} onChange={(w) => onChange({ ...role, weight: w })} empty="Brand's own" />}
       {part !== 'classic' && fontFile}
     </fieldset>
   );
@@ -126,8 +110,10 @@ function TypeRoleFields({ title, hint, role, onChange, font, weight, fontFile, p
 // `part`: 'look' is what a look reads too (each role's font and font file), 'classic' what only the classic layouts draw (case, letter
 // spacing, weight, headline size, the second half of a headline); both by default. See LOOK_READS in brand/model.ts.
 export type TypePart = 'look' | 'classic';
-export function TypeFields({ style, headlineWeight, onChange, fonts, version, busy, onUpload, onGoogle, onRemove, part }: {
+export function TypeFields({ style, headlineWeight, onChange, fonts, version, busy, onUpload, onGoogle, onRemove, part, sample }: {
   style: StyleSettings; headlineWeight: number; part?: TypePart;
+  // the brand's colours for the headline samples (the second half of a headline)
+  sample?: SampleColours;
   // `headline` is given when the brand's headline weight changes with the type settings, in one step.
   onChange: (t: StyleSettings['type'], headline?: number) => void; fonts: Record<FontRole, FontSource | null>; version: string;
   busy: string; onUpload: (role: FontRole, f: File, family: string) => void; onGoogle: (role: FontRole, family: string) => void; onRemove: (role: FontRole) => void;
@@ -138,15 +124,14 @@ export function TypeFields({ style, headlineWeight, onChange, fonts, version, bu
   // this single choice writes whichever applies, so the two can never disagree.
   const shownWeight = t.display.weight ?? headlineWeight;
   const headlineWeightField = (
-    <SelectField
+    <WeightPicker
       label="Weight" hint="How heavy headlines are. Regular is 400, bold is 700."
-      value={String(shownWeight)}
-      onValueChange={(v) => {
-        const w = Number(v);
+      value={shownWeight}
+      onChange={(w) => {
+        if (w === null) return;
         if (HEADLINE_WEIGHTS.includes(w)) onChange({ ...t, display: { ...t.display, weight: null } }, w);
         else onChange({ ...t, display: { ...t.display, weight: w } });
       }}
-      options={WEIGHTS.map(weightOption)}
     />
   );
   return (
@@ -164,12 +149,10 @@ export function TypeFields({ style, headlineWeight, onChange, fonts, version, bu
         fontFile={t.label.font === 'own' ? font('label') : undefined}
         font={<SegmentedField label="Font" value={t.label.font} onValueChange={(v) => onChange({ ...t, label: { ...t.label, font: v as typeof t.label.font } })} options={short(LABEL_FONTS, { ...FONT_WORDS, mono: 'Built-in mono' })} />}
       />
-      {part !== 'look' && <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <NumberField
-          label="Headline size" hint="Makes every headline bigger or smaller. 1 is normal; 1.1 is a tenth bigger. Long headlines are still shrunk to fit."
-          min={0.8} max={1.25} value={t.scale} onChange={(v) => onChange({ ...t, scale: v ?? 1 })}
-        />
-        <SelectField label="Second half of a headline" hint="The phrase in a headline that stands out. Use one style for every page, or let each post type decide." value={t.accent} onValueChange={(v) => onChange({ ...t, accent: v as typeof t.accent })} options={optionsOf(ACCENT_DEVICES, 'accent')} />
+      {part !== 'look' && <div className="mt-5 flex flex-col gap-4">
+        <HeadlineSizeField value={t.scale} onChange={(v) => onChange({ ...t, scale: v })} />
+        <AccentPicker value={t.accent} colours={sample} onChange={(v) => onChange({ ...t, accent: v })}
+          hint="The phrase in a headline that stands out. Use one style for every page, or let each post type decide." />
       </div>}
     </div>
   );
@@ -187,17 +170,19 @@ export function LookFields({ style, onChange, artwork, busy, onArtwork, onRemove
 }) {
   const d = style.decoration, p = style.photo;
   const set = <K extends keyof StyleSettings>(k: K, v: StyleSettings[K]) => onChange({ ...style, [k]: v });
-  const logoField = <SelectField label="Logo" hint="Moves the logo on posters, editorial pages and photo posts, with what shares its edge; a page whose picture takes that edge keeps its logo where it is and follows the side. A layout's own logo block stays where the layout puts it." value={style.logo} onValueChange={(v) => set('logo', v as StyleSettings['logo'])} options={[{ value: 'auto', label: 'As each page is laid out' }, ...optionsOf(LOGO_PLACES.filter((x) => x !== 'auto'))]} />;
+  const logoField = <LogoPlacePicker value={style.logo} onChange={(v) => set('logo', v)} colour={swatches.primary ?? '#2f4b8f'}
+    hint="Moves the logo on posters, editorial pages and photo posts, with what shares its edge; a page whose picture takes that edge keeps its logo where it is and follows the side. As laid out leaves it where each page puts it. A layout's own logo block stays where the layout puts it." />;
   const footerField = <SegmentedField label="Beside the logo" value={style.footer} onValueChange={(v) => set('footer', v as StyleSettings['footer'])} options={short(FOOTERS, FOOTER_WORDS, 'footer')} />;
   const colour = (label: string, value: string, put: (v: string) => void) => (
     <RolePicker label={label} value={value} roles={[...STYLE_COLOURS]} swatches={swatches} wordOf={STYLE_COLOUR_WORD} onChange={(v) => { if (v) put(v); return ''; }} />
   );
   const photos = (
     <div className="grid gap-3 md:grid-cols-2">
-      <SegmentedField label="Photos" className="md:col-span-2" hint="Applied to photographs, never to phone or desktop screens. Text over photos is still checked." value={p.treatment} onValueChange={(v) => set('photo', { ...p, treatment: v as typeof p.treatment })} options={optionsOf(PHOTO_TREATMENTS, 'photo')} />
+      <div className="md:col-span-2"><PhotoTreatmentPicker value={p.treatment} photo={p} swatches={swatches} onChange={(v) => set('photo', { ...p, treatment: v })}
+        hint="Applied to photographs, never to phone or desktop screens. Text over photos is still checked." /></div>
       {(p.treatment === 'tint' || p.treatment === 'overlay') && <>
         {colour('Colour', p.colour, (v) => set('photo', { ...p, colour: v }))}
-        <NumberField label="Strength" hint="From 0 (none) to 1 (full)." min={0} max={1} value={p.strength} onChange={(v) => set('photo', { ...p, strength: v ?? 0.5 })} />
+        <PhotoStrengthField className="md:col-span-2" value={p.strength} colour={swatches[p.colour] ?? '#2f4b8f'} onChange={(v) => set('photo', { ...p, strength: v })} />
       </>}
       {p.treatment === 'duotone' && <>
         {colour('Shadows in', p.shadows, (v) => set('photo', { ...p, shadows: v }))}
@@ -205,17 +190,17 @@ export function LookFields({ style, onChange, artwork, busy, onArtwork, onRemove
       </>}
     </div>
   );
-  if (part === 'look') return <div className="flex flex-col gap-4">{photos}<div className="grid gap-3 md:grid-cols-2">{logoField}</div></div>;
+  if (part === 'look') return <div className="flex flex-col gap-4">{photos}{logoField}</div>;
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-3 md:grid-cols-2">
         <SegmentedField label="Cards and panels" value={style.surface} onValueChange={(v) => set('surface', v as StyleSettings['surface'])} options={optionsOf(SURFACES)} />
-        <SelectField label="Decoration" value={d.kind} onValueChange={(v) => set('decoration', { ...d, kind: v as typeof d.kind })} options={optionsOf(DECORATIONS, 'decoration')} />
         <SegmentedField label="Decoration on" value={d.on} onValueChange={(v) => set('decoration', { ...d, on: v as typeof d.on })} options={short(DECORATION_ON, { dark: 'Dark pages only', all: 'Every page' })} disabled={d.kind === 'none'} />
-        {['dots', 'grid', 'lines', 'auto'].includes(d.kind) && (
-          <NumberField label="Decoration strength" hint="How visible the pattern is: 0.01 is faint, 0.4 is strong. Leave empty to use the brand's." min={0.01} max={0.4} emptyAllowed value={d.alpha} onChange={(v) => set('decoration', { ...d, alpha: v })} />
-        )}
       </div>
+      <DecorationPicker value={d.kind} onChange={(v) => set('decoration', { ...d, kind: v })} dark={swatches.dark ?? '#1d2026'} light={swatches.light ?? '#ffffff'} alpha={d.alpha} artwork={artwork} />
+      {['dots', 'grid', 'lines', 'auto'].includes(d.kind) && (
+        <DecorationStrengthField value={d.alpha} onChange={(v) => set('decoration', { ...d, alpha: v })} />
+      )}
       {d.kind === 'artwork' && (
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-start gap-3">
@@ -230,13 +215,14 @@ export function LookFields({ style, onChange, artwork, busy, onArtwork, onRemove
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             <SegmentedField label="Placement" value={d.fit} onValueChange={(v) => set('decoration', { ...d, fit: v as typeof d.fit })} options={optionsOf(ARTWORK_FITS)} />
-            <NumberField label="Opacity" hint="How solid the artwork is: 0.05 is faint, 1 is solid." min={0.05} max={1} value={d.opacity} onChange={(v) => set('decoration', { ...d, opacity: v ?? 1 })} />
+            <ArtworkOpacityField value={d.opacity} onChange={(v) => set('decoration', { ...d, opacity: v })} />
           </div>
           {!artwork && <p className="text-[13px] text-muted-foreground">Until a picture is uploaded the pages stay plain.</p>}
         </div>
       )}
       {part !== 'classic' && photos}
-      <div className="grid gap-3 md:grid-cols-2">{part !== 'classic' && logoField}{footerField}</div>
+      {part !== 'classic' && logoField}
+      <div className="grid gap-3 md:grid-cols-2">{footerField}</div>
     </div>
   );
 }

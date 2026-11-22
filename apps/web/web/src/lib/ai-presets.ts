@@ -75,3 +75,7 @@ export function modelSummary(d: ProviderDraft): string {
   const prices = i && o && Number.isFinite(Number(i)) && Number.isFinite(Number(o)) ? `${usd(Number(i))} in, ${usd(Number(o))} out per million tokens` : 'no prices, so the budget cannot count its calls';
   return [d.model.trim() || 'no model yet', prices].join(' · ');
 }
+
+// The monthly budget's presets, in US dollars, for Settings, AI and the guided setup alike (one PresetNumber), and the one the setup starts on.
+export const BUDGET_PRESETS: readonly number[] = [5, 10, 25, 50, 100];
+export const DEFAULT_BUDGET = 25;

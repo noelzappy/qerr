@@ -7,12 +7,12 @@ import { api } from '../../api';
 import { useLoad } from '../../hooks';
 import { errorMessage, fieldErrors } from '../../lib/errors';
 import { useUnsavedGuard } from '@/hooks/use-unsaved-guard';
-import { BusyButton, ErrorBlock, FormProblem, TextField } from '@/components/kit';
+import { BusyButton, ErrorBlock, FormProblem, PresetNumber, TextField } from '@/components/kit';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { ChoiceRow } from '../batches/editor/ChoiceRow';
 import { SEARCH_KIND_LABEL } from '../../lib/labels';
-import { ANTHROPIC_MODELS, BUDGET_PRESETS, DEFAULT_BUDGET, providerBody, readBudget } from './flow';
+import { ANTHROPIC_MODELS, BUDGET_PRESETS, DEFAULT_BUDGET, providerBody } from './flow';
 import { StepActions, StepHeader, type StepProps } from './parts';
 
 interface AiAnswer {
@@ -43,8 +43,8 @@ export function StepAi({ reload, mark, next }: StepProps) {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
   const [fine, setFine] = useState(false);
-  const [budget, setBudget] = useState<number | 'custom' | null>(null);
-  const [customBudget, setCustomBudget] = useState('');
+  // the budget chosen here; null until the person chooses (then the saved one, else the default)
+  const [budget, setBudget] = useState<number | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchKind, setSearchKind] = useState<'brave' | 'tavily' | 'exa'>('brave');
   const [searchKey, setSearchKey] = useState('');
@@ -58,8 +58,7 @@ export function StepAi({ reload, mark, next }: StepProps) {
   const d = data.data;
   const existing = d.providers.find((p) => p.enabled) ?? d.providers[0] ?? null;
   const savedBudget = d.budget.monthlyBudgetUsd;
-  const budgetChoice = budget ?? (savedBudget && (BUDGET_PRESETS as readonly number[]).includes(savedBudget) ? savedBudget : savedBudget ? 'custom' : DEFAULT_BUDGET);
-  const shownCustom = customBudget || (budget === null && savedBudget && budgetChoice === 'custom' ? String(savedBudget) : '');
+  const amountShown = budget ?? (savedBudget && savedBudget > 0 ? savedBudget : DEFAULT_BUDGET);
   const chosen = ANTHROPIC_MODELS.find((m) => m.id === preset) ?? ANTHROPIC_MODELS[0];
   // What the form will send: the preset's values unless Fine-tune changed them.
   const modelId = kind === 'anthropic' ? (model.trim() || chosen.model) : model.trim();
@@ -70,7 +69,7 @@ export function StepAi({ reload, mark, next }: StepProps) {
   async function save(e: FormEvent) {
     e.preventDefault();
     const problems: Record<string, string> = {};
-    const amount = budgetChoice === 'custom' ? readBudget(shownCustom) : budgetChoice;
+    const amount = Number.isFinite(amountShown) && amountShown > 0 ? amountShown : null;
     if (!existing) {
       if (apiKey.trim().length < 8) problems.apiKey = 'Paste the key, or skip this step for later';
       if (/\s/.test(apiKey.trim())) problems.apiKey = 'The key cannot contain spaces';
@@ -139,12 +138,9 @@ export function StepAi({ reload, mark, next }: StepProps) {
       )}
 
       <div className="flex flex-col gap-2 border-t pt-4">
-        <ChoiceRow legend="Monthly budget" value={budgetChoice} onChange={(v) => setBudget(v as number | 'custom')}
-          choices={[...BUDGET_PRESETS.map((n) => ({ value: n as number | 'custom', label: `$${n}` })), { value: 'custom', label: 'Custom' }]} />
-        {budgetChoice === 'custom' && (
-          <TextField label="Dollars a month" className="max-w-48" inputMode="decimal" value={shownCustom} onChange={(e) => setCustomBudget(e.target.value)} error={fields.budget} placeholder="40" />
-        )}
-        {fields.budget && budgetChoice !== 'custom' && <p className="text-[12.5px] text-destructive">{fields.budget}</p>}
+        <PresetNumber label="Monthly budget (US dollars)" presets={BUDGET_PRESETS.map((v) => ({ value: v, label: `$${v}` }))}
+          value={amountShown} min={0.01} max={100000} step={0.01} unit="US dollars" error={fields.budget}
+          onChange={(v) => setBudget(v)} onInvalid={() => setBudget(NaN)} />
         <p className="text-[12.5px] text-muted-foreground">When the month's spend reaches it, the AI stops until the next month.</p>
       </div>
 

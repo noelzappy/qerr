@@ -81,6 +81,16 @@ describe('the markup', () => {
     expect(bad).not.toContain('A remark');
     expect(draw(-0.03, { note: 'A remark' })).toContain('role="status"');
   });
+  it('offers a first choice for no number, chosen while there is none, and Custom otherwise for none', () => {
+    const empty = { label: "The brand's own", onChoose: () => {} };
+    const html = draw(null, { empty });
+    expect(html).toContain("The brand&#x27;s own");
+    expect(checked(html)).toEqual([true, false, false, false, false]);
+    expect(html).not.toContain('type="number"');
+    expect(checked(draw(-0.02, { empty }))).toEqual([false, false, true, false, false]);
+    // Without it, no number is Custom, as before.
+    expect(checked(draw(null))).toEqual([false, false, false, true]);
+  });
   it('disables every choice when disabled', () => {
     expect(draw(0, { disabled: true })).toMatch(/<fieldset[^>]*disabled=""/);
   });
