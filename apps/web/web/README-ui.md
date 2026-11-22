@@ -8,7 +8,7 @@ stylesheet are gone: everything is Tailwind utilities, the theme tokens and the 
 | Path | What |
 | --- | --- |
 | `src/components/ui/*` | shadcn components (button, input, textarea, label, select, checkbox, switch, dialog, alert-dialog, sheet, drawer, table, badge, card, tabs, dropdown-menu, sonner, alert, skeleton, tooltip, popover). Owned by us: edit freely. |
-| `src/components/kit/` | The one shared kit, imported from `@/components/kit`: `TextField`, `FormField`, `Notice`, `FormPanel` (see below), `PageHeader`, `DataList`, field wrappers, `SegmentedField` (2 to 4 choices, or chips for a longer list, as one radio group: use it instead of a dropdown for small choices and filters; `onValueChange` or `onChange`, `tag` or `marker`), `TagInput` (the one tag control: chips, Enter, comma or Add), `FilledTag` (the "Auto" / "From the file name" mark beside a value the app filled in), states (`RowsSkeleton`, `EmptyBlock`, `ErrorBlock`, `LoadingBlock`, `Pager`, `BusyButton`), `ConfirmAction`, badges, `PresetNumber` (named presets in a segmented row, each with an optional picture of its value, and "Custom…" for the exact number with its range and step; it shows which preset a value is or Custom, and never snaps a value). Add new shared composites here. `src/components/*.tsx` holds the domain pieces (activity parts, network icon, post row). Shared hooks that are not data loading are in `src/hooks/` (`use-media-query.ts`); the data hooks are in `src/hooks.ts`. |
+| `src/components/kit/` | The one shared kit, imported from `@/components/kit`: `TextField`, `FormField`, `Notice`, `FormPanel` (see below), `PageHeader`, `DataList`, field wrappers, `SegmentedField` (2 to 4 choices, or chips for a longer list, as one radio group: use it instead of a dropdown for small choices and filters; `onValueChange` or `onChange`, `tag` or `marker`), `TagInput` (the one tag control: chips, Enter, comma or Add), `FilledTag` (the "Auto" / "From the file name" mark beside a value the app filled in), states (`RowsSkeleton`, `EmptyBlock`, `ErrorBlock`, `LoadingBlock`, `Pager`, `BusyButton`), `ConfirmAction`, badges, `PresetNumber` (named presets in a segmented row, each with an optional picture of its value, and "Custom…" for the exact number with its range and step; it shows which preset a value is or Custom, and never snaps a value; `empty` adds a first choice for no number, such as "Brand's own"; the AI monthly budget uses it too, with $5 to $100 each showing how much of it this month has spent). Add new shared composites here. `src/components/*.tsx` holds the domain pieces (activity parts, network icon, post row). Shared hooks that are not data loading are in `src/hooks/` (`use-media-query.ts`); the data hooks are in `src/hooks.ts`. |
 | `src/index.css` | Tailwind import, fonts, theme tokens (light and dark). |
 | `src/lib/utils.ts` | `cn()` for class names. |
 | `src/lib/theme.ts` | `initTheme()`, `setTheme('light' \| 'dark' \| 'system')`, `useTheme()`. |
@@ -191,6 +191,18 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
   they are done; everything else waits for Save. The old Design direction tab is gone: choosing a look is **Settings, Looks**. Colours has
   **Contrast for large headlines** (Standard 4.5, High 7, or Custom 3 to 7, with a note below 4.5; `brand/contrast-display.tsx`, drawn by the kit's `PresetNumber`). "Series" is
   called "Post types". "Other currencies to flag" is a list of words; a stored pattern that the list cannot show is edited under Advanced.
+  Choices are drawn as what they look like (`brand/pickers.tsx`, on the Looks `CardChoice` and `PictureThumb`): the photo treatment as a
+  treated picture (As shot, Tinted, Duotone, Colour overlay), the decoration as pattern tiles, the logo's place as page diagrams, the
+  second half of a headline as samples in the brand's colours, a weight as an "Ag" strip of nine (with "Brand's own" first where it
+  applies), and a post type's page colour as swatches (`RolePicker`). The numbers are presets first (`brand/preset-fields.tsx`, the kit's
+  `PresetNumber`, whose `empty` choice stands for "Brand's own"): letter spacing, headline size, decoration strength, artwork opacity,
+  photo strength, each preset with a tiny picture of its value; a typed number out of range holds the Save bar. The logo offsets offer
+  "Measured" (read from the uploaded logo in the browser) and a "Measure from the logo" button (`brand/logo-offsets.tsx`). With a logo,
+  Colours offers **Colours from your logo** (`brand/logo-colours.tsx`, read with a canvas by `brand/logo-palette.ts`): pick which of the
+  four colours, then a swatch. Fine-tune shows the 20 role colours as a grid of swatches marked Automatic or Set by you; each opens a
+  popover with the picker, the hex code and "Reset to automatic" (`brand/role-grid.tsx`). Font names are set in their own face where the
+  server already serves the files: the look's Typeface choice (`looks/settings/font-choice.tsx`) and, in the Google Fonts list, the
+  families the engine's font library ships and the font in use.
 - **Looks** (`pages/settings/looks/`): `/settings/looks` (tabs Looks and Inspiration at `/settings/looks/inspiration`; the design references
   moved there from their own menu entry, `/settings/references` redirects), `/settings/looks/:slug` and `/settings/looks/:slug/designs/:id`
   (the design editor, below). The settings menu reads You, Brand (Brand and look, Looks, Classic layouts), Organisation (Team,
