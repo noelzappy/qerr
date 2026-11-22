@@ -494,12 +494,12 @@
           "ink": "on-field",
           "radius": "arch",
           "flow": "column",
-          "justify": "end",
+          "justify": "center",
           "align": "center",
           "pad": [
+            200,
             0,
             0,
-            150,
             0
           ],
           "gap": 8,
