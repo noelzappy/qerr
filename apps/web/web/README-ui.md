@@ -154,7 +154,11 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
 - The batch list's import tab is "Import a batch file", marked Advanced.
 - A post is added at `/batches/:id/posts/new` and edited at `/batches/:id/posts/:postId` (`batches/PostPage.tsx`, with
   `batches/editor/`). It is a page with breadcrumbs, not a side sheet: the form (words, date, networks, design) on the left and
-  a live preview on the right (stacked on a phone). Network choices and captions are edited here and saved with the post.
+  a live preview on the right (stacked on a phone). Network choices and captions are edited here and saved with the post: the
+  networks are icon chips (`components/network-toggles.tsx`) and the caption is tabs, "Same for all" plus one per network that is on
+  (`editor/CaptionFields.tsx`). What the form fills in itself is marked (`components/auto-tag.tsx`): the title "From the headline"
+  until someone types one (`editor/post-defaults.ts`), and the designed image "Auto" when a new post starts with it because the brand
+  has a look. Choices of two to four options are a row of radio chips (`editor/ChoiceRow.tsx`), never a native select.
   Designs are edited with a layout chooser, a picture picker and structured editors for figures, lists, carousel pages, tables
   and cards; the raw design JSON is under "Advanced". When the brand has a look or a design direction (`GET /api/posts/post-kinds` says so; with a look, `GET /api/looks/brief` supplies the kinds offered, the design names and the budgets) a
   new designed image is a *kind of post* (`editor/PostFields.tsx`, `editor/KindChooser.tsx`): Statement, Number, List, Quote, Picture,
@@ -165,7 +169,9 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
   the last edit, keeps the last good picture on screen and cancels a request that a newer edit has overtaken (`api.post` takes
   an optional `AbortSignal`; a cancelled request shows no error).
 - The post page's More menu has **Rewrite with AI** (disabled with "save first" while there are unsaved edits). It opens a small dialog
-  (`batches/RewritePostDialog.tsx`): "What should change?", a one-line statement that approval is taken off, Cancel and Rewrite. After
+  (`batches/RewritePostDialog.tsx`): "What should change?" as quick-ask chips (Shorter, Warmer, Lead with the figure, Less formal, Add a call
+  to action, Fix the facts) and "Anything else?" (optional), sent together as one instruction (`batches/rewrite-asks.ts`), a one-line
+  statement that approval is taken off, Cancel and Rewrite. After
   `POST /api/posts/:id/rewrite` the dialog follows the run with `useActivityRun`, then the page loads the post again, toasts "Rewritten" and
   the dialog shows the caption before and after. When `rewrite.available` is false the dialog shows the reason instead of enabling Rewrite.
 - Failure text from background work is shown by `lib/errors.ts` `readableFailure` / `failureLine` / `tidyBlocker` and
@@ -174,7 +180,8 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
   reason and **Make the image again** at the top of the preview column; the batch page's failed list links each post ("Open the post").
 - A post card on the batch page shows the image, title, date, one status chip (plus a problem chip when there is one), the
   network icons, **Edit**, **Approve** and a **More** menu.
-- **New batch** and **Draft with AI** are centred dialogs over the batch list (`/batches/new`, `/batches/ai-draft`).
+- **New batch** and **Draft with AI** are centred dialogs over the batch list (`/batches/new`, `/batches/ai-draft`). The period is
+  date chips (`batches/PeriodChips.tsx`, `batches/periods.ts`); New batch's title follows the dates and its time zone is under "More".
 - **Facts** and **Pictures**: a fact has its own page, `/vault/:id` (`/vault/new` adds one); a picture has `/library/:id`, and
   uploading is the page `/library/upload` (`/library?upload=1` redirects there). The lists keep their filters in the URL.
 - **Settings:** Team and the AI provider forms are dialogs. **Channels** (`/settings/channels`, `pages/Channels.tsx`) holds the Buffer accounts (compact rows, a menu with Edit, Check key and Delete, dialogs as before; `/settings/accounts`, `/admin/accounts` and `/admin/routing` redirect here, `#accounts` scrolls to them) above the table of where each network posts. With no account the page is the "Connect Buffer" empty state and the table is disabled; with one account every row's account is preselected.

@@ -1,11 +1,12 @@
 // The headline box, with a Highlight button that puts *asterisks* round the selected words (the words that stand out). With `marks`, also a
-// Pill button that puts [[brackets]] round one to three selected words (set in a pill where the look draws pills) and an icon menu that puts
+// Pill button that puts [[brackets]] round one to three selected words (set in a pill where the look draws pills) and an icon grid that puts
 // an {{icon}} mark at the caret (from the engine's own icons, `icons`).
 import { useRef, useState, type MouseEvent } from 'react';
 import { Highlighter } from 'lucide-react';
 import { TextAreaField } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { insertIcon, toggleHighlight, togglePill, type Highlighted } from './highlight';
+import { IconGrid } from './IconGrid';
 
 export function HeadlineField({ value, onChange, label = 'Headline', required, error, disabled, maxLength, hint, marks, icons = [] }: {
   value: string;
@@ -56,13 +57,7 @@ export function HeadlineField({ value, onChange, label = 'Headline', required, e
         {marks && (
           <>
             <Button type="button" variant="outline" size="sm" disabled={disabled} aria-label="Set the selected words in a pill" onClick={pill} onMouseDown={keep} className="h-7 max-sm:min-h-9">Pill</Button>
-            {icons.length > 0 && (
-              <select aria-label="Put an icon at the cursor" value="" disabled={disabled} onMouseDown={(e) => e.stopPropagation()} onChange={(e) => { if (e.target.value) icon(e.target.value); }}
-                className="h-7 max-w-[7rem] rounded-md border bg-background px-1.5 text-[12.5px] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-60 max-sm:h-9">
-                <option value="">Icon…</option>
-                {icons.map((n) => <option key={n} value={n}>{n.replace(/-/g, ' ')}</option>)}
-              </select>
-            )}
+            {icons.length > 0 && <IconGrid icons={icons} disabled={disabled} keepSelection={keep} onPick={icon} />}
           </>
         )}
         <Button type="button" variant="outline" size="sm" disabled={disabled} aria-label="Highlight the selected words" onClick={highlight} onMouseDown={keep} className="h-7 max-sm:min-h-9">

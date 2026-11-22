@@ -1,6 +1,6 @@
 // One post on its own page: Create / <batch> / <post>. The form on the left (when and where, caption, design, sources), the
 // live preview and the saved pictures on the right. Also the page that adds a post (/batches/:id/posts/new).
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
@@ -8,9 +8,10 @@ import { api } from '../../api';
 import { useDocumentTitle, useLoad } from '../../hooks';
 import { FailureText } from '@/components/failure-text';
 import { blockerKind, errorMessage, fieldErrors, tidyBlocker } from '../../lib/errors';
-import { networkLabel } from '../../lib/labels';
 import { splitNotes } from '../../lib/post-notes';
-import { BusyButton, CheckField, EmptyBlock, FieldSet, FormProblem, Hint, LoadingBlock, MoreMenu, Notice, PageHeader, TextField, ToneBadge } from '@/components/kit';
+import { BusyButton, EmptyBlock, FormProblem, Hint, LoadingBlock, MoreMenu, Notice, PageHeader, TextField, ToneBadge } from '@/components/kit';
+import { AutoTag } from '@/components/auto-tag';
+import { NetworkToggles } from '@/components/network-toggles';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsaved-guard';
@@ -20,11 +21,13 @@ import { SeriesPicker } from './editor/SeriesPicker';
 import { usePostKinds } from './editor/use-post-kinds';
 import type { SeriesRef } from './editor/series-model';
 import { RewritePostDialog } from './RewritePostDialog';
-import { CaptionFields, Counter } from './editor/CaptionFields';
+import { CaptionFields } from './editor/CaptionFields';
+import { autoTitle, designForNewPost, TITLE_FROM } from './editor/post-defaults';
+import type { Json } from './editor/types';
 import { PreviewPane } from './editor/PreviewPane';
 import { usePreview } from './editor/usePreview';
 import { postFlow } from './flow/status';
-import { CAPTION_LIMIT, NETWORKS, type Network } from './labels';
+import { NETWORKS } from './labels';
 import { buildNetworks, currentCaptions, currentFlags, goesTo, readNetworks } from './networks';
 import { carouselPages, groupMedia } from './media-groups';
 import { mediaLabel, PostChips, PostConfirms, onlyWaitingForImage, postProblem, UploadInput, usePostActions } from './post-parts';
@@ -80,14 +83,29 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
   }), [rev, post?.id, post?.updatedAt]);
 
   const [title, setTitle] = useState(initial.title);
+  // A post that has a title keeps it; a new one follows its headline (else its caption) until someone types a title.
+  const [titleTouched, setTitleTouched] = useState(!!initial.title);
   const [caption, setCaption] = useState(initial.caption);
   const [date, setDate] = useState(initial.date);
   const [time, setTime] = useState(initial.time);
   const [on, setOn] = useState(initial.on);
   const [caps, setCaps] = useState(initial.caps);
   const [design, setDesign] = useState<DesignBlock | null>(initial.design);
+  // What the design is compared with for unsaved changes: the saved one, or the designed image a new post starts with.
+  const [designBase, setDesignBase] = useState<DesignBlock | null>(initial.design);
+  // The designed image was switched on for the person (a new post, and the brand has a look); said beside the switch.
+  const [designAuto, setDesignAuto] = useState(false);
+  const designChosen = useRef(false);
   const [series, setSeries] = useState<SeriesRef | null>(initial.series);
   const postKinds = usePostKinds();
+  useEffect(() => {
+    const start = designForNewPost(postKinds.loading ? undefined : postKinds.direction) as DesignBlock | null;
+    if (post || designChosen.current || !start) return;
+    designChosen.current = true;
+    setDesign(start); setDesignBase(start); setDesignAuto(true);
+  }, [post, postKinds.loading, postKinds.direction]);
+  const auto = autoTitle(design as Json | null, caption);
+  const effectiveTitle = (titleTouched ? title.trim() : '') || auto.title;
   const [jsonError, setJsonError] = useState('');
   const [showPreview, setShowPreview] = useState(false);
   const preview = usePreview(design, !!jsonError);
@@ -98,9 +116,9 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
   const [fields, setFields] = useState<Record<string, string>>({});
 
   const dirty = !saved && (
-    title !== initial.title || caption !== initial.caption || date !== initial.date || time !== initial.time
+    (titleTouched ? title : initial.title) !== initial.title || caption !== initial.caption || date !== initial.date || time !== initial.time
     || JSON.stringify(on) !== JSON.stringify(initial.on) || JSON.stringify(caps) !== JSON.stringify(initial.caps)
-    || JSON.stringify(design) !== JSON.stringify(initial.design) || JSON.stringify(series) !== JSON.stringify(initial.series)
+    || JSON.stringify(design) !== JSON.stringify(designBase) || JSON.stringify(series) !== JSON.stringify(initial.series)
   );
   useUnsavedGuard(dirty);
 
@@ -131,6 +149,9 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
     setDetail(next);
     setRev((r) => r + 1);
     setTitle(next.post.title);
+    setTitleTouched(!!next.post.title);
+    setDesignBase(next.post.design ?? null);
+    setDesignAuto(false);
     const savedBase = readNetworks(next.post.networks);
     setCaption(next.post.caption); setDate(next.post.date); setTime(next.post.time);
     setOn(currentFlags(savedBase, batch.defaultNetworks)); setCaps(currentCaptions(savedBase)); setDesign(next.post.design ?? null);
@@ -143,7 +164,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
   async function submit(e: FormEvent) {
     e.preventDefault();
     const problems: Record<string, string> = {};
-    if (!title.trim()) problems.title = 'Give the post a title';
+    if (!effectiveTitle) problems.title = 'Give the post a title';
     if (!caption.trim()) problems.caption = 'Write the main caption';
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) problems.date = 'Choose a date';
     if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) problems.time = 'Choose a time';
@@ -158,7 +179,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
     try {
       if (post) {
         const body: Record<string, unknown> = {};
-        if (title.trim() !== initial.title) body.title = title.trim();
+        if (effectiveTitle !== initial.title) body.title = effectiveTitle;
         if (caption !== initial.caption) body.caption = caption;
         if (date !== initial.date) body.date = date;
         if (time !== initial.time) body.time = time;
@@ -172,7 +193,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
         adopt(next);
       } else {
         const r = await api.post<{ posts: Array<{ id: string }> }>(`/api/batches/${batch.id}/posts`, {
-          posts: [{ title: title.trim(), caption, date, time, networks, ...(design ? { design } : {}), ...(series ? { series } : {}) }],
+          posts: [{ title: effectiveTitle, caption, date, time, networks, ...(design ? { design } : {}), ...(series ? { series } : {}) }],
         });
         toast.success('Saved. The new post starts as Writing');
         setSaved(true);
@@ -271,24 +292,20 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
       <div className="grid grid-cols-1 gap-x-10 gap-y-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
         <div className="flex min-w-0 max-w-[720px] flex-col gap-6 lg:col-start-1 lg:row-start-1">
           <Section title="When and where">
-            <TextField label="Title" hint="A label for the team. It is not published." value={title} maxLength={200} error={fields.title} onChange={(e) => setTitle(e.target.value)} />
+            <TextField
+              label={<>Title{!titleTouched && auto.from && <AutoTag>{TITLE_FROM[auto.from]}</AutoTag>}</>}
+              hint="A label for the team. It is not published. It follows the headline (or the caption) until you change it."
+              value={titleTouched ? title : auto.title} placeholder={auto.title || undefined} maxLength={200} error={fields.title}
+              onChange={(e) => { setTitleTouched(true); setTitle(e.target.value); }}
+            />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <TextField label="Date" type="date" value={date} error={fields.date} onChange={(e) => setDate(e.target.value)} />
               <TextField label="Time" type="time" value={time} error={fields.time} hint={`In ${batch.timezone}.`} onChange={(e) => setTime(e.target.value)} />
             </div>
-            <FieldSet legend="Networks" error={fields.networks}>
-              <div className="grid w-full grid-cols-1 gap-x-6 gap-y-0.5 sm:grid-cols-2">
-                {NETWORKS.map((n) => {
-                  const text = caps[n]?.trim() ? caps[n]! : caption;
-                  return (
-                    <div key={n} className="flex items-center justify-between gap-3">
-                      <CheckField label={networkLabel(n)} checked={!!on[n]} onCheckedChange={(c) => setOn({ ...on, [n]: c })} />
-                      {on[n] && <Counter value={text} limit={CAPTION_LIMIT[n as Network]} />}
-                    </div>
-                  );
-                })}
-              </div>
-            </FieldSet>
+            <NetworkToggles
+              value={NETWORKS.filter((n) => on[n])} error={fields.networks}
+              onChange={(list) => setOn(Object.fromEntries(NETWORKS.map((n) => [n, list.includes(n)])) as Record<string, boolean>)}
+            />
           </Section>
 
           <Section title="Caption">
@@ -299,7 +316,10 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
             {postKinds.direction !== null && !postKinds.loading && (
               <SeriesPicker value={series} onChange={setSeries} design={design} onDesign={setDesign} kinds={postKinds.kinds} disabled={!!jsonError} />
             )}
-            <DesignFields design={design} jsonError={jsonError} networks={NETWORKS.filter((n) => on[n])} onChange={(d, err) => { setDesign(d); setJsonError(err); }} />
+            <DesignFields
+              design={design} jsonError={jsonError} networks={NETWORKS.filter((n) => on[n])} autoOn={designAuto}
+              onChange={(d, err) => { designChosen.current = true; if (d === null) setDesignAuto(false); setDesign(d); setJsonError(err); }}
+            />
             {fields.design && <p className="text-[13px] font-medium text-destructive" role="alert">{fields.design}</p>}
           </Section>
 

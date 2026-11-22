@@ -10,6 +10,7 @@ import { HeadlineField } from './HeadlineField';
 import { FocalPicker, ZoomField } from './ImageOptions';
 import { KindChooser } from './KindChooser';
 import { budgetsFor } from './look-brief';
+import { ChoiceRow } from './ChoiceRow';
 import { ListEditor } from './ListEditor';
 import { InfoEditor } from './InfoEditor';
 import { GalleryEditor } from './GalleryEditor';
@@ -141,7 +142,15 @@ export function PostFields({ design, onChange, direction, kinds, limits, offered
       )}
       <KindChooser value={kind} offered={offered} disabled={disabled} onChange={(k) => onChange(switchKind(d, k, kinds))} />
       {body}
-      {looks.length >= 2 && (
+      {looks.length >= 2 && looks.length <= 3 && (
+        <ChoiceRow<string>
+          legend="Look" value={variant === undefined ? '' : String(variant)} disabled={disabled}
+          tip={chosenLook?.describe || 'Automatic picks a design from the post, so a batch varies.'}
+          onChange={(v) => onChange(setVariant(d, v === '' ? undefined : Number(v)))}
+          choices={[{ value: '', label: 'Automatic' }, ...looks.map((v) => ({ value: String(v.variant), label: v.name }))]}
+        />
+      )}
+      {looks.length > 3 && (
         <SelectField
           label="Look" value={variant === undefined ? '' : String(variant)} disabled={disabled}
           hint={chosenLook?.describe || 'Automatic picks a design from the post, so a batch varies.'}

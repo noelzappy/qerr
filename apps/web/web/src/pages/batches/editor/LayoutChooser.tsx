@@ -1,7 +1,8 @@
-// Chooses a layout: the built-in ones in groups, then the brand's own. A value is an engine template name or `layout:<id>`.
+// Chooses a layout: the built-in ones in groups, then the brand's own (the kit's select, with groups). A value is an engine
+// template name or `layout:<id>`.
 import { useId } from 'react';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { pageLayouts, PAGE_TEMPLATES } from '../design-model';
 import { LAYOUT_CATALOGUE, LAYOUT_GROUPS } from './catalogue';
 import type { LayoutBrief } from './types';
@@ -29,32 +30,26 @@ export function LayoutChooser({ value, onChange, brandLayouts, disabled, page = 
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <Label htmlFor={id}>Layout</Label>
-      <select
-        id={id}
-        value={value}
-        disabled={disabled}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        onChange={(e) => onChange(e.target.value)}
-        className={cn(
-          'h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30 max-sm:h-11',
-          'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
-          'aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40',
-        )}
-      >
-        {!known && value !== '' && <option value={value}>{value.replace('layout:', 'Your layout: ')}</option>}
-        {value === '' && <option value="" disabled>Choose a layout</option>}
-        {LAYOUT_GROUPS.filter((g) => builtInChoices.some((l) => l.group === g)).map((g) => (
-          <optgroup key={g} label={g}>
-            {builtInChoices.filter((l) => l.group === g).map((l) => <option key={l.value} value={l.value}>{l.name}</option>)}
-          </optgroup>
-        ))}
-        {ownChoices.length > 0 && (
-          <optgroup label="Your layouts">
-            {ownChoices.map((l) => <option key={l.id} value={`layout:${l.id}`}>{l.description ? `${l.name}: ${l.description}` : l.name}</option>)}
-          </optgroup>
-        )}
-      </select>
+      <Select value={value} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger id={id} className="w-full min-w-0 max-sm:h-11 max-sm:text-base" aria-invalid={error ? true : undefined} aria-describedby={describedBy}>
+          <SelectValue placeholder="Choose a layout" />
+        </SelectTrigger>
+        <SelectContent position="popper" className="max-h-[min(24rem,var(--radix-select-content-available-height))]">
+          {!known && value !== '' && <SelectItem value={value}>{value.replace('layout:', 'Your layout: ')}</SelectItem>}
+          {LAYOUT_GROUPS.filter((g) => builtInChoices.some((l) => l.group === g)).map((g) => (
+            <SelectGroup key={g}>
+              <SelectLabel>{g}</SelectLabel>
+              {builtInChoices.filter((l) => l.group === g).map((l) => <SelectItem key={l.value} value={l.value}>{l.name}</SelectItem>)}
+            </SelectGroup>
+          ))}
+          {ownChoices.length > 0 && (
+            <SelectGroup>
+              <SelectLabel>Your layouts</SelectLabel>
+              {ownChoices.map((l) => <SelectItem key={l.id} value={`layout:${l.id}`}>{l.description ? `${l.name}: ${l.description}` : l.name}</SelectItem>)}
+            </SelectGroup>
+          )}
+        </SelectContent>
+      </Select>
       {purpose && <p id={`${id}-purpose`} className="text-[13px] text-muted-foreground">{purpose}</p>}
       {error && <p id={`${id}-error`} className="text-[13px] font-medium text-destructive" role="alert">{error}</p>}
     </div>
