@@ -997,10 +997,23 @@ with a sentence that says what to change.
 
 | Check | Rule |
 |---|---|
-| Emptiness | The largest rectangle that no text, picture or deliberate filled device covers is at most 45% of the page. A composition may declare a calm area (`calm: { maxShare }`, above 0.45 and up to 0.8) and is then held to that. |
+| Emptiness | The largest rectangle that no text, picture or deliberate filled device covers is at most 45% of the page. A composition may declare a calm area (`calm: { maxShare }`, above 0.45 and up to 0.8) and is then held to that. A decorative pattern (a look's `backdrop`) covers the page only where its pixels show it: the renderer hides everything but the patterns, takes a picture of the page, and counts a 20 px cell as covered when, in a window round it (twice the pattern's spacing, inside the pattern's box), the brightest and darkest 5% of the pixels differ by at least 1.5:1 (`patternCover` in `lib/design/runtime.mjs`). A quiet pattern, and the faded part of one, stays empty space. |
 | Scale | The headline (or the big numeral) is at least 2.6 times the largest body text, judged at the size it was designed for, before the fit loop shrank it. |
 | Levels | At most three sizes of type, sizes within 2 px counting as one. A headline fitted line by line counts as one level. |
 | Grid | Every text block's left edge (or right edge, or centre) sits on the margin, a column line or the page centre, within 2 px. A block marked `data-grid="skip"`, and a block inside `data-deco`, is not judged. |
+| Edge | No line of text has its ink within 10 px of the edge of a straight filled shape (a block, a filled box, a sticker, a gradient area, a badge), nor crosses it, nor sits that close inside it. Turned text and turned shapes are left out; a shape is judged by its rectangle. A look may let one text cross the edge of one shape on purpose (`overlap`, below): only that pairing is skipped, every other shape is still judged, and the words are then measured for contrast part by part. |
+
+**Words that cross a shape's edge on purpose** (approved by the owner on 22 Nov 2026). A headline breaking out of its panel or running across a circle
+is allowed only when the look says so for that text: the shape carries a `key` (one of `a` to `f`), the text an `overlap: { with: <key> | "any-shape",
+allow: true, outline? }`. It is author intent, never a default, and it changes only the edge check for that pairing (`crossesOnPurpose` in
+`lib/design/checks.mjs`). Everything else is still measured: the fit check, the overlap of text with other text (a headline's emphasised phrase now
+counts with its headline there and at the margins), the enlargement and pixel size, and the contrast, which is judged on each part of the words on its
+own: the runtime cuts the words' rectangles at the edges of the shapes they may cross and measures each side on its own pixels (`measure` in
+`lib/design/runtime.mjs`, `partContrast` in `lib/design/render.mjs`), so words that run from a dark panel onto a light page must read on both, even
+where only a sliver of them crosses. Words that cannot read on both may carry an outline (`overlap.outline: { colour, w }`, 2 to 12 px): a part then
+passes when the letters reach the target on its pixels, or when the outline does AND the letters reach it on the outline, and only when the outline is
+at least 3% of the type size. The look's static check holds the same rule by the ink table: the ink must read on the shape and on the ground, or the
+outline on the one it does not and the ink on the outline.
 
 Two rules about fit. A post's headline may shrink to 82% of its designed size (`POST_MIN_SCALE` in `render.mjs`); below that
 the render is refused with "shorten the headline to about N characters", an estimate from how much of it fitted. And a
@@ -1141,6 +1154,11 @@ a time, and writes only under the repository; `out/` is ignored by git. Look at 
 - Chrome versions: the tests run with current Google Chrome on macOS and Linux. The container's Debian Chromium is
   checked by `deploy/check.sh` with one text page only.
 - Images are checked for pixel size and loaded fonts, not for correct language, facts or figures. Check the numbers.
+- The edge check (text near or across the edge of a shape) judges a shape by its rectangle: text inside a round shape's rectangle but past its
+  curve (a line in the corner of a circle's box) is not refused. Place words well inside a circle, or let them cross it on purpose (`overlap`),
+  and look at the picture.
+- A pattern's cover (emptiness) is read against the page colour with everything else hidden; a pattern over a panel of another colour is
+  judged as if it stood on the page.
 
 ## Looks as data: the schema
 
@@ -1205,6 +1223,7 @@ stored. At most 21 compositions, at most 3 of a kind.
 | `paper-texture` | A light paper grain over the page or an area (decoration, never a fill the checks count) |
 | `icon-badge` | One of the engine's own icons (`lib/design/icons.mjs`) drawn large: bare, or on a round or rounded badge in a fill colour (a shield on a trust page, a tick, a small sticker beside a big figure) |
 | `ribbon` | A straight band across one corner of the page at 45 degrees, in a colour role, with an optional thin stripe of a second role on its corner side; no words |
+| `backdrop` | A decorative background: dots, halftone, a grid, stripes, rings, waves, a soft blob mesh, confetti, plus marks, a checker or the page grain, in one or two colour roles, over the page, a panel's area or fading out |
 
 A `text` with `source: "swipe"` writes "Swipe" and the engine's arrow icon, only on a carousel page that has a page after it (its place in the carousel); on a
 single post, a post placed in a batch and the last page it is empty. A pill and the punctuation right after it (`[[an app]],`) are kept on one line, and a pill's
@@ -1252,6 +1271,9 @@ need two properties are listed here.
 | `box`, `gradient` | `gradient` | `{ kind: linear\|radial, stops, angle?, at?, shape?, mid? }`: two or three colour roles a panel can be filled with (never a hex), `angle` a whole number 0 to 359 (linear only, 180 when left out), `at` one of the nine points and `shape` circle or ellipse (radial only), `mid` 20 to 80 percent (three stops only). A box takes `fill` or `gradient`, not both. Text on a gradient (its own box, or a gradient area under it) must use an ink that reads on EVERY stop: the worst stop decides |
 | `overlay` | `colour`, `from`, `need`, `floor`, `cap`, `fade` | A colour a panel can be filled with; `flat`, `bottom` or `top`; the contrast 3 to 7 the words must reach; the strength range (`floor` at most `cap`, `cap` at most 0.95); `fade` 0 to 800 px, not on a flat overlay. It backs words over a picture like a scrim (the words must lie inside it), and their ink must read on its colour. When the page is made the runtime reads the picture's own pixels under the words and raises the strength from `floor` until they reach `need` (light words: the brightest 5% are held to it; dark words: the darkest 5%), no further than `cap`; the render's contrast check then measures the finished pixels as for every page |
 | `graphic` | `ref`, `at`, `size`, `edge`, `dx`, `dy`, `flip`, `tint`, `rot`, `z`, `when` | `ref` a vault id; `at` one of `top-left`, `top`, `top-right`, `left`, `center`, `right`, `bottom-left`, `bottom`, `bottom-right`, inside the margins or, with `edge`, against the page edge; `size` `s`, `m`, `l`, `xl` (0.22, 0.34, 0.5, 0.72 of the page width) or 24 to 1350 px, the height from the picture's own proportions and never taller than the page; `dx` -540 to 540, `dy` -675 to 675; `tint` a fill colour role, drawn only for a graphic marked recolourable (else it keeps its colours, with a warning). It goes on the page, never in a box, and takes no `place`. The picture reaches the page only as the checked `data:` URI of the post's `graphics` (ctx.image); it is a user image, so the enlargement and emptiness checks read it. The text-over-a-picture rule does not judge it (its height is known only when drawn); the contrast check on the pixels does |
+| `box`, `block`, `sticker`, `gradient`, `icon-badge` | `key` | One of `a` to `f`: names a filled shape so that a text may cross its edge. Unique in a composition; refused on a box with no fill or gradient, a seal and an icon without its badge (the edge check does not judge those) |
+| `text`, `fitted-stack` | `overlap` | `{ with, allow, outline? }`: `with` a key of the same composition or `any-shape`, `allow` must be `true`, `outline` `{ colour, w }` (a colour role, 2 to 12 px). Refused when the key names no shape of the composition or the box the words sit in; at most three texts of a composition cross. The ink must read on the shape and on what the words stand on (or an outline carries a part, see Edge above) |
+| `backdrop` | `pattern`, `colour`, `second`, `scale`, `density`, `opacity`, `angle`, `seed`, `mask`, `at`, `radius`, `corners`, `place`, `z`, `when` | Goes at the top of a composition (the place of the panel it decorates, and a layer). `colour` and `second` are colours a panel can be filled with (the accent when left out); `second` only for confetti and blobs, `seed` (0 to 9999) only for them, `at` (nine points) only for rings and halftone, `angle` (0 to 179) only for the patterns with a direction; the grain takes only `scale` (over 40: coarse), `opacity` and `mask` |
 
 **What `validateLook` refuses** (every message says where, quotes only a short plain value, never echoes other input, and is at most 200
 characters): unknown keys at every level, wrong types, out-of-range numbers, values outside a fixed list, a family not in the font
@@ -1331,6 +1353,7 @@ outside the margin.
 | `info-rows` | `layout` (beside, stacked), `labelSpan` (1 to 6 grid columns; beside only), `valueStyle` (body, item, label), `valueSize` (20 to 60), `maxLines` (1 or 2; the words step down to 82% first), `labelInk`, `rule`, `gap`, `upper`. Each value sits in a cell as tall as its lines (`data-cell`): words that still run out are refused by the fit check |
 | `button` | `field` (cta, tag, label), `shape` (pill, rounded, square), `size` (20 to 60), `font` (label, display, text), `upper`, `icon` (none or an icon name), `width` (hug, full), `align` (hugging only); `fill` and `ink` (default accent and on-accent, a pair from the ink table). The words never wrap; its place is their cell |
 | `ribbon` | `corner` (top-left, top-right, bottom-left, bottom-right), `at` (40 to 480 px from the corner along each edge), `w` (16 to 200), `colour`, `edge` (a second role, optional), `edgeW` (4 to 40); its geometry is a clipped box computed from these numbers |
+| `backdrop` | `pattern` (dots, halftone, grid, stripes, rings, waves, blobs, confetti, plus, checker, grain), `colour`, `second`, `scale` (12 to 240 px: the spacing, or a blob's size), `density` (0.1 to 1: dot size, line weight, how many marks), `opacity` (0.03 to 0.6), `angle` (0 to 179), `seed` (0 to 9999), `mask` (none, fade-down, fade-up, fade-left, fade-right, vignette, edges), `at`; `radius` and `corners` round a panel's pattern. The geometry is pure (`directions/backdrop-geom.mjs`): one inline SVG of `<path>` elements whose path data is numbers rounded to a tenth of a pixel and whose colours are palette roles, or for the blob mesh two to four CSS radial gradients of palette roles at whole percentages; the masks are a fixed table. The same numbers draw the same pattern every time (a seeded generator); at most 5000 marks, the spacing grows when a box would hold more. Decoration (`data-deco`, `data-pattern`): the contrast check measures the words on the finished pixels, the pattern included; the emptiness check counts it only where its pixels show it. `PRESETS` in the primitive holds ready-made settings (the quiet ones: dots, grid, rings, waves, stripes and grain at 6 to 25% strength) |
 | `photo-row` | `size` (80 to 400, the most a circle is across; smaller when the row needs the room, refused below 60), `gap`, `overlap` (needs gap 0 and a ring, no names), `align`, `captions`, `captionInk`, `treat`; `ring`, a soft `shadow`. It counts as a picture for the text-over-picture check |
 | `taped-photo` | `mount` (0 to 40 px of paper border; `fill`, its colour, only with a mount), `keyline` (0 to 8 px) and `keylineColour`, `tapeOn` (`diagonal`, `other-diagonal`, `top`, `all`), `tapeColour` (a role; the tape is drawn see-through with torn ends by `kit.css`), `tapeLength` (60 to 260), `tapeWidth` (20 to 80), `treat`; `rot`, `shadow`. Its place needs a width and a height; the picture is read and checked like every picture and counts as one for the text-over-picture check. A post with no picture draws nothing |
 | `paper-texture` | `strength` (0.05 to 0.6), `grain` (`fine`, `coarse`): the page's own grain (`--k-grain`) multiplied over the ground; `data-deco`, so the emptiness check does not count it, and the contrast check measures the finished pixels |
@@ -1371,13 +1394,13 @@ paper, `on-field` to the ink, `body-dark` and `muted-dark` to the light greys), 
 ### The shipped looks and the engine's hooks
 
 `shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss, soft, bloom, clean, loud, ledger, studio, roast, plate, guide }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each: two
-statements, a figure, a list, a quote, two photos, an event and an offer; loud has thirteen, ledger twelve, see below, studio seventeen, roast twelve, plate ten and guide ten), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
+statements, a figure, a list, a quote, two photos, an event and an offer; soft has ten (a third statement), loud thirteen, ledger twelve, see below, studio seventeen, roast twelve, plate ten and guide ten), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
 data counterpart of the code directions of the same name: retail is held to the code (the same budgets, names and grounds; geometry within 3 px of the
 code compositions in `test-design-look-equivalence.mjs`, with the deviations listed there: the roles of the unit and the date tile, and the wrapping
 highlight bar 0.12 em against 0.13 em); swiss is held to the approved prototype by eye. Soft (one sans in medium weights on pale tints of the brand colour, the logo top
 left and the web address top right, rounded panels and pills, pictures that melt into a page sampled from their own edge, a myth and fact page and a big
-figure over a rounded panel) bloom (a serif with italics, arch, oval and circle windows, keylines and dotted rules) and clean (the classic poster pages as a look: the brand's own
-fonts, two-tone headlines, a picture melting into a page sampled from its edge, myth and fact on rounded cards on the dark page) and studio (an editorial product-studio feed in Inter: a tight bold grotesk in cream or near-black on a red,
+figure over a rounded panel, and a statement whose headline breaks out of a large white disc: `statement/2` Breakout, the shipped example of `overlap`) bloom (a serif with italics, arch, oval and circle windows, keylines and dotted rules) and clean (the classic poster pages as a look: the brand's own
+fonts, two-tone headlines, a picture melting into a page sampled from its edge, myth and fact on rounded cards on the dark page, fine rings of the brand colour spreading from a corner of the dark quote page: a `backdrop`) and studio (an editorial product-studio feed in Inter: a tight bold grotesk in cream or near-black on a red,
 black or cream page, one accent (`one-accent`: the brand's primary is the field and the coloured final word), numbered rows on thin rules, report covers with a
 short red line and a red second line, a job post with a light title and a drawn phone outline, a speaker card with a picture on a colour block and a two-colour
 footer of the meta line and When / Where rows, an application page with a corner ribbon and the date on a yellow pill, yellow highlight pills, the web address
@@ -1418,7 +1441,7 @@ in the font library) in capitals with one or two words in a pill, on the brand c
 photo; "letter" pages on the light grey `soft` ground under a paper texture, a greeting label (such as "Dear Founders,") and the headline as a
 paragraph in Hanken Grotesk 500 with its `*emphasis*` in bold (`emphasis: "bold"`) and up to two `{{icons}}` in round badges; a big figure with two
 round icon badges, a sentence and the picture taped on at an angle; series labels top left and top right; the brand name small at the foot or the
-top. Its designs: statement Shout, Letter, Centre stack; figure Truth metric (the only figure that shows a picture: `figure` compositions may
+top. Shout carries halftone dots in the dark colour rising from the bottom right corner (a `backdrop`). Its designs: statement Shout, Letter, Centre stack; figure Truth metric (the only figure that shows a picture: `figure` compositions may
 declare `image`), Big number; list Numbered; quote Loud quote, Letter quote; photo Dark photo, Taped on colour, Pasted note; event Poster; offer
 Price sticker. Its test copy is `testlib/loud-copy.mjs` and `test-design-look-loud.mjs` holds it (with Chrome: every composition from sample,
 stress and minimal copy in three sets of brand colours). The fictional `brands/tallyho` pack shows it off. What it cannot do yet: the

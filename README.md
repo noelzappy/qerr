@@ -451,7 +451,9 @@ The engine tests, in `packages/engine/`:
 - `test-brand-tallyho.mjs`: the Tallyho pack loads, its spelling rules hold, its example batch passes the post checks in the
   loud look, and its vault holds round, invented figures. `test-design-look-loud.mjs`: the loud look (pure, and with Chrome
   every composition through every check). `test-design-look-paste.mjs`: the taped picture, paper texture, icon badges, bold
-  emphasis and badged icons, with hostile values.
+  emphasis and badged icons, with hostile values. `test-design-look-surfaces.mjs`: text that crosses a shape's edge on purpose (only the named
+  pairing skipped, each part of the words measured for contrast) and the pattern backgrounds (bounded, the same every time,
+  counted as cover only where their pixels show them), with hostile values and, with Chrome, through every check.
 - `test-brand-northbeam.mjs`: the Northbeam pack loads, its colours carry the studio look, its spelling rules hold, and
   its example batch passes the post checks of the studio look.
 - `test-brand-outabout.mjs`: the Outabout pack loads in its copy of the guide look, its spelling rules hold, and its example

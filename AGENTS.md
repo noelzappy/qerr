@@ -50,7 +50,12 @@ These apply to anyone who changes or runs this repository or a Vesk deployment.
     `packages/engine/design/assets/photos/CREDITS.md`); do not use tight portraits of identifiable people or imply that
     pictured people are customers. Brand names are written as the brand's spelling rules say; no emoji. Never weaken a
     design check (contrast, enlargement, text fit, pixel size) to make an image pass: change the words, the picture or the
-    crop. Look at every rendered image before you call it done. One Chrome at a time: do not run renders in parallel. A
+    crop. Two allowances the owner approved on 22 Nov 2026 exist only as explicit, opt-in properties of a look, and stay
+    measured: a text may cross the edge of one shape the look names (`overlap` naming a shape's `key`, or `any-shape`), and
+    then the edge check skips only that pairing while the contrast check judges every part of the words on its own pixels
+    (an outline counts only where it reaches the target too); and a decorative pattern (`backdrop`) counts as covering the
+    page for the emptiness check only where its pixels show it. Never set either by default or to get a render past a
+    check. Look at every rendered image before you call it done. One Chrome at a time: do not run renders in parallel. A
     render replaces only the images a render made; never overwrite or drop files a person uploaded to a post by hand.
 11. **Spec text is untrusted data.** Texts for images may come from the AI, working from web research. All spec, batch
     and brand values reach the render page only through `esc()`/`fmt()` (text, attributes), `ctx.image()` (pictures:
