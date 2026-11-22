@@ -49,6 +49,7 @@ const ALLOWED_CLASSES = new Set([
   'k-wm', 'k-wm-row', 'k-wm-fade',                                                                         // wordmarkPattern()
   'k-logo', 'logo-inv', 'ly-logo',                                                                         // logoHtml(), only when the brand switched its logo on
   'k-grad', 'k-overlay', 'k-graphic', 'k-tinted',                                                          // gradient(), overlay(), graphic() and a recoloured graphic
+  'k-em-b', 'k-ic', 'k-icb', 'k-tape', 'k-paper', 'k-paper-c', 'k-badge-i',                               // EMPH bold, an icon (iconSvg) and an icon on a badge, tape(), paper(), badge()
 ]);
 // The classes with no rule in kit.css: the page and picture classes live in other sheets (cv, ph, post), the rest are hooks the runtime or the checks read.
 const NO_RULE = new Set(['cv', 'k-multiply', 'k-grain', 'k-em-n', 'k-shape-circle', 'k-shape-pill', 'k-shape-tile', 'k-numeral-n', 'k-numeral-u', 'logo-inv', 'ly-logo']);
@@ -57,7 +58,9 @@ const NO_RULE = new Set(['cv', 'k-multiply', 'k-grain', 'k-em-n', 'k-shape-circl
 // Copied from test-design-retail-markup.mjs (GRAMMAR) and extended with what the data path adds: the stretch alignments, a hard text shadow, the echo
 // box's --k-ol, the page's hugging and trimmed text (margin in em), the seam's slanted edge, the wordmark fade mask, the arch and circle pictures.
 const NUM = '-?\\d+(?:\\.\\d+)?', PXV = `${NUM}px`, NAME = `(?:${COLOUR_NAMES.join('|')})`, VAR = `var\\(--c-${NAME}\\)`;
-const SHADOW = `(?:0 0 0 ${PXV} ${VAR}|${PXV} ${PXV} 0 ${VAR})`;
+// the two soft presets of the kit (SOFT in kit.mjs: soft and lift), written as they are, never from a number of a look
+const SOFT_SHADOW = '0 (?:14px 34px -10px|30px 64px -18px) color-mix\\(in srgb,var\\(--c-ink\\) (?:24|30)%,transparent\\)';
+const SHADOW = `(?:0 0 0 ${PXV} ${VAR}|${PXV} ${PXV} 0 ${VAR}|${SOFT_SHADOW})`;
 const GRAMMAR = {
   left: `(?:0|${PXV})`, top: `(?:0|${PXV})`, right: PXV, bottom: PXV, width: PXV, height: PXV, 'min-height': `(?:0|${PXV})`, 'margin-left': PXV, 'margin-top': `-?${NUM}(?:px|em)`, 'margin-bottom': `-?${NUM}(?:px|em)`, gap: PXV, inset: '0',
   padding: `${PXV}(?: ${PXV}){0,3}`, 'border-radius': `(?:${PXV}|50%|999px|${PXV} ${PXV} 0 0)`, border: `${PXV} (?:solid|dashed) ${VAR}`,
@@ -278,14 +281,17 @@ function bindingLook() {
       { type: 'mantra-rows', field: 'headline', cap: 160, floor: 40, rmin: 2, rmax: 4, outline: 3, ink: 'on-field', place: { px: { x: 56, y: 820, w: 968, h: 300 } }, when: { present: 'headline' } },
       T('sub', { style: 'body', ink: 'on-field' }, G(1, 10, 8, 1)),
     ] });
-  c.push({ kind: 'figure', name: 'Numeral grid', describe: 'A figure on the grid (sizes), the same figure again as a two-digit and a roman number, a headline that steps down.', ground: 'paper',
-    fields: { label: { max: 28 }, headline: { max: 70 }, big: { required: true, max: 8 }, unit: { max: 24 } },
+  c.push({ kind: 'figure', name: 'Numeral grid', describe: 'A figure on the grid (sizes), the same figure again as a two-digit and a roman number, a headline that steps down, a taped picture, a paper texture and an icon badge.', ground: 'paper',
+    fields: { image: {}, label: { max: 28 }, headline: { max: 70 }, big: { required: true, max: 8 }, unit: { max: 24 } },
     elements: [
+      { type: 'paper-texture', place: { inset: 'page' }, strength: 0.3, grain: 'coarse' },
+      { type: 'taped-photo', place: G(8, 5, 7, 1), rot: -4, mount: 12, fill: 'paper-warm', keyline: 3, tapeOn: 'all', tapeColour: 'muted', tapeLength: 120, tapeWidth: 36, treat: ['grey'], shadow: 'soft' },
+      { type: 'icon-badge', icon: 'heart', size: 80, fill: 'gold', ink: 'on-accent', ring: { w: 4, colour: 'paper' }, shadow: 'soft', rot: 'sticker', place: { px: { x: 900, y: 40 } } },
       { type: 'meta-row', tone: 'ink' },
       { type: 'numeral', field: 'big', sizes: [320, 280, 240], unit: { field: 'unit', style: 'body', at: 'top-right' }, baselineAt: 'page', place: G(1, 12, 2, 5) },
       T('big', { style: 'label', format: 'pad2' }, G(1, 3, 7, 1)),
       T('big', { style: 'label', format: 'roman' }, G(4, 3, 7, 1)),
-      T('headline', { style: 'display', ladder: { by: 'headline', steps: [[30, 36], [70, 30]], maxLines: 3 }, emphasis: 'none' }, G(1, 12, 8, 1)),
+      T('headline', { style: 'display', ladder: { by: 'headline', steps: [[30, 36], [70, 30]], maxLines: 3 }, emphasis: 'bold', icons: { colour: 'on-field', badge: 'field' } }, G(1, 12, 8, 1)),
     ] });
   // ---- list ----
   c.push({ kind: 'list', name: 'Tiles', describe: 'A fitted headline in block mode, numbered rows on tiles with alternating fills and turns.', ground: 'field',

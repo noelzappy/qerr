@@ -21,5 +21,11 @@ What to record:
 | File | Source | Author | Licence | Date | People | What is in it | Used |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `example.jpg` | https://example.com/photos/12345 | Example Author | Example licence (commercial use allowed) | 2026-01-01 | none | A row of jars on a plain shelf | not used |
+| `peg-figures-puzzle-circle.jpg` | supplied by the owner, 22 Nov 2026 | the owner | owner's own use | 2026-11-22 | none | Wooden peg figures in a ring on a puzzle disc, one red figure in the middle, on a peach ground; a 3D still life | Tallyho example batch (figure), loud look sheets |
+| `cubes-circle-one-orange-blue.jpg` | supplied by the owner, 22 Nov 2026 | the owner | owner's own use | 2026-11-22 | none | White cubes in a ring with one orange cube, on a blue ground | Tallyho example batch (photo), loud look sheets |
+| `game-pieces-circle-white.jpg` | supplied by the owner, 22 Nov 2026 | the owner | owner's own use | 2026-11-22 | none | Coloured game pieces in a circle round one blue piece, on white | Tallyho example batch (photo), loud look sheets |
+| `spheres-circle-one-red-lilac.jpg` | supplied by the owner, 22 Nov 2026 | the owner | owner's own use | 2026-11-22 | none | White spheres in a ring and one red sphere, on a lilac ground | Tallyho example batch (offer), loud look sheets |
+| `scout-man-backpack-checking-phone.jpg` | https://wordpress.org/photos/photo/53645e3e76/ | Blazej Zablotny | CC0 1.0 (WordPress Photo Directory, public domain dedication; commercial use allowed) | 2026-11-22 | one person, face out of frame (not identifiable) | A person in a fleece with a backpack checking a phone; no readable marks | Tallyho example batch (photo), loud look sheets |
+| `scout-stacking-block-tower-cafe.jpg` | https://wordpress.org/photos/photo/9856a13251/ | Tilak Bahadur Karki | CC0 1.0 (WordPress Photo Directory, public domain dedication; commercial use allowed) | 2026-11-22 | an arm at the right edge, cropped out | A tall tower of coloured stacking blocks on a cafe table; numbers printed on some blocks | Tallyho example batch (event), loud look sheets |
 
 Replace the example row with your own. Never record an API key or a password here.

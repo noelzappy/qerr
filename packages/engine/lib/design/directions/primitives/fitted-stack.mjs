@@ -23,7 +23,7 @@ export const SPEC = {
 export function render(c, p, env) {
   const { emphasis } = p, bar = ['bar', 'tilt-bar', 'own-line-bar'].includes(emphasis), role = p.field === 'tag' || p.field === 'big' || p.field === 'unit' ? 'stat' : 'headline';
   const html = p.field === 'big' || p.field === 'tag' || p.field === 'unit' ? c.text(p.field) : c.fmt(p.field);
-  const base = { ...env.box, colour: env.ink, align: p.align === 'left' ? undefined : p.align, role, emph: emphasis === 'accent' || emphasis === 'italic' ? emphasis : undefined };
+  const base = { ...env.box, colour: env.ink, align: p.align === 'left' ? undefined : p.align, role, emph: emphasis === 'accent' || emphasis === 'italic' || emphasis === 'bold' ? emphasis : undefined };
   if (p.mode === 'lines') {
     const auto = env.box.flow && p.grow;
     return c.fitLines(clean({

@@ -1,0 +1,47 @@
+// The loud look's test copy (sample = normal pages, stress = the longest copy that holds, minimal = the least a post of each kind needs).
+// Fictional: a polls and community app (the Tallyho pack). No real organisation, person or amount; every figure is round and illustrative.
+export const NORMAL = {
+  'loud/statement/0': { label: 'Startup journey', headline: 'We let our [[members]] pick the next feature', sub: 'They chose the boring one. It was the right call.' },
+  'loud/statement/1': { label: 'Dear Founders,', headline: 'A roadmap {{star}} *without a single vote* is just a *wish list.*' },
+  'loud/statement/2': { label: 'Next-gen', headline: 'Your [[members]] already know the answer', sub: 'Ask them first. Build second.' },
+  'loud/figure/0': { label: 'Truth metric', big: '80%', headline: 'of crews pick a meetup day *within an hour* of the poll going up.' },
+  'loud/figure/1': { label: 'Truth metric', big: '10,000', unit: 'votes a week' },
+  'loud/list/0': { label: 'Your unfair advantage', headline: 'Three polls to run [[this week]]', items: ['What should we build next?', 'Which day suits the meetup?', 'What nearly made you leave?'] },
+  'loud/quote/0': { label: 'Next-gen', quote: 'We stopped arguing in the group chat and started voting. Meetings got shorter.', by: 'A community lead' },
+  'loud/quote/1': { label: 'Dear Founders,', quote: 'A quick question asked today saves a long apology next month.', by: 'The Tallyho team' },
+  'loud/photo/0': { label: 'Your unfair advantage', headline: 'You shipped it before you [[asked]] anyone', sub: 'One poll on day one would have told you.' },
+  'loud/photo/1': { label: 'Next-gen', headline: 'Every crew needs a [[tie-breaker]]' },
+  'loud/photo/2': { label: 'Truth metric', headline: 'We asked members what keeps them coming back. Most said {{heart}} *the people.*' },
+  'loud/event/0': { label: 'Meetups', headline: 'Quiz [[night]] for builders', meta: 'Fri 12 Dec · 6pm · The Loft', info: [{ key: 'Where', value: 'The Loft, Harbour Street' }, { key: 'Entry', value: 'Free with a Tallyho account' }], cta: 'Save a seat' },
+  'loud/offer/0': { label: 'Group plan', headline: 'Unlimited polls for [[your crew]]', tag: '€0' },
+};
+export const STRESS = {
+  'loud/statement/0': { label: 'Startup journey, part two', headline: 'Our [[members]] voted down the feature we spent a whole quarter on. Fair.', sub: 'One honest poll before the build would have saved the quarter and the argument.' },
+  'loud/statement/1': { label: 'Dear Founders, again,', headline: 'A roadmap {{star}} with no votes on it is a *wish list with a deadline.*' },
+  'loud/statement/2': { label: 'Next-gen, episode four', headline: 'Let your [[members]] choose what you build next season', sub: 'Their vote costs a minute.' },
+  'loud/figure/0': { label: 'Truth metric, this month', big: '48.5%', headline: 'of crews pick a meetup day *within the first hour* of the poll opening.' },
+  'loud/figure/1': { label: 'Truth metric, this month', big: '100,000', unit: 'votes cast every week' },
+  'loud/list/0': { label: 'Your unfair advantage, now', headline: 'Five polls your [[community]] wants', items: ['What should we build next quarter?', 'Which day suits the next meetup?', 'What nearly made you leave us?', 'Which feature do you never use?', 'Who should we invite to speak?'] },
+  'loud/quote/0': { label: 'Next-gen, in their words', quote: 'We stopped arguing in the group chat and started voting on everything. Meetings got shorter and quieter.', by: 'A community lead in a big city' },
+  'loud/quote/1': { label: 'Dear Founders, a reminder', quote: 'A quick question asked today saves a long apology next month, and the people you asked remember that you asked.', by: 'The Tallyho team, every week' },
+  'loud/photo/0': { label: 'Your unfair advantage', headline: 'You shipped it before you [[asked]] anyone. The silence said the rest.', sub: 'Ask them. It takes a minute and a poll.' },
+  'loud/photo/1': { label: 'Next-gen, this season', headline: 'Every crew needs a [[tie-breaker]] that is not the loudest' },
+  'loud/photo/2': { label: 'Truth metric, this month', headline: 'We asked members what keeps them coming back. Most said {{heart}} *the people.*' },
+  'loud/event/0': { label: 'Meetups, this winter', headline: 'Quiz [[night]] for builders and their crews', meta: 'Fri 12 Dec · 6pm · The Loft, Harbour St', info: [{ key: 'Where', value: 'The Loft, 4 Harbour Street' }, { key: 'Entry', value: 'Free with a Tallyho account' }, { key: 'Book on', value: 'tallyho.example/quiz' }], cta: 'Save a seat tonight' },
+  'loud/offer/0': { label: 'Group plan, this winter', headline: 'Unlimited polls for [[your crew]], free all winter', tag: '€0 / year' },
+};
+export const MINIMAL = {
+  'loud/statement/0': { headline: 'Ask first' },
+  'loud/statement/1': { headline: 'Ask *first.*' },
+  'loud/statement/2': { headline: 'Ask first' },
+  'loud/figure/0': { big: '80%', headline: 'said *yes.*' },
+  'loud/figure/1': { big: '7' },
+  'loud/list/0': { headline: 'Three', items: ['One', 'Two', 'Three'] },
+  'loud/quote/0': { quote: 'Ask first.' },
+  'loud/quote/1': { quote: 'Ask first.' },
+  'loud/photo/0': { headline: 'Look' },
+  'loud/photo/1': { headline: 'Look' },
+  'loud/photo/2': { headline: 'Look *here.*' },
+  'loud/event/0': { headline: 'Quiz night', meta: '12 Dec' },
+  'loud/offer/0': { headline: 'Half off', tag: '-50%' },
+};

@@ -42,8 +42,9 @@ Under it are two libraries with no dependencies, which the app imports:
   design references. It uses any Anthropic or OpenAI-compatible model. See [docs/ai.md](docs/ai.md).
 
 The repository ships a fictional demo brand, Acme Savings (`brands/demo`), so a fresh install has a brand to show and
-render with until an admin sets the real one, and a second fictional finance brand for testing, Pennyhive
-(`brands/pennyhive`), chosen with `BRAND_DIR=brands/pennyhive`.
+render with until an admin sets the real one, a second fictional finance brand for testing, Pennyhive
+(`brands/pennyhive`), chosen with `BRAND_DIR=brands/pennyhive`, and a fictional polls and community brand, Tallyho
+(`brands/tallyho`), that shows off the loud look.
 
 Licence: MIT, see [LICENSE](LICENSE).
 
@@ -240,6 +241,15 @@ and the map with the standard library only, no Chrome. It draws no pictures of i
 with `BRAND_DIR=brands/pennyhive`; `test-brand-pennyhive.mjs` keeps the pack and its batch valid. The demo stays the
 default and the pack every test and example uses.
 
+**The Tallyho pack** (`brands/tallyho`) is a third fictional brand, made to show off the loud look: Tallyho, a polls and
+community app (website `tallyho.example`, time zone `Europe/Dublin`, money in euros). A saturated blue primary, an orange
+accent and a deep purple dark ground, Hanken Grotesk, invented facts with round figures in `vault.json`, and logos (a
+speech bubble with a tick and a heavy monoline "tallyho") drawn by `brands/tallyho/make-assets.mjs` with the standard library
+only. Its `brand.json` names no direction: choose the Loud look in Settings, Brand and look. Its example batch,
+`brands/tallyho/batches/example-posts.json` (eleven `post` designs over every kind), uses photos of the engine's photo library
+(`packages/engine/design/assets/photos/`, recorded in its `CREDITS.md`): those files are git-ignored, so on a fresh clone the
+picture posts are refused until the photos are put there. `test-brand-tallyho.mjs` keeps the pack and its batch valid.
+
 **Starting your own pack.**
 
 1. Copy the demo: `cp -r brands/demo brands/<your-brand>`, then delete `make-assets.mjs` from the copy (it writes the demo's
@@ -263,7 +273,7 @@ default and the pack every test and example uses.
 
 A pack can hold private facts (`vault.json`) and the brand's own artwork. Keep a real brand's pack in a private repository
 or fork, not in a public one; `npm run export-public` makes a public copy of the repository that leaves out every pack
-but the two fictional ones, `brands/demo` and `brands/pennyhive` (`PUBLIC_PACKS` in `scripts/export-public.mjs`).
+but the fictional ones, `brands/demo`, `brands/pennyhive` and `brands/tallyho` (`PUBLIC_PACKS` in `scripts/export-public.mjs`).
 
 ## How it works
 
@@ -413,6 +423,10 @@ The engine tests, in `packages/engine/`:
 - `test-brand-pack.mjs`: `BRAND_DIR`, the demo pack and the brand file's optional fields.
 - `test-brand-pennyhive.mjs`: the Pennyhive pack loads, its spelling rules hold, and its example batch passes the post
   checks in its direction.
+- `test-brand-tallyho.mjs`: the Tallyho pack loads, its spelling rules hold, its example batch passes the post checks in the
+  loud look, and its vault holds round, invented figures. `test-design-look-loud.mjs`: the loud look (pure, and with Chrome
+  every composition through every check). `test-design-look-paste.mjs`: the taped picture, paper texture, icon badges, bold
+  emphasis and badged icons, with hostile values.
 
 The AI tests are in `packages/ai/test-ai.mjs` (fake fetch, no network), the export tests in
 `scripts/test-export-public.mjs`, and the web app's specs in `apps/web/src/**/*.spec.ts`.
@@ -426,7 +440,7 @@ An npm workspaces monorepo.
 | `apps/web/` (`@vesk/web`) | The web app: a Hono server, Postgres through Prisma, pg-boss jobs, and a React client built into `dist/web` (see [apps/web/README.md](apps/web/README.md)). The only workspace with dependencies. |
 | `packages/engine/` (`@vesk/engine`) | The engine: `lib/` (batch validation, the Buffer client, the push loop, storage, the design renderer) and `design/` (brand CSS, templates, fonts and the asset folders, including the committed demo pictures in `design/assets/demo/`), and its tests. No dependencies. The app imports its modules as `@vesk/engine/<module>`, for example `@vesk/engine/batch`. |
 | `packages/ai/` (`@vesk/ai`) | Drafting, research, rewriting and design-reference analysis (`src/`, with the versioned prompts) and its tests. No third-party dependencies; it uses the engine's validators. |
-| `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default, `brands/pennyhive` (the fictional Pennyhive, with its own example batch) a second test brand. |
+| `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default, `brands/pennyhive` (the fictional Pennyhive, with its own example batch) a second test brand, `brands/tallyho` (the fictional Tallyho) the loud look's brand. |
 | `batches/` | Two example batch files for the demo brand, to import in the app (Create, New batch, the "Import a batch file" tab, marked Advanced) or to start from. |
 | `deploy/`, `Dockerfile` | The container image and the Docker Compose set-up, with `deploy/check.sh` to try it end to end. |
 | `docs/` | The documentation (below). |

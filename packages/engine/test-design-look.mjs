@@ -138,7 +138,7 @@ function autoFields(els, out = {}) {
   for (const e of els) {
     if (!e || typeof e !== 'object') continue;
     for (const f of [e.field, e.unit?.field, e.ladder?.by]) if (typeof f === 'string' && Object.hasOwn(AUTO, f)) out[f] = clone(AUTO[f]);
-    if (e.type === 'photo' || (e.type === 'seam' && e.upper !== 'field')) out.image = {};
+    if (e.type === 'photo' || e.type === 'taped-photo' || (e.type === 'seam' && e.upper !== 'field')) out.image = {};
     if (e.type === 'meta-row') out.label = clone(AUTO.label);
     if (e.type === 'info-rows') out.info = {};
     if (e.type === 'photo-row') out.gallery = {};
@@ -180,6 +180,9 @@ const EXAMPLES = {
   'info-rows': { type: 'info-rows', place: AT(56, 900, 900, 260) },
   button: { type: 'button', place: AT(56, 1180, 600, 100) },
   'photo-row': { type: 'photo-row', place: AT(56, 600, 900, 240) },
+  'taped-photo': { type: 'taped-photo', place: AT(140, 600, 800, 520), rot: -3 },
+  'paper-texture': { type: 'paper-texture', place: { inset: 'page' } },
+  'icon-badge': { type: 'icon-badge', icon: 'heart', place: AT(800, 300, 80, 80) },
 };
 const host = (...extra) => ({
   ...clone(SWISS), id: 'host', origin: 'copy:shipped:swiss',
@@ -816,7 +819,7 @@ test('the catalogue lists the newer properties and the seam\'s sticker slot', ()
 
 test('before: only for an item flowing in a box, for every type that lists it', () => {
   const types = ELEMENT_TYPES.filter((t) => ELEMENTS[t].common.includes('before'));
-  assert.deepEqual(types, ['box', 'text', 'sticker', 'rule', 'block', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'info-rows', 'button', 'photo-row']);
+  assert.deepEqual(types, ['box', 'text', 'sticker', 'rule', 'block', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'info-rows', 'button', 'photo-row', 'icon-badge']);
   for (const t of types) {
     assert.deepEqual(hp(inBox({ ...flowOf(t), before: 24 })), [], `${t} flows with space before`);
     assert.deepEqual(hp(inBox({ ...flowOf(t), before: -12 })), [], `${t} flows pulled up a little`);

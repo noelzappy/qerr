@@ -25,9 +25,10 @@ import { MINIMAL as SWISS_MINIMAL, NORMAL as SWISS_NORMAL, STRESS as SWISS_STRES
 import { MINIMAL as SOFT_MINIMAL, NORMAL as SOFT_NORMAL, STRESS as SOFT_STRESS } from './testlib/soft-copy.mjs';
 import { MINIMAL as BLOOM_MINIMAL, NORMAL as BLOOM_NORMAL, STRESS as BLOOM_STRESS } from './testlib/bloom-copy.mjs';
 import { MINIMAL as CLEAN_MINIMAL, NORMAL as CLEAN_NORMAL, STRESS as CLEAN_STRESS } from './testlib/clean-copy.mjs';
+import { MINIMAL as LOUD_MINIMAL, NORMAL as LOUD_NORMAL, STRESS as LOUD_STRESS } from './testlib/loud-copy.mjs';
 
 const asCopy = (l) => ({ ...l, origin: `copy:shipped:${l.id}` });
-const RETAIL = asCopy(shippedLooks().retail), SWISS = asCopy(shippedLooks().swiss), SOFT = asCopy(shippedLooks().soft), BLOOM = asCopy(shippedLooks().bloom), CLEAN = asCopy(shippedLooks().clean);
+const RETAIL = asCopy(shippedLooks().retail), SWISS = asCopy(shippedLooks().swiss), SOFT = asCopy(shippedLooks().soft), BLOOM = asCopy(shippedLooks().bloom), CLEAN = asCopy(shippedLooks().clean), LOUD = asCopy(shippedLooks().loud);
 const COLOURS = {
   demo: {},
   dark: paletteBrand({ name: 'Night Kitchen', light: '#EFEAE0', ink: '#10151F', primary: '#1B2A41', gold: '#F2B84B', deep: '#8A5A00' }),
@@ -108,12 +109,12 @@ test('retail price tag: figures of five to eight characters with a unit pass eve
 const COPY = {
   retail: { sample: NORMAL, stress: STRESS, minimal: MINIMAL_CHECKED }, swiss: { sample: SWISS_NORMAL, stress: SWISS_STRESS, minimal: SWISS_MINIMAL },
   soft: { sample: SOFT_NORMAL, stress: SOFT_STRESS, minimal: SOFT_MINIMAL }, bloom: { sample: BLOOM_NORMAL, stress: BLOOM_STRESS, minimal: BLOOM_MINIMAL },
-  clean: { sample: CLEAN_NORMAL, stress: CLEAN_STRESS, minimal: CLEAN_MINIMAL },
+  clean: { sample: CLEAN_NORMAL, stress: CLEAN_STRESS, minimal: CLEAN_MINIMAL }, loud: { sample: LOUD_NORMAL, stress: LOUD_STRESS, minimal: LOUD_MINIMAL },
 };
-test('every shipped look passes every check, all 45 compositions from sample, stress and minimal copy, in three sets of brand colours', { skip }, async () => {
-  assert.deepEqual(Object.keys(shippedLooks()).sort(), ['bloom', 'clean', 'retail', 'soft', 'swiss'], 'a new shipped look is added here with its copy');
+test('every shipped look passes every check, all 58 compositions from sample, stress and minimal copy, in three sets of brand colours', { skip }, async () => {
+  assert.deepEqual(Object.keys(shippedLooks()).sort(), ['bloom', 'clean', 'loud', 'retail', 'soft', 'swiss'], 'a new shipped look is added here with its copy');
   let drawn = 0;
-  for (const look of [RETAIL, SWISS, SOFT, BLOOM, CLEAN]) {
+  for (const look of [RETAIL, SWISS, SOFT, BLOOM, CLEAN, LOUD]) {
     for (const [kind, versions] of Object.entries(Object.groupBy(look.compositions, (c) => c.kind))) {
       for (const [v, comp] of versions.entries()) {
         const id = `${look.id}/${kind}/${v}`;
@@ -129,5 +130,5 @@ test('every shipped look passes every check, all 45 compositions from sample, st
       }
     }
   }
-  assert.equal(drawn, 45 * 3 * 3);
+  assert.equal(drawn, 58 * 3 * 3);
 });

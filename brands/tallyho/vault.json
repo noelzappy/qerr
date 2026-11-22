@@ -1,0 +1,72 @@
+{
+  "note": "Starting vault for Tallyho, a fictional polls and community app used as a test brand. Every item is invented: no real company, person, place or figure. The numbers are round and illustrative only. Imported once on an empty database; edit or delete in the app afterwards.",
+  "vault": [
+    {
+      "kind": "figure",
+      "title": "Votes a week",
+      "body": "10,000 votes are cast in Tallyho groups every week (illustrative figure).",
+      "sourceUrl": "https://tallyho.example",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": ["numbers", "public"]
+    },
+    {
+      "kind": "figure",
+      "title": "Meetup days picked fast",
+      "body": "80% of crews pick a meetup day within an hour of the poll going up (illustrative figure).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": ["numbers", "truth-metric", "public"]
+    },
+    {
+      "kind": "figure",
+      "title": "Groups on Tallyho",
+      "body": "1,000 community groups ask their members a question on Tallyho each month (illustrative figure).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": ["numbers", "public"]
+    },
+    {
+      "kind": "product",
+      "title": "How a poll works",
+      "body": "A group admin asks one question with up to four answers; members vote from the app and everyone sees the result when the poll closes.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": ["product", "public"]
+    },
+    {
+      "kind": "product",
+      "title": "The group plan",
+      "body": "The group plan gives a crew of up to 50 members unlimited polls, free this winter (invented offer).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-11-01",
+      "validUntil": "2027-02-28",
+      "tags": ["product", "offer", "public"]
+    },
+    {
+      "kind": "event",
+      "title": "Quiz night for builders",
+      "body": "Tallyho holds a quiz night for community builders at The Loft, an invented venue on Harbour Street, on Friday 8 January at 6pm. Entry is free with an account.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-12-01",
+      "validUntil": "2027-01-08",
+      "tags": ["event", "meetups", "community"]
+    },
+    {
+      "kind": "fact",
+      "title": "Planned features (internal)",
+      "body": "An example of an internal note: plans that are not public yet. The tag not-for-posts tells reviewers to keep it out of posts.",
+      "sourceNote": "Example of an internal item.",
+      "status": "confirmed",
+      "tags": ["internal", "not-for-posts"]
+    }
+  ]
+}

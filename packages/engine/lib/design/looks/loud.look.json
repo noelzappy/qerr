@@ -1,0 +1,1941 @@
+{
+  "schema": 1,
+  "id": "loud",
+  "name": "Loud",
+  "origin": "shipped",
+  "description": "Loud and friendly, like a community app: heavy condensed capitals on saturated brand colours or a darkened photo, words in pills, letters on grey paper with bold words and round stickers, big figures and photos taped on at an angle.",
+  "canvas": {
+    "feed": {
+      "margin": {
+        "top": 64,
+        "right": 64,
+        "bottom": 64,
+        "left": 64
+      },
+      "grid": {
+        "cols": 6,
+        "gutter": 24,
+        "rows": 0,
+        "head": 0
+      },
+      "extraLines": []
+    }
+  },
+  "fonts": {
+    "display": {
+      "source": "library",
+      "family": "Anton",
+      "weights": [
+        400
+      ]
+    },
+    "text": {
+      "source": "library",
+      "family": "Hanken Grotesk",
+      "weights": [
+        500
+      ]
+    },
+    "label": {
+      "source": "library",
+      "family": "Hanken Grotesk",
+      "weights": [
+        700,
+        800
+      ]
+    },
+    "mono": {
+      "source": "library",
+      "family": "JetBrains Mono",
+      "weights": [
+        500
+      ]
+    }
+  },
+  "type": {
+    "display": {
+      "lead": 0.98,
+      "track": 0.005,
+      "weight": 400,
+      "case": "as-typed",
+      "ladder": [
+        1,
+        0.9,
+        0.82
+      ],
+      "trim": "none",
+      "optical": false,
+      "wordSpace": 0.02
+    },
+    "body": {
+      "size": 32,
+      "lead": 1.3,
+      "weight": 500,
+      "strength": 1
+    },
+    "item": {
+      "size": 44,
+      "lead": 1.15,
+      "weight": 500
+    },
+    "label": {
+      "size": 24,
+      "track": 0.06,
+      "weight": 700,
+      "upper": false,
+      "role": "label"
+    },
+    "numeral": {
+      "track": 0,
+      "figures": "lining"
+    }
+  },
+  "colour": {
+    "logic": "field",
+    "field": "primary",
+    "sticker": "accent",
+    "accentAsType": "never",
+    "grounds": [
+      "paper",
+      "field",
+      "dark",
+      "accent",
+      "soft"
+    ]
+  },
+  "devices": {
+    "rule": {
+      "hair": 2,
+      "heavy": 6
+    },
+    "frame": {
+      "t": 0,
+      "pad": 0
+    },
+    "highlight": {
+      "pad": [
+        0.06,
+        0.12,
+        0.04,
+        0.12
+      ],
+      "tilt": -1
+    },
+    "shadow": {
+      "x": 8,
+      "y": 8,
+      "colour": "ink"
+    },
+    "angles": {
+      "sticker": -8,
+      "bar": -2,
+      "block": -2,
+      "band": -3,
+      "card": 6,
+      "price": 3
+    },
+    "folio": "pad2",
+    "wordmark": {
+      "opacity": 0.05,
+      "sep": "dot"
+    }
+  },
+  "photo": {
+    "treat": [],
+    "tint": "primary"
+  },
+  "logo": {
+    "default": "off",
+    "height": 44
+  },
+  "dials": {
+    "tilt": 1,
+    "density": 0,
+    "weightShift": 0
+  },
+  "compositions": [
+    {
+      "kind": "statement",
+      "name": "Shout",
+      "ground": "field",
+      "fit": "margins",
+      "describe": "Heavy condensed capitals on the brand colour, left aligned, one or two words in an outlined pill, a series label and the folio on top and the brand name at the foot. For a bold claim of up to about 70 characters.",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 70
+        },
+        "sub": {
+          "max": 120
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "upper": true,
+          "when": {
+            "present": "label"
+          },
+          "ink": "on-field",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "source": "folio",
+          "style": "label",
+          "align": "right",
+          "ink": "on-field",
+          "place": {
+            "anchor": {
+              "right": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": 170,
+              "bottom": 150
+            }
+          },
+          "flow": "column",
+          "justify": "center",
+          "gap": 36,
+          "ink": "on-field",
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "upper": true,
+              "lead": 0.98,
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    24,
+                    168
+                  ],
+                  [
+                    40,
+                    140
+                  ],
+                  [
+                    56,
+                    120
+                  ],
+                  [
+                    70,
+                    108
+                  ]
+                ],
+                "maxLines": 6,
+                "maxH": 820
+              },
+              "pills": {
+                "shape": "outline",
+                "ink": "on-field"
+              },
+              "icons": {}
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "w": 760,
+              "when": {
+                "present": "sub"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "source": "brand",
+          "style": "label",
+          "weight": 800,
+          "track": -0.01,
+          "align": "center",
+          "ink": "on-field",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "bottom": "margin"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "statement",
+      "name": "Letter",
+      "ground": "soft",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.7
+      },
+      "describe": "A letter on light grey paper: a small greeting label (such as Dear Founders,) top left, then the headline as a paragraph in a medium sans with its emphasised words in bold and up to two icons in small round stickers, the brand name at the foot.",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 70
+        }
+      },
+      "elements": [
+        {
+          "type": "paper-texture",
+          "place": {
+            "inset": "page"
+          },
+          "strength": 0.35
+        },
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "when": {
+            "present": "label"
+          },
+          "ink": "body",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "top": "margin"
+            }
+          },
+          "weight": 700,
+          "track": 0
+        },
+        {
+          "type": "text",
+          "field": "headline",
+          "style": "display",
+          "font": "text",
+          "weight": 500,
+          "track": -0.02,
+          "lead": 1.18,
+          "emphasis": "bold",
+          "ladder": {
+            "by": "headline",
+            "steps": [
+              [
+                40,
+                84
+              ],
+              [
+                56,
+                76
+              ],
+              [
+                70,
+                68
+              ]
+            ],
+            "maxLines": 6,
+            "maxH": 700
+          },
+          "icons": {
+            "colour": "on-field",
+            "badge": "field"
+          },
+          "ink": "ink",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": 140,
+              "top": 260
+            }
+          }
+        },
+        {
+          "type": "text",
+          "source": "brand",
+          "style": "label",
+          "weight": 800,
+          "track": -0.01,
+          "align": "center",
+          "ink": "ink",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "bottom": "margin"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "statement",
+      "name": "Centre stack",
+      "ground": "accent",
+      "fit": "margins",
+      "describe": "Heavy condensed capitals centred on the accent colour with one or two words in a filled pill, a short sub line under them, two round icon badges as stickers and the brand name at the foot. For a claim of up to about 60 characters.",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 60
+        },
+        "sub": {
+          "max": 90
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "upper": true,
+          "when": {
+            "present": "label"
+          },
+          "ink": "dark",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "source": "folio",
+          "style": "label",
+          "align": "right",
+          "ink": "dark",
+          "place": {
+            "anchor": {
+              "right": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "icon-badge",
+          "icon": "heart",
+          "size": 104,
+          "fill": "dark",
+          "ink": "gold",
+          "rot": "sticker",
+          "shadow": "soft",
+          "place": {
+            "px": {
+              "x": 846,
+              "y": 150
+            }
+          }
+        },
+        {
+          "type": "icon-badge",
+          "icon": "spark",
+          "size": 92,
+          "fill": "paper",
+          "ink": "ink",
+          "rot": "card",
+          "shadow": "soft",
+          "place": {
+            "px": {
+              "x": 120,
+              "y": 1060
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": 230,
+              "bottom": 220
+            }
+          },
+          "flow": "column",
+          "justify": "center",
+          "align": "center",
+          "gap": 34,
+          "ink": "dark",
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "upper": true,
+              "lead": 0.98,
+              "align": "center",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    24,
+                    150
+                  ],
+                  [
+                    40,
+                    128
+                  ],
+                  [
+                    60,
+                    108
+                  ]
+                ],
+                "maxLines": 6,
+                "maxH": 720
+              },
+              "pills": {
+                "shape": "pill",
+                "fill": "dark",
+                "ink": "gold"
+              },
+              "icons": {}
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "align": "center",
+              "w": 720,
+              "ink": "ink",
+              "when": {
+                "present": "sub"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "source": "brand",
+          "style": "label",
+          "weight": 800,
+          "track": -0.01,
+          "align": "center",
+          "ink": "dark",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "bottom": "margin"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "figure",
+      "name": "Truth metric",
+      "ground": "paper",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.6
+      },
+      "describe": "A huge figure with two small round icon badges beside it, the headline under it as a sentence with its emphasised words in bold, and the picture pasted on below at a slight angle with tape on two corners. The brand name and the series label run along the top.",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "big": {
+          "required": true,
+          "max": 8
+        },
+        "headline": {
+          "max": 70
+        },
+        "image": {}
+      },
+      "elements": [
+        {
+          "type": "text",
+          "source": "brand",
+          "style": "label",
+          "weight": 800,
+          "track": -0.01,
+          "ink": "ink",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "upper": true,
+          "when": {
+            "present": "label"
+          },
+          "ink": "ink",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": 150
+            }
+          },
+          "flow": "column",
+          "gap": 18,
+          "ink": "ink",
+          "children": [
+            {
+              "type": "box",
+              "flow": "row",
+              "align": "center",
+              "gap": 16,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "big",
+                  "style": "numeral",
+                  "size": 190,
+                  "lead": 1,
+                  "track": 0
+                },
+                {
+                  "type": "icon-badge",
+                  "icon": "check",
+                  "size": 68,
+                  "fill": "field",
+                  "ink": "on-field",
+                  "shadow": "soft"
+                },
+                {
+                  "type": "icon-badge",
+                  "icon": "heart",
+                  "size": 68,
+                  "fill": "gold",
+                  "ink": "on-accent",
+                  "shadow": "soft"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "font": "text",
+              "weight": 500,
+              "track": -0.02,
+              "lead": 1.15,
+              "emphasis": "bold",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    40,
+                    60
+                  ],
+                  [
+                    70,
+                    52
+                  ]
+                ],
+                "maxLines": 3,
+                "maxH": 200
+              },
+              "when": {
+                "present": "headline"
+              }
+            }
+          ]
+        },
+        {
+          "type": "taped-photo",
+          "place": {
+            "px": {
+              "x": 150,
+              "y": 690,
+              "w": 780,
+              "h": 520
+            }
+          },
+          "rot": -3,
+          "keyline": 5,
+          "tapeOn": "diagonal",
+          "tapeColour": "muted",
+          "when": {
+            "present": "image"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "figure",
+      "name": "Big number",
+      "ground": "field",
+      "fit": "margins",
+      "describe": "One huge figure in heavy condensed type on the brand colour, its unit in a filled pill under it, and the series label and folio along the top. Use for a single number, price or percentage without a picture.",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "big": {
+          "required": true,
+          "max": 8
+        },
+        "unit": {
+          "max": 24
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "upper": true,
+          "when": {
+            "present": "label"
+          },
+          "ink": "on-field",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "source": "folio",
+          "style": "label",
+          "align": "right",
+          "ink": "on-field",
+          "place": {
+            "anchor": {
+              "right": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": 170,
+              "bottom": 150
+            }
+          },
+          "flow": "column",
+          "justify": "center",
+          "align": "center",
+          "gap": 48,
+          "ink": "on-field",
+          "children": [
+            {
+              "type": "fitted-stack",
+              "field": "big",
+              "mode": "lines",
+              "cap": 520,
+              "floor": 160,
+              "maxLines": 1,
+              "lead": 1,
+              "align": "center",
+              "w": 952,
+              "h": 540
+            },
+            {
+              "type": "sticker",
+              "shape": "pill",
+              "w": "hug",
+              "minW": 160,
+              "maxW": 900,
+              "h": 96,
+              "field": "unit",
+              "fit": {
+                "cap": 58,
+                "floor": 30,
+                "maxLines": 1,
+                "h": 64
+              },
+              "pad": [
+                0,
+                36,
+                0,
+                36
+              ],
+              "fill": "gold",
+              "ink": "on-accent",
+              "when": {
+                "present": "unit"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "source": "brand",
+          "style": "label",
+          "weight": 800,
+          "track": -0.01,
+          "align": "center",
+          "ink": "on-field",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "bottom": "margin"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "list",
+      "name": "Numbered",
+      "ground": "dark",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.6
+      },
+      "describe": "Heavy condensed capitals on the dark colour with a word in a filled pill, then the items as rows, each with its number in a round accent badge. For three to five short points.",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 50
+        },
+        "items": {
+          "required": true,
+          "max": 5
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "upper": true,
+          "when": {
+            "present": "label"
+          },
+          "ink": "white",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "source": "folio",
+          "style": "label",
+          "align": "right",
+          "ink": "white",
+          "place": {
+            "anchor": {
+              "right": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": 150,
+              "bottom": 140
+            }
+          },
+          "flow": "column",
+          "gap": 44,
+          "align": "stretch",
+          "ink": "white",
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "upper": true,
+              "lead": 0.98,
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    24,
+                    128
+                  ],
+                  [
+                    40,
+                    112
+                  ],
+                  [
+                    50,
+                    100
+                  ]
+                ],
+                "maxLines": 3,
+                "maxH": 380
+              },
+              "pills": {
+                "shape": "pill",
+                "fill": "gold",
+                "ink": "on-accent"
+              },
+              "icons": {}
+            },
+            {
+              "type": "rows",
+              "each": "items",
+              "number": "1",
+              "numberStyle": "display",
+              "numberSize": 44,
+              "numberTile": {
+                "size": 76,
+                "radius": "full",
+                "fill": "gold",
+                "ink": "on-accent"
+              },
+              "textStyle": "item",
+              "gap": 28,
+              "ink": "white",
+              "grow": 1
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "source": "brand",
+          "style": "label",
+          "weight": 800,
+          "track": -0.01,
+          "align": "center",
+          "ink": "white",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "bottom": "margin"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "quote",
+      "name": "Loud quote",
+      "ground": "dark",
+      "fit": "margins",
+      "describe": "A big accent quotation mark and the quote in heavy condensed capitals on the dark colour, the source in a filled pill under it, and the brand name at the foot.",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "quote": {
+          "required": true,
+          "max": 120
+        },
+        "by": {
+          "max": 40
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "upper": true,
+          "when": {
+            "present": "label"
+          },
+          "ink": "white",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "source": "folio",
+          "style": "label",
+          "align": "right",
+          "ink": "white",
+          "place": {
+            "anchor": {
+              "right": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "glyph",
+          "glyph": "“",
+          "size": 300,
+          "colour": "gold",
+          "place": {
+            "px": {
+              "x": 52,
+              "y": 120
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": 360,
+              "bottom": 150
+            }
+          },
+          "flow": "column",
+          "justify": "center",
+          "gap": 40,
+          "ink": "white",
+          "children": [
+            {
+              "type": "text",
+              "field": "quote",
+              "style": "display",
+              "upper": true,
+              "lead": 1,
+              "ladder": {
+                "by": "quote",
+                "steps": [
+                  [
+                    50,
+                    112
+                  ],
+                  [
+                    80,
+                    96
+                  ],
+                  [
+                    120,
+                    84
+                  ]
+                ],
+                "maxLines": 7,
+                "maxH": 660
+              }
+            },
+            {
+              "type": "sticker",
+              "shape": "pill",
+              "w": "hug",
+              "minW": 120,
+              "maxW": 900,
+              "h": 72,
+              "field": "by",
+              "fit": {
+                "cap": 32,
+                "floor": 22,
+                "maxLines": 1,
+                "h": 44
+              },
+              "pad": [
+                0,
+                30,
+                0,
+                30
+              ],
+              "fill": "gold",
+              "ink": "on-accent",
+              "when": {
+                "present": "by"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "source": "brand",
+          "style": "label",
+          "weight": 800,
+          "track": -0.01,
+          "align": "center",
+          "ink": "white",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "bottom": "margin"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "quote",
+      "name": "Letter quote",
+      "ground": "soft",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.7
+      },
+      "describe": "A quote written like a letter on light grey paper: a small greeting label top left, the quote in a medium sans, the source in bold under it, and the brand name at the foot.",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "quote": {
+          "required": true,
+          "max": 150
+        },
+        "by": {
+          "max": 40
+        }
+      },
+      "elements": [
+        {
+          "type": "paper-texture",
+          "place": {
+            "inset": "page"
+          },
+          "strength": 0.35
+        },
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "when": {
+            "present": "label"
+          },
+          "ink": "body",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "top": "margin"
+            }
+          },
+          "weight": 700,
+          "track": 0
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": 120,
+              "top": 250
+            }
+          },
+          "flow": "column",
+          "gap": 36,
+          "ink": "ink",
+          "children": [
+            {
+              "type": "text",
+              "field": "quote",
+              "style": "display",
+              "font": "text",
+              "weight": 500,
+              "track": -0.02,
+              "lead": 1.2,
+              "ladder": {
+                "by": "quote",
+                "steps": [
+                  [
+                    60,
+                    76
+                  ],
+                  [
+                    100,
+                    64
+                  ],
+                  [
+                    150,
+                    56
+                  ]
+                ],
+                "maxLines": 8,
+                "maxH": 640
+              }
+            },
+            {
+              "type": "text",
+              "field": "by",
+              "style": "label",
+              "weight": 800,
+              "track": 0,
+              "when": {
+                "present": "by"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "source": "brand",
+          "style": "label",
+          "weight": 800,
+          "track": -0.01,
+          "align": "center",
+          "ink": "ink",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "bottom": "margin"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "photo",
+      "name": "Dark photo",
+      "ground": "dark",
+      "fit": "margins",
+      "describe": "The picture full page, darkened with the dark brand colour, heavy condensed capitals in light type at the foot with a word in a filled accent pill, the brand name and the series label along the top.",
+      "fields": {
+        "image": {
+          "required": true
+        },
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 64
+        },
+        "sub": {
+          "max": 90
+        }
+      },
+      "elements": [
+        {
+          "type": "photo",
+          "place": {
+            "inset": "page"
+          }
+        },
+        {
+          "type": "overlay",
+          "colour": "dark",
+          "from": "flat",
+          "need": 7,
+          "floor": 0.62,
+          "cap": 0.9,
+          "place": {
+            "inset": "page"
+          },
+          "z": 1
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": "margin"
+            }
+          },
+          "flow": "row",
+          "justify": "between",
+          "ink": "white",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "source": "brand",
+              "style": "label",
+              "weight": 800,
+              "track": -0.01,
+              "ink": "white"
+            },
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "upper": true,
+              "when": {
+                "present": "label"
+              },
+              "ink": "white",
+              "align": "right"
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "bottom": 96
+            }
+          },
+          "flow": "column",
+          "gap": 26,
+          "ink": "white",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "upper": true,
+              "lead": 0.98,
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    24,
+                    128
+                  ],
+                  [
+                    44,
+                    112
+                  ],
+                  [
+                    64,
+                    100
+                  ]
+                ],
+                "maxLines": 6,
+                "maxH": 640
+              },
+              "pills": {
+                "shape": "pill",
+                "fill": "gold",
+                "ink": "on-accent"
+              },
+              "icons": {}
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "w": 760,
+              "when": {
+                "present": "sub"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "photo",
+      "name": "Taped on colour",
+      "ground": "field",
+      "fit": "margins",
+      "describe": "Heavy condensed capitals centred on the brand colour with a word in a filled pill, and the picture pasted on under them at an angle with tape on its corners; the brand name at the foot.",
+      "fields": {
+        "image": {
+          "required": true
+        },
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 56
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "upper": true,
+          "when": {
+            "present": "label"
+          },
+          "ink": "on-field",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "source": "folio",
+          "style": "label",
+          "align": "right",
+          "ink": "on-field",
+          "place": {
+            "anchor": {
+              "right": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": 150
+            }
+          },
+          "flow": "column",
+          "align": "center",
+          "ink": "on-field",
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "upper": true,
+              "lead": 0.98,
+              "align": "center",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    24,
+                    124
+                  ],
+                  [
+                    40,
+                    108
+                  ],
+                  [
+                    56,
+                    96
+                  ]
+                ],
+                "maxLines": 3,
+                "maxH": 330
+              },
+              "pills": {
+                "shape": "pill",
+                "fill": "gold",
+                "ink": "on-accent"
+              },
+              "icons": {}
+            }
+          ]
+        },
+        {
+          "type": "taped-photo",
+          "place": {
+            "px": {
+              "x": 170,
+              "y": 560,
+              "w": 740,
+              "h": 560
+            }
+          },
+          "rot": 3,
+          "mount": 16,
+          "fill": "paper",
+          "keyline": 0,
+          "tapeOn": "top",
+          "tapeColour": "paper-warm",
+          "shadow": "lift"
+        },
+        {
+          "type": "text",
+          "source": "brand",
+          "style": "label",
+          "weight": 800,
+          "track": -0.01,
+          "align": "center",
+          "ink": "on-field",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "bottom": "margin"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "photo",
+      "name": "Pasted note",
+      "ground": "paper",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.6
+      },
+      "describe": "A white page with the brand name and the series label along the top, the headline as a sentence in a medium sans with its emphasised words in bold and up to two icons in round stickers, and the picture pasted on below with tape on two corners.",
+      "fields": {
+        "image": {
+          "required": true
+        },
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 70
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "source": "brand",
+          "style": "label",
+          "weight": 800,
+          "track": -0.01,
+          "ink": "ink",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "upper": true,
+          "when": {
+            "present": "label"
+          },
+          "ink": "ink",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "field": "headline",
+          "style": "display",
+          "font": "text",
+          "weight": 500,
+          "track": -0.02,
+          "lead": 1.18,
+          "emphasis": "bold",
+          "ladder": {
+            "by": "headline",
+            "steps": [
+              [
+                40,
+                64
+              ],
+              [
+                70,
+                56
+              ]
+            ],
+            "maxLines": 3,
+            "maxH": 230
+          },
+          "icons": {
+            "colour": "on-accent",
+            "badge": "gold"
+          },
+          "ink": "ink",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": 150
+            }
+          }
+        },
+        {
+          "type": "taped-photo",
+          "place": {
+            "px": {
+              "x": 130,
+              "y": 560,
+              "w": 820,
+              "h": 620
+            }
+          },
+          "rot": -2,
+          "keyline": 5,
+          "tapeOn": "other-diagonal",
+          "tapeColour": "muted"
+        }
+      ]
+    },
+    {
+      "kind": "event",
+      "name": "Poster",
+      "ground": "field",
+      "fit": "margins",
+      "describe": "An event poster on the brand colour: heavy condensed capitals with a word in a filled pill, the date line in a pill, the info rows (When, Where, Book on) and a button, with the picture taped on at an angle when there is one.",
+      "fields": {
+        "image": {},
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 48
+        },
+        "meta": {
+          "required": true,
+          "max": 40
+        },
+        "info": {
+          "max": 3
+        },
+        "cta": {
+          "max": 24
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "upper": true,
+          "when": {
+            "present": "label"
+          },
+          "ink": "on-field",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "source": "folio",
+          "style": "label",
+          "align": "right",
+          "ink": "on-field",
+          "place": {
+            "anchor": {
+              "right": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "taped-photo",
+          "place": {
+            "px": {
+              "x": 560,
+              "y": 700,
+              "w": 440,
+              "h": 340
+            }
+          },
+          "rot": 4,
+          "mount": 12,
+          "fill": "paper",
+          "keyline": 0,
+          "tapeOn": "diagonal",
+          "tapeColour": "paper-warm",
+          "shadow": "lift",
+          "when": {
+            "present": "image"
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": 150
+            }
+          },
+          "flow": "column",
+          "gap": 30,
+          "ink": "on-field",
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "upper": true,
+              "lead": 0.98,
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    20,
+                    150
+                  ],
+                  [
+                    34,
+                    128
+                  ],
+                  [
+                    48,
+                    112
+                  ]
+                ],
+                "maxLines": 4,
+                "maxH": 480
+              },
+              "pills": {
+                "shape": "pill",
+                "fill": "gold",
+                "ink": "on-accent"
+              },
+              "icons": {}
+            },
+            {
+              "type": "text",
+              "field": "meta",
+              "style": "label",
+              "upper": true,
+              "tiltBar": true,
+              "ink": "on-accent",
+              "nowrap": true
+            }
+          ]
+        },
+        {
+          "type": "info-rows",
+          "layout": "stacked",
+          "valueStyle": "body",
+          "labelInk": "on-field",
+          "gap": 18,
+          "ink": "on-field",
+          "place": {
+            "px": {
+              "x": 64,
+              "y": 720,
+              "w": 460,
+              "h": 330
+            }
+          },
+          "when": {
+            "present": "info"
+          }
+        },
+        {
+          "type": "button",
+          "field": "cta",
+          "shape": "pill",
+          "size": 32,
+          "icon": "arrow-right",
+          "fill": "gold",
+          "ink": "on-accent",
+          "place": {
+            "px": {
+              "x": 64,
+              "y": 1110,
+              "w": 520,
+              "h": 110
+            }
+          },
+          "when": {
+            "present": "cta"
+          }
+        },
+        {
+          "type": "text",
+          "source": "brand",
+          "style": "label",
+          "weight": 800,
+          "track": -0.01,
+          "align": "center",
+          "ink": "on-field",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "bottom": "margin"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "offer",
+      "name": "Price sticker",
+      "ground": "accent",
+      "fit": "margins",
+      "describe": "An offer on the accent colour: heavy condensed capitals with a word in a filled pill, the price or tag in a big turned round sticker, and the picture taped on at an angle when there is one.",
+      "fields": {
+        "image": {},
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 50
+        },
+        "tag": {
+          "required": true,
+          "max": 12
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "upper": true,
+          "when": {
+            "present": "label"
+          },
+          "ink": "dark",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "source": "folio",
+          "style": "label",
+          "align": "right",
+          "ink": "dark",
+          "place": {
+            "anchor": {
+              "right": "margin",
+              "top": "margin"
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "top": 150
+            }
+          },
+          "flow": "column",
+          "gap": 30,
+          "ink": "dark",
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "upper": true,
+              "lead": 0.98,
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    20,
+                    150
+                  ],
+                  [
+                    34,
+                    128
+                  ],
+                  [
+                    50,
+                    110
+                  ]
+                ],
+                "maxLines": 4,
+                "maxH": 460
+              },
+              "pills": {
+                "shape": "pill",
+                "fill": "dark",
+                "ink": "gold"
+              },
+              "icons": {}
+            }
+          ]
+        },
+        {
+          "type": "taped-photo",
+          "place": {
+            "px": {
+              "x": 120,
+              "y": 760,
+              "w": 560,
+              "h": 420
+            }
+          },
+          "rot": -3,
+          "mount": 12,
+          "fill": "paper",
+          "keyline": 0,
+          "tapeOn": "top",
+          "tapeColour": "paper-warm",
+          "shadow": "lift",
+          "when": {
+            "present": "image"
+          }
+        },
+        {
+          "type": "sticker",
+          "shape": "circle",
+          "size": 300,
+          "rot": "sticker",
+          "ring": {
+            "w": 8,
+            "colour": "paper"
+          },
+          "field": "tag",
+          "fit": {
+            "cap": 120,
+            "floor": 40,
+            "w": 230,
+            "h": 170
+          },
+          "fill": "dark",
+          "ink": "gold",
+          "z": 3,
+          "place": {
+            "px": {
+              "x": 700,
+              "y": 820
+            }
+          }
+        },
+        {
+          "type": "text",
+          "source": "brand",
+          "style": "label",
+          "weight": 800,
+          "track": -0.01,
+          "align": "center",
+          "ink": "dark",
+          "place": {
+            "anchor": {
+              "left": "margin",
+              "right": "margin",
+              "bottom": "margin"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

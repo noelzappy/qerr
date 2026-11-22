@@ -1,0 +1,275 @@
+{
+  "name": "Tallyho",
+  "website": "tallyho.example",
+  "tagline": "Ask your people. Count every voice.",
+  "descriptor": "A polls and community app: groups ask quick questions, vote and see the results together. A fictional brand for testing.",
+  "timezone": "Europe/Dublin",
+  "money": {
+    "local": "Tallyho works in euros (€) only",
+    "foreign": "US\\$|\\$|£|\\b(?:dollars?|pounds? sterling|rupees?|yen|nairas?)\\b"
+  },
+  "voice": "Loud, warm and direct. Short punchy lines, first person plural, a little cheeky. Speak to founders and community builders, never to investors. No hype numbers: every figure is a round illustrative one and is said to be.",
+  "language": "British English",
+  "visualDirection": "Loud and friendly: saturated blue, orange and deep purple grounds, heavy condensed capitals, words in pills, letters on grey paper with a few bold words, big figures with photos taped on.",
+  "grounds": {
+    "light": "#FFFFFF",
+    "soft": "#EDEDF0",
+    "cool": "#E6EAFF",
+    "warm": "#FFF1E6",
+    "dark": "#2A0E5E",
+    "deep": "#3B1A85"
+  },
+  "text": {
+    "ink": "#14121F",
+    "body": "#33303F",
+    "muted": "#5E5A6B",
+    "mutedInv": "#C9BFEA",
+    "invBody": "#E4DEF7",
+    "hair": {
+      "color": "#14121F",
+      "alpha": 0.12
+    }
+  },
+  "accents": {
+    "gold": "#FF7A1A",
+    "goldDeep": "#9A3F00",
+    "primary": "#3D5AFE"
+  },
+  "gradient": {
+    "sage": "#6C7BFF",
+    "teal": "#3D5AFE",
+    "mint": "#C9D1FF",
+    "gold": "#FF7A1A",
+    "amber": "#E85D0C"
+  },
+  "surfaces": {
+    "panel": "#EDEDF0",
+    "card": "#FFFFFF",
+    "line": {
+      "color": "#14121F",
+      "alpha": 0.08
+    }
+  },
+  "scale": 2,
+  "radius": {
+    "card": 8,
+    "device": 12,
+    "button": 4
+  },
+  "shadows": {
+    "card": [
+      {
+        "x": 0,
+        "y": 13,
+        "blur": 27,
+        "spread": -5,
+        "color": "#14121F",
+        "alpha": 0.18
+      },
+      {
+        "x": 0,
+        "y": 8,
+        "blur": 16,
+        "spread": -8,
+        "color": "#14121F",
+        "alpha": 0.22
+      }
+    ],
+    "window": [
+      {
+        "x": 0,
+        "y": 30,
+        "blur": 60,
+        "spread": -12,
+        "color": "#14121F",
+        "alpha": 0.25
+      },
+      {
+        "x": 0,
+        "y": 18,
+        "blur": 36,
+        "spread": -18,
+        "color": "#14121F",
+        "alpha": 0.3
+      }
+    ],
+    "phone": [
+      {
+        "x": 0,
+        "y": 24,
+        "blur": 32,
+        "spread": 0,
+        "color": "#14121F",
+        "alpha": 0.22
+      }
+    ]
+  },
+  "window": {
+    "refWidth": 560,
+    "bar": 32,
+    "dot": 8,
+    "dotGap": 6,
+    "padX": 12,
+    "titleGap": 12,
+    "titleSize": 10,
+    "titlePadX": 8,
+    "titlePadY": 2,
+    "tilt": {
+      "perspective": 1600,
+      "rotateY": -8,
+      "rotateX": 4
+    }
+  },
+  "phone": {
+    "refWidth": 300,
+    "fade": 56
+  },
+  "glow": {
+    "opacity": 0.6,
+    "blur": 64,
+    "inset": 40
+  },
+  "dots": {
+    "size": 1,
+    "spacing": 24,
+    "alpha": 0.08
+  },
+  "figure": {
+    "strong": 0.42,
+    "soft": 0.16,
+    "grid": 0.2
+  },
+  "font": {
+    "family": "Hanken Grotesk",
+    "mono": "JetBrains Mono",
+    "headlineWeight": 500,
+    "accentWeight": 400,
+    "tracking": -0.02,
+    "leading": 1.18,
+    "files": [
+      {
+        "role": "sans",
+        "weight": "400 800",
+        "file": "design/fonts/hanken-grotesk/hanken-grotesk-v12-normal-latin.woff2",
+        "range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+      },
+      {
+        "role": "sans",
+        "weight": "400 800",
+        "file": "design/fonts/hanken-grotesk/hanken-grotesk-v12-normal-latin-ext.woff2",
+        "range": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF"
+      },
+      {
+        "role": "mono",
+        "weight": "400 500",
+        "file": "design/fonts/jetbrains-mono/jetbrains-mono-v24-normal-latin.woff2",
+        "range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+      },
+      {
+        "role": "mono",
+        "weight": "400 500",
+        "file": "design/fonts/jetbrains-mono/jetbrains-mono-v24-normal-latin-ext.woff2",
+        "range": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF"
+      }
+    ]
+  },
+  "poster": {
+    "headlineWeight": 650,
+    "tracking": -0.035,
+    "leading": 1.06,
+    "slabs": {
+      "myth": "#2A0E5E",
+      "fact": "#E6EAFF"
+    },
+    "slabRadius": 28,
+    "texture": {
+      "alpha": 0.045,
+      "spacing": 9,
+      "angle": 135
+    }
+  },
+  "logos": {
+    "full": "brands/tallyho/logos/logo-full.png",
+    "mark": "brands/tallyho/logos/logo-mark.png",
+    "fullSize": [
+      1227,
+      300
+    ],
+    "wordmarkFrom": 316,
+    "markGap": 16
+  },
+  "series": {
+    "dear-founders": {
+      "name": "Dear founders",
+      "ground": "soft",
+      "accent": "muted"
+    },
+    "truth-metric": {
+      "name": "Truth metric",
+      "ground": "light",
+      "accent": "colour"
+    },
+    "unfair-advantage": {
+      "name": "Your unfair advantage",
+      "ground": "dark",
+      "accent": "colour"
+    },
+    "next-gen": {
+      "name": "Next-gen",
+      "ground": "cool",
+      "accent": "colour"
+    },
+    "meetups": {
+      "name": "Meetups",
+      "ground": "warm",
+      "accent": "muted"
+    }
+  },
+  "spelling": [
+    {
+      "wrong": "Tally[ -]ho",
+      "flags": "i",
+      "right": "Tallyho"
+    },
+    {
+      "wrong": "TallyHo|TALLYHO|\\btallyho\\b",
+      "flags": "",
+      "right": "Tallyho"
+    }
+  ],
+  "lint": {
+    "headlineMaxChars": {
+      "feed": 70,
+      "wide": 48,
+      "story": 70,
+      "square": 50
+    },
+    "subMaxChars": {
+      "feed": 120,
+      "wide": 90,
+      "story": 120,
+      "square": 90
+    }
+  },
+  "contrast": {
+    "headline": 7,
+    "accent": 4.5,
+    "sub": 7,
+    "label": 4.5,
+    "art": 4.5,
+    "artbody": 7
+  },
+  "photo": {
+    "scrimStart": 0.5,
+    "scrimCap": 0.65,
+    "scrimStep": 0.05,
+    "footerFadeCap": 0.5,
+    "minContrast": {
+      "headline": 3,
+      "sub": 4.5,
+      "eyebrow": 4.5,
+      "url": 3
+    },
+    "maxUpscale": 1.3
+  }
+}
