@@ -13,7 +13,7 @@ export const SPEC = {
     valueStyle: en(VALUE_STYLES, 'Words style', 'The type style of the words of each row.', 'body'),
     valueSize: int(20, 60, 'Words size', 'Pixels; leave out for the style\'s own.'),
     maxLines: int(1, 2, 'Most lines', 'Lines a row\'s words may take (they step down to 82% of their size first).', 1),
-    labelInk: role('Label colour', 'The colour of the labels.', 'muted'),
+    labelInk: role('Label colour', 'The colour of the labels; leave out for the ink of the block (muted on the page).'),
     rule: en(['none', ...RULE_WEIGHTS], 'Rule', 'A rule between the rows.', 'none'),
     gap: int(0, 80, 'Space between rows', 'Pixels.', 16),
     upper: bool('Labels in capitals', 'Sets the labels in capitals (the look\'s label style decides when left out).'),
@@ -29,7 +29,8 @@ export function sizes(el, look) {
   const v = el.valueSize ?? (own === 'item' ? t.item?.size ?? t.body?.size : own === 'label' ? t.label?.size : t.body?.size);
   return [t.label?.size, v].filter(Number.isFinite);
 }
-export const inks = (el) => [el.labelInk ?? 'muted', ...(el.ink !== undefined ? [el.ink] : [])];
+// (the block's own ink is checked like every element's; a label colour only when one is given)
+export const inks = (el) => (el.labelInk !== undefined ? [el.labelInk] : []);
 export function fonts(el, look) {
   const T = look.type, labelRole = T.label.role === 'mono' ? 'mono' : 'label', s = el.valueStyle ?? 'body';
   return [[labelRole, T.label.weight], s === 'label' ? [labelRole, T.label.weight] : ['text', s === 'item' ? T.item.weight : T.body.weight]];
@@ -53,7 +54,7 @@ export function render(c, p, env) {
   const beside = (p.layout ?? 'beside') === 'beside', labelW = beside ? c.span(0, (p.labelSpan ?? 2) - 1) : w, gutter = c.grid.gutter;
   const valueW = beside ? w - labelW - gutter : w;
   if (valueW < 60) throw new Error('look: the info block is too narrow for its words beside the labels');
-  const labelOf = (key) => c.run(clean({ html: key, role: 'label', family: L.role === 'mono' ? 'mono' : 'label', size: L.size, lead: 1.2, weight: L.weight, track: L.track, upper: p.upper ?? L.upper, colour: p.labelInk ?? 'muted', nowrap: true }));
+  const labelOf = (key) => c.run(clean({ html: key, role: 'label', family: L.role === 'mono' ? 'mono' : 'label', size: L.size, lead: 1.2, weight: L.weight, track: L.track, upper: p.upper ?? L.upper, colour: p.labelInk ?? env.ink ?? 'muted', nowrap: true }));
   const valueOf = (value) => c.box({ flow: true, w: valueW, h: cellH, cell: true, flexNone: beside || undefined },
     c.run(clean({ html: value, role: 'meta', family: style === 'label' ? (L.role === 'mono' ? 'mono' : 'label') : 'text', size, steps: steps.length > 1 ? steps : undefined, maxLines: steps.length > 1 ? lines : undefined, lead, weight, colour: env.ink ?? 'ink', upper: style === 'label' ? L.upper : undefined, nowrap: lines === 1 || undefined })));
   const ruleW = p.rule && p.rule !== 'none' ? env.look.devices.rule[p.rule] : 0;

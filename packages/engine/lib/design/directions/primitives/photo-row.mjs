@@ -12,7 +12,7 @@ export const SPEC = {
     overlap: int(0, 80, 'Overlap', 'Pixels each circle lies over the one before (a stacked row; needs gap 0 and a ring).'),
     align: en(ALIGNS, 'Align', 'Where the row sits across its place.', 'left'),
     captions: bool('Names under the pictures', 'Sets each picture\'s caption under it, in the look\'s label style.', false),
-    captionInk: role('Name colour', 'The colour of the names.', 'ink'),
+    captionInk: role('Name colour', 'The colour of the names; leave out for the ink of the row (ink on the page).'),
     treat: list(en(PHOTO_TREATS, 'Treatment', 'Grey, multiply, grain or punch.'), 4, 'Treatment', 'How the pictures are treated; leave out to use the look\'s.', { unique: true }),
   },
   common: ['place', 'z', 'when', 'ring', 'shadow', 'w', 'before', 'nudgeX', 'alignSelf'],
@@ -24,7 +24,7 @@ export const CAPTION_GAP = 12;
 export const bindings = () => [{ field: 'gallery', sig: 'gallery|row' }];
 export const picture = true;
 export const sizes = (el, look) => (el.captions ? [look.type?.label?.size].filter(Number.isFinite) : []);
-export const inks = (el) => (el.captions ? [el.captionInk ?? 'ink'] : []);
+export const inks = (el) => (el.captions && el.captionInk !== undefined ? [el.captionInk] : []);
 export const fonts = (el, look) => (el.captions ? [[look.type.label.role === 'mono' ? 'mono' : 'label', look.type.label.weight]] : []);
 export function rules(el, bad) {
   if (el.overlap !== undefined && el.overlap > 0) {
