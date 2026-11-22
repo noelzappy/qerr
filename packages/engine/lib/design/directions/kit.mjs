@@ -760,12 +760,14 @@ const SHAPE_KEY = Object.freeze({ a: 'a', b: 'b', c: 'c', d: 'd', e: 'e', f: 'f'
 const OV_WITH = Object.freeze({ 'any-shape': 'any', ...SHAPE_KEY });
 export function markCrossing(html, el) {
   const s = String(html);
-  if ((el.key === undefined && el.overlap === undefined) || !s.startsWith('<')) return s;
+  const crossing = el.overlap !== undefined && (el.type === undefined || el.type === 'text' || el.type === 'fitted-stack');
+  if ((el.key === undefined && !crossing) || !s.startsWith('<')) return s;
   const end = s.indexOf('>');
   if (end < 0) return s;
   let tag = s.slice(0, end), add = '';
   if (el.key !== undefined) { if (!Object.hasOwn(SHAPE_KEY, el.key)) throw new Error('design kit: a shape key is one of a to f'); add += ` data-ovk="${SHAPE_KEY[el.key]}"`; }
-  if (el.overlap !== undefined) {
+  // (a row of round pictures has an overlap of its own: how its circles overlap; only words cross a shape's edge)
+  if (crossing) {
     const o = el.overlap;
     if (!o || o.allow !== true || !Object.hasOwn(OV_WITH, o.with)) throw new Error('design kit: overlap names a shape key or any-shape and allow: true');
     add += ` data-ov="${OV_WITH[o.with]}"`;

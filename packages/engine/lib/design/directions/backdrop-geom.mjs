@@ -44,8 +44,9 @@ function bands(w, h, s, deg, bw, cb) {
 
 // o: { pattern, w, h, scale, density, angle, seed, at, two } (two: a second colour is given). Returns the paths and how many marks they hold.
 export function backdropGeometry(o) {
-  const w = fin(o.w, 'w'), h = fin(o.h, 'h'), d = fin(o.density ?? 0.5, 'density'), deg = fin(o.angle ?? 0, 'angle'), seed = fin(o.seed ?? 1, 'seed');
-  let s = fin(o.scale ?? 40, 'scale');
+  const dflt = (v, x) => (v === undefined ? x : v);
+  const w = fin(o.w, 'w'), h = fin(o.h, 'h'), d = fin(dflt(o.density, 0.5), 'density'), deg = fin(dflt(o.angle, 0), 'angle'), seed = fin(dflt(o.seed, 1), 'seed');
+  let s = fin(dflt(o.scale, 40), 'scale');
   if (w <= 0 || h <= 0 || w > 4000 || h > 4000) throw new Error('backdrop: the box must be 1 to 4000 px each way');
   if (s < BACKDROP_LIMITS.scale[0] || s > BACKDROP_LIMITS.scale[1] || d < 0.1 || d > 1 || deg < 0 || deg > 179 || seed < BACKDROP_LIMITS.seed[0] || seed > BACKDROP_LIMITS.seed[1]) throw new Error('backdrop: a number is out of range');
   const at = AT[o.at ?? (o.pattern === 'halftone' ? 'left top' : 'center')];
@@ -103,6 +104,8 @@ export function backdropGeometry(o) {
     }
     case 'waves': {
       // rows of a smooth wave (quadratic segments mirrored with T), a stroke each, turned by the angle
+      // rows times half waves stay under the lattice limit (the spacing grows, as for the other patterns)
+      { const R0 = Math.hypot(w, h) / 2 + s * 3, n = ((2 * R0) / s) * ((2 * R0) / (s * 1.5)); if (n > BACKDROP_LIMITS.lattice) s *= Math.sqrt(n / BACKDROP_LIMITS.lattice); }
       const amp = s * (0.12 + 0.3 * d), lambda = s * 3, th = (deg * Math.PI) / 180, cos = Math.cos(th), sin = Math.sin(th), cx = w / 2, cy = h / 2, R = Math.hypot(w, h) / 2 + lambda;
       const P = (u, v) => `${f(cx + u * cos - v * sin)} ${f(cy + u * sin + v * cos)}`;
       for (let k = Math.floor(-R / s) * s; k <= R; k += s) {
