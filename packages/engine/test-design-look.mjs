@@ -142,6 +142,8 @@ function autoFields(els, out = {}) {
     if (e.type === 'meta-row') out.label = clone(AUTO.label);
     if (e.type === 'info-rows') out.info = {};
     if (e.type === 'photo-row') out.gallery = {};
+    if (e.type === 'avatar') out.avatar = {};
+    if (e.type === 'device') out.image = {};
     if (e.type === 'button') { const f = typeof e.field === 'string' ? e.field : 'cta'; if (f === 'cta') out.cta = { max: 24 }; else if (Object.hasOwn(AUTO, f)) out[f] = clone(AUTO[f]); }
     if (e.sticker) autoFields([e.sticker], out);
     if (Array.isArray(e.children)) autoFields(e.children, out);
@@ -183,6 +185,8 @@ const EXAMPLES = {
   'taped-photo': { type: 'taped-photo', place: AT(140, 600, 800, 520), rot: -3 },
   'paper-texture': { type: 'paper-texture', place: { inset: 'page' } },
   'icon-badge': { type: 'icon-badge', icon: 'shield', fill: 'field', ink: 'on-field', place: AT(56, 600, 122, 122) },
+  avatar: { type: 'avatar', size: 120, place: { px: { x: 56, y: 1100 } } },
+  device: { type: 'device', place: AT(600, 300, 400, 840) },
 };
 const host = (...extra) => ({
   ...clone(SWISS), id: 'host', origin: 'copy:shipped:swiss',
@@ -819,7 +823,7 @@ test('the catalogue lists the newer properties and the seam\'s sticker slot', ()
 
 test('before: only for an item flowing in a box, for every type that lists it', () => {
   const types = ELEMENT_TYPES.filter((t) => ELEMENTS[t].common.includes('before'));
-  assert.deepEqual(types, ['box', 'text', 'sticker', 'rule', 'block', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'info-rows', 'button', 'photo-row', 'icon-badge']);
+  assert.deepEqual(types, ['box', 'text', 'sticker', 'rule', 'block', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'info-rows', 'button', 'photo-row', 'icon-badge', 'avatar']);
   for (const t of types) {
     assert.deepEqual(hp(inBox({ ...flowOf(t), before: 24 })), [], `${t} flows with space before`);
     assert.deepEqual(hp(inBox({ ...flowOf(t), before: -12 })), [], `${t} flows pulled up a little`);

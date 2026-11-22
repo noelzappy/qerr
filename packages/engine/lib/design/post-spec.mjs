@@ -20,8 +20,14 @@ export const POST_ITEMS = { min: 2, max: 5, chars: 44 };
 export const POST_INFO = { min: 1, max: 4, value: 40 };
 export const INFO_KEYS = ['When', 'Where', 'Date', 'Time', 'Place', 'Book on', 'Tickets', 'Price', 'Entry', 'Who', 'Host', 'Call', 'Online', 'Starts', 'Ends', 'Open'];
 export const POST_GALLERY = { min: 2, max: 5, caption: 24 };
+// A single portrait picture (avatar) of the person a quotation is by: { image, focal? }, one picture read and checked like `image`, cropped by the
+// look's avatar element (round, square or rounded) round its focal point. Whether a face may be shown is the picture's own record (the app's
+// rights and consent rule, the AI's usable pictures); the engine checks the shape here and the file when the page is made.
+export const POST_AVATAR = Object.freeze({ keys: ['image', 'focal'] });
 // The lists of a post counted by entries: { min, max } of each (a look's composition may narrow them).
 export const POST_LISTS = { items: POST_ITEMS, info: POST_INFO, gallery: POST_GALLERY };
+// The fields that are a picture (no length; the file is read and checked when the page is made).
+export const PICTURE_FIELDS = Object.freeze(['image', 'avatar']);
 
 // The inline marks of a headline, besides its *emphasis*: [[words]] sets one to three words in a pill, {{name}} places an icon of the engine's
 // fixed set (icons.mjs). At most INLINE.pills pills and INLINE.icons icons; a pill holds plain words only (no emphasis, icon or bracket), an
@@ -60,7 +66,7 @@ export const POST_REQUIRED = {
   statement: ['headline'], figure: ['big'], list: ['headline', 'items'], quote: ['quote'], photo: ['image', 'headline'], event: ['headline', 'meta'], offer: ['headline', 'tag'],
 };
 // The keys a post design may carry besides its fields (a batch's file name and sizes, the network sizes).
-const OWN = ['template', 'kind', 'variant', 'sizes', 'name', 'networkSizes', 'image', 'focal', 'zoom', 'items', 'graphics', 'info', 'gallery'];
+const OWN = ['template', 'kind', 'variant', 'sizes', 'name', 'networkSizes', 'image', 'focal', 'zoom', 'items', 'graphics', 'info', 'gallery', 'avatar'];
 // The brand graphics and cut-outs a post hands to its look (the app fills this from the vault for the graphics the look's pieces name):
 // [{ ref: the vault item's id, image: a PNG or WebP file with transparency, tintable: whether a piece may recolour it }]. Checked here by
 // shape; the files are read and checked (type, size, transparency) when the page is made (render.mjs preparePage).
@@ -102,7 +108,7 @@ export function postProblems(d, where = 'design', { direction, focalOk, brief } 
   if (brief) e.push(...briefProblems(d, where, brief));
   if (brief) { /* the look is the direction */ } else if (direction === null) e.push(`${where}: a post is drawn in the brand's design direction, and this brand has none; set style.direction in brand.json to one of ${DIRECTIONS.join(', ')} (Settings, Brand and look)`);
   else if (direction !== undefined && !DIRECTIONS.includes(direction)) e.push(`${where}: the brand's design direction "${clip(direction)}" is not one of ${DIRECTIONS.join(', ')}`);
-  for (const k of Object.keys(d)) if (!POST_KEYS.includes(k)) e.push(`${where}: "${clip(k)}" is not a field of a post (fields: ${[...Object.keys(POST_FIELDS), 'items', 'info', 'gallery', 'image', 'focal', 'zoom'].join(', ')}; also kind, variant)`);
+  for (const k of Object.keys(d)) if (!POST_KEYS.includes(k)) e.push(`${where}: "${clip(k)}" is not a field of a post (fields: ${[...Object.keys(POST_FIELDS), 'items', 'info', 'gallery', 'avatar', 'image', 'focal', 'zoom'].join(', ')}; also kind, variant)`);
   if (d.variant !== undefined && !(Number.isInteger(d.variant) && d.variant >= 0 && d.variant <= MAX_VARIANT)) e.push(`${where}: variant must be a whole number from 0 to ${MAX_VARIANT} (leave it out and the post picks one itself)`);
   for (const [f, { max }] of Object.entries(POST_FIELDS)) {
     const v = d[f];
@@ -123,7 +129,7 @@ export function postProblems(d, where = 'design', { direction, focalOk, brief } 
       else if (markProblems(t, 'items').length) e.push(`${where}: items[${i}] takes no [[pill]] words or {{icon}} marks; only the headline does`);
     });
   }
-  e.push(...infoProblems(d.info, where), ...galleryProblems(d.gallery, where));
+  e.push(...infoProblems(d.info, where), ...galleryProblems(d.gallery, where), ...avatarProblems(d.avatar, where, focalOk));
   if (d.image !== undefined) {
     if (typeof d.image !== 'string' || !d.image.trim()) e.push(`${where}: image must be a file path`);
     else if (!IMAGE_EXTS.includes(path.extname(d.image).toLowerCase())) e.push(`${where}: image "${clip(d.image)}" must be ${IMAGE_EXTS.join(' ')}`);
@@ -217,6 +223,18 @@ function infoProblems(info, where) {
     const p = lineProblem(r.value, `info[${i}].value`, value);
     if (p) e.push(`${where}: ${p}`);
   });
+  return e;
+}
+// The portrait picture of a quotation: { image, focal? }. Nothing of a refused value is echoed (a key or a path may be anything).
+export function avatarProblems(a, where, focalOk) {
+  if (a === undefined) return [];
+  if (!isObj(a)) return [`${where}: avatar must be an object like { "image": "design/assets/photos/a.jpg", "focal": "50% 30%" }`];
+  const e = [];
+  const extra = Object.keys(a).filter((k) => !POST_AVATAR.keys.includes(k));
+  if (extra.length) e.push(`${where}: avatar takes only image and focal (${extra.length} other key${extra.length === 1 ? '' : 's'} given)`);
+  if (typeof a.image !== 'string' || !a.image.trim() || a.image.includes('\0')) e.push(`${where}: avatar.image must be a file path`);
+  else if (!IMAGE_EXTS.includes(path.extname(a.image).toLowerCase())) e.push(`${where}: avatar.image must be ${IMAGE_EXTS.join(' ')}`);
+  if (a.focal !== undefined && (typeof focalOk === 'function' ? !focalOk(a.focal) : false)) e.push(`${where}: avatar.focal must look like "60% 40%", "center", "left top" or { "x": 0.6, "y": 0.4 }`);
   return e;
 }
 // The pictures of a row of round pictures: [{ image, caption? }], each picture once.

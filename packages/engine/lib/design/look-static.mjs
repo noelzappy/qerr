@@ -70,7 +70,7 @@ function bindingsOf(node, look) {
   }
 }
 // Types whose bindings are not checked against the declared fields by their own descriptor.
-const BIND_CHECKED_HERE = ['photo', 'seam', 'rows', 'meta-row', 'info-rows', 'photo-row'];
+const BIND_CHECKED_HERE = ['photo', 'seam', 'rows', 'meta-row', 'info-rows', 'photo-row', 'avatar'];
 // A primitive that is a picture (text over it needs a filled box or a fade), by its module's `picture` flag.
 const isPicture = (n) => n.type === 'photo' || (n.type === 'seam' && n.el.upper !== 'field') || PRIMITIVES[n.type]?.picture === true;
 
@@ -306,7 +306,8 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
   }
 
   // -- turned elements --
-  const turned = nodes.filter((n) => n.el.rot !== undefined && isTurned(n.el.rot, look));
+  // (a primitive with a lean of its own, a device, says so: turned(el))
+  const turned = nodes.filter((n) => (n.el.rot !== undefined && isTurned(n.el.rot, look)) || (typeof PRIMITIVES[n.type]?.turned === 'function' && PRIMITIVES[n.type].turned(n.el) && (look.dials?.tilt ?? 1) !== 0));
   const rowsTurned = nodes.filter((n) => n.type === 'rows' && Array.isArray(n.el.altRot) && n.el.altRot.some((v) => isTurned(v, look)));
   if (turned.length + rowsTurned.length > LIMITS.rotated) whole(`turns ${turned.length + rowsTurned.length} elements; at most ${LIMITS.rotated} may be turned`);
   for (const n of nodes) {

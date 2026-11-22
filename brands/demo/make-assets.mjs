@@ -8,12 +8,15 @@
 //   packages/engine/design/assets/demo/screen-desk.png     a desktop app screen, window content only (the tool draws the chrome)
 //   packages/engine/design/assets/demo/screen-phone.png    a pre-framed phone capture (transparent around a drawn phone and its
 //                                                          app screen), for the layouts that show a phone (drawn without Chrome)
+//   packages/engine/design/assets/demo/screen-app.png      a bare phone screenshot of a made-up app (no transparency, no phone round
+//                                                          it), for a look's device, which draws the phone (testlib/screens.mjs, no Chrome)
 //   brands/demo/map.json                                   an invented island in three regions, for the dot map
 import fs from 'node:fs';
 import path from 'node:path';
 import { ENGINE_DIR, ROOT } from '../../packages/engine/lib/core.mjs';
 import { Browser, NO_CHROME, findChrome } from '../../packages/engine/lib/design/chrome.mjs';
 import { pngBytes } from '../../packages/engine/testlib/png.mjs';
+import { appScreen } from '../../packages/engine/testlib/screens.mjs';
 
 const NAVY = '#14213D', CORAL = '#E8603C', SKY = '#3D6FD1', PALE = '#F3EEE6';
 const font = (f) => `data:font/woff2;base64,${fs.readFileSync(path.join(ENGINE_DIR, 'design', 'fonts', f)).toString('base64')}`;
@@ -92,6 +95,7 @@ function phoneCapture() {
 
 async function main() {
   fs.writeFileSync(out('packages/engine/design/assets/demo/screen-phone.png'), phoneCapture());
+  fs.writeFileSync(out('packages/engine/design/assets/demo/screen-app.png'), appScreen(645, 1398, { accent: SKY, second: CORAL }));
   const map = islandMap();
   fs.writeFileSync(out('brands/demo/map.json'), `{\n  "_source": ${JSON.stringify(map._source)},\n  "grid": ${JSON.stringify(map.grid)},\n  "lit": ${JSON.stringify(map.lit)},\n  "regions": [\n${map.regions.map((r) => `    ${JSON.stringify(r)}`).join(',\n')}\n  ]\n}\n`);
   const chromePath = findChrome();

@@ -64,18 +64,23 @@ test('the design devices: change pills, a phone screen, icon rows, a trust badge
     assert.ok(els.some((e) => e.type === 'fitted-stack' && e.field === 'big'), name);
     assert.ok(els.some((e) => e.type === 'button' && e.field === 'tag' && e.icon === 'arrow-up-right'), name);
   }
-  // the phone: the picture uncropped at the proportions of a pre-framed phone capture (660 x 1354), no shadow (its corners are see-through)
-  const phone = elsOf(byName('Phone')).find((e) => e.type === 'photo');
-  assert.ok(Math.abs(phone.place.px.w / phone.place.px.h - 660 / 1354) < 0.002);
-  assert.equal(phone.shadow, undefined);
+  // the phone: drawn by the engine round a bare screenshot (a dark body, an island, side buttons, a soft lift); a pre-framed capture is shown as it is
+  const phone = elsOf(byName('Phone')).find((e) => e.type === 'device');
+  assert.ok(phone && !elsOf(byName('Phone')).some((e) => e.type === 'photo'), 'no flat picture: the device draws the phone');
+  assert.deepEqual([phone.model, phone.finish, phone.cutout, phone.buttons, phone.shadow], ['phone', 'dark', 'island', true, 'lift']);
   // features: a tick on each row's tile; the event: a calendar, a clock and a pin for its date, time and place
   assert.deepEqual(elsOf(byName('Features')).find((e) => e.type === 'rows').icons, ['check']);
   assert.deepEqual(elsOf(byName('Live session')).find((e) => e.type === 'rows').icons, ['calendar', 'clock', 'pin']);
   // trust: a shield on a badge in the brand colour
   assert.ok(elsOf(byName('Trust card')).some((e) => e.type === 'icon-badge' && e.icon === 'shield' && e.fill === 'field'));
-  // testimonial: round pictures from the gallery, overlapping, ringed in the page colour
+  // testimonial: the one portrait picture of the person quoted (avatar) in a ring of the brand colour; round pictures from the gallery, overlapping and
+  // ringed in the page colour, when there is no avatar
   const row = elsOf(byName('Testimonial')).find((e) => e.type === 'photo-row');
   assert.ok(row.overlap > 0 && row.ring.colour === 'paper');
+  assert.deepEqual(row.when, { present: 'gallery', absent: 'avatar' });
+  const face = elsOf(byName('Testimonial')).find((e) => e.type === 'avatar');
+  assert.deepEqual([face.shape, face.ring.colour, face.when.present], ['circle', 'field', 'avatar']);
+  assert.ok(byName('Testimonial').fields.avatar && byName('Testimonial').fields.gallery);
   // the offer and the hero end in a button in the accent colour
   for (const name of ['Gradient offer', 'Gradient hero', 'Phone']) assert.ok(elsOf(byName(name)).some((e) => e.type === 'button' && e.field === 'cta' && e.fill === 'gold'), name);
   // the how-it-works step page: the step number fitted on a tile, the page number from the folio

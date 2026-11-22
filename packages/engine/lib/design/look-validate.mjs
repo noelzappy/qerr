@@ -5,7 +5,7 @@
 // named render, __proto__, constructor or prototype, and any value that is not plain JSON.
 import { fontLibrary as shippedFontLibrary } from './font-library.mjs';
 import {
-  ANGLE_NAMES, COLOUR_NAMES, COMMON, CONTAINERS, ELEMENTS, ELEMENT_TYPES, FIELD_NAMES, FLOWING, FLOW_ONLY, FORBIDDEN_KEYS, GROUNDS, ID, KINDS, KIND_FIELDS, LENGTH_TOKENS,
+  ANGLE_NAMES, COLOUR_NAMES, COMMON, CONTAINERS, ELEMENTS, ELEMENT_TYPES, FIELD_NAMES, PICTURE_FIELDS, FLOWING, FLOW_ONLY, FORBIDDEN_KEYS, GROUNDS, ID, KINDS, KIND_FIELDS, LENGTH_TOKENS,
   LIMITS, LOOK_SCHEMA, ORIGIN, PAGE, PLACE_FORMS, PLACE_MODIFIERS, POST_FIELDS, POST_ITEMS, POST_REQUIRED, REQUIRED_OWN, SECTIONS, SECTION_NAMES, SIZE_RANGE, TEXT_FIELDS, TOP_ONLY, VALIGNS, descriptorOf, keysOf,
 } from './look-elements.mjs';
 import { FILL_ROLES, compositionStaticChecks, gridOf, styleOf } from './look-static.mjs';
@@ -435,7 +435,7 @@ function fieldSpecProblems(name, f, kind, path, ctx, errs) {
     unknownKeys(f, ['required', 'min', 'max'], path, ctx, errs);
     for (const k of ['min', 'max']) if (f[k] !== undefined && !(Number.isInteger(f[k]) && f[k] >= L.min && f[k] <= L.max)) push(errs, ctx, `${path}.${k}`, `must be a whole number from ${L.min} to ${L.max}`);
     if (Number.isInteger(f.min) && Number.isInteger(f.max) && f.min > f.max) push(errs, ctx, path, 'min is more than max');
-  } else if (name === 'image') {
+  } else if (PICTURE_FIELDS.includes(name)) {
     unknownKeys(f, ['required'], path, ctx, errs);
   } else {
     unknownKeys(f, ['required', 'max'], path, ctx, errs);
@@ -449,7 +449,7 @@ function acceptsProblems(a, i, comp, path, ctx, errs) {
   if (!isObj(a)) return push(errs, ctx, path, 'must be an object like { "field": "headline", "part": "pre", "maxChars": 22 }');
   if (typeof a.field !== 'string' || !FIELD_NAMES.includes(a.field)) return push(errs, ctx, `${path}.field`, `must be one of ${list(FIELD_NAMES)}`);
   if (isObj(comp.fields) && !hasOwn(comp.fields, a.field)) push(errs, ctx, `${path}.field`, `names ${show(a.field)}, which the composition does not declare`);
-  if (a.field === 'image') return push(errs, ctx, `${path}.field`, 'a picture has no length to judge');
+  if (PICTURE_FIELDS.includes(a.field)) return push(errs, ctx, `${path}.field`, 'a picture has no length to judge');
   if (hasOwn(POST_LISTS, a.field)) {
     const L = POST_LISTS[a.field];
     unknownKeys(a, ['field', 'min', 'max'], path, ctx, errs);

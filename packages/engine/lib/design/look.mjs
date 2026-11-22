@@ -32,7 +32,7 @@ import { VAULT_REF } from './look-desc.mjs';
 import { INK_ON } from './look-static.mjs';
 import { ICONS, ICON_NAMES } from './icons.mjs';
 import { INFO_KEYS, INLINE, POST_GALLERY, POST_INFO, POST_LISTS } from './post-spec.mjs';
-import { LIST_FIELDS, PILL_SHAPES } from './look-elements.mjs';
+import { LIST_FIELDS, PICTURE_FIELDS, PILL_SHAPES } from './look-elements.mjs';
 import { validateLook, validateLooks } from './look-validate.mjs';
 
 export { validateLook, validateLooks, LOOK_SCHEMA, KINDS, ELEMENTS, COMMON, SECTIONS, LIMITS, GLYPHS, STICKER_SHAPES, PHOTO_SHAPES, PHOTO_TREATS, FORMATS, EMPHASES, KIND_FIELDS, ELEMENT_TYPES };
@@ -51,6 +51,7 @@ const FIELD_INFO = {
   meta: ['Event line', 'Date, time and place, split by dots.'], tag: ['Tag or price', 'A short word or price for a sticker.'], items: ['List points', 'Two to five short points.'], image: ['Picture', 'The post\'s picture.'],
   cta: ['Button words', 'A short call to action for a button, such as Book now.'], info: ['Info rows', 'One to four labelled rows, such as When, Where and Book on.'],
   gallery: ['Round pictures', 'Two to five pictures in a row, each with an optional name.'],
+  avatar: ['Portrait picture', 'One picture of the person quoted, cropped round, square or rounded round its focal point.'],
 };
 // the counted lists of a post: their limits, and what the editor counts per entry
 const LIST_INFO = { items: { ...POST_ITEMS }, info: { min: POST_INFO.min, max: POST_INFO.max, chars: POST_INFO.value }, gallery: { min: POST_GALLERY.min, max: POST_GALLERY.max, chars: POST_GALLERY.caption } };
@@ -74,7 +75,7 @@ export function lookCatalogue() {
   const fields = Object.fromEntries(FIELD_NAMES.map((f) => [f, {
     label: FIELD_INFO[f][0], help: FIELD_INFO[f][1],
     // (a counted list is type "items" for the editor: it is judged by how many entries it has)
-    ...(Object.hasOwn(LIST_INFO, f) ? { type: 'items', ...LIST_INFO[f] } : f === 'image' ? { type: 'image' } : { type: 'text', max: POST_FIELDS[f].max, emphasis: !!POST_FIELDS[f].emphasis }),
+    ...(Object.hasOwn(LIST_INFO, f) ? { type: 'items', ...LIST_INFO[f] } : PICTURE_FIELDS.includes(f) ? { type: 'image' } : { type: 'text', max: POST_FIELDS[f].max, emphasis: !!POST_FIELDS[f].emphasis }),
   }]));
   const composition = {
     properties: {
@@ -201,7 +202,7 @@ export function normaliseLook(look) {
   l.compositions = l.compositions.map((c) => {
     const i = (index[c.kind] = (index[c.kind] ?? -1) + 1);
     const fields = {};
-    for (const [name, f] of Object.entries(c.fields ?? {})) fields[name] = { ...f, required: f.required === true || POST_REQUIRED[c.kind]?.includes(name) || false, ...(!LIST_FIELDS.includes(name) && name !== 'image' ? { max: f.max ?? POST_FIELDS[name]?.max } : {}) };
+    for (const [name, f] of Object.entries(c.fields ?? {})) fields[name] = { ...f, required: f.required === true || POST_REQUIRED[c.kind]?.includes(name) || false, ...(!LIST_FIELDS.includes(name) && !PICTURE_FIELDS.includes(name) ? { max: f.max ?? POST_FIELDS[name]?.max } : {}) };
     return { ...c, id: `${c.kind}/${i}`, fields, accepts: c.accepts ?? [], calm: c.calm ?? null, fit: c.fit ?? 'margins', elements: (c.elements ?? []).map((e) => fillElement(e, true)) };
   });
   return deepFreeze(l);

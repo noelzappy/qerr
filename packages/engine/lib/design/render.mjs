@@ -15,6 +15,7 @@ import { findLayout, layoutUsesPhone } from './layout.mjs';
 import { layoutFit, renderLayout, renderLayoutWith } from './layout-render.mjs';
 import { TEMPLATE_FNS, builtinLayoutFor } from './builtin-layouts.mjs';
 import { renderPost } from './directions/index.mjs';
+import { screenFit } from './directions/primitives/device.mjs';
 
 export { DesignError };
 
@@ -82,6 +83,12 @@ export function preparePage(brand, job) {
       dims.set(p.image, imageSize(buf));
     }
   }
+  // a post's portrait picture (avatar): read and checked the same way
+  if (spec.template === 'post' && spec.avatar && typeof spec.avatar === 'object' && typeof spec.avatar.image === 'string' && !images.has(spec.avatar.image)) {
+    const { type, buf } = readImageBytes(spec.avatar.image, { root: brand.root });
+    images.set(spec.avatar.image, `data:${type};base64,${buf.toString('base64')}`);
+    dims.set(spec.avatar.image, imageSize(buf));
+  }
   const out = tpl(spec, { size: S, brand, counter: job.counter, folio: job.folio, date: job.date, layouts, image: (p) => images.get(p) ?? (() => { throw new DesignError(`image not loaded: ${p}`); })(), imageSize: (p) => dims.get(p) ?? null });
   return { S, spec, layout, out };
 }
@@ -144,6 +151,14 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
     if (ready.broken.length) throw new DesignError(`image could not be loaded: ${ready.broken.join(', ')} (is the path right, and is it a valid image?)`);
     if (ready.unframed.length) throw new DesignError(unframedPhone(ready.unframed[0], 'its corners are not transparent, so it is a screenshot without a phone around it'));
     for (const s of ready.sampled ?? []) notes.push(sampleNote(s));
+    // A look's device round a bare screenshot: refused when the screenshot is far from the device's proportions, cropped to its screen (and
+    // said) otherwise. A pre-framed capture is shown whole by the page itself (runtime ready()).
+    for (const d of ready.devices ?? []) {
+      if (d.framed) { notes.push(`the picture on the ${d.model} already has the ${d.model} drawn round it, so it is shown as it is`); continue; }
+      const fit = screenFit(d);
+      if (!fit.ok) throw new DesignError(fit.problem);
+      if (fit.warning) warnings.push(fit.warning); else if (fit.note) notes.push(fit.note);
+    }
     if (!ready.fontOk) warnings.push(`the ${brand.font.family} font did not load; the text uses a fallback font`);
     // A post's fitted headlines (each line sized to fill the measure) are set before anything is measured.
     if (isPost) {

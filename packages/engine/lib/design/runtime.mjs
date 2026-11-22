@@ -33,6 +33,20 @@ window.__ds = {
       const corners = [[0, 0], [c.width - 1, 0], [0, c.height - 1], [c.width - 1, c.height - 1]];
       if (corners.some(([a, b]) => x.getImageData(a, b, 1, 1).data[3] > 16)) unframed.push(i.getAttribute('data-name'));
     }
+    // A look's device (kit device) round the post's picture: a capture with the device already drawn into it (its four corners see-through) is shown
+    // whole and the drawn frame is hidden (data-framed), so it is never framed twice; any other picture is a bare screenshot in the drawn screen.
+    // Each is reported with its own size and the screen's, for the renderer's proportion check (render.mjs, device.mjs screenFit).
+    const devices = [];
+    for (const i of document.querySelectorAll('img[data-device]')) {
+      if (!i.naturalWidth) continue;
+      const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight;
+      const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(i, 0, 0);
+      const corners = [[0, 0], [c.width - 1, 0], [0, c.height - 1], [c.width - 1, c.height - 1]];
+      const framed = corners.every(([a, b]) => x.getImageData(a, b, 1, 1).data[3] <= 16);
+      const scr = i.parentElement, dev = i.closest('.k-dev');
+      devices.push({ name: i.getAttribute('data-name'), framed, model: dev && dev.classList.contains('k-dev-tablet') ? 'tablet' : 'phone', nw: i.naturalWidth, nh: i.naturalHeight, sw: scr.offsetWidth, sh: scr.offsetHeight });
+      if (framed && dev) { dev.setAttribute('data-framed', ''); i.setAttribute('data-fit', 'contain'); }
+    }
     // A poster photo (object, number) is one of two things, decided here from its own pixels (edge.mjs): when its top and side
     // edges are one plain colour, the page takes exactly that colour and the photo runs into it with no fade; otherwise the photo
     // stays a full-bleed band on the template's ground. The strips are read from the photo as the flush layout shows it (the crop of
@@ -78,7 +92,7 @@ window.__ds = {
       const e = classifyEdge({ topWidth: Math.max(1, Math.round(vw)), top: grab(vx, vy, vw, vh * 0.03), left: grab(vx, vy, vw * 0.03, vh * 0.3), right: grab(vx + vw * 0.97, vy, vw * 0.03, vh * 0.3) });
       if (e.uniform) { const type = this.typeForLook(cv, e.columns); if (type.ratio >= (+need.text || 0)) this.flushLook(cv, e, type); }
     }
-    return { broken, unframed, sampled, fontOk: faces.slice(0, 2).every((f) => document.fonts.check(f)) };
+    return { broken, unframed, devices, sampled, fontOk: faces.slice(0, 2).every((f) => document.fonts.check(f)) };
   },
   // The colour roles of a look page as numbers: --c-<name> read as #rrggbb ([r, g, b] or null).
   lookRole(cv, name) { const v = getComputedStyle(cv).getPropertyValue('--c-' + name).trim(); return /^#[0-9a-f]{6}$/i.test(v) ? [1, 3, 5].map((k) => parseInt(v.slice(k, k + 2), 16)) : null; },

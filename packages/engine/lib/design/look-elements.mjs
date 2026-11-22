@@ -48,6 +48,8 @@ import * as photoRow from './directions/primitives/photo-row.mjs';
 import * as tapedPhoto from './directions/primitives/taped-photo.mjs';
 import * as paperTexture from './directions/primitives/paper-texture.mjs';
 import * as iconBadge from './directions/primitives/icon-badge.mjs';
+import * as avatar from './directions/primitives/avatar.mjs';
+import * as device from './directions/primitives/device.mjs';
 // the shapes of a headline's pills (kit.mjs PILL_SHAPES)
 export const PILL_SHAPES = ['pill', 'soft', 'outline'];
 export { ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS, METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SOFT_SHADOWS, CORNERS, ROUND_SHAPES, RULE_STYLES, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS, WORDS, BLENDS };
@@ -58,7 +60,9 @@ export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 
   // info rows, a button and a row of round pictures
   'info-rows': infoRows, button, 'photo-row': photoRow,
   // a picture taped on at an angle, a paper texture, and one of the engine's icons drawn large, bare or on a badge (a sticker, a trust mark)
-  'taped-photo': tapedPhoto, 'paper-texture': paperTexture, 'icon-badge': iconBadge });
+  'taped-photo': tapedPhoto, 'paper-texture': paperTexture, 'icon-badge': iconBadge,
+  // one portrait picture of the person quoted (the post's avatar), and a phone or tablet drawn round a bare screenshot
+  avatar, device });
 
 export const LOOK_SCHEMA = 1;
 export const KINDS = [...POST_KINDS];
@@ -79,19 +83,22 @@ export const FORBIDDEN_KEYS = Object.freeze(['render', '__proto__', 'constructor
 // Which fields a composition of a kind may use (a superset of the compositions of the shipped directions); the required ones come
 // from POST_REQUIRED and must be declared required.
 // cta (a button's words), info (an info block's rows) and gallery (a row of round pictures) are the optional parts a post may add; they come last.
-// A figure may carry a tag (a small change pill such as "+12%"), a quote a gallery (the round picture of the person quoted).
+// A figure may carry a tag (a small change pill such as "+12%"), a quote a gallery (round pictures of the people quoted) or an avatar (one portrait
+// picture of the person quoted); an event may carry an avatar too (the speaker).
 export const KIND_FIELDS = Object.freeze({
   statement: ['label', 'headline', 'sub', 'cta', 'info', 'gallery'],
   figure: ['label', 'headline', 'big', 'unit', 'sub', 'image', 'tag'],
   list: ['label', 'headline', 'sub', 'items', 'cta'],
-  quote: ['label', 'quote', 'by', 'gallery'],
+  quote: ['label', 'quote', 'by', 'gallery', 'avatar'],
   photo: ['label', 'image', 'headline', 'sub', 'tag', 'cta', 'info', 'gallery'],
-  event: ['label', 'image', 'headline', 'meta', 'sub', 'tag', 'cta', 'info', 'gallery'],
+  event: ['label', 'image', 'headline', 'meta', 'sub', 'tag', 'cta', 'info', 'gallery', 'avatar'],
   offer: ['label', 'image', 'headline', 'tag', 'sub', 'unit', 'cta', 'info', 'gallery'],
 });
 // the counted lists of a post (POST_LISTS) and its picture
 export const LIST_FIELDS = ['items', 'info', 'gallery'];
-export const FIELD_NAMES = [...TEXT_FIELDS, ...LIST_FIELDS, 'image'];
+// the fields that are a picture: the post's own and the portrait picture of a quotation
+export const PICTURE_FIELDS = ['image', 'avatar'];
+export const FIELD_NAMES = [...TEXT_FIELDS, ...LIST_FIELDS, ...PICTURE_FIELDS];
 
 // ---- the common properties of elements ----
 export const COMMON = Object.freeze({

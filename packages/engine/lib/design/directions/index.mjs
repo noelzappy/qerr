@@ -149,13 +149,13 @@ function adapt(look) {
     const index = (byKind[cp.kind] ??= []).length, tokensProbe = null;
     const groundOf = (spec) => {
       if (typeof cp.ground === 'string') return cp.ground;
-      const has = (f) => (Object.hasOwn(POST_LISTS, f) ? Array.isArray(spec[f]) && spec[f].length > 0 : f === 'image' ? typeof spec.image === 'string' && spec.image !== '' : typeof spec[f] === 'string' && spec[f] !== '');
+      const has = (f) => (Object.hasOwn(POST_LISTS, f) ? Array.isArray(spec[f]) && spec[f].length > 0 : f === 'image' ? typeof spec.image === 'string' && spec.image !== '' : f === 'avatar' ? !!spec.avatar && typeof spec.avatar === 'object' && typeof spec.avatar.image === 'string' && spec.avatar.image !== '' : typeof spec[f] === 'string' && spec[f] !== '');
       for (const g of cp.ground) if (!g.when || ((g.when.present === undefined || has(g.when.present)) && (g.when.absent === undefined || !has(g.when.absent)))) return g.ground;
       return cp.ground[cp.ground.length - 1].ground;
     };
     const seen = (v) => [...seenText(v)].length;
     byKind[cp.kind].push({
-      id: `${look.id}/${cp.kind}/${index}`, name: cp.name, describe: cp.describe, fields: Object.keys(cp.fields), words: Object.fromEntries(Object.entries(cp.fields).filter(([f, v]) => f !== 'items' && f !== 'image' && v.max).map(([f, v]) => [f, v.max])),
+      id: `${look.id}/${cp.kind}/${index}`, name: cp.name, describe: cp.describe, fields: Object.keys(cp.fields), words: Object.fromEntries(Object.entries(cp.fields).filter(([f, v]) => f !== 'items' && f !== 'image' && f !== 'avatar' && v.max).map(([f, v]) => [f, v.max])),
       ground: typeof cp.ground === 'string' ? cp.ground : cp.ground[cp.ground.length - 1].ground, groundOf, calm: cp.calm ? { maxShare: cp.calm.maxShare } : undefined, fitSpec: cp.fit,
       dark: groundDark(cp), bodyOnField: bodyOnField(cp),
       accepts: cp.accepts.length ? (spec) => cp.accepts.every((r) => {
@@ -239,7 +239,7 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
   const classes = typeof out === 'object' && out.classes ? String(out.classes) : '';
   if (!/^[a-z0-9 _-]*$/.test(classes)) throw new Error(`${comp.id}: classes may only use lowercase letters, digits, space, - and _`);
   const warnings = [...new Set(c.lookNotes ?? [])];
-  for (const f of ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'meta', 'tag', 'image', 'cta', 'info', 'gallery']) if (spec[f] !== undefined && !comp.fields.includes(f)) warnings.push(`${f} is not used by the ${comp.name} composition (${comp.id}); it is left out of the image`);
+  for (const f of ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'meta', 'tag', 'image', 'cta', 'info', 'gallery', 'avatar']) if (spec[f] !== undefined && !comp.fields.includes(f)) warnings.push(`${f} is not used by the ${comp.name} composition (${comp.id}); it is left out of the image`);
   for (const [f, max] of Object.entries(comp.words)) {
     if (f === 'items') continue;
     if (spec[f] !== undefined && c.chars(f) > max) warnings.push(`the ${f} is ${c.chars(f)} characters; the ${comp.name} composition is designed for up to ${max}, so it may be set smaller than intended`);
@@ -316,7 +316,7 @@ export function postKinds(brand) {
       if (!entry?.variants.length) continue;
       const vs = entry.variants, names = new Set([...(POST_REQUIRED[kind] ?? []), ...vs.flatMap((v) => Object.keys(v.fields))]), fields = {};
       for (const f of names) {
-        if (f === 'image') { fields[f] = {}; continue; }
+        if (f === 'image' || f === 'avatar') { fields[f] = {}; continue; }
         const have = vs.filter((v) => v.fields[f]);
         if (f === 'items') { fields[f] = { min: Math.min(...have.map((v) => v.fields.items.min ?? POST_ITEMS.min)), max: Math.max(...have.map((v) => v.fields.items.max ?? POST_ITEMS.max)), chars: POST_ITEMS.chars }; continue; }
         if (f === 'info' || f === 'gallery') { const L = POST_LISTS[f]; fields[f] = { min: Math.min(...have.map((v) => v.fields[f].min ?? L.min)), max: Math.max(...have.map((v) => v.fields[f].max ?? L.max)), chars: f === 'info' ? L.value : L.caption }; continue; }
