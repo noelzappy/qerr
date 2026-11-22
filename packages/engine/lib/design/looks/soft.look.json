@@ -1776,7 +1776,7 @@
     {
       "kind": "offer",
       "name": "Price pill",
-      "describe": "A pill label and a two-tone headline at the top, the picture in a rounded window below with a big colour price pill on its corner and the sub line at the foot; with no picture a pale card takes its place. Use for a product or deal with a short price or offer tag.",
+      "describe": "A pill label and a two-tone headline at the top, the picture in a rounded window below with a big colour price pill on its corner and the sub line at the foot; with no picture a pale card takes its place, the pill inside it. Use for a product or deal with a short price or offer tag.",
       "ground": "tint",
       "fit": "margins",
       "fields": {
@@ -1940,7 +1940,44 @@
             }
           },
           "shadow": "lift",
-          "z": 4
+          "z": 4,
+          "when": {
+            "present": "image"
+          }
+        },
+        {
+          "type": "sticker",
+          "shape": "pill",
+          "w": "hug",
+          "minW": 260,
+          "maxW": 600,
+          "h": 150,
+          "fit": {
+            "cap": 100,
+            "floor": 44,
+            "maxLines": 1,
+            "h": 100
+          },
+          "field": "tag",
+          "fill": "field",
+          "ink": "on-field",
+          "pad": [
+            0,
+            52,
+            0,
+            52
+          ],
+          "place": {
+            "px": {
+              "x": 120,
+              "y": 736
+            }
+          },
+          "shadow": "lift",
+          "z": 4,
+          "when": {
+            "absent": "image"
+          }
         },
         {
           "type": "box",

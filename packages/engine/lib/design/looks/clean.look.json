@@ -1243,7 +1243,7 @@
     {
       "kind": "offer",
       "name": "Product",
-      "describe": "A two-tone headline, the picture as a rounded card under it with the price on a pill at its top edge, and the sub line at the foot. Use for a product or an offer with a price.",
+      "describe": "A two-tone headline, the picture as a rounded card under it with the price on a pill at its top edge (inside it with no picture), and the sub line at the foot. Use for a product or an offer with a price.",
       "ground": "paper",
       "fit": "margins",
       "fields": {
@@ -1394,7 +1394,44 @@
             }
           },
           "shadow": "lift",
-          "z": 4
+          "z": 4,
+          "when": {
+            "present": "image"
+          }
+        },
+        {
+          "type": "sticker",
+          "shape": "pill",
+          "w": "hug",
+          "minW": 260,
+          "maxW": 600,
+          "h": 150,
+          "fit": {
+            "cap": 100,
+            "floor": 44,
+            "maxLines": 1,
+            "h": 100
+          },
+          "field": "tag",
+          "fill": "field",
+          "ink": "on-field",
+          "pad": [
+            0,
+            40,
+            0,
+            40
+          ],
+          "place": {
+            "px": {
+              "x": 120,
+              "y": 736
+            }
+          },
+          "shadow": "lift",
+          "z": 4,
+          "when": {
+            "absent": "image"
+          }
         },
         {
           "type": "box",

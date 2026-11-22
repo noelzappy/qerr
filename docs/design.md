@@ -1552,7 +1552,7 @@ photo; "letter" pages on the light grey `soft` ground under a paper texture, a g
 paragraph in Hanken Grotesk 500 with its `*emphasis*` in bold (`emphasis: "bold"`) and up to two `{{icons}}` in round badges; a big figure with two
 round icon badges, a sentence and the picture taped on at an angle; series labels top left and top right; the brand name small at the foot or the
 top. Shout carries halftone dots in the dark colour rising from the bottom right corner (a `backdrop`). Its designs: statement Shout, Letter, Centre stack; figure Truth metric (the only figure that shows a picture: `figure` compositions may
-declare `image`), Big number; list Numbered; quote Loud quote, Letter quote; photo Dark photo, Taped on colour, Pasted note; event Poster; offer
+declare `image`; this one requires it, since without the picture its lower half stays empty), Big number; list Numbered; quote Loud quote, Letter quote; photo Dark photo, Taped on colour, Pasted note; event Poster; offer
 Price sticker. Its test copy is `testlib/loud-copy.mjs` and `test-design-look-loud.mjs` holds it (with Chrome: every composition from sample,
 stress and minimal copy in three sets of brand colours). The fictional `brands/tallyho` pack shows it off. What it cannot do yet: the
 headline face is condensed where the reference's is a wide geometric black; a sticker's words follow the look's case (as typed), so a pill

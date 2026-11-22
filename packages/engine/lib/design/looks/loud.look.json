@@ -575,7 +575,9 @@
         "headline": {
           "max": 70
         },
-        "image": {}
+        "image": {
+          "required": true
+        }
       },
       "elements": [
         {

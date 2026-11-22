@@ -1406,7 +1406,7 @@
     {
       "kind": "offer",
       "name": "Badge",
-      "describe": "A keyline label and a big soft serif headline over a round picture on the right with a big round colour badge carrying the price on its edge; with no picture a pale circle takes its place. The sub line sits at the foot. Use for a product or deal with a short price or offer tag.",
+      "describe": "A keyline label and a big soft serif headline over a round picture on the right with a big round colour badge carrying the price on its edge; with no picture a pale circle takes its place, the badge in its middle. The sub line sits at the foot. Use for a product or deal with a short price tag.",
       "ground": "paper",
       "fit": "margins",
       "fields": {
@@ -1559,7 +1559,39 @@
             "w": 10,
             "colour": "paper"
           },
-          "z": 4
+          "z": 4,
+          "when": {
+            "present": "image"
+          }
+        },
+        {
+          "type": "sticker",
+          "shape": "circle",
+          "size": 320,
+          "place": {
+            "px": {
+              "x": 535,
+              "y": 685
+            }
+          },
+          "fill": "primary",
+          "ink": "on-primary",
+          "field": "tag",
+          "fit": {
+            "cap": 100,
+            "floor": 44,
+            "w": 240,
+            "h": 170,
+            "maxLines": 2
+          },
+          "ring": {
+            "w": 10,
+            "colour": "paper"
+          },
+          "z": 4,
+          "when": {
+            "absent": "image"
+          }
         },
         {
           "type": "box",
