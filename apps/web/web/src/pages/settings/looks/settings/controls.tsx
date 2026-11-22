@@ -15,7 +15,7 @@ export function CardChoice({ legend, options, value, onChange, disabled, classNa
       <div className={cn('grid gap-2.5', className ?? 'grid-cols-2 sm:grid-cols-3')}>
         {options.map((o) => (
           <label key={o.id} className={cn('group relative flex min-w-0 cursor-pointer flex-col gap-1.5 rounded-md border bg-background p-2 transition-colors hover:border-foreground/40 has-[:checked]:border-primary has-[:checked]:ring-1 has-[:checked]:ring-primary has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50', disabled && 'cursor-not-allowed opacity-60')}>
-            <input type="radio" name={name} className="sr-only" checked={value === o.id} disabled={disabled} onChange={() => onChange(o.id)} />
+            <input type="radio" name={name} value={o.id} className="sr-only" checked={value === o.id} disabled={disabled} onChange={() => onChange(o.id)} />
             {o.preview}
             <span className="text-[12.5px] font-medium leading-tight">{o.label}</span>
             {o.caption && <span className="text-[12px] leading-tight text-muted-foreground">{o.caption}</span>}
@@ -90,8 +90,10 @@ export function LogoDiagram({ on, size }: { on: boolean; size?: string }) {
 // One neutral picture drawn in CSS (no photograph, nobody in it), treated the way the engine treats photographs.
 const SCENE = 'linear-gradient(180deg, #8fb4d9 0%, #cfe0ec 46%, #d9c28f 46%, #a37a43 100%)';
 const GRAIN = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='100'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2'/></filter><rect width='80' height='100' filter='url(%23n)' opacity='0.9'/></svg>\")";
-export function PictureThumb({ treat, tint, grain }: { treat: string; tint: string; grain: boolean }) {
-  const filter = treat === 'grey' ? 'grayscale(1)' : treat === 'punchy' ? 'contrast(1.4) saturate(1.5)' : undefined;
+// `treat`: 'grey', 'punchy', 'tint' (the colour multiplied in), 'overlay' (the colour laid over) or 'duotone' (shadows and highlights in
+// two colours, `duo`); `strength` (0 to 1) is how strong a tint or overlay is, full by default.
+export function PictureThumb({ treat, tint, grain, strength = 1, duo }: { treat: string; tint: string; grain: boolean; strength?: number; duo?: [string, string] }) {
+  const filter = treat === 'grey' ? 'grayscale(1)' : treat === 'punchy' ? 'contrast(1.4) saturate(1.5)' : treat === 'duotone' ? 'grayscale(1) contrast(1.1)' : undefined;
   return (
     <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[3px] border" aria-hidden="true">
       <div className="absolute inset-0" style={{ background: SCENE, filter }}>
@@ -99,7 +101,12 @@ export function PictureThumb({ treat, tint, grain }: { treat: string; tint: stri
         <div className="absolute bottom-[10%] left-[14%] h-[26%] w-[44%] rounded-t-[40%] bg-[#4f7a4c]" />
         <div className="absolute bottom-[10%] right-[10%] h-[34%] w-[26%] bg-[#b4553c]" />
       </div>
-      {treat === 'tint' && <div className="absolute inset-0 mix-blend-multiply" style={{ background: tint }} />}
+      {treat === 'tint' && <div className="absolute inset-0 mix-blend-multiply" style={{ background: tint, opacity: strength }} />}
+      {treat === 'overlay' && <div className="absolute inset-0" style={{ background: tint, opacity: strength * 0.85 }} />}
+      {treat === 'duotone' && duo && <>
+        <div className="absolute inset-0 mix-blend-lighten" style={{ background: duo[0] }} />
+        <div className="absolute inset-0 mix-blend-darken" style={{ background: duo[1] }} />
+      </>}
       {grain && <div className="absolute inset-0 opacity-30 mix-blend-overlay" style={{ backgroundImage: GRAIN }} />}
     </div>
   );

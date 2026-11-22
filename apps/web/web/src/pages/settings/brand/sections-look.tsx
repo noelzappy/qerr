@@ -6,10 +6,12 @@ import { toast } from 'sonner';
 import { Hint, Notice } from '@/components/kit';
 import { SegmentedField } from '@/components/kit/segmented-field';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, groundColours, type BrandSettings } from '../brand-types';
+import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, groundColours, type BrandLook, type BrandSettings } from '../brand-types';
+import { RolePicker } from '../looks/design-controls';
+import { LogoColours } from './logo-colours';
+import { NEUTRAL_SAMPLE, type SampleColours } from './pickers';
 import { Section } from '../section';
 import { ColourRoles, LookFields, TypeFields, styleSwatches, type TypePart } from '../style-fields';
 import { ColourField } from './fields';
@@ -37,6 +39,7 @@ export function ColoursSection({ ctx }: { ctx: BrandCtx }) {
         <ColourField label="Dark" hint="Text, and the dark page colour" value={s.colours.dark} onChange={(v) => setColour('dark', v)} error={fields['colours.dark']} />
         <ColourField label="Light" hint="The light tint behind quiet pages" value={s.colours.light} onChange={(v) => setColour('light', v)} error={fields['colours.light']} />
       </div>
+      <LogoColours src={ctx.logoUrl(view.logos.full) ?? ctx.logoUrl(view.logos.mark)} colours={s.colours} onUse={setColour} />
       {['grounds', 'text', 'accents', 'gradient', 'surfaces'].some((k) => k in (view.advanced ?? {})) && (
         <Notice tone="info">Imported brand settings (see Advanced) set the exact page and text colours, so changing these four colours has little effect. Clear them under Advanced to let these colours decide.</Notice>
       )}
@@ -82,12 +85,19 @@ function ClassicSplit({ id, inForce, problem, look, classic, all }: { id: string
   );
 }
 
+// The colours a headline sample is drawn in, from the palette the server made (or neutral ones until it has answered).
+function sampleColours(s: BrandSettings, look: BrandLook | null): SampleColours {
+  const p = look?.palette;
+  if (!p) return { ...NEUTRAL_SAMPLE, ink: s.colours.dark, accent: s.colours.primary };
+  return { ink: p.text.ink ?? s.colours.dark, muted: p.text.muted ?? NEUTRAL_SAMPLE.muted, accent: p.accents.primary ?? s.colours.primary, paper: p.grounds.light ?? '#ffffff' };
+}
+
 export function TypeSection({ ctx }: { ctx: BrandCtx }) {
   const { s, view } = ctx;
   const inForce = lookInForce(s.style.direction, useActiveLook().active);
   const fields = (part?: TypePart) => (
     <TypeFields
-      part={part} style={s.style} headlineWeight={s.headlineWeight} fonts={view.fontSources} version={view.updatedAt ?? ''} busy={ctx.busy}
+      part={part} style={s.style} headlineWeight={s.headlineWeight} sample={sampleColours(s, ctx.look)} fonts={view.fontSources} version={view.updatedAt ?? ''} busy={ctx.busy}
       onChange={(type, headline) => ctx.update((cur) => ({ ...cur, style: { ...cur.style, type }, ...(headline !== undefined ? { headlineWeight: headline } : {}) }))}
       onUpload={(role, f, fam) => ctx.uploadFont(f, fam, role)} onGoogle={(role, fam) => ctx.pickGoogleFont(role, fam)} onRemove={(role) => ctx.askRemoveFont(role)}
     />
@@ -124,6 +134,7 @@ const MAX_POST_TYPES = 16;
 
 export function PostTypesSection({ ctx }: { ctx: BrandCtx }) {
   const { s, set, fields } = ctx;
+  const grounds = { ...groundColours(s.colours, s.roles), ...(ctx.look?.palette.grounds ?? {}) };
   const change = (i: number, patch: Partial<BrandSettings['series'][number]>) => ctx.update((cur) => ({ ...cur, series: cur.series.map((y, j) => (j === i ? { ...y, ...patch } : y)) }));
   function remove(i: number) {
     const gone = s.series[i]!;
@@ -157,11 +168,9 @@ export function PostTypesSection({ ctx }: { ctx: BrandCtx }) {
                 <TableCell className="whitespace-normal">
                   <Input aria-label={`Name of post type ${i + 1}`} value={x.name} maxLength={40} onChange={(e) => { const name = e.target.value; const keyFollows = x.key === slug(x.name) || x.key.startsWith('series-'); change(i, { name, key: keyFollows ? slug(name) : x.key }); }} />
                 </TableCell>
-                <TableCell className="whitespace-normal">
-                  <Select value={x.ground} onValueChange={(v) => change(i, { ground: v })}>
-                    <SelectTrigger className="w-full" aria-label={`Page colour of ${x.name}`}><SelectValue /></SelectTrigger>
-                    <SelectContent position="popper">{GROUNDS.map((g) => <SelectItem key={g} value={g}>{GROUND_LABEL[g]}</SelectItem>)}</SelectContent>
-                  </Select>
+                <TableCell className="min-w-[12.5rem] whitespace-normal">
+                  <RolePicker hideLabel label={`Page colour of ${x.name}`} value={x.ground} roles={[...GROUNDS]} swatches={grounds} wordOf={(g) => GROUND_LABEL[g] ?? g}
+                    onChange={(v) => { if (v) change(i, { ground: v }); return ''; }} />
                 </TableCell>
                 <TableCell className="whitespace-normal">
                   <SegmentedField hideLabel label={`Headline style of ${x.name}`} value={x.accent} onValueChange={(v) => change(i, { accent: v })}

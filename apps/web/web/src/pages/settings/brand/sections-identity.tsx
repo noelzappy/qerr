@@ -3,7 +3,8 @@ import { ImageUp, Wand2 } from 'lucide-react';
 import { BusyButton, Hint, Notice, SelectField, SwitchField, TextField } from '@/components/kit';
 import { TimeZonePicker } from '@/components/kit/time-zone-picker';
 import { Section } from '../section';
-import { FileField, NumberField } from './fields';
+import { FileField } from './fields';
+import { LogoOffsets } from './logo-offsets';
 import { buildCurrencyPattern, currencyListProblem, parseCurrencyPattern } from './currency';
 import { TagListField } from './tag-list-field';
 import { SavedNote, useReportProblem, useUploadStatus } from './status';
@@ -88,13 +89,7 @@ export function LogosSection({ ctx }: { ctx: BrandCtx }) {
         <SimpleSaved />
       </div>
       {view.logos.fullSize && (
-        <div className="grid gap-3 md:grid-cols-2">
-          <NumberField
-            label="Where the name starts in the full logo" integer min={0} max={view.logos.fullSize[0] - 1} unit="pixels" value={s.logo.wordmarkFrom} onChange={(v) => set('logo', { ...s.logo, wordmarkFrom: v ?? 0 })}
-            hint={`In pixels from the left, out of ${view.logos.fullSize[0]}. Measured when you upload; on dark pages the name is drawn in white from here.`}
-          />
-          <NumberField label="Gap between the mark and the name" integer min={0} max={5000} unit="pixels" value={s.logo.markGap} onChange={(v) => set('logo', { ...s.logo, markGap: v ?? 0 })} hint="In pixels." />
-        </div>
+        <LogoOffsets src={ctx.logoUrl(view.logos.full)} size={view.logos.fullSize} value={s.logo} onChange={(v) => set('logo', v)} />
       )}
     </Section>
   );

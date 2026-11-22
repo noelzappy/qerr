@@ -95,8 +95,9 @@ describe('Brand and look, Surfaces and photos', () => {
     expect(html.match(/role="radiogroup" aria-label="(Shadows in|Highlights in)"/g)?.length).toBe(2);
     expect(html).not.toMatch(/Shadows in<\/label>/);
   });
-  it('keeps longer lists (the decoration, the logo\'s place) as dropdowns', () => {
-    expect(html.match(/role="combobox"/g)?.length).toBe(2);
+  it('draws the longer lists (the decoration, the logo\'s place) as pictures, with no dropdown left', () => {
+    expect(html).not.toContain('role="combobox"');
+    expect(checkedValue(html)).toEqual(expect.arrayContaining(['dots', 'auto']));
   });
 });
 
