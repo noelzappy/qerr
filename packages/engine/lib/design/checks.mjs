@@ -321,10 +321,50 @@ export function explainProblems(problems, sizeName, lengths = {}) {
 export const POST_LIMITS = Object.freeze({ emptyShare: 0.45, scale: 2.6, levels: 3, tol: 2, edge: 10 });
 // How far the ink box i is from the filled shape f: a negative number is the room above or below the text inside f (its sides may stand
 // 12 px out or close, for a letter's side bearing and a headline pulled onto the margin), else the distance outside it (0 when they cross).
+// A shape with rounded corners (f.rad: the four corners' [rx, ry] in px, top-left, top-right, bottom-right, bottom-left, as the page
+// resolved its border-radius: a circle, an ellipse, a pill or a rounded box) is judged on its real outline, not its bounding box: words
+// inside its box but past its curve are outside it, and words near its curve are measured to the curve.
 export function inkGap(i, f) {
+  if (isRounded(f)) return roundedGap(i, f);
   const inside = i.x0 >= f.x0 - 12 && i.x1 <= f.x1 + 12 && i.y0 >= f.y0 && i.y1 <= f.y1;
   if (inside) return -Math.min(i.y0 - f.y0, f.y1 - i.y1);
   return Math.hypot(Math.max(f.x0 - i.x1, i.x0 - f.x1, 0), Math.max(f.y0 - i.y1, i.y0 - f.y1, 0));
+}
+const isRounded = (f) => Array.isArray(f.rad) && f.rad.length === 4 && f.rad.some((c) => Array.isArray(c) && c[0] > 0.5 && c[1] > 0.5);
+// The top and bottom of a rounded shape at x (null outside it).
+export function shapeSpanAt(f, x) {
+  if (!(x >= f.x0 && x <= f.x1)) return null;
+  const [tl, tr, br, bl] = f.rad;
+  const curve = (cx, rx, ry, at) => (rx > 0 && ry > 0 ? ry * (1 - Math.sqrt(Math.max(0, 1 - ((at - cx) / rx) ** 2))) : 0);
+  let top = f.y0, bottom = f.y1;
+  if (x < f.x0 + tl[0]) top = f.y0 + curve(f.x0 + tl[0], tl[0], tl[1], x);
+  else if (x > f.x1 - tr[0]) top = f.y0 + curve(f.x1 - tr[0], tr[0], tr[1], x);
+  if (x < f.x0 + bl[0]) bottom = f.y1 - curve(f.x0 + bl[0], bl[0], bl[1], x);
+  else if (x > f.x1 - br[0]) bottom = f.y1 - curve(f.x1 - br[0], br[0], br[1], x);
+  return [top, bottom];
+}
+export const insideShape = (f, x, y) => { if (!isRounded(f)) return x >= f.x0 && x <= f.x1 && y >= f.y0 && y <= f.y1; const s = shapeSpanAt(f, x); return !!s && y >= s[0] && y <= s[1]; };
+function roundedGap(i, f) {
+  const step = 1, xs = [];
+  // inside: the ink (its sides may stand 12 px out, as for a straight block) lies within the shape at every x it spans; the room is the
+  // least room above or below it there, measured to the curve
+  const mid = (i.x0 + i.x1) / 2, sx0 = Math.min(i.x0 + 12, mid), sx1 = Math.max(i.x1 - 12, mid);
+  for (let x = sx0; x <= sx1 + 1e-9; x += step) xs.push(Math.min(x, sx1));
+  let room = Infinity, inside = true;
+  for (const x of xs) {
+    const s = shapeSpanAt(f, x);
+    if (!s || i.y0 < s[0] || i.y1 > s[1]) { inside = false; break; }
+    room = Math.min(room, i.y0 - s[0], s[1] - i.y1);
+  }
+  if (inside && Number.isFinite(room)) return -room;
+  // crossing: the shape and the ink share a point
+  for (let x = Math.max(i.x0, f.x0); x <= Math.min(i.x1, f.x1) + 1e-9; x += step) { const s = shapeSpanAt(f, Math.min(x, f.x1)); if (s && s[0] <= i.y1 && s[1] >= i.y0) return 0; }
+  // apart: the least distance from the outline to the ink
+  const d = (px, py) => Math.hypot(Math.max(i.x0 - px, px - i.x1, 0), Math.max(i.y0 - py, py - i.y1, 0));
+  let best = Infinity;
+  for (let x = f.x0; x <= f.x1 + 1e-9; x += step) { const s = shapeSpanAt(f, Math.min(x, f.x1)); if (s) best = Math.min(best, d(x, s[0]), d(x, s[1])); }
+  for (let y = f.y0; y <= f.y1 + 1e-9; y += step) for (const x of [f.x0, f.x1]) { const s = shapeSpanAt(f, x); if (s && y >= s[0] && y <= s[1]) best = Math.min(best, d(x, y)); }
+  return best;
 }
 // A line of ink allowed to cross the edge of shape f: its text names that shape's key (a to f) or any shape (data-ov="any"). Nothing else is.
 export const crossesOnPurpose = (i, f) => typeof i.ov === 'string' && (i.ov === 'any' || (/^[a-f]$/.test(i.ov) && f.key === i.ov));

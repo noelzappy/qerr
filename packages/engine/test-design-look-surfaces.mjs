@@ -16,7 +16,7 @@ import { buildPage } from './lib/design/page.mjs';
 import { partContrast, preparePage, renderImage } from './lib/design/render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { normaliseDesign } from './lib/design/spec.mjs';
-import { crossesOnPurpose, findLayoutProblems, findPostProblems, luminance } from './lib/design/checks.mjs';
+import { crossesOnPurpose, findLayoutProblems, findPostProblems, inkGap, insideShape, luminance } from './lib/design/checks.mjs';
 import { lookCatalogue, validateLook } from './lib/design/look.mjs';
 import { BACKDROP_PATTERNS, ELEMENTS } from './lib/design/look-elements.mjs';
 import { BACKDROP_LIMITS, backdropGeometry } from './lib/design/directions/backdrop-geom.mjs';
@@ -143,6 +143,34 @@ test('crossing: the edge check skips only the pairing a look names (pure)', () =
   for (const ov of ['', 'A', 'aa', 'any-shape', 'x', '*', 'a;b', 7, null]) assert.equal(crossesOnPurpose({ ov }, { key: 'a' }), false, `ov ${String(ov)}`);
 });
 
+test('edges: a circle, an ellipse and a rounded box are judged on their real outline, not their box (pure)', () => {
+  const R = 300, circle = { x0: 100, y0: 100, x1: 100 + 2 * R, y1: 100 + 2 * R, frame: '', rad: [[R, R], [R, R], [R, R], [R, R]] };
+  const edges = (i, f) => findPostProblems({ texts: [], inks: [{ role: 'headline', text: 'Hi', frame: '', ...i }], shapes: [f] }).filter((p) => p.kind === 'edge');
+  // inside the circle's box, in its top-left corner past the curve: outside the circle and clear of it, so no problem
+  assert.equal(inkGap({ x0: 110, y0: 110, x1: 160, y1: 140 }, circle) > 10, true);
+  assert.deepEqual(edges({ x0: 110, y0: 110, x1: 160, y1: 140 }, circle), []);
+  // across the curve: inside the box and cutting the circle's edge, refused as crossing (the box alone would call it 0 px inside the top)
+  const across = edges({ x0: 180, y0: 160, x1: 420, y1: 220 }, circle);
+  assert.equal(across.length, 1);
+  assert.equal(across[0].crossing, true);
+  // well inside the circle at its middle: the room is measured to the curve above and below the words, the least at the ends of the line
+  // (its sides may stand 12 px out, as for a straight block: here the line's ends 300 and 500 are judged at 312 and 488)
+  assert.ok(Math.abs(inkGap({ x0: 300, y0: 380, x1: 500, y1: 420 }, circle) + (380 - (400 - Math.sqrt(R * R - 88 * 88)))) < 1e-9);
+  // a long line inside the circle's box whose ends reach past the curve is not inside it
+  assert.equal(edges({ x0: 120, y0: 390, x1: 680, y1: 420 }, circle).length, 0, 'at the widest part the circle holds it');
+  assert.equal(edges({ x0: 120, y0: 180, x1: 680, y1: 210 }, circle).length, 1, 'near the top its ends cross the curve');
+  // an ellipse: radii of half its width and half its height
+  const ell = { x0: 0, y0: 0, x1: 800, y1: 400, frame: '', rad: [[400, 200], [400, 200], [400, 200], [400, 200]] };
+  assert.equal(insideShape(ell, 400, 5), true);
+  assert.equal(insideShape(ell, 20, 20), false);
+  // a rounded box: straight sides keep the old rule (the sides may stand 12 px out), the corners are curves
+  const card = { x0: 100, y0: 100, x1: 900, y1: 500, frame: '', rad: [[40, 40], [40, 40], [40, 40], [40, 40]] };
+  assert.equal(inkGap({ x0: 140, y0: 200, x1: 600, y1: 240 }, card), -100);
+  assert.equal(edges({ x0: 102, y0: 104, x1: 300, y1: 130 }, card).length, 1, 'in the corner, past the curve: crossing');
+  // square shapes are judged as before
+  assert.equal(inkGap({ x0: 140, y0: 200, x1: 600, y1: 240 }, { x0: 100, y0: 100, x1: 900, y1: 500 }), -100);
+});
+
 test('crossing: a nested phrase is judged with its headline for overlap and margins (pure)', () => {
   const m = {
     W: 1080, H: 1350,
@@ -261,6 +289,31 @@ test('Chrome: a headline crossing its disc draws; the same headline without the 
   await draw(crossLook({ head: { ...big, overlap: { with: 'any-shape', allow: true } }, extra: [block] }), words);
 });
 
+test('Chrome: the page reports a disc as a circle, and cuts words that cross it on its curve, not its box', { skip }, async () => {
+  // the headline's first line runs across the top of the disc, where its curve is well inside its box
+  const look = crossLook({ head: { size: 110, place: PX(156, 222, 852) } }), words = { headline: 'Small batches, *roasted slowly.*' };
+  const brand = brandFor(look), prep = preparePage(brand, { spec: normaliseDesign({ template: 'post', kind: 'statement', name: 'x', ...words }), sizeName: 'feed' });
+  const page = await browser.page(1080, 1350);
+  try {
+    await page.setContent(buildPage({ brand, size: SIZES.feed, ...prep.out }));
+    await page.evaluate('window.__ds.ready({})');
+    await page.evaluate('window.__ds.fitLines()');
+    const pm = await page.evaluate('window.__ds.postMetrics({})');
+    const disc = pm.shapes.find((f) => f.key === 'a');
+    assert.ok(disc && Array.isArray(disc.rad), 'the disc has its corners');
+    const w = disc.x1 - disc.x0, h = disc.y1 - disc.y0;
+    for (const [rx, ry] of disc.rad) { assert.ok(Math.abs(rx - w / 2) < 1 && Math.abs(ry - h / 2) < 1, `a circle: ${rx} x ${ry} for ${w} x ${h}`); }
+    const head = (await page.evaluate('window.__ds.measure()')).roles.find((x) => x.role === 'headline');
+    // every piece judged as on the disc has its centre inside the circle, and none outside it does
+    const cx = (disc.x0 + disc.x1) / 2, cy = (disc.y0 + disc.y1) / 2, r = w / 2;
+    const inC = (q) => Math.hypot((q.x0 + q.x1) / 2 - cx, (q.y0 + q.y1) / 2 - cy) <= r + 3;
+    assert.equal(head.parts.length, 2, 'on the disc and off it');
+    const [onDisc, off] = head.parts[0].every(inC) ? [head.parts[0], head.parts[1]] : [head.parts[1], head.parts[0]];
+    assert.ok(onDisc.every(inC), 'the part on the disc is inside its curve');
+    assert.ok(off.filter((q) => (q.x0 + q.x1) / 2 > disc.x0 && (q.x0 + q.x1) / 2 < disc.x1 && (q.y0 + q.y1) / 2 > disc.y0 && (q.y0 + q.y1) / 2 < disc.y1).every((q) => !inC({ x0: q.x0, x1: q.x1, y0: q.y0, y1: q.y1 }) || Math.hypot((q.x0 + q.x1) / 2 - cx, (q.y0 + q.y1) / 2 - cy) > r - 3), 'a piece in the disc\'s box but past its curve is judged off it');
+  } finally { await page.close(); }
+});
+
 test('Chrome: a sliver of the words on a colour it does not read on is caught, part by part', { skip }, async () => {
   // a brand whose accent is a dark grey: the ink reads on the page, not on the block; the words reach a few pixels into the block
   const colours = paletteBrand({ name: 'Grey Mill', light: '#F7F5F0', ink: '#10151F', primary: '#1B2A41', gold: '#2E3033', deep: '#5A5A5A' });
@@ -313,6 +366,31 @@ test('Chrome: the emptiness check sees a pattern only where its pixels show it',
   assert.deepEqual(r.warnings, [], 'a pattern that shows covers the page');
   // and it is measured: the same bold pattern faded out at the foot leaves the foot empty
   await assert.rejects(draw(half({ pattern: 'dots', colour: 'field', scale: 40, density: 0.6, opacity: 0.35, mask: 'fade-down' }), words), /empty area/);
+});
+
+test('Chrome: a pattern is seen against what is under it, not the page colour: on a panel of its own colour it covers nothing there', { skip }, async () => {
+  const look = half({ pattern: 'dots', colour: 'field', scale: 40, density: 0.6, opacity: 0.35 });
+  const brand = brandFor(look), prep = preparePage(brand, { spec: normaliseDesign({ template: 'post', kind: 'statement', name: 'x', headline: 'Every bag weighed twice' }), sizeName: 'feed' });
+  const page = await browser.page(1080, 1350);
+  try {
+    await page.setContent(buildPage({ brand, size: SIZES.feed, ...prep.out }));
+    await page.evaluate('window.__ds.ready({})');
+    // a panel in the pattern's own colour under the lower half of the page (no data-fill: it is not a block of the look, so only the
+    // pattern's own visibility decides whether those cells are covered)
+    await page.evaluate(`(() => { const cv = document.querySelector('.cv'), d = document.createElement('div'); d.style.cssText = 'position:absolute;left:0;top:700px;width:1080px;height:650px;background:var(--c-field);z-index:-1'; cv.prepend(d); })()`);
+    const cells = async () => {
+      await page.evaluate("window.__ds.patternMode('with')");
+      const a = await page.screenshotPng();
+      await page.evaluate("window.__ds.patternMode('without')");
+      const b = await page.screenshotPng();
+      await page.evaluate('window.__ds.patternMode(false)');
+      return page.evaluate(`window.__ds.patternCover(${JSON.stringify(a.toString('base64'))}, ${JSON.stringify(b.toString('base64'))})`);
+    };
+    const cols = Math.ceil(1080 / 20), rowOf = (k) => Math.floor(k / cols);
+    const seen = await cells();
+    assert.ok(seen.some((k) => rowOf(k) * 20 < 650), 'the pattern shows on the page above the panel');
+    assert.deepEqual(seen.filter((k) => rowOf(k) * 20 >= 760), [], 'on the panel of its own colour it shows nowhere');
+  } finally { await page.close(); }
 });
 
 test('Chrome: every pattern and every preset draws under words that still read', { skip }, async () => {

@@ -1198,11 +1198,13 @@ a time, and writes only under the repository; `out/` is ignored by git. Look at 
 - Chrome versions: the tests run with current Google Chrome on macOS and Linux. The container's Debian Chromium is
   checked by `deploy/check.sh` with one text page only.
 - Images are checked for pixel size and loaded fonts, not for correct language, facts or figures. Check the numbers.
-- The edge check (text near or across the edge of a shape) judges a shape by its rectangle: text inside a round shape's rectangle but past its
-  curve (a line in the corner of a circle's box) is not refused. Place words well inside a circle, or let them cross it on purpose (`overlap`),
-  and look at the picture.
-- A pattern's cover (emptiness) is read against the page colour with everything else hidden; a pattern over a panel of another colour is
-  judged as if it stood on the page.
+- The edge check (text near or across the edge of a shape) judges a round shape on its real outline: the page reports each shape's corners
+  as it resolved its `border-radius` (a circle, an ellipse, a pill, a rounded box; `radii()` in the runtime), and `inkGap` in `checks.mjs`
+  measures the words to the curve (inside: the room above and below them at every x they span; across: crossing; outside: the distance to
+  the outline). Words that cross a rounded shape on purpose (`overlap`) are cut for the contrast check on its curve too, in 4 px cells. A
+  shape turned with its box, or clipped to a polygon, is still left out of the check, as before.
+- A pattern's cover (emptiness) is read against what is under it: the page with its words hidden, once with the patterns and once without
+  them, so a pattern over a panel of its own colour covers nothing there.
 
 ## Looks as data: the schema
 

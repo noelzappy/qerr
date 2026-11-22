@@ -223,13 +223,16 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
 
     // 1b. A post's design checks: emptiness, scale, levels of type and the grid (checks.mjs findPostProblems).
     if (isPost) {
-      // a decorative pattern covers the page only where its pixels show it, read against the page colour with everything else hidden
+      // a decorative pattern covers the page only where its pixels show it, read against what is under it there (the page, or a panel or
+      // picture the pattern lies on): the page with its words hidden, once with the patterns and once without them
       let patternCells = [];
       if (await page.evaluate('window.__ds.hasPatterns()')) {
-        await page.evaluate('window.__ds.patternMode(true)');
-        const shot = await page.screenshotPng();
+        await page.evaluate("window.__ds.patternMode('with')");
+        const withShot = await page.screenshotPng();
+        await page.evaluate("window.__ds.patternMode('without')");
+        const withoutShot = await page.screenshotPng();
         await page.evaluate('window.__ds.patternMode(false)');
-        patternCells = await page.evaluate(`window.__ds.patternCover(${JSON.stringify(shot.toString('base64'))})`);
+        patternCells = await page.evaluate(`window.__ds.patternCover(${JSON.stringify(withShot.toString('base64'))}, ${JSON.stringify(withoutShot.toString('base64'))})`);
       }
       const pm = await page.evaluate(`window.__ds.postMetrics(${JSON.stringify({ patternCells })})`);
       postEls = pm.els;

@@ -488,7 +488,7 @@ window.__ds = {
     // a shape counts when it can be seen: a colour other than the page's, or a picture behind it (a paper box on a paper page is only a layout box)
     const pageBg = getComputedStyle(document.querySelector('.cv') || document.body).backgroundColor, pics = [...document.querySelectorAll('img')].map((i) => box(i.getBoundingClientRect()));
     const seen = (el, b) => { const bg = getComputedStyle(el).backgroundColor; if (/^rgba\(.*, 0\)$/.test(bg) || bg === 'transparent') return true; return bg !== pageBg || pics.some((p) => Math.min(p.x1, b.right) > Math.max(p.x0, b.left) && Math.min(p.y1, b.bottom) > Math.max(p.y0, b.top)); };
-    const shapes = [...document.querySelectorAll('[data-fill]')].filter((el) => !el.matches(SKIP_SHAPE) && !turned(el) && getComputedStyle(el).clipPath === 'none' && seen(el, el.getBoundingClientRect())).map((el) => ({ ...box(el.getBoundingClientRect()), frame: tiltKey(el), ...(el.hasAttribute('data-ovk') ? { key: el.getAttribute('data-ovk') } : {}) })).filter((b) => b.x1 - b.x0 > 0.5 && b.y1 - b.y0 > 0.5 && !(b.x1 - b.x0 >= W * 0.97 && b.y1 - b.y0 >= H * 0.97));
+    const shapes = [...document.querySelectorAll('[data-fill]')].filter((el) => !el.matches(SKIP_SHAPE) && !turned(el) && getComputedStyle(el).clipPath === 'none' && seen(el, el.getBoundingClientRect())).map((el) => ({ ...box(el.getBoundingClientRect()), frame: tiltKey(el), ...(el.hasAttribute('data-ovk') ? { key: el.getAttribute('data-ovk') } : {}), ...this.radii(el) })).filter((b) => b.x1 - b.x0 > 0.5 && b.y1 - b.y0 > 0.5 && !(b.x1 - b.x0 >= W * 0.97 && b.y1 - b.y0 >= H * 0.97));
     for (const [i, el] of chartEls.entries()) { if (turned(el)) continue; const b = box(el.getBoundingClientRect()); if (b.x1 - b.x0 > 0.5 && b.y1 - b.y0 > 0.5) shapes.push({ ...b, frame: tiltKey(el), chart: i }); }
     for (const [e, t] of tilts) e.style.transform = t;
     const calm = document.querySelector('[data-calm]');
@@ -497,6 +497,16 @@ window.__ds = {
     return { W, H, hs, texts, empty, blocks, inks, shapes, calm: calm ? parseFloat(calm.getAttribute('data-calm')) : null, els };
   },
   hide(on) { document.documentElement.classList.toggle('measure', !!on); },
+  // The rounded corners of a shape as the page resolved them: { rad: [[rx, ry] x 4] } in px (top-left, top-right, bottom-right, bottom-left),
+  // percentages of its width and height resolved and scaled down as CSS does when they overlap; {} for a square-cornered one.
+  radii(el) {
+    const cs = getComputedStyle(el), b = el.getBoundingClientRect(), w = b.width, h = b.height;
+    const one = (v) => { const t = String(v || '0').trim().split(/\s+/); const at = (q, of) => (q.endsWith('%') ? (parseFloat(q) / 100) * of : parseFloat(q) || 0); return [at(t[0], w), at(t[1] ?? t[0], h)]; };
+    const r = [cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius].map(one);
+    if (!r.some((c) => c[0] > 0.5 && c[1] > 0.5)) return {};
+    const k = Math.min(1, w / (r[0][0] + r[1][0] || 1), w / (r[3][0] + r[2][0] || 1), h / (r[0][1] + r[3][1] || 1), h / (r[1][1] + r[2][1] || 1));
+    return { rad: r.map(([x, y]) => (x > 0.5 && y > 0.5 ? [x * k, y * k] : [0, 0])) };
+  },
   // A chart's data marks ([data-chart] path[data-mark], kit c.chartSvg) hidden, so what is behind them can be read (hideMarks), and each
   // mark as its colour and the pixels it covers (chartMarks): points on a grid over its box that fall inside its fill or its stroke, so a
   // thin line is read where it is drawn, not across its whole box. The check (render.mjs) measures each against the surface behind it.
@@ -565,7 +575,19 @@ window.__ds = {
     // Words a look lets cross the edge of a shape (data-ov) are measured for contrast PART BY PART: their rectangles are cut at the edges of
     // the shapes they may cross, and each side (inside each shape, outside all of them) is judged on its own pixels, so text running from a
     // dark panel onto a light page must read on both.
-    const ovShapes = (ov) => [...document.querySelectorAll(ov === 'any' ? '[data-fill]' : '[data-ovk="' + (/^[a-f]$/.test(ov) ? ov : '-') + '"]')].map((e) => box(e.getBoundingClientRect())).filter((b) => b.x1 - b.x0 > 1 && b.y1 - b.y0 > 1);
+    const ovShapes = (ov) => [...document.querySelectorAll(ov === 'any' ? '[data-fill]' : '[data-ovk="' + (/^[a-f]$/.test(ov) ? ov : '-') + '"]')].map((e) => ({ ...box(e.getBoundingClientRect()), ...this.radii(e) })).filter((b) => b.x1 - b.x0 > 1 && b.y1 - b.y0 > 1);
+    // a rounded shape (a circle, a pill, a rounded box) cuts the words on its real outline: the part of a rectangle over its box is split into
+    // 4 px cells, each judged inside or outside the curve by its centre
+    const inShape = (S, x, y) => {
+      if (!(x >= S.x0 && x <= S.x1 && y >= S.y0 && y <= S.y1)) return false;
+      if (!S.rad) return true;
+      const [tl, tr, br, bl] = S.rad, inC = (cx, cy, rx, ry) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
+      if (x < S.x0 + tl[0] && y < S.y0 + tl[1]) return inC(S.x0 + tl[0], S.y0 + tl[1], tl[0], tl[1]);
+      if (x > S.x1 - tr[0] && y < S.y0 + tr[1]) return inC(S.x1 - tr[0], S.y0 + tr[1], tr[0], tr[1]);
+      if (x > S.x1 - br[0] && y > S.y1 - br[1]) return inC(S.x1 - br[0], S.y1 - br[1], br[0], br[1]);
+      if (x < S.x0 + bl[0] && y > S.y1 - bl[1]) return inC(S.x0 + bl[0], S.y1 - bl[1], bl[0], bl[1]);
+      return true;
+    };
     const partsOf = (rects, ov) => {
       const shapes = ovShapes(ov);
       let pieces = rects.map((r) => ({ r, tag: '' }));
@@ -574,13 +596,19 @@ window.__ds = {
         for (const p of pieces) {
           const r = p.r, ix0 = Math.max(r.x0, S.x0), ix1 = Math.min(r.x1, S.x1), iy0 = Math.max(r.y0, S.y0), iy1 = Math.min(r.y1, S.y1);
           if (ix1 - ix0 <= 0 || iy1 - iy0 <= 0) { next.push(p); continue; }
-          next.push({ r: { x0: ix0, x1: ix1, y0: iy0, y1: iy1 }, tag: p.tag + '.' + k });
+          if (S.rad) {
+            // the overlap with the box, in 4 px cells inside or outside the curve
+            for (let y = iy0; y < iy1; y += 4) for (let x = ix0; x < ix1; x += 4) {
+              const c = { x0: x, x1: Math.min(ix1, x + 4), y0: y, y1: Math.min(iy1, y + 4) };
+              next.push({ r: c, tag: inShape(S, (c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2) ? p.tag + '.' + k : p.tag });
+            }
+          } else next.push({ r: { x0: ix0, x1: ix1, y0: iy0, y1: iy1 }, tag: p.tag + '.' + k });
           for (const o of [{ x0: r.x0, x1: r.x1, y0: r.y0, y1: iy0 }, { x0: r.x0, x1: r.x1, y0: iy1, y1: r.y1 }, { x0: r.x0, x1: ix0, y0: iy0, y1: iy1 }, { x0: ix1, x1: r.x1, y0: iy0, y1: iy1 }]) if (o.x1 - o.x0 >= 2 && o.y1 - o.y0 >= 2) next.push({ r: o, tag: p.tag });
         }
         pieces = next;
       });
       const groups = {};
-      for (const p of pieces) if (p.r.x1 - p.r.x0 >= 2 && p.r.y1 - p.r.y0 >= 2) (groups[p.tag] = groups[p.tag] || []).push(p.r);
+      for (const p of pieces) if (p.r.x1 - p.r.x0 >= 1 && p.r.y1 - p.r.y0 >= 1) (groups[p.tag] = groups[p.tag] || []).push(p.r);
       return Object.values(groups);
     };
     const roleEls = [...document.querySelectorAll('[data-role]')];
@@ -863,23 +891,33 @@ window.__ds = {
       el.style.background = 'linear-gradient(to bottom,' + rgba(alpha) + ' 0,' + rgba(alpha) + ' ' + Math.max(hold, 24) + 'px,' + rgba(0) + ' ' + h + 'px)';
     }
   },
-  // Decorative patterns (kit backdrop, [data-pattern]) for the emptiness check: hasPatterns() says whether the page has one; patternMode(true)
-  // hides everything but the patterns, so a screenshot shows each on the page colour alone; patternCover(b64) reads that screenshot and returns
-  // the 20 px cells of the postMetrics grid where a pattern is visible: in a window round the cell (twice the pattern's spacing, inside the
-  // pattern's box) the brightest and darkest 5% of the pixels differ by at least PATTERN_SEEN:1. A quiet pattern stays empty space.
+  // Decorative patterns (kit backdrop, [data-pattern]) for the emptiness check: hasPatterns() says whether the page has one; patternMode('with')
+  // hides the words and keeps everything else, patternMode('without') hides the patterns too, patternMode(false) shows all again. patternCover
+  // reads the two screenshots and returns the 20 px cells of the postMetrics grid where a pattern is visible against what is actually under it
+  // (the page, or the panel or picture it lies on): in a window round the cell (twice the pattern's spacing, inside the pattern's box), the
+  // pixels where the pattern changes the page most (the top 5%) differ from the same pixels without it by at least PATTERN_SEEN:1. A quiet
+  // pattern, or one in a colour close to the panel under it, stays empty space.
   hasPatterns() { return !!document.querySelector('[data-pattern]'); },
-  patternMode(on) { document.documentElement.classList.toggle('measure-pattern', !!on); },
-  async patternCover(b64) {
+  patternMode(mode) {
+    const c = document.documentElement.classList;
+    c.toggle('measure-pattern', mode === 'with' || mode === 'without');
+    c.toggle('measure-pattern-off', mode === 'without');
+  },
+  async patternCover(withB64, withoutB64) {
     const SEEN = 1.5, cell = 20, W = innerWidth, H = innerHeight, cols = Math.ceil(W / cell), rows = Math.ceil(H / cell);
-    const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
-    const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
-    const x = cv.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0);
-    const d = x.getImageData(0, 0, cv.width, cv.height).data, lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
-    const L = new Float32Array(cv.width * cv.height);
-    for (let i = 0, k = 0; k < L.length; i += 4, k++) L[k] = 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]);
+    const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    const lum = async (b64) => {
+      const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+      const x = cv.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0);
+      const d = x.getImageData(0, 0, cv.width, cv.height).data, L = new Float32Array(cv.width * cv.height);
+      for (let i = 0, k = 0; k < L.length; i += 4, k++) L[k] = 0.2126 * lin(d[i]) + 0.7152 * lin(d[i + 1]) + 0.0722 * lin(d[i + 2]);
+      return { L, w: cv.width, h: cv.height };
+    };
+    const A = await lum(withB64), B = await lum(withoutB64), cw = A.w;
     const out = new Set();
     for (const el of document.querySelectorAll('[data-pattern]')) {
-      const b = el.getBoundingClientRect(), bx0 = Math.max(0, b.left), by0 = Math.max(0, b.top), bx1 = Math.min(cv.width, b.right), by1 = Math.min(cv.height, b.bottom);
+      const b = el.getBoundingClientRect(), bx0 = Math.max(0, b.left), by0 = Math.max(0, b.top), bx1 = Math.min(cw, b.right), by1 = Math.min(A.h, b.bottom);
       if (bx1 - bx0 < 2 || by1 - by0 < 2) continue;
       const half = Math.min(120, Math.max(20, +el.getAttribute('data-scale') || 40));
       for (let cy = Math.floor(by0 / cell); cy < Math.min(rows, Math.ceil(by1 / cell)); cy++) for (let cx = Math.floor(bx0 / cell); cx < Math.min(cols, Math.ceil(bx1 / cell)); cx++) {
@@ -887,11 +925,13 @@ window.__ds = {
         if (mx < bx0 || mx > bx1 || my < by0 || my > by1) continue;
         const x0 = Math.max(bx0, mx - half), x1 = Math.min(bx1, mx + half), y0 = Math.max(by0, my - half), y1 = Math.min(by1, my + half);
         const step = Math.max(1, Math.floor(Math.sqrt(((x1 - x0) * (y1 - y0)) / 900))), s = [];
-        for (let yy = Math.floor(y0); yy < y1; yy += step) for (let xx = Math.floor(x0); xx < x1; xx += step) s.push(L[yy * cv.width + xx]);
+        for (let yy = Math.floor(y0); yy < y1; yy += step) for (let xx = Math.floor(x0); xx < x1; xx += step) {
+          const k = yy * cw + xx, p = A.L[k], q = B.L[k];
+          s.push((Math.max(p, q) + 0.05) / (Math.min(p, q) + 0.05));
+        }
         if (s.length < 9) continue;
         s.sort((a, c) => a - c);
-        const lo = s[Math.round(0.05 * (s.length - 1))], hi = s[Math.round(0.95 * (s.length - 1))];
-        if ((hi + 0.05) / (lo + 0.05) >= SEEN) out.add(cy * cols + cx);
+        if (s[Math.round(0.95 * (s.length - 1))] >= SEEN) out.add(cy * cols + cx);
       }
     }
     return [...out];

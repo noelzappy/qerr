@@ -199,10 +199,10 @@
 .post .k-dev[data-framed] .k-dev-screen{left:0!important;top:0!important;width:100%!important;height:100%!important;border-radius:0!important;background:none}
 .post .k-dev[data-framed] .k-dev-screen img{object-fit:contain}
 /* a decorative background (kit backdrop): the pattern is clipped to its box. While the runtime measures how much of the page a pattern
-   visibly covers (patternCover) everything but the patterns is hidden, so a pattern is read against the page colour alone. */
+   visibly covers (patternCover) the words are hidden, and then the patterns too, so a pattern is read against what is under it. */
 .k-backdrop{display:block;pointer-events:none;overflow:hidden}
 .k-bd-svg{display:block}
-.measure-pattern .cv *{visibility:hidden}
-.measure-pattern .cv [data-pattern],.measure-pattern .cv [data-pattern] *{visibility:visible}
+.measure-pattern .cv [data-role],.measure-pattern .cv [data-role] *{visibility:hidden}
+.measure-pattern-off .cv [data-pattern],.measure-pattern-off .cv [data-pattern] *{visibility:hidden}
 /* words that cross a shape's edge with an outline (overlap.outline): the stroke is painted under the letters */
 .k-olt,.k-olt *{-webkit-text-stroke:var(--k-olw) var(--k-olc);paint-order:stroke fill}
