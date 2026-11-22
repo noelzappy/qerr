@@ -252,10 +252,14 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
 
   const activeRefOf = async (scope: LookScope): Promise<string | null> =>
     (await prisma.brandProfile.findUnique({ where: { id: scope.brandId }, select: { activeLookRef: true } }))?.activeLookRef ?? null;
-  // Changes that alter what a brand draws are refused while the look is the active one: switch to another look (or to classic
-  // layouts) first, or edit a copy. Drafts never alter drawing, so they stay open.
-  const notActive = async (scope: LookScope, row: Row) => {
-    if ((await activeRefOf(scope)) === formatRef('own', row.slug)) throw conflict('This look is the active one, so it cannot be changed. Edit a copy, or switch to another look first');
+  // The active look can be edited like any other (each change is validated whole before it is stored, and a design's edits still go
+  // through its draft and the gate); only removing it is refused, since the brand would be left drawing nothing. What an edit
+  // changes: posts drawn from then on use the look as it is. Images already made are stored files and stay as they were; a post is
+  // drawn again only when someone changes its design or asks for it. A post that names a design by number (`variant`) keeps the
+  // number, so moving, switching off or removing a design of that kind can change which design the number names, or leave it
+  // out of range (the next render of that post then says so).
+  const refuseRemovingActive = async (scope: LookScope, row: Row) => {
+    if ((await activeRefOf(scope)) === formatRef('own', row.slug)) throw conflict('This look is in use, so it cannot be removed. Switch to another look first');
   };
 
   const sorted = async (comps: BrandLookComposition[]) => {
@@ -500,7 +504,6 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
   async function updateLookSettings(scope: LookScope, actor: Actor, slug: string, settings: Json) {
     const eng = await lookEngine();
     const row = await needRow(scope, slug);
-    await notActive(scope, row);
     if (!isObj(settings)) throw badRequest('The settings must be an object');
     if ('compositions' in settings) throw badRequest('Compositions are changed one at a time, not with the settings');
     const stored = isObj(row.definition) ? row.definition : {};
@@ -518,7 +521,7 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
 
   async function deleteLook(scope: LookScope, actor: Actor, slug: string) {
     const row = await needRow(scope, slug);
-    await notActive(scope, row);
+    await refuseRemovingActive(scope, row);
     await prisma.brandLook.delete({ where: { id: row.id } });
     await audit(deps, actor, 'look.delete', 'look', row.id, { look: slug });
   }
@@ -575,7 +578,6 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
   // the composition and the draft stays.
   async function publishComposition(scope: LookScope, actor: Actor, slug: string, compId: string) {
     const row = await needRow(scope, slug);
-    await notActive(scope, row);
     const comp = needComp(row, compId);
     if (!isObj(comp.draft)) throw conflict('There is no draft to publish');
     const look = await assemble(row, { all: true, swap: { id: comp.id, definition: comp.draft } });
@@ -597,7 +599,6 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
   async function addCompositionFrom(scope: LookScope, actor: Actor, slug: string, from: { sourceRef: string; kind: string; index: number }) {
     const eng = await lookEngine();
     const row = await needRow(scope, slug);
-    await notActive(scope, row);
     const p = parseRef(from.sourceRef);
     if (!p) throw badRequest('That is not a look reference (shipped:<id> or own:<slug>)');
     let list: Json[];
@@ -624,7 +625,6 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
 
   async function setCompositionEnabled(scope: LookScope, actor: Actor, slug: string, compId: string, enabled: boolean) {
     const row = await needRow(scope, slug);
-    await notActive(scope, row);
     const comp = needComp(row, compId);
     if (comp.enabled !== enabled) {
       if (!enabled && row.compositions.filter((c) => c.enabled && c.id !== comp.id).length === 0) throw conflict('A look keeps at least one composition switched on');
@@ -640,7 +640,6 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
   // Puts the compositions of one kind in the given order (every id of that kind exactly once); positions become 0, 1, 2...
   async function reorderCompositions(scope: LookScope, actor: Actor, slug: string, kind: string, ids: string[]) {
     const row = await needRow(scope, slug);
-    await notActive(scope, row);
     const ofKind = row.compositions.filter((c) => c.kind === kind);
     if (ids.length !== ofKind.length || new Set(ids).size !== ids.length || !ids.every((id) => ofKind.some((c) => c.id === id))) throw badRequest(`List every ${String(kind).slice(0, 20)} composition of this look exactly once`);
     // Two passes, because (look, kind, position) is unique: out of the way first, then into place.
@@ -665,7 +664,6 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
   // Removes a composition, never the last one of its kind (switch it off, or add another first).
   async function removeComposition(scope: LookScope, actor: Actor, slug: string, compId: string) {
     const row = await needRow(scope, slug);
-    await notActive(scope, row);
     const comp = needComp(row, compId);
     if (row.compositions.filter((c) => c.kind === comp.kind).length <= 1) throw conflict(`This is the only ${comp.kind} composition; switch it off, or add another first`);
     if (comp.enabled && row.compositions.filter((c) => c.enabled && c.id !== comp.id).length === 0) throw conflict('A look keeps at least one composition switched on');

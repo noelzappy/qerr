@@ -10,7 +10,7 @@ import { designStatus, groupByKind, kindName, kindOrder, whenText } from './look
 import type { LookCatalogue, OwnDetail } from './look-types';
 import { lookApi } from './looks-api';
 
-export function CheckTab({ look, catalogue, locked, onReload }: { look: OwnDetail; catalogue: LookCatalogue; locked: boolean; onReload: () => void }) {
+export function CheckTab({ look, catalogue, onReload }: { look: OwnDetail; catalogue: LookCatalogue; onReload: () => void }) {
   const [running, setRunning] = useState(false);
   const [note, setNote] = useState<{ tone: 'info' | 'bad'; text: string } | null>(null);
   async function run() {
@@ -27,7 +27,7 @@ export function CheckTab({ look, catalogue, locked, onReload }: { look: OwnDetai
         <p className="text-[13px] text-muted-foreground" role="status">
           {g ? `Last look check: ${g.passed ? 'passed' : 'failed'}${g.at ? `, ${whenText(g.at)}` : ''}${look.gate?.stale ? '. The look has changed since' : ''}.` : 'The look has not been checked yet.'}
         </p>
-        <BusyButton variant="outline" size="sm" loading={running} disabled={locked} onClick={() => void run()}>Run the checks</BusyButton>
+        <BusyButton variant="outline" size="sm" loading={running} onClick={() => void run()}>Run the checks</BusyButton>
       </div>
       {note && <Notice tone={note.tone}>{note.text}</Notice>}
       {groups.map(({ kind, designs }) => (

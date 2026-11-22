@@ -237,8 +237,14 @@ layouts), so it can only be set once the brand is saved in Settings, Brand. Ther
 is found by (brandId, slug) or uuid and brandId, and no route reads a brandId from a request; `brandId` is a plain indexed
 column (not a foreign key, because the profile row exists only once Settings, Brand is saved). Limits per brand: 20 looks,
 21 compositions per look (3 per kind), a look up to 256 KB. A look the installed engine refuses is left out of drawing and logged
-once (`look.skipped`) and the list marks it `needsAttention`. A look that is the active one cannot be changed (settings,
-publishing a composition, switching on or off, reordering, adding, removing) or deleted: edit a copy, or switch away first; drafts stay open.
+once (`look.skipped`) and the list marks it `needsAttention`. The active look can be edited like any other (every change is
+validated whole first; a design's edits still go through its draft, and publishing it runs the gate); only deleting it is refused
+(409), so the brand is never left drawing nothing. An edit to the active look marks it Draft until it is published again, and it stays
+in use meanwhile. What an edit changes: every post drawn from then on uses the look as it is. Images already made are stored files and
+do not change; a post is drawn again only when its design changes or someone asks for it (nothing re-renders by itself). A post that
+names a design by number (`variant`) keeps the number, so moving, switching off or removing a design of that kind can change which
+design the number names, or put it out of range (that post's next render then says so). Copying a look (Duplicate) stays the way to
+try changes without touching posts.
 
 | Route | Does |
 |---|---|
@@ -258,13 +264,13 @@ publishing a composition, switching on or off, reordering, adding, removing) or 
 | `POST /api/settings/looks/:slug/compositions/:id/publish` | the draft becomes the composition, once the gate passes (validation and the render checks above; `runGate` replaces them in tests) |
 | `PATCH` / `DELETE /api/settings/looks/:slug/compositions/:id` | `{ enabled?, position? }` (position among its kind); remove (never the last of its kind) |
 | `POST /api/settings/looks/:slug/publish` | the look is `ready`: it validates and every enabled composition has a passing gate record for its current definition (the checks are run now for any that has none, in one Chrome run; a failure names the design and the reason) |
-| `DELETE /api/settings/looks/:slug` | refused while active |
+| `DELETE /api/settings/looks/:slug` | refused while active (the only change that is) |
 | `GET /api/looks/brief` | any signed-in person: `{ look }`, the active look's kinds, variants, fields and budgets (`lookBrief`), or `{ look: null }` |
 
 **The design editor** (`/settings/looks/:slug/designs/:id`, `apps/web/web/src/pages/settings/looks/`; see `web/README-ui.md`) edits one composition as
 JSON (`design-model.ts`, pure and specced over every composition of both shipped looks), checks the draft as it is edited with the `validate` route, draws it
 with `preview-design` and falls back to a sketch drawn in the browser while that answers 501, saves with `PUT .../draft` and publishes with `POST .../publish`.
-A look in use is read only there.
+A look in use is edited there like any other; the page says that only a published design reaches posts.
 
 **Drawing a look** (`services/look-render.ts`, connected in `src/server/index.ts` with `connectLookRenderer`). Everything goes through the render queue
 (`services/render-queue.ts`: posts, then previews, then gate jobs, under the engine's single Chrome lock; a newer request with the same key, one per person
@@ -526,8 +532,9 @@ posts already made keep theirs, and **Customise**, which duplicates into the bra
 Ready or Needs attention with the first problem, origin, last changed; Open, Use when Ready, and a menu with Duplicate and Delete, whose
 refusal while active shows the server's reason). `/settings/looks/:slug` is a wide page, crumbs `Settings / Looks / <name>`, with the name
 editable in the header, a status chip, Save (with "You have changes that are not saved" and the unsaved guard), **Publish** (a dialog listing the
-check of every design, with a link to each failing design) and, when Ready and not active, **Use this look**. A look that is ACTIVE is locked
-(the server answers 409 to changes that alter what is drawn): the page says so, every control is read only and **Duplicate** offers a copy.
+check of every design, with a link to each failing design) and, when Ready and not active, **Use this look**. A look that is ACTIVE can be
+edited: the page says that saved changes reach posts drawn from then on while images already made stay as they are, shows Publish when
+the edits have not been checked, and **Duplicate** still offers a copy to try changes on.
 Tabs: **Settings** (drawn from `lookCatalogue().sections`, so a setting the engine adds appears without UI work: Dials, Typefaces, Type,
 Page, Colour, Devices, Pictures, Logo; numbers show their range and an inline error, never clamped; server problems are mapped to the control
 by path), **Designs** (per kind: reorder, On/Off, status, Edit as a read-only detail, Duplicate within this look, Remove, "Add a design" from

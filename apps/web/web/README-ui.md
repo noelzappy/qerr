@@ -187,7 +187,7 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
   moved there from their own menu entry, `/settings/references` redirects), `/settings/looks/:slug` and `/settings/looks/:slug/designs/:id`
   (the design editor, below). The settings menu reads You, Brand (Brand and look, Looks, Classic layouts), Organisation (Team,
   Channels, AI and search), Records; **Classic layouts** shows only while no look is active (`useActiveLook`, from `GET /api/looks/brief`).
-  An active look is locked: the page says so, controls are read only and Duplicate makes a copy to change. Routes used are listed in
+  An active look is edited like any other: the page says that saved changes reach posts drawn from then on (images already made stay as they are), and Duplicate still makes a copy to try changes on. Routes used are listed in
   apps/web/README.md, "The Looks pages (web)". The post editor takes kinds, design names and budgets from the active look.
   The look's **Settings tab** is choices, not configuration (`looks/settings/`): two columns on wide screens (the samples, larger and
   sticky, fed the draft look; one collapsible block first on phones) and one calm column of groups: Typeface (curated pairings of the
