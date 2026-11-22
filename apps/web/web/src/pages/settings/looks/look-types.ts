@@ -58,7 +58,7 @@ export interface GateRecord { engineVersion?: string; definitionHash?: string; a
 export interface Composition {
   id: string; kind: string; position: number; name: string; definition: Json; draft: Json | null; hasDraft: boolean; enabled: boolean; gate: GateRecord | null; updatedAt?: string;
 }
-export interface BriefVariant { index: number; name: string; describe: string; fields: Record<string, { required: boolean; max?: number; min?: number }>; accepts: unknown[] }
+export interface BriefVariant { index: number; name: string; describe: string; fields: Record<string, { required: boolean; max?: number; min?: number }>; accepts: unknown[]; marks?: { pills: boolean; icons: boolean } }
 export interface Brief { id?: string; name?: string; kinds: Record<string, { variants: BriefVariant[] }> }
 
 export interface OwnDetail extends OwnSummary { definition: Json; gateRecord: GateRecord | null; compositions: Composition[] }

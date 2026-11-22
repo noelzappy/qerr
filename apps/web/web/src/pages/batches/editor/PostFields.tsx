@@ -9,7 +9,7 @@ import { POST_LIMITS, postFieldsFor, seenLength, setVariant, switchKind, withFie
 import { HeadlineField } from './HeadlineField';
 import { FocalPicker, ZoomField } from './ImageOptions';
 import { KindChooser } from './KindChooser';
-import { budgetsFor } from './look-brief';
+import { budgetsFor, drawsFor } from './look-brief';
 import { ChoiceRow } from './ChoiceRow';
 import { ListEditor } from './ListEditor';
 import { InfoEditor } from './InfoEditor';
@@ -25,7 +25,6 @@ const LABELS: Record<string, string> = {
 };
 const HINTS: Record<string, string> = {
   label: 'A few words above the headline, such as Numbers or Tips.',
-  headline: 'One short phrase. Select words and press Highlight to make them stand out, or Pill to set them in a pill (where the look draws pills).',
   cta: 'What to do, in a few words, such as Book a seat.',
   sub: 'A line that adds to the headline.',
   big: 'The figure itself, such as 74% or 3x.',
@@ -94,9 +93,8 @@ export function PostFields({ design, onChange, direction, kinds, limits, offered
         return short(f, true);
       case 'headline':
         return (
-          <Counted key={f} value={text(d.headline)} max={lim.headline}>
-            <HeadlineField label="Headline" required={needs('headline')} hint={HINTS.headline} value={text(d.headline)} disabled={disabled} onChange={(v) => set('headline', v)} marks icons={lim.icons} />
-          </Counted>
+          <HeadlineField key={f} label="Headline" required={needs('headline')} value={text(d.headline)} disabled={disabled} onChange={(v) => set('headline', v)} marks icons={lim.icons}
+            draws={drawsFor(kindInfo, typeof d.variant === 'number' ? d.variant : undefined)} offer={drawsFor(kindInfo, undefined)} counter={<Counter value={text(d.headline)} max={lim.headline} />} />
         );
       case 'items':
         return <ListEditor key={f} label="Items" addLabel="Add an item" max={lim.items.max} maxChars={lim.items.chars} value={d.items} disabled={disabled} onChange={(v) => set('items', v)} />;

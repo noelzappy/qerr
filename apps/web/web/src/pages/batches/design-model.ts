@@ -104,7 +104,8 @@ export const POST_LIMITS: PostLimits = {
 export interface PostKindInfo {
   kind: string; fields: string[]; required: string[];
   // `budgets` (a look's design only): what the design needs and its longest text per field.
-  variants: Array<{ variant: number; name: string; describe: string; budgets?: Record<string, { required: boolean; max?: number; min?: number }> }>;
+  // `marks` (a look's design only): whether the design draws the headline's [[pill]] words and {{icon}} marks.
+  variants: Array<{ variant: number; name: string; describe: string; budgets?: Record<string, { required: boolean; max?: number; min?: number }>; marks?: { pills: boolean; icons: boolean } }>;
 }
 
 const CANON: PostFieldName[] = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag', 'cta', 'info', 'gallery'];
