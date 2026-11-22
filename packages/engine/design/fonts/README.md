@@ -85,3 +85,13 @@ A heavy condensed display face with a single weight (400 is its only, and alread
 |---|---|---|---|---|---|
 | anton/anton-v27-normal-latin-ext.woff2 | normal | 400 | - | latin-ext | 31356 |
 | anton/anton-v27-normal-latin.woff2 | normal | 400 | - | latin | 18612 |
+
+## Noto Color Emoji
+
+The colour emoji font, embedded only on a post page whose words hold an emoji (a brand with `"emoji": true`; `lib/design/emoji.mjs`).
+A COLRv1 build (colour vector glyphs), in the eleven unicode-range slices Google Fonts serves to Chrome; a page embeds only the slices its emoji need.
+
+- Source: https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap (requested as Chrome 130)
+- Fetched: 2026-11-22
+- Licence: OFL-1.1 (noto-color-emoji/OFL.txt, from https://github.com/google/fonts, `ofl/notocoloremoji/OFL.txt`)
+- Files: `noto-color-emoji/noto-color-emoji-v50-00.woff2` to `-10.woff2`, 2,084,740 bytes in all (the flags slice, `-00`, is 708,608); each file's unicode-range is in `emoji.json`

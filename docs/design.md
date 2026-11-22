@@ -746,7 +746,7 @@ Warnings, never blockers (they come from the brand pack's `brand.json`, so you c
 - Spelling: each rule in `spelling` is `{ "wrong": "<pattern>", "flags": "", "right": "<correct form>" }`. The demo flags
   `Acme savings`, `Acmesavings`, `Acme-savings` and `ACME SAVINGS`, which should be `Acme Savings`. Write the pattern so it
   does not catch the website address, which is often lower case on purpose (the demo's `acmesavings.example` is not flagged).
-- No emoji in image text.
+- No emoji in image text, unless the brand turns them on (see "Emoji" below); with emoji on, the lint leaves them to the design checks.
 - Headline length guidance per size: the statement (the words outside the `*continuation*`) up to 60 characters on `feed` and
   `story`, 50 on `square`, 48 on `wide`, and the whole headline up to the sub line's guidance (110 / 90); sub line 110 / 90. Pills and
   check list items are linted for spelling and emoji too.
@@ -1040,7 +1040,9 @@ still never becomes small text. The web app sets it in Settings, Brand and look,
 The engine ships the families the directions use, under the SIL Open Font License 1.1, with the licence text (`OFL.txt`) in each
 folder under `packages/engine/design/fonts/`: Fraunces (variable, weights 300 to 600, normal and italic), Source Serif 4
 (400, 600, and 400 italic), Hanken Grotesk (400 to 800), JetBrains Mono (400 to 500), Archivo (variable weight and width) and Anton (a heavy condensed display face, one weight, 400).
-Inter and IBM Plex Mono were already there. Files are woff2, `latin` and `latin-ext` subsets only. `fonts/library.json` lists
+Inter and IBM Plex Mono were already there. Noto Color Emoji (OFL, a COLRv1 colour font in eleven unicode-range slices, 2.1 MB in all) is
+embedded only on a page whose words hold an emoji (see "Emoji"); `fonts/emoji.json` lists its slices and `emojiLibraryProblems()` checks
+them. Files are woff2, `latin` and `latin-ext` subsets only. `fonts/library.json` lists
 each file, and `fonts/README.md` gives each family's source URL, the fetch date, the axes and the file sizes; `libraryProblems()`
 (`lib/design/font-library.mjs`) checks that every listed file exists and is a woff2. A page embeds only what it uses: the faces
 of the roles its composition draws in, the `latin-ext` file only when a character of its words needs it, each as one
@@ -1217,6 +1219,39 @@ A headline `text` also takes `pills` (`shape` pill, soft or outline; `fill`, a f
 fill, or on the page for an outline) and `icons` (`colour`, a role; the words' own colour when left out): how its `[[pill]]` words and `{{icon}}`
 marks are drawn; `icons.badge`, a fill colour role, sets each icon in a small round disc of that colour, like a sticker in the line. Both are refused on any other field, on a part of the headline, with `tiltBar` or `vertical`, and they do not exist on a
 `fitted-stack` (the page rebuilds a fitted headline from its words, so its marks are always plain).
+
+**Swashes (`swash`, approved by the owner on 22 Nov 2026).** A headline `text` in display type (or a `fitted-stack` of the headline or the
+quote, by lines or as a block) may carry a decorative flourish against one of its words: `swash: { shape, word?, colour?, weight?, overlap? }`.
+`shape` is one of the engine's own: `underline` (a brush underline under the word), `swoosh` (dips under the word and flicks up past its
+end), `tail` (from the last letter, out and curling back under the word) and `loop` (a loop from the first letter running on under the
+word). `word` is `first`, `last` (the default), `phrase` (the emphasised phrase, on the line of its last word) or the nth word, 1 to 12 (a
+shorter headline uses its last word); the punctuation that closes the word belongs to it. `colour` is a palette role (`accent` by default),
+`weight` `fine`, `medium` or `bold` (0.035, 0.055 or 0.08 of the letters' size), `overlap` true lets it cross the headline's other words.
+Why drawn flourishes and not a font's swash letters: no font the looks use has swash glyphs, a swash letter would tie a look to one family
+(and a brand font may have none), and its ink would reach outside the box the checks measure. A drawn swash works with every font, takes
+any brand colour, and is measured: the page (`placeSwashes` in `lib/design/runtime.mjs`, after the fit) reads the word's box and baseline
+from its own font, builds the curve from a fixed table of control points (numbers relative to the word's width and size), draws it as a
+tapered SVG outline of numbers only behind the letters, and `swashProblems` in `lib/design/checks.mjs` holds every point of the stroke
+against the ink box of every word and punctuation mark on the page: it may touch only the word it is drawn against (and, with `overlap`, the
+other words of its own headline), never other text, and it must stay on the page. The contrast check then measures the words on the pixels
+with the swash under them. `validateLook` refuses a swash on anything but a whole display headline or quote, on a turned line or inside a
+turned box, a sticker, band or seam, more than one per composition, and any value outside these lists. The design editor offers the shape
+and the word as chips (Swash: Off, Underline, Swoosh, Tail, Loop; Against: First word, Last word, Emphasis), the rest under Fine-tune.
+Bloom's Moon statement draws a tail under the headline's last word.
+
+**Emoji (`emoji` in `brand.json`, approved by the owner on 22 Nov 2026).** Off by default: a post whose texts hold an emoji is refused
+("emoji are off for this brand"). With `"emoji": true` (Settings, Brand, Voice and spelling: Emoji in post images) each text of a post
+(every field, each list item, info value and picture caption) may carry at most three emoji, and only real ones: every character
+cluster that looks like an emoji must be one of Unicode's recommended emoji (`\p{RGI_Emoji}`: single emoji, skin tones, flags, keycaps,
+tag flags and ZWJ sequences); a stray joiner, a lone flag letter, a doubled skin tone or a tag run is refused (`lib/design/emoji.mjs`). A plain
+text symbol (©, ™, ☺ without the emoji selector) is text, as before. An emoji counts as two characters towards a field's limit. The brand's
+name never takes an emoji. Emoji reach the page as text, escaped like every other letter, and are drawn with the engine's own colour emoji
+font, Noto Color Emoji (OFL, a COLRv1 build in unicode-range slices, `design/fonts/noto-color-emoji/`, listed in `design/fonts/emoji.json`):
+a page whose words hold an emoji embeds only the slices they need, as `data:` URIs, and puts `VF Emoji` in every font stack right after the
+role's own font. Nothing is fetched. The fit, contrast and grid checks measure emoji like any letter. The AI is told `brand.emoji`; with it on
+it may use up to three per image text (never in a caption, the brand name or a series mark), and its post checks take out emoji the brand
+does not allow (all when off, broken ones and any past the third when on) before the design is checked. Tallyho turns emoji on; the loud
+look's Letter statement shows them.
 
 Common to most: `place` (exactly one of a grid position, pixels, an anchor, or an inset of the page, margins or frame; a flow child of a
 box has none), `bleed`, `rot` (a named angle or -15 to 15), `origin` or `originPct`, `skew` (a plain block only), `z`, `when` (`{ present }` / `{ absent }`), `fill`, `ink`,
