@@ -1,5 +1,6 @@
 // Primitive: one row for each list item, or each part of the event line: an optional number, then the words (kit box + run).
 import { oneOf, VALIGNS, RULE_STYLES, RULE_WEIGHTS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, STYLES, angle, bool, en, int, list, num, obj, role, tuple } from '../../look-desc.mjs';
+import { ICON_NAMES } from '../../icons.mjs';
 
 export const SPEC = {
   label: 'Rows', group: 'Layout', help: 'One row for each item of a list (or each part of the event line): an optional number, then the words. One per composition.',
@@ -21,10 +22,18 @@ export const SPEC = {
     rowGap: int(0, 48, 'Space between rows', 'Pixels of space between the rows (for rows that are cards or pills).', 0),
     ruleStyle: en(RULE_STYLES, 'Rule style', 'The rule above each row: a solid line or a row of round dots.', 'solid'),
     keys: list(en(ROW_KEYS, 'Label', 'A fixed label word.'), 3, 'Row labels', 'Fixed words before each row of an event table.', { min: 1 }),
+    // an icon of the engine's own set on each row's tile instead of a number (a feature list): row i takes icons[i % n]
+    icons: list(en(ICON_NAMES, 'Icon', 'One of the engine\'s own icons.'), 5, 'Icons', 'Icons on the rows\' tiles instead of numbers, in turn (one icon: the same on every row). Needs a number tile and no numbering.', { min: 1 }),
   },
   common: ['place', 'z', 'when', 'ink', 'fill', 'pad', 'grow', 'minH', 'w', 'before'],
   required: ['each'],
 };
+
+// For the static checks (look-validate.mjs): icons stand on a tile, in place of the numbers.
+export function rules(el, bad) {
+  if (el.icons !== undefined && (el.number ?? 'none') !== 'none') bad('puts icons where the numbers go; set numbering to none', 'icons');
+  if (el.icons !== undefined && el.numberTile === undefined) bad('needs a number tile to stand on', 'icons');
+}
 
 const NUMBER = {
   '1': (i) => String(i + 1), '01': (i) => String(i + 1).padStart(2, '0'),
@@ -49,7 +58,12 @@ export function render(c, p, env) {
     const label = p.keys?.[i] ? c.run({ text: p.keys[i], role: 'label', family: T.label.role, size: T.label.size, lead: 1.2, weight: T.label.weight, track: T.label.track, upper: T.label.upper, colour: 'muted', nowrap: true }) : '';
     const labelCell = label && p.numberSpan ? c.box({ flow: true, w: c.span(0, p.numberSpan - 1), flexNone: true }, label) : label;
     let num = '';
-    if (p.number !== 'none' && p.numberTile) {
+    if (p.icons && p.numberTile) {
+      // an icon on the tile: decoration in the tile's ink, about half the tile across (numberSize sets it)
+      const t = p.numberTile, size = Math.min(t.size - 8, p.numberSize ?? Math.round(t.size * 0.5));
+      num = c.box({ flow: true, w: t.size, h: t.size, fill: t.fill, ink: t.ink, radius: t.radius, rot: turn || undefined, shadow: t.shadow === true ? env.shadow : typeof t.shadow === 'number' ? { x: t.shadow, y: t.shadow, colour: 'ink' } : undefined, flex: 'column', justify: 'center', align: 'center', flexNone: true },
+        c.icon(p.icons[i % p.icons.length], { colour: t.ink, size }));
+    } else if (p.number !== 'none' && p.numberTile) {
       const t = p.numberTile;
       num = c.box({ flow: true, w: t.size, h: t.size, fill: t.fill, ink: t.ink, radius: t.radius, rot: turn || undefined, shadow: t.shadow === true ? env.shadow : typeof t.shadow === 'number' ? { x: t.shadow, y: t.shadow, colour: 'ink' } : undefined, flex: 'column', justify: 'center', align: 'center', flexNone: true },
         c.run({ text: NUMBER[p.number](i), role: 'label', family: numStyle === 'label' ? T.label.role : 'display', dfont: numStyle !== 'label' || undefined, size: p.numberSize ?? 46, lead: 1, weight: T.display.weight, colour: t.ink }));

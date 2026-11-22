@@ -44,7 +44,7 @@ function lookWith(elements, { headline = {} } = {}) {
 }
 const TAPED = { type: 'taped-photo', place: AT(140, 600, 800, 560), rot: -3, keyline: 4, tapeOn: 'diagonal', tapeColour: 'muted', tapeLength: 150, tapeWidth: 44 };
 const PAPER = { type: 'paper-texture', place: { inset: 'page' }, strength: 0.3 };
-const BADGE = { type: 'icon-badge', icon: 'heart', size: 72, fill: 'gold', ink: 'on-accent', place: { px: { x: 700, y: 120 } } };
+const BADGE = { type: 'icon-badge', icon: 'heart', size: 42, badge: 72, fill: 'gold', ink: 'on-accent', place: { px: { x: 700, y: 120 } } };
 const problems = (l) => validateLook(l, 'look', {});
 const renormal = (l) => { const n = clone(normaliseLook(l)); n.compositions = n.compositions.map(({ id, calm, accepts, fit, ...c }) => c); return n; };
 const valid = (l, what) => assert.deepEqual(problems(l), [], what);
@@ -67,7 +67,7 @@ test('each piece validates, and its normalised form validates again', () => {
   }
   // a badge flows in a row beside the figure
   const l = lookWith([]);
-  l.compositions[0].elements[0] = { type: 'box', place: AT(60, 60, 900, 220), flow: 'row', align: 'center', gap: 16, children: [{ type: 'text', field: 'big', style: 'numeral', size: 200 }, { type: 'icon-badge', icon: 'check', size: 64, fill: 'field', ink: 'on-field' }] };
+  l.compositions[0].elements[0] = { type: 'box', place: AT(60, 60, 900, 220), flow: 'row', align: 'center', gap: 16, children: [{ type: 'text', field: 'big', style: 'numeral', size: 200 }, { type: 'icon-badge', icon: 'check', size: 37, badge: 64, fill: 'field', ink: 'on-field' }] };
   valid(l, 'a badge in a row');
 });
 
@@ -94,7 +94,10 @@ test('a paper texture and an icon badge are decoration from fixed classes, palet
   assert.match(p, /<i class="abs k-paper" aria-hidden="true" data-el="\d+" data-deco style="left:0px;top:0px;width:1080px;height:1350px;opacity:0.3"><\/i>/);
   assert.match(draw(lookWith([{ ...PAPER, grain: 'coarse' }])).body, /class="abs k-paper k-paper-c"/);
   const b = draw(lookWith([BADGE])).body;
-  assert.match(b, /<div class="abs k-box" data-el="\d+" data-fill data-grid="skip" style="left:700px;top:120px;width:72px;height:72px;background:var\(--c-gold\);border-radius:999px;display:flex;flex-direction:row;justify-content:center;align-items:center"><i class="k-badge-i" aria-hidden="true" data-deco style="font-size:42px"><svg class="k-ic" viewBox="0 0 24 24" aria-hidden="true" data-deco style="fill:var\(--c-on-accent\)"><path d="[^"]*"\/><\/svg><\/i><\/div>/);
+  assert.match(b, /<div class="abs k-box" data-el="\d+" data-fill data-grid="skip" style="left:700px;top:120px;width:72px;height:72px;background:var\(--c-gold\);border-radius:999px;display:flex;flex-direction:column;justify-content:center;align-items:center"><svg class="k-ic" viewBox="0 0 24 24" aria-hidden="true" data-deco style="width:42px;height:42px;fill:var\(--c-on-accent\)"><path d="[^"]*"\/><\/svg><\/div>/);
+  // turned like a sticker, with a ring and a soft shadow
+  const t = draw(lookWith([{ ...BADGE, ring: { w: 4, colour: 'paper' }, shadow: 'soft', rot: -8 }])).body;
+  assert.match(t, /<div class="abs k-box" data-el="\d+"[^>]*data-tilt="-8"[^>]*style="left:700px;top:120px;width:72px;height:72px;[^"]*transform:rotate\(-8deg\)/);
 });
 
 test('bold emphasis and icons in round badges in a headline: fixed classes and palette roles', () => {
@@ -121,7 +124,8 @@ test('hostile values in every new field are refused, plainly', () => {
     [p({ strength: 0.61 }), /strength/, 'too strong'], [p({ strength: 0.01 }), /strength/, 'too faint'], [p({ strength: '0.3' }), /strength/, 'strength as text'],
     [p({ grain: 'url(x)' }), /grain/, 'a payload grain'], [p({ fill: 'paper' }), /fill/, 'a fill it does not take'],
     // icon badge
-    [b({ icon: 'skull' }), /icon/, 'an unknown icon'], [b({ icon: '<svg onload=x>' }), /icon/, 'a payload icon'], [b({ size: 23 }), /size/, 'too small'], [b({ size: 301 }), /size/, 'too big'],
+    [b({ icon: 'skull' }), /icon/, 'an unknown icon'], [b({ icon: '<svg onload=x>' }), /icon/, 'a payload icon'], [b({ size: 23 }), /size/, 'too small'], [b({ size: 401 }), /size/, 'too big'],
+    [b({ badge: 39 }), /badge/, 'a badge too small'], [b({ badge: 601 }), /badge/, 'a badge too big'], [b({ badge: 42 }), /larger than the icon/, 'a badge no larger than its icon'],
     [b({ fill: 'url(x)' }), /fill/, 'a payload fill'], [b({ shadow: 'hard' }), /soft shadow/, 'a hard shadow'], [b({ ink: 'gold', fill: 'gold' }), /does not read/, 'ink that does not read on its fill'],
     // the headline's marks
     [lookWith([], { headline: { icons: { badge: '#00ff00' } } }), /badge/, 'a hex badge'], [lookWith([], { headline: { icons: { badge: PAYLOADS[0] } } }), /badge/, 'a payload badge'],

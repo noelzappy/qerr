@@ -677,6 +677,8 @@ export function bindingsOf(el: Json, look: Json): Binding[] {
     case 'numeral': return [{ field: f ?? 'big', sig: sig(f ?? 'big', 'numeral', (el.format as string) ?? '') }, ...(isObj(el.unit) ? [{ field: String(el.unit.field), sig: sig(String(el.unit.field), 'unit') }] : [])];
     case 'sticker': return f === undefined ? [] : [{ field: f, sig: sig(f, 'sticker') }];
     case 'photo': return [{ field: 'image', sig: 'image|all' }];
+    // the engine's primitives/taped-photo.mjs bindings(): the post's picture, taped on
+    case 'taped-photo': return [{ field: 'image', sig: 'image|all' }];
     case 'seam': return el.upper === 'field' ? [] : [{ field: 'image', sig: 'image|all' }];
     case 'rows': return el.each === 'items' ? [{ field: 'items', sig: 'items|rows' }] : [{ field: 'meta', sig: 'meta|rows' }];
     case 'meta-row': return (((look.devices as Json | undefined)?.metaRow as Json | undefined)?.cells as Json[] | undefined ?? []).some((c) => c.source === 'label') ? [{ field: 'label', sig: 'label|all' }] : [];
@@ -863,7 +865,7 @@ export function whyNotAdd(comp: Json, type: string, cat: LookCatalogue, parentPa
   }
   if (type === 'meta-row' && (!(gridOf(look)?.head ?? 0) || !(look.devices as Json | undefined)?.metaRow)) return 'This look has no top label row; set one up in the look\'s settings (Page and Devices)';
   const kind = String(comp.kind), fields = cat.kinds[kind]?.fields ?? [];
-  const needs: Record<string, string[]> = { photo: ['image'], numeral: ['big', 'meta'], rows: ['items', 'meta'], 'mantra-rows': ['headline'], 'fitted-stack': ['headline', 'quote'], 'info-rows': ['info'], 'photo-row': ['gallery'], button: ['cta', 'tag', 'label'] };
+  const needs: Record<string, string[]> = { photo: ['image'], 'taped-photo': ['image'], numeral: ['big', 'meta'], rows: ['items', 'meta'], 'mantra-rows': ['headline'], 'fitted-stack': ['headline', 'quote'], 'info-rows': ['info'], 'photo-row': ['gallery'], button: ['cta', 'tag', 'label'] };
   if (needs[type] && !needs[type]!.some((f) => fields.includes(f))) return `A ${kind} post has no ${needs[type]!.map((f) => fieldLabel(f, cat).toLowerCase()).join(' or ')} to show`;
   const shown = new Set(shownFields(comp, look));
   if (needs[type] && type !== 'rows' && !needs[type]!.some((f) => fields.includes(f) && !shown.has(f))) return `${needs[type]!.filter((f) => fields.includes(f)).map((f) => fieldLabel(f, cat)).join(' and ')} ${needs[type]!.filter((f) => fields.includes(f)).length > 1 ? 'are' : 'is'} shown already; a design shows each field once`;
@@ -964,7 +966,14 @@ export function newElement(comp: Json, type: string, look: Json, cat: LookCatalo
     case 'info-rows': el.layout = 'beside'; size = { span: 99, rowSpan: 2, h: 220 }; break;
     case 'button': { const f = free(['cta', 'tag', 'label']); if (f && f !== 'cta') el.field = f; el.shape = 'pill'; el.icon = 'arrow-right'; size = { span: 6, rowSpan: 1, w: 480, h: 110 }; break; }
     case 'photo-row': el.size = 200; el.captions = true; size = { span: 99, rowSpan: 2, h: 260 }; break;
+    // one of the engine's icons on a round badge in the brand colour (the pane changes the icon, the shape and the colours)
+    case 'icon-badge': el.icon = 'check'; el.size = 64; el.shape = 'circle'; el.fill = 'field'; el.ink = 'on-field'; size = { span: 1, rowSpan: 1, w: 122, h: 122 }; break;
     default: break;
+  }
+  // on a page lit by a gradient of dark colours (the ledger look), new words are white, so they read on every colour of it
+  if (['text', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'info-rows'].includes(type)) {
+    const stops = (Array.isArray(comp.elements) ? comp.elements as Json[] : []).filter((x) => x.type === 'gradient' && isObj(x.gradient)).flatMap((x) => ((x.gradient as Json).stops as string[] | undefined) ?? []);
+    if (stops.length && stops.every((s) => ['dark', 'field', 'field-deep', 'ink'].includes(s))) el.ink = 'white';
   }
   if (info.placement === 'required') {
     const g = gridOf(look);

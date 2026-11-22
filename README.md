@@ -237,8 +237,10 @@ with a honey accent, Hanken Grotesk with JetBrains Mono, and `style.direction` s
 draws. Its `vault.json` holds invented facts with round, illustrative figures; its `map.json` is an invented coastline.
 `brands/pennyhive/make-assets.mjs` draws its logos (`logos/*.svg` as the source and the `logos/*.png` the engine reads)
 and the map with the standard library only, no Chrome. It draws no pictures of its own: its example batch,
-`brands/pennyhive/batches/example-posts.json` (seven `post` designs, one per kind), uses the demo pictures above. Use it
-with `BRAND_DIR=brands/pennyhive`; `test-brand-pennyhive.mjs` keeps the pack and its batch valid. The demo stays the
+`brands/pennyhive/batches/example-posts.json` (seven `post` designs, one per kind), uses the demo pictures above;
+`batches/example-ledger.json` (eleven posts with a five-page how-it-works carousel, for the shipped Ledger look) uses them and
+three photos recorded in `packages/engine/design/assets/photos/CREDITS.md` (not committed: put them there before rendering). Use it
+with `BRAND_DIR=brands/pennyhive`; `test-brand-pennyhive.mjs` keeps the pack and both batches valid. The demo stays the
 default and the pack every test and example uses.
 
 **The Tallyho pack** (`brands/tallyho`) is a third fictional brand, made to show off the loud look: Tallyho, a polls and
@@ -422,7 +424,7 @@ The engine tests, in `packages/engine/`:
 - `test-design-find-chrome.mjs`: finding Chrome, then Chromium, and the message when neither is there.
 - `test-brand-pack.mjs`: `BRAND_DIR`, the demo pack and the brand file's optional fields.
 - `test-brand-pennyhive.mjs`: the Pennyhive pack loads, its spelling rules hold, and its example batch passes the post
-  checks in its direction.
+  checks in its direction and its Ledger batch those of the shipped Ledger look.
 - `test-brand-tallyho.mjs`: the Tallyho pack loads, its spelling rules hold, its example batch passes the post checks in the
   loud look, and its vault holds round, invented figures. `test-design-look-loud.mjs`: the loud look (pure, and with Chrome
   every composition through every check). `test-design-look-paste.mjs`: the taped picture, paper texture, icon badges, bold

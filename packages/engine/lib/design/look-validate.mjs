@@ -293,7 +293,7 @@ function typeRules(el, path, ctx, errs) {
     if (el.sizeByCount !== undefined && Array.isArray(el.sizeByCount)) for (let i = 1; i < el.sizeByCount.length; i++) if (!(el.sizeByCount[i][0] > el.sizeByCount[i - 1][0]) || el.sizeByCount[i][1] > el.sizeByCount[i - 1][1]) { bad('must list the fewest items first, each step with more items and a smaller size than the one before', 'sizeByCount'); break; }
     if (el.ruleEnd === true && (el.rule === undefined || el.rule === 'none')) bad('closes the rows with a rule, so it needs rule above each row', 'ruleEnd');
     if (el.keys !== undefined && el.each !== 'meta-parts') bad('labels the rows of an event table (each: meta-parts)', 'keys');
-    if (el.numberTile !== undefined && el.number === 'none') bad('needs numbering', 'numberTile');
+    if (el.numberTile !== undefined && el.number === 'none' && el.icons === undefined) bad('needs numbering (or icons)', 'numberTile');
     if (el.numberStyle !== undefined && (el.number === undefined || el.number === 'none') && el.numberTile === undefined) bad('needs numbering', 'numberStyle');
   }
   if (t === 'photo') {

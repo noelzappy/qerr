@@ -171,9 +171,10 @@ function photoTextItem(nodes: Node[], comp: Json, look: Json): HealthItem {
     cache.set(n, r);
     return r;
   };
-  const photos = nodes.filter((n) => n.type === 'photo' || (n.type === 'seam' && n.el.upper !== 'field'));
+  const photos = nodes.filter((n) => n.type === 'photo' || n.type === 'taped-photo' || (n.type === 'seam' && n.el.upper !== 'field'));
   if (!photos.length) return { ...base, status: 'ok', detail: 'No picture' };
-  const backers = nodes.filter((n) => ['scrim', 'block', 'sticker'].includes(n.type) || hasFill(n) || (n.type === 'rows' && (n.el.fill || n.el.altFill)))
+  // a colour over the picture (overlay) is raised by the page until the words on it reach their contrast, like a scrim
+  const backers = nodes.filter((n) => ['scrim', 'overlay', 'block', 'sticker'].includes(n.type) || hasFill(n) || (n.type === 'rows' && (n.el.fill || n.el.altFill)))
     .map((n) => ({ n, rect: rectFor(n), key: keyOf(topOf(n)) }));
   for (const s of nodes.filter((x) => x.type === 'seam')) {
     const y = Math.max(Number(s.el.leftY) || 0, Number(s.el.rightY) || 0);

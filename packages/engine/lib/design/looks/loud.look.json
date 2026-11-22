@@ -434,7 +434,8 @@
         {
           "type": "icon-badge",
           "icon": "heart",
-          "size": 104,
+          "size": 60,
+          "badge": 104,
           "fill": "dark",
           "ink": "gold",
           "rot": "sticker",
@@ -449,7 +450,8 @@
         {
           "type": "icon-badge",
           "icon": "spark",
-          "size": 92,
+          "size": 53,
+          "badge": 92,
           "fill": "paper",
           "ink": "ink",
           "rot": "card",
@@ -625,7 +627,8 @@
                 {
                   "type": "icon-badge",
                   "icon": "check",
-                  "size": 68,
+                  "size": 39,
+                  "badge": 68,
                   "fill": "field",
                   "ink": "on-field",
                   "shadow": "soft"
@@ -633,7 +636,8 @@
                 {
                   "type": "icon-badge",
                   "icon": "heart",
-                  "size": 68,
+                  "size": 39,
+                  "badge": 68,
                   "fill": "gold",
                   "ink": "on-accent",
                   "shadow": "soft"

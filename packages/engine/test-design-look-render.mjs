@@ -49,7 +49,7 @@ const ALLOWED_CLASSES = new Set([
   'k-wm', 'k-wm-row', 'k-wm-fade',                                                                         // wordmarkPattern()
   'k-logo', 'logo-inv', 'ly-logo',                                                                         // logoHtml(), only when the brand switched its logo on
   'k-grad', 'k-overlay', 'k-graphic', 'k-tinted',                                                          // gradient(), overlay(), graphic() and a recoloured graphic
-  'k-em-b', 'k-ic', 'k-icb', 'k-tape', 'k-paper', 'k-paper-c', 'k-badge-i',                               // EMPH bold, an icon (iconSvg) and an icon on a badge, tape(), paper(), badge()
+  'k-em-b', 'k-ic', 'k-icb', 'k-tape', 'k-paper', 'k-paper-c', 'k-badge-i',                               // EMPH bold, an icon (iconSvg: an icon badge, a row's tile, an icon on a headline's badge), tape(), paper(), badge()
 ]);
 // The classes with no rule in kit.css: the page and picture classes live in other sheets (cv, ph, post), the rest are hooks the runtime or the checks read.
 const NO_RULE = new Set(['cv', 'k-multiply', 'k-grain', 'k-em-n', 'k-shape-circle', 'k-shape-pill', 'k-shape-tile', 'k-numeral-n', 'k-numeral-u', 'logo-inv', 'ly-logo']);
@@ -286,7 +286,7 @@ function bindingLook() {
     elements: [
       { type: 'paper-texture', place: { inset: 'page' }, strength: 0.3, grain: 'coarse' },
       { type: 'taped-photo', place: G(8, 5, 7, 1), rot: -4, mount: 12, fill: 'paper-warm', keyline: 3, tapeOn: 'all', tapeColour: 'muted', tapeLength: 120, tapeWidth: 36, treat: ['grey'], shadow: 'soft' },
-      { type: 'icon-badge', icon: 'heart', size: 80, fill: 'gold', ink: 'on-accent', ring: { w: 4, colour: 'paper' }, shadow: 'soft', rot: 'sticker', place: { px: { x: 900, y: 40 } } },
+      { type: 'icon-badge', icon: 'heart', size: 46, badge: 80, fill: 'gold', ink: 'on-accent', ring: { w: 4, colour: 'paper' }, shadow: 'soft', rot: 'sticker', place: { px: { x: 900, y: 40 } } },
       { type: 'meta-row', tone: 'ink' },
       { type: 'numeral', field: 'big', sizes: [320, 280, 240], unit: { field: 'unit', style: 'body', at: 'top-right' }, baselineAt: 'page', place: G(1, 12, 2, 5) },
       T('big', { style: 'label', format: 'pad2' }, G(1, 3, 7, 1)),
@@ -385,6 +385,7 @@ function bindingLook() {
       { type: 'info-rows', place: { px: { x: 60, y: 1060, w: 600, h: 200 } }, rule: 'hair', valueStyle: 'label', when: { present: 'info' } },
       { type: 'button', place: { px: { x: 700, y: 1180, w: 320, h: 100 } }, size: 24, icon: 'arrow-right', when: { present: 'cta' } },
       { type: 'photo-row', place: { px: { x: 700, y: 560, w: 320, h: 160 } }, ring: { w: 4, colour: 'paper' }, when: { present: 'gallery' } },
+      { type: 'icon-badge', icon: 'calendar', size: 48, badge: 96, fill: 'field', ink: 'on-field', place: { px: { x: 700, y: 760 } } },
       { type: 'photo', place: { px: { x: 60, y: 60, w: 600, h: 700 } }, shape: 'card', border: 14, tint: 'gold', rot: 'card', treat: ['multiply'] },
       T('meta', { style: 'numeral', size: 220, format: 'day' }, { px: { x: 700, y: 60 } }),
       T('meta', { style: 'display', size: 90, format: 'month', upper: true }, { px: { x: 700, y: 330 } }),

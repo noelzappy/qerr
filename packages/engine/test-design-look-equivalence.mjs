@@ -26,9 +26,10 @@ import { MINIMAL as SOFT_MINIMAL, NORMAL as SOFT_NORMAL, STRESS as SOFT_STRESS }
 import { MINIMAL as BLOOM_MINIMAL, NORMAL as BLOOM_NORMAL, STRESS as BLOOM_STRESS } from './testlib/bloom-copy.mjs';
 import { MINIMAL as CLEAN_MINIMAL, NORMAL as CLEAN_NORMAL, STRESS as CLEAN_STRESS } from './testlib/clean-copy.mjs';
 import { MINIMAL as LOUD_MINIMAL, NORMAL as LOUD_NORMAL, STRESS as LOUD_STRESS } from './testlib/loud-copy.mjs';
+import { MINIMAL as LEDGER_MINIMAL, NORMAL as LEDGER_NORMAL, PICTURES as LEDGER_PICTURES, STRESS as LEDGER_STRESS } from './testlib/ledger-copy.mjs';
 
 const asCopy = (l) => ({ ...l, origin: `copy:shipped:${l.id}` });
-const RETAIL = asCopy(shippedLooks().retail), SWISS = asCopy(shippedLooks().swiss), SOFT = asCopy(shippedLooks().soft), BLOOM = asCopy(shippedLooks().bloom), CLEAN = asCopy(shippedLooks().clean), LOUD = asCopy(shippedLooks().loud);
+const RETAIL = asCopy(shippedLooks().retail), SWISS = asCopy(shippedLooks().swiss), SOFT = asCopy(shippedLooks().soft), BLOOM = asCopy(shippedLooks().bloom), CLEAN = asCopy(shippedLooks().clean), LOUD = asCopy(shippedLooks().loud), LEDGER = asCopy(shippedLooks().ledger);
 const COLOURS = {
   demo: {},
   dark: paletteBrand({ name: 'Night Kitchen', light: '#EFEAE0', ink: '#10151F', primary: '#1B2A41', gold: '#F2B84B', deep: '#8A5A00' }),
@@ -110,17 +111,20 @@ const COPY = {
   retail: { sample: NORMAL, stress: STRESS, minimal: MINIMAL_CHECKED }, swiss: { sample: SWISS_NORMAL, stress: SWISS_STRESS, minimal: SWISS_MINIMAL },
   soft: { sample: SOFT_NORMAL, stress: SOFT_STRESS, minimal: SOFT_MINIMAL }, bloom: { sample: BLOOM_NORMAL, stress: BLOOM_STRESS, minimal: BLOOM_MINIMAL },
   clean: { sample: CLEAN_NORMAL, stress: CLEAN_STRESS, minimal: CLEAN_MINIMAL }, loud: { sample: LOUD_NORMAL, stress: LOUD_STRESS, minimal: LOUD_MINIMAL },
+  ledger: { sample: LEDGER_NORMAL, stress: LEDGER_STRESS, minimal: LEDGER_MINIMAL },
 };
-test('every shipped look passes every check, all 58 compositions from sample, stress and minimal copy, in three sets of brand colours', { skip }, async () => {
-  assert.deepEqual(Object.keys(shippedLooks()).sort(), ['bloom', 'clean', 'loud', 'retail', 'soft', 'swiss'], 'a new shipped look is added here with its copy');
+// the picture a composition is given, where its copy names one (the ledger phone page takes the pre-framed phone capture)
+const PICTURE = { ...LEDGER_PICTURES };
+test('every shipped look passes every check, all 70 compositions from sample, stress and minimal copy, in three sets of brand colours', { skip }, async () => {
+  assert.deepEqual(Object.keys(shippedLooks()).sort(), ['bloom', 'clean', 'ledger', 'loud', 'retail', 'soft', 'swiss'], 'a new shipped look is added here with its copy');
   let drawn = 0;
-  for (const look of [RETAIL, SWISS, SOFT, BLOOM, CLEAN, LOUD]) {
+  for (const look of [RETAIL, SWISS, SOFT, BLOOM, CLEAN, LOUD, LEDGER]) {
     for (const [kind, versions] of Object.entries(Object.groupBy(look.compositions, (c) => c.kind))) {
       for (const [v, comp] of versions.entries()) {
         const id = `${look.id}/${kind}/${v}`;
         for (const copyName of ['sample', 'stress', 'minimal']) {
           for (const colours of Object.keys(COLOURS)) {
-            const spec = { template: 'post', kind, variant: v, name: 'look-test', ...COPY[look.id][copyName][id], ...(comp.fields.image ? { image: 'design/assets/demo/object-jar.jpg' } : {}) };
+            const spec = { template: 'post', kind, variant: v, name: 'look-test', ...COPY[look.id][copyName][id], ...(comp.fields.image ? (PICTURE[id] ?? { image: 'design/assets/demo/object-jar.jpg' }) : {}) };
             try {
               await renderImage(browser, brandOf(colours, look), { spec: normaliseDesign(spec), sizeName: 'feed', outFile: path.join(tmp, `${look.id}-${kind}-${v}-${copyName}-${colours}.png`), folio: { n: 4, total: 12 } }, { tmpDir: tmp });
               drawn++;
@@ -130,5 +134,5 @@ test('every shipped look passes every check, all 58 compositions from sample, st
       }
     }
   }
-  assert.equal(drawn, 58 * 3 * 3);
+  assert.equal(drawn, 70 * 3 * 3);
 });

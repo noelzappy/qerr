@@ -219,7 +219,8 @@ function backgrounds(node, comp, look) {
   for (let n = node; n; n = n.parent) {
     if (n.type === 'sticker') return [n.el.fill ?? (look.colour?.sticker === 'primary' ? 'primary' : 'gold')];
     if (hasGradient(n)) return [...n.el.gradient.stops];
-    if (typeof PRIMITIVES[n.type]?.ownFill === 'function') return [PRIMITIVES[n.type].ownFill(n.el)];
+    // a primitive's own fill (none for one that is drawn bare, such as an icon without its badge)
+    if (typeof PRIMITIVES[n.type]?.ownFill === 'function' && PRIMITIVES[n.type].ownFill(n.el) !== undefined) return [PRIMITIVES[n.type].ownFill(n.el)];
     if (hasFill(n)) return [n.el.fill];
     if (n.type === 'seam') return [n.el.lower];
     if (n.type === 'rows' && (n.el.altFill || n.el.fill)) return n.el.altFill ?? [n.el.fill];
@@ -332,7 +333,7 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
   if (g) {
     const cache = new Map();
     const photos = nodes.filter(isPicture);
-    const backers = nodes.filter((n) => n.type === 'scrim' || n.type === 'overlay' || n.type === 'gradient' || n.type === 'block' || n.type === 'sticker' || hasFill(n) || typeof PRIMITIVES[n.type]?.ownFill === 'function' || (n.type === 'rows' && (n.el.fill || n.el.altFill))).map((n) => ({ n, rect: rectOf(n, look, g, cache), key: keyOf(topOf(n)) }));
+    const backers = nodes.filter((n) => n.type === 'scrim' || n.type === 'overlay' || n.type === 'gradient' || n.type === 'block' || n.type === 'sticker' || hasFill(n) || (typeof PRIMITIVES[n.type]?.ownFill === 'function' && PRIMITIVES[n.type].ownFill(n.el) !== undefined) || (n.type === 'rows' && (n.el.fill || n.el.altFill))).map((n) => ({ n, rect: rectOf(n, look, g, cache), key: keyOf(topOf(n)) }));
     for (const s of nodes.filter((x) => x.type === 'seam')) {
       const y = Math.max(s.el.leftY, s.el.rightY);
       backers.push({ n: s, rect: { x0: 0, y0: y, x1: PAGE.w, y1: PAGE.h }, key: keyOf(s) + 0.5 });

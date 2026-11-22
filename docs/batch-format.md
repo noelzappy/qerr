@@ -320,3 +320,7 @@ of each kind (statement, figure, list, quote, photo, event, offer), with the sam
 illustrative figures. Import it while the brand is Pennyhive (`BRAND_DIR=brands/pennyhive`): a `post` design is drawn by
 the brand's look or design direction (Pennyhive names `retail`), and the demo pack on its own has neither (a brand saved in
 Settings starts on the Clean look).
+`brands/pennyhive/batches/example-ledger.json` is a second one, written for the shipped Ledger look (each design names its
+Ledger `variant`; pick the look in Settings, Brand and look first; its three photos are listed in
+`packages/engine/design/assets/photos/CREDITS.md` and are not committed): eleven posts, among them a five-page how-it-works carousel of
+`post` pages, a figure with a change pill (`tag`) and a quotation with round pictures (`gallery`).

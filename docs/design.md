@@ -907,7 +907,7 @@ that is empty, over its limit or on two lines where one is required is refused, 
 | `quote` | 160 | |
 | `by` | 40 | one line |
 | `meta` | 40 | one line, for example the date and place of an event |
-| `tag` | 16 | one line, the words of a seal or sticker |
+| `tag` | 16 | one line, the words of a seal or sticker (on a figure, a small change pill such as "+12%") |
 | `cta` | 24 | one line, the words of a button (a look's `button` element), for example "Book a seat" |
 | `info` | 1 to 4 rows | `{ "key", "value" }`: `key` one of When, Where, Date, Time, Place, Book on, Tickets, Price, Entry, Who, Host, Call, Online, Starts, Ends, Open (`INFO_KEYS`, never free text), each once; `value` one line of up to 40, no marks |
 | `gallery` | 2 to 5 pictures | `{ "image", "caption"? }`: each picture once, read and checked like `image`; `caption` one line of up to 24 (a name, a product) |
@@ -916,13 +916,13 @@ that is empty, over its limit or on two lines where one is required is refused, 
 
 **Words in pills and inline icons.** Besides its `*emphasis*`, a headline (and only a headline) may mark up to two runs of one to three words as
 `[[pill words]]` and place up to two icons as `{{name}}`, the name one of the engine's own icons (`lib/design/icons.mjs`: arrow-right,
-arrow-up-right, check, plus, star, spark, heart, bolt, leaf, calendar, clock, pin, ticket, tag, gift, phone, mail, user, play, dot). A pill holds
+arrow-up-right, check, plus, star, spark, heart, bolt, leaf, calendar, clock, pin, ticket, tag, gift, phone, mail, user, play, dot, lock, shield). A pill holds
 plain words only (no emphasis, icon or bracket), an emphasis holds no pill or icon, and a pill is never the whole headline. The brackets do
 not count towards the length; an icon counts as two characters. A look draws the pills and icons only where its headline `text` says how
 (`pills`, `icons`); anywhere else the pill words are set plainly and the icons are left out, so the same post reads in every look. Icons
 are SVG paths from that fixed table, filled in the colour of the words; no SVG, path or URL ever comes from a post or a look.
 `cta`, `info` and `gallery` are drawn only by a look written as data, in its `statement`, `photo`, `event` and `offer` compositions (`cta` also in
-`list`), within each composition's own counts (`fields.info.min`/`max`, `fields.gallery.min`/`max`, `fields.cta.max`).
+`list`, `gallery` also in `quote`: the round pictures of the people quoted), within each composition's own counts (`fields.info.min`/`max`, `fields.gallery.min`/`max`, `fields.cta.max`).
 
 Required per kind: `statement` needs `headline`; `figure` `big`; `list` `headline` and `items`; `quote` `quote`; `photo`
 `image` and `headline`; `event` `headline` and `meta`; `offer` `headline` and `tag`. A field the chosen composition does not
@@ -1144,7 +1144,7 @@ a time, and writes only under the repository; `out/` is ignored by git. Look at 
 A design direction (editorial, swiss, retail) is engine code today. A **look** is the same thing written as data, so that it can be
 shown in the panel, copied, edited and checked without a developer: the tables, the validator, the catalogue the panel draws its controls
 from, the brief the AI and the post editor read, and the renderer that draws a look (`directions/interpret.mjs`, the primitives). The
-engine's own retail, swiss, soft, bloom, clean and loud looks are shipped in this format (`lib/design/looks/*.look.json`), and the classic layouts (`layout.mjs`,
+engine's own retail, swiss, soft, bloom, clean, loud and ledger looks are shipped in this format (`lib/design/looks/*.look.json`), and the classic layouts (`layout.mjs`,
 Settings, Layouts) are untouched. All of it is pure (no Chrome) and lives in `packages/engine/lib/design/`:
 
 | File | What it holds |
@@ -1200,7 +1200,7 @@ stored. At most 21 compositions, at most 3 of a kind.
 | `photo-row` | The post's `gallery`: two to five pictures in a row, each cropped to a circle, with optional names under them |
 | `taped-photo` | The post's picture pasted on like a print: an optional paper mount, a line round the picture, strips of tape on two or four corners, turned as a whole |
 | `paper-texture` | A light paper grain over the page or an area (decoration, never a fill the checks count) |
-| `icon-badge` | A small round badge holding one of the engine's icons, like a sticker beside a big figure |
+| `icon-badge` | One of the engine's own icons (`lib/design/icons.mjs`) drawn large: bare, or on a round or rounded badge in a fill colour (a shield on a trust page, a tick, a small sticker beside a big figure) |
 
 A headline `text` also takes `pills` (`shape` pill, soft or outline; `fill`, a fill role, none for an outline; `ink`, which must read on the
 fill, or on the page for an outline) and `icons` (`colour`, a role; the words' own colour when left out): how its `[[pill]]` words and `{{icon}}`
@@ -1310,7 +1310,7 @@ outside the margin.
 | `fitted-stack` | `field`, `mode` (lines, fill, block), `cap`, `floor`, `maxLines`, `gapEm`, `lead`, `valign`, `emphasis`, `emphasisOwnLine`, `trail`, `stretch`, `padBelowEm`, `sizes`, `align` |
 | `numeral` | `field`, `format`, `cap`, `min` or `sizes`, `family`, `weight`, `baselineAt`, `unit` |
 | `mantra-rows` | `field`, `rmin`, `rmax`, `cap`, `floor`, `outline` |
-| `rows` | `each`, `number`, `numberStyle`, `numberSize`, `numberTile`, `numberSpan`, `textStyle`, `textSize`, `textTrack`, `altFill`, `altRot`, `rule`, `ruleEnd`, `sizeByCount`, `firstAccent`, `gap`, `rowMinH`, `valign`, `keys` |
+| `rows` | `each`, `number`, `numberStyle`, `numberSize`, `numberTile`, `numberSpan`, `textStyle`, `textSize`, `textTrack`, `altFill`, `altRot`, `rule`, `ruleEnd`, `sizeByCount`, `firstAccent`, `gap`, `rowMinH`, `valign`, `keys`, `icons` (one to five icon names: each row's tile shows an icon instead of a number, in turn; needs `numberTile` and numbering `none`) |
 | `seam` | `leftY`, `rightY`, `edge`, `upper`, `lower`, `edgeFill`, `gap`; children flow in the colour below, optional `sticker` slot |
 | `band` | `y`, `h`, `gap`, `rot`, `origin`, `fill`, `ink`, `pad`, `shadow`; children flow in it |
 | `meta-row` | `tone`; the cells come from `devices.metaRow` |
@@ -1325,7 +1325,7 @@ outside the margin.
 | `photo-row` | `size` (80 to 400, the most a circle is across; smaller when the row needs the room, refused below 60), `gap`, `overlap` (needs gap 0 and a ring, no names), `align`, `captions`, `captionInk`, `treat`; `ring`, a soft `shadow`. It counts as a picture for the text-over-picture check |
 | `taped-photo` | `mount` (0 to 40 px of paper border; `fill`, its colour, only with a mount), `keyline` (0 to 8 px) and `keylineColour`, `tapeOn` (`diagonal`, `other-diagonal`, `top`, `all`), `tapeColour` (a role; the tape is drawn see-through with torn ends by `kit.css`), `tapeLength` (60 to 260), `tapeWidth` (20 to 80), `treat`; `rot`, `shadow`. Its place needs a width and a height; the picture is read and checked like every picture and counts as one for the text-over-picture check. A post with no picture draws nothing |
 | `paper-texture` | `strength` (0.05 to 0.6), `grain` (`fine`, `coarse`): the page's own grain (`--k-grain`) multiplied over the ground; `data-deco`, so the emptiness check does not count it, and the contrast check measures the finished pixels |
-| `icon-badge` | `icon` (one of the engine's icons), `size` (24 to 300); `fill` and `ink` (default `gold` and `on-accent`, a pair from the ink table), `ring`, a soft `shadow`, `rot`. It may flow in a box (a row beside a figure) |
+| `icon-badge` | `icon` (one of the engine's icons, never a path), `size` (the icon, 24 to 400 px), `shape` (circle, rounded, none), `badge` (the badge's side, 40 to 600 px, larger than the icon; about twice it when left out); `fill` (needed for a badge, refused on a bare icon) and `ink`, a pair from the ink table; `ring` and a soft `shadow` (`soft` or `lift`; a badge's only, refused on a bare icon), `rot`. It may flow in a box (a row beside a figure). Decoration (`data-deco`): no words of the post reach it |
 
 A primitive module may also export `bindings(el)`, `sizes(el, look)`, `inks(el)`, `inkPairs(el)`, `ownFill(el)`, `picture`, `fonts(el, look)`
 and `rules(el, bad)`: the static checks (`look-static.mjs`), the validator and the font embedding read these, so a new primitive is checked like
@@ -1361,16 +1361,16 @@ paper, `on-field` to the ink, `body-dark` and `muted-dark` to the light greys), 
 
 ### The shipped looks and the engine's hooks
 
-`shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss, soft, bloom, clean, loud }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each: two
-statements, a figure, a list, a quote, two photos, an event and an offer; loud has thirteen), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
+`shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss, soft, bloom, clean, loud, ledger }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each: two
+statements, a figure, a list, a quote, two photos, an event and an offer; loud has thirteen, ledger twelve, see below), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
 data counterpart of the code directions of the same name: retail is held to the code (the same budgets, names and grounds; geometry within 3 px of the
 code compositions in `test-design-look-equivalence.mjs`, with the deviations listed there: the roles of the unit and the date tile, and the wrapping
 highlight bar 0.12 em against 0.13 em); swiss is held to the approved prototype by eye. Soft (one sans in medium weights on pale tints of the brand colour, the logo top
 left and the web address top right, rounded panels and pills, pictures that melt into a page sampled from their own edge, a myth and fact page and a big
 figure over a rounded panel) bloom (a serif with italics, arch, oval and circle windows, keylines and dotted rules) and clean (the classic poster pages as a look: the brand's own
-fonts, two-tone headlines, a picture melting into a page sampled from its edge, myth and fact on rounded cards on the dark page) exist only as data.
-`test-design-look-retail.mjs`, `test-design-look-swiss.mjs`, `test-design-look-soft.mjs`, `test-design-look-bloom.mjs` and `test-design-look-clean.mjs` accept no problem at all from the
-validator, and `test-design-look-equivalence.mjs` draws all five from sample, stress and minimal copy in three sets of brand colours through every check.
+fonts, two-tone headlines, a picture melting into a page sampled from its edge, myth and fact on rounded cards on the dark page) and ledger (below) exist only as data.
+`test-design-look-retail.mjs`, `test-design-look-swiss.mjs`, `test-design-look-soft.mjs`, `test-design-look-bloom.mjs`, `test-design-look-clean.mjs` and `test-design-look-ledger.mjs` accept no problem at all from the
+validator, and `test-design-look-equivalence.mjs` draws all six from sample, stress and minimal copy in three sets of brand colours through every check.
 The retail price tag (figure/0) sets its figure as large as the stage allows (up to 930 px, centred) with the unit fitted on a full-width accent block
 under it, in the code composition and the look alike. A folio is written only from the post's real place (its position in its batch, or a carousel
 page's); without one a page has no folio, never a number made up from the words or the date. The partial `testlib/looks/*.sample.json` stay as test fixtures.
@@ -1393,6 +1393,31 @@ on a static family the browser draws a synthetic bold. A `text` in the display s
 the one shipped use, names the same family for both roles). The page judges the words in a pill on the middle band of their line, as it does a
 phrase on a highlight bar, because a display face with a tall ascent and descent (Anton) has a text box taller than its pill.
 
+**Ledger** (`ledger.look.json`) is a modern fintech look, in the manner of today's neobank, payment and savings apps (no brand copied): deep pages lit by a
+radial glow of the brand colour (a `gradient` of the `field` and `dark` roles), Inter in calm medium weights with big confident figures, small change pills
+(the figure's `tag` on a `button` with an arrow), white rounded cards with a soft shadow, rows with icons (`rows` `icons`), a shield or other icon on a
+badge (`icon-badge`), a mark of fine rings round a brand-colour disc (keylines and round blocks) on the hero and offer pages, pill buttons in the accent colour for the `cta`, a phone screen and generous margins (80 px). Twelve compositions:
+
+| Composition | Kind | Page |
+|---|---|---|
+| `statement/0` Gradient hero | statement | deep page with a glow and a mark above (two fine rings round a brand-colour disc, an accent dot); label chip, a big white headline at the foot, sub, optional button; also the cover and closing page of a carousel |
+| `statement/1` Trust card | statement | pale page, one white card: a shield on a brand-colour badge, a two-tone headline and sub; the label under the card |
+| `figure/0` Big number | figure | deep page with a glow; the figure fitted across the page, the unit beside a change pill (the tag), the sub under a hairline |
+| `figure/1` Balance card | figure | pale page, a white card like an account balance: label, figure, unit and change pill; the sub under it |
+| `figure/2` Step | figure | white page, centred: the step number on a brand-colour tile, a two-tone headline and sub, the page number top right; the body pages of a how-it-works carousel |
+| `list/0` Features | list | white page, two-tone headline; each item on a ruled row with a tick on a round badge; optional button |
+| `list/1` How it works | list | deep page with a glow; label chip and white headline; the items on ruled rows numbered on accent badges |
+| `quote/0` Testimonial | quote | white page, a large opening mark, the quotation in medium weight; at the foot two or three round pictures (the `gallery`, overlapping) beside the name and the label |
+| `photo/0` Phone | photo | deep page with a glow; the picture as a phone screen on the right (a pre-framed phone capture, about 660 x 1354, shown whole at its proportions) and the words on the left |
+| `photo/1` Photo card | photo | white page; the picture in a large rounded window with the tag on a white pill, then the headline, sub and button |
+| `event/0` Live session | event | white page; label chip, two-tone headline; the date, time and place of the meta line on ruled rows with a calendar, a clock and a pin; optional button |
+| `offer/0` Gradient offer | offer | deep page with a glow and the same mark of rings above; at the foot the headline, the tag fitted very large under it (such as "€0 fees"), the sub and an accent button |
+
+Its test copy is `testlib/ledger-copy.mjs` (euros only); the Pennyhive pack's `batches/example-ledger.json` shows it off, with a five-page
+how-it-works carousel (cover, three steps, closing page). What it cannot do yet: the phone is the picture as given (a pre-framed capture; a bare
+screenshot is shown as a flat screen, cropped to the phone's proportions), the figure has no chart or sparkline, and the emphasised phrase of a
+headline on a deep page stays white (the accent-as-type colour is made for light pages).
+
 Where swiss differs from the prototype: the offer has the tag block top right in four columns and three rows with the headline at the foot (the
 three-type-level rule: headline and tag are both fitted type), where the prototype puts the tag block bottom left; headlines are set in balanced lines
 (the prototype leaves them ragged); a list takes three to five items and sets five at 44 px; the list numbers are muted grey where the prototype's are
@@ -1405,7 +1430,7 @@ second photo too).
 
 | Name | Where | What |
 |---|---|---|
-| `shippedLooks()` | `@vesk/engine/design/directions/index` | the frozen shipped looks, raw data `{ retail, swiss, soft, bloom, clean, loud }` |
+| `shippedLooks()` | `@vesk/engine/design/directions/index` | the frozen shipped looks, raw data `{ retail, swiss, soft, bloom, clean, loud, ledger }` |
 | `resolveLook(raw, { shipped })` | same | `{ problems }` or `{ problems: [], look (normalised), comps }`, memoised by content, deep frozen |
 | `renderPostWithLook(look, spec, ctx, { shipped })` | same | draws a post with a look written as data; any failure of the kit on a valid look is a `DesignError` |
 | `postKinds(brand)` | same | `{ [kind]: { required, fields: { field: { max, budget? } or { min, max, chars } or {} }, variants: [{ variant, name, describe }] } }` for the brand's direction, a code direction or its own look, the same shape |
@@ -1421,7 +1446,7 @@ second photo too).
 **Drawing a look as a sheet:** `node packages/engine/scripts/direction-sheet.mjs --look packages/engine/lib/design/looks/retail.look.json,packages/engine/lib/design/looks/swiss.look.json
 [--copy sample|stress|minimal] [--brand out/brand-a] [--content file.json] [--out out/lk/x]` draws every composition of the looks, one column per look;
 with `--copy` each composition is drawn from the test copy written for it (`testlib/retail-copy.mjs`, `testlib/swiss-copy.mjs`; for soft and bloom pass
-`--copy-lib testlib/soft-copy.mjs,testlib/bloom-copy.mjs,testlib/clean-copy.mjs,testlib/loud-copy.mjs`), without it from the
+`--copy-lib testlib/soft-copy.mjs,testlib/bloom-copy.mjs,testlib/clean-copy.mjs,testlib/loud-copy.mjs,testlib/ledger-copy.mjs`), without it from the
 content file (the shipped looks are drawn as a brand's own copy). Tests: `test-design-look-render.mjs` (hostile text through every binding, the
 style grammar, class and attribute sets, validation first, no Chrome), `test-design-look-equivalence.mjs` (Chrome: the data version of
 all nine retail compositions against the code oracle within 3 px, and all 18 shipped compositions through every check, from three copies in three sets of colours), `test-design-look-hooks.mjs` (the engine hooks, no Chrome).

@@ -57,7 +57,7 @@ export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 
   gradient, overlay, graphic,
   // info rows, a button and a row of round pictures
   'info-rows': infoRows, button, 'photo-row': photoRow,
-  // a picture taped on at an angle, a paper texture and a round icon badge
+  // a picture taped on at an angle, a paper texture, and one of the engine's icons drawn large, bare or on a badge (a sticker, a trust mark)
   'taped-photo': tapedPhoto, 'paper-texture': paperTexture, 'icon-badge': iconBadge });
 
 export const LOOK_SCHEMA = 1;
@@ -79,11 +79,12 @@ export const FORBIDDEN_KEYS = Object.freeze(['render', '__proto__', 'constructor
 // Which fields a composition of a kind may use (a superset of the compositions of the shipped directions); the required ones come
 // from POST_REQUIRED and must be declared required.
 // cta (a button's words), info (an info block's rows) and gallery (a row of round pictures) are the optional parts a post may add; they come last.
+// A figure may carry a tag (a small change pill such as "+12%"), a quote a gallery (the round picture of the person quoted).
 export const KIND_FIELDS = Object.freeze({
   statement: ['label', 'headline', 'sub', 'cta', 'info', 'gallery'],
-  figure: ['label', 'headline', 'big', 'unit', 'sub', 'image'],
+  figure: ['label', 'headline', 'big', 'unit', 'sub', 'image', 'tag'],
   list: ['label', 'headline', 'sub', 'items', 'cta'],
-  quote: ['label', 'quote', 'by'],
+  quote: ['label', 'quote', 'by', 'gallery'],
   photo: ['label', 'image', 'headline', 'sub', 'tag', 'cta', 'info', 'gallery'],
   event: ['label', 'image', 'headline', 'meta', 'sub', 'tag', 'cta', 'info', 'gallery'],
   offer: ['label', 'image', 'headline', 'tag', 'sub', 'unit', 'cta', 'info', 'gallery'],
