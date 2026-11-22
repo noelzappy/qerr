@@ -12,6 +12,9 @@ import { postKindName } from './editor/catalogue';
 import { PageFields } from './editor/PageFields';
 import { PagesEditor } from './editor/PagesEditor';
 import { PostFields } from './editor/PostFields';
+import { PostPagesEditor } from './editor/PostPagesEditor';
+import { ChoiceRow } from './editor/ChoiceRow';
+import { isPostCarousel, toPostCarousel, toSinglePost } from './editor/post-carousel';
 import { usePostKinds } from './editor/use-post-kinds';
 import type { Json, LayoutBrief } from './editor/types';
 import type { DesignBlock } from './types';
@@ -20,11 +23,13 @@ interface Props {
   design: DesignBlock | null;
   onChange: (design: DesignBlock | null, jsonError: string) => void;
   jsonError: string;
+  // where the post goes, so a carousel can say when a network takes fewer images
+  networks?: readonly string[];
 }
 
 const pretty = (d: DesignBlock | null) => JSON.stringify(d ?? {}, null, 2);
 
-export function DesignFields({ design, onChange, jsonError }: Props) {
+export function DesignFields({ design, onChange, jsonError, networks }: Props) {
   const { series } = useAppInfo().brand;
   const own = useLoad(() => api.get<{ layouts: LayoutBrief[] }>('/api/layouts').catch(() => ({ layouts: [] as LayoutBrief[] })), []);
   const brandLayouts = own.data?.layouts ?? [];
@@ -36,7 +41,8 @@ export function DesignFields({ design, onChange, jsonError }: Props) {
   const enabled = design !== null;
   const d: Json = design ?? {};
   const isCarousel = d.template === 'carousel' || Array.isArray(d.pages);
-  const isPost = isPostDesign(design);
+  const postCarousel = isPostCarousel(design);
+  const isPost = isPostDesign(design) || postCarousel;
   const locked = !!jsonError;
   const conversion = directed && enabled && !isPost && !isCarousel ? convertToPost(d) : null;
 
@@ -70,7 +76,17 @@ export function DesignFields({ design, onChange, jsonError }: Props) {
         <>
           {locked && <Notice tone="warn">The advanced JSON below is not valid yet, so the fields above are paused. Fix it to carry on.</Notice>}
           {isPost ? (
-            <PostFields design={d} onChange={form} direction={postKinds.loading ? undefined : postKinds.direction} kinds={postKinds.kinds} limits={postKinds.limits} offered={postKinds.offered} disabled={locked} />
+            <>
+              <ChoiceRow
+                legend="Images" disabled={locked} value={postCarousel ? 'carousel' : 'single'}
+                hint={postCarousel ? 'One image per page, in order: a cover, the body pages and a closing page.' : 'One image. A carousel adds pages people swipe through.'}
+                choices={[{ value: 'single', label: 'Single image' }, { value: 'carousel', label: 'Carousel' }]}
+                onChange={(v) => { if ((v === 'carousel') !== postCarousel) form(v === 'carousel' ? toPostCarousel(d) : toSinglePost(d)); }}
+              />
+              {postCarousel
+                ? <PostPagesEditor design={d} onChange={form} direction={postKinds.loading ? undefined : postKinds.direction} kinds={postKinds.kinds} limits={postKinds.limits} offered={postKinds.offered} networks={networks} disabled={locked} />
+                : <PostFields design={d} onChange={form} direction={postKinds.loading ? undefined : postKinds.direction} kinds={postKinds.kinds} limits={postKinds.limits} offered={postKinds.offered} disabled={locked} />}
+            </>
           ) : (
             <>
               {directed && !isCarousel && (

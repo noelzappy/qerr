@@ -18,7 +18,10 @@ Vesk is a web app (`apps/web`). Home, Create, Facts, Pictures, Publish, Activity
 - **Settings** covers:
   - Brand and look: identity, logos (or a simple logo drawn from the name), colours with a live preview and contrast
     checks, post types, voice, visual direction, and the import of an existing brand pack.
-  - Design references: pictures the AI describes as style briefs that guide every draft.
+  - Looks: how every kind of post is drawn (shipped looks, or the brand's own copies), with two more tabs: Series, the brand's
+    named recurring formats ("Tip of the week": a kind of post, the look's designs, a numbered mark, how often), which AI drafts
+    plan into each batch, and Inspiration, pictures the AI describes as style briefs that guide every draft. With a look, a post
+    may be a carousel of post pages (a cover, body pages and a closing page), one image per page.
   - Layouts: the brand's own page compositions, blocks dragged and resized on a canvas, each layout on its own page, checked and drawn by the
     engine like the built-in pages; posts and the AI can use them. The built-in layouts are listed too, read only, and can be
     duplicated into a layout of the brand's own on the built-in poster or editorial page.

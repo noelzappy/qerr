@@ -93,6 +93,8 @@ export interface PostView {
   renderError: string | null;
   sources: string[];
   warnings: string[];
+  // the brand's named series the post belongs to, and its number in it
+  series?: { id: string; number: number } | null;
   status: PostStatus;
   updatedAt: string;
 }
