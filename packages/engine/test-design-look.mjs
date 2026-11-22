@@ -95,7 +95,7 @@ test('the catalogue is JSON, stable and complete', () => {
     assert.equal(e.container !== null, keysOf(t).includes('children'));
   }
   // every descriptor anywhere has a kind the validator knows and a label, and nothing is a function
-  const kinds = new Set(['number', 'enum', 'bool', 'role', 'length', 'angle', 'field', 'text', 'list', 'tuple', 'object', 'oneOf', 'tagged', 'place', 'when', 'ref']);
+  const kinds = new Set(['number', 'enum', 'bool', 'role', 'length', 'angle', 'field', 'text', 'list', 'tuple', 'object', 'oneOf', 'tagged', 'place', 'when', 'ref', 'path']);
   const seen = (d, where) => {
     if (d && typeof d === 'object' && typeof d.kind === 'string') {
       assert.ok(kinds.has(d.kind), `${where}: kind ${d.kind}`);
@@ -191,6 +191,7 @@ const EXAMPLES = {
   avatar: { type: 'avatar', size: 120, place: { px: { x: 56, y: 1100 } } },
   device: { type: 'device', place: AT(600, 300, 400, 840) },
   backdrop: { type: 'backdrop', pattern: 'rings', at: 'right top', place: { inset: 'page' } },
+  art: { type: 'art', place: { inset: 'page' }, shapes: [{ shape: 'circle', cx: 900, cy: 120, r: 200, colour: 'soft' }, { shape: 'path', d: [['M', 0, 0], ['L', 500, 500]], stroke: 4 }] },
 };
 const host = (...extra) => ({
   ...clone(SWISS), id: 'host', origin: 'copy:shipped:swiss',
@@ -222,6 +223,7 @@ function hostile(d) {
     case 'tuple': keep.push([], new Array(d.items.length + 1).fill(1), 'x'); break;
     case 'object': keep.push([1, 2, 3], 'x', 7); break;
     case 'oneOf': keep.push([1, 2, 3, 4, 5], 'x', true); break;
+    case 'path': keep.push([['M', 0, 0]], [['M', 0, 0], ['A', 1, 1, 0, 0, 1, 2, 2]], [['M', 0, 0], ['L', 1]], [['M', 'x', 0], ['L', 1, 1]], [['L', 0, 0], ['L', 1, 1]], [['M', 0, 0], ['L', 1e9, 1]], 'M0 0L1 1', Array.from({ length: 101 }, () => ['L', 1, 1])); break;
     case 'ref': keep.push('0F8FAD5B-D9CB-469F-A165-70867728950E', '0f8fad5b-d9cb-469f-a165-70867728950e;x', '../../etc/passwd', 'design/assets/photos/a.png', 'https://evil.example/x.png', '', 7, true); break;
     default: keep.push([1, 2, 3], 'x', 7, true);
   }

@@ -54,6 +54,7 @@ import * as device from './directions/primitives/device.mjs';
 import * as ribbon from './directions/primitives/ribbon.mjs';
 import * as chart from './directions/primitives/chart.mjs';
 import * as backdrop from './directions/primitives/backdrop.mjs';
+import * as art from './directions/primitives/art.mjs';
 // the shapes of a headline's pills (kit.mjs PILL_SHAPES)
 export const PILL_SHAPES = ['pill', 'soft', 'outline'];
 export { ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS, METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SOFT_SHADOWS, CORNERS, ROUND_SHAPES, RULE_STYLES, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS, WORDS, BLENDS };
@@ -69,7 +70,9 @@ export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 
   'taped-photo': tapedPhoto, 'paper-texture': paperTexture, 'icon-badge': iconBadge, ribbon,
   // a chart drawn from the post's numbers (bars, a line, a sparkline, a donut, a progress bar), one portrait picture of the person quoted (the
   // post's avatar), a phone or tablet drawn round a bare screenshot, and a decorative background (a pattern of brand colours drawn from bounded numbers)
-  chart, avatar, device, backdrop });
+  chart, avatar, device, backdrop,
+  // the art layer: decorative vector shapes of palette colours behind or around the words (bounded numbers, a capped path list)
+  art });
 
 export const LOOK_SCHEMA = 1;
 export const KINDS = [...POST_KINDS];

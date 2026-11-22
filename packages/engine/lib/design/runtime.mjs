@@ -570,7 +570,36 @@ window.__ds = {
     const calm = document.querySelector('[data-calm]'), lv = document.querySelector('[data-levels]');
     // a rectangle for every element a builder marked (kit numberElements): { el: "2.0", x0, y0, x1, y1 } in document order, keyed by its index path
     const els = [...document.querySelectorAll('[data-el]')].map((el) => { const b = el.getBoundingClientRect(); return { el: el.getAttribute('data-el'), x0: b.left, y0: b.top, x1: b.right, y1: b.bottom }; });
-    return { W, H, hs, texts, empty, blocks, inks, shapes, calm: calm ? parseFloat(calm.getAttribute('data-calm')) : null, swash: this.swashMetrics(), levels: lv ? { max: parseInt(lv.getAttribute('data-levels'), 10), ratio: parseFloat(lv.getAttribute('data-ratio')) } : null, els };
+    return { W, H, hs, texts, empty, blocks, inks, shapes, calm: calm ? parseFloat(calm.getAttribute('data-calm')) : null, swash: this.swashMetrics(), levels: lv ? { max: parseInt(lv.getAttribute('data-levels'), 10), ratio: parseFloat(lv.getAttribute('data-ratio')) } : null, els, art: this.artCover() };
+  },
+  // The art layer (kit art) never covers a word: for every letter that an art shape's box reaches, the browser is asked what is painted at five
+  // points of the letter (its centre and four points a quarter in), and a shape painted above the letter's own element at any of them is a
+  // problem (checks.mjs kind "art"). Shapes below the words are allowed; the contrast check then measures the words on them.
+  // -> [{ text }], one per text that a shape covers.
+  artCover() {
+    const parts = [...document.querySelectorAll('[data-artpart]')].map((e) => e.getBoundingClientRect()).filter((b) => b.width > 0.5 && b.height > 0.5);
+    if (!parts.length) return [];
+    const out = [], walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), g = document.createRange();
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const el = n.parentElement, t = n.nodeValue;
+      if (!t.trim() || !el || el.closest('script,style,[data-deco]')) continue;
+      const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+      let hit = false;
+      for (let i = 0; i < t.length && !hit; i++) {
+        if (!t[i].trim()) continue;
+        g.setStart(n, i); g.setEnd(n, i + 1);
+        const b = g.getClientRects()[0]; if (!b || b.width < 0.5 || b.height < 1) continue;
+        if (!parts.some((p) => p.left < b.right && p.right > b.left && p.top < b.bottom && p.bottom > b.top)) continue;
+        for (const [fx, fy] of [[0.5, 0.5], [0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) {
+          const x = b.left + b.width * fx, y = b.top + b.height * fy;
+          if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) continue;
+          const stack = document.elementsFromPoint(x, y), ti = stack.findIndex((e) => e === el || e.contains(el)), ai = stack.findIndex((e) => e.closest('[data-artpart]'));
+          if (ai >= 0 && (ti < 0 || ai < ti)) { hit = true; break; }
+        }
+      }
+      if (hit) out.push({ text: t.trim().slice(0, 30) });
+    }
+    return out;
   },
   // ---- decorative swashes (kit swashAttrs, look-desc.mjs swashDesc): a fixed flourish drawn against one word of a headline ----
   // Each shape is a chain of cubic curves whose control points are written against the measured word: x = x0 + a * width + b * size,

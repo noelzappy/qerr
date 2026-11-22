@@ -9,6 +9,7 @@ import { paletteCss } from './colour.mjs';
 import { fontAlias } from '../font-library.mjs';
 import { ICONS } from '../icons.mjs';
 import { backdropGeometry } from './backdrop-geom.mjs';
+import { ART_BLENDS, ART_LIMITS, artGeometry } from './art-geom.mjs';
 import { BACKDROP_PATTERNS } from '../look-desc.mjs';
 import { INFO_KEYS, INLINE, POST_GALLERY, POST_INFO, seenText, withoutMarks } from '../post-spec.mjs';
 import { CHART_KINDS, LINE_KINDS, chartLayout, chartProblems, formatAll, highlightIndex, totalOf } from '../chart.mjs';
@@ -219,7 +220,7 @@ const colour_ = (name) => { if (!COLOUR_NAMES.includes(name)) throw new Error(`d
 // the builders that refuse the old free-string options (extra, cls, attrs)
 const FREE = ['extra', 'cls', 'attrs'];
 const BUILDERS = ['type', 'label', 'body', 'display', 'fitLines', 'group', 'rule', 'block', 'flowBlock', 'folioMark', 'verticalLabel', 'sticker', 'glyph', 'wordmarkPattern', 'numeral', 'seal', 'frame', 'keyline',
-  'photo', 'print', 'box', 'band', 'run', 'shape', 'echoStack', 'fitBlock', 'fitFill', 'fitNumeral', 'scrim', 'gradient', 'overlay', 'graphic', 'tape', 'paper', 'badge', 'chartSvg', 'device', 'avatarPhoto', 'backdrop'];
+  'photo', 'print', 'box', 'band', 'run', 'shape', 'echoStack', 'fitBlock', 'fitFill', 'fitNumeral', 'scrim', 'gradient', 'overlay', 'graphic', 'tape', 'paper', 'badge', 'chartSvg', 'device', 'avatarPhoto', 'backdrop', 'art'];
 // how a backdrop fades out: fixed masks, written from this table only
 const BACKDROP_MASK_CSS = Object.freeze({
   'fade-down': 'linear-gradient(to bottom,#000 30%,transparent 100%)', 'fade-up': 'linear-gradient(to top,#000 30%,transparent 100%)',
@@ -926,6 +927,34 @@ function kitExtras(c, brand, spec) {
     if (g.blobs) return `${head};background:${g.blobs.map((b) => `radial-gradient(circle at ${P(b.x, 'x')}% ${P(b.y, 'y')}%,${b.second ? two : one} 0%,transparent ${P(b.r, 'r')}%)`).join(',')}${mask}${radius}${z}"></div>`;
     const paths = g.paths.filter((p) => p.d).map((p) => `<path d="${p.d}" style="${p.stroke !== undefined ? `fill:none;stroke:${p.second ? two : one};stroke-width:${px(p.stroke)}px` : `fill:${p.second ? two : one}`}"></path>`).join('');
     return `${head}${mask}${radius}${z}"><svg class="k-bd-svg" width="${P(w, 'w')}" height="${P(h, 'h')}" viewBox="0 0 ${P(w, 'w')} ${P(h, 'h')}" aria-hidden="true">${paths}</svg></div>`;
+  };
+  // The art layer (decoration): shapes of palette colours built by artGeometry from bounded numbers. One box clips them (k-art); a circle, an
+  // ellipse or a rectangle is a box of its own (a palette colour or a gradient of palette colours, turned in CSS), every other shape an inline svg
+  // of one path of numbers. Each shape carries data-artpart, the art data-art: the page refuses a shape painted over a letter (runtime artCover).
+  // The box is a pattern for the emptiness check (data-pattern: it covers the page only where its pixels show it). o: x, y, w, h, shapes, z.
+  x.art = (o) => {
+    const w = n(o.w, 'w'), h = n(o.h, 'h');
+    const g = artGeometry(o.shapes, w, h);
+    const look = (s) => {
+      const op = s.opacity ?? 1;
+      if (!(op >= ART_LIMITS.opacity[0] && op <= ART_LIMITS.opacity[1])) throw new Error('design kit: an art shape has a strength from 0.05 to 1');
+      const blend = s.blend ?? 'normal';
+      if (!ART_BLENDS.includes(blend)) throw new Error('design kit: an art shape blends by one of the fixed modes');
+      return `${op !== 1 ? `;opacity:${px(op)}` : ''}${blend !== 'normal' ? `;mix-blend-mode:${blend}` : ''}`;
+    };
+    const parts = g.pieces.map((p) => {
+      const s = p.shape;
+      if (p.kind === 'box') {
+        const fill = s.gradient !== undefined ? gradientCss(s.gradient) : colour(s.colour ?? 'accent');
+        const round = p.round === 'circle' ? ';border-radius:50%' : p.radius > 0 ? `;border-radius:${P(Math.round(p.radius), 'radius')}px` : '';
+        return `<i class="abs k-art-s" aria-hidden="true" data-artpart style="${place({ x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10, w: Math.round(p.w * 10) / 10, h: Math.round(p.h * 10) / 10 })};background:${fill}${round}${p.rot ? `;transform:rotate(${P(p.rot, 'rot')}deg)` : ''}${look(s)}"></i>`;
+      }
+      const bx = p.box ?? { x: 0, y: 0, w, h }, col = colour(s.colour ?? 'accent');
+      const paint = p.fill ? `fill:${col}` : `fill:none;stroke:${col};stroke-width:${P(p.stroke, 'stroke')}px;stroke-linecap:${p.cap === 'butt' ? 'butt' : 'round'};stroke-linejoin:round`;
+      const bw = Math.round(bx.w * 10) / 10, bh = Math.round(bx.h * 10) / 10;
+      return `<svg class="abs k-art-svg" aria-hidden="true" data-artpart width="${P(bw, 'w')}" height="${P(bh, 'h')}" viewBox="0 0 ${P(bw, 'w')} ${P(bh, 'h')}" style="${place({ x: Math.round(bx.x * 10) / 10, y: Math.round(bx.y * 10) / 10, w: bw, h: bh })}${look(s)}"><path d="${p.d}" style="${paint}"></path></svg>`;
+    });
+    return `<div class="abs k-art" aria-hidden="true" data-el data-deco data-pattern data-art data-scale="40" style="${place(o)}${o.z !== undefined ? `;z-index:${P(o.z, 'z')}` : ''}">${parts.join('')}</div>`;
   };
   // A round badge holding one of the engine's icons (decoration, like a small sticker): size px across, fill and ink palette colours, an optional
   // ring and soft shadow, turned by rot. The icon is the engine's own SVG (iconSvg), never data.

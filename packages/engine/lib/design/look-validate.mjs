@@ -13,6 +13,7 @@ import { FROM_PICTURE, LEVELS, OVERLAP_MAX, ROTATE_GROUNDS, SHAPE_KEYS, VAULT_RE
 import { INLINE, POST_LISTS } from './post-spec.mjs';
 import { POST_CHART } from './chart.mjs';
 import { PRIMITIVES } from './look-elements.mjs';
+import { ART_LIMITS, pathProblems } from './directions/art-geom.mjs';
 
 export const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const SAFE = /^[A-Za-z0-9 ._+-]{0,24}$/;
@@ -126,6 +127,8 @@ export function check(desc, v, path, ctx, errs) {
     case 'ref':
       if (typeof v !== 'string' || !VAULT_REF.test(v)) bad('must be the id of one of the brand\'s pictures (a lowercase UUID)');
       return;
+    // an art path: a list of M, L, Q, C and Z commands of bounded numbers (directions/art-geom.mjs pathProblems)
+    case 'path': { const p = pathProblems(v); if (p.length) bad(p[0]); return; }
     case 'place': return;
     default: bad('has a setting the engine does not know');
   }
@@ -605,6 +608,19 @@ function compositionProblems(c, i, ctx, errs) {
   if (st.nodes.some((x) => x.type === 'text' && x.el.follow === true) && !st.nodes.some(measures)) push(errs, ctx, `${st.nodes.find((x) => x.type === 'text' && x.el.follow === true).path}.follow`, 'needs a headline text or a fitted headline in the composition to follow');
   if (droppers.length && !st.nodes.some(measures)) push(errs, ctx, `${droppers[0].path}.dropWhenTight`, 'needs a headline text or a fitted headline in the composition to measure');
   crossingRules(st.nodes, ctx, errs);
+  // the art layer: at most ART_LIMITS.shapes shapes and ART_LIMITS.points path points in the whole composition, each art at the top
+  const arts = st.nodes.filter((x) => x.type === 'art');
+  for (const n of arts) if (n.parent !== null) push(errs, ctx, n.path, 'art goes at the top of the composition (give it a place and a layer)');
+  if (arts.length) {
+    const shapes = arts.reduce((a, n) => a + (Array.isArray(n.el.shapes) ? n.el.shapes.length : 0), 0), points = arts.reduce((a, n) => a + PRIMITIVES.art.artPoints(n.el), 0);
+    if (shapes > ART_LIMITS.shapes) push(errs, ctx, arts[0].path, `the composition's art has ${shapes} shapes; the most is ${ART_LIMITS.shapes}`);
+    if (points > ART_LIMITS.points) push(errs, ctx, arts[0].path, `the composition's art has ${points} path points; the most is ${ART_LIMITS.points}`);
+    for (const n of arts) (Array.isArray(n.el.shapes) ? n.el.shapes : []).forEach((s, i) => {
+      if (!isObj(s)) return;
+      if (typeof s.colour === 'string' && COLOUR_NAMES.includes(s.colour) && !ctx.fillRoles.includes(s.colour)) push(errs, ctx, `${n.path}.shapes[${i}].colour`, `must be ${FILL_ROLES_HELP} (${list(ctx.fillRoles)})`);
+      if (s.gradient !== undefined) gradientRules(s.gradient, `${n.path}.shapes[${i}].gradient`, ctx, errs);
+    });
+  }
   for (const n of st.nodes.filter((x) => x.type === 'backdrop')) {
     if (n.parent !== null) push(errs, ctx, n.path, 'a pattern goes at the top of the composition (give it the place of the panel it decorates and a layer)');
     for (const k of ['colour', 'second']) if (typeof n.el[k] === 'string' && COLOUR_NAMES.includes(n.el[k]) && !ctx.fillRoles.includes(n.el[k])) push(errs, ctx, `${n.path}.${k}`, `must be ${FILL_ROLES_HELP} (${list(ctx.fillRoles)})`);

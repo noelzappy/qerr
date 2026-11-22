@@ -54,6 +54,7 @@ const ALLOWED_CLASSES = new Set([
   'k-avatar',                                                                                              // avatarPhoto(): the portrait picture of a quotation
   'k-dev', 'k-dev-phone', 'k-dev-tablet', 'k-dev-body', 'k-dev-light', 'k-dev-dark', 'k-dev-brand',       // device(): the model, the body and its finish (DEVICE_FINISH)
   'k-dev-screen', 'k-dev-cut', 'k-dev-island', 'k-dev-notch', 'k-dev-btn',                                 // device(): the screen, the camera and the side buttons
+  'k-art', 'k-art-s', 'k-art-svg',                                                                         // art(): the art's box, a shape drawn as a box, a shape drawn as an svg
   'k-backdrop', 'k-bd-svg', 'k-olt',                                                                        // backdrop() and its svg; words crossing a shape with an outline (markCrossing)
 ]);
 // The classes with no rule in kit.css: the page and picture classes live in other sheets (cv, ph, post), the rest are hooks the runtime or the checks read.
@@ -101,6 +102,8 @@ GRAMMAR.fill = `(?:${VAR}|none)`; GRAMMAR.stroke = VAR; GRAMMAR['stroke-width'] 
 const BLOB = `radial-gradient\\(circle at \\d{1,3}% \\d{1,3}%,${VAR} 0%,transparent \\d{1,3}%\\)`;
 GRAMMAR.background = `(?:${GRAMMAR.background}|${BLOB}(?:,${BLOB}){1,3})`;
 GRAMMAR['--k-olc'] = VAR; GRAMMAR['--k-olw'] = PXV;
+// the art layer: a shape's fixed blend modes (ART_BLENDS), a whole-pixel radius, and its turn (rotate, already in the grammar)
+GRAMMAR['mix-blend-mode'] = '(?:multiply|screen|overlay|soft-light)';
 const RULES = Object.fromEntries(Object.entries(GRAMMAR).map(([k, v]) => [k, new RegExp(`^${v}$`)]));
 const FONT_TOKEN = /^(?:'[A-Za-z0-9 ]{1,40}'|[A-Za-z-]{1,20})$/;
 const fontStackOk = (v) => { const rest = v.replace(/^var\(--(?:display|label|font|mono)\),/, ''); return rest !== '' && rest.split(',').every((t) => FONT_TOKEN.test(t)); };
@@ -247,6 +250,19 @@ const G = (col, span, row, rowSpan, alignY) => ({ grid: { col, span, row, rowSpa
 // index; ladder; a fixed size; stickers (field with fit, hug, ladder, textSize, text items); rows over items and over meta parts with keys; numerals with
 // a unit (sizes, and cap with min); mantra rows; a fitted headline in lines, fill and block mode; band and seam with children and a sticker slot; the
 // top label row; the brand-name pattern; scrim; punched hole; glyph; every picture shape with treatment and tint; frame, keyline, block, rule.
+// one of every art shape (the art layer), with a gradient, a turn, a blend, a strength and both line ends
+const ART_ALL = [
+  { shape: 'circle', cx: 900, cy: 100, r: 300, gradient: { kind: 'radial', stops: ['soft', 'paper'], at: 'left top' } },
+  { shape: 'ellipse', cx: 200, cy: 500, rx: 200, ry: 120, colour: 'soft', rot: 20, opacity: 0.5, blend: 'multiply' },
+  { shape: 'rect', x: 50, y: 50, w: 300, h: 200, radius: 60, colour: 'accent', opacity: 0.3 },
+  { shape: 'ring', cx: 500, cy: 500, r: 200, stroke: 6, colour: 'primary' },
+  { shape: 'arc', cx: 500, cy: 500, r: 300, from: 30, sweep: 200, stroke: 10, cap: 'butt', colour: 'field' },
+  { shape: 'line', x1: 0, y1: 900, x2: 1000, y2: 950, stroke: 4, rot: 5, colour: 'dark', blend: 'screen' },
+  { shape: 'path', d: [['M', 100, 100], ['L', 300, 120], ['Q', 400, 300, 500, 100], ['C', 600, 0, 700, 300, 800, 100], ['Z']], colour: 'gold', blend: 'soft-light' },
+  { shape: 'path', d: [['M', 0, 600], ['C', 300, 400, 600, 800, 1000, 600]], stroke: 12, colour: 'accent', blend: 'overlay' },
+  { shape: 'dots', x: 600, y: 600, w: 400, h: 300, gap: 30, size: 4, colour: 'ink', opacity: 0.2 },
+  { shape: 'stripes', x: 0, y: 0, w: 300, h: 300, gap: 24, width: 6, angle: 30, colour: 'soft' },
+];
 function bindingLook() {
   const look = clone(RETAIL);
   look.id = 'binding-test'; look.name = 'Binding test'; look.origin = 'copy:own:binding-test';
@@ -462,6 +478,8 @@ function bindingLook() {
       { type: 'graphic', ref: GRAPHIC_REF, at: 'bottom-right', size: 's', rot: -4, flip: true, tint: 'paper', z: 1 },
       { type: 'box', place: { px: { x: 56, y: 1100, w: 300, h: 100 } }, gradient: { kind: 'radial', stops: ['paper', 'soft'], at: 'left top', shape: 'circle' }, key: 'c' },
       { type: 'backdrop', pattern: 'blobs', colour: 'paper', second: 'soft', scale: 160, density: 1, opacity: 0.4, seed: 42, place: { px: { x: 56, y: 40, w: 968, h: 600 } }, radius: 40 },
+      // the art layer: every shape, a gradient fill, a turn, a blend, a strength and every line end
+      { type: 'art', place: { px: { x: 0, y: 0, w: 1080, h: 400 } }, z: 0, shapes: ART_ALL },
     ] });
   look.compositions = c;
   return clone(look);
@@ -541,7 +559,7 @@ test('the purpose-built look draws every class family and every element the data
   const seen = new Set();
   for (const { kind, variant } of listOf(BINDING)) classesOf(renderPostWithLook(BINDING, { ...specOf(kind, variant, BENIGN), items: ['IA', 'IB', 'IC'] }, ctxFor(), { shipped: false }).body).forEach((c) => seen.add(c));
   const need = ['k-em-i', 'k-em-a', 'k-grey', 'k-multiply', 'k-grain', 'k-punch', 'k-mul', 'k-gr', 'k-shape-circle', 'k-shape-pill', 'k-shape-tile', 'k-shape-stamp', 'k-seal', 'k-printmat', 'k-wm-fade', 'k-vdown', 'k-vlabel',
-    'k-echo', 'k-fb', 'k-fit', 'k-fnum', 'k-numeral', 'k-hl', 'k-v-fill', 'k-scrim', 'k-frame', 'k-glyph', 'k-keyline', 'k-rule', 'k-block', 'k-run', 'k-dfont', 'k-chart', 'k-chart-s'];
+    'k-echo', 'k-fb', 'k-fit', 'k-fnum', 'k-numeral', 'k-hl', 'k-v-fill', 'k-scrim', 'k-frame', 'k-glyph', 'k-keyline', 'k-rule', 'k-block', 'k-run', 'k-dfont', 'k-chart', 'k-chart-s', 'k-art', 'k-art-s', 'k-art-svg'];
   assert.deepEqual(need.filter((c) => !seen.has(c)), []);
   assert.deepEqual([...seen].filter((c) => !ALLOWED_CLASSES.has(c)), []);
 });

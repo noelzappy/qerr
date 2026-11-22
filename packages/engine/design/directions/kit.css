@@ -202,6 +202,11 @@
    visibly covers (patternCover) the words are hidden, and then the patterns too, so a pattern is read against what is under it. */
 .k-backdrop{display:block;pointer-events:none;overflow:hidden}
 .k-bd-svg{display:block}
+/* the art layer (kit art): its shapes are clipped to its box; each is a box or an svg of one path. No pointer-events rule: the page asks the
+   browser which shape is painted over each letter (runtime artCover), and that hit test needs them. */
+.k-art{display:block;overflow:hidden}
+.k-art-s{display:block}
+.k-art-svg{display:block;overflow:hidden}
 .measure-pattern .cv [data-role],.measure-pattern .cv [data-role] *{visibility:hidden}
 .measure-pattern-off .cv [data-pattern],.measure-pattern-off .cv [data-pattern] *{visibility:hidden}
 /* words that cross a shape's edge with an outline (overlap.outline): the stroke is painted under the letters */
