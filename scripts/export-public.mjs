@@ -3,7 +3,7 @@
 //
 // Writes the public copy of this repository into a new folder, ready to become the first commit of the public repository.
 // It copies the files of a commit (HEAD by default; uncommitted changes never leave), leaves out every brand pack except
-// the demo (brands/<name>/ for any name but "demo"), then scans what it wrote:
+// the fictional public ones (brands/<name>/ for any name not in PUBLIC_PACKS), then scans what it wrote:
 //   - for the words each left-out pack lists in its export-forbid.txt (one per line, # for comments; case is ignored),
 //   - for strings shaped like real secrets (private keys, AWS access keys, provider API keys).
 // Any finding is printed as file:line and the exit code is 1: do not publish until the scan is clean. The folder is kept so
@@ -14,7 +14,9 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-export const PUBLIC_PACKS = ['demo'];
+// The packs that may be published: fictional brands only (no real company, person, place or amount). demo is the default
+// pack (Acme Savings); pennyhive is the fictional finance test brand (Pennyhive).
+export const PUBLIC_PACKS = ['demo', 'pennyhive'];
 
 // Strings shaped like real secrets. Test fixtures use obvious fakes (sk-ant-TESTKEY..., AWS's documented example key), which
 // these patterns do not match.
@@ -96,7 +98,7 @@ async function main(argv) {
   const ref = refAt >= 0 ? args[refAt + 1] : 'HEAD';
   const outArg = args.filter((a, i) => !a.startsWith('--') && (refAt < 0 || (i !== refAt + 1)))[0];
   if (!outArg || args.includes('--help') || args.includes('-h') || (refAt >= 0 && !ref)) {
-    console.log('Usage: node scripts/export-public.mjs <out-dir> [--ref <git ref>]\n\nWrites the public copy of the repository (every brand pack but brands/demo left out) and scans it.');
+    console.log(`Usage: node scripts/export-public.mjs <out-dir> [--ref <git ref>]\n\nWrites the public copy of the repository (every brand pack but the fictional ${PUBLIC_PACKS.map((p) => `brands/${p}`).join(' and ')} left out) and scans it.`);
     return outArg ? 0 : 1;
   }
   const root = git(path.dirname(fileURLToPath(import.meta.url)), ['rev-parse', '--show-toplevel']).toString('utf8').trim();

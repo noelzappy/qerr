@@ -39,6 +39,20 @@ test('private packs are left out, the demo pack and everything else are copied b
   } finally { fs.rmSync(root, { recursive: true, force: true }); fs.rmSync(path.dirname(out), { recursive: true, force: true }); }
 });
 
+test('the fictional Pennyhive pack is public like the demo, and a private pack is still left out', () => {
+  const root = repo({ ...FILES, 'brands/pennyhive/brand.json': '{"name":"Pennyhive"}\n', 'brands/pennyhive/logos/logo-mark.svg': '<svg/>\n' });
+  const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ss-out-')), 'public');
+  try {
+    const r = exportPublic({ root, out, log() {} });
+    assert.deepEqual(r.leftOut, ['globex']);
+    assert.deepEqual(r.findings, []);
+    assert.ok(fs.existsSync(path.join(out, 'brands/pennyhive/brand.json')));
+    assert.ok(fs.existsSync(path.join(out, 'brands/pennyhive/logos/logo-mark.svg')));
+    assert.ok(!fs.existsSync(path.join(out, 'brands/globex')));
+    assert.equal(isPrivatePack('brands/pennyhive/brand.json'), false);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); fs.rmSync(path.dirname(out), { recursive: true, force: true }); }
+});
+
 test('a forbidden word or a secret-shaped string outside the private pack is reported with its file and line', () => {
   const root = repo({ ...FILES, 'docs/guide.md': 'Intro\nDeploy to social.GLOBEX.example\n', 'src/config.mjs': `const key = 'sk-ant-api03-${'a'.repeat(40)}';\n` });
   const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ss-out-')), 'public');
