@@ -1094,7 +1094,7 @@ a time, and writes only under the repository; `out/` is ignored by git. Look at 
 A design direction (editorial, swiss, retail) is engine code today. A **look** is the same thing written as data, so that it can be
 shown in the panel, copied, edited and checked without a developer: the tables, the validator, the catalogue the panel draws its controls
 from, the brief the AI and the post editor read, and the renderer that draws a look (`directions/interpret.mjs`, the primitives). The
-engine's own retail and swiss looks are shipped in this format (`lib/design/looks/*.look.json`), and the classic layouts (`layout.mjs`,
+engine's own retail, swiss, soft and bloom looks are shipped in this format (`lib/design/looks/*.look.json`), and the classic layouts (`layout.mjs`,
 Settings, Layouts) are untouched. All of it is pure (no Chrome) and lives in `packages/engine/lib/design/`:
 
 | File | What it holds |
@@ -1281,12 +1281,18 @@ paper, `on-field` to the ink, `body-dark` and `muted-dark` to the light greys), 
 
 ### The shipped looks and the engine's hooks
 
-`shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each: two
-statements, a figure, a list, a quote, two photos, an event and an offer), read once, validated with `{ shipped: true }`, deep frozen. They are the
+`shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss, soft, bloom }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each: two
+statements, a figure, a list, a quote, two photos, an event and an offer), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
 data counterpart of the code directions of the same name: retail is held to the code (the same budgets, names and grounds; geometry within 3 px of the
 code compositions in `test-design-look-equivalence.mjs`, with the deviations listed there: the roles of the unit and the date tile, and the wrapping
-highlight bar 0.12 em against 0.13 em); swiss is held to the approved prototype by eye. `test-design-look-retail.mjs` and `test-design-look-swiss.mjs`
-accept no problem at all from the validator. The partial `testlib/looks/*.sample.json` stay as test fixtures.
+highlight bar 0.12 em against 0.13 em); swiss is held to the approved prototype by eye. Soft (one sans in medium weights on pale tints of the brand colour, the logo top
+left and the web address top right, rounded panels and pills, pictures that melt into a page sampled from their own edge, a myth and fact page and a big
+figure over a rounded panel) and bloom (a serif with italics, arch, oval and circle windows, keylines and dotted rules) exist only as data.
+`test-design-look-retail.mjs`, `test-design-look-swiss.mjs`, `test-design-look-soft.mjs` and `test-design-look-bloom.mjs` accept no problem at all from the
+validator, and `test-design-look-equivalence.mjs` draws all four from sample, stress and minimal copy in three sets of brand colours through every check.
+The retail price tag (figure/0) sets its figure as large as the stage allows (up to 930 px, centred) with the unit fitted on a full-width accent block
+under it, in the code composition and the look alike. A folio is written only from the post's real place (its position in its batch, or a carousel
+page's); without one a page has no folio, never a number made up from the words or the date. The partial `testlib/looks/*.sample.json` stay as test fixtures.
 
 Where swiss differs from the prototype: the offer has the tag block top right in four columns and three rows with the headline at the foot (the
 three-type-level rule: headline and tag are both fitted type), where the prototype puts the tag block bottom left; headlines are set in balanced lines
@@ -1300,7 +1306,7 @@ second photo too).
 
 | Name | Where | What |
 |---|---|---|
-| `shippedLooks()` | `@vesk/engine/design/directions/index` | the frozen shipped looks, raw data `{ retail, swiss }` |
+| `shippedLooks()` | `@vesk/engine/design/directions/index` | the frozen shipped looks, raw data `{ retail, swiss, soft, bloom }` |
 | `resolveLook(raw, { shipped })` | same | `{ problems }` or `{ problems: [], look (normalised), comps }`, memoised by content, deep frozen |
 | `renderPostWithLook(look, spec, ctx, { shipped })` | same | draws a post with a look written as data; any failure of the kit on a valid look is a `DesignError` |
 | `postKinds(brand)` | same | `{ [kind]: { required, fields: { field: { max, budget? } or { min, max, chars } or {} }, variants: [{ variant, name, describe }] } }` for the brand's direction, a code direction or its own look, the same shape |
@@ -1315,7 +1321,8 @@ second photo too).
 
 **Drawing a look as a sheet:** `node packages/engine/scripts/direction-sheet.mjs --look packages/engine/lib/design/looks/retail.look.json,packages/engine/lib/design/looks/swiss.look.json
 [--copy sample|stress|minimal] [--brand out/brand-a] [--content file.json] [--out out/lk/x]` draws every composition of the looks, one column per look;
-with `--copy` each composition is drawn from the test copy written for it (`testlib/retail-copy.mjs`, `testlib/swiss-copy.mjs`), without it from the
+with `--copy` each composition is drawn from the test copy written for it (`testlib/retail-copy.mjs`, `testlib/swiss-copy.mjs`; for soft and bloom pass
+`--copy-lib testlib/soft-copy.mjs,testlib/bloom-copy.mjs`), without it from the
 content file (the shipped looks are drawn as a brand's own copy). Tests: `test-design-look-render.mjs` (hostile text through every binding, the
 style grammar, class and attribute sets, validation first, no Chrome), `test-design-look-equivalence.mjs` (Chrome: the data version of
 all nine retail compositions against the code oracle within 3 px, and all 18 shipped compositions through every check, from three copies in three sets of colours), `test-design-look-hooks.mjs` (the engine hooks, no Chrome).
