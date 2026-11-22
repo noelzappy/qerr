@@ -126,6 +126,9 @@ describe('the design direction', () => {
     expect(put.status).toBe(200);
     expect(put.body.settings.style.direction).toBe('swiss');
     expect((await api.get('/api/settings/brand')).body.settings.style.direction).toBe('swiss');
+    // A newly saved brand starts on the Clean look, which overrides the direction in the pack; classic layouts use the setting.
+    expect(activeBrand().style.direction).toBe('clean');
+    expect((await api.put('/api/settings/looks/active', { ref: null })).status).toBe(200);
     expect(activeBrand().style.direction).toBe('swiss');
     expect(engine.validateBrand(activeBrand())).toEqual([]);
     // back to none: the key leaves the brand file

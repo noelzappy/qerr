@@ -87,7 +87,7 @@ describe('render job without Chrome', () => {
     await renderPost(t.deps, { postId: post.id });
     const row = await t.prisma.post.findUniqueOrThrow({ where: { id: post.id } });
     expect(row.renderStatus).toBe('failed');
-    expect(row.renderError).toContain('Chrome was not found');
+    expect(row.renderError).toContain('Neither Google Chrome nor Chromium was found');
     expect(runDirs()).toEqual([]);
   });
 });

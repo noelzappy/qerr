@@ -49,6 +49,8 @@ describe('GET /api/posts/post-kinds', () => {
   it('reports the saved brand\'s direction and its layouts of each kind', async () => {
     const admin = t.api(await t.signIn(await t.createUser('admin')));
     expect((await admin.put('/api/settings/brand', brandSettingsSchema.parse({ ...BRAND, style: { direction: 'swiss' } }))).status).toBe(200);
+    // Classic layouts: the saved direction applies (a new brand otherwise starts on the Clean look).
+    expect((await admin.put('/api/settings/looks/active', { ref: null })).status).toBe(200);
     const res = await admin.get('/api/posts/post-kinds');
     expect(res.body.direction).toBe('swiss');
     for (const k of res.body.kinds) {
