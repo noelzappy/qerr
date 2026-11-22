@@ -1,5 +1,6 @@
-// The form for one design, or for one page of a carousel: the layout, then the fields that layout takes. Fields the form
-// does not show stay untouched in the object and can be edited in the advanced JSON.
+// The form for one classic design, or for one page of a carousel: the kind of post (the brand's post types), the design (a classic layout),
+// then the fields that layout takes. Fields the form does not show stay untouched in the object and can be edited in the advanced JSON.
+// The stored keys are unchanged: the post type is `series`, the layout `template` (or `layout` for the brand's own).
 import { SelectField, TextAreaField, TextField } from '@/components/kit';
 import { ArtefactEditor, LedgerFields, PassbookFields } from './ArtefactEditor';
 import { HeadlineField } from './HeadlineField';
@@ -21,9 +22,9 @@ interface Props {
   brandLayouts: LayoutBrief[];
   series: SeriesOption[];
   disabled?: boolean;
-  // A page of a carousel: it may not be a carousel itself, and its post type and top label are optional.
+  // A page of a carousel: it may not be a carousel itself, and its kind of post (post type) and top label are optional.
   inCarousel?: boolean;
-  // Only the layout, the post type and the top label: the frame of a whole carousel.
+  // Only the design (layout), the kind of post (post type) and the top label: the frame of a whole carousel.
   frameOnly?: boolean;
 }
 
@@ -92,22 +93,22 @@ export function PageFields({ design, onChange, brandLayouts, series, disabled, i
   }
 
   const specs = !frameOnly && d.template !== 'layout' ? TEMPLATE_FIELDS[text(d.template)] : undefined;
-  const typeHint = inCarousel ? "Uses the carousel's when empty." : undefined;
+  const typeHint = `One of the brand's post types, such as a tip: each has its own colours.${inCarousel ? " Uses the carousel's when empty." : ''}`;
   const labelHint = inCarousel ? "Small text at the top of the image, up to 40 characters. Uses the carousel's when empty." : 'Small text at the top of the image, up to 40 characters.';
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
+      <SelectField
+        label="Kind of post" optional value={text(d.series)} disabled={disabled} hint={typeHint} className="sm:w-1/2"
+        onValueChange={(v) => setField('series', v)}
+        options={[{ value: '', label: 'None' }, ...series.map((s) => ({ value: s.key, label: s.name }))]}
+      />
       <LayoutChooser value={chosen} onChange={choose} brandLayouts={brandLayouts} disabled={disabled} page={!!inCarousel} />
       {!frameOnly && ownLayout?.description && <p className="text-[13px] text-muted-foreground">{ownLayout.description}</p>}
       {!frameOnly && ownLayout && ownLayout.fields.map(brand)}
       {specs?.map(builtIn)}
       {!frameOnly && <ImageOptions design={d} onChange={onChange} brandLayouts={brandLayouts} disabled={disabled} />}
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-        <SelectField
-          label="Post type" optional value={text(d.series)} disabled={disabled} hint={typeHint}
-          onValueChange={(v) => setField('series', v)}
-          options={[{ value: '', label: 'No post type' }, ...series.map((s) => ({ value: s.key, label: s.name }))]}
-        />
         <TextField label="Top label" optional maxLength={40} value={text(d.label)} disabled={disabled} hint={labelHint} onChange={(e) => setField('label', e.target.value)} />
       </div>
     </div>

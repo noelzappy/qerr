@@ -135,15 +135,18 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
   the look (variant) names of the direction's compositions, and the field limits, all read from the engine's registry; with a look in
   force the editor also reads `GET /api/looks/brief` (see Settings, Looks). The limits also give the counted lists (`items`, `info`,
   `gallery`: `{ min, max, chars }`), the fixed `infoKeys` and the `icons` a headline may name. The post editor then shows only what the
-  look's designs draw: a Pill button and an icon grid on the headline (`[[words]]`, `{{name}}`), the Button words (`cta`), Info rows (a
+  look's designs draw: Pill and Icon on the headline (stored as `[[words]]` and `{{name}}`), the Button words (`cta`), Info rows (a
   fixed label, added by tapping it, and a short line each) and Round pictures (2 to 5 from the Pictures page, each with an optional name). A gallery picture is
   a design node like the post's own picture: the same path rule, vault copy and rights checks (`services/design-images.ts`). The
   `POST /api/settings/brand/direction-samples` route and its service were removed with the tab.
   With a look, the post editor's Design offers **Single image** or **Carousel**: a carousel is a cover, body pages and a closing page, each a
   post page of its own kind (moved, added before the closing page, removed; 2 to 10), drawn as one image per page and sent in that order. It
   warns when a network the post goes to takes fewer images (Instagram 10, X 4), and approval is blocked until pages are removed or that network
-  is left out. Above the design, **Series** puts the post in one of the brand's named series with its number, which sets its kind, its design
-  when the series chose some, and the mark in its label or tag.
+  is left out. The post editor speaks of two things only: the **Kind of post** (statement, figure, list and so on; each of the brand's named
+  series is one too, such as "Tip of the week", which sets the kind, its design in turn by number and the mark in its label or tag, with its
+  number beside it) and the **Design** (which of the look's designs draws it: cards with a picture of each design from
+  `GET /api/looks/designs/:kind` when the server can draw one, else named cards, and Automatic). The stored fields are unchanged (`kind`,
+  `variant`, `post.series`). A brand on classic layouts sees its layout under **Design** and its post type under **Kind of post**.
 - **Logos:** the full logo and the mark, as PNGs. The page measures where the wordmark starts. "Draw a simple logo from the
   name" makes a plain pair in the browser.
 - **Colours:** four colours (primary, accent, dark, light), the headline weight, the corners and **contrast for large headlines**
@@ -603,7 +606,11 @@ by path), **Designs** (per kind: reorder, On/Off, status, Edit, which opens the 
 any shipped or own look, at most three per kind) and **Check** (the stored gate records; "Run the checks" draws every design with sample, stress and minimal copy and shows what each check said). `/settings/looks/:slug/designs/:id` is the design editor (see "The design editor" above).
 **Classic layouts** is in the menu only while no look is active (the page itself shows a one-line notice with a link to Looks otherwise).
 Sample pictures: `useLookSamples` asks `POST /api/settings/looks/preview` (debounced, stale requests cancelled, cached by the hash the server
-returns); while it answers 501 (no renderer connected) the strips show quiet placeholders named by kind and one line. The post editor reads `GET /api/looks/brief` when a look is active: kinds without an enabled design are not offered, the "Look"
-choice lists the look's designs by name, and the field counters follow the chosen design's budgets (`editor/look-brief.ts`). Logic that needs no
+returns); while it answers 501 (no renderer connected) the strips show quiet placeholders named by kind and one line. The post editor reads `GET /api/looks/brief` when a look is active: kinds without an enabled design are not offered, the "Design"
+choice lists the look's designs, and the field counters follow the chosen design's budgets (`editor/look-brief.ts`). Each design in the brief
+also says which of the headline's marks it draws (`marks: { pills, icons }`), so the headline offers Pill and Icon only where a design of the
+kind draws them. `GET /api/looks/designs/:kind` (any signed-in person) draws each design of a kind of the active look with sample copy, one
+Chrome run in the render queue's `preview` class, cached like the samples; `{ ref: null, designs: [] }` with no look and 501 without a
+renderer, when the Design cards are named instead. Logic that needs no
 browser is in `web/src/pages/settings/looks/look-model.ts` (specs `src/web-look-model.spec.ts`, `web-look-brief.spec.ts`,
 `web-inspiration-fit.spec.ts`, `web-nav.spec.ts`).
