@@ -12,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { blankFor, checkValue, getAt, groupSections, joinPath, labelFor, rangeText, readSetting, valueLabel } from './look-model';
 import type { Desc, FontFamilyInfo, Json, LookCatalogue } from './look-types';
+import { WeightStripRow } from './settings/fine-tune';
+import { FONT_ROLES, weightStrip, type FontRole } from './settings/weights';
 
 export interface SettingsCtx {
   look: Json;
@@ -24,6 +26,10 @@ export interface SettingsCtx {
   // Fine-tune: compact controls (the range goes in the tooltip, units sit inside the row) and the dials as exact numbers.
   compact?: boolean;
   exact?: boolean;
+  // The weights are drawn elsewhere (Fine-tune's weight strips), so a font leaves them out.
+  hideWeights?: boolean;
+  // The look's designs, for the weights they use (marked on the weight strips).
+  comps?: Json[];
 }
 
 // The unit a number is in, shown beside it.
@@ -162,7 +168,6 @@ function Tuple({ path, desc, ctx }: { path: string; desc: Desc; ctx: SettingsCtx
   );
 }
 
-const STANDARD_WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
 const ROLE_DEFAULT: Record<string, string> = { display: 'display', text: 'sans', label: 'label', mono: 'mono' };
 const OWN_ROLE: Record<string, string> = { display: 'Headline font', label: 'Label font', sans: 'Body font', mono: 'Monospaced font' };
 
@@ -171,13 +176,11 @@ function FontControl({ path, desc, ctx }: { path: string; desc: Desc; ctx: Setti
   const value = (getAt(ctx.look, path) ?? {}) as Json;
   const source = value.source === 'brand' ? 'brand' : 'library';
   const family = ctx.fonts.find((f) => f.family === value.family);
-  const weights = Array.isArray(value.weights) ? (value.weights as number[]) : [];
   const roleKey = path.split('.').pop() ?? '';
   const label = labelFor(path, desc);
   const set = (next: Json) => ctx.onChange(path, next);
-  const offer = family ? STANDARD_WEIGHTS.filter((w) => w >= family.minWeight && w <= family.maxWeight) : STANDARD_WEIGHTS;
-  const shown = [...new Set([...offer, ...weights])].sort((a, b) => a - b);
-  const maxWeights = desc.forms?.library?.props?.weights?.max ?? 4;
+  const limits = desc.forms?.library?.props?.weights;
+  const strip = FONT_ROLES.includes(roleKey as FontRole) ? weightStrip(ctx.look, ctx.comps ?? [], roleKey as FontRole, ctx.fonts, { max: limits?.max, min: limits?.min }) : null;
   return (
     <FieldGroup legend={label} hint={desc.help} error={ctx.errors[path]}>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -191,12 +194,9 @@ function FontControl({ path, desc, ctx }: { path: string; desc: Desc; ctx: Setti
       </div>
       {source === 'library' && (
         <>
-          <FieldSet legend="Weights" hint={`The weights this font is used at (up to ${maxWeights}).${family ? ` ${family.family} has ${family.minWeight} to ${family.maxWeight}.` : ''}`}>
-            {shown.map((w) => (
-              <CheckField key={w} label={String(w)} checked={weights.includes(w)} disabled={ctx.disabled || (!weights.includes(w) && weights.length >= maxWeights)}
-                onCheckedChange={(on) => set({ ...value, weights: (on ? [...weights, w] : weights.filter((x) => x !== w)).sort((a, b) => a - b) })} />
-            ))}
-          </FieldSet>
+          {!ctx.hideWeights && strip && (
+            <WeightStripRow strip={strip} fonts={ctx.fonts} disabled={ctx.disabled} label="Weights" onWeights={(w) => set({ ...value, weights: w })} />
+          )}
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             {family?.italic && <SwitchField label="Also use the italic" checked={value.italic === true} disabled={ctx.disabled} onCheckedChange={(on) => set({ ...value, italic: on })} />}
             {family?.stretch && (
