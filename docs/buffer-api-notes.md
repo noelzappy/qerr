@@ -133,7 +133,10 @@ Treat each of these as unverified until the first run against real Buffer proves
 18. That Hetzner Object Storage accepts the SigV4 requests Vesk signs and serves the uploaded files publicly under
     the bucket policy (the signer matches AWS's published examples; nothing has been sent to Hetzner), and that Buffer
     can fetch from that host.
-19. The `deletePost(input: { id })` mutation in `packages/engine/lib/buffer-delete.mjs` and its `DeletePostSuccess` and `VoidMutationError`
+19. Several images in one post (a carousel): that Buffer keeps the `assets` in the order sent, takes up to 10 on Instagram and
+    up to 4 on X (the limits Vesk enforces, `MEDIA_LIMITS` in `packages/engine/lib/networks.mjs`), and what it takes on LinkedIn
+    and Facebook (Vesk sets no limit there). Vesk sends a carousel's pages as one post's `assets`, in page order, as drafts first.
+20. The `deletePost(input: { id })` mutation in `packages/engine/lib/buffer-delete.mjs` and its `DeletePostSuccess` and `VoidMutationError`
     result types. They are assumptions from Buffer's other mutation names; nothing has run against Buffer.
 
 ## How to verify these
@@ -144,9 +147,9 @@ is what the app does with a real key:
 1. **Check** on an account (Settings, Buffer accounts) confirms that the key works and lists the organisations and the
    channels (points 1, 2, 15 and 17).
 2. **One draft to one channel** (see "The first run against real Buffer" in the [README](../README.md)) shows whether
-   `createPost`, `saveToDraft`, the assets and the metadata are accepted (points 3 to 8, 10, 11 and 14).
+   `createPost`, `saveToDraft`, the assets and the metadata are accepted (points 3 to 8, 10, 11 and 14; a carousel draft also shows point 19).
 3. **Refresh status** after it shows whether the `posts` query and the `draft` status filter work (point 9).
-4. **Delete from Buffer** on that draft shows whether `deletePost` works (point 19).
+4. **Delete from Buffer** on that draft shows whether `deletePost` works (point 20).
 
 Write what you confirmed into this file, with the date. A refusal from Buffer is shown in the app with Buffer's own
 message, which usually names the field it did not accept.
