@@ -180,6 +180,22 @@ describe('creating a batch by hand', () => {
     const dup = await api.post(`/api/batches/${id}/posts`, { posts: [{ postKey: '02-second', title: 'Again', date: '2027-03-03', caption: 'More' }] });
     expect(dup.status).toBe(422);
   });
+
+  it('widens the period of a batch started empty as posts are added or moved, and never narrows it', async () => {
+    const { api } = await t.signedIn('editor');
+    const made = await api.post('/api/batches', manual({ posts: [] }));
+    expect(made.status).toBe(201);
+    const id = made.body.batch.id;
+    expect(made.body.batch).toMatchObject({ periodStart: null, periodEnd: null });
+    const added = await api.post(`/api/batches/${id}/posts`, { posts: [{ title: 'One', date: '2027-03-10', caption: 'c' }, { title: 'Two', date: '2027-03-04', caption: 'c' }] });
+    expect(added.status).toBe(201);
+    expect(await t.prisma.batch.findUniqueOrThrow({ where: { id } })).toMatchObject({ periodStart: '2027-03-04', periodEnd: '2027-03-10' });
+    const moved = await api.patch(`/api/posts/${added.body.posts[0].id}`, { date: '2027-03-20' });
+    expect(moved.status).toBe(200);
+    expect(await t.prisma.batch.findUniqueOrThrow({ where: { id } })).toMatchObject({ periodStart: '2027-03-04', periodEnd: '2027-03-20' });
+    await api.patch(`/api/posts/${added.body.posts[0].id}`, { date: '2027-03-06' });
+    expect(await t.prisma.batch.findUniqueOrThrow({ where: { id } })).toMatchObject({ periodStart: '2027-03-04', periodEnd: '2027-03-20' });
+  });
 });
 
 describe('post keys that are only dots', () => {
