@@ -159,7 +159,7 @@
       "name": "Shout",
       "ground": "field",
       "fit": "margins",
-      "describe": "Heavy condensed capitals on the brand colour, left aligned, one or two words in an outlined pill, a series label and the folio on top and the brand name at the foot. For a bold claim of up to about 70 characters.",
+      "describe": "Heavy condensed capitals on the brand colour, left aligned, one or two words in an outlined pill, a series label and the folio on top and the brand name at the foot. For a bold claim of up to about 70 characters. Halftone dots in the dark colour rise from the bottom right corner.",
       "fields": {
         "label": {
           "max": 28
@@ -173,6 +173,18 @@
         }
       },
       "elements": [
+        {
+          "type": "backdrop",
+          "pattern": "halftone",
+          "colour": "dark",
+          "scale": 30,
+          "density": 0.9,
+          "opacity": 0.32,
+          "at": "right bottom",
+          "place": {
+            "inset": "page"
+          }
+        },
         {
           "type": "text",
           "field": "label",

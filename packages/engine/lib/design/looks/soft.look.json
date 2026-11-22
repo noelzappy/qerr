@@ -481,6 +481,153 @@
       ]
     },
     {
+      "kind": "statement",
+      "name": "Breakout",
+      "describe": "A large white disc on the pale page with the label inside it, a big two-tone headline that starts in the disc and breaks out past its edge onto the page, and the sub line under the disc. Use for a short, confident statement: best at 24 to 50 characters.",
+      "ground": "tint",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 24
+        },
+        "headline": {
+          "required": true,
+          "max": 56
+        },
+        "sub": {
+          "max": 90
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "body",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 72,
+              "top": 76
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 48,
+              "y": 210,
+              "w": 770,
+              "h": 770
+            }
+          },
+          "fill": "paper",
+          "radius": "full",
+          "key": "a",
+          "z": 0
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 820,
+              "y": 1040,
+              "w": 188,
+              "h": 188
+            }
+          },
+          "fill": "tint-deep",
+          "radius": "full",
+          "z": 0
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 126,
+              "y": 300
+            }
+          },
+          "fill": "tint-deep",
+          "ink": "ink",
+          "radius": "full",
+          "pad": [
+            14,
+            30,
+            15,
+            30
+          ],
+          "when": {
+            "present": "label"
+          },
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "nowrap": true
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "field": "headline",
+          "style": "display",
+          "emphasis": "accent",
+          "ladder": {
+            "by": "headline",
+            "steps": [
+              [
+                24,
+                150
+              ],
+              [
+                36,
+                128
+              ],
+              [
+                56,
+                112
+              ]
+            ],
+            "maxLines": 4,
+            "maxH": 500
+          },
+          "place": {
+            "px": {
+              "x": 156,
+              "y": 400,
+              "w": 852
+            }
+          },
+          "overlap": {
+            "with": "a",
+            "allow": true
+          },
+          "z": 2
+        },
+        {
+          "type": "text",
+          "field": "sub",
+          "style": "body",
+          "ink": "ink",
+          "place": {
+            "px": {
+              "x": 156,
+              "y": 1050,
+              "w": 600
+            }
+          },
+          "when": {
+            "present": "sub"
+          },
+          "z": 2
+        }
+      ]
+    },
+    {
       "kind": "figure",
       "name": "Big number",
       "describe": "One huge figure under the brand's mark and address, its unit under it in the deep colour, a short sub line, and a pale dome at the foot. Use for a single number, price or percentage of up to 8 characters.",
