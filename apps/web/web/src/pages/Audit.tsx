@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { api } from '../api';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { DataList, EmptyBlock, ErrorBlock, Pager, RowsSkeleton, SelectField, TextField, type Column } from '@/components/kit';
+import { DataList, EmptyBlock, ErrorBlock, Pager, RowsSkeleton, TextField, type Column } from '@/components/kit';
 import { useDebounced, useDocumentTitle, useLoad } from '../hooks';
 import { formatDateTime } from '../lib/format';
 import { actionLabel, AUDIT_GROUPS, entityLabel } from '../lib/labels';
@@ -24,7 +24,41 @@ interface AuditItem { id: string; at: string; actorId: string | null; actorEmail
 interface Page { items: AuditItem[]; page: number; pageSize: number; total: number }
 const PAGE_SIZE = 25;
 
-const ACTION_OPTIONS = [{ value: '', label: 'Everything' }, ...AUDIT_GROUPS.map((g) => ({ value: g.value, label: g.label }))];
+// The kinds of change as chips under five headings; every kind of AUDIT_GROUPS is in exactly one (web-audit-filter.spec.ts).
+export const AUDIT_FILTER_GROUPS: Array<{ title: string; values: string[] }> = [
+  { title: 'Team', values: ['invite', 'user'] },
+  { title: 'Channels', values: ['buffer_account', 'routing'] },
+  { title: 'AI', values: ['ai.', 'ai_provider', 'search_setting', 'research'] },
+  { title: 'Content', values: ['vault', 'batch', 'post'] },
+  { title: 'Sending', values: ['schedule', 'send', 'jobs'] },
+];
+const LABEL_OF = Object.fromEntries(AUDIT_GROUPS.map((g) => [g.value, g.label]));
+
+const CHIP = 'inline-flex min-h-7 cursor-pointer items-center rounded-full border bg-background px-2.5 text-[12.5px] font-medium transition-colors hover:border-foreground/40 has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:checked]:ring-1 has-[:checked]:ring-primary has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50 max-sm:min-h-10';
+
+// One choice of the kind of change: radio buttons drawn as chips (one tab stop, the arrow keys move along), under plain headings.
+export function KindFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const name = useId();
+  const chip = (v: string, label: string) => (
+    <label key={v || 'all'} className={CHIP}>
+      <input type="radio" name={name} value={v} className="sr-only" checked={value === v} onChange={() => onChange(v)} />{label}
+    </label>
+  );
+  return (
+    <fieldset className="flex min-w-0 flex-col gap-2">
+      <legend className="mb-1.5 text-sm font-medium">What kind of change</legend>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {chip('', 'Everything')}
+        {AUDIT_FILTER_GROUPS.map((g) => (
+          <div key={g.title} role="group" aria-label={g.title} className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-0.5 text-[12px] text-muted-foreground" aria-hidden="true">{g.title}</span>
+            {g.values.map((v) => chip(v, LABEL_OF[v] ?? v))}
+          </div>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 export function Audit() {
   useDocumentTitle('Audit log');
@@ -70,10 +104,12 @@ export function Audit() {
   return (
     <SettingsPage title="Audit log" description="Secrets are never recorded here.">
       <div className="flex flex-col gap-3">
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end" role="search" aria-label="Filter the audit log">
-          <TextField label="Who" placeholder="Part of an email address" value={actor} onChange={(e) => { setActor(e.target.value); setPage(1); }} />
-          <SelectField label="What kind of change" value={action} onValueChange={(v) => { setAction(v); setPage(1); }} options={ACTION_OPTIONS} />
-          <Button variant="ghost" className="max-sm:min-h-11" disabled={!filtered} onClick={clear}>Clear filters</Button>
+        <div className="flex flex-col gap-3" role="search" aria-label="Filter the audit log">
+          <div className="flex flex-wrap items-end gap-3">
+            <TextField className="min-w-0 flex-1 sm:max-w-sm" label="Who" placeholder="Part of an email address" value={actor} onChange={(e) => { setActor(e.target.value); setPage(1); }} />
+            <Button variant="ghost" className="max-sm:min-h-11" disabled={!filtered} onClick={clear}>Clear filters</Button>
+          </div>
+          <KindFilter value={action} onChange={(v) => { setAction(v); setPage(1); }} />
         </div>
         <Card className="gap-0 overflow-hidden p-0" aria-label="Audit entries">
           {list.loading && !data ? <RowsSkeleton rows={6} />
