@@ -1,0 +1,117 @@
+{
+  "name": "pennyhive-example-ledger",
+  "note": "Format examples for the Ledger look (Settings, Brand and look: Ledger) with the fictional Pennyhive pack. Every name, quote and figure is invented, round and illustrative; the pictures are the engine's synthetic demo pictures and three photos recorded in packages/engine/design/assets/photos/CREDITS.md (not committed: copy them there before rendering). Not a set to post.",
+  "timezone": "Europe/Dublin",
+  "defaultTime": "09:00",
+  "mediaRoot": "media/pennyhive-example-ledger",
+  "posts": [
+    {
+      "id": "01-see-every-euro",
+      "date": "2027-01-11",
+      "title": "See every euro",
+      "caption": "Save together, see every euro.\n\nPennyhive is one shared pot for your savings club, with every payment on record and on every member's phone.\n\nhttps://pennyhive.example\n\n#Pennyhive #SavingsClub #SaveTogether",
+      "media": ["01-see-every-euro-feed.jpg"],
+      "design": { "template": "post", "kind": "statement", "variant": 0, "label": "Pennyhive", "headline": "Save together, see every euro.", "sub": "One shared pot for your club, with every payment on record.", "cta": "Start a club" },
+      "networks": { "instagram": { "type": "post" } }
+    },
+    {
+      "id": "02-on-record",
+      "date": "2027-01-13",
+      "title": "Every payment on record",
+      "caption": "Every member sees the same balance and every payment, the moment it is made. No more arguing over the book.\n\n#Pennyhive #SavingsClub",
+      "media": ["02-on-record-feed.jpg"],
+      "design": { "template": "post", "kind": "statement", "variant": 1, "label": "Your club, on record", "headline": "Every payment, *on record for all.*", "sub": "Each member sees the same balance and every payment, the moment it is made." },
+      "networks": { "instagram": { "type": "post" } }
+    },
+    {
+      "id": "03-the-numbers",
+      "date": "2027-01-15",
+      "title": "The numbers",
+      "caption": "The average club pot after a year of weekly saving on Pennyhive. (An illustrative figure for a fictional brand.)\n\n#Pennyhive #SavingsClub",
+      "media": ["03-the-numbers-feed.jpg"],
+      "design": { "template": "post", "kind": "figure", "variant": 0, "label": "The numbers", "big": "€2,400", "tag": "+10%", "unit": "saved per club", "sub": "The average club pot after one year of weekly saving. Illustrative figure." },
+      "networks": { "instagram": { "type": "post" } }
+    },
+    {
+      "id": "04-the-pot",
+      "date": "2027-01-18",
+      "title": "The pot this week",
+      "caption": "Ten members, €5 each, every Friday: this is what the pot looks like on everyone's phone. (An illustrative example.)\n\n#Pennyhive #SavingsClub",
+      "media": ["04-the-pot-feed.jpg"],
+      "design": { "template": "post", "kind": "figure", "variant": 1, "label": "Club pot", "big": "€1,250", "tag": "+€50", "unit": "this week", "sub": "Ten members, €5 each, every Friday. An illustrative example." },
+      "networks": { "instagram": { "type": "post" } }
+    },
+    {
+      "id": "05-how-it-works",
+      "date": "2027-01-20",
+      "title": "How it works, in three steps",
+      "caption": "Starting a savings club takes three decisions. Swipe through them.\n\n#Pennyhive #SavingsClub #SaveTogether",
+      "media": ["05-how-it-works-1.jpg", "05-how-it-works-2.jpg", "05-how-it-works-3.jpg", "05-how-it-works-4.jpg", "05-how-it-works-5.jpg"],
+      "design": {
+        "template": "carousel",
+        "pages": [
+          { "template": "post", "kind": "statement", "variant": 0, "label": "How it works", "headline": "Start a club in three steps." },
+          { "template": "post", "kind": "figure", "variant": 2, "big": "1", "headline": "Choose who is *in the club.*", "sub": "Invite the members from your phone. Everyone sees the same pot." },
+          { "template": "post", "kind": "figure", "variant": 2, "big": "2", "headline": "Agree the amount *and the day.*", "sub": "Pick an amount everyone can manage and the day it goes in." },
+          { "template": "post", "kind": "figure", "variant": 2, "big": "3", "headline": "Set the payout *order once.*", "sub": "Everyone can see whose turn is next, so nobody has to ask." },
+          { "template": "post", "kind": "statement", "variant": 0, "label": "Your turn", "headline": "Ready when your club is.", "sub": "Free for clubs of up to 20 members.", "cta": "Start a club" }
+        ]
+      },
+      "networks": { "instagram": { "type": "post" } }
+    },
+    {
+      "id": "06-features",
+      "date": "2027-01-22",
+      "title": "Everything a club needs",
+      "caption": "One shared pot, every payment on record and a reminder on pay day.\n\nhttps://pennyhive.example\n\n#Pennyhive #SavingsClub",
+      "media": ["06-features-feed.jpg"],
+      "design": { "template": "post", "kind": "list", "variant": 0, "headline": "Everything your club *needs to save.*", "items": ["One shared pot", "Every payment on record", "Reminders on pay day"], "cta": "See how it works" },
+      "networks": { "instagram": { "type": "post" } }
+    },
+    {
+      "id": "07-member-voice",
+      "date": "2027-01-25",
+      "title": "Member voice",
+      "caption": "A club runs on trust, and trust is easier when everyone sees the same record.\n\nA quote written for our fictional test brand.\n\n#Pennyhive #SavingsClub",
+      "media": ["07-member-voice-feed.jpg"],
+      "design": { "template": "post", "kind": "quote", "variant": 0, "label": "Club organiser", "quote": "We stopped arguing about who paid. *Now we just look.*", "by": "A club organiser (invented)", "gallery": [{ "image": "design/assets/photos/scout-honeycomb-close-up.jpg" }, { "image": "design/assets/photos/scout-honeybee-on-blossom.jpg" }] },
+      "networks": { "instagram": { "type": "post" } }
+    },
+    {
+      "id": "08-in-the-app",
+      "date": "2027-01-27",
+      "title": "The pot in the app",
+      "caption": "See the pot fill, week by week: every payment shows up the moment it lands.\n\n#Pennyhive #SavingsClub",
+      "media": ["08-in-the-app-feed.jpg"],
+      "design": { "template": "post", "kind": "photo", "variant": 0, "label": "In the app", "headline": "See the pot fill, week by week.", "sub": "Every payment, the moment it lands.", "cta": "Get the app", "image": "design/assets/demo/screen-phone.png" },
+      "networks": { "instagram": { "type": "post" } }
+    },
+    {
+      "id": "09-organisers-evening",
+      "date": "2027-01-29",
+      "title": "Organisers' evening",
+      "caption": "Run a savings club? Join our online evening for organisers: the payout order, a late payment and closing a round.\n\nAn invented event for a fictional brand.\n\n#Pennyhive #SavingsClub",
+      "media": ["09-organisers-evening-feed.jpg"],
+      "design": { "template": "post", "kind": "event", "variant": 0, "label": "Live session", "headline": "Organisers' evening, *online.*", "meta": "2 Feb · 7pm · Online", "cta": "Save a seat" },
+      "networks": { "instagram": { "type": "post" } }
+    },
+    {
+      "id": "10-free-plan",
+      "date": "2027-02-01",
+      "title": "Free for small clubs",
+      "caption": "Pennyhive is free for clubs of up to 20 members.\n\nhttps://pennyhive.example/pricing\n\n#Pennyhive #SavingsClub #SaveTogether",
+      "media": ["10-free-plan-feed.jpg"],
+      "design": { "template": "post", "kind": "offer", "variant": 0, "headline": "Clubs of up to 20 members save", "tag": "for free", "sub": "Free for small clubs. No card needed.", "cta": "Start a club" },
+      "networks": { "instagram": { "type": "post" } }
+    },
+    {
+      "id": "11-one-pot",
+      "date": "2027-02-03",
+      "title": "One pot, open to all",
+      "caption": "One pot, open to everyone in it: see who has paid this round and whose turn is next.\n\n#Pennyhive #SavingsClub #SaveTogether",
+      "media": ["11-one-pot-feed.jpg"],
+      "design": { "template": "post", "kind": "photo", "variant": 1, "headline": "One pot, *open to everyone in it.*", "sub": "See who has paid this round and whose turn is next.", "tag": "The pot", "cta": "See your pot", "image": "design/assets/photos/spheres-green.jpg", "focal": "45% 55%" },
+      "networks": { "instagram": { "type": "post" } }
+    }
+  ]
+}

@@ -21,5 +21,8 @@ What to record:
 | File | Source | Author | Licence | Date | People | What is in it | Used |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `example.jpg` | https://example.com/photos/12345 | Example Author | Example licence (commercial use allowed) | 2026-01-01 | none | A row of jars on a plain shelf | not used |
+| `spheres-green.jpg` | supplied by the owner, 22 Nov 2026 | the owner | owner's own use | 2026-11-22 | none | White spheres of three sizes in a beam of light on a deep green ground; no marks or text | Pennyhive Ledger batch (`brands/pennyhive/batches/example-ledger.json`): 11-one-pot |
+| `scout-honeycomb-close-up.jpg` | https://wordpress.org/photos/photo/87665e976f/ | mooyai | CC0 1.0 (WordPress Photo Directory, public domain dedication; commercial use allowed) | 2026-11-22 | none | Honeycomb with a few bees, close-up; no marks or text | Pennyhive Ledger batch: 07-member-voice (round picture) |
+| `scout-honeybee-on-blossom.jpg` | https://wordpress.org/photos/photo/116662e097/ | werkform | CC0 1.0 (WordPress Photo Directory, public domain dedication; commercial use allowed) | 2026-11-22 | none | A honeybee on cotoneaster blossom, green background; no marks or text | Pennyhive Ledger batch: 07-member-voice (round picture) |
 
 Replace the example row with your own. Never record an API key or a password here.
