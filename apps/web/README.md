@@ -110,7 +110,11 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   Draft with AI first asks `GET /api/batches/ai-draft` (`{ ready, missing: 'provider' | 'budget' | null }`) and, when drafting
   cannot run, says what is missing and where to add it instead of queuing a job that would fail; `POST /api/batches/ai-draft`
   refuses with a 409 in the same two cases. The Team
-  and AI provider forms are dialogs too. Settings, Channels is one page with two sections: the Buffer accounts (compact rows, their forms are dialogs; `/settings/accounts`, `/admin/accounts` and `/admin/routing` redirect there, `#accounts` scrolls to the accounts) and a table with a row per network (where it posts).
+  and AI provider forms are dialogs too. The AI provider dialog fills what follows from the kind (`lib/ai-presets.ts`): Anthropic
+  gets its address and a choice of model (Recommended `claude-sonnet-5-5`, Best quality `claude-opus-5-5`, Faster, cheaper
+  `claude-haiku-5-5`) whose prices per million tokens come with it; OpenAI-compatible gets OpenAI's address and a model to type. The
+  exact model id, the address and the prices are under Fine-tune, marked "Auto" or "From the model" while they are the filled ones, and
+  a value a person typed is never replaced. The server checks them as before. Settings, Channels is one page with two sections: the Buffer accounts (compact rows, their forms are dialogs; `/settings/accounts`, `/admin/accounts` and `/admin/routing` redirect there, `#accounts` scrolls to the accounts) and a table with a row per network (where it posts).
 - **Conventions.** Field help is behind an info icon (kit `Hint`, `hintMode`); pages use `PageHeader` with `crumbs`; small forms
   use `FormPanel variant="dialog"`; secondary and destructive actions sit in `MoreMenu`; on a desktop only the content area and the
   sidebar scroll. See `web/README-ui.md`.

@@ -6,7 +6,11 @@ import { api } from '../api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BusyButton, CheckField, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FormPanel, MoreMenu, Notice, SelectField, TagChips, TextField, ToneBadge, type Column } from '@/components/kit';
+import { BusyButton, CheckField, ConfirmAction, DataList, EmptyBlock, ErrorBlock, FieldGroup, FormPanel, MoreMenu, Notice, SwitchField, TagChips, TextField, ToneBadge, type Column } from '@/components/kit';
+import { AutoTag } from '@/components/kit/auto-tag';
+import { FineTune } from '@/components/kit/fine-tune';
+import { SegmentedField } from '@/components/kit/segmented-field';
+import { PROVIDER_ADDRESS, addressIsDefault, modelPresets, modelSummary, newProviderDraft, presetFor, pricesFromModel, withKind, withModel, type ProviderDraft, type ProviderKind } from '../lib/ai-presets';
 import { RunProgress, RunStatusBadge, runSummary } from '@/components/activity-parts';
 import { useActivity } from '@/hooks/use-activity';
 import { useNow } from '@/hooks/use-now';
@@ -17,7 +21,7 @@ import { confirmDiscard, useUnsavedGuard } from '@/hooks/use-unsaved-guard';
 import { Section, SettingsPage } from './settings/section';
 import { PROVIDER_KIND_LABEL, SEARCH_KIND_LABEL, TASK_LABEL } from '../lib/labels';
 
-interface Provider { id: string; name: string; kind: 'anthropic' | 'openai-compatible'; baseUrl: string; model: string; keyLast4: string; tasks: string[]; enabled: boolean; inputPricePerMTok: number | null; outputPricePerMTok: number | null }
+interface Provider { id: string; name: string; kind: ProviderKind; baseUrl: string; model: string; keyLast4: string; tasks: string[]; enabled: boolean; inputPricePerMTok: number | null; outputPricePerMTok: number | null }
 interface Settings {
   providers: Provider[];
   search: { kind: 'brave' | 'tavily' | 'exa'; keyLast4: string } | null;
@@ -30,7 +34,7 @@ const sm = 'max-sm:min-h-11';
 // One bordered container; the list's rows are separated by hairlines.
 const LIST = 'overflow-hidden rounded-lg border';
 
-const KIND_OPTIONS = [{ value: 'anthropic', label: 'Anthropic' }, { value: 'openai-compatible', label: 'OpenAI-compatible (any service with that interface)' }];
+const KIND_OPTIONS: Array<{ value: ProviderKind; label: string }> = [{ value: 'anthropic', label: 'Anthropic' }, { value: 'openai-compatible', label: 'OpenAI-compatible' }];
 const SEARCH_OPTIONS = Object.entries(SEARCH_KIND_LABEL).map(([value, label]) => ({ value, label }));
 
 function SettingsSkeleton() {
@@ -114,25 +118,30 @@ function Providers({ providers, onChanged }: { providers: Provider[]; onChanged:
 }
 
 function ProviderDialog({ provider, onClose, onSaved }: { provider: Provider | null; onClose: () => void; onSaved: (created: boolean) => void }) {
+  const priceText = (v: number | null | undefined) => (v == null ? '' : String(v));
+  // What the dialog opened with: the provider as saved, or a new one with Anthropic's address and the recommended model filled in.
+  const [initial] = useState<ProviderDraft>(() => (provider
+    ? { kind: provider.kind, baseUrl: provider.baseUrl, model: provider.model, inputPrice: priceText(provider.inputPricePerMTok), outputPrice: priceText(provider.outputPricePerMTok) }
+    : newProviderDraft()));
   const [name, setName] = useState(provider?.name ?? '');
-  const [kind, setKind] = useState<Provider['kind']>(provider?.kind ?? 'anthropic');
-  const [baseUrl, setBaseUrl] = useState(provider?.baseUrl ?? '');
-  const [model, setModel] = useState(provider?.model ?? '');
+  const [draft, setDraft] = useState<ProviderDraft>(initial);
+  const { kind, baseUrl, model, inputPrice, outputPrice } = draft;
   const [apiKey, setApiKey] = useState('');
   const [tasks, setTasks] = useState<string[]>(provider?.tasks ?? ['draft', 'rewrite']);
   const [enabled, setEnabled] = useState(provider?.enabled ?? true);
-  const [inputPrice, setInputPrice] = useState(provider?.inputPricePerMTok == null ? '' : String(provider.inputPricePerMTok));
-  const [outputPrice, setOutputPrice] = useState(provider?.outputPricePerMTok == null ? '' : String(provider.outputPricePerMTok));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
 
-  const priceText = (v: number | null | undefined) => (v == null ? '' : String(v));
-  const dirty = name !== (provider?.name ?? '') || kind !== (provider?.kind ?? 'anthropic') || baseUrl !== (provider?.baseUrl ?? '') || model !== (provider?.model ?? '')
-    || apiKey !== '' || enabled !== (provider?.enabled ?? true) || inputPrice !== priceText(provider?.inputPricePerMTok) || outputPrice !== priceText(provider?.outputPricePerMTok)
+  const dirty = name !== (provider?.name ?? '') || (Object.keys(initial) as Array<keyof ProviderDraft>).some((k) => draft[k] !== initial[k])
+    || apiKey !== '' || enabled !== (provider?.enabled ?? true)
     || [...tasks].sort().join() !== [...(provider?.tasks ?? ['draft', 'rewrite'])].sort().join();
   useUnsavedGuard(dirty);
   const requestClose = () => confirmDiscard(dirty && !busy, onClose);
+  const presets = modelPresets(kind);
+  const preset = presetFor(kind, model);
+  // A known provider shows its models as a choice and keeps the exact id and address under Fine-tune; any other shows both as fields.
+  const known = presets.length > 0;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -164,35 +173,61 @@ function ProviderDialog({ provider, onClose, onSaved }: { provider: Provider | n
     }
   }
 
+  // "Auto" while the address is the kind's own; "From the model" while the prices are the model's known ones. Both go once a person types.
+  const addressTag = addressIsDefault(baseUrl) && baseUrl.trim().replace(/\/+$/, '') === PROVIDER_ADDRESS[kind] ? <AutoTag /> : null;
+  const addressField = (
+    <TextField label={<>Service address{addressTag}</>} value={baseUrl} onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })} error={fields.baseUrl} mono optional={kind === 'anthropic'}
+      placeholder={PROVIDER_ADDRESS[kind]}
+      hint={kind === 'anthropic' ? 'Anthropic\'s own address. Change it only to go through a gateway.' : 'Filled with OpenAI\'s address. For another service, the web address it gave you for its API. It must start with https://.'} />
+  );
+  const modelField = (
+    <TextField label="Model" value={model} onChange={(e) => setDraft(withModel(draft, e.target.value))} error={fields.model} mono required placeholder={known ? 'claude-sonnet-5-5' : 'gpt-5-mini'}
+      hint="The name of the model this provider should use, exactly as the provider spells it." />
+  );
+  const pricesTag = pricesFromModel(draft) ? <AutoTag>From the model</AutoTag> : null;
+  const priceFields = (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <TextField label={<>Input price{pricesTag}</>} optional type="number" inputMode="decimal" min={0} step="any" placeholder="For example 3" value={inputPrice} onChange={(e) => setDraft({ ...draft, inputPrice: e.target.value })} error={fields.inputPricePerMTok}
+        hint="US dollars for each million tokens sent to the model. It is on the provider's price page." />
+      <TextField label={<>Output price{pricesTag}</>} optional type="number" inputMode="decimal" min={0} step="any" placeholder="For example 15" value={outputPrice} onChange={(e) => setDraft({ ...draft, outputPrice: e.target.value })}
+        hint="US dollars for each million tokens the model writes back. Without both prices the cost of a call is unknown and the budget cannot count it." />
+    </div>
+  );
+  // A problem on a value under Fine-tune opens it.
+  const hiddenProblem = !!(fields.inputPricePerMTok || (known && (fields.baseUrl || fields.model)));
+
   return (
     <FormPanel open variant="dialog" size="lg" onClose={requestClose} busy={busy} title={provider ? `Edit ${provider.name}` : 'Add an AI provider'}
       footer={<><Button variant="outline" className={sm} onClick={requestClose} disabled={busy}>Cancel</Button><BusyButton type="submit" form="provider-form" loading={busy}>{provider ? 'Save changes' : 'Add provider'}</BusyButton></>}>
       <form id="provider-form" className="flex flex-col gap-4" onSubmit={(e) => void submit(e)} noValidate>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
           <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} error={fields.name} required autoFocus placeholder="Claude main" hint="Only for you." />
-          <SelectField label="Kind" value={kind} onValueChange={(v) => setKind(v as Provider['kind'])} options={KIND_OPTIONS} error={fields.kind} />
+          <SegmentedField label="Kind" value={kind} onValueChange={(v) => setDraft(withKind(draft, v))} options={KIND_OPTIONS} error={fields.kind}
+            hint="OpenAI-compatible is any service with OpenAI's interface; give its address and model." />
         </div>
         <TextField label={provider ? 'New key' : 'Key'} type="password" autoComplete="off" value={apiKey} onChange={(e) => setApiKey(e.target.value)} error={fields.apiKey} mono optional={!!provider}
           placeholder={provider ? `Leave blank to keep the key ending ${provider.keyLast4}` : ''} hintMode="inline" hint="Stored encrypted. It cannot be shown again." />
-        <FieldGroup legend="Connection details" hint="Most providers need only a model name. Your provider's documentation lists the rest.">
-          <TextField label="Service address" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} error={fields.baseUrl} mono optional={kind === 'anthropic'}
-            placeholder={kind === 'anthropic' ? 'https://api.anthropic.com' : 'https://api.example.com/v1'}
-            hint={kind === 'anthropic' ? 'Leave blank to use Anthropic directly.' : 'The web address your provider gave you for its API. It must start with https://.'} />
-          <TextField label="Model" value={model} onChange={(e) => setModel(e.target.value)} error={fields.model} mono required placeholder="For example claude-sonnet-5-5"
-            hint="The name of the model this provider should use, exactly as the provider spells it." />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <TextField label="Input price" optional type="number" inputMode="decimal" min={0} step="any" placeholder="For example 3" value={inputPrice} onChange={(e) => setInputPrice(e.target.value)} error={fields.inputPricePerMTok}
-              hint="US dollars for each million tokens sent to the model. It is on the provider's price page." />
-            <TextField label="Output price" optional type="number" inputMode="decimal" min={0} step="any" placeholder="For example 15" value={outputPrice} onChange={(e) => setOutputPrice(e.target.value)}
-              hint="US dollars for each million tokens the model writes back. Without both prices the cost of a call is unknown and the budget cannot count it." />
+        {known ? (
+          <div className="flex flex-col gap-1.5">
+            <SegmentedField label="Model" value={preset?.id ?? null} onValueChange={(id) => setDraft(withModel(draft, presets.find((p) => p.id === id)!.model))}
+              options={presets.map((p) => ({ value: p.id, label: p.label }))}
+              tag={preset ? null : <span className="ml-1 rounded-full border px-1.5 py-px text-[11px] font-medium text-muted-foreground">Custom</span>}
+              hint="Recommended suits most work. Best quality costs more; Faster, cheaper suits short rewrites. The exact model and its prices are under Fine-tune." />
+            <p className="font-mono text-[12px] text-muted-foreground [overflow-wrap:anywhere]">{modelSummary(draft)}</p>
           </div>
-        </FieldGroup>
+        ) : (
+          <div className="flex flex-col gap-3">{addressField}{modelField}</div>
+        )}
+        <FineTune force={hiddenProblem || (known && !preset)} summary={known ? 'Model id, address and prices' : 'Prices'}>
+          {known && <>{modelField}{addressField}</>}
+          {priceFields}
+        </FineTune>
         <FieldGroup legend="Use this provider for" error={fields.tasks}>
           {TASKS.map((t) => (
             <CheckField key={t} label={TASK_LABEL[t]} checked={tasks.includes(t)} onCheckedChange={(on) => setTasks(on ? [...tasks, t] : tasks.filter((x) => x !== t))} />
           ))}
         </FieldGroup>
-        <CheckField label="Switched on" hint="Turn off to stop using it without deleting it." checked={enabled} onCheckedChange={setEnabled} />
+        <SwitchField label="Switched on" hint="Turn off to stop using it without deleting it." checked={enabled} onCheckedChange={setEnabled} />
         {error && <Notice tone="bad">{error}</Notice>}
       </form>
     </FormPanel>
@@ -228,7 +263,7 @@ function SearchCard({ search, onChanged }: { search: Settings['search']; onChang
   return (
     <Section id="search-service" title="Search service" description="Research looks things up on the web through this service, so it does not depend on one AI vendor." aside={<NotSaved show={dirty} />}>
       <form className="flex max-w-[520px] flex-col gap-3" onSubmit={(e) => void save(e)} noValidate>
-        <SelectField label="Service" value={kind} onValueChange={(v) => setKind(v as typeof kind)} options={SEARCH_OPTIONS} />
+        <SegmentedField label="Service" value={kind} onValueChange={(v) => setKind(v as typeof kind)} options={SEARCH_OPTIONS} />
         <TextField label={search ? 'New key' : 'Key'} type="password" autoComplete="off" mono value={apiKey} onChange={(e) => setApiKey(e.target.value)} error={fields.apiKey} optional={!!search}
           placeholder={search ? `Leave blank to keep the key ending ${search.keyLast4}` : ''} />
         {error && <Notice tone="bad">{error}</Notice>}
