@@ -8,7 +8,8 @@
 // Every Chrome run goes through the render queue (render-queue.ts): class `preview` (a newer request from the same person for the same
 // look replaces one still waiting) or `gate`, and under the engine's single Chrome lock. The brand is the one in force (the pack
 // syncBrand wrote: its colours, fonts and logo), with the look given in place of its active one. A look and its text are data: the
-// engine validates the look (resolveLook) and the design (validateDesign) and builds the page; nothing here writes markup.
+// engine validates the look (resolveLook) and the design (validateDesign) and builds the page; nothing here writes markup. The brand
+// graphics a design places are found in the vault and copied into the run before Chrome starts (design-images.ts loadGraphics).
 import { createHash, randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import fs from 'node:fs';
@@ -18,6 +19,7 @@ import { pipelineEngine } from '../engine/pipeline.js';
 import { engineImport } from '../engine/root.js';
 import { describeError, logger } from '../log.js';
 import { brandState, syncBrand } from './brand-settings.js';
+import { loadGraphics, type SpecGraphic } from './design-images.js';
 import { ATTEMPTS, copyFor, SAMPLE_PICTURES, type CopyScenario } from './look-copy.js';
 import {
   lookEngine, setLookRenderer, type CompositionPreview, type CompositionPreviewRequest, type CompositionRect, type GateCheck, type GateRenderRequest,
@@ -36,6 +38,10 @@ interface EngineRenderMod {
 }
 interface EngineSpecMod { normaliseDesign(d: Json): Json; validateDesign(d: Json, where: string, o: { look?: Json }): string[] }
 interface EngineLooks { lookHash(look: unknown): string }
+interface EngineLookGraphics {
+  compositionGraphicRefs(comp: unknown): string[];
+  lookCompositionGraphics(look: unknown, kind: string, index: number): { kind: string; variant: number; name: string; refs: string[] } | null;
+}
 
 const modules = (): Promise<{ brand: EngineBrandMod; chrome: EngineChrome; render: EngineRenderMod; spec: EngineSpecMod }> =>
   Promise.all([engineImport<EngineBrandMod>('design/brand'), engineImport<EngineChrome>('design/chrome'), engineImport<EngineRenderMod>('design/render'), engineImport<EngineSpecMod>('design/spec')])
@@ -98,33 +104,57 @@ interface DrawJob { kind: string; index: number; scenario: CopyScenario; anyVari
 const BUSY = /another design run is already using chrome/i;
 
 // Draws each job with ONE Chrome. `stop()` (checked before each picture) ends the run early: the rest are `skipped`.
-async function drawJobs(deps: Deps, look: Json, jobs: DrawJob[], opts: { withRects: boolean; stop?: () => boolean; brand?: BrandForLook }): Promise<Array<Drawn | null>> {
+async function drawJobs(deps: Deps, look: Json, jobs: DrawJob[], opts: { brandId: string; withRects: boolean; stop?: () => boolean; brand?: BrandForLook }): Promise<Array<Drawn | null>> {
   const { chrome, render, spec } = await modules();
   const engine = await pipelineEngine();
   const bl = opts.brand ?? await brandFor(deps, look);
-  const briefs = (await lookEngine()).lookBrief(look) as LookBrief;
+  const eng = (await lookEngine()) as unknown as { lookBrief(l: unknown): LookBrief } & EngineLookGraphics;
+  const briefs = eng.lookBrief(look);
   const runDir = path.join(engine.root, 'out', 'look-render', randomUUID());
   const out: Array<Drawn | null> = jobs.map(() => null);
   let browser: { close(): void } | null = null;
+  // The brand graphics and cut-outs a design places, from the vault, copied into this run once per design (graphicsFor)
+  const placed = new Map<string, Promise<{ graphics: SpecGraphic[] } | { error: string }>>();
+  const graphicsFor = (kind: string, index: number) => {
+    const key = `${kind}/${index}`;
+    if (!placed.has(key)) {
+      placed.set(key, (async () => {
+        const need = eng.lookCompositionGraphics(look, kind, index);
+        if (!need?.refs.length) return { graphics: [] };
+        const r = await loadGraphics(deps, [{ page: null, ...need }], { runDir, brandId: opts.brandId, start: 1000 * placed.size });
+        return r.problems.length ? { error: r.problems.join('; ').slice(0, 600) } : { graphics: r.lists[0] ?? [] };
+      })());
+    }
+    return placed.get(key)!;
+  };
+  const refused = (error: string): Drawn => ({ ok: false, warnings: [], rects: [], error });
   try {
-    const chromePath = chrome.findChrome();
-    if (!chromePath) return jobs.map(() => ({ ok: false, warnings: [], rects: [], error: 'Chrome is not installed on this server, so pictures cannot be drawn' }));
     fs.mkdirSync(runDir, { recursive: true });
+    // a design whose graphic cannot be found is refused before any Chrome is started
+    const early: Array<Drawn | null> = [];
+    for (const job of jobs) { const g = await graphicsFor(job.kind, job.index); early.push('error' in g ? refused(g.error) : null); }
+    const chromePath = chrome.findChrome();
+    if (!chromePath) return jobs.map((_, n) => early[n] ?? refused('Chrome is not installed on this server, so pictures cannot be drawn'));
     renderStats.runs++;
     try { browser = await chrome.Browser.launch({ chromePath, lockFile: path.join(engine.root, 'out', 'design.lock') }); } catch (e) {
       const msg = String((e as Error)?.message ?? e);
-      return jobs.map(() => ({ ok: false, busy: BUSY.test(msg), warnings: [], rects: [], error: BUSY.test(msg) ? 'Another picture is being drawn right now. Try again in a moment' : 'Chrome could not be started on this server' }));
+      return jobs.map((_, n) => early[n] ?? { ok: false, busy: BUSY.test(msg), warnings: [], rects: [], error: BUSY.test(msg) ? 'Another picture is being drawn right now. Try again in a moment' : 'Chrome could not be started on this server' });
     }
+    const drawAt = async (job: DrawJob, file: string): Promise<Drawn> => {
+      const g = await graphicsFor(job.kind, job.index);
+      if ('error' in g) return refused(g.error);
+      return drawOne(chrome, render, spec, browser!, bl, briefs, look, job, file, engine.root, opts.withRects, g.graphics);
+    };
     for (const [n, job] of jobs.entries()) {
       if (opts.stop?.()) break;
       const file = path.join(runDir, `${n}.jpg`);
-      let d = await drawOne(chrome, render, spec, browser, bl, briefs, look, job, file, engine.root, opts.withRects);
+      let d = await drawAt(job, file);
       if (!d.ok && job.anyVariant) {
         const variants = briefs.kinds[job.kind]?.variants ?? [];
         const first = d;
         for (const v of variants) {
           if (v.index === job.index) continue;
-          const alt = await drawOne(chrome, render, spec, browser, bl, briefs, look, { ...job, index: v.index }, file, engine.root, opts.withRects);
+          const alt = await drawAt({ ...job, index: v.index }, file);
           if (alt.ok) { d = { ...alt, warnings: [`Shown with the design "${v.name}": "${variants.find((x) => x.index === job.index)?.name ?? 'the first'}" could not be drawn with this brand`, ...alt.warnings] }; break; }
         }
         // none could: say why, shortly, for the tile's tooltip
@@ -161,14 +191,15 @@ async function curatedCopy(root: string, look: Json, scenario: CopyScenario, kin
 
 async function drawOne(
   _chrome: EngineChrome, render: EngineRenderMod, spec: EngineSpecMod, browser: { close(): void }, bl: BrandForLook, briefs: LookBrief, look: Json,
-  job: DrawJob, file: string, root: string, withRects: boolean,
+  job: DrawJob, file: string, root: string, withRects: boolean, graphics: SpecGraphic[],
 ): Promise<Drawn> {
+  const placed = graphics.length ? { graphics } : {};
   const variant = briefs.kinds[job.kind]?.variants.find((v) => v.index === job.index);
   if (!variant) return { ok: false, warnings: [], rects: [], error: `The look has no ${job.kind} design number ${job.index + 1}` };
   const attempts = ATTEMPTS[job.scenario];
   let last: Drawn = { ok: false, warnings: [], rects: [], error: 'Not drawn' };
   for (const a of attempts) {
-    const design: Json = { template: 'post', kind: job.kind, variant: job.index, name: `look-${job.scenario}`, ...copyFor(job.kind, variant, job.scenario, a) };
+    const design: Json = { template: 'post', kind: job.kind, variant: job.index, name: `look-${job.scenario}`, ...copyFor(job.kind, variant, job.scenario, a), ...placed };
     const problems = spec.validateDesign(design, 'design', { look });
     if (problems.length) { last = { ok: false, warnings: [], rects: [], error: problems.slice(0, 3).join('; ').slice(0, 400) }; continue; }
     try {
@@ -195,7 +226,7 @@ async function drawOne(
     const own = await curatedCopy(root, look, job.scenario, job.kind, job.index);
     if (own) {
       const withPicture = Object.hasOwn(variant.fields, 'image') ? { image: SAMPLE_PICTURES[job.kind] ?? 'design/assets/demo/object-jar.jpg' } : {};
-      const design: Json = { template: 'post', kind: job.kind, variant: job.index, name: `look-${job.scenario}`, ...own, ...withPicture };
+      const design: Json = { template: 'post', kind: job.kind, variant: job.index, name: `look-${job.scenario}`, ...own, ...withPicture, ...placed };
       if (!spec.validateDesign(design, 'design', { look }).length) {
         try {
           const r = await render.renderImage(browser, bl.brand, { spec: spec.normaliseDesign(design), sizeName: 'feed', outFile: file }, { tmpDir: path.join(root, 'out', 'design-tmp'), quality: JPEG_QUALITY });
@@ -211,6 +242,19 @@ async function drawOne(
 }
 
 // ---- the samples cache -------------------------------------------------------------------------------------------------------
+
+// What a look's pictures depend on in the vault: the state of every brand graphic its designs place (found, deleted, its role, its file),
+// so a sample drawn before a graphic was changed, removed or given its file is not shown again. '' when the look places none.
+async function graphicsKey(deps: Deps, look: Json, brandId: string): Promise<string> {
+  const eng = (await lookEngine()) as unknown as EngineLookGraphics;
+  const refs = [...new Set((Array.isArray(look.compositions) ? look.compositions : []).flatMap((c) => eng.compositionGraphicRefs(c)))].sort();
+  if (!refs.length) return '';
+  const items = await deps.prisma.vaultItem.findMany({
+    where: { id: { in: refs }, brandId }, orderBy: { id: 'asc' },
+    select: { id: true, brandId: true, kind: true, role: true, tintable: true, fileKey: true, contentType: true, deletedAt: true, updatedAt: true },
+  });
+  return createHash('sha256').update(JSON.stringify([refs, items])).digest('hex').slice(0, 16);
+}
 
 // A small in-memory LRU of sample pictures by look hash + brand hash + kind. Only drawings that finished (a picture, or the engine's
 // own refusal of the look) are kept; a busy or broken Chrome is not.
@@ -240,7 +284,8 @@ export function createLookRenderer(deps: Deps): LookRenderer {
       const kinds = req.kinds.filter((k) => briefs.kinds[k]?.variants.length);
       const samples = new Map<string, PreviewSample>();
       const bl = await brandFor(deps, req.look);
-      const keyOf = (k: string) => `${hash}|${bl.key}|${k}`;
+      const gk = await graphicsKey(deps, req.look, req.scope.brandId);
+      const keyOf = (k: string) => `${hash}|${bl.key}|${gk}|${k}`;
       const todo: string[] = [];
       for (const k of kinds) {
         const hit = cacheGet(keyOf(k));
@@ -249,7 +294,7 @@ export function createLookRenderer(deps: Deps): LookRenderer {
       }
       if (todo.length) {
         const run = await submit({ brandId: req.scope.brandId, class: 'preview', supersedeKey: `samples:${who(req.userId)}:${lookId(req.look)}`, deadline: Date.now() + PREVIEW_WAIT_MS },
-          () => drawJobs(deps, req.look, todo.map((kind) => ({ kind, index: 0, scenario: 'sample' as const, anyVariant: true })), { withRects: false, brand: bl }));
+          () => drawJobs(deps, req.look, todo.map((kind) => ({ kind, index: 0, scenario: 'sample' as const, anyVariant: true })), { brandId: req.scope.brandId, withRects: false, brand: bl }));
         if (run.status === 'superseded') return { samples: [], superseded: true };
         if (run.status === 'expired') {
           for (const k of todo) samples.set(k, { kind: k, ok: false, error: 'The picture waited too long for its turn. Try again', warnings: [] });
@@ -266,7 +311,7 @@ export function createLookRenderer(deps: Deps): LookRenderer {
 
     async previewComposition(req: CompositionPreviewRequest): Promise<CompositionPreview> {
       const run = await submit({ brandId: req.scope.brandId, class: 'preview', supersedeKey: `design:${who(req.userId)}:${lookId(req.look)}`, deadline: Date.now() + PREVIEW_WAIT_MS },
-        () => drawJobs(deps, req.look, [{ kind: req.kind, index: req.index, scenario: req.scenario }], { withRects: req.withRects }));
+        () => drawJobs(deps, req.look, [{ kind: req.kind, index: req.index, scenario: req.scenario }], { brandId: req.scope.brandId, withRects: req.withRects }));
       if (run.status === 'superseded') return { superseded: true };
       if (run.status === 'expired') return { error: 'The picture waited too long for its turn. Try again' };
       const d = run.value[0];
@@ -280,7 +325,7 @@ export function createLookRenderer(deps: Deps): LookRenderer {
       const unfinished = (why: string): GateCheck[][] => req.targets.map(() => scenarios.map((s) => ({ name: `render:${s}`, passed: false, message: why })));
       const startedAt = Date.now();
       const run = await submit({ brandId: req.scope.brandId, class: 'gate', supersedeKey: `gate:${who(req.userId)}:${lookId(req.look)}`, deadline: startedAt + GATE_WAIT_MS },
-        () => { const t0 = Date.now(); return drawJobs(deps, req.look, jobs, { withRects: false, stop: () => Date.now() - t0 > GATE_RUN_MS }); });
+        () => { const t0 = Date.now(); return drawJobs(deps, req.look, jobs, { brandId: req.scope.brandId, withRects: false, stop: () => Date.now() - t0 > GATE_RUN_MS }); });
       if (run.status === 'superseded') return unfinished('A newer check of this look replaced this one');
       if (run.status === 'expired') return unfinished('The checks waited too long for their turn. Run them again');
       return req.targets.map((_, i) => scenarios.map((s, j): GateCheck => {

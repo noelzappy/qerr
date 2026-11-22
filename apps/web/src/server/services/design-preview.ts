@@ -2,7 +2,8 @@
 //
 // The design is checked exactly as saving a post checks it (problemsOf: the engine's batch validator plus our picture rules),
 // then drawn once through the same renderer and checks as the render job, as a JPEG data URL. Nothing is written to a post, its
-// media or its batch; a vault photo is copied to a temporary folder that is removed afterwards. Runs under the render lock
+// media or its batch; a vault photo, and each brand graphic the active look's chosen composition places, is copied to a temporary
+// folder that is removed afterwards. Runs under the render lock
 // (one Chrome at a time).
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
@@ -12,12 +13,12 @@ import { pipelineEngine, type RenderResult } from '../engine/pipeline.js';
 import { describeError, logger } from '../log.js';
 import { HttpError } from '../http.js';
 import { problemsOf, type StagedPost } from './batches.js';
-import { photosOfDesign, withoutVaultIds } from './design-images.js';
-import { assertInside, safeFileName } from './post-model.js';
+import { attachGraphics, copyVaultFile, photosOfDesign, withoutVaultIds } from './design-images.js';
+import { DEFAULT_BRAND_ID } from './looks.js';
+import { assertInside } from './post-model.js';
 
 type Json = Record<string, unknown>;
 export const PREVIEW_SIZES = ['feed', 'wide', 'story', 'square'] as const;
-const IMAGE_EXT_BY_TYPE: Record<string, string> = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };
 
 export interface DesignPreviewResult {
   ok: boolean;
@@ -67,12 +68,11 @@ export async function previewDesign(
         if (!photo.item) return { ok: false, size, error: 'This design uses a picture that is no longer in Facts', warnings: [], notes: [] };
         if (!photo.vaultItemId) continue; // matched by file name only: the repository file is what the design names
         if (photo.item.deletedAt || !photo.item.fileKey) return { ok: false, size, error: `The picture "${photo.item.title}" was deleted or has no file`, warnings: [], notes: [] };
-        const body = await deps.storage.getObject(photo.item.fileKey);
-        const ext = path.extname(photo.item.fileName ?? '').toLowerCase() in engine.imageTypes ? path.extname(photo.item.fileName!).toLowerCase() : (IMAGE_EXT_BY_TYPE[photo.item.contentType ?? ''] ?? '.jpg');
-        const file = assertInside(runDir, path.join(runDir, 'in', `${++n}-${safeFileName(path.basename(photo.item.fileName ?? 'photo', ext))}${ext}`));
-        await fs.writeFile(file, body);
-        photo.node.image = path.relative(engine.root, file).split(path.sep).join('/');
+        photo.node.image = await copyVaultFile(deps, photo.item, runDir, ++n);
       }
+      // The brand graphics and cut-outs the active look's chosen composition places, from the vault (never from the request).
+      const graphicIssues = await attachGraphics(deps, spec, { runDir, brandId: DEFAULT_BRAND_ID });
+      if (graphicIssues.length) return { ok: false, size, error: graphicIssues.join('; '), warnings: [], notes: [] };
       const render = opts.render ?? ((o: Record<string, unknown>) => engine.renderDesignBlock(o));
       const r = await render({
         root: engine.root,
