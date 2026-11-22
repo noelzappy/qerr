@@ -60,5 +60,13 @@ export interface BrandCtx {
   applyView: (next: BrandView) => void;
 }
 
-// Shown at the top of Type and of Surfaces and photos while a look is in use.
+// Behind the info icon of the one-line note at the top of Type and of Surfaces and photos while a look is in use.
 export const LOOK_HINT = 'Your look decides the layout and typeface of posts made as a kind of post; these settings still apply to posts made with the classic layouts.';
+
+// Whether a look draws the brand's posts: one is active (Settings, Looks; every newly saved brand starts on the Clean look), or the
+// brand names a design direction. Then Type and Surfaces and photos fold away behind a one-line note, because they apply only to the
+// classic layouts. Not knowing yet (`lookActive` undefined) with no direction reads as classic, so nothing is hidden on a guess.
+export const lookInForce = (direction: string | null | undefined, lookActive: boolean | undefined): boolean => !!direction || lookActive === true;
+
+// The classic-only settings open by themselves when the server named a problem in that section, so an error is never hidden.
+export const sectionHasProblem = (fields: Record<string, string>, id: SectionId): boolean => Object.keys(fields).some((k) => sectionOfPath(k) === id);
