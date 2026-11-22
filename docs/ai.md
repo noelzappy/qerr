@@ -159,8 +159,9 @@ field takes a quotation that is in a cited item (a quotation that is not in the 
 
 ## A brand with a design direction
 
-When the brand pack's `brand.json` has `style.direction` (`editorial`, `swiss` or `retail`; see [design.md](design.md), "Design
-directions and the post template"), the model designs with ONE template, `post`, instead of naming layouts or templates. Such a
+When the brand pack's `brand.json` has `style.direction` (`editorial`, `swiss` or `retail`, or the id of a look in `brand.looks`,
+which is how the web app writes the active look of Settings, Looks; see [design.md](design.md), "Design directions and the post
+template"), the model designs with ONE template, `post`, instead of naming layouts or templates. Such a
 brand is offered no `layouts`, no screens and no old templates (`object`, `number`, `product`, `myth-fact`, `closing`, `photo`,
 `layout`). Carousels are offered only as carousels of post pages (`{ "template": "carousel", "pages": [post, ...] }`, see
 [design.md](design.md), "Carousels of post pages"): a cover page, body pages and a closing page, 3 pages at least and at most
@@ -173,6 +174,8 @@ The request carries `design: { direction, template: 'post', kinds }`, built in `
 (a kind with no composition in the direction is not offered, and is rejected if used), its `required` fields, the fields its
 compositions draw, and for each text the hard `max` and the `budget` (the most the direction's compositions are drawn for; with no
 `variant` the engine may pick any composition of the kind, so the budget is the smallest one). Items carry `min`, `max`, `chars`.
+For a look written as data the kinds come from the engine's `lookBrief` instead, and each kind also lists its `variants`
+(`variant`, `name`, `describe` and the variant's own `fields`).
 
 `prompts/draft.md` is one file; the parts that differ are between `<!-- if direction -->`, `<!-- else -->` and `<!-- end -->`
 lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-14`, serves both kinds of brand and a brand without a
@@ -182,14 +185,18 @@ that carries the post a `photo`; a house line a `quote`; otherwise a `statement`
 for 45, one `*emphasis*` phrase of 1 to 4 words never the whole line, `sub` adds a fact and never repeats the headline, `label` 1 or
 2 words, `big` as people say it with its sign or unit and `unit` what it counts, `items` parallel in grammar and length, `meta` as
 "12 Dec · 6pm · Place", `tag` at most 2 words or a price); vary the kinds (at least three kinds in five or more posts, never the same
-kind three posts running); use each picture once; do not set `variant`. All rules about sources, numbers, dates, networks and
+kind three posts running); use each picture once; set `variant` only where the kind lists `variants` (a look written as data
+does: each variant has a name, a `describe` and its own fields and `max`, and the model picks one by its `describe` and writes to
+its limits). All rules about sources, numbers, dates, networks and
 currency stay.
 
 What `postcheck.mjs` adds for a `post` design: the template must be `post` (a direction-less brand refuses `post` and keeps
 the old behaviour); the engine's own `postDesignProblems` with the brand's direction; the kind must be one the direction draws; only
 fields that kind's compositions draw (a `statement` with an `image` is refused); every text within its budget, with the problem
 stated as "headline is 62 characters; ... draws at most 60. Shorten it to about 45"; one emphasis phrase, 1 to 4 words, not the
-whole text, and asterisks only in `headline` and `quote`; a `variant` is removed and reported as a repair; the picture of any
+whole text, and asterisks only in `headline` and `quote`; a `variant` is removed and reported as a repair when the kind lists
+no variants (a code direction), and otherwise must be one the kind lists, the post then held to that variant's own fields and
+budgets; the picture of any
 post is a vault `photo` item; numbers in `big`, `unit`, `meta`, `tag`, `items` and the other image texts must be in the cited
 items; and the same kind may not make three posts in a row by date (the third is rejected, `ctx.kinds`). With a look written as data
 (`draft-14`): `[[pill]]` words and `{{icon}}` marks in the headline only where a design of the kind draws them (the brief's headline lists

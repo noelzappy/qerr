@@ -1,7 +1,10 @@
 // Shared test helpers. Every test file that needs the app, the database or a signed-in user uses these.
 //
-//   const t = await createTestApp();            // once per file: migrates the test database if needed
+//   const t = await createTestApp();            // once per file: migrates the test database if needed and empties it
 //   beforeEach(() => t.reset());                // empties every table (not pg-boss, not the migrations table)
+//
+// createTestApp empties every table too, so a file never sees rows an earlier file left behind (a saved brand, say, which
+// /api/app and the renderer would then use in place of the configured pack).
 //   afterAll(() => t.close());
 //
 //   const admin = await t.createUser('admin');  // { id, email, password, role }
@@ -123,6 +126,7 @@ export interface FetchCall {
 
 export async function createTestApp(options: { config?: Record<string, string | undefined>; webDir?: string } = {}) {
   await ensureTestDatabase();
+  await truncateAll();
   const config = testConfig(options.config);
   const prisma = createPrisma(config.databaseUrl);
   const mailer = createFakeMailer(true);
