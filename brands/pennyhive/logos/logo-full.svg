@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1921" height="338" viewBox="0 0 1921 338" role="img" aria-label="Pennyhive">
+  <polygon points="169,30.4 289,99.7 289,238.3 169,307.6 49,238.3 49,99.7" fill="#0B3B34" stroke="#0B3B34" stroke-width="47.3" stroke-linejoin="round"/>
+  <circle cx="169" cy="169" r="69.3" fill="#F2A541"/>
+  <circle cx="169" cy="169" r="42.3" fill="none" stroke="#0F6E60" stroke-width="11.5"/>
+  <line x1="394" y1="299" x2="394" y2="119" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="452" cy="177" r="58" fill="none" stroke="#0B3B34" stroke-width="34"/>
+  <line x1="582" y1="177" x2="698" y2="177" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <path d="M683.1 215.8 A58 58 0 1 1 698 177" fill="none" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <line x1="770" y1="235" x2="770" y2="119" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <path d="M770 177 A58 58 0 0 1 886 177" fill="none" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <line x1="886" y1="177" x2="886" y2="235" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <line x1="958" y1="235" x2="958" y2="119" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <path d="M958 177 A58 58 0 0 1 1074 177" fill="none" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <line x1="1074" y1="177" x2="1074" y2="235" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <line x1="1146" y1="119" x2="1204" y2="235" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <line x1="1262" y1="119" x2="1172" y2="299" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <line x1="1334" y1="235" x2="1334" y2="47" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <path d="M1334 177 A58 58 0 0 1 1450 177" fill="none" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <line x1="1450" y1="177" x2="1450" y2="235" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <line x1="1522" y1="235" x2="1522" y2="119" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="1522" cy="52" r="19" fill="#0B3B34"/>
+  <line x1="1594" y1="119" x2="1652" y2="235" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <line x1="1652" y1="235" x2="1710" y2="119" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <line x1="1782" y1="177" x2="1898" y2="177" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+  <path d="M1883.1 215.8 A58 58 0 1 1 1898 177" fill="none" stroke="#0B3B34" stroke-width="34" stroke-linecap="round"/>
+</svg>
