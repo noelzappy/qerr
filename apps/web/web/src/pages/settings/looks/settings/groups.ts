@@ -12,7 +12,7 @@ export const GROUPS: SettingsGroup[] = [
     nodes: ['fonts.display', 'fonts.text', 'fonts.label', 'fonts.mono', 'type.body', 'type.item', 'type.label', 'type.numeral'], controls: ['pairing'] },
   { id: 'voice', title: 'Headline voice', hint: 'How headlines are set: how heavy, capitals or as typed, and how tightly the lines sit.', nodes: ['type.display'], controls: ['weight', 'case', 'spacing'] },
   { id: 'feel', title: 'Feel', hint: 'Three dials that adjust the whole look at once.', nodes: ['dials'], controls: [] },
-  { id: 'colour', title: 'Colour', hint: 'How your brand colours are used on a page.', nodes: ['colour'], controls: ['logic'] },
+  { id: 'colour', title: 'Colour', hint: 'How your brand colours are used on a page, and whether a page with a picture takes the picture\'s colour.', nodes: ['colour'], controls: ['logic', 'fromPicture'] },
   { id: 'space', title: 'Space', hint: 'The margins and the gap between columns.', nodes: ['canvas.feed.margin', 'canvas.feed.grid.cols', 'canvas.feed.grid.gutter'], controls: ['space'] },
   { id: 'pictures', title: 'Pictures', hint: 'How photographs are treated.', nodes: ['photo'], controls: ['treat'] },
   { id: 'logo', title: 'Logo', hint: 'Whether the brand logo is placed, and how big.', nodes: ['logo'], controls: ['logo', 'logoSize'] },

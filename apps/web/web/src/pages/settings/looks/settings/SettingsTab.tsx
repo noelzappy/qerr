@@ -16,7 +16,7 @@ import type { Json } from '../look-types';
 import { lookApi } from '../looks-api';
 import { CardChoice, ColourDiagram, CustomChip, LogoDiagram, NEUTRAL_COLOURS, PictureThumb, Segmented, SpaceDiagram, type BrandColours } from './controls';
 import { assignNodes, changedCount, DETAILS_TEXT, GROUPS, groupOfPath, leafCount, resetNodes, type GroupId, type SettingsGroup } from './groups';
-import { accentAsType, accentSwitchRelevant, choose, CONTROLS, detect, hasGrain, LOGO_SIZES, OWN_FONT, pairingName, PAIRINGS, setGrain, SPACES, TREATS, LOGICS, type PresetCtx } from './presets';
+import { accentAsType, accentSwitchRelevant, choose, CONTROLS, detect, hasGrain, LOGO_SIZES, OWN_FONT, pairingName, PAIRINGS, setGrain, SPACES, TREATS, LOGICS, FROM_PICTURE, type PresetCtx } from './presets';
 import { cardFontFamily, ensureFamily } from './load-fonts';
 import { syncWeights } from './weights';
 import { FINE_LAYOUT, fineAvailable, WEIGHTS_CONTROL, type FineCtx } from './fine-controls';
@@ -88,7 +88,7 @@ export function SettingsTab({ ctx, comps, originRef, saved, onLook }: SettingsTa
   const setPath = (path: string, value: unknown) => commit(writeSetting(look, cat.sections, path, value));
   const state = (control: string) => ({ options: CONTROLS[control]!.options(preset, look), value: detect(control, look, preset) });
 
-  const logicDesc = cat.sections.colour?.props?.accentAsType;
+  const logicDesc = cat.sections.colour?.props?.accentAsType, fromPictureDesc = cat.sections.colour?.props?.fromPicture;
   const tint = brand.colours.primary;
 
   const body = (g: SettingsGroup): ReactNode => {
@@ -146,13 +146,14 @@ export function SettingsTab({ ctx, comps, originRef, saved, onLook }: SettingsTa
           </div>
         );
       case 'colour': {
-        const { value } = state('logic');
+        const { value } = state('logic'), page = state('fromPicture');
         return (
           <Row>
             {value === null && <div><CustomChip /></div>}
             <CardChoice legend="Colour" value={value} disabled={ctx.disabled} onChange={(id) => pick('logic', id)} className="grid-cols-3"
               options={LOGICS.map((o) => ({ id: o.id, label: o.label, preview: <ColourDiagram kind={o.id} c={brand.colours} mix={mix} /> }))} />
             {logicDesc && accentSwitchRelevant(look) && <SwitchField label="Use the accent colour for large words" checked={accentAsType(look)} disabled={ctx.disabled} onCheckedChange={(on) => setPath('colour.accentAsType', on ? 'when-contrast' : 'never')} />}
+            {fromPictureDesc && <Row label="Page colour from the picture" chip={page.value === null}><Segmented legend="Page colour from the picture" options={FROM_PICTURE} value={page.value} disabled={ctx.disabled} onChange={(id) => pick('fromPicture', id)} /></Row>}
           </Row>
         );
       }

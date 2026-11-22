@@ -61,6 +61,20 @@ describe('presets on the shipped looks', () => {
     expect(detect('space', r, ctxFor('retail'))).toBe('standard');
   });
 
+  it('shows the page colour from the picture under Colour: Clean and Soft take the picture\'s, Retail the brand\'s', () => {
+    expect(GROUPS.find((g) => g.id === 'colour')!.controls).toContain('fromPicture');
+    expect(CONTROLS.fromPicture!.options(ctxFor('retail'), {}).map((o) => o.id)).toEqual(['brand', 'auto', 'picture']);
+    const ctxOf = (n: string): PresetCtx => ({ sections: cat.sections, fonts, baseline: settingsOf(shipped(n)), ownFonts: true });
+    expect(detect('fromPicture', settingsOf(shipped('retail')), ctxOf('retail'))).toBe('brand');
+    for (const n of ['clean', 'soft']) {
+      const look = settingsOf(shipped(n));
+      expect(detect('fromPicture', look, ctxOf(n))).toBe('picture');
+      const next = choose('fromPicture', 'brand', look, ctxOf(n));
+      expect(getAt(next, 'colour.fromPicture')).toBe('brand');
+      expect(diff(look, next)).toEqual(['colour.fromPicture']);
+    }
+  });
+
   it('shows Custom (null) when the values fit no option, and never snaps them', () => {
     const look = settingsOf(shipped('retail'));
     const odd = JSON.parse(JSON.stringify(look)) as Json;

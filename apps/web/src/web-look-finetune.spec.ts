@@ -46,9 +46,9 @@ describe('the grouped controls of Fine-tune', () => {
     expect(Object.keys(FINE_CONTROLS).sort()).toEqual(all.filter((x) => x !== WEIGHTS_CONTROL).sort());
   });
 
-  it('keep every value of every group countable under Exact values: 69 in all, as the catalogue has', () => {
+  it('keep every value of every group countable under Exact values: 70 in all (colour.fromPicture is the 70th), as the catalogue has', () => {
     const assignment = assignNodes(cat.sections);
-    expect(GROUPS.reduce((n, g) => n + leafCount(cat.sections, assignment[g.id]), 0)).toBe(69);
+    expect(GROUPS.reduce((n, g) => n + leafCount(cat.sections, assignment[g.id]), 0)).toBe(70);
   });
 
   for (const name of NAMES) {

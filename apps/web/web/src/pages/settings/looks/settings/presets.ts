@@ -131,6 +131,15 @@ const logic: Control = {
   matches: (id, look) => getAt(look, 'colour.logic') === id,
   write: (id, look, ctx) => put(look, ctx, 'colour.logic', id),
 };
+// Where a page with a picture takes its colour (colour.fromPicture): the brand's, the picture's background when it is plain enough, or the
+// picture's background whenever it has one. The engine still keeps the brand's colour when no type reads on the picture's.
+export const FROM_PICTURE = [{ id: 'brand', label: 'Brand colour' }, { id: 'auto', label: 'Picture, when plain' }, { id: 'picture', label: 'Picture' }];
+const fromPicture: Control = {
+  id: 'fromPicture', owns: ['colour.fromPicture'],
+  options: () => FROM_PICTURE,
+  matches: (id, look) => (getAt(look, 'colour.fromPicture') ?? 'brand') === id,
+  write: (id, look, ctx) => put(look, ctx, 'colour.fromPicture', id),
+};
 // The switch under the colour cards is useful only where an accent colour exists to use.
 export const accentSwitchRelevant = (look: Json): boolean => getAt(look, 'colour.logic') !== 'tonal';
 export const accentAsType = (look: Json): boolean => getAt(look, 'colour.accentAsType') === 'when-contrast';
@@ -188,7 +197,7 @@ const logoSize: Control = {
   write: (id, look, ctx) => put(look, ctx, 'logo.height', LOGO_SIZES.find((s) => s.id === id)!.at),
 };
 
-export const CONTROLS: Record<string, Control> = { pairing, weight, case: caseControl, spacing, logic, space, treat, logo, logoSize };
+export const CONTROLS: Record<string, Control> = { pairing, weight, case: caseControl, spacing, logic, fromPicture, space, treat, logo, logoSize };
 
 // The id of the option the look's values match now; null: Custom (the values fit none of the options).
 export function detect(controlId: string, look: Json, ctx: PresetCtx): string | null {
