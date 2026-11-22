@@ -222,8 +222,10 @@ with a honey accent, Hanken Grotesk with JetBrains Mono, and `style.direction` s
 draws. Its `vault.json` holds invented facts with round, illustrative figures; its `map.json` is an invented coastline.
 `brands/pennyhive/make-assets.mjs` draws its logos (`logos/*.svg` as the source and the `logos/*.png` the engine reads)
 and the map with the standard library only, no Chrome. It draws no pictures of its own: its example batch,
-`brands/pennyhive/batches/example-posts.json` (seven `post` designs, one per kind), uses the demo pictures above. Use it
-with `BRAND_DIR=brands/pennyhive`; `test-brand-pennyhive.mjs` keeps the pack and its batch valid. The demo stays the
+`brands/pennyhive/batches/example-posts.json` (seven `post` designs, one per kind), uses the demo pictures above;
+`batches/example-ledger.json` (eleven posts with a five-page how-it-works carousel, for the shipped Ledger look) uses them and
+three photos recorded in `packages/engine/design/assets/photos/CREDITS.md` (not committed: put them there before rendering). Use it
+with `BRAND_DIR=brands/pennyhive`; `test-brand-pennyhive.mjs` keeps the pack and both batches valid. The demo stays the
 default and the pack every test and example uses.
 
 **Starting your own pack.**
@@ -391,8 +393,8 @@ The engine tests, in `packages/engine/`:
 - `test-design-security.mjs`: hostile text in every field of every template stays inert; the page's
   Content-Security-Policy and request blocking.
 - `test-brand-pack.mjs`: `BRAND_DIR`, the demo pack and the brand file's optional fields.
-- `test-brand-pennyhive.mjs`: the Pennyhive pack loads, its spelling rules hold, and its example batch passes the post
-  checks in its direction.
+- `test-brand-pennyhive.mjs`: the Pennyhive pack loads, its spelling rules hold, its example batch passes the post
+  checks in its direction and its Ledger batch those of the shipped Ledger look.
 
 The AI tests are in `packages/ai/test-ai.mjs` (fake fetch, no network), the export tests in
 `scripts/test-export-public.mjs`, and the web app's specs in `apps/web/src/**/*.spec.ts`.
