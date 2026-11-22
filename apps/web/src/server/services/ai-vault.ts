@@ -51,8 +51,9 @@ export function vaultForAi(item: VaultItem, now: Date): Json {
   };
 }
 
-// Turns the made-up photo paths in a drafted design (and its carousel pages) into `vaultItemId`. Returns the design and
-// the ids it uses. Any other picture path is left alone: the app's own design check decides about it.
+// Turns the made-up photo paths in a drafted design (its carousel pages, and the gallery pictures and avatar of a post or
+// post page) into `vaultItemId`. Returns the design and the ids it uses. Any other picture path is left alone: the app's own
+// design check decides about it.
 export function linkVaultPhotos(design: unknown): { design: unknown; photoIds: string[] } {
   const ids = new Set<string>();
   const walk = (node: Json): Json => {
@@ -60,6 +61,8 @@ export function linkVaultPhotos(design: unknown): { design: unknown; photoIds: s
     const m = typeof out.image === 'string' ? SYNTHETIC.exec(out.image) : null;
     if (m) { out.vaultItemId = m[1]!.toLowerCase(); ids.add(m[1]!.toLowerCase()); }
     if (Array.isArray(out.pages)) out.pages = out.pages.map((p) => (isObj(p) ? walk(p) : p));
+    if (out.template === 'post' && Array.isArray(out.gallery)) out.gallery = out.gallery.map((g) => (isObj(g) ? walk(g) : g));
+    if (out.template === 'post' && isObj(out.avatar)) out.avatar = walk(out.avatar);
     return out;
   };
   return { design: isObj(design) ? walk(design) : design, photoIds: [...ids] };
