@@ -23,6 +23,8 @@ export const ICONS = Object.freeze({
   user: { label: 'Person', d: 'M12 3a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zm0 10.5c4.4 0 8 2.2 8 5V21H4v-2.5c0-2.8 3.6-5 8-5z' },
   play: { label: 'Play', d: 'M7 4v16l13-8z' },
   dot: { label: 'Dot', d: 'M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10z' },
+  // a bowl of rice with chopsticks (the sticker of a food post): the shapes never overlap, so the even-odd fill leaves no hole
+  bowl: { label: 'Bowl of rice', d: 'M5 9.5a7 3.5 0 0 1 14 0zM3 10.5h18a9 8.5 0 0 1-18 0zM9 19.4h6V21H9zM15.6 4.4 21.6.4l.8 1.2-6 4zM17.2 5.6 22.9 2.2l.7 1.2-5.7 3.4z' },
 });
 export const ICON_NAMES = Object.freeze(Object.keys(ICONS));
 // What a path may hold: SVG path commands and numbers only (test-design-look-parts.mjs holds every entry to it).
