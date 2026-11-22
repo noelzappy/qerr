@@ -11,7 +11,7 @@ import { loadBrand } from './lib/design/brand.mjs';
 import { renderPostWithLook, shippedLooks } from './lib/design/directions/index.mjs';
 import { Browser, findChrome } from './lib/design/chrome.mjs';
 import { buildPage } from './lib/design/page.mjs';
-import { preparePage } from './lib/design/render.mjs';
+import { preparePage, renderImage } from './lib/design/render.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { normaliseDesign } from './lib/design/spec.mjs';
 import { decodePng } from './testlib/png.mjs';
@@ -74,5 +74,25 @@ test('with Chrome: the ink of the full stop starts within 0.04 em of the pill, o
       const gap = (ink - m.right) / m.fs;
       assert.ok(gap >= 0 && gap <= 0.04, `${c[0]}: the full stop's ink starts ${gap.toFixed(3)} em after the pill (0 to 0.04)`);
     }
+  } finally { browser.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('with Chrome: words on an outline pill are judged inside its ring, never on the ring drawn in their own colour (loud Shout)', { skip: chrome ? false : 'Google Chrome was not found' }, async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-pill-ring-'));
+  const browser = await Browser.launch({ chromePath: chrome });
+  try {
+    const brand = brandFor('loud'), spec = normaliseDesign({ template: 'post', kind: 'statement', variant: 0, name: 'ring', ...LOUD['loud/statement/0'] });
+    assert.match(spec.headline, /\[\[/, 'the shout headline has a pill');
+    const r = await renderImage(browser, brand, { spec, sizeName: 'feed', outFile: path.join(tmp, 'ring.png') }, { tmpDir: tmp });
+    assert.deepEqual(r.warnings, []);
+    const { S, out } = preparePage(brand, { spec, sizeName: 'feed' });
+    const page = await browser.page(S.w, S.h);
+    await page.setContent(buildPage({ brand, size: S, ...out }));
+    await page.evaluate('window.__ds.ready({})');
+    await page.evaluate('window.__ds.fitLines()');
+    const m = await page.evaluate(`(() => { const pl = document.querySelector('.k-pl-line'), b = pl.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, ring: parseFloat(getComputedStyle(pl).boxShadow.replace(/rgba?\\([^)]*\\)/g, '').match(/[\\d.]+px/g)[3]) }; })()`);
+    const accent = (await page.evaluate('window.__ds.measure()')).roles.find((x) => x.role === 'accent');
+    assert.ok(m.ring > 2, `an outline pill (${m.ring} px ring)`);
+    for (const q of accent.rects) assert.ok(q.y0 >= m.top + m.ring && q.y1 <= m.bottom - m.ring, 'the words are read inside the ring');
   } finally { browser.close(); fs.rmSync(tmp, { recursive: true, force: true }); }
 });

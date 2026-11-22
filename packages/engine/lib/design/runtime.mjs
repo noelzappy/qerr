@@ -682,8 +682,12 @@ window.__ds = {
       // the words of a headline pill (.k-pl) are judged on the pill they sit on: a face with a tall ascent and descent (Anton) has a text
       // rectangle taller than the pill, whose edges would otherwise read the page round the pill as the words' background
       if (el.parentElement && el.parentElement.classList.contains('k-pl')) {
-        const p = el.parentElement.getBoundingClientRect();
-        for (const r of rs) { r.y0 = Math.max(r.y0, p.top); r.y1 = Math.min(r.y1, p.bottom); r.x0 = Math.max(r.x0, p.left); r.x1 = Math.min(r.x1, p.right); }
+        // ... inside the pill's own ring: an outline pill (k-pl-line) draws its ring as an inset shadow in the words' own colour, which is
+        // the pill's edge, not the words' background (the widest inset spread, and a pixel for its soft edge)
+        const p = el.parentElement.getBoundingClientRect(), sh = getComputedStyle(el.parentElement).boxShadow || '';
+        let ring = 0; for (const part of sh.split(/,(?![^(]*\))/)) if (/\binset\b/.test(part)) { const n = part.replace(/rgba?\([^)]*\)/g, '').match(/-?[\d.]+px/g); if (n && n.length >= 4) ring = Math.max(ring, parseFloat(n[3]) || 0); }
+        const k = ring > 0 ? ring + 1 : 0;
+        for (const r of rs) { r.y0 = Math.max(r.y0, p.top + k); r.y1 = Math.min(r.y1, p.bottom - k); r.x0 = Math.max(r.x0, p.left + k); r.x1 = Math.min(r.x1, p.right - k); }
         return rs.filter((r) => r.x1 - r.x0 > 1 && r.y1 - r.y0 > 1);
       }
       return rs;

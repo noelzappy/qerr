@@ -1561,8 +1561,8 @@ the contrast targets; inline stickers are the engine's icons, not pictures.
 The bold emphasis (`.k-em-b em`, weight 800) needs a text font that has the weight (a variable family such as Hanken Grotesk, Archivo or Inter);
 on a static family the browser draws a synthetic bold. A `text` in the display style now takes its `font` (it was ignored before; the swiss quote,
 the one shipped use, names the same family for both roles). The page judges the words in a pill on the part of their text box that lies on the pill
-(a display face with a tall ascent and descent, such as Anton, has a text box taller than its pill), so the page round the pill is never read as their
-background; a pill's padding covers the whole height of its words, so nothing of them is left unmeasured. A phrase on a highlight bar is judged on the
+(a display face with a tall ascent and descent, such as Anton, has a text box taller than its pill), and inside its ring when the pill is an outline
+(the ring is drawn in the words' own colour), so neither the page round the pill nor its ring is read as their background; a pill's padding covers the whole height of its words, so nothing of them is left unmeasured. A phrase on a highlight bar is judged on the
 middle band of its line, the band the bar covers.
 
 **Ledger** (`ledger.look.json`) is a modern fintech look, in the manner of today's neobank, payment and savings apps (no brand copied): deep pages lit by a
