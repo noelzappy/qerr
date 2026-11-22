@@ -18,7 +18,7 @@ import { ROOT } from './lib/core.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { KIND_FIELDS } from './lib/design/look-elements.mjs';
 import { lookCatalogue, lookBrief, validateLook } from './lib/design/look.mjs';
-import { renderPostWithLook, shippedLooks } from './lib/design/directions/index.mjs';
+import { postCompositionDevice, postKinds, renderPostWithLook, shippedLooks } from './lib/design/directions/index.mjs';
 import { validateDesign, normaliseDesign, forSize } from './lib/design/spec.mjs';
 import { DEVICE_TILT, MODELS, deviceGeometry, screenFit } from './lib/design/directions/primitives/device.mjs';
 import { Browser, findChrome } from './lib/design/chrome.mjs';
@@ -245,6 +245,14 @@ test('the shipped looks: ledger and soft offer the avatar, ledger\'s phone page 
   assert.ok(/k-avatar/.test(q({ avatar: { image: JAR }, gallery: pics })) && !/k-round/.test(q({ avatar: { image: JAR }, gallery: pics })), 'the avatar wins');
   assert.ok(!/k-avatar/.test(q({ gallery: pics })) && /k-round/.test(q({ gallery: pics })));
   assert.deepEqual(validateDesign({ template: 'post', kind: 'quote', quote: 'We just look.', avatar: { image: JAR } }, 'd', { look: L }), []);
+  // the brief and the hooks say which variant draws a device, so the app and the AI can send a screenshot only there
+  assert.deepEqual(lookBrief(L).kinds.photo.variants.map((v) => v.device ?? null), ['phone', null]);
+  assert.deepEqual(postKinds({ ...ctx.brand, looks: [L], style: { ...ctx.brand.style, direction: L.id } }).photo.variants.map((v) => v.device ?? null), ['phone', null]);
+  assert.deepEqual(postCompositionDevice(L, { template: 'post', kind: 'photo', variant: 0, headline: 'x', image: 'a.png' }), { kind: 'photo', variant: 0, name: 'Phone', device: 'phone' });
+  assert.equal(postCompositionDevice(L, { template: 'post', kind: 'photo', variant: 1, headline: 'x', image: 'a.jpg' }).device, null);
+  assert.equal(postCompositionDevice(L, { template: 'post', kind: 'nope' }), null);
+  const tab = picturesLook({ device: { model: 'tablet', cutout: 'none' } });
+  assert.equal(lookBrief(tab).kinds.photo.variants[0].device, 'tablet');
 });
 
 // ---- 8. Chrome ----

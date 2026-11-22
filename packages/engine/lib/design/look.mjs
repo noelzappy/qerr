@@ -126,9 +126,26 @@ export function lookBrief(look) {
       const max = isObj(f) && f.max !== undefined ? f.max : Object.hasOwn(POST_LISTS, name) ? POST_LISTS[name].max : POST_FIELDS[name]?.max;
       fields[name] = { required, ...(max !== undefined ? { max } : {}), ...(Object.hasOwn(POST_LISTS, name) && isObj(f) && f.min !== undefined ? { min: f.min } : {}) };
     }
-    entry.variants.push({ index: entry.variants.length, name: c.name, describe: c.describe, fields, accepts: clone(Array.isArray(c.accepts) ? c.accepts : []) });
+    const device = compositionDevice(c);
+    entry.variants.push({ index: entry.variants.length, name: c.name, describe: c.describe, fields, accepts: clone(Array.isArray(c.accepts) ? c.accepts : []), ...(device ? { device } : {}) });
   }
   return { id: look?.id, name: look?.name, kinds };
+}
+
+// ---- the device a composition draws round its picture ----
+// 'phone' or 'tablet' when one of its elements (at any depth) is a device: its picture is then a screenshot (a bare one, the device drawn round it,
+// or a capture with the device already drawn); null when it draws none. Read from the look as written.
+export function compositionDevice(comp) {
+  let out = null;
+  const walk = (list) => {
+    for (const el of Array.isArray(list) ? list : []) {
+      if (out || !isObj(el)) continue;
+      if (el.type === 'device') { out = el.model === 'tablet' ? 'tablet' : 'phone'; return; }
+      walk(el.children);
+    }
+  };
+  walk(comp?.elements);
+  return out;
 }
 
 // ---- brand graphics a composition places ----

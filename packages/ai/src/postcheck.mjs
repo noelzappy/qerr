@@ -23,7 +23,7 @@ const IMAGE_KIND = { product: 'screen', object: 'photo', number: 'photo', photo:
 const ID_OK = /^[A-Za-z0-9._-]+$/;
 const DATE_OK = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_OK = /^([01]\d|2[0-3]):[0-5]\d$/;
-const IMAGE_KEEP = new Set(['image', 'template', 'series', 'ground', 'accent', 'tick', 'layout', 'name', 'statusFill', 'kind', 'textAt', 'scrim', 'key']);
+const IMAGE_KEEP = new Set(['image', 'template', 'series', 'ground', 'accent', 'tick', 'layout', 'name', 'statusFill', 'kind', 'textAt', 'scrim', 'key', 'focal']);
 const len = (s) => [...s].length;
 const hashtags = (t) => (t.match(/(^|\s)#[\p{L}\p{N}_]+/gu) ?? []).length;
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
@@ -101,12 +101,19 @@ function templateProblems(design, ctx) {
 function imageKindProblems(design, ctx) {
   const pages = design.template === 'carousel' && Array.isArray(design.pages) ? design.pages.map((p, i) => [p, `carousel page ${i + 1}: `]) : [[design, '']];
   const out = [];
-  // the pictures of a post's row of round pictures are photos
-  if (design.template === 'post' && Array.isArray(design.gallery)) design.gallery.forEach((g, i) => {
-    const item = vaultItemOf(g?.image, ctx);
-    if (item && MEDIA_KINDS.includes(item.kind) && item.kind !== 'photo') out.push(`gallery[${i}] needs a vault photo, but ${item.id} is a ${item.kind}; pick a photo item instead`);
-  });
   for (const [p, at] of pages) {
+    // the pictures of a post's row of round pictures, and its one portrait picture (avatar), are photos
+    if (p?.template === 'post' && Array.isArray(p.gallery)) p.gallery.forEach((g, i) => {
+      const item = vaultItemOf(g?.image, ctx);
+      if (item && MEDIA_KINDS.includes(item.kind) && item.kind !== 'photo') out.push(`${at}gallery[${i}] needs a vault photo, but ${item.id} is a ${item.kind}; pick a photo item instead`);
+    });
+    if (p?.template === 'post' && isObj(p.avatar)) {
+      const item = vaultItemOf(p.avatar.image, ctx);
+      if (item && MEDIA_KINDS.includes(item.kind) && item.kind !== 'photo') out.push(`${at}avatar needs a vault photo, but ${item.id} is a ${item.kind}; pick a photo item instead`);
+    }
+    if (p?.template === 'post' && isObj(p.avatar) && Array.isArray(p.gallery)) out.push(`${at}a post has one portrait picture (avatar) or a row of pictures (gallery), not both; keep the one that suits it`);
+    // a look's post: a screen only on a variant that draws a phone round it (named), never a desktop screenshot; a photo never on one
+    if (p?.template === 'post' && ctx.direction) { out.push(...postScreenProblems(p, at, ctx)); continue; }
     const want = p?.template === 'layout' ? layoutImageKind(ctx.layouts?.find((l) => l.id === p.layout)) : IMAGE_KIND[p?.template], item = vaultItemOf(p?.image, ctx);
     if (!want || !item || !MEDIA_KINDS.includes(item.kind)) continue;
     if (item.kind !== want) {
@@ -114,13 +121,35 @@ function imageKindProblems(design, ctx) {
       continue;
     }
     const device = item.kind === 'screen' ? screenDeviceOf(p, ctx.layouts) : null;
-    if (device && ['phone', 'desktop'].includes(item.framing) && item.framing !== device) {
+    // (a bare phone screenshot is a plain screenshot to a layout: a phone layout takes only a capture with the phone drawn round it)
+    const framing = item.framing === 'phone-bare' ? 'desktop' : item.framing;
+    if (device && ['phone', 'desktop'].includes(framing) && framing !== device) {
       out.push(device === 'phone'
         ? `${at}${p.template === 'layout' ? `layout "${p.layout}"` : p.template} shows a pre-framed phone capture, but ${item.id} is a desktop screenshot (no phone around it); pick a screen item marked "phone screen, framed", or a layout whose picture is a desktop screenshot`
         : `${at}layout "${p.layout}" shows a desktop screenshot, but ${item.id} is a pre-framed phone capture; pick a screen item marked "desktop screenshot", or a layout or template that shows a phone`);
     }
   }
   return out;
+}
+
+// The picture of a post drawn by a look: a screen item goes only on a variant that draws a device (named with `variant`, since another variant
+// would show it as a flat picture), and never a desktop screenshot; a photo never goes on a device variant.
+function postScreenProblems(p, at, ctx) {
+  const item = vaultItemOf(p.image, ctx);
+  if (!item || !MEDIA_KINDS.includes(item.kind)) return [];
+  const vs = kindBrief(ctx.direction, p.kind, ctx.brand)?.variants ?? [];
+  const named = Number.isInteger(p.variant) ? vs[p.variant] : undefined;
+  const drawing = vs.filter((v) => v.device);
+  if (item.kind === 'screen') {
+    if (!drawing.length) return [`${at}${item.id} is a screen, and no ${p.kind} design of this look draws a phone round a screenshot; pick a photo item instead`];
+    if (!named || !named.device) return [`${at}${item.id} is a screen: name the variant that draws a phone round it (${drawing.map((v) => `variant ${v.variant}, ${v.name}`).join('; ')})`];
+    if (item.framing === 'desktop') return [`${at}${item.id} is a desktop screenshot, but the ${named.name} variant draws a ${named.device} round a ${named.device} screenshot; pick a screen item marked "phone screenshot, no frame" or "phone screen, framed"`];
+    return [];
+  }
+  if (named?.device) return [`${at}the ${named.name} variant draws a ${named.device} round a screenshot of the app; ${item.id} is a ${item.kind}. Pick a screen item, or another variant`];
+  // with no variant named the look may choose one that draws a device, so a photo names a variant that shows it as a photo
+  if (!named && drawing.length) return [`${at}a ${p.kind} post with a photo names its variant here (some ${p.kind} designs draw a phone round a screenshot): use ${vs.filter((v) => !v.device).map((v) => `variant ${v.variant}, ${v.name}`).join('; ') || 'another kind'}`];
+  return [];
 }
 
 // The most pages a carousel may have for these channels: the fewest images any of them takes in one post (Instagram 10, X 4).
@@ -132,7 +161,7 @@ export const kindOfDesign = (d) => (d?.template === 'carousel' ? 'carousel' : d?
 // (a post's row of round pictures counts too, each picture after the post's own)
 function imageIdsOf(design, ctx) {
   const pages = design.template === 'carousel' && Array.isArray(design.pages) ? design.pages : [design];
-  return pages.flatMap((p) => [p?.image, ...(Array.isArray(p?.gallery) ? p.gallery.map((g) => g?.image) : [])]).map((im) => vaultItemOf(im, ctx)?.id).filter(Boolean);
+  return pages.flatMap((p) => [p?.image, ...(Array.isArray(p?.gallery) ? p.gallery.map((g) => g?.image) : []), ...(isObj(p?.avatar) ? [p.avatar.image] : [])]).map((im) => vaultItemOf(im, ctx)?.id).filter(Boolean);
 }
 
 // Pictures must not repeat inside a post or across the batch, and must not show foreign money.

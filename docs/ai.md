@@ -135,12 +135,17 @@ refuse. The rule is applied twice, in the library so every caller gets it (`unus
   still to be confirmed"). The post is redrafted or reported like any other rejection. These used to be warnings; there is no
   longer a warning for an unconfirmed or stale source or an unconfirmed picture.
 
-`framing` (screens only) is `"phone"` for a pre-framed phone capture (transparent, the phone already drawn around the screen) or
-`"desktop"` for a plain screenshot; leave it out when unknown. The web app works it out from the stored file with the engine's own
+`framing` (screens only) is `"phone"` for a pre-framed phone capture (transparent, the phone already drawn around the screen),
+`"phone-bare"` for a plain portrait screenshot of a phone (no transparency, 1.6 to 2.4 times as tall as it is wide: a look's `device`
+draws the phone round it) or `"desktop"` for any other plain screenshot; leave it out when unknown. The web app works it out from the stored file with the engine's own
 test (`hasAlpha` in `design/assets.mjs`, the one the renderer applies before it will put a picture in a phone layout) when the file
-is uploaded. The model sees it as `screenKind` (`phone screen, framed` or `desktop screenshot`), and `postcheck.mjs` rejects a
-post that puts a desktop screenshot in a phone layout (`product`, or a brand layout whose screen block is a phone) or a phone
-capture in a desktop screen block, with the reason fed back to the model. There is no repair: no template the drafter may use
+is uploaded (the web app reads `phone-bare` from the stored width and height). The model sees it as `screenKind` (`phone screen,
+framed`, `phone screenshot, no frame` or `desktop screenshot`), and `postcheck.mjs` rejects a post that puts a plain screenshot (a
+bare phone one included) in a phone layout (`product`, or a brand layout whose screen block is a phone) or a phone capture in a
+desktop screen block, with the reason fed back to the model. With a look, screens are offered only when one of its variants
+draws a `device` (the brief's variant says `device: "phone"` or `"tablet"`), and never a desktop screenshot: a screen goes only
+in a variant that draws a device, named with `variant`; a photo never goes in one, and a photo post of a kind that has one names
+its variant (else the look might choose the device). There is no repair: no template the drafter may use
 takes the other kind of picture with the same fields.
 
 ## The brand's own layouts
@@ -178,7 +183,7 @@ For a look written as data the kinds come from the engine's `lookBrief` instead,
 (`variant`, `name`, `describe` and the variant's own `fields`).
 
 `prompts/draft.md` is one file; the parts that differ are between `<!-- if direction -->`, `<!-- else -->` and `<!-- end -->`
-lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-14`, serves both kinds of brand and a brand without a
+lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-15`, serves both kinds of brand and a brand without a
 direction gets what it got under `draft-11`, except for the confirmed-only rule. The direction part teaches: choose the kind from
 the content (a number is a `figure`; steps or reasons a `list`; a date and place an `event`; a price or "new" an `offer`; a picture
 that carries the post a `photo`; a house line a `quote`; otherwise a `statement`); write to the budgets (headline at most 70, aim
@@ -199,11 +204,14 @@ no variants (a code direction), and otherwise must be one the kind lists, the po
 budgets; the picture of any
 post is a vault `photo` item; numbers in `big`, `unit`, `meta`, `tag`, `items` and the other image texts must be in the cited
 items; and the same kind may not make three posts in a row by date (the third is rejected, `ctx.kinds`). With a look written as data
-(`draft-14`): `[[pill]]` words and `{{icon}}` marks in the headline only where a design of the kind draws them (the brief's headline lists
+(since `draft-14`): `[[pill]]` words and `{{icon}}` marks in the headline only where a design of the kind draws them (the brief's headline lists
 `pills` / `icons`, with the icon names), `cta`, `info` (rows of a fixed label and a value) and `gallery` (vault photos with captions) only
 where the kind lists them, within each design's own counts and characters; the info values and picture names are image text, so their
-numbers are checked against the cited items like the others, and a gallery picture is a vault `photo` used once in the batch. `notes` gains `direction`
-and `kindMix`.
+numbers are checked against the cited items like the others, and a gallery picture is a vault `photo` used once in the batch. `draft-15` adds
+the `avatar`: one portrait picture of the person a quote is by (or an event's speaker), `{ "image": "vault:<id>", "focal"? }`, only where the
+kind lists it (the brief gives its `shape`). It is held to every rule of a picture: a vault `photo` (never a screen), confirmed, current,
+its rights settled and, when it shows identifiable people, their consent recorded (an item without it is never offered and is refused
+if named), used once in the batch with the other pictures; never with a `gallery`. `notes` gains `direction` and `kindMix`.
 
 ### Named series
 
@@ -279,7 +287,7 @@ number absent from the pages, or duplicate a vault item or an earlier candidate.
 ## Prompts
 
 `packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`. They are brand-neutral: they read the `brand` brief above.
-The first line is `<!-- version: draft-14 -->` (now `draft-14`, `rewrite-5`); the version is returned in `notes.promptVersion`. Change a prompt by editing
+The first line is `<!-- version: draft-15 -->` (now `draft-15`, `rewrite-5`); the version is returned in `notes.promptVersion`. Change a prompt by editing
 the file, bumping its version and reviewing the diff. Tests pin the versions' format only, not the wording.
 
 A brand pack can replace any of them with its own `prompts/<name>.md` (for example `brands/acme/prompts/draft.md`), with

@@ -11,6 +11,8 @@ export const LIST_SHAPES = {
   info: `[{ "key": one of ${INFO_KEYS.join(', ')} (each once), "value": one line }]`,
   gallery: '[{ "image": "vault:<id of a photo>", "caption": one line, optional (a name or a product) }]',
 };
+// What the one portrait picture of a quotation (or an event's speaker) looks like, for the model.
+export const AVATAR_SHAPE = '{ "image": "vault:<id of a photo>", "focal": optional, like "50% 30%" (the point the crop keeps) }';
 // Whether any composition of a kind in a look draws its headline's pills or icons (a headline text with `pills` / `icons`).
 function inlineOf(look, kind) {
   const out = { pills: false, icons: false };
@@ -72,6 +74,8 @@ function describeLook(look) {
     const fields = {};
     for (const f of names) {
       if (f === 'image' || f === 'focal' || f === 'zoom') { fields[f] = {}; continue; }
+      // the one portrait picture of a quotation: a vault photo, cropped by the look
+      if (f === 'avatar') { fields[f] = { shape: AVATAR_SHAPE }; continue; }
       const have = vs.filter((v) => v.fields[f]);
       if (f === 'items') { fields[f] = { min: Math.min(...have.map((v) => v.fields.items.min ?? POST_ITEMS.min)), max: Math.max(...have.map((v) => v.fields.items.max ?? POST_ITEMS.max)), chars: POST_ITEMS.chars }; continue; }
       // an info block (labelled rows) and a row of round pictures: counted lists, each with its own shape (LIST_SHAPES)
@@ -85,8 +89,10 @@ function describeLook(look) {
     }
     const variants = vs.map((v) => ({
       variant: v.index, name: v.name, describe: v.describe,
-      fields: Object.fromEntries(Object.entries(v.fields).filter(([f]) => f !== 'focal' && f !== 'zoom').map(([f, o]) => [f, f === 'image' ? { required: Boolean(o.required) } : Object.hasOwn(POST_LISTS, f) ? { required: Boolean(o.required), ...(o.min !== undefined ? { min: o.min } : {}), ...(o.max !== undefined ? { max: o.max } : {}) } : { required: Boolean(o.required), ...(o.max !== undefined ? { max: Math.min(o.max, POST_FIELDS[f]?.max ?? o.max) } : {}) }])),
+      fields: Object.fromEntries(Object.entries(v.fields).filter(([f]) => f !== 'focal' && f !== 'zoom').map(([f, o]) => [f, f === 'image' || f === 'avatar' ? { required: Boolean(o.required) } : Object.hasOwn(POST_LISTS, f) ? { required: Boolean(o.required), ...(o.min !== undefined ? { min: o.min } : {}), ...(o.max !== undefined ? { max: o.max } : {}) } : { required: Boolean(o.required), ...(o.max !== undefined ? { max: Math.min(o.max, POST_FIELDS[f]?.max ?? o.max) } : {}) }])),
       ...(v.accepts?.length ? { accepts: v.accepts } : {}),
+      // a variant that draws a phone (or a tablet) round its picture: its image is a screen item, a screenshot of the app
+      ...(v.device ? { device: v.device } : {}),
     }));
     out[kind] = { required, fields, variants };
   }
@@ -95,6 +101,9 @@ function describeLook(look) {
 
 // What one kind may carry in a direction, or null when the direction draws none (so the kind is not offered and is rejected).
 export const kindBrief = (direction, kind, brand) => { const k = describeKinds(direction, brand)[kind]; return k ? { kind, ...k } : null; };
+
+// Whether any composition of the brand's look draws a device (a phone or a tablet) round its picture: then the look takes screen items there.
+export const lookDrawsDevice = (direction, brand) => Object.values(describeKinds(direction, brand)).some((k) => (k.variants ?? []).some((v) => v.device));
 
 // The kinds a direction can draw today.
 export const directionKinds = (direction, brand) => Object.keys(describeKinds(direction, brand));

@@ -440,7 +440,7 @@ test('draftBatch: a good post passes, the vault photo is resolved by id, the bat
   assert.deepEqual(p.warnings, []);
   assert.deepEqual(batch.defaultNetworks, ['instagram', 'linkedin', 'facebook', 'x']);
   assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
-  assert.equal(notes.promptVersion, 'draft-14');
+  assert.equal(notes.promptVersion, 'draft-15');
   assert.equal(notes.model, 'claude-sonnet-5-5');
   assert.equal(notes.seriesMix['the-numbers'], 1);
   assert.equal(notes.usage.costUsd > 0, true);
@@ -823,12 +823,12 @@ const draftIn = (root, ...answers) => {
 };
 const askedOf = (f, i = 0) => { const c = f.calls[i].body.messages[0].content; return JSON.parse(c.slice(c.indexOf('{'))); };
 
-test('direction brand: gets draft-14 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
+test('direction brand: gets draft-15 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
   await withDirection('editorial', async (root) => {
     const vault = [...VAULT, { id: 'scr-1', kind: 'screen', title: 'Passbook', body: 'The passbook.', status: 'confirmed', file: 'design/assets/screens/p.png', framing: 'phone' }];
     const { f, ai } = draftIn(root, { posts: [dirPost()] }, { posts: [] });
     const { batch, notes } = await ai.draftBatch(req({ vault }));
-    assert.equal(notes.promptVersion, 'draft-14');
+    assert.equal(notes.promptVersion, 'draft-15');
     assert.equal(f.calls[0].body.system, loadPrompt('draft', { direction: true }).text);
     assert.notEqual(f.calls[0].body.system, loadPrompt('draft').text);
     assert.match(f.calls[0].body.system, /never use the same kind three posts running/);
@@ -1026,10 +1026,10 @@ test('named series: numbers follow the date order with no gap, a wrong kind is r
   });
 });
 
-test('the prompts keep one file with a direction section: draft-14 and rewrite-5 differ by brand type only where they must', () => {
+test('the prompts keep one file with a direction section: draft-15 and rewrite-5 differ by brand type only where they must', () => {
   const plain = loadPrompt('draft'), dir = loadPrompt('draft', { direction: true });
-  assert.equal(plain.version, 'draft-14');
-  assert.equal(dir.version, 'draft-14');
+  assert.equal(plain.version, 'draft-15');
+  assert.equal(dir.version, 'draft-15');
   assert.match(plain.text, /the only templates you may use/);
   assert.match(plain.text, /Only confirmed, current items/);
   assert.match(dir.text, /Only confirmed, current items/);
@@ -1576,7 +1576,7 @@ test('a look with pills, icons, an info block, a button and round pictures: the 
     const f = fakeFetch(anthropicOk({ posts: [offerPost()] }), anthropicOk({ posts: [] }));
     const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
     const { batch, notes } = await ai.draftBatch(req());
-    assert.equal(notes.promptVersion, 'draft-14');
+    assert.equal(notes.promptVersion, 'draft-15');
     assert.match(f.calls[0].body.system, /\[\[words\]\]` sets one or two runs of 1 to 3 words in a pill/);
     const k = askedOf(f).design.kinds;
     assert.match(k.offer.fields.headline.pills, /\[\[words\]\]/);
@@ -1617,5 +1617,94 @@ test('a look with pills and round pictures: marks where no design draws them, wr
       if (failed.length) console.log(failed.map(([id]) => `${id}: ${by[id]}`).join('\n'));
       return !failed.length;
     });
+  });
+});
+
+// ---------- a look with a portrait picture on its quote and a phone drawn round a bare screenshot (the ledger look) ----------
+function ledgerCopy() { return { ...structuredClone(shippedLooks().ledger), id: 'ai-ledger', origin: 'copy:shipped:ledger', name: 'Ledger copy' }; }
+const withLedger = (fn) => withBrand((b) => { b.looks = [ledgerCopy()]; b.style = { ...(b.style ?? {}), direction: 'ai-ledger' }; }, fn);
+const PICS_VAULT = [
+  ...VAULT,
+  { id: 'q-1', kind: 'story', title: 'A member on the pot', body: 'Ama, who saves with five friends, said: "We stopped arguing about who paid."', status: 'confirmed' },
+  { id: 'scr-bare', kind: 'screen', title: 'Pot screen', body: 'The group pot screen of the app.', status: 'confirmed', file: 'design/assets/screens/pot.png', framing: 'phone-bare' },
+  { id: 'scr-framed', kind: 'screen', title: 'Pot screen, framed', body: 'The pot screen with the phone drawn round it.', status: 'confirmed', file: 'design/assets/screens/pot-phone.png', framing: 'phone' },
+  { id: 'scr-desk', kind: 'screen', title: 'Dashboard', body: 'The desktop dashboard.', status: 'confirmed', file: 'design/assets/screens/desk.png', framing: 'desktop' },
+  { id: 'ph-face', kind: 'photo', title: 'Ama', body: 'A portrait of Ama.', status: 'confirmed', file: 'design/assets/photos/ama.jpg', identifiable: true },
+  { id: 'ph-agreed', kind: 'photo', title: 'Ama, agreed', body: 'A portrait of Ama, who agreed to it.', status: 'confirmed', file: 'design/assets/photos/ama-ok.jpg', identifiable: true, consent: true },
+  { id: 'ph-unc', kind: 'photo', title: 'Unconfirmed', body: 'A plant.', status: 'unconfirmed', file: 'design/assets/photos/plant.jpg' },
+];
+const quotePost = (over = {}, design = {}) => good({
+  id: '01-quote', title: 'Ama', caption: 'Ama saves with five friends.\n\n#AcmeSavings #Savings #the region', imageReason: 'Ama, who agreed to her picture being used.',
+  design: { template: 'post', kind: 'quote', quote: 'We stopped arguing about who paid.', by: 'Ama, saves with five friends', avatar: { image: 'vault:ph-agreed', focal: '50% 30%' }, ...design },
+  sources: ['q-1'], ...over,
+});
+const phonePost = (over = {}, design = {}) => good({
+  id: '02-phone', title: 'The pot', caption: 'See the group pot on your phone.\n\n#AcmeSavings #Savings #the region', imageReason: 'The pot screen of the app.',
+  design: { template: 'post', kind: 'photo', variant: 0, headline: 'See the pot, *week by week*', image: 'vault:scr-bare', ...design },
+  sources: ['fact-1'], ...over,
+});
+
+test('a look with an avatar and a phone: the model is told the avatar\'s shape and which variant draws a phone, and is offered the phone screens', async () => {
+  await withLedger(async () => {
+    const f = fakeFetch(anthropicOk({ posts: [quotePost(), phonePost({ date: '2026-12-04' })] }), anthropicOk({ posts: [] }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    const { batch, notes } = await ai.draftBatch(req({ vault: PICS_VAULT, count: 2 }));
+    assert.equal(notes.promptVersion, 'draft-15');
+    assert.match(f.calls[0].body.system, /`avatar` \(when the kind lists it\): ONE picture of the person quoted/);
+    assert.match(f.calls[0].body.system, /Put a screen only in such a variant, named with `"variant"`/);
+    const asked = askedOf(f), k = asked.design.kinds;
+    assert.match(k.quote.fields.avatar.shape, /vault:<id of a photo>/);
+    assert.deepEqual(k.quote.variants[0].fields.avatar, { required: false });
+    assert.deepEqual(k.photo.variants.map((v) => v.device ?? null), ['phone', null]);
+    const screens = asked.vault.filter((i) => i.kind === 'screen');
+    assert.deepEqual(screens.map((i) => [i.id, i.screenKind]).sort(), [['scr-bare', 'phone screenshot, no frame'], ['scr-framed', 'phone screen, framed']], 'phone screens only, never a desktop one');
+    assert.ok(!asked.vault.some((i) => ['ph-face', 'ph-unc'].includes(i.id)), 'a face without consent and an unconfirmed picture are never offered');
+    const [q, p] = batch.posts;
+    assert.deepEqual(q.design.avatar, { image: 'design/assets/photos/ama-ok.jpg', focal: '50% 30%' }, 'the avatar resolved from the vault, its focal point kept as written');
+    assert.deepEqual(q.photoIds, ['ph-agreed']);
+    assert.equal(p.design.image, 'design/assets/screens/pot.png');
+    assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
+  });
+});
+
+test('a look with an avatar and a phone: unconfirmed, unconsented or non-photo avatars and misplaced screens are rejected with the reason', async () => {
+  await withLedger(async () => {
+    const posts = [
+      quotePost({ id: 'a' }, { avatar: { image: 'vault:ph-face' } }),
+      quotePost({ id: 'b' }, { avatar: { image: 'vault:ph-unc' } }),
+      quotePost({ id: 'c' }, { avatar: { image: 'vault:scr-bare' } }),
+      quotePost({ id: 'd' }, { avatar: { image: 'design/assets/photos/ama.jpg' } }), // a vault file's path is the vault item, held to the same rules
+      phonePost({ id: 'e' }, { variant: undefined }),
+      phonePost({ id: 'f' }, { variant: 1 }),
+      phonePost({ id: 'g' }, { image: 'vault:scr-desk' }),
+      phonePost({ id: 'h' }, { image: 'vault:ph-3' }),
+      phonePost({ id: 'i' }, { image: 'vault:ph-3', variant: undefined }),
+      quotePost({ id: 'k' }, { gallery: [{ image: 'vault:ph-4' }, { image: 'vault:ph-5' }] }),
+    ];
+    const f = fakeFetch(anthropicOk({ posts }), anthropicOk({ posts: [] }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    const err = await ai.draftBatch(req({ vault: PICS_VAULT, count: 10 })).then(() => null, (e) => e);
+    assert.ok(err, 'every post is rejected');
+    const by = Object.fromEntries(err.notes.rejected.map((r) => [r.id, r.reasons.join(' ')]));
+    const checks = {
+      a: /picture ph-face has its rights or consent still to be confirmed/, b: /picture ph-unc is not confirmed by a person/, c: /avatar needs a vault photo, but scr-bare is a screen/,
+      d: /picture ph-face has its rights or consent still to be confirmed/, e: /scr-bare is a screen: name the variant that draws a phone round it \(variant 0, Phone\)/, f: /scr-bare is a screen: name the variant/,
+      g: /scr-desk is a desktop screenshot, but the Phone variant draws a phone/, h: /the Phone variant draws a phone round a screenshot of the app; ph-3 is a photo/,
+      i: /a photo post with a photo names its variant here .*variant 1, Photo card/, k: /one portrait picture \(avatar\) or a row of pictures \(gallery\), not both/,
+    };
+    const failed = Object.entries(checks).filter(([id, re]) => !re.test(by[id] ?? ''));
+    assert.deepEqual(failed.map(([id]) => `${id}: ${by[id] ?? '(accepted)'}`), []);
+  });
+});
+
+test('a portrait picture counts as a picture of the batch: the same photo as an avatar twice is used once', async () => {
+  await withLedger(async () => {
+    const posts = [quotePost({ id: 'a' }), quotePost({ id: 'b', date: '2026-12-09' })];
+    const f = fakeFetch(anthropicOk({ posts }), anthropicOk({ posts: [] }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    const r = await ai.draftBatch(req({ vault: PICS_VAULT, count: 2 })).then((x) => x, (e) => e);
+    const kept = r.batch?.posts ?? [], rejected = (r.batch ? r.notes : r.notes)?.rejected ?? [];
+    assert.equal(kept.length, 1, 'one post keeps the picture');
+    assert.ok(rejected.some((x) => /ph-agreed/.test(x.reasons.join(' '))), JSON.stringify(rejected));
   });
 });

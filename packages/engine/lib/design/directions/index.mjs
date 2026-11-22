@@ -15,7 +15,7 @@ import { displayTarget } from '../checks.mjs';
 import { fontFacesFor } from '../font-library.mjs';
 import { grainUri, makeContext, numberElements, rootCss } from './kit.mjs';
 import fs from 'node:fs';
-import { canonicalJson, compositionGraphicRefs, lookBrief, normaliseLook, validateLook } from '../look.mjs';
+import { canonicalJson, compositionDevice, compositionGraphicRefs, lookBrief, normaliseLook, validateLook } from '../look.mjs';
 import { POST_FIELDS, POST_ITEMS, POST_KINDS, POST_LISTS, POST_REQUIRED, seenText } from '../post-spec.mjs';
 import { accentPlan, paletteCss } from './colour.mjs';
 import { fontAlias } from '../font-library.mjs';
@@ -208,6 +208,18 @@ export function postCompositionGraphics(look, spec, { shipped = false } = {}) {
   return { kind: spec.kind, variant: used, name: comp.name, refs: compositionGraphicRefs(comp.data) };
 }
 const isObjSpec = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+// The device the composition that will draw `spec` (a post) draws round its picture, chosen as renderPostWithLook chooses it: { kind, variant, name,
+// device: 'phone' | 'tablet' | null }, or null when the look is invalid or has no composition that takes the post. No page is built.
+export function postCompositionDevice(look, spec, { shipped = false } = {}) {
+  const r = resolveLook(look, { shipped });
+  if (r.problems.length || !isObjSpec(spec)) return null;
+  const list = r.comps[spec.kind] ?? [];
+  if (!list.length) return null;
+  let used;
+  try { ({ used } = pickVariant(spec, list, r.look.id)); } catch (e) { if (e instanceof DesignError) return null; throw e; }
+  const comp = list[used];
+  return { kind: spec.kind, variant: used, name: comp.name, device: compositionDevice(comp.data) };
+}
 
 const num4 = (v) => +Number(v).toFixed(4);
 // the look's custom properties on the page's root: numbers and fixed words only
@@ -324,7 +336,7 @@ export function postKinds(brand) {
         if (!hard) continue;
         fields[f] = { max: hard, ...(have.length ? { budget: Math.min(hard, ...have.map((v) => v.fields[f].max ?? hard)) } : {}) };
       }
-      out[kind] = { required: POST_REQUIRED[kind] ?? [], fields, variants: vs.map((v) => ({ variant: v.index, name: v.name, describe: v.describe })) };
+      out[kind] = { required: POST_REQUIRED[kind] ?? [], fields, variants: vs.map((v) => ({ variant: v.index, name: v.name, describe: v.describe, ...(v.device ? { device: v.device } : {}) })) };
     }
     return out;
   }
