@@ -1,9 +1,11 @@
 // The Settings tab of a look as choices, not configuration: about seven groups, each with a short title, a choice (cards or a switch,
-// each a preset over several values, "Custom" when the values fit none) and a "Fine-tune" link that opens that group's exact values
-// below it, drawn by the catalogue-driven controls of look-settings.tsx. Details has no choice, only Fine-tune. A server problem on a
-// value opens its group's Fine-tune.
+// each a preset over several values, "Custom" when the values fit none) and a "Fine-tune" link. Fine-tune shows the group's grouped
+// controls (fine-controls.ts: a number with named presets standing for several values, and the weight strips), then an "Exact values"
+// disclosure with every catalogue value of the group, drawn by the catalogue-driven controls of look-settings.tsx. Details has no
+// choice, only Fine-tune. A server problem on a value opens its group's Fine-tune and exact values.
 import { useEffect, useId, useMemo, useState, type ReactNode } from 'react';
 import { Hint, SwitchField } from '@/components/kit';
+import { ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { api } from '../../../../api';
@@ -13,10 +15,12 @@ import { Node, type SettingsCtx } from '../look-settings';
 import type { Json } from '../look-types';
 import { lookApi } from '../looks-api';
 import { CardChoice, ColourDiagram, CustomChip, LogoDiagram, NEUTRAL_COLOURS, PictureThumb, Segmented, SpaceDiagram, type BrandColours } from './controls';
-import { assignNodes, changedCount, DETAILS_TEXT, GROUPS, groupOfPath, resetNodes, type GroupId, type SettingsGroup } from './groups';
+import { assignNodes, changedCount, DETAILS_TEXT, GROUPS, groupOfPath, leafCount, resetNodes, type GroupId, type SettingsGroup } from './groups';
 import { accentAsType, accentSwitchRelevant, choose, CONTROLS, detect, hasGrain, LOGO_SIZES, OWN_FONT, pairingName, PAIRINGS, setGrain, SPACES, TREATS, LOGICS, type PresetCtx } from './presets';
 import { cardFontFamily, ensureFamily } from './load-fonts';
 import { syncWeights } from './weights';
+import { FINE_LAYOUT, fineAvailable, WEIGHTS_CONTROL, type FineCtx } from './fine-controls';
+import { FineNumber, WeightStrips } from './fine-tune';
 
 const FEEL = [
   { path: 'dials.tilt', label: 'Tilt', lo: 'Straight', hi: 'Tilted' },
@@ -191,11 +195,21 @@ export function SettingsTab({ ctx, comps, originRef, saved, onLook }: SettingsTa
     }
   };
 
+  // Fine-tune's grouped controls; their edits are left as made, like the exact values.
+  const fineLook = (next: Json) => { if (next !== look) onLook(next); };
+  const fineCtx: FineCtx = useMemo(() => ({ ...preset, comps, catalogue: cat }), [preset, comps, cat]);
+  const definitionOf = (settings: Json): Json => ({ ...settings, compositions: comps });
+  const weightsMax = cat.sections.fonts?.props?.display?.forms?.library?.props?.weights?.max;
+  const grouped = (id: GroupId): ReactNode[] => FINE_LAYOUT[id].flatMap((c) => {
+    if (c === WEIGHTS_CONTROL) return [<WeightStrips key={c} look={look} comps={comps} fonts={fonts} max={weightsMax} disabled={ctx.disabled} onChange={ctx.onChange} />];
+    return fineAvailable(c, look, preset) ? [<FineNumber key={c} id={c} look={look} preset={fineCtx} definitionOf={definitionOf} disabled={ctx.disabled} onLook={fineLook} />] : [];
+  });
+
   return (
     <div className="flex flex-col gap-9">
       {GROUPS.filter((g) => assignment[g.id].length).map((g) => (
-        <GroupSection key={g.id} group={g} nodes={assignment[g.id]} ctx={ctx} baseline={baseline} assignment={assignment}
-          onReset={() => onLook(resetNodes(look, baseline, assignment[g.id]))}>
+        <GroupSection key={g.id} group={g} nodes={assignment[g.id]} ctx={{ ...ctx, comps }} baseline={baseline} assignment={assignment}
+          grouped={grouped(g.id)} onReset={() => onLook(resetNodes(look, baseline, assignment[g.id]))}>
           {body(g)}
         </GroupSection>
       ))}
@@ -203,16 +217,19 @@ export function SettingsTab({ ctx, comps, originRef, saved, onLook }: SettingsTa
   );
 }
 
-function GroupSection({ group, nodes, ctx, baseline, assignment, onReset, children }: {
-  group: SettingsGroup; nodes: string[]; ctx: SettingsCtx; baseline: Json; assignment: Record<GroupId, string[]>; onReset: () => void; children: ReactNode;
+function GroupSection({ group, nodes, ctx, baseline, assignment, grouped, onReset, children }: {
+  group: SettingsGroup; nodes: string[]; ctx: SettingsCtx; baseline: Json; assignment: Record<GroupId, string[]>; grouped: ReactNode[]; onReset: () => void; children: ReactNode;
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
+  const [exact, setExact] = useState(false);
   const problems = Object.keys(ctx.errors).filter((p) => groupOfPath(p, assignment) === group.id);
-  // A problem on a value the main controls do not show opens Fine-tune, where the value and its message are.
-  useEffect(() => { if (problems.length) setOpen(true); }, [problems.length > 0]);
+  // A problem on a value the main controls do not show opens Fine-tune and its exact values, where the value and its message are.
+  useEffect(() => { if (problems.length) { setOpen(true); setExact(true); } }, [problems.length > 0]);
   const changed = changedCount(ctx.look, baseline, nodes);
-  const fine: SettingsCtx = { ...ctx, compact: true, exact: true };
+  const values = leafCount(ctx.catalogue.sections, nodes);
+  // The weights have their own strips above, so the fonts leave them out here.
+  const fine: SettingsCtx = { ...ctx, compact: true, exact: true, hideWeights: grouped.length > 0 && group.id === 'typeface' };
   return (
     <section aria-labelledby={`${id}-title`} id={`settings-${group.id}`} className="flex scroll-mt-6 flex-col gap-3">
       <div className="flex items-center gap-1.5">
@@ -230,13 +247,23 @@ function GroupSection({ group, nodes, ctx, baseline, assignment, onReset, childr
         </div>
         {open && (
           <div id={`${id}-fine`} className="flex flex-col gap-4 border-l pl-4">
-            <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
-              {nodes.map((n) => {
-                const d = descAt(ctx.catalogue.sections, n, ctx.look);
-                if (!d) return null;
-                const wide = d.kind === 'object' || d.kind === 'list' || d.kind === 'tuple' || d.kind === 'tagged';
-                return <div key={n} className={cn('min-w-0', wide && 'col-span-full')}><Node path={n} desc={d} ctx={fine} /></div>;
-              })}
+            {grouped.length > 0 && <div className="flex flex-col gap-4">{grouped}</div>}
+            <div className="flex flex-col gap-3">
+              <button type="button" aria-expanded={exact} aria-controls={`${id}-exact`} onClick={() => setExact((v) => !v)}
+                className="-mx-1 inline-flex min-h-8 items-center gap-1 self-start rounded px-1 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-11">
+                <ChevronRight aria-hidden="true" className={cn('size-3.5 transition-transform', exact && 'rotate-90')} />
+                Exact values <span className="tabular-nums">({values})</span>
+              </button>
+              {exact && (
+                <div id={`${id}-exact`} className="grid gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {nodes.map((n) => {
+                    const d = descAt(ctx.catalogue.sections, n, ctx.look);
+                    if (!d) return null;
+                    const wide = d.kind === 'object' || d.kind === 'list' || d.kind === 'tuple' || d.kind === 'tagged';
+                    return <div key={n} className={cn('min-w-0', wide && 'col-span-full')}><Node path={n} desc={d} ctx={fine} /></div>;
+                  })}
+                </div>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
               {changed > 0 && <span role="status" className="text-[12.5px] text-muted-foreground">{changed === 1 ? '1 value changed from the original' : `${changed} values changed from the original`}</span>}

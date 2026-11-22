@@ -83,3 +83,44 @@ export function syncWeights(look: Json, comps: Json[], fonts: FontFamilyInfo[], 
   }
   return next;
 }
+
+// ---- the weight strip: the weights of one font as samples to switch on and off, instead of nine checkboxes ----
+
+export interface WeightStrip {
+  role: FontRole;
+  family: string;
+  // The weights the family has, by the hundred, and any listed weight it lacks (so that one can be switched off).
+  offered: number[];
+  // The weights listed now.
+  chosen: number[];
+  // The weights the look's type settings and designs use.
+  needed: number[];
+  // The weights that cannot be switched off: a type setting or a design uses this font at it (the engine refuses a weight not listed).
+  locked: number[];
+  max: number;
+  min: number;
+}
+// The strip of a library font; null for a brand font (its weights are the files the brand uploaded).
+export function weightStrip(look: Json, comps: Json[], role: FontRole, fonts: FontFamilyInfo[], limits: { min?: number; max?: number } = {}): WeightStrip | null {
+  const f = getAt(look, `fonts.${role}`);
+  if (!isObj(f) || f.source !== 'library' || typeof f.family !== 'string') return null;
+  const fam = fonts.find((x) => x.family === f.family);
+  const chosen = Array.isArray(f.weights) ? (f.weights as unknown[]).filter((w): w is number => typeof w === 'number') : [];
+  const offered = [100, 200, 300, 400, 500, 600, 700, 800, 900].filter((w) => !fam || (w >= fam.minWeight && w <= fam.maxWeight));
+  const needed = [...new Set((neededWeights(look, comps)[role] ?? []).map((w) => snapWeight(w, fam)))].sort((a, b) => a - b);
+  const T = (isObj(look.type) ? look.type : {}) as Json;
+  const labelRole: FontRole = isObj(T.label) && (T.label as Json).role === 'mono' ? 'mono' : 'label';
+  const styles: Record<FontRole, string[]> = { display: ['display'], text: ['body', 'item'], label: labelRole === 'label' ? ['label'] : [], mono: labelRole === 'mono' ? ['label'] : [] };
+  // What the type settings and the designs ask for as written (the engine checks those against the list), and as the weight dial moves them.
+  const asWritten = neededWeights(setAt(look, 'dials.weightShift', 0), comps)[role] ?? [];
+  const locked = [...styles[role].map((st) => (isObj(T[st]) ? (T[st] as Json).weight : undefined)), ...asWritten, ...needed].filter((w): w is number => typeof w === 'number' && chosen.includes(w));
+  return { role, family: f.family, offered: [...new Set([...offered, ...chosen])].sort((a, b) => a - b), chosen: [...chosen].sort((a, b) => a - b), needed, locked: [...new Set(locked)].sort((a, b) => a - b), max: limits.max ?? 4, min: limits.min ?? 1 };
+}
+// The weights after switching one on or off; the same list when that is not allowed (above the most, below the least, or a weight a
+// type setting is at).
+export function toggleWeight(strip: Pick<WeightStrip, 'chosen' | 'max' | 'min'> & { locked?: number[] }, w: number): number[] {
+  const on = strip.chosen.includes(w);
+  if (on && (strip.chosen.length <= strip.min || strip.locked?.includes(w))) return strip.chosen;
+  if (!on && strip.chosen.length >= strip.max) return strip.chosen;
+  return (on ? strip.chosen.filter((x) => x !== w) : [...strip.chosen, w]).sort((a, b) => a - b);
+}
