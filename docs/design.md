@@ -1357,11 +1357,11 @@ page's); without one a page has no folio, never a number made up from the words 
 **Ledger** (`ledger.look.json`) is a modern fintech look, in the manner of today's neobank, payment and savings apps (no brand copied): deep pages lit by a
 radial glow of the brand colour (a `gradient` of the `field` and `dark` roles), Inter in calm medium weights with big confident figures, small change pills
 (the figure's `tag` on a `button` with an arrow), white rounded cards with a soft shadow, rows with icons (`rows` `icons`), a shield or other icon on a
-badge (`icon-badge`), pill buttons in the accent colour for the `cta`, a phone screen and generous margins (80 px). Twelve compositions:
+badge (`icon-badge`), a mark of fine rings round a brand-colour disc (keylines and round blocks) on the hero and offer pages, pill buttons in the accent colour for the `cta`, a phone screen and generous margins (80 px). Twelve compositions:
 
 | Composition | Kind | Page |
 |---|---|---|
-| `statement/0` Gradient hero | statement | deep page with a glow; label chip, a big white headline at the foot, sub, optional button; also the cover and closing page of a carousel |
+| `statement/0` Gradient hero | statement | deep page with a glow and a mark above (two fine rings round a brand-colour disc, an accent dot); label chip, a big white headline at the foot, sub, optional button; also the cover and closing page of a carousel |
 | `statement/1` Trust card | statement | pale page, one white card: a shield on a brand-colour badge, a two-tone headline and sub; the label under the card |
 | `figure/0` Big number | figure | deep page with a glow; the figure fitted across the page, the unit beside a change pill (the tag), the sub under a hairline |
 | `figure/1` Balance card | figure | pale page, a white card like an account balance: label, figure, unit and change pill; the sub under it |
@@ -1372,7 +1372,7 @@ badge (`icon-badge`), pill buttons in the accent colour for the `cta`, a phone s
 | `photo/0` Phone | photo | deep page with a glow; the picture as a phone screen on the right (a pre-framed phone capture, about 660 x 1354, shown whole at its proportions) and the words on the left |
 | `photo/1` Photo card | photo | white page; the picture in a large rounded window with the tag on a white pill, then the headline, sub and button |
 | `event/0` Live session | event | white page; label chip, two-tone headline; the date, time and place of the meta line on ruled rows with a calendar, a clock and a pin; optional button |
-| `offer/0` Gradient offer | offer | deep page with a glow; the headline, the tag fitted very large (such as "€0 fees"), the sub and an accent button |
+| `offer/0` Gradient offer | offer | deep page with a glow and the same mark of rings above; at the foot the headline, the tag fitted very large under it (such as "€0 fees"), the sub and an accent button |
 
 Its test copy is `testlib/ledger-copy.mjs` (euros only); the Pennyhive pack's `batches/example-ledger.json` shows it off, with a five-page
 how-it-works carousel (cover, three steps, closing page). What it cannot do yet: the phone is the picture as given (a pre-framed capture; a bare

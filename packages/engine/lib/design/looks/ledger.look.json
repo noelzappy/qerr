@@ -158,7 +158,7 @@
     {
       "kind": "statement",
       "name": "Gradient hero",
-      "describe": "A deep page lit by a glow of the brand colour from one corner: an outlined label chip, a big calm headline in white, a sub line and an optional button. Use for a short statement or a carousel cover: best at 40 characters, up to 70.",
+      "describe": "A deep page lit by a glow of the brand colour, a mark of fine rings round a brand-colour disc above; a label chip, a big white headline, a sub line and an optional button. For a short statement or a carousel cover: best at 40 characters, up to 70.",
       "ground": "dark",
       "fit": "margins",
       "calm": {
@@ -208,6 +208,64 @@
               "top": 90
             }
           }
+        },
+        {
+          "type": "keyline",
+          "weight": 2,
+          "colour": "rule-dark",
+          "radius": "full",
+          "place": {
+            "px": {
+              "x": 550,
+              "y": 130,
+              "w": 440,
+              "h": 440
+            }
+          },
+          "z": 1
+        },
+        {
+          "type": "keyline",
+          "weight": 2,
+          "colour": "rule-dark",
+          "radius": "full",
+          "place": {
+            "px": {
+              "x": 610,
+              "y": 190,
+              "w": 320,
+              "h": 320
+            }
+          },
+          "z": 1
+        },
+        {
+          "type": "block",
+          "colour": "field",
+          "radius": "full",
+          "place": {
+            "px": {
+              "x": 670,
+              "y": 250,
+              "w": 200,
+              "h": 200
+            }
+          },
+          "z": 1
+        },
+        {
+          "type": "block",
+          "colour": "gold",
+          "radius": "full",
+          "place": {
+            "px": {
+              "x": 600,
+              "y": 180,
+              "w": 28,
+              "h": 28
+            }
+          },
+          "z": 1
         },
         {
           "type": "box",
@@ -1793,7 +1851,7 @@
     {
       "kind": "offer",
       "name": "Gradient offer",
-      "describe": "A deep page lit by a glow of the brand colour: a headline in white at the top, the offer (the tag) set very large, a sub line and a button in the accent colour at the foot. Use for a deal or plan with a short tag such as 0 fees or 3 months free.",
+      "describe": "A deep page lit by a glow of the brand colour, the mark of rings above; at the foot a white headline, the offer (the tag) set very large under it, a sub line and an accent button. Use for a deal or plan with a short tag such as 0 fees or 3 months free.",
       "ground": "dark",
       "fit": "margins",
       "calm": {
@@ -1846,18 +1904,77 @@
           }
         },
         {
+          "type": "keyline",
+          "weight": 2,
+          "colour": "rule-dark",
+          "radius": "full",
+          "place": {
+            "px": {
+              "x": 550,
+              "y": 130,
+              "w": 440,
+              "h": 440
+            }
+          },
+          "z": 1
+        },
+        {
+          "type": "keyline",
+          "weight": 2,
+          "colour": "rule-dark",
+          "radius": "full",
+          "place": {
+            "px": {
+              "x": 610,
+              "y": 190,
+              "w": 320,
+              "h": 320
+            }
+          },
+          "z": 1
+        },
+        {
+          "type": "block",
+          "colour": "field",
+          "radius": "full",
+          "place": {
+            "px": {
+              "x": 670,
+              "y": 250,
+              "w": 200,
+              "h": 200
+            }
+          },
+          "z": 1
+        },
+        {
+          "type": "block",
+          "colour": "gold",
+          "radius": "full",
+          "place": {
+            "px": {
+              "x": 600,
+              "y": 180,
+              "w": 28,
+              "h": 28
+            }
+          },
+          "z": 1
+        },
+        {
           "type": "box",
           "place": {
             "px": {
               "x": 80,
-              "y": 220,
+              "y": 300,
               "w": 920,
-              "h": 1050
+              "h": 970
             }
           },
           "flow": "column",
-          "justify": "between",
+          "justify": "end",
           "align": "start",
+          "gap": 24,
           "z": 2,
           "children": [
             {
@@ -1865,26 +1982,25 @@
               "field": "headline",
               "mode": "block",
               "sizes": [
-                88,
-                78,
-                70
+                84,
+                80,
+                78
               ],
               "maxLines": 3,
               "ink": "white",
-              "w": 840,
-              "h": 280
+              "w": 840
             },
             {
               "type": "fitted-stack",
               "field": "tag",
               "mode": "lines",
-              "cap": 300,
+              "cap": 280,
               "floor": 120,
               "maxLines": 2,
               "trail": true,
               "lead": 0.95,
               "w": 920,
-              "h": 420,
+              "h": 300,
               "ink": "white"
             },
             {
@@ -1892,6 +2008,7 @@
               "flow": "column",
               "align": "start",
               "gap": 36,
+              "before": 24,
               "children": [
                 {
                   "type": "text",
