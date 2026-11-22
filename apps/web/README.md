@@ -109,8 +109,12 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
   brand setting `style.direction` stays in the settings (an older choice keeps working; an active look overrides it in the pack).
   `GET /api/posts/post-kinds` (admin and editor) tells the post editor the brand's direction, each kind's fields and required fields,
   the look (variant) names of the direction's compositions, and the field limits, all read from the engine's registry; with a look in
-  force the editor also reads `GET /api/looks/brief` (see Settings, Looks). The `POST /api/settings/brand/direction-samples` route and its
-  service were removed with the tab.
+  force the editor also reads `GET /api/looks/brief` (see Settings, Looks). The limits also give the counted lists (`items`, `info`,
+  `gallery`: `{ min, max, chars }`), the fixed `infoKeys` and the `icons` a headline may name. The post editor then shows only what the
+  look's designs draw: a Pill button and an icon menu on the headline (`[[words]]`, `{{name}}`), the Button words (`cta`), Info rows (a
+  fixed label and a short line each) and Round pictures (2 to 5 from the Pictures page, each with an optional name). A gallery picture is
+  a design node like the post's own picture: the same path rule, vault copy and rights checks (`services/design-images.ts`). The
+  `POST /api/settings/brand/direction-samples` route and its service were removed with the tab.
 - **Logos:** the full logo and the mark, as PNGs. The page measures where the wordmark starts. "Draw a simple logo from the
   name" makes a plain pair in the browser.
 - **Colours:** four colours (primary, accent, dark, light), the headline weight, the corners and **contrast for large headlines**
