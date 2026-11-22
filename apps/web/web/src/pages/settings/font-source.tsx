@@ -4,7 +4,7 @@
 // The browser never talks to Google. The list comes from the server; picking a family asks the server to download it once and
 // store it with the brand; the font in force is previewed from the server's own copy (the app's CSP allows fonts from itself
 // only).
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Search, Trash2 } from 'lucide-react';
 import { api } from '../../api';
 import { errorMessage } from '../../lib/errors';
@@ -16,6 +16,8 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import { GOOGLE_CATEGORY_LABEL, LICENCE_LABEL, WEIGHT_NAME, type FontRole, type FontSource, type GoogleFont } from './brand-types';
+import type { FontFamilyInfo } from './looks/look-types';
+import { cardFontFamily, ensureFamily } from './looks/settings/load-fonts';
 
 const ROLE_WORD: Record<FontRole, string> = { body: 'body', display: 'headline', label: 'label' };
 // "300 Light, 400 Regular and 700 Bold"
@@ -53,6 +55,20 @@ function useFontPreview(src: FontSource | null, role: FontRole, version: string)
     return () => { live = false; document.fonts.delete(face); };
   }, [file, key, role]);
   return family;
+}
+
+// The families the server already serves (the engine's font library, for the Looks typeface cards), asked for once per page load:
+// a family of the Google list that is also one of these shows its name in its own face. Nothing is loaded from Google.
+let library: Promise<FontFamilyInfo[]> | null = null;
+function useLibraryFaces(): (family: string) => CSSProperties | undefined {
+  const [fonts, setFonts] = useState<FontFamilyInfo[]>([]);
+  useEffect(() => {
+    let live = true;
+    library ??= api.get<{ fonts?: FontFamilyInfo[] }>('/api/settings/looks').then((r) => r.fonts ?? []);
+    library.then((f) => { if (live) { for (const x of f) ensureFamily(x); setFonts(f); } }, () => { library = null; });
+    return () => { live = false; };
+  }, []);
+  return (family) => (fonts.some((f) => f.family === family && f.files?.length) ? { fontFamily: cardFontFamily(family), fontSize: '15px' } : undefined);
 }
 
 export function sourceText(src: FontSource): string {
@@ -107,7 +123,7 @@ export function RoleFont({ role, current, version, busy, onUpload, onGoogle, onR
             <TabsTrigger value="upload">Upload a .woff2</TabsTrigger>
           </TabsList>
           <TabsContent value="google" className="mt-3">
-            <GoogleFontPicker role={role} current={google ?? null} busy={adding} onUse={(family) => onGoogle(role, family)} />
+            <GoogleFontPicker role={role} current={google ?? null} busy={adding} onUse={(family) => onGoogle(role, family)} inUseFace={preview} />
           </TabsContent>
           <TabsContent value="upload" className="mt-3">
             <UploadFont role={role} busy={busy === (role === 'body' ? 'font' : `font-${role}`)} onUpload={onUpload} />
@@ -135,8 +151,13 @@ function UploadFont({ role, busy, onUpload }: { role: FontRole; busy: boolean; o
   );
 }
 
-function GoogleFontPicker({ role, current, busy, onUse }: { role: FontRole; current: { family: string; weights: number[]; missing: number[] } | null; busy: boolean; onUse: (family: string) => void }) {
+function GoogleFontPicker({ role, current, busy, onUse, inUseFace }: {
+  role: FontRole; current: { family: string; weights: number[]; missing: number[] } | null; busy: boolean; onUse: (family: string) => void;
+  // the stored font in force, loaded under this name (useFontPreview), so its name shows in its face
+  inUseFace?: string | null;
+}) {
   const { data, error } = useGoogleFonts();
+  const faceOf = useLibraryFaces();
   const status = useUploadStatus(`font-google-${role}`);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string>('');
@@ -173,7 +194,7 @@ function GoogleFontPicker({ role, current, busy, onUse }: { role: FontRole; curr
         {current && (
           <div className="border-b bg-accent/40 px-3 py-2">
             <div className="text-[11.5px] font-semibold tracking-wide text-muted-foreground uppercase">In use now</div>
-            <div className="text-[13.5px] font-medium">{current.family} <span className="font-normal text-muted-foreground">{current.weights.length > 1 ? 'weights' : 'weight'} {current.weights.join(', ')}</span></div>
+            <div className="text-[13.5px] font-medium"><span style={inUseFace ? { fontFamily: `'${inUseFace}', sans-serif`, fontSize: '15px' } : faceOf(current.family)}>{current.family}</span> <span className="font-normal text-muted-foreground">{current.weights.length > 1 ? 'weights' : 'weight'} {current.weights.join(', ')}</span></div>
           </div>
         )}
         {groups.length === 0 && <p className="p-3 text-[13px] text-muted-foreground">No family matches{query ? <> “{query}”</> : ''}.</p>}
@@ -188,7 +209,10 @@ function GoogleFontPicker({ role, current, busy, onUse }: { role: FontRole; curr
                   className={cn('flex w-full flex-col items-start gap-0.5 border-b px-3 py-2 text-left last:border-b-0 hover:bg-accent focus-visible:bg-accent focus-visible:outline-none', selected && 'bg-accent')}
                 >
                   <span className="flex w-full items-baseline justify-between gap-2">
-                    <span className="text-[13.5px] font-medium">{g.family}{current?.family === g.family && <span className="font-normal text-muted-foreground"> (in use)</span>}</span>
+                    <span className="text-[13.5px] font-medium">
+                      <span style={faceOf(g.family)}>{g.family}</span>
+                      {current?.family === g.family && <span className="font-normal text-muted-foreground"> (in use)</span>}
+                    </span>
                     <span className="shrink-0 text-[12px] text-muted-foreground">{g.weights.length === 1 ? '1 weight' : `${g.weights.length} weights`}</span>
                   </span>
                   <span className="text-[12.5px] text-muted-foreground">{g.note}</span>
