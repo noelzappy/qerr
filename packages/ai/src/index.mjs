@@ -1,11 +1,13 @@
 // The AI interface of Qerr (see docs/ai.md).
-//   createAI({ providers, search, budget, log, prices }) -> { draftBatch, research, rewrite, analyseReference, suggestBrandFromSite, describePicture }
+//   createAI({ providers, search, budget, log, prices }) -> { draftBatch, research, rewrite, analyseReference, suggestBrandFromSite, describePicture, findOccasions }
+//   occasionsFor({ country, from, to }) -> the calendar's occasions in a window (no AI, no network)
 import { draftBatch } from './draft.mjs';
 import { research } from './research.mjs';
 import { analyseReference } from './reference.mjs';
 import { rewrite } from './rewrite.mjs';
 import { describePicture, suggestBrandFromSite } from './suggest.mjs';
 import { createRuntime } from './runtime.mjs';
+import { findOccasions } from './find-occasions.mjs';
 
 // Extra seams for tests and the app: fetch, pageTransport, sleep, lookup (DNS), now, root.
 export function createAI({ providers, search, budget, log, prices, ...seams } = {}) {
@@ -17,6 +19,7 @@ export function createAI({ providers, search, budget, log, prices, ...seams } = 
     analyseReference: (input) => analyseReference(rt, input),
     suggestBrandFromSite: (input) => suggestBrandFromSite(rt, input),
     describePicture: (input) => describePicture(rt, input),
+    findOccasions: (input) => findOccasions(rt, input),
     spentUsd: () => rt.spentUsd(),
   };
 }

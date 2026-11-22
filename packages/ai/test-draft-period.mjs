@@ -157,6 +157,33 @@ test('tools: at most 8 tool calls in a whole draft, across its AI calls', async 
   assert.deepEqual(last.tool_choice, { type: 'tool', name: 'respond' });
 });
 
+test('findOccasions: one search, wrapped results, proposals checked against what was returned', async () => {
+  const web = [
+    { title: 'Winter in Dublin', url: 'https://visit.example/dublin', description: 'Dublin Winter Lights runs from 4 December. The Christmas Day swim at the Forty Foot is a tradition.' },
+    { title: 'Other', url: 'https://other.example/x', description: 'Nothing dated here.' },
+  ];
+  const proposals = [
+    { name: 'Dublin Winter Lights', date: '2026-12-04', end: '2026-12-31', kind: 'observance', note: 'Light installations across Dublin from 4 December.', sourceUrl: 'https://visit.example/dublin' },
+    { name: 'Christmas Day swim', date: '2026-12-25', kind: 'observance', note: 'A sea swim at the Forty Foot.', sourceUrl: 'https://visit.example/dublin' },
+    { name: 'Made-up fair', date: '2026-12-12', kind: 'commerce', note: 'A fair.', sourceUrl: 'https://nowhere.example/' },
+    { name: 'Too late', date: '2027-01-10', kind: 'observance', note: 'After the period.', sourceUrl: 'https://visit.example/dublin' },
+    { name: 'Big crowd', date: '2026-12-05', kind: 'observance', note: '50,000 people expected.', sourceUrl: 'https://visit.example/dublin' },
+    { name: 'christmas day', date: '2026-12-25', kind: 'observance', note: 'Again.', sourceUrl: 'https://visit.example/dublin' },
+  ];
+  const f = script([answer({ occasions: proposals })], web);
+  const logs = [];
+  const ai = createAI({ providers: [anthropic], search: { kind: 'brave', apiKey: 'BRAVEKEY-PERIOD-1234' }, fetch: f, now: NOW, prices: PRICES, log: (r) => logs.push(r) });
+  const out = await ai.findOccasions({ country: 'IE', period: { from: '2026-12-01', to: '2026-12-31' }, known: [{ name: 'Christmas Day' }] });
+  assert.deepEqual(out.occasions.map((o) => [o.name, o.date, o.end, o.source]), [['Dublin Winter Lights', '2026-12-04', '2026-12-31', 'https://visit.example/dublin'], ['Christmas Day swim', '2026-12-25', undefined, 'https://visit.example/dublin']]);
+  assert.deepEqual(out.notes.dropped.map((d) => d.reason), ['cites no search result', 'outside the period', 'numbers not in the source: 50,000', 'already in the list']);
+  const search = new URL(f.calls.find((c) => c.url.includes('brave')).url);
+  assert.equal(search.searchParams.get('q'), 'major events and festivities in Ireland December 2026');
+  assert.match(f.calls.find((c) => c.url.includes('anthropic')).body.messages[0].content, /<source url="https:\/\/visit\.example\/dublin"/);
+  assert.deepEqual(logs.map((l) => l.kind), ['search', 'llm']);
+  await assert.rejects(createAI({ providers: [anthropic], fetch: f }).findOccasions({ country: 'IE', period: '2026-12' }), /No search provider/);
+  await assert.rejects(ai.findOccasions({ country: 'Ireland', period: '2026-12' }), /two-letter/);
+});
+
 test('the draft prompt has its own Occasions and Tools sections', () => {
   for (const direction of [false, true]) {
     const p = loadPrompt('draft', { direction });
