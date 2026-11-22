@@ -66,6 +66,33 @@ export function postProblems(d, where = 'design', { direction, focalOk, brief } 
   return e;
 }
 
+// A carousel of post pages: { "template": "carousel", "pages": [ { "template": "post", "kind": ..., ...fields }, ... ] }. Each page is a
+// post design drawn by the brand's look, one image per page, in order: the first page is the cover, the last the closing page (their place
+// is their role; nothing else marks it). The carousel itself carries only what names and sizes its files.
+export const POST_CAROUSEL_KEYS = ['template', 'pages', 'sizes', 'name', 'networkSizes'];
+export const POST_PAGES = { min: 2, max: 10 };
+// Keys a page leaves to its carousel (one file name stem and one size for every page).
+const PAGE_OWN = ['sizes', 'name', 'networkSizes'];
+const isObjLike = (v) => v && typeof v === 'object' && !Array.isArray(v);
+// Whether a design is (or holds) a post design: a post, or a carousel with a post page.
+export const usesPostTemplate = (d) => isObjLike(d) && (d.template === 'post' || (d.template === 'carousel' && Array.isArray(d.pages) && d.pages.some((p) => isObjLike(p) && p.template === 'post')));
+export const isPostCarousel = (d) => isObjLike(d) && d.template === 'carousel' && usesPostTemplate(d);
+
+// Problems of a carousel of post pages (a list of texts). opts as for postProblems; every page is held to them.
+export function postCarouselProblems(d, where = 'design', opts = {}) {
+  const e = [];
+  for (const k of Object.keys(d)) if (!POST_CAROUSEL_KEYS.includes(k)) e.push(`${where}: "${clip(k)}" is not used by a carousel of post pages (each page carries its own words; the carousel takes ${POST_CAROUSEL_KEYS.slice(1).join(', ')})`);
+  const { min, max } = POST_PAGES;
+  if (!Array.isArray(d.pages) || d.pages.length < min || d.pages.length > max) return [...e, `${where}: pages needs ${min} to ${max} pages (a cover, body pages and a closing page)`];
+  d.pages.forEach((p, i) => {
+    const pw = `${where} page ${i + 1}`;
+    if (!isObjLike(p) || p.template !== 'post') return e.push(`${pw}: every page of this carousel must be a post page ({"template": "post", "kind": ...}), not ${isObjLike(p) ? `"${clip(p.template)}"` : 'that'}; pages of the older templates and post pages do not mix`);
+    for (const k of PAGE_OWN) if (p[k] !== undefined) e.push(`${pw}: ${k} belongs to the carousel, not to a page`);
+    e.push(...postProblems(p, pw, opts));
+  });
+  return e;
+}
+
 // Kind, variant and word budgets of a post against the brief of a look written as data (look.mjs lookBrief): a kind the look has no composition for is
 // refused; a named variant must exist and holds the post to its own budgets; with no variant a field must fit the roomiest composition of the kind.
 function briefProblems(d, where, brief) {
