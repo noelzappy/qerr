@@ -55,6 +55,10 @@ export interface PostSummary {
   renderStatus: RenderStatus;
   warningCount: number;
   hasDesign: boolean;
+  // the post's own design (the AI's, or one edited from it); ownDesignUsed false when a check refused it and the look's design drew the post
+  aiDesigned?: boolean;
+  ownDesignUsed?: boolean | null;
+  hasOtherDesign?: boolean;
   mediaCount: number;
   thumbnailUrl: string | null;
 }
@@ -94,6 +98,10 @@ export interface PostView {
   networks: { skip?: string[] } & Record<string, NetworkOverride | string[] | undefined>;
   design: DesignBlock | null;
   media: MediaView[];
+  // the post's other design (the look's, or the AI's) with its images, to compare and switch to; whether the current one is the post's own
+  otherDesign?: { aiDesigned: boolean; media: MediaView[]; savedAt: string | null } | null;
+  aiDesigned?: boolean;
+  ownDesignUsed?: boolean | null;
   renderStatus: RenderStatus;
   renderError: string | null;
   sources: string[];

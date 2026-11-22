@@ -1,6 +1,6 @@
 // What the server calls an activity run (a piece of background work), and the words and numbers the screens show for it.
 export type RunStatus = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
-export type RunKind = 'draft-batch' | 'research-run' | 'render-post' | 'rewrite-post' | 'send-batch' | 'refresh-delivery' | 'refresh-sweep' | 'analyse-reference';
+export type RunKind = 'draft-batch' | 'research-run' | 'render-post' | 'rewrite-post' | 'send-batch' | 'refresh-delivery' | 'refresh-sweep' | 'analyse-reference' | 'redesign-batch';
 
 export interface RunProgress { step: string; done?: number; total?: number }
 
@@ -35,6 +35,7 @@ export const KIND_LABEL: Record<RunKind, string> = {
   'analyse-reference': 'Design reference',
   'refresh-delivery': 'Status check',
   'refresh-sweep': 'Status check sweep',
+  'redesign-batch': 'AI design',
 };
 // A run's title as people read it. The server stores image runs as "Render: <post>"; they are shown as "Image: <post>".
 export const runTitle = (title: string) => title.replace(/^Render: /, 'Image: ');

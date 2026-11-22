@@ -64,6 +64,7 @@ export function runSummary(run: ActivityRun): string {
     case 'send-batch': return typeof r.created === 'number' ? `${r.created} sent, ${num(r.failed) + num(r.unknown)} did not go` : '';
     case 'render-post': return typeof r.files === 'number' ? `${r.files} images` : '';
     case 'refresh-delivery': return typeof r.checked === 'number' ? `${r.checked} checked` : '';
+    case 'redesign-batch': return typeof r.designed === 'number' ? `${r.designed} of ${num(r.of)} posts designed` : '';
     default: return '';
   }
 }

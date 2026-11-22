@@ -124,6 +124,7 @@ export function PostCard({ summary, batch, version, onChanged, deliveries, highl
             ? (load.error ? <div className="flex size-full items-center justify-center"><ImageOff className="size-4 text-muted-foreground" aria-hidden="true" /></div> : <Skeleton className="size-full rounded-none" role="status" aria-label="Loading the post" />)
             : <Picture post={post} first={first} carousel={pages !== null} working={working} onFail={pictureFailed} onView={() => setViewing(0)} />}
           {pages !== null && <CarouselBadge pages={pages} />}
+          <AiDesignTag ai={post ? post.aiDesigned === true : summary.aiDesigned === true} used={post ? post.ownDesignUsed !== false : summary.ownDesignUsed !== false} />
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3">
@@ -194,6 +195,17 @@ function When({ date, time, zone }: { date: string; time: string; zone: string }
 }
 
 // "Carousel, 4 pages" on the thumbnail: an icon and the page count, the words for screen readers.
+// A small tag on a post whose design the AI composed (or one edited from it). When a check refused it, the look's design drew the post and the
+// tag says the AI design was not used (the post page says why).
+export function AiDesignTag({ ai, used }: { ai: boolean; used: boolean }) {
+  if (!ai) return null;
+  return (
+    <span className="pointer-events-none absolute left-1 top-1 rounded bg-background/90 px-1 py-px text-[10.5px] leading-4 font-medium text-foreground" title={used ? 'AI-designed' : 'The AI design was not used: a check refused it, so the look\'s design drew the post'}>
+      {used ? 'AI-designed' : 'AI design not used'}
+    </span>
+  );
+}
+
 function CarouselBadge({ pages }: { pages: number }) {
   return (
     <span className="pointer-events-none absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded bg-background/90 px-1 py-px text-[11px] leading-4 font-medium text-foreground tabular-nums">

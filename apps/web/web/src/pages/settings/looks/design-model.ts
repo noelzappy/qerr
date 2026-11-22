@@ -159,6 +159,20 @@ export function checkProp(desc: Desc, v: unknown, cat: LookCatalogue): string {
       const form = forms.find((f) => (f.is === 'array' ? Array.isArray(v) : f.is === 'object' ? isObj(v) : f.is === 'boolean' ? typeof v === 'boolean' : typeof v === f.is));
       return form ? checkProp(form.desc, v, cat) : 'Choose one of the forms';
     }
+    // one of a few forms told apart by a key (an art shape: its `shape`), each an object
+    case 'tagged': {
+      const t = desc as unknown as { key: string; forms: Record<string, Desc> };
+      if (!isObj(v) || typeof v[t.key] !== 'string' || !Object.hasOwn(t.forms ?? {}, v[t.key] as string)) return `Choose one of ${Object.keys(t.forms ?? {}).join(', ')}`;
+      return checkProp(t.forms[v[t.key] as string]!, v, cat);
+    }
+    // an art path: commands of numbers (M and L one point, Q two, C three, Z none), starting with M
+    case 'path': {
+      const ARITY: Record<string, number> = { M: 1, L: 1, Q: 2, C: 3, Z: 0 };
+      if (!Array.isArray(v) || v.length < 2 || v.length > 100) return 'Use 2 to 100 commands';
+      if (!Array.isArray(v[0]) || v[0][0] !== 'M') return 'Start with M';
+      for (const c of v) if (!Array.isArray(c) || typeof c[0] !== 'string' || !(c[0] in ARITY) || c.length !== 1 + 2 * ARITY[c[0]]! || c.slice(1).some((n) => !isNum(n) || n < -1000 || n > 2000)) return 'Each command is a letter (M, L, Q, C, Z) and its numbers, -1000 to 2000';
+      return '';
+    }
     case 'place': case 'when': case 'children': return '';
     default: return '';
   }
@@ -864,7 +878,7 @@ export function whyNotAdd(comp: Json, type: string, cat: LookCatalogue, parentPa
     if (p.depth + 1 > limit(cat, 'depth', 4)) return `Pieces can be nested ${limit(cat, 'depth', 4)} levels deep at most`;
     const parentInfo = cat.elements[String(p.el.type)];
     if (!parentInfo?.container) return 'That piece holds nothing';
-    if (info.placement === 'none' || type === 'backdrop') return `A ${info.label.toLowerCase()} goes on the page, not in a box`;
+    if (info.placement === 'none' || type === 'backdrop' || type === 'art') return `A ${info.label.toLowerCase()} goes on the page, not in a box`;
     if (parentInfo.container === 'text' && type !== 'text') return 'A sticker holds text only';
     if (!info.flow && type !== 'text') { /* placed children are allowed for pieces that take a place */ }
   }
@@ -981,6 +995,8 @@ export function newElement(comp: Json, type: string, look: Json, cat: LookCatalo
     case 'device': el.model = 'phone'; el.finish = 'dark'; el.cutout = 'island'; el.shadow = 'soft'; size = { span: 3, rowSpan: 4, w: 420, h: 880 }; break;
     // a quiet pattern over the whole page, at the back (the pane offers the other patterns and the ready-made settings)
     case 'backdrop': el.pattern = 'dots'; el.scale = 36; el.density = 0.35; el.opacity = 0.1; break;
+    // the art layer: one quiet soft circle over the whole page, at the back (the pane adds, moves, sizes, colours and deletes shapes)
+    case 'art': el.shapes = [{ shape: 'circle', cx: 820, cy: 180, r: 260, colour: 'soft' }]; break;
     default: break;
   }
   // on a page lit by a gradient of dark colours (the ledger look), or with a dark colour laid over its picture (an overlay: the studio
@@ -996,7 +1012,7 @@ export function newElement(comp: Json, type: string, look: Json, cat: LookCatalo
     if (size.span === 99 && g) size = { ...size, span: g.cols, w: PAGE.w - g.m.left - g.m.right };
     const place = newPlace(comp, look, size);
     if (isObj(place.px) && type === 'rule') { const p = place.px; p.h = 4; }
-    el.place = type === 'backdrop' ? { inset: 'page' } : place;
+    el.place = type === 'backdrop' || type === 'art' ? { inset: 'page' } : place;
   }
   return el;
 }
@@ -1011,7 +1027,7 @@ export function addElement(comp: Json, type: string, look: Json, cat: LookCatalo
   const next = mutate(comp, (c) => {
     const list = parentPath ? (() => { const p = locate(c, parentPath)!.el; return (Array.isArray(p.children) ? p.children : (p.children = [])) as Json[]; })() : elementsOf(c);
     // a pattern goes at the back of the page: first in the list, so it is drawn under what has the same layer
-    if (type === 'backdrop' && !parentPath) { list.unshift(el); path = '0'; } else { list.push(el); path = joinEl(parentPath, list.length - 1); }
+    if ((type === 'backdrop' || type === 'art') && !parentPath) { list.unshift(el); path = '0'; } else { list.push(el); path = joinEl(parentPath, list.length - 1); }
     for (const b of bindingsOf(el, look)) withField(c, b.field, cat);
     // a chart's labels (body) and values (ink) must read on what it stands on: on a coloured or dark ground it takes one ink that does
     if (type === 'chart' && el.ink === undefined) {

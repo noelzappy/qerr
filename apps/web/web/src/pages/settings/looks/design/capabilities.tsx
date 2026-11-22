@@ -14,6 +14,7 @@ import type { Desc, Json } from '../look-types';
 import { useBrandGraphics } from '../useBrandGraphics';
 import { Chips, Group, Label, ToggleChip } from './ui';
 import { BackdropChoices } from './surfaces';
+import { ArtChoices } from './art';
 
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
 const Err = ({ m }: { m: string }) => (m ? <p className="text-[12.5px] font-medium text-destructive" role="alert">{m}</p> : null);
@@ -25,6 +26,7 @@ export const CAPABILITY_PROPS: Record<string, string[]> = {
   graphic: ['ref', 'at', 'size', 'edge', 'dx', 'dy', 'flip', 'tint', 'rot'],
   // a pattern (design/surfaces.tsx) and the words that cross a shape's edge (their own group under Style)
   backdrop: ['pattern', 'colour', 'second', 'scale', 'density', 'opacity', 'angle', 'seed', 'mask', 'at'],
+  art: ['shapes'],
   text: ['overlap'],
   'fitted-stack': ['overlap'],
 };
@@ -227,6 +229,7 @@ export function CapabilityGroups({ ctx }: { ctx: Ctx }) {
     case 'overlay': return <OverlayChoices ctx={ctx} />;
     case 'graphic': return <GraphicChoices ctx={ctx} />;
     case 'backdrop': return <BackdropChoices ctx={ctx} />;
+    case 'art': return <ArtChoices ctx={ctx} />;
     default: return null;
   }
 }

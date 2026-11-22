@@ -22,6 +22,7 @@ import { Audit } from './pages/Audit';
 import { BatchReview } from './pages/BatchReview';
 import { Batches } from './pages/Batches';
 import { PostPage } from './pages/batches/PostPage';
+import { PostDesignPage } from './pages/batches/PostDesignPage';
 import { ChannelsPage } from './pages/Channels';
 import { Login } from './pages/Login';
 import { SetupPage } from './pages/setup/SetupPage';
@@ -61,6 +62,7 @@ export function App() {
               <Route path="/batches/:id/schedule" element={<BatchReview />} />
               <Route path="/batches/:id/posts/new" element={<PostPage />} />
               <Route path="/batches/:id/posts/:postId" element={<PostPage />} />
+              <Route path="/batches/:id/posts/:postId/design" element={<PostDesignPage />} />
               <Route path="/vault" element={<Vault />} />
               <Route path="/vault/:id" element={<VaultItemPage />} />
               <Route path="/library" element={<Library />} />

@@ -366,6 +366,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
           </div>
           <div id="post-preview" className={cn('flex flex-col gap-4', !showPreview && 'max-lg:hidden')}>
             <PreviewPane design={design} preview={preview} />
+            {post && <TwoDesigns post={post} batchId={batch.id} dirty={dirty} onSwitched={adopt} />}
             {post && <SavedPictures post={post} working={working} onDrop={a.setDropping} />}
             {warnings.length > 0 && <Notice tone="warn" title="Worth a look:"><ul className="mt-1.5 list-disc space-y-1 pl-[18px]">{warnings.map((w, i) => <li key={i} className="[overflow-wrap:anywhere]">{w}</li>)}</ul></Notice>}
           </div>
@@ -384,6 +385,45 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
       {post && <UploadInput a={a} title={post.title} />}
       {post && <PostConfirms a={a} title={post.title} />}
     </form>
+  );
+}
+
+// The post's design: whether the AI composed it, and its other design (the look's, or the AI's) beside it, with a button to switch per post
+// (the words stay; an approval is taken back, as for every edit). A post with its own design opens it in the design editor.
+function TwoDesigns({ post, batchId, dirty, onSwitched }: { post: PostDetail['post']; batchId: string; dirty: boolean; onSwitched: (d: PostDetail) => void }) {
+  const [busy, setBusy] = useState(false);
+  const isPost = !!post.design && post.design.template === 'post';
+  const other = post.otherDesign ?? null;
+  const ai = post.aiDesigned === true;
+  if (!isPost || (!ai && !other)) return null;
+  const first = (media: PostDetail['post']['media']) => media.find((m) => m.kind === 'image' && m.source === 'render') ?? null;
+  const now = first(post.media), then = other ? first(other.media) : null;
+  const name = (isAi: boolean) => (isAi ? 'AI design' : 'The look\'s design');
+  async function switchNow() {
+    setBusy(true);
+    try {
+      const next = await api.post<PostDetail>(`/api/posts/${encodeURIComponent(post.id)}/design/switch`, {});
+      onSwitched(next);
+      toast.success(next.post.aiDesigned ? 'Switched to the AI design' : 'Switched to the look\'s design');
+    } catch (e) { toast.error(errorMessage(e)); } finally { setBusy(false); }
+  }
+  const thumb = 'block aspect-[4/5] w-full rounded-md border bg-muted object-cover';
+  const tile = (label: string, m: PostDetail['post']['media'][number] | null, current: boolean) => (
+    <figure className="flex min-w-0 flex-col gap-1">
+      {m?.url ? <img src={m.url} alt={`${post.title}: ${label}`} loading="lazy" className={cn(thumb, current && 'ring-2 ring-primary')} /> : <div className={cn(thumb, 'flex items-center justify-center p-2 text-center text-[12px] text-muted-foreground')}>{current ? 'No image yet' : 'Made again when you switch'}</div>}
+      <figcaption className="text-[12.5px]"><span className="font-medium">{label}</span>{current && <span className="text-muted-foreground"> · in use</span>}</figcaption>
+    </figure>
+  );
+  return (
+    <section aria-label="The post's designs" className="flex flex-col gap-2 border-t pt-4">
+      <h3 className="text-[13.5px] font-semibold">Design</h3>
+      {ai && post.ownDesignUsed === false && <Notice tone="warn">The AI design was not used: a check refused it, so the look's design drew this post. Its warnings say why.</Notice>}
+      {other && <div className="grid grid-cols-2 gap-2">{tile(name(ai), now, true)}{tile(name(other.aiDesigned), then, false)}</div>}
+      <div className="flex flex-wrap gap-2">
+        {other && <BusyButton size="sm" variant="outline" loading={busy} disabled={dirty} title={dirty ? 'Save your changes first' : undefined} onClick={() => void switchNow()}>Switch to {other.aiDesigned ? 'the AI design' : 'the look\'s design'}</BusyButton>}
+        {ai && <Button asChild size="sm" variant="outline"><Link to={`/batches/${batchId}/posts/${post.id}/design`}>Edit this post's design</Link></Button>}
+      </div>
+    </section>
   );
 }
 

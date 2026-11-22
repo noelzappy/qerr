@@ -40,6 +40,8 @@ export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => 
   const [count, setCount] = useState('10');
   const [customCount, setCustomCount] = useState(false);
   const [title, setTitle] = useState('');
+  // Design: the look's own designs (the default), or each post composed by the AI (the look's design kept to switch back per post)
+  const [design, setDesign] = useState<'look' | 'ai'>('look');
   const [networks, setNetworks] = useState<string[]>([...NETWORKS]);
   // "This period": the occasions of the dates, as chips (the calendar's ticked; the person's own and web finds added)
   const [occasions, setOccasions] = useState<OccasionChip[]>([]);
@@ -62,7 +64,7 @@ export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => 
   const isAdmin = me?.role === 'admin';
   const live = useActivityRun(runId);
   const now = useNow(!!live.run && isActive(live.run));
-  const dirty = !runId && (periodStart !== initial.from || periodEnd !== initial.to || count !== '10' || !!title.trim() || networks.length !== NETWORKS.length);
+  const dirty = !runId && (periodStart !== initial.from || periodEnd !== initial.to || count !== '10' || !!title.trim() || networks.length !== NETWORKS.length || design !== 'look');
   useUnsavedGuard(dirty && !busy);
 
   async function submit(e: FormEvent) {
@@ -79,7 +81,7 @@ export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => 
     setError('');
     try {
       const chosen = chosenOccasions(occasions);
-      const r = await api.post<{ activityId: string | null }>('/api/batches/ai-draft', { periodStart, periodEnd, count: n, channels: networks, ...(title.trim() ? { title: title.trim() } : {}), ...(chosen.length ? { occasions: chosen } : {}) });
+      const r = await api.post<{ activityId: string | null }>('/api/batches/ai-draft', { periodStart, periodEnd, count: n, channels: networks, ...(title.trim() ? { title: title.trim() } : {}), ...(chosen.length ? { occasions: chosen } : {}), ...(design === 'ai' ? { design } : {}) });
       if (r.activityId) setRunId(r.activityId);
       else { toast.success('Drafting started. The batch appears in the list when it is ready'); withoutGuard(onClose); }
     } catch (err) {
@@ -167,6 +169,11 @@ export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => 
           <TextField label="Exact number of posts" type="number" inputMode="numeric" min={1} max={30} value={count} error={fields.count} onChange={(e) => setCount(e.target.value)} hint="From 1 to 30." className="sm:max-w-[calc(50%-0.375rem)]" />
         )}
         {!customCount && fields.count && <p className="text-[12.5px] font-medium text-destructive" role="alert">{fields.count}</p>}
+        <ChoiceRow<'look' | 'ai'>
+          legend="Design" tip={design === 'ai' ? 'The AI composes each post\'s design around its words and picture, in your look\'s fonts and colours, and the checks run on every image. A post keeps the look\'s design to switch back to. This takes a little longer and uses more of the AI budget.' : 'Each post is drawn with one of your look\'s own designs.'}
+          value={design} onChange={(v) => setDesign(v === 'ai' ? 'ai' : 'look')}
+          choices={[{ value: 'look', label: 'The look\'s designs' }, { value: 'ai', label: 'AI-designed' }]}
+        />
         <NetworkToggles value={networks} onChange={setNetworks} error={fields.channels} />
         <TextField label="Title" optional value={title} maxLength={200} placeholder="AI draft for the month" onChange={(e) => setTitle(e.target.value)} hint="Left empty, the batch is called AI draft for the month." />
       </form>

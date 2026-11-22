@@ -189,6 +189,20 @@ function ReviewView({ data, reload, deliveriesByPost, focusPost, command, onComm
     }
   }
 
+  // Redesign with AI: the AI composes a new design for each single post, keeping its words; each post keeps the design it had to switch back.
+  async function redesign() {
+    setBusy(true);
+    setError('');
+    try {
+      const r = await api.post<{ queued: boolean; alreadyQueued: boolean }>(`/api/batches/${batch.id}/redesign`, {});
+      toast.success(r.alreadyQueued ? 'A redesign of this batch is already on its way. Activity shows how far it is' : 'The AI is designing the posts. Each keeps its words, and its old design to switch back to. Activity shows how far it is');
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function restore(p: PostSummary) {
     try {
       await api.post(`/api/posts/${p.id}/restore`);
@@ -230,9 +244,10 @@ function ReviewView({ data, reload, deliveriesByPost, focusPost, command, onComm
               </SelectContent>
             </Select>
             <BusyButton variant="outline" onClick={addPost}>Add a post</BusyButton>
-            {!primaryIsApproveAll && (
-              <MoreMenu label="More batch actions" items={[{ label: 'Approve all without warnings', onSelect: () => void approveAll(), disabled: busy || live.length === 0 }]} />
-            )}
+            <MoreMenu label="More batch actions" items={[
+              ...(!primaryIsApproveAll ? [{ label: 'Approve all without warnings', onSelect: () => void approveAll(), disabled: busy || live.length === 0 }] : []),
+              { label: 'Redesign with AI', onSelect: () => void redesign(), disabled: busy || !live.some((p) => p.hasDesign) },
+            ]} />
           </div>
           {shown.length > 0 && (
             <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
