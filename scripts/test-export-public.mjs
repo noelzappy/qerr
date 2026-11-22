@@ -50,6 +50,7 @@ test('the fictional Pennyhive pack is public like the demo, and a private pack i
     assert.ok(fs.existsSync(path.join(out, 'brands/pennyhive/logos/logo-mark.svg')));
     assert.ok(!fs.existsSync(path.join(out, 'brands/globex')));
     assert.equal(isPrivatePack('brands/pennyhive/brand.json'), false);
+    assert.equal(isPrivatePack('brands/northbeam/brand.json'), false);
   } finally { fs.rmSync(root, { recursive: true, force: true }); fs.rmSync(path.dirname(out), { recursive: true, force: true }); }
 });
 

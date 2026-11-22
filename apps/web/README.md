@@ -10,7 +10,7 @@ modules by subpath (`engineImport('batch')` is `@vesk/engine/batch`, see `src/se
 
 The brand is set by an admin in Settings, Brand and look, and kept in the database: no file to edit. Until it is saved
 the app shows the brand pack named by `BRAND_DIR` (default `brands/demo`, the fictional Acme Savings; `brands/pennyhive`
-is a second fictional test brand, a savings-club app) and seeds its first vault from that pack's `vault.json`. See "The
+is a second fictional test brand, a savings-club app, and `brands/northbeam` a third, a product studio for the studio look) and seeds its first vault from that pack's `vault.json`. See "The
 brand" below.
 
 The app has only been run against a fake Buffer and local or fake storage, never against a real Buffer account or a

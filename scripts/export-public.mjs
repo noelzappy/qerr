@@ -15,8 +15,9 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 // The packs that may be published: fictional brands only (no real company, person, place or amount). demo is the default
-// pack (Acme Savings); pennyhive is the fictional finance test brand (Pennyhive).
-export const PUBLIC_PACKS = ['demo', 'pennyhive'];
+// pack (Acme Savings); pennyhive is the fictional finance test brand (Pennyhive); northbeam is the fictional product studio that shows
+// off the studio look (Northbeam).
+export const PUBLIC_PACKS = ['demo', 'pennyhive', 'northbeam'];
 
 // Strings shaped like real secrets. Test fixtures use obvious fakes (sk-ant-TESTKEY..., AWS's documented example key), which
 // these patterns do not match.

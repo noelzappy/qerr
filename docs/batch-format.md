@@ -296,3 +296,7 @@ The fictional Pennyhive pack has one of its own, `brands/pennyhive/batches/examp
 of each kind (statement, figure, list, quote, photo, event, offer), with the same synthetic pictures and round,
 illustrative figures. Import it while the brand is Pennyhive (`BRAND_DIR=brands/pennyhive`): a `post` design is drawn in
 the brand's design direction, and the demo brand has none.
+
+The fictional Northbeam pack has one too, `brands/northbeam/batches/example-posts.json`: twelve posts covering every kind, one of
+them a carousel of three post pages, its pictures photos recorded in `packages/engine/design/assets/photos/CREDITS.md`, written for the shipped studio look (with the Studio look active, a carousel's pages
+before the last say "Swipe").
