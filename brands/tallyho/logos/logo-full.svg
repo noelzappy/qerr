@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1227" height="300" viewBox="0 0 1227 300" role="img" aria-label="Tallyho">
+  <rect x="12" y="18" width="276" height="228" rx="48" fill="#3D5AFE"/>
+  <polygon points="90,222 144,222 72,294" fill="#3D5AFE"/>
+  <line x1="90" y1="135" x2="135" y2="177" stroke="#FF7A1A" stroke-width="30" stroke-linecap="round"/>
+  <line x1="135" y1="177" x2="216" y2="87" stroke="#FF7A1A" stroke-width="30" stroke-linecap="round"/>
+  <line x1="377.5" y1="202" x2="377.5" y2="28" stroke="#2A0E5E" stroke-width="40" stroke-linecap="round"/>
+  <line x1="350" y1="102" x2="405" y2="102" stroke="#2A0E5E" stroke-width="40" stroke-linecap="round"/>
+  <circle cx="521" cy="152" r="50" fill="none" stroke="#2A0E5E" stroke-width="40"/>
+  <line x1="571" y1="202" x2="571" y2="102" stroke="#2A0E5E" stroke-width="40" stroke-linecap="round"/>
+  <line x1="637" y1="202" x2="637" y2="28" stroke="#2A0E5E" stroke-width="40" stroke-linecap="round"/>
+  <line x1="703" y1="202" x2="703" y2="28" stroke="#2A0E5E" stroke-width="40" stroke-linecap="round"/>
+  <line x1="769" y1="102" x2="819" y2="202" stroke="#2A0E5E" stroke-width="40" stroke-linecap="round"/>
+  <line x1="869" y1="102" x2="789" y2="262" stroke="#2A0E5E" stroke-width="40" stroke-linecap="round"/>
+  <line x1="935" y1="202" x2="935" y2="28" stroke="#2A0E5E" stroke-width="40" stroke-linecap="round"/>
+  <path d="M935 152 A50 50 0 0 1 1035 152" fill="none" stroke="#2A0E5E" stroke-width="40" stroke-linecap="round"/>
+  <line x1="1035" y1="202" x2="1035" y2="152" stroke="#2A0E5E" stroke-width="40" stroke-linecap="round"/>
+  <circle cx="1151" cy="152" r="50" fill="none" stroke="#2A0E5E" stroke-width="40"/>
+</svg>

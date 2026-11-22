@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300" role="img" aria-label="Tallyho">
+  <rect x="12" y="18" width="276" height="228" rx="48" fill="#3D5AFE"/>
+  <polygon points="90,222 144,222 72,294" fill="#3D5AFE"/>
+  <line x1="90" y1="135" x2="135" y2="177" stroke="#FF7A1A" stroke-width="30" stroke-linecap="round"/>
+  <line x1="135" y1="177" x2="216" y2="87" stroke="#FF7A1A" stroke-width="30" stroke-linecap="round"/>
+</svg>

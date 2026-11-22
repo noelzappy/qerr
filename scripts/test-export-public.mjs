@@ -39,8 +39,8 @@ test('private packs are left out, the demo pack and everything else are copied b
   } finally { fs.rmSync(root, { recursive: true, force: true }); fs.rmSync(path.dirname(out), { recursive: true, force: true }); }
 });
 
-test('the fictional Pennyhive pack is public like the demo, and a private pack is still left out', () => {
-  const root = repo({ ...FILES, 'brands/pennyhive/brand.json': '{"name":"Pennyhive"}\n', 'brands/pennyhive/logos/logo-mark.svg': '<svg/>\n' });
+test('the fictional Pennyhive and Tallyho packs are public like the demo, and a private pack is still left out', () => {
+  const root = repo({ ...FILES, 'brands/pennyhive/brand.json': '{"name":"Pennyhive"}\n', 'brands/pennyhive/logos/logo-mark.svg': '<svg/>\n', 'brands/tallyho/brand.json': '{"name":"Tallyho"}\n' });
   const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ss-out-')), 'public');
   try {
     const r = exportPublic({ root, out, log() {} });
@@ -50,6 +50,8 @@ test('the fictional Pennyhive pack is public like the demo, and a private pack i
     assert.ok(fs.existsSync(path.join(out, 'brands/pennyhive/logos/logo-mark.svg')));
     assert.ok(!fs.existsSync(path.join(out, 'brands/globex')));
     assert.equal(isPrivatePack('brands/pennyhive/brand.json'), false);
+    assert.ok(fs.existsSync(path.join(out, 'brands/tallyho/brand.json')));
+    assert.equal(isPrivatePack('brands/tallyho/brand.json'), false);
   } finally { fs.rmSync(root, { recursive: true, force: true }); fs.rmSync(path.dirname(out), { recursive: true, force: true }); }
 });
 
