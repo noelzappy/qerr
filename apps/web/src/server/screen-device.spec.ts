@@ -33,7 +33,7 @@ const quote = (avatar: Record<string, unknown>) => ({ template: 'post', kind: 'q
 
 describe('a bare phone screenshot', () => {
   it('is a plain screenshot at a phone\'s proportions, held to the engine\'s own phone', async () => {
-    const { MODELS } = await import('@vesk/engine/design/directions/primitives/device');
+    const { MODELS } = await import('@vesk/engine/design/directions/primitives/device' as string) as { MODELS: { phone: { lo: number; hi: number } } };
     expect(PHONE_SCREEN_RATIO).toEqual({ lo: MODELS.phone.lo, hi: MODELS.phone.hi });
     const it_ = (phoneFramed: boolean | null, width: number | null, height: number | null) => framingOfItem({ kind: 'screen', phoneFramed, width, height });
     expect(it_(false, 645, 1398)).toBe('phone-bare');
