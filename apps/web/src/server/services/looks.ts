@@ -5,7 +5,8 @@
 // Two sources of looks, one reference format everywhere:
 //   shipped:<id>   the engine's own looks: engine data, global, read only, never rows (shippedLooks below)
 //   own:<slug>     a BrandLook of the caller's brand (tables brand_looks and brand_look_compositions)
-// A brand always starts from a copy (duplicateLook); there is no blank look. The ACTIVE look is a pointer on the brand's profile
+// A brand starts from a copy (duplicateLook) or from the engine's blank starter (createBlankLook: lib/design/look-starter.mjs, never a
+// shipped look). The ACTIVE look is a pointer on the brand's profile
 // (BrandProfile.activeLookRef), not a flag on a row; null means classic layouts.
 //
 // TENANCY. Every exported function of the service takes a scope first, `{ brandId }`, and every query filters on it. The scope
@@ -66,6 +67,10 @@ interface EngineLook {
 
 let engineLoaded: Promise<EngineLook> | null = null;
 export const lookEngine = (): Promise<EngineLook> => (engineLoaded ??= engineImport<EngineLook>('design/look'));
+// The engine's blank starter (lib/design/look-starter.mjs): a minimal valid look in the brand's own fonts and colours, one plain composition per kind.
+interface EngineStarter { starterLook(o: { id: string; name: string }): Json; starterComposition(kind: string): Json | null }
+let starterLoaded: Promise<EngineStarter> | null = null;
+const starterEngine = (): Promise<EngineStarter> => (starterLoaded ??= engineImport<EngineStarter>('design/look-starter'));
 
 // The engine's catalogue of elements, sections and limits the editor draws its controls from; passed on as it is.
 export async function lookCatalogue(): Promise<Json> { return (await lookEngine()).lookCatalogue(); }
@@ -91,7 +96,7 @@ export async function fontFamilies(): Promise<FontFamilyInfo[]> {
 
 export const SLUG = /^[a-z0-9][a-z0-9-]{0,39}$/;
 // Addresses of the panel's Looks pages (/settings/looks/<slug>) that a look must not take.
-export const RESERVED_SLUGS = ['inspiration', 'series'];
+export const RESERVED_SLUGS = ['inspiration', 'series', 'add-design', 'new'];
 export interface LookRef { source: 'shipped' | 'own'; id: string }
 // 'shipped:retail' or 'own:my-look'. Anything else, an id with a ':' included, is not a reference.
 export function parseRef(ref: unknown): LookRef | null {
@@ -232,6 +237,10 @@ export interface OwnSummary {
 }
 export interface OwnComposition { id: string; kind: string; position: number; name: string; definition: unknown; draft: unknown; hasDraft: boolean; enabled: boolean; gate: unknown; updatedAt: Date }
 export interface OwnDetail { definition: unknown; gateRecord: unknown; compositions: OwnComposition[] }
+
+// Whether a design can bring its typefaces with it: no. A composition names the look's font roles (display, text, label, mono) and palette
+// roles, never a family or a colour, so it is always drawn in the look's fonts, colours and type settings.
+const TYPEFACES = { travel: false, note: 'A design has no typefaces or colours of its own: it uses the fonts, colours and type of the look it is in.' } as const;
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 34).replace(/-+$/g, '');
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -454,8 +463,16 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
     return `${base}-${randomUUID().slice(0, 4)}`;
   }
 
-  // A deep copy of a shipped look or of one of this brand's own looks, as a draft of this brand's own, with new ids. Looks are
-  // never started blank.
+  // The slug asked for (refused when taken or reserved), or a free one derived from the name.
+  async function chosenSlug(scope: LookScope, name: string, wanted?: string): Promise<string> {
+    if (wanted === undefined) return freeSlug(scope, name);
+    if (!SLUG.test(wanted)) throw badRequest('A look id is lowercase letters, digits and - only (up to 40, starting with a letter or digit)');
+    if (RESERVED_SLUGS.includes(wanted) || (await shippedById(wanted)) || await findRow(scope, wanted)) throw conflict(`A look with the id "${wanted}" exists already; choose another id`);
+    return wanted;
+  }
+
+  // A deep copy of a shipped look or of one of this brand's own looks, as a draft of this brand's own, with new ids (createBlankLook starts
+  // one from the engine's blank starter instead).
   async function duplicateLook(scope: LookScope, actor: Actor, sourceRef: string, opts: { name?: string; slug?: string } = {}) {
     const eng = await lookEngine();
     const p = parseRef(sourceRef);
@@ -476,12 +493,7 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
     if (comps.length > eng.LIMITS.compositions) throw conflict(`A look has at most ${eng.LIMITS.compositions} compositions`);
     const name = (opts.name ?? `${String(settings.name).slice(0, eng.LIMITS.name - 7)} (copy)`).trim();
     if (!name || name.length > eng.LIMITS.name) throw badRequest(`A look's name is 1 to ${eng.LIMITS.name} characters`);
-    let slug: string;
-    if (opts.slug !== undefined) {
-      if (!SLUG.test(opts.slug)) throw badRequest('A look id is lowercase letters, digits and - only (up to 40, starting with a letter or digit)');
-      if (RESERVED_SLUGS.includes(opts.slug) || (await shippedById(opts.slug)) || await findRow(scope, opts.slug)) throw conflict(`A look with the id "${opts.slug}" exists already; choose another id`);
-      slug = opts.slug;
-    } else slug = await freeSlug(scope, name);
+    const slug = await chosenSlug(scope, name, opts.slug);
     const definition: Json = { ...settings, id: slug, name, origin: `copy:${sourceRef}`, schema: eng.LOOK_SCHEMA };
     const full = { ...definition, compositions: comps.map((c) => c.definition) };
     if (JSON.stringify(full).length > eng.LIMITS.definitionBytes) throw badRequest(`The look is larger than ${eng.LIMITS.definitionBytes / 1024} KB`);
@@ -601,32 +613,213 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
     return ownView((await findRow(scope, slug))!, true);
   }
 
-  // Copies one composition (the `index`th of `kind`) of a shipped look or of one of this brand's own looks into this look.
-  async function addCompositionFrom(scope: LookScope, actor: Actor, slug: string, from: { sourceRef: string; kind: string; index: number }) {
-    const eng = await lookEngine();
-    const row = await needRow(scope, slug);
-    const p = parseRef(from.sourceRef);
+  // The `index`th composition of `kind` of a shipped look or of one of this brand's own looks (all of its compositions, enabled or not, in
+  // order), as a fresh copy, with the look's name.
+  async function sourceComposition(scope: LookScope, sourceRef: string, kind: string, index: number): Promise<{ definition: Json; lookName: string }> {
+    const p = parseRef(sourceRef);
     if (!p) throw badRequest('That is not a look reference (shipped:<id> or own:<slug>)');
-    let list: Json[];
+    let list: Json[], lookName: string;
     if (p.source === 'shipped') {
       const l = await shippedById(p.id);
       if (!l) throw notFound('Look not found');
-      list = (l.compositions as Json[]).filter((c) => c.kind === from.kind);
+      list = (l.compositions as Json[]).filter((c) => c.kind === kind);
+      lookName = String(l.name);
     } else {
-      list = (await sorted((await needRow(scope, p.id)).compositions)).filter((c) => c.kind === from.kind).map((c) => clone(c.definition as Json));
+      const src = await needRow(scope, p.id);
+      list = (await sorted(src.compositions)).filter((c) => c.kind === kind).map((c) => c.definition as Json);
+      lookName = src.name;
     }
-    const src = Number.isInteger(from.index) ? list[from.index] : undefined;
-    if (!src) throw notFound(`That look has no ${String(from.kind).slice(0, 20)} composition number ${String(from.index).slice(0, 6)}`);
-    const sameKind = row.compositions.filter((c) => c.kind === from.kind);
+    const src = Number.isInteger(index) ? list[index] : undefined;
+    if (!src) throw notFound(`That look has no ${String(kind).slice(0, 20)} composition number ${String(index).slice(0, 6)}`);
+    return { definition: clone(src), lookName };
+  }
+
+  // A NEW composition goes through the checks before it is drawn: the look must validate with it (or it is refused), then the gate runs on it
+  // as the look would draw it (validation, and with a renderer sample, stress and minimal copy). It is stored with its gate record and switched
+  // on only when the gate passed; one that did not pass is kept switched off, so the person can open it in the design editor (whose draft and
+  // publish go through the gate again) and nothing unchecked is drawn.
+  async function insertComposition(scope: LookScope, actor: Actor, row: Row, definition: Json, what: { action: string; detail: Json }) {
+    const eng = await lookEngine();
+    const kind = String(definition.kind);
+    const sameKind = row.compositions.filter((c) => c.kind === kind);
     if (sameKind.length >= eng.LIMITS.perKind) throw conflict(`A look has at most ${eng.LIMITS.perKind} compositions of one kind; remove one first`);
     if (row.compositions.length >= eng.LIMITS.compositions) throw conflict(`A look has at most ${eng.LIMITS.compositions} compositions; remove one first`);
-    const definition = clone(src);
-    await checked({ ...(await assemble(row, { all: true })), compositions: [...((await assemble(row, { all: true })).compositions as Json[]), definition] }, 'The composition does not fit this look');
+    const all = await assemble(row, { all: true });
+    await checked({ ...all, compositions: [...(all.compositions as Json[]), definition] }, 'The composition does not fit this look');
+    const drawn = await assemble(row);
+    const gate = await gateOf(scope, { ...drawn, compositions: [...(drawn.compositions as Json[]), definition] }, { kind, definition }, actor.id);
     const position = Math.max(-1, ...sameKind.map((c) => c.position)) + 1;
-    const created = await prisma.brandLookComposition.create({ data: { lookId: row.id, brandId: scope.brandId, kind: from.kind, position, name: String(definition.name), definition: definition as Prisma.InputJsonValue } });
+    const created = await prisma.brandLookComposition.create({ data: { lookId: row.id, brandId: scope.brandId, kind, position, name: String(definition.name), definition: definition as Prisma.InputJsonValue, enabled: gate.passed, gate: gate as unknown as Prisma.InputJsonValue } });
     await prisma.brandLook.update({ where: { id: row.id }, data: { ...stale, updatedById: actor.id } });
-    await audit(deps, actor, 'look.composition.add', 'look', row.id, { look: slug, composition: created.id, from: from.sourceRef, kind: from.kind, index: from.index });
-    return ownView((await findRow(scope, slug))!, true);
+    await audit(deps, actor, what.action, 'look', row.id, { look: row.slug, composition: created.id, passed: gate.passed, ...what.detail });
+    return { look: await ownView((await findRow(scope, row.slug))!, true), added: addedOf(created.id, gate) };
+  }
+  const addedOf = (id: string, gate: GateRecord) => ({ id, enabled: gate.passed, passed: gate.passed, ...(gate.passed ? {} : { message: gate.checks.find((k) => !k.passed)?.message ?? 'The checks did not pass' }) });
+
+  // Copies one composition (the `index`th of `kind`) of a shipped look or of one of this brand's own looks into this look.
+  async function addCompositionFrom(scope: LookScope, actor: Actor, slug: string, from: { sourceRef: string; kind: string; index: number }) {
+    const row = await needRow(scope, slug);
+    const { definition } = await sourceComposition(scope, from.sourceRef, from.kind, from.index);
+    return insertComposition(scope, actor, row, definition, { action: 'look.composition.add', detail: { from: from.sourceRef, kind: from.kind, index: from.index } });
+  }
+
+  // "Add a blank design": the engine starter's plain composition of `kind`, added to this look like any new composition.
+  async function addBlankComposition(scope: LookScope, actor: Actor, slug: string, kind: string) {
+    const eng = await lookEngine();
+    if (!eng.KINDS.includes(kind)) throw badRequest(`Unknown kind of post: ${String(kind).slice(0, 20)}`);
+    const row = await needRow(scope, slug);
+    const definition = (await starterEngine()).starterComposition(kind);
+    if (!definition) throw badRequest(`There is no blank ${String(kind).slice(0, 20)} design`);
+    return insertComposition(scope, actor, row, definition, { action: 'look.composition.add_blank', detail: { kind } });
+  }
+
+  // A look started blank: the engine's starter (neutral settings in the brand's own fonts and colours, one plain composition per kind) as a
+  // draft of this brand's own, under the name given and a slug derived from it (or the one given).
+  async function createBlankLook(scope: LookScope, actor: Actor, opts: { name: string; slug?: string }) {
+    const eng = await lookEngine();
+    const name = String(opts.name ?? '').trim();
+    if (!name || name.length > eng.LIMITS.name) throw badRequest(`A look's name is 1 to ${eng.LIMITS.name} characters`);
+    if (await prisma.brandLook.count({ where: { brandId: scope.brandId } }) >= eng.MAX_LOOKS) throw conflict(`Keep at most ${eng.MAX_LOOKS} looks; remove one first`);
+    const slug = await chosenSlug(scope, name, opts.slug);
+    const { compositions, ...definition } = (await starterEngine()).starterLook({ id: slug, name }) as Json & { compositions: Json[] };
+    await checked({ ...definition, compositions }, 'The blank look is not valid');
+    const position = (await prisma.brandLook.aggregate({ where: { brandId: scope.brandId }, _max: { position: true } }))._max.position ?? -1;
+    const next: Record<string, number> = {};
+    try {
+      const row = await prisma.brandLook.create({
+        data: {
+          brandId: scope.brandId, slug, name, definition: definition as Prisma.InputJsonValue, origin: 'starter', engineSchema: eng.LOOK_SCHEMA, status: 'draft',
+          position: position + 1, createdById: actor.id, updatedById: actor.id,
+          compositions: { create: compositions.map((c) => ({ brandId: scope.brandId, kind: String(c.kind), position: (next[String(c.kind)] = (next[String(c.kind)] ?? -1) + 1), name: String(c.name), definition: c as Prisma.InputJsonValue, enabled: true })) },
+        },
+        include: { compositions: true },
+      });
+      await audit(deps, actor, 'look.create_blank', 'look', row.id, { look: slug });
+      return ownView(row, true);
+    } catch (e) {
+      if ((e as { code?: string }).code === 'P2002') throw conflict(`A look with the id "${slug}" exists already; choose another id`);
+      throw e;
+    }
+  }
+
+  // ---- adding a design to the look in use ----
+
+  type Base = { ref: string; name: string; shipped: boolean; status?: string; settings: Json; comps: Array<{ kind: string; name: string; enabled: boolean; definition: Json }>; row?: Row };
+  // The look a reference names, as "Add to my look" builds on it: its settings and every composition (enabled or not) in order. A shipped
+  // look is given the origin its copy would have, so the panel can send it whole to the preview route.
+  async function baseOf(scope: LookScope, ref: string): Promise<Base | null> {
+    const p = parseRef(ref);
+    if (!p) return null;
+    if (p.source === 'shipped') {
+      const l = await shippedById(p.id);
+      if (!l) return null;
+      const { compositions, ...settings } = clone(l) as Json & { compositions: Json[] };
+      return { ref, name: String(l.name), shipped: true, settings: { ...settings, origin: `copy:${ref}` }, comps: compositions.map((c) => ({ kind: String(c.kind), name: String(c.name), enabled: true, definition: c })) };
+    }
+    const row = await findRow(scope, p.id);
+    if (!row) return null;
+    return { ref, name: row.name, shipped: false, status: row.status, settings: isObj(row.definition) ? clone(row.definition) : {}, row, comps: (await sorted(row.compositions)).map((c) => ({ kind: c.kind, name: c.name, enabled: c.enabled, definition: clone(c.definition as Json) })) };
+  }
+  // The base look with `definition` added after the last design of its kind, or put in place of the `replace`th design of that kind: `look`
+  // holds every composition (what the preview route draws, the design at `index` among the kind), `drawn` only the enabled ones and the new one
+  // (what the gate draws).
+  function candidateOf(base: Base, definition: Json, kind: string, replace: number | null) {
+    const replaced = replace === null ? undefined : base.comps.filter((c) => c.kind === kind)[replace];
+    const build = (enabledOnly: boolean) => {
+      const list = base.comps.filter((c) => !enabledOnly || c.enabled || c === replaced);
+      const out = list.map((c) => (c === replaced ? definition : c.definition));
+      const ofKind = list.filter((c) => c.kind === kind);
+      let index: number;
+      if (replaced) index = ofKind.indexOf(replaced);
+      else {
+        const last = list.reduce((at, c, i) => (c.kind === kind ? i : at), -1);
+        out.splice(last >= 0 ? last + 1 : out.length, 0, definition);
+        index = ofKind.length;
+      }
+      return { look: { ...base.settings, compositions: out } as Json, index };
+    };
+    const all = build(false);
+    return { look: all.look, index: all.index, drawn: build(true).look };
+  }
+  const copyNameOf = (name: string, max: number) => `${name.slice(0, Math.max(1, max - 8)).trim()} (yours)`;
+
+  // What "Add to my look" would do, nothing stored: the design and its look, the look in use (or none), whether that is shipped (then the
+  // brand's own copy is made first, under `copyName`), its designs of the kind (to pick one to replace when the kind is full), and the look the
+  // design would be drawn in (`candidate`, with the design at `candidateIndex` among its compositions of the kind) for the preview-design route.
+  // `typefaces` says plainly that a design brings no typefaces: a composition names the look's font and colour roles only.
+  async function addDesignPlan(scope: LookScope, input: { source: string; kind: string; index: number; replace?: number }) {
+    const eng = await lookEngine();
+    if (!eng.KINDS.includes(input.kind)) throw badRequest(`Unknown kind of post: ${String(input.kind).slice(0, 20)}`);
+    const { definition, lookName } = await sourceComposition(scope, input.source, input.kind, input.index);
+    const source = { ref: input.source, lookName, name: String(definition.name), kind: input.kind, index: input.index };
+    const activeRef = await activeRefOf(scope);
+    const base = activeRef ? await baseOf(scope, activeRef) : null;
+    if (!base) return { source, target: null, designs: [], full: false, perKind: eng.LIMITS.perKind, candidate: null, candidateIndex: null, replace: null, typefaces: TYPEFACES };
+    const designs = base.comps.filter((c) => c.kind === input.kind).map((c, index) => ({ index, name: c.name, enabled: c.enabled }));
+    const full = designs.length >= eng.LIMITS.perKind;
+    const replace = input.replace ?? null;
+    if (replace !== null && !designs[replace]) throw notFound('That design is not in the look in use');
+    const candidate = replace === null && full ? null : candidateOf(base, definition, input.kind, replace);
+    const target = { ref: base.ref, name: base.name, shipped: base.shipped, ...(base.shipped ? { copyName: copyNameOf(base.name, eng.LIMITS.name) } : {}), ...(base.status ? { status: base.status } : {}) };
+    return { source, target, designs, full, perKind: eng.LIMITS.perKind, candidate: candidate?.look ?? null, candidateIndex: candidate?.index ?? null, replace, typefaces: TYPEFACES };
+  }
+
+  // "Add to my look": adds the `index`th design of `kind` of a look (shipped or the brand's own) to the look IN USE, or puts it in place of the
+  // `replace`th design of that kind (the way past the limit of three per kind). The design is drawn in the look's own settings. The checks run
+  // first, on the look as it would be drawn: a design that does not pass is refused and nothing is stored. A shipped look in use is read only,
+  // so `copy: true` (the person agreed) makes the brand's own copy first, "<name> (yours)", and the design goes into the copy; with `use: true`
+  // (agreed too) the copy is published (its checks run) and becomes the look in use. An own look that was ready is published again, so it
+  // stays ready. Posts already drawn keep their images. Each step is in the audit log.
+  async function addDesignToActive(scope: LookScope, actor: Actor, input: { source: string; kind: string; index: number; replace?: number; copy?: boolean; use?: boolean }) {
+    const eng = await lookEngine();
+    const plan = await addDesignPlan(scope, input);
+    if (!plan.target) throw conflict('No look is in use. Choose a look first, then add designs to it');
+    if (plan.source.ref === plan.target.ref) throw conflict('That design is already in the look in use; duplicate it on the look\'s page instead');
+    if (plan.full && input.replace === undefined) throw conflict(`The look in use already has ${eng.LIMITS.perKind} ${input.kind} designs; choose one to replace`);
+    if (plan.target.shipped && !input.copy) throw conflict(`${plan.target.name} is a look we ship and is read only; agree to make your own copy first`);
+    if (plan.target.shipped && await prisma.brandLook.count({ where: { brandId: scope.brandId } }) >= eng.MAX_LOOKS) throw conflict(`Keep at most ${eng.MAX_LOOKS} looks; remove one first`);
+    const base = (await baseOf(scope, plan.target.ref))!;
+    const { definition } = await sourceComposition(scope, input.source, input.kind, input.index);
+    const cand = candidateOf(base, definition, input.kind, input.replace ?? null);
+    await checked(cand.look, 'The design does not fit the look in use');
+    // the checks, before anything is stored
+    const gate = await gateOf(scope, cand.drawn, { kind: input.kind, definition }, actor.id);
+    if (!gate.passed) throw badRequest('The checks did not pass in your look, so the design was not added', gate.checks.filter((c) => !c.passed).map((c) => ({ path: c.name, message: c.message ?? c.name })));
+    const wasReady = base.status === 'ready';
+    let row: Row;
+    if (base.shipped) row = (await findRow(scope, (await duplicateLook(scope, actor, plan.target.ref, { name: plan.target.copyName })).slug))!;
+    else row = base.row!;
+    const replaced = input.replace !== undefined ? (await sorted(row.compositions)).filter((c) => c.kind === input.kind)[input.replace] : undefined;
+    let compId: string;
+    try {
+      if (replaced) {
+        await prisma.brandLookComposition.update({ where: { id: replaced.id }, data: { definition: definition as Prisma.InputJsonValue, name: String(definition.name), draft: Prisma.DbNull, enabled: true, gate: gate as unknown as Prisma.InputJsonValue } });
+        compId = replaced.id;
+      } else {
+        const position = Math.max(-1, ...row.compositions.filter((c) => c.kind === input.kind).map((c) => c.position)) + 1;
+        compId = (await prisma.brandLookComposition.create({ data: { lookId: row.id, brandId: scope.brandId, kind: input.kind, position, name: String(definition.name), definition: definition as Prisma.InputJsonValue, enabled: true, gate: gate as unknown as Prisma.InputJsonValue } })).id;
+      }
+      await prisma.brandLook.update({ where: { id: row.id }, data: { ...stale, updatedById: actor.id } });
+    } catch (e) {
+      // a copy made for this design is not left behind half done
+      if (base.shipped) await prisma.brandLook.delete({ where: { id: row.id } }).catch(() => undefined);
+      throw e;
+    }
+    await audit(deps, actor, replaced ? 'look.composition.replace' : 'look.composition.add', 'look', row.id, {
+      look: row.slug, composition: compId, from: input.source, kind: input.kind, index: input.index, passed: true, toActive: true,
+      ...(replaced ? { replaced: replaced.name } : {}), ...(base.shipped ? { copiedFrom: plan.target.ref } : {}),
+    });
+    let published = false, used = false;
+    let publishProblems: Array<{ path: string; message: string }> = [];
+    if (base.shipped ? input.use === true : wasReady) {
+      try { await publishLook(scope, actor, row.slug); published = true; }
+      catch (e) {
+        const details = (e as { details?: unknown }).details;
+        publishProblems = Array.isArray(details) ? (details as Array<{ path: string; message: string }>).slice(0, 10) : [{ path: 'look', message: (e as Error).message }];
+      }
+      if (published && base.shipped) { await setActiveLook(scope, actor, formatRef('own', row.slug)); used = true; }
+    }
+    return { look: await ownView((await findRow(scope, row.slug))!, true), activeRef: await activeRefOf(scope), copied: base.shipped, used, published, ...(publishProblems.length ? { publishProblems } : {}) };
   }
 
   async function setCompositionEnabled(scope: LookScope, actor: Actor, slug: string, compId: string, enabled: boolean) {
@@ -759,7 +952,7 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
   return {
     resolveLook, activeLook, previewTarget, compositionPreviewTarget, draftProblems, listLooks, getLook, lookBriefs, lookForPack,
     duplicateLook, updateLookSettings, deleteLook,
-    saveCompositionDraft, discardCompositionDraft, publishComposition, addCompositionFrom,
+    saveCompositionDraft, discardCompositionDraft, publishComposition, addCompositionFrom, addBlankComposition, createBlankLook, addDesignPlan, addDesignToActive,
     setCompositionEnabled, reorderCompositions, moveComposition, removeComposition,
     publishLook, gateLook, setActiveLook,
     // for the validate route

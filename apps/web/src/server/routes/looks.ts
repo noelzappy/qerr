@@ -5,6 +5,9 @@
 //   GET    /                                 the looks (shipped, own), the active reference, the engine catalogue and the limits
 //   GET    /:ref                             one look in full (an own look with its drafts and gate records)
 //   POST   /duplicate                        { source, name?, slug? } a copy of a shipped or own look, as a draft of the brand's own
+//   POST   /blank                            { name, slug? } a look started blank (the engine's starter), as a draft of the brand's own
+//   POST   /add-design/plan                  { source, kind, index, replace? } what "Add to my look" would do, nothing stored
+//   POST   /add-design                       { source, kind, index, replace?, copy?, use? } add a design of any look to the look in use
 //   POST   /validate                         { definition } what is wrong with a whole look, nothing stored: { problems }
 //   POST   /preview                          { ref | look, kinds? } one picture per kind with warnings and the look's hash; 501 without a renderer
 //   POST   /preview-design                   { ref | look, kind, index, draft?, scenario?, withRects? } one design drawn on its own with the
@@ -12,6 +15,7 @@
 //   PUT    /active                           { ref | null } the brand's look (a shipped look or a ready own one), null = classic layouts
 //   PUT    /:slug/settings                   { definition } the look without compositions
 //   POST   /:slug/compositions               { source, kind, index } copy one composition from any shipped look or an own look
+//   POST   /:slug/compositions/blank         { kind } add the engine starter's plain composition of a kind
 //   POST   /:slug/compositions/:id/validate  { definition } what is wrong with a draft of the composition, nothing stored: { problems }
 //   PUT    /:slug/compositions/:id/draft     { definition } unpublished edits of a composition
 //   DELETE /:slug/compositions/:id/draft     discard them
@@ -57,6 +61,10 @@ const definition = z.record(z.string(), z.unknown());
 const duplicateBody = z.object({ source: ref, name: z.string().trim().min(1).max(40).optional(), slug: z.string().regex(SLUG, 'Lowercase letters, digits and - only').optional() }).strict();
 const definitionBody = z.object({ definition }).strict();
 const addBody = z.object({ source: ref, kind: z.string().min(1).max(20), index: z.number().int().min(0).max(40) }).strict();
+const blankBody = z.object({ name: z.string().trim().min(1).max(40), slug: z.string().regex(SLUG, 'Lowercase letters, digits and - only').optional() }).strict();
+const blankDesignBody = z.object({ kind: z.string().min(1).max(20) }).strict();
+const planBody = z.object({ source: ref, kind: z.string().min(1).max(20), index: z.number().int().min(0).max(40), replace: z.number().int().min(0).max(40).optional() }).strict();
+const addToActiveBody = planBody.extend({ copy: z.boolean().optional(), use: z.boolean().optional() }).strict();
 const patchBody = z.object({ enabled: z.boolean().optional(), position: z.number().int().min(0).max(40).optional() }).strict();
 // One picture per kind: { ref } or { look } (a whole look, as the panel holds it), and optionally the kinds wanted.
 const previewBody = z.object({ ref: ref.optional(), look: definition.optional(), kinds: z.array(z.string().min(1).max(20)).max(7).optional() }).strict();
@@ -112,6 +120,19 @@ export function lookRoutes(deps: Deps): Hono<AppEnv> {
     return c.json({ look: await looks.duplicateLook(brandScope(c), c.get('user'), body.source, { name: body.name, slug: body.slug }) }, 201);
   });
 
+  app.post('/blank', async (c) => {
+    const body = await readJson(c, blankBody);
+    return c.json({ look: await looks.createBlankLook(brandScope(c), c.get('user'), { name: body.name, slug: body.slug }) }, 201);
+  });
+
+  // "Add to my look": what it would do (the look in use, a copy to make, the designs to replace, the look to preview the design in), then do it.
+  app.post('/add-design/plan', async (c) => c.json(await looks.addDesignPlan(brandScope(c), await readJson(c, planBody))));
+  app.post('/add-design', async (c) => {
+    const r = await looks.addDesignToActive(brandScope(c), c.get('user'), await readJson(c, addToActiveBody));
+    await syncBrand(deps);
+    return c.json(r, 201);
+  });
+
   app.post('/validate', async (c) => {
     const { definition: d } = await readJson(c, definitionBody);
     return c.json({ problems: await looks.problems(d) });
@@ -163,7 +184,12 @@ export function lookRoutes(deps: Deps): Hono<AppEnv> {
 
   app.post('/:slug/compositions', async (c) => {
     const body = await readJson(c, addBody);
-    return c.json({ look: await looks.addCompositionFrom(brandScope(c), c.get('user'), slugOf(c), { sourceRef: body.source, kind: body.kind, index: body.index }) }, 201);
+    return c.json(await looks.addCompositionFrom(brandScope(c), c.get('user'), slugOf(c), { sourceRef: body.source, kind: body.kind, index: body.index }), 201);
+  });
+
+  app.post('/:slug/compositions/blank', async (c) => {
+    const body = await readJson(c, blankDesignBody);
+    return c.json(await looks.addBlankComposition(brandScope(c), c.get('user'), slugOf(c), body.kind), 201);
   });
 
   app.post('/:slug/compositions/:id/validate', async (c) => {
