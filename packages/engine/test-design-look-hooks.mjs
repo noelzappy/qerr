@@ -12,14 +12,14 @@ import { validateDesign } from './lib/design/spec.mjs';
 const raw = () => JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const copyOf = (id, as) => ({ ...structuredClone(shippedLooks()[id]), id: as, origin: `copy:shipped:${id}` });
 
-test('shippedLooks: retail, swiss, soft, bloom and clean, validated, deep frozen, the same object every call', () => {
+test('shippedLooks: retail, swiss, soft, bloom, clean and guide, validated, deep frozen, the same object every call', () => {
   const s = shippedLooks();
-  assert.deepEqual(Object.keys(s), ['retail', 'swiss', 'soft', 'bloom', 'clean']);
+  assert.deepEqual(Object.keys(s), ['retail', 'swiss', 'soft', 'bloom', 'clean', 'guide']);
   assert.equal(shippedLooks(), s);
   for (const [id, look] of Object.entries(s)) {
     assert.equal(look.id, id);
     assert.equal(look.origin, 'shipped');
-    assert.equal(look.compositions.length, 9);
+    assert.equal(look.compositions.length, id === 'guide' ? 10 : 9);
     assert.deepEqual(validateLook(look, id, { shipped: true }), []);
     assert.ok(Object.isFrozen(look) && Object.isFrozen(look.compositions) && Object.isFrozen(look.compositions[0].elements[0]));
     assert.throws(() => { look.compositions[0].name = 'x'; }, TypeError);

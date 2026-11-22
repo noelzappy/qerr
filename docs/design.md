@@ -902,11 +902,14 @@ that is empty, over its limit or on two lines where one is required is refused, 
 
 **Words in pills and inline icons.** Besides its `*emphasis*`, a headline (and only a headline) may mark up to two runs of one to three words as
 `[[pill words]]` and place up to two icons as `{{name}}`, the name one of the engine's own icons (`lib/design/icons.mjs`: arrow-right,
-arrow-up-right, check, plus, star, spark, heart, bolt, leaf, calendar, clock, pin, ticket, tag, gift, phone, mail, user, play, dot). A pill holds
+arrow-up-right, check, plus, star, spark, heart, bolt, leaf, calendar, clock, pin, ticket, tag, gift, phone, mail, user, play, dot, bowl). A pill holds
 plain words only (no emphasis, icon or bracket), an emphasis holds no pill or icon, and a pill is never the whole headline. The brackets do
 not count towards the length; an icon counts as two characters. A look draws the pills and icons only where its headline `text` says how
 (`pills`, `icons`); anywhere else the pill words are set plainly and the icons are left out, so the same post reads in every look. Icons
-are SVG paths from that fixed table, filled in the colour of the words; no SVG, path or URL ever comes from a post or a look.
+are SVG paths from that fixed table, filled in the colour of the words; no SVG, path or URL ever comes from a post or a look. The
+contrast check judges the words of a pill on the pill itself (their text rectangle clipped to the pill), so a face with a tall ascent, whose
+text rectangle reaches past the pill, is not read against the page round it. A look's logo sits above every element layer, so a colour
+laid over a full picture never covers it.
 `cta`, `info` and `gallery` are drawn only by a look written as data, in its `statement`, `photo`, `event` and `offer` compositions (`cta` also in
 `list`), within each composition's own counts (`fields.info.min`/`max`, `fields.gallery.min`/`max`, `fields.cta.max`).
 
@@ -1127,7 +1130,7 @@ a time, and writes only under the repository; `out/` is ignored by git. Look at 
 A design direction (editorial, swiss, retail) is engine code today. A **look** is the same thing written as data, so that it can be
 shown in the panel, copied, edited and checked without a developer: the tables, the validator, the catalogue the panel draws its controls
 from, the brief the AI and the post editor read, and the renderer that draws a look (`directions/interpret.mjs`, the primitives). The
-engine's own retail, swiss, soft, bloom and clean looks are shipped in this format (`lib/design/looks/*.look.json`), and the classic layouts (`layout.mjs`,
+engine's own retail, swiss, soft, bloom, clean and guide looks are shipped in this format (`lib/design/looks/*.look.json`), and the classic layouts (`layout.mjs`,
 Settings, Layouts) are untouched. All of it is pure (no Chrome) and lives in `packages/engine/lib/design/`:
 
 | File | What it holds |
@@ -1338,16 +1341,27 @@ paper, `on-field` to the ink, `body-dark` and `muted-dark` to the light greys), 
 
 ### The shipped looks and the engine's hooks
 
-`shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss, soft, bloom, clean }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each: two
+`shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss, soft, bloom, clean, guide }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each, ten for guide: two
 statements, a figure, a list, a quote, two photos, an event and an offer), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
 data counterpart of the code directions of the same name: retail is held to the code (the same budgets, names and grounds; geometry within 3 px of the
 code compositions in `test-design-look-equivalence.mjs`, with the deviations listed there: the roles of the unit and the date tile, and the wrapping
 highlight bar 0.12 em against 0.13 em); swiss is held to the approved prototype by eye. Soft (one sans in medium weights on pale tints of the brand colour, the logo top
 left and the web address top right, rounded panels and pills, pictures that melt into a page sampled from their own edge, a myth and fact page and a big
 figure over a rounded panel) bloom (a serif with italics, arch, oval and circle windows, keylines and dotted rules) and clean (the classic poster pages as a look: the brand's own
-fonts, two-tone headlines, a picture melting into a page sampled from its edge, myth and fact on rounded cards on the dark page) exist only as data.
-`test-design-look-retail.mjs`, `test-design-look-swiss.mjs`, `test-design-look-soft.mjs`, `test-design-look-bloom.mjs` and `test-design-look-clean.mjs` accept no problem at all from the
-validator, and `test-design-look-equivalence.mjs` draws all five from sample, stress and minimal copy in three sets of brand colours through every check.
+fonts, two-tone headlines, a picture melting into a page sampled from its edge, myth and fact on rounded cards on the dark page) exist only as data. So does guide, a city what's-on guide (ten compositions):
+a bright field in the brand's primary colour with huge capitals in Anton, a heavy condensed face, one or two words of a headline in a black
+pill (`[[plans]]`) and an icon of the engine's set as a sticker in it (`{{bowl}}`), a row of overlapping round pictures and a round arrow
+button (statement 0, "Week cover"), a big line with an icon sticker and a row of round pictures (statement 1), a big count, a plans list on
+hairlines with black round numbers, an overheard quote on the dark page, a full photograph darkened at the foot with a pill in the brand colour
+(photo 0), a job post on a darkened photograph with a brand-colour block, labelled rows and an apply button (photo 1), an event poster on a full
+photograph with the event's kind in a brand-colour tag, the title on a black block and a two-colour footer of When and Where on the paper
+beside the booking button in the brand colour (event 0), a listing with the photograph in a rounded window (event 1) and tickets with the
+price in a turned black sticker over a rounded photograph (offer 0). The week ("Week 48 · 23 Nov–29 Nov") is the post's `label`, top right on
+the field and as a turned brand-colour chip over a photograph; the logo is top left on every page. What it cannot do: the decorative swash on
+one letter of the reference (a pill or an icon stands in), and a highlight bar behind an emphasis in a face with a tall ascent such as Anton
+(the bar is sized from the em box, so it sits high: the guide uses a soft pill instead of `emphasis: bar`).
+`test-design-look-retail.mjs`, `test-design-look-swiss.mjs`, `test-design-look-soft.mjs`, `test-design-look-bloom.mjs`, `test-design-look-clean.mjs` and `test-design-look-guide.mjs` accept no problem at all from the
+validator, and `test-design-look-equivalence.mjs` draws all six from sample, stress and minimal copy in three sets of brand colours through every check.
 The retail price tag (figure/0) sets its figure as large as the stage allows (up to 930 px, centred) with the unit fitted on a full-width accent block
 under it, in the code composition and the look alike. A folio is written only from the post's real place (its position in its batch, or a carousel
 page's); without one a page has no folio, never a number made up from the words or the date. The partial `testlib/looks/*.sample.json` stay as test fixtures.
@@ -1364,7 +1378,7 @@ second photo too).
 
 | Name | Where | What |
 |---|---|---|
-| `shippedLooks()` | `@vesk/engine/design/directions/index` | the frozen shipped looks, raw data `{ retail, swiss, soft, bloom, clean }` |
+| `shippedLooks()` | `@vesk/engine/design/directions/index` | the frozen shipped looks, raw data `{ retail, swiss, soft, bloom, clean, guide }` |
 | `resolveLook(raw, { shipped })` | same | `{ problems }` or `{ problems: [], look (normalised), comps }`, memoised by content, deep frozen |
 | `renderPostWithLook(look, spec, ctx, { shipped })` | same | draws a post with a look written as data; any failure of the kit on a valid look is a `DesignError` |
 | `postKinds(brand)` | same | `{ [kind]: { required, fields: { field: { max, budget? } or { min, max, chars } or {} }, variants: [{ variant, name, describe }] } }` for the brand's direction, a code direction or its own look, the same shape |
@@ -1380,7 +1394,7 @@ second photo too).
 **Drawing a look as a sheet:** `node packages/engine/scripts/direction-sheet.mjs --look packages/engine/lib/design/looks/retail.look.json,packages/engine/lib/design/looks/swiss.look.json
 [--copy sample|stress|minimal] [--brand out/brand-a] [--content file.json] [--out out/lk/x]` draws every composition of the looks, one column per look;
 with `--copy` each composition is drawn from the test copy written for it (`testlib/retail-copy.mjs`, `testlib/swiss-copy.mjs`; for soft and bloom pass
-`--copy-lib testlib/soft-copy.mjs,testlib/bloom-copy.mjs,testlib/clean-copy.mjs`), without it from the
+`--copy-lib testlib/soft-copy.mjs,testlib/bloom-copy.mjs,testlib/clean-copy.mjs,testlib/guide-copy.mjs`), without it from the
 content file (the shipped looks are drawn as a brand's own copy). Tests: `test-design-look-render.mjs` (hostile text through every binding, the
 style grammar, class and attribute sets, validation first, no Chrome), `test-design-look-equivalence.mjs` (Chrome: the data version of
-all nine retail compositions against the code oracle within 3 px, and all 18 shipped compositions through every check, from three copies in three sets of colours), `test-design-look-hooks.mjs` (the engine hooks, no Chrome).
+all nine retail compositions against the code oracle within 3 px, and all 55 shipped compositions through every check, from three copies in three sets of colours), `test-design-look-hooks.mjs` (the engine hooks, no Chrome).

@@ -57,7 +57,8 @@
 .k-fit .fl-line{display:block;white-space:nowrap}
 .k-fit .fl-in{display:inline-block;white-space:nowrap}
 
-.k-logo{display:block}
+/* the logo above every element layer (z 0 to 9), so a colour laid over a full picture never covers it */
+.k-logo{display:block;z-index:10}
 
 /* a vertical label that reads downward: the line box sits inside the margin, to the right of the box's origin */
 .k-vlabel.k-vdown{transform:translateX(24px) rotate(90deg)}
