@@ -774,12 +774,12 @@ export function makeContext(args) {
 }
 
 // The page's root: palette, font stacks and the grain as custom properties, then the composition's markup.
-export function rootCss({ palette, tokens, brand, grain, emoji = false }) {
+export function rootCss({ palette, tokens, brand, grain, emoji = false, symbols = false }) {
   const stack = (role) => {
     const f = tokens.fonts[role];
     const brandOwn = (role === 'display' && brand.font.display !== brand.font.family) || (role === 'label' && brand.font.label !== brand.font.mono);
     const own = role === 'display' ? 'var(--display)' : role === 'label' ? 'var(--label)' : null;
-    return `${brandOwn && own ? `${own},` : ''}'${fontAlias(f.family)}',${emoji ? "'VF Emoji'," : ''}${f.fallback.replace(/"/g, "'")}`;
+    return `${brandOwn && own ? `${own},` : ''}'${fontAlias(f.family)}',${emoji ? "'VF Emoji'," : ''}${symbols ? "'VF Symbols'," : ''}${f.fallback.replace(/"/g, "'")}`;
   };
   return [paletteCss(palette), `--f-display:${stack('display')}`, `--f-text:${stack('text')}`, `--f-label:${stack('label')}`, `--f-mono:${stack('mono')}`, `--k-grain:${grain}`].join(';');
 }

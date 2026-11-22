@@ -1,0 +1,43 @@
+[
+  {
+    "family": "Noto Sans",
+    "dir": "noto-sans",
+    "license": "OFL-1.1",
+    "use": "The currency signs a page's own fonts lack (the cedi, naira, rupee, won, shekel, lira, hryvnia...). € is left out of the range: every library font draws it.",
+    "source": "https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&text=<U+20A0 to U+20C0, $, ¢, £, ¤, ¥, €>",
+    "fetched": "2026-11-22",
+    "files": [
+      {
+        "file": "noto-sans-v42-normal-currency.woff2",
+        "style": "normal",
+        "weight": "100 900",
+        "range": "U+20A0-20AB, U+20AD-20C0",
+        "bytes": 15712
+      },
+      {
+        "file": "noto-sans-v42-italic-currency.woff2",
+        "style": "italic",
+        "weight": "100 900",
+        "range": "U+20A0-20AB, U+20AD-20C0",
+        "bytes": 18916
+      }
+    ]
+  },
+  {
+    "family": "Noto Sans Symbols",
+    "dir": "noto-sans-symbols",
+    "license": "OFL-1.1",
+    "use": "The arrows (← ↑ → ↓ ↔ ↕ ↖ ↗ ↘ ↙) the engine's templates and people's words use, which most faces of the library lack.",
+    "source": "https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols:wght@100..900&text=<U+2190 to U+2199>",
+    "fetched": "2026-11-22",
+    "files": [
+      {
+        "file": "noto-sans-symbols-normal-arrows.woff2",
+        "style": "normal",
+        "weight": "100 900",
+        "range": "U+2190-2199",
+        "bytes": 2228
+      }
+    ]
+  }
+]

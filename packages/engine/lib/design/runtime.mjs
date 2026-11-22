@@ -628,6 +628,27 @@ window.__ds = {
     }
     return { W: innerWidth, H: innerHeight, swashes: this.swashes.map((s) => ({ host: s.host, over: s.over, word: s.word, dots: s.dots, box: s.box })), words };
   },
+  // The characters the page draws, grouped by the font they are set in: [{ stack, style, weight, role, chars }]. Every visible text (a text node
+  // whose element has boxes and is not hidden), as its case transform draws it; spaces and invisible format marks are left out. Node side
+  // (render.mjs glyphProblems) holds each character to the fonts the page embeds.
+  glyphs() {
+    const groups = new Map(), walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const skip = /[\s­͏؜ᅟᅠ឴឵᠋-᠏​-‏‪-‮⁠-⁯ㅤ︀-️﻿ﾠ]/u;
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const el = n.parentElement;
+      if (!el || el.closest('script,style,title') || !el.getClientRects().length) continue;
+      const cs = getComputedStyle(el);
+      if (cs.visibility !== 'visible' || cs.display === 'none') continue;
+      let t = n.nodeValue || '';
+      if (cs.textTransform === 'uppercase') t = t.toUpperCase(); else if (cs.textTransform === 'lowercase') t = t.toLowerCase();
+      const r = el.closest('[data-role]'), role = r ? r.dataset.role : '';
+      const key = cs.fontFamily + '|' + cs.fontStyle + '|' + cs.fontWeight + '|' + role;
+      if (!groups.has(key)) groups.set(key, { stack: cs.fontFamily, style: cs.fontStyle, weight: cs.fontWeight, role, chars: new Set() });
+      const g = groups.get(key);
+      for (const ch of t) if (!skip.test(ch) && !/^[\u{e0000}-\u{e0fff}]$/u.test(ch) && g.chars.size < 400) g.chars.add(ch);
+    }
+    return [...groups.values()].filter((g) => g.chars.size).map((g) => ({ ...g, chars: [...g.chars].join('') }));
+  },
   hide(on) { document.documentElement.classList.toggle('measure', !!on); },
   // The rounded corners of a shape as the page resolved them: { rad: [[rx, ry] x 4] } in px (top-left, top-right, bottom-right, bottom-left),
   // percentages of its width and height resolved and scaled down as CSS does when they overlap; {} for a square-cornered one.

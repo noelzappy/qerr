@@ -747,6 +747,7 @@ the post and the image is kept.
 | **Enlargement** | The shown size of every supplied image against its real pixel size | Above 1.3x: a warning naming the file, its size and the width it would need. |
 | **Pixel size** | The captured image and the saved file are read back | A mismatch fails the image. |
 | **Fonts and images load** | Inter and IBM Plex Mono must load; every image must decode | A missing or unreadable image fails with its path. A missing font warns. |
+| **Glyphs** | Once the fonts have loaded, the page lists every character it draws (each visible text, as its case transform draws it; spaces and invisible format marks left out), grouped by the font stack it is set in (`glyphs()` in `lib/design/runtime.mjs`). Each character must be drawn by a font the page itself embeds: a face of its stack whose `unicode-range` takes it AND whose character map, read from the embedded file itself (`lib/design/font-cmap.mjs`: the `cmap` of the woff2, through `node:zlib`'s Brotli), has a real glyph for it (glyph 0, the `.notdef` box, counts as none). The brand's fonts, the library's, the emoji font and the currency fallback all count; system fonts never do, because they differ from machine to machine (`glyphProblems` in `lib/design/glyphs.mjs`). A face the engine cannot read is trusted for its range. | A character no font of its stack draws fails the render with a sentence that names the character and its code (`"₵" (U+20B5)`) and the kind of text it is in, never the text itself, and says to write it another way (a currency by its code, such as GHS) or to choose a look whose fonts have it. |
 | **Framed phones** | A `screen` phone's file header must have transparency, and in the page its four corners must be see-through | Fails with "... is not a pre-framed phone capture ... Use a pre-framed phone capture"; nothing is written. |
 | **A look's device** | A look's `device` reads its screenshot's four corners in the page: see-through corners are a pre-framed capture, shown whole without the drawn frame; any other picture is a bare screenshot, held to the model's proportions (a phone 1.6 to 2.4 times as tall as it is wide, a tablet 1.15 to 1.6) | Outside them the image **fails** with the screenshot's size and what the device takes (never its file name). Inside them it is cropped to the screen: a note says by how much, a warning when more than 6% is cut away. |
 | **Brand text** | The brand lint, run before every render | Warnings only, see below. |
@@ -1023,7 +1024,7 @@ A carousel may be made of post pages, drawn by the brand's look like single post
 ### What the engine checks on a post
 
 Every check of the other templates still runs unchanged: text fit, contrast measured on the pixels behind the text, the
-pixel size and the loaded fonts. A post adds four, measured by the page itself (`postMetrics` in `lib/design/runtime.mjs`) and
+pixel size, the loaded fonts and the glyphs (every character drawn by a font the page embeds). A post adds four, measured by the page itself (`postMetrics` in `lib/design/runtime.mjs`) and
 judged by `findPostProblems` in `lib/design/checks.mjs`, with the numbers in `POST_LIMITS`. A failed check refuses the render
 with a sentence that says what to change.
 
@@ -1105,7 +1106,15 @@ folder under `packages/engine/design/fonts/`: Fraunces (variable, weights 300 to
 (400, 600, and 400 italic), Hanken Grotesk (400 to 800), JetBrains Mono (400 to 500), Archivo (variable weight and width) and Anton (a heavy condensed display face, one weight, 400).
 Inter and IBM Plex Mono were already there. Noto Color Emoji (OFL, a COLRv1 colour font in eleven unicode-range slices, 2.1 MB in all) is
 embedded only on a page whose words hold an emoji (see "Emoji"); `fonts/emoji.json` lists its slices and `emojiLibraryProblems()` checks
-them. Files are woff2, `latin` and `latin-ext` subsets only. `fonts/library.json` lists
+them. Several faces lack currency signs their `latin-ext` range names (Hanken Grotesk has no cedi, naira, rupee, won, shekel or lira; JetBrains
+Mono lacks most), which a server without a matching system font drew as an empty box ("GH₵ 0" in a price pill). The currency fallback, a Noto Sans
+subset of the currency signs (OFL, normal and italic, weights 100 to 900, `fonts/noto-sans/`, listed in `fonts/symbols.json`, checked by
+`symbolsLibraryProblems()`), and a Noto Sans Symbols subset of the arrows U+2190 to U+2199 (`fonts/noto-sans-symbols/`, which Inter, Hanken
+Grotesk and IBM Plex Mono lack; classic footers write →), are embedded under the alias `VF Symbols` on any page (a post or a classic template)
+whose words hold a sign from U+20A0 to U+20C0 other than € or an arrow, and named in every font stack right after the role's own font and the emoji font; the role's font still draws
+every sign it has. With it, € £ $ ¥ ₦ ₵ ₹ ₱ ₩ ₪ ₺ ₴ ₽ render in every shipped look (`test-design-glyphs.mjs`), and the glyph check (see "What the
+engine checks, by itself") refuses any character that no embedded font draws. Files are woff2, `latin` and `latin-ext` subsets only (and the
+currency subset of the fallback). `fonts/library.json` lists
 each file, and `fonts/README.md` gives each family's source URL, the fetch date, the axes and the file sizes; `libraryProblems()`
 (`lib/design/font-library.mjs`) checks that every listed file exists and is a woff2. A page embeds only what it uses: the faces
 of the roles its composition draws in, the `latin-ext` file only when a character of its words needs it, each as one

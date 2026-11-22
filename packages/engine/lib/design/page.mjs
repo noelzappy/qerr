@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { brandCssVars, styleClasses } from './brand.mjs';
 import { RUNTIME } from './runtime.mjs';
 import { esc } from '../../design/templates/common.mjs';
+import { SYMBOLS_ALIAS, symbolFacesFor } from './font-library.mjs';
 
 // No remote or file sources of any kind. Scripts: only the one inline runtime script, by nonce (it contains no spec data).
 // Inline style attributes need 'unsafe-inline' for styles; every value that reaches a style is validated or computed.
@@ -22,9 +23,13 @@ for (const name of ['kit', 'editorial', 'swiss', 'retail']) SHEETS[name] = fs.re
 // sheet: the name of one engine stylesheet, or a list of names, placed in order. css: engine-made CSS for this page (the font faces of
 // lib/design/font-library.mjs, built from the engine's own files); never anything from a spec.
 export function buildPage({ brand, size, body, bodyClass = '', bodyAttrs = '', sheet, css = '' }) {
-  const extra = (Array.isArray(sheet) ? sheet : [sheet]).filter((n) => Object.hasOwn(SHEETS, n ?? '')).map((n) => `<style>${SHEETS[n]}</style>`).join('') + (css ? `<style>${css}</style>` : '');
+  // the currency fallback (font-library.mjs symbolFacesFor) on a page whose words hold a sign it is for, when the page's own fonts (a post's)
+  // did not bring it already: its faces, and the brand's four font variables with it after the brand's family
+  const sym = css.includes(SYMBOLS_ALIAS) ? { css: '' } : symbolFacesFor(body);
+  const symVars = sym.css ? `;--font:'${brand.font.family}','${SYMBOLS_ALIAS}';--mono:'${brand.font.mono}','${SYMBOLS_ALIAS}';--display:'${brand.font.display ?? brand.font.family}','${SYMBOLS_ALIAS}';--label:'${brand.font.label ?? brand.font.mono}','${SYMBOLS_ALIAS}'` : '';
+  const extra = (Array.isArray(sheet) ? sheet : [sheet]).filter((n) => Object.hasOwn(SHEETS, n ?? '')).map((n) => `<style>${SHEETS[n]}</style>`).join('') + (css || sym.css ? `<style>${css}${sym.css}</style>` : '');
   const nonce = crypto.randomBytes(16).toString('base64');
-  const vars = `--W:${size.w}px;--H:${size.h}px;--pad:${size.pad}px;--top:${size.top}px;--fbot:${size.fbot}px;--logo-h:${size.logoH}px;--url:${size.url}px;--hs:1;${brandCssVars(brand)}`;
+  const vars = `--W:${size.w}px;--H:${size.h}px;--pad:${size.pad}px;--top:${size.top}px;--fbot:${size.fbot}px;--logo-h:${size.logoH}px;--url:${size.url}px;--hs:1;${brandCssVars(brand)}${symVars}`;
   // The style choices (surface, photo treatment, artwork fit) as class names from fixed tables (styleClasses).
   const cls = styleClasses(brand);
   return `<!doctype html><html lang="en"${cls ? ` class="${esc(cls)}"` : ''} data-family="${esc(brand.font.family)}" data-mono="${esc(brand.font.mono)}"><head><meta charset="utf-8">

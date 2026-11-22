@@ -16,6 +16,7 @@ import { layoutFit, renderLayout, renderLayoutWith } from './layout-render.mjs';
 import { TEMPLATE_FNS, builtinLayoutFor } from './builtin-layouts.mjs';
 import { renderPost } from './directions/index.mjs';
 import { screenFit } from './directions/primitives/device.mjs';
+import { explainGlyphProblems, glyphProblems } from './glyphs.mjs';
 
 export { DesignError };
 
@@ -172,6 +173,9 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
       if (fit.warning) warnings.push(fit.warning); else if (fit.note) notes.push(fit.note);
     }
     if (!ready.fontOk) warnings.push(`the ${brand.font.family} font did not load; the text uses a fallback font`);
+    // 0. Glyphs: every character drawn has a glyph in a font the page embeds (glyphs.mjs); otherwise it would be a system font's or an empty box.
+    const missing = glyphProblems(await page.evaluate('window.__ds.glyphs()'), html);
+    if (missing.length) throw new DesignError(explainGlyphProblems(missing));
     // A post's fitted headlines (each line sized to fill the measure) are set before anything is measured.
     if (isPost) {
       const fitted = await page.evaluate('window.__ds.fitLines()');

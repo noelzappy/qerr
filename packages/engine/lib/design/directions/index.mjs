@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import { canonicalJson, compositionDevice, compositionGraphicRefs, lookBrief, normaliseLook, validateLook } from '../look.mjs';
 import { POST_FIELDS, POST_ITEMS, POST_KINDS, POST_LISTS, POST_REQUIRED, seenText } from '../post-spec.mjs';
 import { accentPlan, paletteCss } from './colour.mjs';
-import { EMOJI_ALIAS, emojiFacesFor, fontAlias } from '../font-library.mjs';
+import { EMOJI_ALIAS, SYMBOLS_ALIAS, emojiFacesFor, fontAlias, symbolFacesFor } from '../font-library.mjs';
 import { fontNeedsFor, tokensFromLook } from './look-tokens.mjs';
 import { fontUsage, renderComposition } from './interpret.mjs';
 import { emphasisParts } from './kit.mjs';
@@ -233,13 +233,18 @@ function lookRoot(look, tokens) {
   const stretch = look.fonts.display.source === 'library' ? look.fonts.display.stretch : undefined;
   return [`--k-dstretch:${stretch ? num4(stretch) : 100}%`, ...(look.fonts.display.source === 'library' && look.fonts.display.opsz ? [`--k-dvar:'opsz' ${num4(look.fonts.display.opsz)}`] : []), `--k-dcase:${d.case === 'upper' ? 'uppercase' : 'none'}`, `--k-dword:${num4(d.wordSpace ?? 0)}em`, `--k-hl-top:${num4(t)}em`, `--k-hl-h:${num4(1 - t - b)}em`, `--k-hl-pr:${num4(r)}em`, `--k-hl-pl:${num4(l)}em`, `--k-hl-tilt:${num4(hl.tilt)}deg`].join(';');
 }
-// emoji: the page's words hold an emoji, so the engine's emoji font stands right after the role's own (font-library.mjs emojiFacesFor)
-function lookStack(tokens, role, emoji = false) {
-  const f = tokens.fonts[role], e = emoji ? `'${EMOJI_ALIAS}',` : '';
+// fonts.emoji: the page's words hold an emoji, so the engine's emoji font stands right after the role's own (font-library.mjs emojiFacesFor);
+// fonts.symbols: they hold a currency sign the fallback is for, so it stands after that (symbolFacesFor)
+const tailOf = (fonts) => `${fonts?.emoji ? `'${EMOJI_ALIAS}',` : ''}${fonts?.symbols ? `'${SYMBOLS_ALIAS}',` : ''}`;
+function lookStack(tokens, role, fonts) {
+  const f = tokens.fonts[role], e = tailOf(fonts);
   return f.brandVar ? `var(${f.brandVar}),${e}${f.fallback.replace(/"/g, "'")}` : `'${fontAlias(f.family)}',${e}${f.fallback.replace(/"/g, "'")}`;
 }
-// the colour emoji faces a page needs, added to its fonts; the page's font stacks then name the emoji font (a code direction: rootCss)
-const withEmoji = (fonts, words) => { const e = emojiFacesFor(words); return e.css ? { css: fonts.css + e.css, files: [...fonts.files, ...e.files], emoji: true } : { ...fonts, emoji: false }; };
+// the colour emoji faces and the currency fallback a page needs, added to its fonts; the page's font stacks then name them (a code direction: rootCss)
+const withEmoji = (fonts, words) => {
+  const e = emojiFacesFor(words), s = symbolFacesFor(words);
+  return { css: fonts.css + e.css + s.css, files: [...fonts.files, ...e.files, ...s.files], emoji: !!e.css, symbols: !!s.css };
+};
 
 function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, look }) {
   const brand = ctx.brand;
@@ -272,7 +277,7 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
     html = numberElements(made);
     const words = wordsOfPage(spec, brand, (c.folio.n ? tokens.folio(c.folio.n, c.folio.total) : ''));
     fonts = withEmoji(fontFacesFor(fontNeeds(tokens, comp, brand), words), words);
-    root = `--bg:var(--c-${ground === 'accent' ? 'gold' : ground === 'soft' ? 'soft' : ground});${rootCss({ palette: pal, tokens, brand, grain: grainUri(tokens.grain), emoji: fonts.emoji })}`;
+    root = `--bg:var(--c-${ground === 'accent' ? 'gold' : ground === 'soft' ? 'soft' : ground});${rootCss({ palette: pal, tokens, brand, grain: grainUri(tokens.grain), emoji: fonts.emoji, symbols: fonts.symbols })}`;
     sheet = ['kit', direction]; rootClass = `d-${direction}`;
   } else {
     let inner = made;
@@ -291,7 +296,7 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
     html = numberElements(inner);
     const words = wordsOfPage(spec, brand, (c.folio.n ? tokens.folio(c.folio.n, c.folio.total) : ''));
     fonts = withEmoji(fontFacesFor(fontNeedsFor(look, fontUsage(look, comp.data), brand), words), words);
-    const e = fonts.emoji;
+    const e = fonts;
     root = `--bg:var(--c-${bg});${paletteCss(pal)};--f-display:${lookStack(tokens, 'display', e)};--f-text:${lookStack(tokens, 'text', e)};--f-label:${lookStack(tokens, 'label', e)};--f-mono:${lookStack(tokens, 'mono', e)};--k-grain:${grainUri(tokens.grain)};${lookRoot(look, tokens)}`;
     sheet = ['kit']; rootClass = 'k-look';
   }

@@ -1,5 +1,5 @@
 // The fonts the engine ships (design/fonts/library.json: each family, its woff2 files, weights, axes and unicode ranges, all under the
-// SIL Open Font License; the licence texts sit beside the files). The design directions (lib/design/directions/) name the families they
+// SIL Open Font License; the licence texts sit beside the files), the colour emoji (emoji.json) and the currency fallback (symbols.json). The design directions (lib/design/directions/) name the families they
 // set type in; a page embeds only the files it uses: the family and style it asks for, the subsets its text needs (latin always;
 // latin-ext only when a character of the words is outside latin), each as one @font-face with a data: URI. Nothing is loaded by path.
 // The faces are declared under an alias (`VF Fraunces`) so they never clash with a brand's own fonts of the same name.
@@ -85,6 +85,52 @@ export function emojiFacesFor(text = '') {
   const picked = lib.files.filter((x) => [...cps].some((cp) => inRange(x.range, cp)));
   const css = picked.map((x) => `@font-face{font-family:"${EMOJI_ALIAS}";src:url("${dataUri(lib, x.file)}") format("woff2");font-weight:${EMOJI_WEIGHTS};font-style:normal;unicode-range:${x.range}}`).join('');
   return { css, files: picked.map((x) => ({ family: lib.family, file: x.file, style: 'normal', weight: '400', subset: 'emoji', bytes: x.bytes })) };
+}
+
+// ---- the symbol fallback (design/fonts/symbols.json: OFL subsets of Noto Sans, the currency signs, and Noto Sans Symbols, the arrows) ----
+// Many display and text faces lack signs such as the cedi (₵), naira (₦) or shekel (₪), or the arrows, and the system fonts behind them differ
+// from machine to machine, so a page whose words hold one embeds the faces for it under SYMBOLS_ALIAS and names that alias in every stack after
+// the role's own font (and the emoji font): the role's font still draws every sign it has, these only what it lacks. Weight 100 to 900.
+export const SYMBOLS_ALIAS = 'VF Symbols';
+let symbolsCache = null;
+// [{ family, dir, license, files: [{ file, style, weight, range, bytes }] }]
+export function symbolsLibrary() {
+  if (!symbolsCache) symbolsCache = JSON.parse(fs.readFileSync(path.join(DIR, 'symbols.json'), 'utf8'));
+  return symbolsCache;
+}
+export function symbolsLibraryProblems() {
+  const e = [];
+  if (!Array.isArray(symbolsLibrary())) return ['symbols fonts: symbols.json must be a list of families'];
+  for (const lib of symbolsLibrary()) {
+    const w = `symbols font ${lib.family}`;
+    if (!FAMILY.test(lib.family ?? '')) e.push(`${w}: odd family name`);
+    if (lib.license !== 'OFL-1.1') e.push(`${w}: must be OFL-1.1`);
+    if (!DIRNAME.test(lib.dir ?? '')) { e.push(`${w}: odd folder`); continue; }
+    if (!fs.existsSync(path.join(DIR, lib.dir, 'OFL.txt'))) e.push(`${w}: no OFL.txt beside the files`);
+    for (const x of lib.files ?? []) {
+      if (!FILE.test(x.file ?? '')) { e.push(`${w}: odd file name`); continue; }
+      if (!RANGE.test(x.range ?? '')) e.push(`${w} ${x.file}: odd unicode-range`);
+      if (!['normal', 'italic'].includes(x.style)) e.push(`${w} ${x.file}: style must be normal or italic`);
+      if (!WEIGHT.test(x.weight ?? '')) e.push(`${w} ${x.file}: weight must look like "400" or "100 900"`);
+      const file = path.join(DIR, lib.dir, x.file);
+      if (!fs.existsSync(file)) e.push(`${w} ${x.file}: the file is missing`);
+      else if (fs.readFileSync(file).toString('latin1', 0, 4) !== 'wOF2') e.push(`${w} ${x.file}: not a woff2 file`);
+    }
+  }
+  return e;
+}
+// The fallback files the words need: every file (each style) of a family one of whose ranges takes a character of the words.
+function symbolFilesFor(text) {
+  const cps = new Set([...String(text)].map((ch) => ch.codePointAt(0)));
+  return symbolsLibrary().flatMap((lib) => (lib.files.some((x) => [...cps].some((cp) => inRange(x.range, cp))) ? lib.files.map((x) => ({ lib, x })) : []));
+}
+// Whether the words hold a sign the symbol fallback is for.
+export const needsSymbols = (text = '') => symbolFilesFor(text).length > 0;
+// The @font-face rules of the symbol fallback and its files: { css, files }; empty when the words hold none of its signs.
+export function symbolFacesFor(text = '') {
+  const picked = symbolFilesFor(text);
+  const css = picked.map(({ lib, x }) => `@font-face{font-family:"${SYMBOLS_ALIAS}";src:url("${dataUri(lib, x.file)}") format("woff2");font-weight:${x.weight};font-style:${x.style};unicode-range:${x.range}}`).join('');
+  return { css, files: picked.map(({ lib, x }) => ({ family: lib.family, file: x.file, style: x.style, weight: x.weight, subset: 'symbols', bytes: x.bytes })) };
 }
 
 const bounds = (w) => w.split(' ').map(Number).filter(Number.isFinite);
