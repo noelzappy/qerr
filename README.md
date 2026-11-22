@@ -101,7 +101,7 @@ The short version, on a host with Docker and a proxy:
 
 ### On your machine: local development
 
-You need Node.js 22.12 or newer, Postgres 16 and Google Chrome (set `CHROME_PATH` if it is not in the usual place).
+You need Node.js 22.12 or newer, Postgres 16 and Google Chrome or Chromium (set `CHROME_PATH` if neither is in the usual place).
 From the repository root:
 
 ```sh

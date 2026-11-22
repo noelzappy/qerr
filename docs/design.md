@@ -55,8 +55,8 @@ markup**. This matters because the texts may be written by a program from web re
 
 ## Requirements and how images are made
 
-- **Google Chrome.** Found at `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome` on macOS (and the usual
-  `/usr/bin` names on Linux). Set `CHROME_PATH` to use another build; the container image sets it to its Chromium
+- **Google Chrome or Chromium.** Chrome is tried first, then Chromium: on macOS `/Applications/Google Chrome.app` then
+  `/Applications/Chromium.app`; on Linux the usual `/usr/bin` names, then `/snap/bin/chromium`. Set `CHROME_PATH` to use another build; the container image sets it to its Chromium
   wrapper (see [deploy/README.md](../deploy/README.md)). Without Chrome the render fails with a message that says how to
   fix it.
 - **One Chrome at a time.** The render job renders one post at a time, and a lock file (`out/design.lock`) stops a second

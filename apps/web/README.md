@@ -20,7 +20,7 @@ real bucket.
 
 - Node 22.12 or newer (the machine used for development has Node 24).
 - Postgres 16. The app and pg-boss share one database (pg-boss keeps its tables in the `pgboss` schema).
-- Google Chrome, for rendering post images. Set `CHROME_PATH` if it is not in the usual place. JPG conversion uses `sips`
+- Google Chrome or Chromium, for rendering post images. Set `CHROME_PATH` if neither is in the usual place. JPG conversion uses `sips`
   (macOS) or `ffmpeg`.
 - The npm workspaces at the repository root: the server imports `@vesk/engine` and `@vesk/ai` from `packages/`, so install from the root.
 
@@ -358,7 +358,7 @@ that names the variable, never its value.
 | `S3_REGION` | Region, for Hetzner the location (`fsn1`, `nbg1`, `hel1`). Taken from the endpoint when it is a Hetzner `*.your-objectstorage.com` host; required otherwise. |
 | `S3_PREFIX` | The public prefix, default `public/`. Vault files (`vault/`) and renders (`renders/`) stay private; only what is about to be sent is copied under this prefix. The bucket is publicly readable, so private objects are protected only by an unguessable key: `vault/<random>/<id>/<sha>-<name>` and `renders/<random>/<batchId>/<postKey>/<sha>-<name>`, where `<random>` is 32 random bytes in base64url (43 characters) drawn per object and stored in the database. Old keys without it still work. |
 | `S3_PATH_STYLE` | `false` for virtual-hosted style addressing; default is path style |
-| `CHROME_PATH` | Path to the Chrome executable, read by the design engine. Without Chrome, rendering fails with a message that says so. |
+| `CHROME_PATH` | Path to the Chrome or Chromium executable, read by the design engine. Unset, it looks for Chrome, then Chromium, in the usual places. Without either, rendering fails with a message that says so. |
 
 Buffer keys and AI and search provider keys are not environment variables: an admin enters them in Settings (Buffer
 accounts; AI and search), and they are stored encrypted with `APP_ENCRYPTION_KEY` (AES-256-GCM, a fresh nonce per value,
