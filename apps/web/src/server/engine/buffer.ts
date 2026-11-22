@@ -40,7 +40,7 @@ export function bufferEngine(): Promise<BufferEngine> {
       createClient: client.createClient,
       maskSecrets: core.maskSecrets,
       isValidAccountName: accounts.isValidAccountName,
-      // x also answers to twitter: Buffer's service name for X is not confirmed.
+      // x also answers to twitter: Buffer names X channels `twitter` (seen in a real check, 22 Nov 2026).
       networkOf: (service) => {
         const s = String(service ?? '').toLowerCase();
         return list.find((n) => (n === 'x' ? s === 'x' || s.includes('twitter') : s.includes(n))) ?? null;

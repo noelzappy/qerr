@@ -100,15 +100,20 @@ apply per key, per account or per organisation is not confirmed; Vesk assumes pe
   the channels the account's check listed; a post goes only through the account its network is routed to.
 - X is sent like LinkedIn: `text`, `channelId`, the schedule fields and optional `assets`; no `type`, no `metadata`.
   Buffer's free X tier allows 280 characters; the limit is configurable per account (its X caption limit).
-- The app matches Buffer's `service` value for X against `twitter` and `x`; which one Buffer uses is not confirmed.
+- The app matches Buffer's `service` value for X against `twitter` and `x`. A real check on 22 Nov 2026 showed `twitter`.
 
 ## What is not confirmed
 
 Treat each of these as unverified until the first run against real Buffer proves it.
 
-1. The endpoint and bearer authentication.
-2. `account { organizations }` and the `channels` query, including the field names and that `service` holds the network
-   name (the app matches it against `instagram`, `linkedin`, `facebook`).
+On 22 Nov 2026 a read-only check ran against real Buffer with two keys: the two queries the account check uses (organisations,
+then each organisation's channels), nothing else. It confirmed points 1, 2 and 15, marked below. No post, draft or other
+mutation was sent, so everything else stays unconfirmed.
+
+1. Confirmed 22 Nov 2026: the endpoint and bearer authentication.
+2. Confirmed 22 Nov 2026: `account { organizations { id name } }` and the `channels` query with `id name displayName service
+   isQueuePaused`, and that `service` holds the network name. Values seen: `instagram`, `linkedin`, `facebook`, `twitter`,
+   `tiktok`, `youtube`.
 3. The `createPost` mutation, the `PostActionSuccess` and `MutationError` result types, and that `post { id text dueAt }`
    exists.
 4. `saveToDraft`, `mode: customScheduled` and `schedulingType: automatic` together produce a draft with the given time.
@@ -126,7 +131,7 @@ Treat each of these as unverified until the first run against real Buffer proves
 13. Alt text for images: Vesk does not send any, and does not know whether Buffer takes one.
 14. That Buffer's `createPost` accepts X channels with exactly the fields sent for LinkedIn, and that no X-specific
     metadata is needed (for example for threads or replies).
-15. The `service` value of an X channel (`twitter` or `x`), and so that the account check names X channels right.
+15. Confirmed 22 Nov 2026: an X channel's `service` is `twitter`, which the account check already maps to X.
 16. That the rate limits are per account, and that two keys of one person count as two accounts. Whether running several
     free Buffer accounts for one company is allowed is a question about Buffer's terms, not the API.
 17. That an expired key shows as a `401` or `403` and not as another error, and the real lifetime of a key.
