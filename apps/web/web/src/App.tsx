@@ -23,6 +23,7 @@ import { Batches } from './pages/Batches';
 import { PostPage } from './pages/batches/PostPage';
 import { ChannelsPage } from './pages/Channels';
 import { Login } from './pages/Login';
+import { SetupPage } from './pages/setup/SetupPage';
 import { ResetPassword } from './pages/ResetPassword';
 import { Users } from './pages/Users';
 import { Library } from './pages/Library';
@@ -46,6 +47,8 @@ export function App() {
             <Route path="/accept-invite/:token" element={<AcceptInvite />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/reset-password/:token" element={<ResetPassword />} />
+            {/* The guided first setup: its own calm frame, one step per screen. */}
+            <Route path="/setup/:step?" element={<SetupPage />} />
             <Route element={<Shell />}>
               <Route path="/home" element={<Home />} />
               <Route path="/create" element={<Batches />} />
