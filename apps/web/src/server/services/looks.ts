@@ -108,7 +108,7 @@ export const formatRef = (source: LookRef['source'], id: string): string => {
 // ---- shipped looks -------------------------------------------------------------------------------------------------------
 
 // THE ONE ADAPTER for the engine's own looks: shippedLooks() of directions/index.mjs, frozen data authored in
-// packages/engine/lib/design/looks/*.look.json (retail, swiss, soft, bloom). Nothing else in the web app knows where shipped looks come from.
+// packages/engine/lib/design/looks/*.look.json (retail, swiss, soft, bloom, clean). Nothing else in the web app knows where shipped looks come from.
 // Every look it returns passes validateLook(..., { shipped: true }).
 async function loadShippedLooks(engine: EngineLook): Promise<Json[]> {
   const m = await engineImport<Record<string, unknown>>('design/directions/index');
