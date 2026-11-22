@@ -14,7 +14,7 @@ import { loadBrand } from './lib/design/brand.mjs';
 import { DesignError } from './lib/design/errors.mjs';
 import { SIZES } from './lib/design/sizes.mjs';
 import { validateLook } from './lib/design/look.mjs';
-import { ELEMENT_TYPES, FORMATS, PHOTO_SHAPES, PHOTO_TREATS, SPLIT_SEPARATORS, STICKER_SHAPES } from './lib/design/look-elements.mjs';
+import { ELEMENT_TYPES, FORMATS, PHOTO_SHAPES, PHOTO_TREATS, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES } from './lib/design/look-elements.mjs';
 import { renderPost, renderPostWithLook, resolveLook } from './lib/design/directions/index.mjs';
 import { COLOUR_NAMES } from './lib/design/directions/kit.mjs';
 import { HOSTILE as RETAIL_HOSTILE } from './testlib/retail-copy.mjs';
@@ -240,6 +240,7 @@ function bindingLook() {
       { type: 'text', source: 'folio', style: 'label', place: G(5, 2, 8, 1) },
       { type: 'text', source: 'folio', format: 'pad2', style: 'label', place: G(7, 2, 8, 1) },
       { type: 'text', source: 'index', format: 'roman', style: 'label', place: G(9, 2, 8, 1) },
+      { type: 'text', source: 'site', style: 'label', place: G(11, 2, 8, 1) },
     ] });
 
   c.push({ kind: 'statement', name: 'Lines', describe: 'A fitted headline by lines, a sticker fitted to the label, a rule, a dot, a mark and a keyline.', ground: 'field', accepts: [{ field: 'headline', part: 'pre', maxChars: 70 }], calm: { maxShare: 0.6 },
@@ -306,6 +307,7 @@ function bindingLook() {
       T('by', { style: 'label', ink: 'white', split: { sep: '·', pick: 0 } }, G(1, 6, 7, 1)),
       T('by', { style: 'label', ink: 'white', split: { sep: '/', pick: 'rest' } }, G(7, 6, 7, 1)),
       T('label', { style: 'label', ink: 'white', vertical: 'up' }, { px: { x: 20, y: 700 } }),
+      { type: 'text', word: 'Myth', style: 'label', ink: 'white', place: G(1, 6, 8, 1) },
     ] });
   c.push({ kind: 'quote', name: 'Ladder quote', describe: 'A quote that steps down its size, a by line and a label.', ground: 'soft',
     fields: { label: { max: 28 }, quote: { required: true, max: 160 }, by: { max: 40 } },
@@ -383,8 +385,9 @@ function bindingLook() {
       T('sub', { style: 'body' }, G(1, 12, 8, 1)),
     ] });
   c.push({ kind: 'offer', name: 'Band', describe: 'A turned band holding the price and the headline, a brand name pattern, a hole and a frame.', ground: 'field', fit: 'frame',
-    fields: { headline: { required: true, max: 70 }, tag: { required: true, max: 16 }, sub: { max: 140 } },
+    fields: { image: {}, headline: { required: true, max: 70 }, tag: { required: true, max: 16 }, sub: { max: 140 } },
     elements: [
+      { type: 'photo', place: { px: { x: 820, y: 60, w: 200, h: 150 } }, shape: 'oval' },
       { type: 'wordmark-pattern', place: { inset: 'page' }, size: 90, colour: 'on-field', fade: true },
       { type: 'band', y: 300, h: 500, fill: 'paper', ink: 'ink', rot: 'band', origin: 'center', pad: [40, 140, 40, 140], shadow: 'hard', z: 2, children: [
         T('tag', { style: 'display', size: 200 }), T('headline', { style: 'display', size: 90 }),
@@ -394,8 +397,9 @@ function bindingLook() {
       { type: 'frame' },
     ] });
   c.push({ kind: 'offer', name: 'Stickers', describe: 'A hugging pill on the price, a stamp on the unit, a seal on the label, a filled headline.', ground: 'accent',
-    fields: { label: { max: 28 }, headline: { required: true, max: 70 }, tag: { required: true, max: 16 }, unit: { max: 24 } },
+    fields: { image: {}, label: { max: 28 }, headline: { required: true, max: 70 }, tag: { required: true, max: 16 }, unit: { max: 24 } },
     elements: [
+      { type: 'photo', place: { px: { x: 700, y: 1080, w: 320, h: 120 } }, shape: 'pill' },
       { type: 'fitted-stack', field: 'headline', mode: 'fill', cap: 200, floor: 60, maxLines: 5, ink: 'ink', place: G(1, 12, 2, 4) },
       { type: 'sticker', shape: 'pill', w: 'hug', minW: 100, maxW: 500, h: 100, field: 'tag', fit: { cap: 36, floor: 20, maxLines: 1, h: 60 }, place: { px: { x: 56, y: 800 } }, fill: 'ink', ink: 'white' },
       { type: 'sticker', shape: 'stamp', size: 220, field: 'unit', textSize: 36, place: { px: { x: 700, y: 800 } }, rot: 'sticker', fill: 'paper', ink: 'ink' },
@@ -423,7 +427,8 @@ test('the purpose-built look is valid and uses every binding the schema allows',
   assert.deepEqual([...new Set(texts.filter((t) => t.split).map((t) => String(t.split.pick)))].sort(), ['0', '1', '2', '3', 'rest']);
   assert.deepEqual(new Set([...els, ...texts].filter((e) => e.format).map((e) => e.format)), new Set(FORMATS), 'every format');
   assert.deepEqual(new Set(texts.filter((t) => t.part).map((t) => t.part)), new Set(['pre', 'phrase', 'post']));
-  assert.deepEqual(new Set(texts.filter((t) => t.source).map((t) => t.source)), new Set(['brand', 'folio', 'index']));
+  assert.deepEqual(new Set(texts.filter((t) => t.source).map((t) => t.source)), new Set(SOURCES), 'every source');
+  assert.ok(texts.some((t) => t.word), 'a fixed word');
   assert.deepEqual(new Set(els.filter((e) => e.type === 'photo').map((e) => e.shape)), new Set(PHOTO_SHAPES), 'every picture shape');
   assert.deepEqual(new Set(els.filter((e) => e.type === 'photo').flatMap((e) => e.treat ?? [])), new Set(PHOTO_TREATS));
   assert.deepEqual(new Set(els.filter((e) => e.type === 'sticker').map((e) => e.shape)), new Set(STICKER_SHAPES));
@@ -439,8 +444,12 @@ test('the purpose-built look draws every binding (benign words show up where eac
   const drawnBody = (kind, variant, texts = BENIGN, items = ['IA', 'IB', 'IC']) => renderPostWithLook(BINDING, { ...specOf(kind, variant, texts), items }, ctxFor(brand), { shipped: false }).body;
   const has = (body, token) => new RegExp(`>${token}<`).test(body);
   let body = drawnBody('statement', 0);
-  for (const t of ['HEAD', 'PHRASE', 'TAIL', 'L0', 'L2 \\| L3 – L4', 'SUBWORDS', 'BRANDNAME']) assert.ok(has(body, t), `statement 0: ${t}`);
-  assert.match(body, />\d\d</, 'the folio, and the folio as two digits');
+  for (const t of ['HEAD', 'PHRASE', 'TAIL', 'L0', 'L2 \\| L3 – L4', 'SUBWORDS', 'BRANDNAME', 'acmesavings\\.example']) assert.ok(has(body, t), `statement 0: ${t}`);
+  // a folio only from a real place (the post's place in a batch): without one there is none, never a number made up from the words
+  assert.doesNotMatch(body, />\d\d</, 'no folio without a place');
+  const placed = renderPostWithLook(BINDING, { ...specOf('statement', 0, BENIGN), items: ['IA', 'IB', 'IC'] }, { ...ctxFor(brand), folio: { n: 7, total: 12 } }, { shipped: false }).body;
+  assert.match(placed, />07</, 'the folio as two digits, from the batch place');
+  assert.ok(has(drawnBody('quote', 0), 'Myth'), 'quote 0: a fixed word');
   body = drawnBody('figure', 1);
   for (const t of ['12', 'XII', 'kg']) assert.ok(has(body, t), `figure 1: ${t}`);
   body = drawnBody('event', 1);
