@@ -1386,7 +1386,8 @@ CSS and runtime hook), never a new kind of value in an existing property.
 **Limits.** 21 compositions, 3 per kind, 40 elements, 4 levels, description 300 characters, a serialised definition 256 KB, 20 looks per brand
 (`validateLooks`, ids unique). `normaliseLook` returns a deep-frozen copy with the documented defaults filled and the ids derived; `lookHash` is
 the sha256 of its canonical JSON (a look written with its defaults and one without hash the same); `lookBrief` gives the kinds, variants,
-fields and budgets the AI and the post editor read.
+fields and budgets the AI and the post editor read, and for each variant which of the headline's marks it draws (`marks: { pills, icons }`:
+a headline `text` element with `pills` or `icons`), so the post editor offers Pill and Icon only where a design draws them.
 
 ### The renderer: drawing a look from data
 

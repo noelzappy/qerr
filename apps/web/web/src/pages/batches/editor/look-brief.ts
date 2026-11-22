@@ -17,7 +17,7 @@ export function applyLookBrief(base: PostKinds, brief: ActiveBrief): PostKinds {
     const fields = CANON.filter((f) => used.has(f));
     return {
       kind: k.kind, fields, required: k.required.filter((f) => fields.includes(f)),
-      variants: variants.map((v) => ({ variant: v.index, name: v.name, describe: v.describe, budgets: v.fields })),
+      variants: variants.map((v) => ({ variant: v.index, name: v.name, describe: v.describe, budgets: v.fields, ...(v.marks ? { marks: v.marks } : {}) })),
     };
   });
   return { ...base, direction: brief.id ?? brief.ref, kinds, offered: kinds.map((k) => k.kind) };
@@ -54,4 +54,14 @@ export function budgetsFor(base: PostLimits | null | undefined, info: PostKindIn
     lim.chart.min = Math.min(...charts.map((c) => c!.min ?? lim.chart.min));
   }
   return lim;
+}
+
+// Which of the headline's marks the chosen design draws; with Automatic, a mark counts as drawn when any design of the kind draws it.
+// null when it is not known (no look, or an older server).
+export function drawsFor(info: PostKindInfo | undefined, variant: number | undefined): { pills: boolean; icons: boolean } | null {
+  const known = (info?.variants ?? []).filter((v) => v.marks);
+  if (!known.length) return null;
+  const use = variant === undefined ? known : known.filter((v) => v.variant === variant);
+  if (!use.length) return null;
+  return { pills: use.some((v) => v.marks!.pills), icons: use.some((v) => v.marks!.icons) };
 }

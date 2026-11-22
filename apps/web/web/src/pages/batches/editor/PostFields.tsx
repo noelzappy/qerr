@@ -1,17 +1,19 @@
-// The form for a `post` design: the kind of post, then only the fields that kind uses, each with its limit shown as a counter, and
-// the look (the brand's look draws each kind in its own ways). Every change goes through withField, so an empty value is removed
+// The form for a `post` design: the kind of post (a series is one too), then only the fields that kind uses, each with its limit shown as a
+// counter, and the design (the brand's look draws each kind in its own ways). Every change goes through withField, so an empty value is removed
 // and the design carries nothing a post may not have. The server and the preview stay the authority on what is valid.
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Notice, SelectField, TextAreaField, TextField } from '@/components/kit';
+import { Notice, TextAreaField, TextField } from '@/components/kit';
 import { cn } from '@/lib/utils';
 import { POST_LIMITS, postFieldsFor, seenLength, setVariant, switchKind, withField, type PostKindInfo, type PostLimits } from '../design-model';
 import { HeadlineField } from './HeadlineField';
-import { FocalPicker, ZoomField } from './ImageOptions';
 import { AvatarEditor } from './AvatarEditor';
-import { KindChooser } from './KindChooser';
-import { budgetsFor } from './look-brief';
-import { ChoiceRow } from './ChoiceRow';
+import { DesignChooser } from './DesignChooser';
+import { sizesOf } from './focal-frame';
+import { KindChooser, type SeriesSlot } from './KindChooser';
+import { budgetsFor, drawsFor } from './look-brief';
+import { PictureFocus } from './PictureFocus';
+import { useDesignSamples } from './use-design-samples';
 import { ListEditor } from './ListEditor';
 import { InfoEditor } from './InfoEditor';
 import { GalleryEditor } from './GalleryEditor';
@@ -27,7 +29,6 @@ const LABELS: Record<string, string> = {
 };
 const HINTS: Record<string, string> = {
   label: 'A few words above the headline, such as Numbers or Tips.',
-  headline: 'One short phrase. Select words and press Highlight to make them stand out, or Pill to set them in a pill (where the look draws pills).',
   cta: 'What to do, in a few words, such as Book a seat.',
   sub: 'A line that adds to the headline.',
   big: 'The figure itself, such as 74% or 3x.',
@@ -48,7 +49,7 @@ function Counted({ value, max, children, className }: { value: string; max: numb
   return <div className={cn('flex min-w-0 flex-col gap-1', className)}>{children}<Counter value={value} max={max} /></div>;
 }
 
-export function PostFields({ design, onChange, direction, kinds, limits, offered, disabled }: {
+export function PostFields({ design, onChange, direction, kinds, limits, offered, disabled, series }: {
   design: Json;
   onChange: (next: Json) => void;
   // The brand's design direction: null when it has none, undefined while that is not yet known.
@@ -58,13 +59,17 @@ export function PostFields({ design, onChange, direction, kinds, limits, offered
   // The kinds the brand's look draws (null or left out: every kind).
   offered?: string[] | null;
   disabled?: boolean;
+  // the brand's series as kinds of post (a single image only)
+  series?: SeriesSlot | null;
 }) {
   const d = design;
   const kind = text(d.kind);
   const { fields, required } = postFieldsFor(kind, kinds);
   const kindInfo = kinds?.find((k) => k.kind === kind);
   const variants = kindInfo?.variants ?? [];
-  const lim = budgetsFor(limits ?? POST_LIMITS, kindInfo, typeof d.variant === 'number' ? d.variant : undefined);
+  const variant = typeof d.variant === 'number' ? d.variant : undefined;
+  const lim = budgetsFor(limits ?? POST_LIMITS, kindInfo, variant);
+  const pictures = useDesignSamples(variants.length ? kind : undefined, direction);
   const set = (key: string, value: unknown) => onChange(withField(d, key, value));
   const needs = (f: string) => required.includes(f);
 
@@ -96,9 +101,8 @@ export function PostFields({ design, onChange, direction, kinds, limits, offered
         return short(f, true);
       case 'headline':
         return (
-          <Counted key={f} value={text(d.headline)} max={lim.headline}>
-            <HeadlineField label="Headline" required={needs('headline')} hint={HINTS.headline} value={text(d.headline)} disabled={disabled} onChange={(v) => set('headline', v)} marks icons={lim.icons} />
-          </Counted>
+          <HeadlineField key={f} label="Headline" required={needs('headline')} value={text(d.headline)} disabled={disabled} onChange={(v) => set('headline', v)} marks icons={lim.icons}
+            draws={drawsFor(kindInfo, variant)} offer={drawsFor(kindInfo, undefined)} counter={<Counter value={text(d.headline)} max={lim.headline} />} />
         );
       case 'items':
         return <ListEditor key={f} label="Items" addLabel="Add an item" max={lim.items.max} maxChars={lim.items.chars} value={d.items} disabled={disabled} onChange={(v) => set('items', v)} />;
@@ -116,8 +120,10 @@ export function PostFields({ design, onChange, direction, kinds, limits, offered
         return (
           <div key={f} className="flex min-w-0 flex-col gap-3">
             <PicturePicker required={needs('image')} value={{ image: text(d.image) || undefined, vaultItemId: text(d.vaultItemId) || undefined }} disabled={disabled} onChange={setPicture} />
-            <FocalPicker value={d.focal} disabled={disabled} onChange={(v) => set('focal', v)} />
-            <ZoomField value={d.zoom} disabled={disabled} onChange={(v) => set('zoom', v)} />
+            {Boolean(d.image || d.vaultItemId) && (
+              <PictureFocus focal={d.focal} zoom={d.zoom} vaultItemId={text(d.vaultItemId) || undefined} sizes={sizesOf(d)} disabled={disabled}
+                onChange={(focal, zoom) => onChange(withField(withField(d, 'focal', focal), 'zoom', zoom))} />
+            )}
           </div>
         );
       default:
@@ -135,9 +141,8 @@ export function PostFields({ design, onChange, direction, kinds, limits, offered
     } else body.push(field(f));
   }
 
-  const variant = typeof d.variant === 'number' ? d.variant : undefined;
-  const looks = variants.some((v) => v.variant === variant) || variant === undefined ? variants : [...variants, { variant: variant!, name: `Look ${variant! + 1}`, describe: '' }];
-  const chosenLook = looks.find((v) => v.variant === variant);
+  // a design the post names that the look no longer has stays a choice, so it is never lost
+  const designs = variants.some((v) => v.variant === variant) || variant === undefined ? variants : [...variants, { variant: variant!, name: `Design ${variant! + 1}`, describe: '' }];
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
@@ -146,23 +151,10 @@ export function PostFields({ design, onChange, direction, kinds, limits, offered
           This brand has no look yet, so this post cannot be made. Choose one in Settings, Looks.
         </Notice>
       )}
-      <KindChooser value={kind} offered={offered} disabled={disabled} onChange={(k) => onChange(switchKind(d, k, kinds))} />
+      <KindChooser value={kind} offered={offered} disabled={disabled} series={series} onChange={(k) => onChange(switchKind(d, k, kinds))} />
       {body}
-      {looks.length >= 2 && looks.length <= 3 && (
-        <ChoiceRow<string>
-          legend="Look" value={variant === undefined ? '' : String(variant)} disabled={disabled}
-          tip={chosenLook?.describe || 'Automatic picks a design from the post, so a batch varies.'}
-          onChange={(v) => onChange(setVariant(d, v === '' ? undefined : Number(v)))}
-          choices={[{ value: '', label: 'Automatic' }, ...looks.map((v) => ({ value: String(v.variant), label: v.name }))]}
-        />
-      )}
-      {looks.length > 3 && (
-        <SelectField
-          label="Look" value={variant === undefined ? '' : String(variant)} disabled={disabled}
-          hint={chosenLook?.describe || 'Automatic picks a design from the post, so a batch varies.'}
-          onValueChange={(v) => onChange(setVariant(d, v === '' ? undefined : Number(v)))}
-          options={[{ value: '', label: 'Automatic' }, ...looks.map((v) => ({ value: String(v.variant), label: v.name }))]}
-        />
+      {designs.length >= 2 && (
+        <DesignChooser options={designs} value={variant} pictures={pictures} disabled={disabled} onChange={(v) => onChange(setVariant(d, v))} />
       )}
     </div>
   );

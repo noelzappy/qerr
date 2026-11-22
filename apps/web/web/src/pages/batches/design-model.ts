@@ -108,7 +108,8 @@ export const POST_LIMITS: PostLimits = {
 export interface PostKindInfo {
   kind: string; fields: string[]; required: string[];
   // `budgets` (a look's design only): what the design needs and its longest text per field.
-  variants: Array<{ variant: number; name: string; describe: string; budgets?: Record<string, { required: boolean; max?: number; min?: number; kinds?: string[] }> }>;
+  // `marks` (a look's design only): whether the design draws the headline's [[pill]] words and {{icon}} marks.
+  variants: Array<{ variant: number; name: string; describe: string; budgets?: Record<string, { required: boolean; max?: number; min?: number; kinds?: string[] }>; marks?: { pills: boolean; icons: boolean } }>;
 }
 
 // (avatar: one portrait picture of the person quoted, { image, vaultItemId?, focal? }, drawn by a look written as data only)

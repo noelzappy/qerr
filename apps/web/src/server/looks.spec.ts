@@ -519,6 +519,34 @@ describe('previews of a whole look (with a stand-in renderer)', () => {
   });
 });
 
+describe('the post editor\'s design pictures (with a stand-in renderer)', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+  afterEach(() => setLookRenderer(null));
+
+  it('draws each design of a kind of the active look for any signed-in person, and says when it cannot', async () => {
+    const api = await admin();
+    await saveBrand();
+    const editor = t.api(await t.signIn(await t.createUser('editor')));
+    expect((await t.api().get('/api/looks/designs/statement')).status).toBe(401);
+    // no renderer: the editor names the designs instead
+    expect((await editor.get('/api/looks/designs/statement')).status).toBe(501);
+    const seen: Array<{ kind: string; look: Record<string, any> }> = [];
+    setLookRenderer({
+      preview: async () => ({ samples: [] }),
+      designSamples: async ({ kind, look }) => { seen.push({ kind, look }); return { designs: [{ index: 0, ok: true, image: PNG }, { index: 1, ok: false, error: 'x'.repeat(400) }] }; },
+    });
+    await api.put(`${BASE}/active`, { ref: null });
+    expect((await editor.get('/api/looks/designs/statement')).body).toEqual({ ref: null, designs: [] });
+    await api.put(`${BASE}/active`, { ref: 'shipped:retail' });
+    const res = await editor.get('/api/looks/designs/statement');
+    expect(res.status).toBe(200);
+    expect(res.body.ref).toBe('shipped:retail');
+    expect(res.body.designs).toEqual([{ index: 0, ok: true, image: PNG }, { index: 1, ok: false, error: 'x'.repeat(300) }]);
+    expect(seen[0]).toMatchObject({ kind: 'statement', look: { id: 'retail' } });
+    expect((await editor.get('/api/looks/designs/poster')).status).toBe(400);
+  });
+});
+
 describe('one design drawn on its own (with a stand-in renderer)', () => {
   const PNG = 'data:image/png;base64,iVBORw0KGgo=';
   afterEach(() => setLookRenderer(null));

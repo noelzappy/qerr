@@ -171,13 +171,27 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
   (`editor/CaptionFields.tsx`). What the form fills in itself is marked (`FilledTag` in the kit, the one mark for every filled-in value): the title "From the headline"
   until someone types one (`editor/post-defaults.ts`), and the designed image "Auto" when a new post starts with it because the brand
   has a look. Choices of two to four options are a row of radio chips (`editor/ChoiceRow.tsx`), never a native select.
-  Designs are edited with a layout chooser, a picture picker and structured editors for figures, lists, carousel pages, tables
+  Designs are edited with a design chooser, a picture picker and structured editors for figures, lists, carousel pages, tables
   and cards; the raw design JSON is under "Advanced". When the brand has a look or a design direction (`GET /api/posts/post-kinds` says so; with a look, `GET /api/looks/brief` supplies the kinds offered, the design names and the budgets) a
   new designed image is a *kind of post* (`editor/PostFields.tsx`, `editor/KindChooser.tsx`): Statement, Number, List, Quote, Picture,
-  Event or Offer, each showing only its fields with character counters, and a "Look" choice (Automatic or one of the direction's
-  compositions for that kind). Switching kind keeps the fields the new kind shares (`design-model.ts` `switchKind`). A post made with a
-  classic layout still opens with today's controls and offers "Convert to a <kind> post" where the mapping is obvious
-  (`convertToPost`). Brands without a direction see exactly the layout chooser as before. The preview asks `POST /api/posts/preview-design`, waits a moment after
+  Event or Offer, or one of the brand's named series (`editor/series-kind.ts`: it sets the kind, the design and the number), each showing
+  only its fields with character counters, and a **Design** choice (`editor/DesignChooser.tsx`: Automatic or one of the look's designs for
+  that kind, as cards with a sample picture when the server can draw one, `editor/use-design-samples.ts`). Those two names are the whole
+  vocabulary: "post type", "series", "look (variant)" and "layout" are not used in the editor. Switching kind keeps the fields the new kind
+  shares (`design-model.ts` `switchKind`). A post made with a classic layout still opens with its classic controls, its layout under
+  "Design" and its post type under "Kind of post", and offers "Convert to a <kind> post" where the mapping is obvious (`convertToPost`).
+  Brands without a direction see exactly those classic controls.
+- The headline (`editor/HeadlineField.tsx`) is a small rich editor: people select words and press **Colour** (the second colour),
+  **Pill** (one to three words) or **Plain**, and put an icon at the cursor from the icon grid; they never type or see the markup. The stored
+  value is still the markup the engine reads (`*colour*`, `[[pill]]`, `{{icon}}`); `editor/headline-markup.ts` converts both ways and holds
+  the edits (overlapping styles, a pill's words and letters, two pills and two icons at most, pasted text without the characters that make
+  marks), and `editor/headline-caret.ts` maps the browser's selection. Every change goes through `beforeinput`, so the box never holds
+  what the markup cannot say; undo and redo are the editor's own. "Edit as text" under the box's Fine-tune shows the markup, and a value
+  the buttons cannot show exactly (an asterisk with no partner, say) is edited as text with the reason. Specs: `web-headline-markup.spec.ts`.
+- The picture (`editor/PictureFocus.tsx`) is shown with its focus point and the frame of each size the post is made in: a click or a drag
+  sets the point, the wheel (once the picture has focus), a pinch or the slider zooms, arrow keys move the point (Shift for 10%) and + and -
+  zoom. The stored `focal` ("N% N%") and `zoom` (1 to 3) are unchanged; the crop is worked out as the engine draws it
+  (`editor/focal-frame.ts`, spec `web-focal-frame.spec.ts`). The preview asks `POST /api/posts/preview-design`, waits a moment after
   the last edit, keeps the last good picture on screen and cancels a request that a newer edit has overtaken (`api.post` takes
   an optional `AbortSignal`; a cancelled request shows no error).
 - The post page's More menu has **Rewrite with AI** (disabled with "save first" while there are unsaved edits). It opens a small dialog

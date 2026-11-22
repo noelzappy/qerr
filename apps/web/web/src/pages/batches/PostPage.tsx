@@ -16,7 +16,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsaved-guard';
 import { cn } from '@/lib/utils';
 import { DesignFields } from './DesignFields';
-import { SeriesPicker } from './editor/SeriesPicker';
 import { usePostKinds } from './editor/use-post-kinds';
 import type { SeriesRef } from './editor/series-model';
 import { RewritePostDialog } from './RewritePostDialog';
@@ -312,11 +311,9 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
           </Section>
 
           <Section title="Design" id="post-design" className="scroll-mt-28">
-            {postKinds.direction !== null && !postKinds.loading && (
-              <SeriesPicker value={series} onChange={setSeries} design={design} onDesign={setDesign} kinds={postKinds.kinds} disabled={!!jsonError} />
-            )}
             <DesignFields
               design={design} jsonError={jsonError} networks={NETWORKS.filter((n) => on[n])} autoOn={designAuto}
+              series={series} onSeries={jsonError ? undefined : setSeries}
               onChange={(d, err) => { designChosen.current = true; if (d === null) setDesignAuto(false); setDesign(d); setJsonError(err); }}
             />
             {fields.design && <p className="text-[13px] font-medium text-destructive" role="alert">{fields.design}</p>}

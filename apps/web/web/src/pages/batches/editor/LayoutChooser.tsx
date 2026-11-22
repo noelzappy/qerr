@@ -1,5 +1,5 @@
-// Chooses a layout: the built-in ones in groups, then the brand's own (the kit's select, with groups). A value is an engine
-// template name or `layout:<id>`.
+// "Design" for a brand on classic layouts: the built-in layouts in groups, then the brand's own (the kit's select, with groups). A value is
+// an engine template name or `layout:<id>`.
 import { useId } from 'react';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,10 +29,10 @@ export function LayoutChooser({ value, onChange, brandLayouts, disabled, page = 
 
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <Label htmlFor={id}>Layout</Label>
+      <Label htmlFor={id}>Design</Label>
       <Select value={value} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger id={id} className="w-full min-w-0 max-sm:h-11 max-sm:text-base" aria-invalid={error ? true : undefined} aria-describedby={describedBy}>
-          <SelectValue placeholder="Choose a layout" />
+          <SelectValue placeholder="Choose a design" />
         </SelectTrigger>
         <SelectContent position="popper" className="max-h-[min(24rem,var(--radix-select-content-available-height))]">
           {!known && value !== '' && <SelectItem value={value}>{value.replace('layout:', 'Your layout: ')}</SelectItem>}

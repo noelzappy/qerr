@@ -16,9 +16,15 @@ const GLYPH: Record<string, LucideIcon> = {
 };
 const COLS = 6;
 export const iconWords = (name: string) => name.replace(/-/g, ' ');
+// The stand-in glyph of an engine icon (a circle for one this list does not have).
+export function IconGlyph({ name, className }: { name: string; className?: string }) {
+  const G = GLYPH[name] ?? Circle;
+  return <G className={className} aria-hidden="true" />;
+}
 
-export function IconGrid({ icons, onPick, disabled, keepSelection }: {
+export function IconGrid({ icons, onPick, disabled, keepSelection, label = 'Icon' }: {
   icons: string[];
+  label?: string;
   onPick: (name: string) => void;
   disabled?: boolean;
   // Stops the headline box losing its selection when the button is pressed.
@@ -39,7 +45,7 @@ export function IconGrid({ icons, onPick, disabled, keepSelection }: {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" size="sm" disabled={disabled} aria-label="Put an icon at the cursor" onMouseDown={keepSelection} className="h-7 max-sm:min-h-9">
-          <Shapes aria-hidden="true" /> Icon
+          <Shapes aria-hidden="true" /> {label}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-auto p-2" onCloseAutoFocus={(e) => e.preventDefault()}>

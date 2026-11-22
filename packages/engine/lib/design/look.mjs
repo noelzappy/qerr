@@ -118,6 +118,21 @@ export function lookCatalogue() {
 
 // ---- the brief: what the AI and the post editor need to know about a look ----
 // kinds the look has a composition for, each with its variants in order (the variant a post names is the index here).
+// Each variant also says which of the headline's inline marks it draws (marks: { pills, icons }): a design without them shows [[pill]] words
+// plainly and leaves {{icon}} marks out (kit inlineMarks), so the post editor can say so.
+// Which inline marks a composition's headline elements draw (at any depth): a text element of the headline with `pills` or `icons`.
+function headlineMarks(comp) {
+  const out = { pills: false, icons: false };
+  const walk = (list) => {
+    for (const el of Array.isArray(list) ? list : []) {
+      if (!isObj(el)) continue;
+      if (el.type === 'text' && el.field === 'headline') { if (isObj(el.pills)) out.pills = true; if (isObj(el.icons)) out.icons = true; }
+      walk(el.children);
+    }
+  };
+  walk(comp?.elements);
+  return out;
+}
 export function lookBrief(look) {
   const kinds = {};
   for (const c of Array.isArray(look?.compositions) ? look.compositions : []) {
@@ -132,7 +147,7 @@ export function lookBrief(look) {
       if (name === 'chart') fields[name] = { required, kinds: chartKindsOf(c), min: isObj(f) && f.min !== undefined ? f.min : POST_CHART.min, max: isObj(f) && f.max !== undefined ? f.max : POST_CHART.max };
     }
     const device = compositionDevice(c);
-    entry.variants.push({ index: entry.variants.length, name: c.name, describe: c.describe, fields, accepts: clone(Array.isArray(c.accepts) ? c.accepts : []), ...(device ? { device } : {}) });
+    entry.variants.push({ index: entry.variants.length, name: c.name, describe: c.describe, fields, accepts: clone(Array.isArray(c.accepts) ? c.accepts : []), marks: headlineMarks(c), ...(device ? { device } : {}) });
   }
   return { id: look?.id, name: look?.name, kinds };
 }

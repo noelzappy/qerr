@@ -23,7 +23,8 @@
 //   GET    /fonts/:family/:file              a shipped font file (allow-listed by the engine's font library), for the typeface cards
 //   DELETE /:slug                            remove a look (refused while active)
 //
-// And for the post editor and the AI, any signed-in person: GET /api/looks/brief (lookBriefsRoute below).
+// And for the post editor and the AI, any signed-in person: GET /api/looks/brief (lookBriefsRoute below), and for the post editor's Design
+// choice GET /api/looks/designs/:kind (a picture of each design of a kind of the active look).
 // Every change to what the brand draws writes the brand pack again (syncBrand).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -73,6 +74,24 @@ export function looksBriefRoute(deps: Deps): Hono<AppEnv> {
   app.get('/brief', async (c) => {
     await syncBrand(deps);
     return c.json({ look: await looksFor(deps).lookBriefs(brandScope(c)) });
+  });
+  // A picture of each design of one kind of the active look (sample copy), for the post editor's Design choice: { ref, designs: [{ index, ok,
+  // image?, error? }] }, { ref: null, designs: [] } with no look, 501 without a renderer (the editor then names the designs).
+  app.get('/designs/:kind', async (c) => {
+    const kind = c.req.param('kind');
+    const eng = await lookEngine();
+    if (!eng.KINDS.includes(kind)) throw badRequest(`Unknown kind of post: ${kind.slice(0, 20)}`);
+    const r = lookRenderer();
+    if (!r?.designSamples) return c.json({ error: PREVIEW_UNAVAILABLE }, 501);
+    await syncBrand(deps);
+    const active = await looksFor(deps).activeLook(brandScope(c));
+    if (!active) return c.json({ ref: null, designs: [] });
+    const answer = await r.designSamples({ scope: brandScope(c), look: active.look, kind, userId: c.get('user').id });
+    if (answer.superseded) return c.json({ ref: active.ref, designs: [], superseded: true });
+    return c.json({
+      ref: active.ref,
+      designs: answer.designs.slice(0, 20).map((d) => ({ index: d.index, ok: d.ok, ...(d.ok && d.image ? { image: d.image } : {}), ...(d.error ? { error: String(d.error).slice(0, 300) } : {}) })),
+    });
   });
   return app;
 }

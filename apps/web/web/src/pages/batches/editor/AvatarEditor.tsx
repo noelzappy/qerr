@@ -2,7 +2,7 @@
 // picker as the post's own picture) and the point of it the round crop keeps. The look's design decides its shape, size and ring. The
 // server checks, copies and rights-checks it like every picture: a picture that shows people needs their consent recorded.
 import { PicturePicker, type PictureValue } from './PicturePicker';
-import { FocalPicker } from './ImageOptions';
+import { PictureFocus } from './PictureFocus';
 
 export interface AvatarPicture { image?: string; vaultItemId?: string; focal?: string }
 const parse = (value: unknown): AvatarPicture => (value && typeof value === 'object' && !Array.isArray(value) ? (value as AvatarPicture) : {});
@@ -15,7 +15,7 @@ export function AvatarEditor({ value, onChange, disabled }: { value: unknown; on
     <fieldset className="flex min-w-0 flex-col gap-3" disabled={disabled}>
       <legend className="mb-1 text-sm font-medium">Portrait picture <span className="font-normal text-muted-foreground">(optional: the person quoted, cropped round)</span></legend>
       <PicturePicker label="Portrait" value={{ image: a.image, vaultItemId: a.vaultItemId }} disabled={disabled} onChange={setPicture} />
-      {a.image && <FocalPicker value={a.focal} disabled={disabled} onChange={(v) => onChange(clean({ ...a, focal: v }))} />}
+      {a.image && <PictureFocus focal={a.focal} zoom={undefined} withZoom={false} vaultItemId={a.vaultItemId} disabled={disabled} onChange={(focal) => onChange(clean({ ...a, focal }))} />}
     </fieldset>
   );
 }
