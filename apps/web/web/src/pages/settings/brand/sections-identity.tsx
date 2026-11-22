@@ -1,6 +1,6 @@
 // Brand and look, Identity and Logos.
 import { ImageUp, Wand2 } from 'lucide-react';
-import { BusyButton, CheckField, Hint, Notice, SelectField, TextField } from '@/components/kit';
+import { BusyButton, Hint, Notice, SelectField, SwitchField, TextField } from '@/components/kit';
 import { TimeZonePicker } from '@/components/kit/time-zone-picker';
 import { Section } from '../section';
 import { FileField, NumberField } from './fields';
@@ -48,7 +48,7 @@ export function IdentitySection({ ctx }: { ctx: BrandCtx }) {
         <SelectField label="Language of the posts" value={s.language} onValueChange={(v) => set('language', v)} options={(LANGUAGES.includes(s.language) ? LANGUAGES : [s.language, ...LANGUAGES]).map((l) => ({ value: l, label: l }))} error={fields.language} />
       </div>
       <div className="flex flex-col gap-3">
-        <CheckField
+        <SwitchField
           label="The brand works in one currency only" hint="Posts that mention another currency get a warning."
           checked={!!s.money} onCheckedChange={(on) => set('money', on ? { local: 'We work in one currency only', foreign: DEFAULT_FOREIGN } : null)}
         />
