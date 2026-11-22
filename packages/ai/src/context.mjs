@@ -23,6 +23,8 @@ export const brandBrief = (b) => ({
   voice: typeof b.voice === 'string' && b.voice.trim() ? b.voice.trim() : null,
   visualDirection: typeof b.visualDirection === 'string' && b.visualDirection.trim() ? b.visualDirection.trim() : null,
   references: Array.isArray(b.references) ? b.references.filter((r) => typeof r === 'string' && r.trim()).slice(0, 24) : [],
+  // whether the image text may carry emoji (the brand's setting; at most three standard emoji per text, never in the brand's name)
+  emoji: b.emoji === true,
 });
 
 // The brand's own layouts (brand.json "layouts") that pass the engine's validator; an invalid one is never offered.

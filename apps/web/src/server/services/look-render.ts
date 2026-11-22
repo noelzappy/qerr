@@ -36,7 +36,7 @@ interface EngineRenderMod {
   renderImage(browser: unknown, brand: Json, job: { spec: Json; sizeName: string; outFile: string }, o: { tmpDir: string; quality?: number }): Promise<{ warnings: string[]; notes: string[]; post?: { variant: number; fellBackFrom?: string | null }; els?: Array<{ el: string; x0: number; y0: number; x1: number; y1: number }> }>;
   DesignError: new (...a: never[]) => Error;
 }
-interface EngineSpecMod { normaliseDesign(d: Json): Json; validateDesign(d: Json, where: string, o: { look?: Json }): string[] }
+interface EngineSpecMod { normaliseDesign(d: Json): Json; validateDesign(d: Json, where: string, o: { look?: Json; emoji?: boolean }): string[] }
 interface EngineLooks { lookHash(look: unknown): string }
 interface EngineLookGraphics {
   compositionGraphicRefs(comp: unknown): string[];
@@ -200,7 +200,7 @@ async function drawOne(
   let last: Drawn = { ok: false, warnings: [], rects: [], error: 'Not drawn' };
   for (const a of attempts) {
     const design: Json = { template: 'post', kind: job.kind, variant: job.index, name: `look-${job.scenario}`, ...copyFor(job.kind, variant, job.scenario, a), ...placed };
-    const problems = spec.validateDesign(design, 'design', { look });
+    const problems = spec.validateDesign(design, 'design', { look, emoji: (bl.brand as Json).emoji === true });
     if (problems.length) { last = { ok: false, warnings: [], rects: [], error: problems.slice(0, 3).join('; ').slice(0, 400) }; continue; }
     try {
       const r = await render.renderImage(browser, bl.brand, { spec: spec.normaliseDesign(design), sizeName: 'feed', outFile: file }, { tmpDir: path.join(root, 'out', 'design-tmp'), quality: JPEG_QUALITY });
@@ -227,7 +227,7 @@ async function drawOne(
     if (own) {
       const withPicture = Object.hasOwn(variant.fields, 'image') ? { image: SAMPLE_PICTURES[job.kind] ?? 'design/assets/demo/object-jar.jpg' } : {};
       const design: Json = { template: 'post', kind: job.kind, variant: job.index, name: `look-${job.scenario}`, ...own, ...withPicture, ...placed };
-      if (!spec.validateDesign(design, 'design', { look }).length) {
+      if (!spec.validateDesign(design, 'design', { look, emoji: (bl.brand as Json).emoji === true }).length) {
         try {
           const r = await render.renderImage(browser, bl.brand, { spec: spec.normaliseDesign(design), sizeName: 'feed', outFile: file }, { tmpDir: path.join(root, 'out', 'design-tmp'), quality: JPEG_QUALITY });
           const image = `data:image/jpeg;base64,${fs.readFileSync(file).toString('base64')}`;

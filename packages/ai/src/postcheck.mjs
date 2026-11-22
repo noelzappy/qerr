@@ -5,7 +5,8 @@ import { foreignMoneyWarning, lintText, textFieldsOf } from '@vesk/engine/design
 import { POSTER_TEMPLATES } from '@vesk/engine/design/spec';
 import { normalisePostDesign, postDesignProblems, screenDeviceOf } from '@vesk/engine/design/layout';
 import { layoutImageKind } from './context.mjs';
-import { EMOJI_G, fixSpelling, isTitleCase, numberKeys, quoteIsSourced, quotesIn, trimToLimit, unsourcedNumbers, usSpellings } from './facts.mjs';
+import { limitEmoji } from '@vesk/engine/design/emoji';
+import { fixSpelling, isTitleCase, numberKeys, quoteIsSourced, quotesIn, trimToLimit, unsourcedNumbers, usSpellings } from './facts.mjs';
 import { MEDIA_KINDS, foreignMoneyPattern, mentionsForeignMoney, unusableReason } from './vault.mjs';
 import { POST_PAGES, seenText } from '@vesk/engine/design/post-spec';
 import { applySeriesSlot, seriesMark, seriesRefProblems } from '@vesk/engine/design/series';
@@ -194,7 +195,10 @@ function repairGround(design) {
 // The engine's own checks of a design block: a brand layout's (a post or a carousel page) against the fields it declares, the rest
 // against the templates.
 // (a brand whose direction is its own look written as data is held to that look's compositions)
-const designProblems = (design, ctx) => postDesignProblems(design, 'design', { layouts: ctx.layouts ?? [], series: ctx.seriesKeys, direction: ctx.direction ?? null, look: lookOfBrand(ctx.brand) ?? undefined });
+const designProblems = (design, ctx) => postDesignProblems(design, 'design', { layouts: ctx.layouts ?? [], series: ctx.seriesKeys, direction: ctx.direction ?? null, look: lookOfBrand(ctx.brand) ?? undefined, emoji: ctx.brand?.emoji === true });
+// The image text as the brand allows it: no emoji (the default), or, when the brand turns them on, whole standard emoji only and at most three
+// per text (engine emoji.mjs). A repair, not a refusal: the words stay.
+const emojiAsAllowed = (design, ctx) => mapStrings(design, (s) => limitEmoji(s, { on: ctx.brand?.emoji === true }));
 
 // A `post` design (a brand with a design direction): the kind must be one its direction can draw, only fields that kind's
 // compositions draw, every text within its budget, at most one emphasis phrase (1 to 4 words, never the whole text), and no
@@ -362,6 +366,8 @@ export function checkPost(raw, ctx) {
         if (s.problems.length) reasons.push(...s.problems);
         else { design = s.design; series = s.ref; seriesDate = s.date; repairs.push(...s.repairs); }
       }
+      const trimmed = emojiAsAllowed(design, ctx);
+      if (JSON.stringify(trimmed) !== JSON.stringify(design)) { design = trimmed; repairs.push(ctx.brand?.emoji === true ? 'emoji past the three a text may carry, or broken ones, removed from the image text' : 'emoji removed from the image text (they are off for this brand)'); }
       const engine = designProblems(design, ctx);
       reasons.push(...engine);
       if (!engine.length && (design.template === 'post' || (ctx.direction && design.template === 'carousel'))) reasons.push(...postKindProblems(design, ctx), ...kindRunProblems(design, seriesDate ?? date, ctx));
@@ -371,7 +377,7 @@ export function checkPost(raw, ctx) {
   if (ctx.requireImageReason && photoIds.length && !imageReason) reasons.push('imageReason is missing: say what the picture shows and why it fits this post');
   if (reasons.length) return { ok: false, reasons: reasons.map((x) => `${label}: ${x}`), repairs, post: null, imageSuggestion: raw.imageSuggestion };
 
-  // brand repairs: spelling everywhere, emoji out of image text
+  // brand repairs: spelling everywhere (emoji in the image text were made to fit the brand's setting above)
   const rules = ctx.brand.spelling;
   const fixCaption = (t) => { const f = fixSpelling(t, rules); if (f !== t) repairs.push('brand spelling corrected in a caption'); return f; };
   let caption = fixCaption(raw.caption);
@@ -380,7 +386,7 @@ export function checkPost(raw, ctx) {
     if (NETWORKS.includes(n) && ctx.channels.includes(n) && typeof t === 'string' && t.trim()) networkCaptions[n] = fixCaption(t);
   }
   const before = JSON.stringify(design);
-  design = mapStrings(design, (s) => fixSpelling(s, rules).replace(EMOJI_G, '').replace(/ {2,}/g, ' ').trim());
+  design = emojiAsAllowed(mapStrings(design, (s) => fixSpelling(s, rules).replace(/ {2,}/g, ' ').trim()), ctx);
   // The photo template's thin arcs and corner brackets are the older look the owner rejected; AI photo posts never draw them.
   if (design.template === 'photo' && design.lines !== false) design = { ...design, lines: false };
   if (JSON.stringify(design) !== before) repairs.push('brand spelling corrected or emoji removed in the image text');

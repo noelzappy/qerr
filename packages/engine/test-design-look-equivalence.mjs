@@ -121,7 +121,7 @@ const COPY = {
 };
 // the picture a composition is given, where its copy names one (the ledger phone page takes the pre-framed phone capture)
 const PICTURE = { ...LEDGER_PICTURES };
-test('every shipped look passes every check, all 120 compositions from sample, stress and minimal copy, in three sets of brand colours', { skip }, async () => {
+test('every shipped look passes every check, all 121 compositions from sample, stress and minimal copy, in three sets of brand colours', { skip }, async () => {
   assert.deepEqual(Object.keys(shippedLooks()).sort(), ['bloom', 'clean', 'guide', 'ledger', 'loud', 'plate', 'retail', 'roast', 'soft', 'studio', 'swiss'], 'a new shipped look is added here with its copy');
   let drawn = 0;
   for (const look of [RETAIL, SWISS, SOFT, BLOOM, CLEAN, LOUD, LEDGER, STUDIO, ROAST, PLATE, GUIDE]) {
@@ -140,5 +140,5 @@ test('every shipped look passes every check, all 120 compositions from sample, s
       }
     }
   }
-  assert.equal(drawn, 120 * 3 * 3);
+  assert.equal(drawn, 121 * 3 * 3);
 });

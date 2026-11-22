@@ -28,7 +28,7 @@ import {
   WORDS, BLENDS,
   angle, bool, d, en, field, int, length, list, num, obj, oneOf, role, text, tuple,
 } from './look-desc.mjs';
-import { GRADIENT_AT, GRADIENT_KINDS, GRADIENT_SHAPES, GRADIENT_STOPS, GRAPHIC_SIZES, GRAPHIC_SLOTS, OVERLAY_FROM, VAULT_REF, gradientDesc } from './look-desc.mjs';
+import { GRADIENT_AT, GRADIENT_KINDS, GRADIENT_SHAPES, GRADIENT_STOPS, GRAPHIC_SIZES, GRAPHIC_SLOTS, OVERLAY_FROM, VAULT_REF, gradientDesc, swashDesc, SWASH_SHAPES, SWASH_WORDS, SWASH_WEIGHTS } from './look-desc.mjs';
 import { BACKDROP_MASKS, BACKDROP_PATTERNS, OVERLAP_MAX, OVERLAP_WITH, SHAPE_KEYS } from './look-desc.mjs';
 import * as fittedStack from './directions/primitives/fitted-stack.mjs';
 import * as numeral from './directions/primitives/numeral.mjs';
@@ -57,7 +57,7 @@ import * as backdrop from './directions/primitives/backdrop.mjs';
 // the shapes of a headline's pills (kit.mjs PILL_SHAPES)
 export const PILL_SHAPES = ['pill', 'soft', 'outline'];
 export { ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS, METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SOFT_SHADOWS, CORNERS, ROUND_SHAPES, RULE_STYLES, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS, WORDS, BLENDS };
-export { GRADIENT_AT, GRADIENT_KINDS, GRADIENT_SHAPES, GRADIENT_STOPS, GRAPHIC_SIZES, GRAPHIC_SLOTS, OVERLAY_FROM, VAULT_REF };
+export { GRADIENT_AT, GRADIENT_KINDS, GRADIENT_SHAPES, GRADIENT_STOPS, GRAPHIC_SIZES, GRAPHIC_SLOTS, OVERLAY_FROM, VAULT_REF, SWASH_SHAPES, SWASH_WORDS, SWASH_WEIGHTS };
 export { BACKDROP_MASKS, BACKDROP_PATTERNS, OVERLAP_MAX, OVERLAP_WITH, SHAPE_KEYS };
 export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 'mantra-rows': mantraRows, rows, seam, band, 'meta-row': metaRow, 'wordmark-pattern': wordmarkPattern, scrim, 'punch-hole': punchHole,
   // gradients, colour over a picture, brand graphics and cut-outs
@@ -217,6 +217,8 @@ const ELEMENTS_BASE = {
         fill: role('Fill', 'The pill colour (leave out for an outline).'), ink: role('Ink', 'The colour of the words in the pill.'),
       }, 'Words in pills', 'Sets the headline\'s [[marked]] words (one or two runs of one to three words) in pills.', ['ink']),
       icons: obj({ colour: role('Colour', 'The icon colour; leave out for the colour of the words.'), badge: role('Badge', 'Sets each icon in a small round disc of this colour, like a sticker in the line; leave out for a plain icon.') }, 'Inline icons', 'Draws the headline\'s {{icon}} marks, from the engine\'s own icons.'),
+      // a decorative flourish against one word of a headline (display type), drawn by the page and checked against every other text
+      swash: swashDesc(),
     },
     common: ['place', 'bleed', 'rot', 'origin', 'z', 'when', 'ink', 'w', 'before', 'nudgeX', 'alignSelf', 'textShadow', 'overlap'],
   },

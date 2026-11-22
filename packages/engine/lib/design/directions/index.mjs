@@ -18,12 +18,14 @@ import fs from 'node:fs';
 import { canonicalJson, compositionDevice, compositionGraphicRefs, lookBrief, normaliseLook, validateLook } from '../look.mjs';
 import { POST_FIELDS, POST_ITEMS, POST_KINDS, POST_LISTS, POST_REQUIRED, seenText } from '../post-spec.mjs';
 import { accentPlan, paletteCss } from './colour.mjs';
-import { fontAlias } from '../font-library.mjs';
+import { EMOJI_ALIAS, emojiFacesFor, fontAlias } from '../font-library.mjs';
 import { fontNeedsFor, tokensFromLook } from './look-tokens.mjs';
 import { fontUsage, renderComposition } from './interpret.mjs';
 import { emphasisParts } from './kit.mjs';
 import crypto from 'node:crypto';
 import { CHART_UNITS, POST_CHART } from '../chart.mjs';
+import { levelsOf } from '../look-static.mjs';
+import { LEVELS } from '../look-desc.mjs';
 import { COMPOSITIONS as EDITORIAL } from './editorial/compositions.mjs';
 import { TOKENS as EDITORIAL_TOKENS } from './editorial/tokens.mjs';
 import { COMPOSITIONS as RETAIL } from './retail/compositions.mjs';
@@ -142,6 +144,8 @@ export function resolveLook(raw, { shipped = false } = {}) {
   return out;
 }
 
+// a design's own type levels (more than three, opt-in): { max, ratio } as numbers the page carries, else undefined
+const levelsAttr = (cp) => { const l = levelsOf(cp); return l.ratio === null || l.max <= LEVELS.min ? undefined : { max: l.max, ratio: l.ratio }; };
 const deepFreeze = (o) => { if (o && (typeof o === 'object' || typeof o === 'function') && !Object.isFrozen(o)) { Object.freeze(o); for (const v of Object.values(o)) deepFreeze(v); } return o; };
 // the compositions of a normalised look as the registry's shape (id, name, fields, words, ground, accepts, render ...), by kind
 function adapt(look) {
@@ -157,7 +161,7 @@ function adapt(look) {
     const seen = (v) => [...seenText(v)].length;
     byKind[cp.kind].push({
       id: `${look.id}/${cp.kind}/${index}`, name: cp.name, describe: cp.describe, fields: Object.keys(cp.fields), words: Object.fromEntries(Object.entries(cp.fields).filter(([f, v]) => f !== 'items' && f !== 'image' && f !== 'avatar' && v.max).map(([f, v]) => [f, v.max])),
-      ground: typeof cp.ground === 'string' ? cp.ground : cp.ground[cp.ground.length - 1].ground, groundOf, calm: cp.calm ? { maxShare: cp.calm.maxShare } : undefined, fitSpec: cp.fit,
+      ground: typeof cp.ground === 'string' ? cp.ground : cp.ground[cp.ground.length - 1].ground, groundOf, calm: cp.calm ? { maxShare: cp.calm.maxShare } : undefined, levels: levelsAttr(cp), fitSpec: cp.fit,
       dark: groundDark(cp), bodyOnField: bodyOnField(cp),
       accepts: cp.accepts.length ? (spec) => cp.accepts.every((r) => {
         if (Object.hasOwn(POST_LISTS, r.field)) { const n = Array.isArray(spec[r.field]) ? spec[r.field].length : 0; return (r.min === undefined || n >= r.min) && (r.max === undefined || n <= r.max); }
@@ -229,10 +233,13 @@ function lookRoot(look, tokens) {
   const stretch = look.fonts.display.source === 'library' ? look.fonts.display.stretch : undefined;
   return [`--k-dstretch:${stretch ? num4(stretch) : 100}%`, ...(look.fonts.display.source === 'library' && look.fonts.display.opsz ? [`--k-dvar:'opsz' ${num4(look.fonts.display.opsz)}`] : []), `--k-dcase:${d.case === 'upper' ? 'uppercase' : 'none'}`, `--k-dword:${num4(d.wordSpace ?? 0)}em`, `--k-hl-top:${num4(t)}em`, `--k-hl-h:${num4(1 - t - b)}em`, `--k-hl-pr:${num4(r)}em`, `--k-hl-pl:${num4(l)}em`, `--k-hl-tilt:${num4(hl.tilt)}deg`].join(';');
 }
-function lookStack(tokens, role) {
-  const f = tokens.fonts[role];
-  return f.brandVar ? `var(${f.brandVar}),${f.fallback.replace(/"/g, "'")}` : `'${fontAlias(f.family)}',${f.fallback.replace(/"/g, "'")}`;
+// emoji: the page's words hold an emoji, so the engine's emoji font stands right after the role's own (font-library.mjs emojiFacesFor)
+function lookStack(tokens, role, emoji = false) {
+  const f = tokens.fonts[role], e = emoji ? `'${EMOJI_ALIAS}',` : '';
+  return f.brandVar ? `var(${f.brandVar}),${e}${f.fallback.replace(/"/g, "'")}` : `'${fontAlias(f.family)}',${e}${f.fallback.replace(/"/g, "'")}`;
 }
+// the colour emoji faces a page needs, added to its fonts; the page's font stacks then name the emoji font (a code direction: rootCss)
+const withEmoji = (fonts, words) => { const e = emojiFacesFor(words); return e.css ? { css: fonts.css + e.css, files: [...fonts.files, ...e.files], emoji: true } : { ...fonts, emoji: false }; };
 
 function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, look }) {
   const brand = ctx.brand;
@@ -263,8 +270,9 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
   let fonts, root, html, ground = code ? comp.ground : comp.groundOf(spec), sheet, rootClass;
   if (code) {
     html = numberElements(made);
-    fonts = fontFacesFor(fontNeeds(tokens, comp, brand), wordsOfPage(spec, brand, (c.folio.n ? tokens.folio(c.folio.n, c.folio.total) : '')));
-    root = `--bg:var(--c-${ground === 'accent' ? 'gold' : ground === 'soft' ? 'soft' : ground});${rootCss({ palette: pal, tokens, brand, grain: grainUri(tokens.grain) })}`;
+    const words = wordsOfPage(spec, brand, (c.folio.n ? tokens.folio(c.folio.n, c.folio.total) : ''));
+    fonts = withEmoji(fontFacesFor(fontNeeds(tokens, comp, brand), words), words);
+    root = `--bg:var(--c-${ground === 'accent' ? 'gold' : ground === 'soft' ? 'soft' : ground});${rootCss({ palette: pal, tokens, brand, grain: grainUri(tokens.grain), emoji: fonts.emoji })}`;
     sheet = ['kit', direction]; rootClass = `d-${direction}`;
   } else {
     let inner = made;
@@ -281,17 +289,19 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
     // grounds the composition may have
     c.dark = bg === 'dark' || bg === 'field';
     html = numberElements(inner);
-    fonts = fontFacesFor(fontNeedsFor(look, fontUsage(look, comp.data), brand), wordsOfPage(spec, brand, (c.folio.n ? tokens.folio(c.folio.n, c.folio.total) : '')));
-    root = `--bg:var(--c-${bg});${paletteCss(pal)};--f-display:${lookStack(tokens, 'display')};--f-text:${lookStack(tokens, 'text')};--f-label:${lookStack(tokens, 'label')};--f-mono:${lookStack(tokens, 'mono')};--k-grain:${grainUri(tokens.grain)};${lookRoot(look, tokens)}`;
+    const words = wordsOfPage(spec, brand, (c.folio.n ? tokens.folio(c.folio.n, c.folio.total) : ''));
+    fonts = withEmoji(fontFacesFor(fontNeedsFor(look, fontUsage(look, comp.data), brand), words), words);
+    const e = fonts.emoji;
+    root = `--bg:var(--c-${bg});${paletteCss(pal)};--f-display:${lookStack(tokens, 'display', e)};--f-text:${lookStack(tokens, 'text', e)};--f-label:${lookStack(tokens, 'label', e)};--f-mono:${lookStack(tokens, 'mono', e)};--k-grain:${grainUri(tokens.grain)};${lookRoot(look, tokens)}`;
     sheet = ['kit']; rootClass = 'k-look';
   }
-  const body = `<div class="cv post ${rootClass}${classes ? ` ${classes}` : ''}" data-kind="${spec.kind}" data-comp="${comp.id}"${comp.calm ? ` data-calm="${comp.calm.maxShare}"` : ''} style="${root}">${html}${c.logoHtml()}</div>`;
+  const body = `<div class="cv post ${rootClass}${classes ? ` ${classes}` : ''}" data-kind="${spec.kind}" data-comp="${comp.id}"${comp.calm ? ` data-calm="${comp.calm.maxShare}"` : ''}${comp.levels ? ` data-levels="${Math.trunc(comp.levels.max)}" data-ratio="${num4(comp.levels.ratio)}"` : ''} style="${root}">${html}${c.logoHtml()}</div>`;
   const m = tokens.margin;
   const f = look ? (comp.fitSpec === 'frame' ? { pad: tokens.frame.t + tokens.frame.pad, top: tokens.frame.t + tokens.frame.pad, bottom: tokens.frame.t + tokens.frame.pad } : comp.fitSpec && typeof comp.fitSpec === 'object' ? comp.fitSpec : {}) : comp.fit ?? {};
   return {
     body, bodyClass: 'post-page', bodyAttrs: 'data-post="1"', sheet, css: fonts.css, warnings,
     fit: { pad: f.pad ?? m.left, top: f.top ?? m.top, bottom: f.bottom ?? m.bottom },
-    post: { direction, kind: spec.kind, variant: used, ...(fellBackFrom ? { fellBackFrom } : {}), id: comp.id, name: comp.name, calm: comp.calm?.maxShare ?? null, grid: c.gridLines(), fonts: fonts.files },
+    post: { direction, kind: spec.kind, variant: used, ...(fellBackFrom ? { fellBackFrom } : {}), id: comp.id, name: comp.name, calm: comp.calm?.maxShare ?? null, levels: comp.levels ?? null, grid: c.gridLines(), fonts: fonts.files },
   };
 }
 

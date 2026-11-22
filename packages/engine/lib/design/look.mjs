@@ -28,7 +28,7 @@ import {
   LIMITS, LOOK_SCHEMA, ORIGINS, PAGE, PLACE_FORMS, PLACE_MODIFIERS, POST_FIELDS, POST_ITEMS, POST_REQUIRED, ROW_KEYS, SECTIONS, SIZE_RANGE, STICKER_SHAPES, PHOTO_SHAPES, PHOTO_TREATS, FORMATS, EMPHASES, STYLES,
   SPLIT_SEPARATORS, FORBIDDEN_KEYS, REQUIRED_OWN, descriptorOf, keysOf,
 } from './look-elements.mjs';
-import { VAULT_REF } from './look-desc.mjs';
+import { LEVELS, VAULT_REF } from './look-desc.mjs';
 import { INK_ON } from './look-static.mjs';
 import { ICONS, ICON_NAMES } from './icons.mjs';
 import { INFO_KEYS, INLINE, POST_GALLERY, POST_INFO, POST_LISTS } from './post-spec.mjs';
@@ -88,6 +88,7 @@ export function lookCatalogue() {
       fields: { kind: 'fields', label: 'Fields', help: 'The post fields it shows, each with whether it is required and its longest text (never more than a post allows).' },
       accepts: { kind: 'accepts', label: 'Accepts', help: 'Rules on the words it can draw (at most maxChars and, optionally, at least minChars characters of a part of the headline); when they fail the next variant of the kind is used.', max: LIMITS.accepts, parts: ['all', 'pre', 'phrase'] },
       calm: { kind: 'object', props: { maxShare: { kind: 'number', min: 0.45, max: 0.8, step: 0.01 } }, label: 'Empty space', help: 'A deliberately empty area, as a share of the page (0.45 to 0.8).' },
+      levels: { kind: 'object', props: { max: { kind: 'number', min: LEVELS.min, max: LEVELS.max, step: 1, int: true }, ratio: { kind: 'number', min: LEVELS.ratioMin, max: LEVELS.ratioMax, step: 0.01, default: LEVELS.ratio } }, required: ['max'], label: 'Type sizes', help: `How many sizes of type the page may set (${LEVELS.min} when left out, at most ${LEVELS.max}). With more than ${LEVELS.min}, each size must be at least the ratio times the next smaller one (${LEVELS.ratio} when left out) and the headline the largest.` },
       fit: { kind: 'oneOf', values: ['margins', 'frame'], props: { pad: [0, 300], top: [0, 300], bottom: [0, 300] }, label: 'Text fit', help: 'The margins text must stay inside.' },
       elements: { kind: 'elements', label: 'Elements', help: 'The layers, back to front.', maxNodes: LIMITS.nodes, maxDepth: LIMITS.depth },
     },

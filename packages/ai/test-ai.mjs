@@ -440,7 +440,7 @@ test('draftBatch: a good post passes, the vault photo is resolved by id, the bat
   assert.deepEqual(p.warnings, []);
   assert.deepEqual(batch.defaultNetworks, ['instagram', 'linkedin', 'facebook', 'x']);
   assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
-  assert.equal(notes.promptVersion, 'draft-16');
+  assert.equal(notes.promptVersion, 'draft-17');
   assert.equal(notes.model, 'claude-sonnet-5-5');
   assert.equal(notes.seriesMix['the-numbers'], 1);
   assert.equal(notes.usage.costUsd > 0, true);
@@ -781,7 +781,7 @@ test('rewrite: returns a revised post through the same checks, keeps the id and 
   assert.equal(out.id, '01-numbers');
   assert.equal(out.networks.instagram.type, 'post');
   assert.equal(out.networks.x, undefined);
-  assert.equal(out.notes.promptVersion, 'rewrite-5');
+  assert.equal(out.notes.promptVersion, 'rewrite-6');
   assert.deepEqual(validateBatch({ name: 't', timezone: 'UTC', defaultTime: '09:00', mediaRoot: 'media/t', posts: [out] }, { fallbackName: 't' }).errors, []);
 });
 
@@ -823,12 +823,12 @@ const draftIn = (root, ...answers) => {
 };
 const askedOf = (f, i = 0) => { const c = f.calls[i].body.messages[0].content; return JSON.parse(c.slice(c.indexOf('{'))); };
 
-test('direction brand: gets draft-16 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
+test('direction brand: gets draft-17 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
   await withDirection('editorial', async (root) => {
     const vault = [...VAULT, { id: 'scr-1', kind: 'screen', title: 'Passbook', body: 'The passbook.', status: 'confirmed', file: 'design/assets/screens/p.png', framing: 'phone' }];
     const { f, ai } = draftIn(root, { posts: [dirPost()] }, { posts: [] });
     const { batch, notes } = await ai.draftBatch(req({ vault }));
-    assert.equal(notes.promptVersion, 'draft-16');
+    assert.equal(notes.promptVersion, 'draft-17');
     assert.equal(f.calls[0].body.system, loadPrompt('draft', { direction: true }).text);
     assert.notEqual(f.calls[0].body.system, loadPrompt('draft').text);
     assert.match(f.calls[0].body.system, /never use the same kind three posts running/);
@@ -845,6 +845,47 @@ test('direction brand: gets draft-16 with the direction section, the engine\'s k
     assert.equal(batch.posts[0].design.kind, 'statement');
     assert.equal(notes.direction, 'editorial');
     assert.deepEqual(notes.kindMix, { statement: 1 });
+    assert.deepEqual(validateBatch(batch, { fallbackName: 'x', root }).errors, []);
+  });
+});
+
+async function withEmojiBrand(on, fn) {
+  const os = await import('node:os'), path = await import('node:path');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-emo-'));
+  const prev = process.env.BRAND_DIR;
+  try {
+    const brand = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
+    fs.mkdirSync(path.join(root, 'brands', 'emo'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'brands', 'emo', 'brand.json'), JSON.stringify({ ...brand, style: { direction: 'editorial' }, emoji: on }));
+    process.env.BRAND_DIR = 'brands/emo';
+    return await fn(root);
+  } finally {
+    if (prev === undefined) delete process.env.BRAND_DIR; else process.env.BRAND_DIR = prev;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test('emoji: off by default, they are taken out of the image text; on, up to three standard emoji stay and the model is told so', async () => {
+  const brief = brandBrief({ name: 'Globex', tagline: 'T', website: 'w' });
+  assert.equal(brief.emoji, false);
+  assert.equal(brandBrief({ name: 'Globex', tagline: 'T', website: 'w', emoji: true }).emoji, true);
+  assert.equal(brandBrief({ name: 'Globex', tagline: 'T', website: 'w', emoji: 'yes' }).emoji, false, 'only true turns them on');
+  assert.match(loadPrompt('draft', { direction: true }).text, /when `brand.emoji` is true, each text on a post's image .* up to three standard emoji/);
+  const design = { headline: 'Every euro, *on the record* 🎉🎉', sub: 'Members 🙌 see it 👍🏽 on 📱 their phone ✅ today.' };
+  await withEmojiBrand(false, async (root) => {
+    const { f, ai } = draftIn(root, { posts: [dirPost({}, design)] }, { posts: [] });
+    const { batch, notes } = await ai.draftBatch(req());
+    assert.equal(askedOf(f).brand.emoji, false);
+    assert.equal(batch.posts[0].design.headline, 'Every euro, *on the record*');
+    assert.equal(batch.posts[0].design.sub, 'Members see it on their phone today.');
+    assert.match(JSON.stringify(notes.repaired), /emoji removed from the image text \(they are off for this brand\)/);
+  });
+  await withEmojiBrand(true, async (root) => {
+    const { f, ai } = draftIn(root, { posts: [dirPost({}, design)] }, { posts: [] });
+    const { batch } = await ai.draftBatch(req());
+    assert.equal(askedOf(f).brand.emoji, true);
+    assert.equal(batch.posts[0].design.headline, 'Every euro, *on the record* 🎉🎉');
+    assert.equal(batch.posts[0].design.sub, 'Members 🙌 see it 👍🏽 on 📱 their phone today.', 'the fourth is taken out');
     assert.deepEqual(validateBatch(batch, { fallbackName: 'x', root }).errors, []);
   });
 });
@@ -1026,10 +1067,10 @@ test('named series: numbers follow the date order with no gap, a wrong kind is r
   });
 });
 
-test('the prompts keep one file with a direction section: draft-16 and rewrite-5 differ by brand type only where they must', () => {
+test('the prompts keep one file with a direction section: draft-17 and rewrite-6 differ by brand type only where they must', () => {
   const plain = loadPrompt('draft'), dir = loadPrompt('draft', { direction: true });
-  assert.equal(plain.version, 'draft-16');
-  assert.equal(dir.version, 'draft-16');
+  assert.equal(plain.version, 'draft-17');
+  assert.equal(dir.version, 'draft-17');
   assert.match(plain.text, /the only templates you may use/);
   assert.match(plain.text, /Only confirmed, current items/);
   assert.match(dir.text, /Only confirmed, current items/);
@@ -1049,7 +1090,7 @@ test('rewrite for a direction brand: keeps the post design within the budgets, a
     const out = await ai.rewrite({ post: original, instruction: 'Make it shorter', vault: VAULT });
     assert.equal(out.id, '01-notes');
     assert.equal(out.design.kind, 'statement');
-    assert.equal(out.notes.promptVersion, 'rewrite-5');
+    assert.equal(out.notes.promptVersion, 'rewrite-6');
     assert.equal(f.calls[0].body.system, loadPrompt('rewrite', { direction: true }).text);
     assert.equal(askedOf(f).design.direction, 'editorial');
     const old = anthropicOk(good({ caption: 'Agents record each deposit on their phone.\n\n#AcmeSavings', design: { template: 'closing', headline: 'Old' }, sources: ['fact-1'] }));
@@ -1576,7 +1617,7 @@ test('a look with pills, icons, an info block, a button and round pictures: the 
     const f = fakeFetch(anthropicOk({ posts: [offerPost()] }), anthropicOk({ posts: [] }));
     const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
     const { batch, notes } = await ai.draftBatch(req());
-    assert.equal(notes.promptVersion, 'draft-16');
+    assert.equal(notes.promptVersion, 'draft-17');
     assert.match(f.calls[0].body.system, /\[\[words\]\]` sets one or two runs of 1 to 3 words in a pill/);
     const k = askedOf(f).design.kinds;
     assert.match(k.offer.fields.headline.pills, /\[\[words\]\]/);
@@ -1634,7 +1675,7 @@ test('a look that draws a chart: the model is told its kinds, counts and shape, 
     const f = fakeFetch(anthropicOk({ posts: [chartPost()] }), anthropicOk({ posts: [] }));
     const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
     const { batch, notes } = await ai.draftBatch(req({ vault: [...VAULT, POTS] }));
-    assert.equal(notes.promptVersion, 'draft-16');
+    assert.equal(notes.promptVersion, 'draft-17');
     assert.match(f.calls[0].body.system, /`chart` \(when the kind lists it, mostly for a `figure`\)/);
     assert.match(f.calls[0].body.system, /When the cited items call their figures illustrative, say so on the image/);
     const k = askedOf(f).design.kinds;
@@ -1707,7 +1748,7 @@ test('a look with an avatar and a phone: the model is told the avatar\'s shape a
     const f = fakeFetch(anthropicOk({ posts: [quotePost(), phonePost({ date: '2026-12-04' })] }), anthropicOk({ posts: [] }));
     const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
     const { batch, notes } = await ai.draftBatch(req({ vault: PICS_VAULT, count: 2 }));
-    assert.equal(notes.promptVersion, 'draft-16');
+    assert.equal(notes.promptVersion, 'draft-17');
     assert.match(f.calls[0].body.system, /`avatar` \(when the kind lists it\): ONE picture of the person quoted/);
     assert.match(f.calls[0].body.system, /Put a screen only in such a variant, named with `"variant"`/);
     const asked = askedOf(f), k = asked.design.kinds;

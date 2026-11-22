@@ -8,6 +8,10 @@ export const LIMITS = Object.freeze({
   compositions: 21, perKind: 3, nodes: 40, depth: 4, description: 300, name: 40, id: 40, definitionBytes: 256 * 1024,
   looksPerBrand: 20, rotated: 3, textRotation: 8, typeLevels: 3, optionalFieldsInConditions: 6, groundCases: 4, ladderSteps: 6, accepts: 6,
 });
+// More type sizes on one page (a composition's `levels`): an explicit, opt-in property of a design. Three levels by default, at most five;
+// with more than three, each level must be at least `ratio` times the next smaller one (1.2 to 2, 1.25 when left out) and the headline the
+// largest. The page measures this on the sizes it really sets (checks.mjs findPostProblems), and the validator on the sizes it knows.
+export const LEVELS = Object.freeze({ min: 3, max: 5, ratioMin: 1.2, ratioMax: 2, ratio: 1.25 });
 export const TEXT_FIELDS = Object.keys(POST_FIELDS);
 export const SHORT_FIELDS = ['label', 'big', 'unit', 'by', 'meta', 'tag'];
 export const FONT_ROLES = ['display', 'text', 'label', 'mono'];
@@ -80,6 +84,22 @@ export const list = (of, max, label, help, o = {}) => d({ kind: 'list', of, max,
 export const tuple = (items, label, help) => d({ kind: 'tuple', items }, label, help);
 export const obj = (props, label, help, required = []) => d({ kind: 'object', props, ...(required.length ? { required } : {}) }, label, help);
 export const oneOf = (forms, label, help, def) => d({ kind: 'oneOf', forms }, label, help, def);
+
+// ---- decorative swashes: a fixed flourish drawn against one word of the headline ----
+// The shapes are the engine's own (runtime.mjs placeSwashes draws them from these names and the measured word); a look picks one, the word
+// (the first, the last, the emphasised phrase or the nth word), a palette role, a stroke weight, and whether it may cross the headline's other
+// words. It never crosses other text: the page checks that on the drawn swash (checks.mjs findPostProblems, kind swash).
+export const SWASH_SHAPES = ['underline', 'swoosh', 'tail', 'loop'];
+export const SWASH_WORDS = ['first', 'last', 'phrase'];
+export const SWASH_WEIGHTS = ['fine', 'medium', 'bold'];
+export const SWASH_MAX_WORD = 12;
+export const swashDesc = () => obj({
+  shape: en(SWASH_SHAPES, 'Swash', 'An underline swoosh under the word, a swoosh that flicks up past its end, a tail from its last letter curling back under it, or a loop from its first letter running under it.'),
+  word: oneOf([{ is: 'string', desc: en(SWASH_WORDS, 'Word', 'The first word, the last word, or the emphasised phrase (its last line).') }, { is: 'number', desc: int(1, SWASH_MAX_WORD, 'Word number', 'The nth word (1 is the first); a shorter headline uses its last word.') }], 'Word', 'Which word of the headline the swash is drawn against.', 'last'),
+  colour: role('Colour', 'The swash colour (a role of the brand\'s colours).', 'accent'),
+  weight: en(SWASH_WEIGHTS, 'Weight', 'How thick the stroke is, as a share of the letters\' size.', 'medium'),
+  overlap: bool('May cross the headline', 'Lets the swash cross the headline\'s other words on purpose. It never crosses any other text.', false),
+}, 'Swash', 'A decorative flourish drawn against one word of the headline, in a brand colour.', ['shape']);
 
 // ---- gradients, overlays over a picture, brand graphics and cut-outs (each a separate, bounded capability) ----
 // A gradient: two or three brand colour roles (never a hex), linear at a whole-degree angle or radial from one of nine points.

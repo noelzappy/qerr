@@ -81,6 +81,23 @@ const stepAttrs = (o) => {
   const maxH = o.maxH === undefined ? '' : ` data-maxh="${o.maxH === 'slot' ? 'slot' : P(o.maxH, 'maxH')}"`;
   return ` data-steps="${list.map((v) => px(v)).join(',')}"${lines}${maxH}`;
 };
+// swash: { shape, word, colour, weight, overlap } (look-desc.mjs swashDesc): the page draws a fixed flourish against one word of this text
+// (runtime.mjs placeSwashes) and checks it against every other text. Only names from fixed lists, a word number in bounds and a palette name.
+const SWASH_SHAPES = ['underline', 'swoosh', 'tail', 'loop'], SWASH_WORDS = ['first', 'last', 'phrase'], SWASH_WEIGHTS = ['fine', 'medium', 'bold'];
+const swashAttrs = (o) => {
+  if (o.swash === undefined) return '';
+  const s = o.swash;
+  if (!s || typeof s !== 'object' || Array.isArray(s)) throw new Error('design kit: swash must be { shape, word, colour, weight, overlap }');
+  if (!SWASH_SHAPES.includes(s.shape)) throw new Error(`design kit: swash shape must be one of ${SWASH_SHAPES.join(', ')}`);
+  const word = s.word ?? 'last';
+  if (!SWASH_WORDS.includes(word) && !(Number.isInteger(word) && word >= 1 && word <= 12)) throw new Error('design kit: swash word must be first, last, phrase or a number from 1 to 12');
+  const weight = s.weight ?? 'medium';
+  if (!SWASH_WEIGHTS.includes(weight)) throw new Error(`design kit: swash weight must be one of ${SWASH_WEIGHTS.join(', ')}`);
+  const ink = s.colour ?? 'accent';
+  colour(ink);
+  if (s.overlap !== undefined && typeof s.overlap !== 'boolean') throw new Error('design kit: swash overlap must be true or false');
+  return ` data-swash="${s.shape}" data-swash-word="${word}" data-swash-weight="${weight}" data-swash-ink="${ink}"${s.overlap ? ' data-swash-over' : ''}`;
+};
 const ROLES = new Set(['headline', 'stat', 'sub', 'item', 'label', 'meta', 'folio', 'accent']);
 export const COLOUR_NAMES = ['paper', 'ink', 'white', 'dark', 'primary', 'field', 'on-field', 'gold', 'gold-deep', 'accent', 'accent-dark', 'on-accent', 'on-primary', 'body', 'soft', 'muted', 'body-dark', 'muted-dark', 'rule', 'rule-soft', 'rule-dark', 'rule-field', 'accent-type', 'body-field', 'field-deep', 'paper-warm', 'light-tint', 'field-text', 'tint-deep'];
 // Soft shadows: fixed presets (a blurred, low-opacity ink shadow below), selected by name, never by a number from a composition.
@@ -363,7 +380,7 @@ export function makeContext(args) {
       o.italic ? 'font-style:italic' : '', o.upper ? 'text-transform:uppercase' : '', o.num === 'onum' ? 'font-variant-numeric:oldstyle-nums' : o.num === 'lnum' ? 'font-variant-numeric:lining-nums' : '',
       o.nowrap ? 'white-space:nowrap' : '', shadowCss(o.textShadow), flexCss(o), nudgeCss(o.nudge)].filter(Boolean).join(';');
     const v = variantOf(tokens, o.variant);
-    return `<div class="${o.flow ? 'k-flow ' : 'abs '}k-t${base ? ` ${base}` : ''}${v ? ` ${v}` : ''}${emphClass(o.emph)}${o.dfont ? ' k-dfont' : ''}" data-role="${role}" data-el${o.scale ? ' data-scaled' : ''} data-grid="${mode}"${o.bleed ? ` data-bleed="${cls(o.bleed)}"` : ''}${flagAttrs(o)}${keyAttr(o)}${dropAttr(o)}${followAttr(o)}${stepAttrs(o)} style="${css}">${body}</div>`;
+    return `<div class="${o.flow ? 'k-flow ' : 'abs '}k-t${base ? ` ${base}` : ''}${v ? ` ${v}` : ''}${emphClass(o.emph)}${o.dfont ? ' k-dfont' : ''}" data-role="${role}" data-el${o.scale ? ' data-scaled' : ''} data-grid="${mode}"${o.bleed ? ` data-bleed="${cls(o.bleed)}"` : ''}${flagAttrs(o)}${keyAttr(o)}${dropAttr(o)}${followAttr(o)}${stepAttrs(o)}${swashAttrs(o)} style="${css}">${body}</div>`;
   };
   c.type = (o) => textEl(o);
   // A label: the direction's small caps line (its size, tracking, family and weight come from the tokens).
@@ -399,7 +416,7 @@ export function makeContext(args) {
       o.grow ? 'flex:1 1 0;min-height:0' : '', shadowCss(o.textShadow), flexCss(o), nudgeCss(o.nudge),
       o.stretch !== undefined ? `font-stretch:${n(o.stretch, 'stretch')}%` : '', o.padBelow !== undefined ? `--k-lpad:${P(o.padBelow, 'padBelow')}em` : ''].filter(Boolean).join(';');
     const v = variantOf(tokens, o.variant);
-    return `<div class="${o.flow ? 'k-flow' : 'abs'} k-t k-display k-fit${o.padBelow !== undefined ? ' k-lpad' : ''}${v ? ` ${v}` : ''}${emphClass(o.emph)}" data-el${keyAttr(o)}${o.trail ? ' data-trail' : ''}${o.what ? ` data-what="${cls(o.what)}"` : ''}${o.valign ? ` data-valign="${o.valign}"${auto ? '' : ` data-y="${P(o.y, 'y')}"`}` : ''} data-role="${o.role && ROLES.has(o.role) ? o.role : 'headline'}" data-grid="${o.grid ?? (o.align === 'center' ? 'center' : 'left')}" data-fitlines data-split${o.highlight ? ' data-hl' : ''} data-w="${fit ? 'fit' : P(o.w, 'w')}"${fit ? ` data-minw="${P(o.minW ?? 0, 'minW')}" data-maxw="${P(o.maxW ?? 10000, 'maxW')}"` : ''} data-h="${auto ? 'auto' : P(o.h, 'h')}" data-cap="${P(o.cap, 'cap')}" data-floor="${P(o.floor, 'floor')}" data-lead="${P(o.lead ?? D.lead, 'lead')}" data-track="${P(o.track ?? D.track, 'track')}" data-max="${P(o.max ?? 5, 'max')}" data-align="${o.align === 'right' ? 'right' : o.align === 'center' ? 'center' : 'left'}" style="${css}">${body}</div>`;
+    return `<div class="${o.flow ? 'k-flow' : 'abs'} k-t k-display k-fit${o.padBelow !== undefined ? ' k-lpad' : ''}${v ? ` ${v}` : ''}${emphClass(o.emph)}" data-el${keyAttr(o)}${o.trail ? ' data-trail' : ''}${o.what ? ` data-what="${cls(o.what)}"` : ''}${o.valign ? ` data-valign="${o.valign}"${auto ? '' : ` data-y="${P(o.y, 'y')}"`}` : ''} data-role="${o.role && ROLES.has(o.role) ? o.role : 'headline'}" data-grid="${o.grid ?? (o.align === 'center' ? 'center' : 'left')}" data-fitlines data-split${o.highlight ? ' data-hl' : ''} data-w="${fit ? 'fit' : P(o.w, 'w')}"${fit ? ` data-minw="${P(o.minW ?? 0, 'minW')}" data-maxw="${P(o.maxW ?? 10000, 'maxW')}"` : ''} data-h="${auto ? 'auto' : P(o.h, 'h')}" data-cap="${P(o.cap, 'cap')}" data-floor="${P(o.floor, 'floor')}" data-lead="${P(o.lead ?? D.lead, 'lead')}" data-track="${P(o.track ?? D.track, 'track')}" data-max="${P(o.max ?? 5, 'max')}" data-align="${o.align === 'right' ? 'right' : o.align === 'center' ? 'center' : 'left'}"${swashAttrs(o)} style="${css}">${body}</div>`;
   };
 
   // A group: blocks that flow one under another (type() with flow: true), the whole box placed at x/y/right/bottom, gap px apart.
@@ -757,12 +774,12 @@ export function makeContext(args) {
 }
 
 // The page's root: palette, font stacks and the grain as custom properties, then the composition's markup.
-export function rootCss({ palette, tokens, brand, grain }) {
+export function rootCss({ palette, tokens, brand, grain, emoji = false }) {
   const stack = (role) => {
     const f = tokens.fonts[role];
     const brandOwn = (role === 'display' && brand.font.display !== brand.font.family) || (role === 'label' && brand.font.label !== brand.font.mono);
     const own = role === 'display' ? 'var(--display)' : role === 'label' ? 'var(--label)' : null;
-    return `${brandOwn && own ? `${own},` : ''}'${fontAlias(f.family)}',${f.fallback.replace(/"/g, "'")}`;
+    return `${brandOwn && own ? `${own},` : ''}'${fontAlias(f.family)}',${emoji ? "'VF Emoji'," : ''}${f.fallback.replace(/"/g, "'")}`;
   };
   return [paletteCss(palette), `--f-display:${stack('display')}`, `--f-text:${stack('text')}`, `--f-label:${stack('label')}`, `--f-mono:${stack('mono')}`, `--k-grain:${grain}`].join(';');
 }
@@ -816,7 +833,7 @@ function kitExtras(c, brand, spec) {
     return `<div class="${o.flow ? 'k-flow' : 'abs'} k-t k-display k-fb${emphClass(o.emph)}" data-el data-role="${role}" data-grid="${o.grid ?? 'left'}" data-fitlines data-fitmode="${mode}" data-w="${P(o.w, 'w')}" data-h="${P(o.h, 'h')}"${o.sizes ? ` data-sizes="${sizesOf(o.sizes, 'sizes')}"` : ''}`
       + ` data-lead="${P(lead, 'lead')}" data-track="${P(track, 'track')}" data-max="${P(o.max ?? 5, 'max')}" data-align="${o.align === 'right' ? 'right' : o.align === 'center' ? 'center' : 'left'}" data-capem="${P(o.capEm ?? 0.7, 'capEm')}"`
       + ` data-tt="${P(trim.top, 'trim')}" data-tb="${P(trim.bottom, 'trim')}"${o.stop ? ` data-stop="${o.stop}" data-gap="${P(o.gap ?? 32, 'gap')}"` : ''}${o.anchor === 'bottom' ? ` data-anchor="bottom" data-desc="${P(o.desc ?? 0.2, 'desc')}"` : ''}`
-      + `${o.mode ?? ''} style="${css}">${body}</div>`;
+      + `${o.mode ?? ''}${swashAttrs(o)} style="${css}">${body}</div>`;
   };
   // A headline at ONE size for all its lines, in lines balanced against each other: the largest of `sizes` (descending) at which it fits the
   // width w and the height h in at most `max` lines. If none fits, the render is refused with the number of characters that would. Each line

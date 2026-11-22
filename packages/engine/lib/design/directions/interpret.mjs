@@ -267,7 +267,7 @@ export function renderComposition(look, comp, c) {
     if (style === 'display') {
       const steps = el.ladder ? el.ladder.steps.map((s) => s[1]) : undefined, size = el.size ?? steps?.[0];
       fixTrim(size, el.lead ?? T.type.display.lead, 'display');
-      return c.display(clean({ ...o, size: steps?.length > 1 ? undefined : size, steps: steps?.length > 1 ? steps : undefined, maxLines: steps?.length > 1 ? el.ladder.maxLines : undefined, maxH: steps?.length > 1 ? el.ladder.maxH : undefined, split: true, band: true, family: el.font }));
+      return c.display(clean({ ...o, size: steps?.length > 1 ? undefined : size, steps: steps?.length > 1 ? steps : undefined, maxLines: steps?.length > 1 ? el.ladder.maxLines : undefined, maxH: steps?.length > 1 ? el.ladder.maxH : undefined, split: true, band: true, family: el.font, swash: el.swash }));
     }
     if (style === 'body') { const size = el.size ?? T.type.body.size; fixTrim(size, (el.lead ?? T.type.body.lead / T.type.body.size), 'text'); return c.body(clean({ ...o, size: el.size, lead: el.lead, family: el.font })); }
     if (style === 'label') return c.label(clean({ ...o, size: el.size, role: role === 'folio' ? 'folio' : role === 'meta' ? 'meta' : 'label' }));

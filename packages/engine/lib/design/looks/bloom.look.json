@@ -158,7 +158,7 @@
     {
       "kind": "statement",
       "name": "Moon",
-      "describe": "A big pale moon behind the headline, which breaks out of it on the left in a soft serif with the emphasis in italic; a small colour dot on the moon's edge, a keyline label and the sub line at the foot. Use for a short statement of up to 60 characters.",
+      "describe": "A big pale moon behind the headline, set in a soft serif with the emphasis in italic and a drawn tail curling under its last word; a colour dot on the moon's edge, a keyline label and the sub at the foot. For a statement of up to 60 characters.",
       "ground": "paper",
       "fit": "margins",
       "fields": {
@@ -278,7 +278,12 @@
                 "maxLines": 4,
                 "maxH": 600
               },
-              "w": 640
+              "w": 640,
+              "swash": {
+                "shape": "tail",
+                "word": "last",
+                "colour": "primary"
+              }
             }
           ]
         },
@@ -1579,6 +1584,189 @@
                 "present": "sub"
               },
               "w": 600
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "offer",
+      "name": "Price card",
+      "describe": "Four sizes of type in a clear order: a small label, a big serif headline, a round price badge on the edge of an arch picture and the sub line at the foot. For a product with a short price; with no picture a thin arch outline.",
+      "ground": "paper",
+      "fit": "margins",
+      "levels": {
+        "max": 4,
+        "ratio": 1.25
+      },
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 56
+        },
+        "tag": {
+          "required": true,
+          "max": 16
+        },
+        "sub": {
+          "max": 100
+        },
+        "image": {}
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "size": 24,
+          "upper": true,
+          "track": 0.12,
+          "ink": "primary",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 84,
+              "w": 700
+            }
+          },
+          "when": {
+            "present": "label"
+          },
+          "z": 3
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 150,
+              "w": 920,
+              "h": 400
+            }
+          },
+          "flow": "column",
+          "align": "start",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "emphasis": "italic",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    24,
+                    124
+                  ],
+                  [
+                    40,
+                    110
+                  ],
+                  [
+                    56,
+                    100
+                  ]
+                ],
+                "maxLines": 3,
+                "maxH": 400
+              },
+              "w": 920
+            }
+          ]
+        },
+        {
+          "type": "photo",
+          "shape": "arch",
+          "place": {
+            "px": {
+              "x": 560,
+              "y": 560,
+              "w": 440,
+              "h": 710
+            }
+          },
+          "z": 1,
+          "when": {
+            "present": "image"
+          }
+        },
+        {
+          "type": "keyline",
+          "weight": 2,
+          "colour": "primary",
+          "radius": "arch",
+          "place": {
+            "px": {
+              "x": 560,
+              "y": 560,
+              "w": 440,
+              "h": 710
+            }
+          },
+          "z": 1,
+          "when": {
+            "absent": "image"
+          }
+        },
+        {
+          "type": "sticker",
+          "shape": "circle",
+          "size": 250,
+          "place": {
+            "px": {
+              "x": 420,
+              "y": 600
+            }
+          },
+          "fill": "primary",
+          "ink": "on-primary",
+          "field": "tag",
+          "ladder": {
+            "by": "tag",
+            "steps": [
+              [
+                7,
+                64
+              ],
+              [
+                16,
+                50
+              ]
+            ],
+            "maxLines": 2
+          },
+          "ring": {
+            "w": 8,
+            "colour": "paper"
+          },
+          "z": 4
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": 80,
+              "bottom": 80,
+              "w": 420
+            }
+          },
+          "flow": "column",
+          "when": {
+            "present": "sub"
+          },
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "size": 36,
+              "w": 420
             }
           ]
         }

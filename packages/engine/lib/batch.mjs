@@ -5,7 +5,7 @@ import { ROOT, sha256, sha256File, validTimeZone, zonedToUtcIso } from './core.m
 import { CLASSIC_NETWORKS, LIMITS, MEDIA_LIMITS, NETWORKS } from './networks.mjs';
 import { captionLimitFor } from './accounts.mjs';
 import { validateBatchDesigns } from './design/batch.mjs';
-import { loadSeries } from './design/brand.mjs';
+import { loadEmoji, loadSeries } from './design/brand.mjs';
 import { loadLayouts } from './design/layout.mjs';
 import { seriesRefProblems } from './design/series.mjs';
 
@@ -97,7 +97,7 @@ export function validateBatch(raw, { fallbackName = 'batch', root = ROOT } = {})
       posts.push({ id: p.id, title: p.title ?? p.id, date, time, dueAt: zonedToUtcIso(date, time, raw.timezone), networks });
     }
   });
-  errors.push(...validateBatchDesigns(raw.posts, { series: loadSeries({ root }), layouts: loadLayouts({ root }) }));
+  errors.push(...validateBatchDesigns(raw.posts, { series: loadSeries({ root }), layouts: loadLayouts({ root }), emoji: loadEmoji({ root }) }));
   if (errors.length) return { errors };
   const mediaRootRel = raw.mediaRoot;
   return { errors, batch: { name, timezone: raw.timezone, defaultTime: raw.defaultTime, mediaRootRel, mediaRoot: path.resolve(root, mediaRootRel), posts } };

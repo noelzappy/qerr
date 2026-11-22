@@ -201,6 +201,21 @@ describe('Settings, Brand', () => {
     expect((await api.put('/api/settings/brand', { ...SETTINGS, contrastDisplay: null })).body.settings.contrastDisplay).toBeNull();
   });
 
+  it('keeps the emoji switch: off by default, written to the pack only when on, read back; only true or false', async () => {
+    const api = await admin();
+    expect(SETTINGS.emoji).toBe(false);
+    expect(expandBrand(SETTINGS).emoji).toBeUndefined();
+    expect(expandBrand({ ...SETTINGS, emoji: true }).emoji).toBe(true);
+    const res = await api.put('/api/settings/brand', { ...SETTINGS, emoji: true });
+    expect(res.status).toBe(200);
+    expect(res.body.settings.emoji).toBe(true);
+    expect(activeBrand().emoji).toBe(true);
+    expect(settingsFromBrand({ ...activeBrand(), emoji: true }).emoji).toBe(true);
+    expect((await api.put('/api/settings/brand', { ...SETTINGS, emoji: 'yes' })).status).toBe(400);
+    expect((await api.put('/api/settings/brand', { ...SETTINGS, emoji: false })).body.settings.emoji).toBe(false);
+    expect(activeBrand().emoji).toBeUndefined();
+  });
+
   it('drops contrast.display for an engine that does not read it, and keeps it for one that does', () => {
     const brand = { contrast: { headline: 4.5, display: 5 } };
     const reads = (b: any) => (b.contrast.display === 99 ? ['brand.json: contrast.display must be a ratio from 3 to 7'] : []);

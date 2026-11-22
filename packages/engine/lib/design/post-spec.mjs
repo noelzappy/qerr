@@ -8,6 +8,7 @@ import { ICON_NAMES } from './icons.mjs';
 import { chartProblems, chartKindFor, POST_CHART } from './chart.mjs';
 
 export { POST_CHART };
+import { emojiAsTwo, emojiProblem } from './emoji.mjs';
 
 export { POST_KINDS };
 export const POST_TEMPLATES = ['post'];
@@ -41,7 +42,8 @@ export const iconMarks = () => /\{\{([a-z][a-z-]{0,19})\}\}/g;
 const STRAY = /\[\[|\]\]|\{\{|\}\}/;
 // The words of a text without its inline marks (an icon leaves nothing), and what is seen of it for counting (an icon counts as two characters).
 export const withoutMarks = (v) => String(v).replace(iconMarks(), '').replace(pillMarks(), '$1').replace(/ {2,}/g, ' ');
-export const seenText = (v) => String(v).replace(iconMarks(), '■■').replace(pillMarks(), '$1').replace(/\*/g, '').replace(/\\n|\n/g, '');
+// (an emoji counts as two characters, like an icon)
+export const seenText = (v) => emojiAsTwo(String(v)).replace(iconMarks(), '■■').replace(pillMarks(), '$1').replace(/\*/g, '').replace(/\\n|\n/g, '');
 
 // The problems of the inline marks of one text of a post (sentences without a place; empty when fine).
 export function markProblems(text, field) {
@@ -105,7 +107,9 @@ const isNum = (v, lo, hi) => typeof v === 'number' && Number.isFinite(v) && v >=
 // post is refused; undefined: not known here, so only the design itself is judged); focalOk(f): the spec's focal checker.
 // brief: lookBrief(look) of a look written as data when the brand's direction is one (then kind, variant and the word budgets are held to
 // the look's own compositions, and `direction` is not looked up among the engine's).
-export function postProblems(d, where = 'design', { direction, focalOk, brief } = {}) {
+// emoji: whether the brand turns emoji on (brand.json "emoji"); off (the default), any emoji in a text is refused; on, each text takes at most
+// EMOJI_MAX real emoji (emoji.mjs).
+export function postProblems(d, where = 'design', { direction, focalOk, brief, emoji = false } = {}) {
   const e = [];
   if (!POST_KINDS.includes(d.kind)) e.push(`${where}: kind must be one of ${POST_KINDS.join(', ')} (got "${clip(d.kind)}")`);
   if (brief) e.push(...briefProblems(d, where, brief));
@@ -121,6 +125,8 @@ export function postProblems(d, where = 'design', { direction, focalOk, brief } 
     const n = [...seen(v)].length;
     if (n > max) e.push(`${where}: ${f} is ${n} characters; the most is ${max}`);
     for (const p of markProblems(v, f)) e.push(`${where}: ${p}`);
+    const ep = emojiProblem(v, f, emoji === true);
+    if (ep) e.push(`${where}: ${ep}`);
   }
   if (d.items !== undefined) {
     const { min, max, chars } = POST_ITEMS;
@@ -130,9 +136,10 @@ export function postProblems(d, where = 'design', { direction, focalOk, brief } 
       else if (/[\r\n]|\\n/.test(t)) e.push(`${where}: items[${i}] must be one line`);
       else if ([...seen(t)].length > chars) e.push(`${where}: items[${i}] is ${[...seen(t)].length} characters; the most is ${chars}`);
       else if (markProblems(t, 'items').length) e.push(`${where}: items[${i}] takes no [[pill]] words or {{icon}} marks; only the headline does`);
+      else { const ep = emojiProblem(t, `items[${i}]`, emoji === true); if (ep) e.push(`${where}: ${ep}`); }
     });
   }
-  e.push(...infoProblems(d.info, where), ...galleryProblems(d.gallery, where), ...chartProblems(d.chart, where), ...avatarProblems(d.avatar, where, focalOk));
+  e.push(...infoProblems(d.info, where, emoji === true), ...galleryProblems(d.gallery, where, emoji === true), ...chartProblems(d.chart, where), ...avatarProblems(d.avatar, where, focalOk));
   if (d.image !== undefined) {
     if (typeof d.image !== 'string' || !d.image.trim()) e.push(`${where}: image must be a file path`);
     else if (!IMAGE_EXTS.includes(path.extname(d.image).toLowerCase())) e.push(`${where}: image "${clip(d.image)}" must be ${IMAGE_EXTS.join(' ')}`);
@@ -214,15 +221,15 @@ function briefProblems(d, where, brief) {
 }
 
 // One line of plain words: a non-empty text, one line, at most max seen characters, no inline marks. Returns a problem or null.
-function lineProblem(v, what, max) {
+function lineProblem(v, what, max, emoji = false) {
   if (typeof v !== 'string' || !v.trim()) return `${what} must be a non-empty text`;
   if (/[\r\n]|\\n/.test(v)) return `${what} must be one line`;
   if (/\*|\[\[|\]\]|\{\{|\}\}/.test(v)) return `${what} takes no *emphasis*, [[pill]] or {{icon}} marks`;
   const n = [...seen(v)].length;
-  return n > max ? `${what} is ${n} characters; the most is ${max}` : null;
+  return n > max ? `${what} is ${n} characters; the most is ${max}` : emojiProblem(v, what, emoji);
 }
 // The rows of an info block: [{ key, value }], the key from INFO_KEYS (never echoed back), each key once.
-function infoProblems(info, where) {
+function infoProblems(info, where, emoji) {
   if (info === undefined) return [];
   const { min, max, value } = POST_INFO;
   if (!Array.isArray(info) || info.length < min || info.length > max) return [`${where}: info must be a list of ${min} to ${max} rows like { "key": "When", "value": "Sat 12 Dec, 6pm" }`];
@@ -234,7 +241,7 @@ function infoProblems(info, where) {
     if (!INFO_KEYS.includes(r.key)) e.push(`${at}.key must be one of ${INFO_KEYS.join(', ')}`);
     else if (keys.has(r.key)) e.push(`${at}.key ${r.key} is used twice; use each label once`);
     else keys.add(r.key);
-    const p = lineProblem(r.value, `info[${i}].value`, value);
+    const p = lineProblem(r.value, `info[${i}].value`, value, emoji);
     if (p) e.push(`${where}: ${p}`);
   });
   return e;
@@ -252,7 +259,7 @@ export function avatarProblems(a, where, focalOk) {
   return e;
 }
 // The pictures of a row of round pictures: [{ image, caption? }], each picture once.
-function galleryProblems(g, where) {
+function galleryProblems(g, where, emoji) {
   if (g === undefined) return [];
   const { min, max, caption } = POST_GALLERY;
   if (!Array.isArray(g) || g.length < min || g.length > max) return [`${where}: gallery must be a list of ${min} to ${max} pictures like { "image": "design/assets/photos/a.jpg", "caption": "Ama" }`];
@@ -265,7 +272,7 @@ function galleryProblems(g, where) {
     else if (!IMAGE_EXTS.includes(path.extname(p.image).toLowerCase())) e.push(`${at}.image must be ${IMAGE_EXTS.join(' ')}`);
     else if (images.has(p.image)) e.push(`${at}.image is used twice in the row; use each picture once`);
     else images.add(p.image);
-    if (p.caption !== undefined) { const q = lineProblem(p.caption, `gallery[${i}].caption`, caption); if (q) e.push(`${where}: ${q}`); }
+    if (p.caption !== undefined) { const q = lineProblem(p.caption, `gallery[${i}].caption`, caption, emoji); if (q) e.push(`${where}: ${q}`); }
   });
   return e;
 }

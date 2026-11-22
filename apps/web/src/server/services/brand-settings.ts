@@ -153,6 +153,8 @@ export const brandSettingsSchema = z.object({
   spellings: z.array(z.object({ wrong: line(80).pipe(z.string().min(1)), right: line(80).pipe(z.string().min(1)) }).strict()).max(30).default([]),
   voice: z.string().trim().max(4000).default(''),
   visualDirection: z.string().trim().max(4000).default(''),
+  // Emoji in the words of post images (brand.json "emoji": at most three standard emoji per text, the engine's emoji.mjs); off by default.
+  emoji: z.boolean().default(false),
   // Where the wordmark starts in the full logo, and the gap the engine leaves between the mark and the wordmark on dark pages
   logo: z.object({ wordmarkFrom: z.number().int().min(0).max(20000), markGap: z.number().int().min(0).max(20000) }).strict().default({ wordmarkFrom: 0, markGap: 0 }),
 }).strict();
@@ -215,6 +217,7 @@ export function expandBrand(s: BrandSettings, base: Json = baseBrand()): Json {
   if (s.money) b.money = s.money; else delete b.money;
   if (s.numbers) b.numbers = s.numbers; else delete b.numbers;
   for (const [k, v] of [['voice', s.voice], ['visualDirection', s.visualDirection]] as const) { if (v) b[k] = v; else delete b[k]; }
+  if (s.emoji) b.emoji = true; else delete b.emoji;
   delete b.references;
   const limits = (isObj(base.contrast) ? base.contrast : {}) as Record<string, number>;
   const need = (k: string) => (typeof limits[k] === 'number' ? limits[k] : 4.5) + 0.1;
@@ -323,6 +326,7 @@ export function settingsFromBrand(b: Json): BrandSettings {
     spellings: [],
     voice: typeof b.voice === 'string' ? b.voice : '',
     visualDirection: typeof b.visualDirection === 'string' ? b.visualDirection : '',
+    emoji: b.emoji === true,
     logo: { wordmarkFrom: isObj(b.logos) && Number.isInteger(b.logos.wordmarkFrom) ? b.logos.wordmarkFrom : 0, markGap: isObj(b.logos) && Number.isInteger(b.logos.markGap) ? b.logos.markGap : 0 },
   });
 }
@@ -357,7 +361,7 @@ export const advancedSchema = z.object({
 // A whole brand.json (a brand pack's) split for the database: the settings the form can show, and the rest kept as the
 // Advanced fragment so the pack's exact colours, shadows, type and rules survive. Logo and font file paths are dropped.
 // The pack's style block becomes the form's style settings (so it can be edited there), not part of the fragment.
-const IDENTITY_KEYS = ['name', 'website', 'tagline', 'descriptor', 'timezone', 'language', 'money', 'numbers', 'series', 'voice', 'visualDirection', 'references', 'logos', 'style'];
+const IDENTITY_KEYS = ['name', 'website', 'tagline', 'descriptor', 'timezone', 'language', 'money', 'numbers', 'series', 'voice', 'visualDirection', 'emoji', 'references', 'logos', 'style'];
 export function splitPackBrand(b: Json): { settings: BrandSettings; advanced: Json } {
   const settings = settingsFromBrand(b);
   const advanced: Json = {};

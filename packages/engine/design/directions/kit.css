@@ -206,3 +206,6 @@
 .measure-pattern-off .cv [data-pattern],.measure-pattern-off .cv [data-pattern] *{visibility:hidden}
 /* words that cross a shape's edge with an outline (overlap.outline): the stroke is painted under the letters */
 .k-olt,.k-olt *{-webkit-text-stroke:var(--k-olw) var(--k-olc);paint-order:stroke fill}
+/* a decorative swash (runtime.mjs placeSwashes): a tapered flourish under the headline's letters, in a palette colour set on the span */
+.post .k-swash{position:absolute;display:block;pointer-events:none}
+.post .k-swash svg{display:block;overflow:visible}

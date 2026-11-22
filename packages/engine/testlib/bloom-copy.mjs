@@ -10,6 +10,7 @@ export const NORMAL = {
   'bloom/photo/1': { label: 'From the roaster', headline: 'Straight from the *drum*, into your hands', sub: 'Roasted on Monday, in your cup by Friday.', tag: 'Fresh' },
   'bloom/event/0': { label: 'Event', headline: 'Cupping evening: *six roasts*, one table', meta: '12 Dec · 6pm · The roastery', sub: 'Twelve seats, so book early.' },
   'bloom/offer/0': { label: 'The house blend', headline: 'Ember No. 1, our *everyday* house blend', tag: '£9.50', sub: 'Chocolate, hazelnut and orange peel. 250 g.' },
+  'bloom/offer/1': { label: 'The house blend', headline: 'Ember No. 1, our *everyday* house blend', tag: '£9.50', sub: 'Chocolate, hazelnut and orange peel. 250 g.' },
 };
 export const STRESS = {
   'bloom/statement/0': { label: 'Roastery and the small batch', headline: 'We roast a dozen kilos at a time, taste every batch and *bin the rest*', sub: 'Twelve kilos at a time, tasted at every stage and packed within days. If a batch misses the mark, it never leaves.' },
@@ -21,6 +22,7 @@ export const STRESS = {
   'bloom/photo/1': { label: 'From the roaster, daily', headline: 'Straight from the *drum*, into your hands this week', sub: 'Roasted on Monday, in your cup by Friday, with the date on every bag.', tag: 'Just in' },
   'bloom/event/0': { label: 'At the roastery now', headline: 'Cupping evening: taste *six roasts* side by side', meta: '12 Dec · 6pm · The roastery, Unit 4', sub: 'Taste six roasts with the people who made them. Twelve seats, so book early.' },
   'bloom/offer/0': { label: 'The house blend, weekly', headline: 'Ember No. 1, our *everyday* house blend, in a bigger bag', tag: '£9.50 / 250 g', sub: 'Chocolate, hazelnut and orange peel. Free delivery on three bags or more.' },
+  'bloom/offer/1': { label: 'The house blend, weekly', headline: 'Ember No. 1, our *everyday* blend, in a bigger bag', tag: '£9.50 / 250 g', sub: 'Chocolate, hazelnut and orange peel. Free delivery on three bags or more.' },
 };
 export const MINIMAL = {
   'bloom/statement/0': { headline: 'Hello' },
@@ -32,4 +34,5 @@ export const MINIMAL = {
   'bloom/photo/1': { headline: 'Look' },
   'bloom/event/0': { headline: 'Night', meta: '12 Dec' },
   'bloom/offer/0': { headline: 'Half', tag: '-50%' },
+  'bloom/offer/1': { headline: 'Half', tag: '-50%' },
 };

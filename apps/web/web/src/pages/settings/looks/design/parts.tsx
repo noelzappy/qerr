@@ -18,7 +18,26 @@ const AVATAR_SIZES: Array<[number, string]> = [[96, 'Small'], [128, 'Medium'], [
 const LEANS: Array<[number, string]> = [[-4, 'Lean left'], [0, 'Straight'], [4, 'Lean right']];
 
 // Whether this element has choices of its own here.
-export const hasPartChoices = (el: Json): boolean => (el.type === 'text' && el.field === 'headline' && (el.part === undefined || el.part === 'all')) || ['button', 'info-rows', 'photo-row', 'chart', 'avatar', 'device'].includes(String(el.type));
+export const hasPartChoices = (el: Json): boolean => (el.type === 'text' && el.field === 'headline' && (el.part === undefined || el.part === 'all'))
+  || (el.type === 'fitted-stack' && ['headline', 'quote'].includes(String(el.field ?? 'headline')) && el.mode !== 'fill') || ['button', 'info-rows', 'photo-row', 'chart', 'avatar', 'device'].includes(String(el.type));
+
+// A decorative swash against one word of the headline: the shape and the word as chips; its colour, weight and whether it may cross the
+// headline's other words are under Fine-tune (the catalogue's swash). The page refuses a swash that runs into other text.
+const SWASH_WORDS: Record<string, string> = { underline: 'Underline', swoosh: 'Swoosh', tail: 'Tail', loop: 'Loop' };
+function SwashChoices({ el, disabled, set }: { el: Json; disabled: boolean; set: (name: string, value: unknown) => void }) {
+  const swash = isObj(el.swash) ? el.swash : null, shape = swash ? String(swash.shape) : 'off';
+  const word = swash ? (typeof swash.word === 'number' ? null : String(swash.word ?? 'last')) : 'last';
+  return (
+    <>
+      <div className="flex flex-col gap-1"><Label hint="A drawn flourish against one word of the headline, in a brand colour: an underline, a swoosh, a tail from the last letter or a loop from the first. It never covers other text; the image is checked.">Swash</Label>
+        <Chips label="Swash" value={shape} disabled={disabled} onChange={(v) => set('swash', v === 'off' ? undefined : { ...(swash ?? { colour: 'accent' }), shape: v })}
+          options={[{ value: 'off', label: 'Off' }, ...Object.entries(SWASH_WORDS).map(([v, l]) => ({ value: v, label: l }))]} /></div>
+      {swash && <div className="flex flex-col gap-1"><Label hint="Which word it is drawn against. The last word suits a tail or a swoosh; the first a loop.">Against</Label>
+        <Chips label="Swash word" value={word} custom disabled={disabled} onChange={(v) => set('swash', { ...swash, word: v })}
+          options={[{ value: 'first', label: 'First word' }, { value: 'last', label: 'Last word' }, { value: 'phrase', label: 'Emphasis' }]} /></div>}
+    </>
+  );
+}
 
 export function PartChoices({ ctx }: { ctx: Ctx }) {
   const el = ctx.el, type = String(el.type);
@@ -38,8 +57,11 @@ export function PartChoices({ ctx }: { ctx: Ctx }) {
             options={[{ value: 'off', label: 'Off' }, ...Object.entries(PILL_WORDS).map(([v, l]) => ({ value: v, label: l }))]} />)}
         {row('Icons', 'A post places up to two icons as {{name}}, from the engine\'s own set; they are left out where this is off.',
           <div className="flex flex-wrap gap-1.5"><ToggleChip on={isObj(el.icons)} disabled={ctx.disabled} onClick={() => set('icons', isObj(el.icons) ? undefined : {})}>Show icons</ToggleChip></div>)}
+        <SwashChoices el={el} disabled={ctx.disabled} set={set} />
       </>
     );
+  } else if (type === 'fitted-stack') {
+    body = <SwashChoices el={el} disabled={ctx.disabled} set={set} />;
   } else if (type === 'button') {
     body = (
       <>

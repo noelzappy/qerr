@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from './core.mjs';
-import { loadBrand, loadDirection, loadLook, loadSeries } from './design/brand.mjs';
+import { loadBrand, loadDirection, loadEmoji, loadLook, loadSeries } from './design/brand.mjs';
 import { stemOf } from './design/batch.mjs';
 import { Browser, NO_CHROME, findChrome } from './design/chrome.mjs';
 import { detectConverter } from './design/convert.mjs';
@@ -26,7 +26,7 @@ export function designBlockProblems(design, { root = ROOT, layouts } = {}) {
   const post = usesPostTemplate(design);
   const direction = post ? loadDirection({ root }) : undefined;
   const look = post ? loadLook({ root }) ?? undefined : undefined;
-  const errors = postDesignProblems(design, 'design', { series, direction, look, layouts: usesLayouts(design) ? layouts ?? loadLayouts({ root }) : [] });
+  const errors = postDesignProblems(design, 'design', { series, direction, look, emoji: post ? loadEmoji({ root }) : false, layouts: usesLayouts(design) ? layouts ?? loadLayouts({ root }) : [] });
   if (design?.template === 'pagecover') errors.push('design: page-cover makes profile and cover images, not post images, so it cannot be used in a batch');
   return errors;
 }

@@ -757,7 +757,7 @@ Warnings, never blockers (they come from the brand pack's `brand.json`, so you c
 - Spelling: each rule in `spelling` is `{ "wrong": "<pattern>", "flags": "", "right": "<correct form>" }`. The demo flags
   `Acme savings`, `Acmesavings`, `Acme-savings` and `ACME SAVINGS`, which should be `Acme Savings`. Write the pattern so it
   does not catch the website address, which is often lower case on purpose (the demo's `acmesavings.example` is not flagged).
-- No emoji in image text.
+- No emoji in image text, unless the brand turns them on (see "Emoji" below); with emoji on, the lint leaves them to the design checks.
 - Headline length guidance per size: the statement (the words outside the `*continuation*`) up to 60 characters on `feed` and
   `story`, 50 on `square`, 48 on `wide`, and the whole headline up to the sub line's guidance (110 / 90); sub line 110 / 90. Pills and
   check list items are linted for spelling and emoji too.
@@ -1028,7 +1028,7 @@ with a sentence that says what to change.
 |---|---|
 | Emptiness | The largest rectangle that no text, picture or deliberate filled device covers is at most 45% of the page. A composition may declare a calm area (`calm: { maxShare }`, above 0.45 and up to 0.8) and is then held to that. A decorative pattern (a look's `backdrop`) covers the page only where its pixels show it: the renderer hides everything but the patterns, takes a picture of the page, and counts a 20 px cell as covered when, in a window round it (twice the pattern's spacing, inside the pattern's box), the brightest and darkest 5% of the pixels differ by at least 1.5:1 (`patternCover` in `lib/design/runtime.mjs`). A quiet pattern, and the faded part of one, stays empty space. |
 | Scale | The headline (or the big numeral) is at least 2.6 times the largest body text, judged at the size it was designed for, before the fit loop shrank it. |
-| Levels | At most three sizes of type, sizes within 2 px counting as one. A headline fitted line by line counts as one level. |
+| Levels | At most three sizes of type, sizes within 2 px counting as one. A headline fitted line by line counts as one level. A design written as data may allow four or five (its `levels`, below); the page is then held to a hierarchy instead. |
 | Grid | Every text block's left edge (or right edge, or centre) sits on the margin, a column line or the page centre, within 2 px. A block marked `data-grid="skip"`, and a block inside `data-deco`, is not judged. |
 | Edge | No line of text has its ink within 10 px of the edge of a straight filled shape (a block, a filled box, a sticker, a gradient area, a badge), nor crosses it, nor sits that close inside it. Turned text and turned shapes are left out; a shape is judged by its rectangle. A look may let one text cross the edge of one shape on purpose (`overlap`, below): only that pairing is skipped, every other shape is still judged, and the words are then measured for contrast part by part. |
 
@@ -1058,6 +1058,17 @@ grid, the baseline, a track or an area's light fill) need 3:1 against the surfac
 with the words and the marks hidden, and judges the worse side as for text; a mark below 3:1 is a warning that names it. The scale of bars, a donut and a progress bar always starts at zero (a bar's length is its value). A line, an area
 or a sparkline starts at zero too, unless its look sets `trim` on the chart element (an explicit choice of the look, refused on a design that
 draws bars): then the axis may start at the round value just below the lowest point, and never below zero for positive data.
+
+**More sizes of type, in a hierarchy (`levels`, approved by the owner on 22 Nov 2026).** A composition of a look may declare
+`levels: { max, ratio? }`: `max` 4 or 5 sizes of type (3, the rule above, when left out), `ratio` 1.2 to 2 (1.25 when left out). It is the
+author's choice for that one design, never a default, and it is checked on the sizes the page really sets (`hierarchyProblems` in
+`lib/design/checks.mjs`, from `data-levels` and `data-ratio` on the page): at most `max` levels (sizes within 2 px are one; a block fitted
+line by line is one level at its smallest line); each level at least `ratio` times the next smaller one (the smaller level's largest size
+against the larger level's smallest), so a price badge, a label, a headline and a sub line can sit on one page but a scatter of near sizes
+is refused; and the headline (or the big numeral) above every other text by more than 2 px. Scale, fit, contrast, enlargement and the grid
+are checked exactly as on any page. `validateLook` holds the same rules on the sizes it knows (a ladder's first step, a fixed size) and
+refuses `levels` outside those bounds, a `ratio` with three levels, and any other key. The design editor offers Three, Four or Five under
+"More", the ratio under Fine-tune.
 
 Two rules about fit. A post's headline may shrink to 82% of its designed size (`POST_MIN_SCALE` in `render.mjs`); below that
 the render is refused with "shorten the headline to about N characters", an estimate from how much of it fitted. And a
@@ -1089,7 +1100,9 @@ still never becomes small text. The web app sets it in Settings, Brand and look,
 The engine ships the families the directions use, under the SIL Open Font License 1.1, with the licence text (`OFL.txt`) in each
 folder under `packages/engine/design/fonts/`: Fraunces (variable, weights 300 to 600, normal and italic), Source Serif 4
 (400, 600, and 400 italic), Hanken Grotesk (400 to 800), JetBrains Mono (400 to 500), Archivo (variable weight and width) and Anton (a heavy condensed display face, one weight, 400).
-Inter and IBM Plex Mono were already there. Files are woff2, `latin` and `latin-ext` subsets only. `fonts/library.json` lists
+Inter and IBM Plex Mono were already there. Noto Color Emoji (OFL, a COLRv1 colour font in eleven unicode-range slices, 2.1 MB in all) is
+embedded only on a page whose words hold an emoji (see "Emoji"); `fonts/emoji.json` lists its slices and `emojiLibraryProblems()` checks
+them. Files are woff2, `latin` and `latin-ext` subsets only. `fonts/library.json` lists
 each file, and `fonts/README.md` gives each family's source URL, the fetch date, the axes and the file sizes; `libraryProblems()`
 (`lib/design/font-library.mjs`) checks that every listed file exists and is a woff2. A page embeds only what it uses: the faces
 of the roles its composition draws in, the `latin-ext` file only when a character of its words needs it, each as one
@@ -1235,7 +1248,7 @@ row, the folio, the brand-name pattern), `photo`, `logo` and `dials` (tilt 0 to 
 colour, no CSS font name, no asset path, no URL, no brand id**: colours are palette roles, families come from `design/fonts/library.json`.
 `origin` is `"shipped"` (only the engine's own looks, `validateLook(look, where, { shipped: true })`) or `copy:shipped:<id>` / `copy:own:<slug>`.
 
-**A composition** is `{ kind, name, describe, ground, fields, accepts?, calm?, fit?, elements }`. `kind` is one of the seven post kinds;
+**A composition** is `{ kind, name, describe, ground, fields, accepts?, calm?, levels?, fit?, elements }` (`levels`: see "More sizes of type"). `kind` is one of the seven post kinds;
 `fields` names the post fields it draws, each with `required` and `max` (never above what a post allows, and the kind's own required fields
 must be required); `accepts` holds rules on the words it can draw (`{ field, part: all|pre|phrase, maxChars }` or `{ field: "items", min, max }`),
 and when they fail the next variant of the kind is used. Its id is derived, `<kind>/<index>` among the look's compositions of that kind, never
@@ -1283,6 +1296,39 @@ fill, or on the page for an outline) and `icons` (`colour`, a role; the words' o
 marks are drawn; `icons.badge`, a fill colour role, sets each icon in a small round disc of that colour, like a sticker in the line. Both are refused on any other field, on a part of the headline, with `tiltBar` or `vertical`, and they do not exist on a
 `fitted-stack` (the page rebuilds a fitted headline from its words, so its marks are always plain).
 
+**Swashes (`swash`, approved by the owner on 22 Nov 2026).** A headline `text` in display type (or a `fitted-stack` of the headline or the
+quote, by lines or as a block) may carry a decorative flourish against one of its words: `swash: { shape, word?, colour?, weight?, overlap? }`.
+`shape` is one of the engine's own: `underline` (a brush underline under the word), `swoosh` (dips under the word and flicks up past its
+end), `tail` (from the last letter, out and curling back under the word) and `loop` (a loop from the first letter running on under the
+word). `word` is `first`, `last` (the default), `phrase` (the emphasised phrase, on the line of its last word) or the nth word, 1 to 12 (a
+shorter headline uses its last word); the punctuation that closes the word belongs to it. `colour` is a palette role (`accent` by default),
+`weight` `fine`, `medium` or `bold` (0.035, 0.055 or 0.08 of the letters' size), `overlap` true lets it cross the headline's other words.
+Why drawn flourishes and not a font's swash letters: no font the looks use has swash glyphs, a swash letter would tie a look to one family
+(and a brand font may have none), and its ink would reach outside the box the checks measure. A drawn swash works with every font, takes
+any brand colour, and is measured: the page (`placeSwashes` in `lib/design/runtime.mjs`, after the fit) reads the word's box and baseline
+from its own font, builds the curve from a fixed table of control points (numbers relative to the word's width and size), draws it as a
+tapered SVG outline of numbers only behind the letters, and `swashProblems` in `lib/design/checks.mjs` holds every point of the stroke
+against the ink box of every word and punctuation mark on the page: it may touch only the word it is drawn against (and, with `overlap`, the
+other words of its own headline), never other text, and it must stay on the page. The contrast check then measures the words on the pixels
+with the swash under them. `validateLook` refuses a swash on anything but a whole display headline or quote, on a turned line or inside a
+turned box, a sticker, band or seam, more than one per composition, and any value outside these lists. The design editor offers the shape
+and the word as chips (Swash: Off, Underline, Swoosh, Tail, Loop; Against: First word, Last word, Emphasis), the rest under Fine-tune.
+Bloom's Moon statement draws a tail under the headline's last word.
+
+**Emoji (`emoji` in `brand.json`, approved by the owner on 22 Nov 2026).** Off by default: a post whose texts hold an emoji is refused
+("emoji are off for this brand"). With `"emoji": true` (Settings, Brand, Voice and spelling: Emoji in post images) each text of a post
+(every field, each list item, info value and picture caption) may carry at most three emoji, and only real ones: every character
+cluster that looks like an emoji must be one of Unicode's recommended emoji (`\p{RGI_Emoji}`: single emoji, skin tones, flags, keycaps,
+tag flags and ZWJ sequences); a stray joiner, a lone flag letter, a doubled skin tone or a tag run is refused (`lib/design/emoji.mjs`). A plain
+text symbol (©, ™, ☺ without the emoji selector) is text, as before. An emoji counts as two characters towards a field's limit. The brand's
+name never takes an emoji. Emoji reach the page as text, escaped like every other letter, and are drawn with the engine's own colour emoji
+font, Noto Color Emoji (OFL, a COLRv1 build in unicode-range slices, `design/fonts/noto-color-emoji/`, listed in `design/fonts/emoji.json`):
+a page whose words hold an emoji embeds only the slices they need, as `data:` URIs, and puts `VF Emoji` in every font stack right after the
+role's own font. Nothing is fetched. The fit, contrast and grid checks measure emoji like any letter. The AI is told `brand.emoji`; with it on
+it may use up to three per image text (never in a caption, the brand name or a series mark), and its post checks take out emoji the brand
+does not allow (all when off, broken ones and any past the third when on) before the design is checked. Tallyho turns emoji on; the loud
+look's Letter statement shows them.
+
 Common to most: `place` (exactly one of a grid position, pixels, an anchor, or an inset of the page, margins or frame; a flow child of a
 box has none), `bleed`, `rot` (a named angle or -15 to 15), `origin` or `originPct`, `skew` (a plain block only), `z`, `when` (`{ present }` / `{ absent }`), `fill`, `ink`,
 `shadow`, `ring`, `border`, `pad`, `radius`. Lengths are a bounded number or a token (`margin`, `gutter`, `col`, `frame`, `frame+pad`);
@@ -1328,7 +1374,7 @@ need two properties are listed here.
 characters): unknown keys at every level, wrong types, out-of-range numbers, values outside a fixed list, a family not in the font
 library or a weight or width the family lacks, fields a kind does not have, and the static design checks: each required field shown in
 every branch of the conditions (the same way of showing a field twice is refused), at most three type levels (sizes within 2 px are one; a
-fitted headline counts as one), ink and fill pairs from a table, at most three turned elements, text turned at most 8 degrees outside a
+fitted headline counts as one; up to five where the composition's `levels` allows, each step at least its ratio and the headline the largest), ink and fill pairs from a table, at most three turned elements, text turned at most 8 degrees outside a
 sticker, text over a picture only with a filled box under it or a dark fade between, and an element running to a page edge only where it
 touches that edge (a numeral aside). The render-time checks (fit, contrast, enlargement, pixel size, the four post checks) still run on
 the pictures.

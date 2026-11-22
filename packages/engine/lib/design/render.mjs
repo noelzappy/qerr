@@ -234,6 +234,8 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
         await page.evaluate('window.__ds.patternMode(false)');
         patternCells = await page.evaluate(`window.__ds.patternCover(${JSON.stringify(withShot.toString('base64'))}, ${JSON.stringify(withoutShot.toString('base64'))})`);
       }
+      // a headline's decorative swash is drawn against the word at its final size, then checked with the rest (checks.mjs swashProblems)
+      await page.evaluate('window.__ds.placeSwashes()');
       const pm = await page.evaluate(`window.__ds.postMetrics(${JSON.stringify({ patternCells })})`);
       postEls = pm.els;
       const bad = findPostProblems(pm, { grid: out.post.grid });

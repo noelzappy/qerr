@@ -9,7 +9,7 @@ import {
   LIMITS, LOOK_SCHEMA, ORIGIN, PAGE, PLACE_FORMS, PLACE_MODIFIERS, POST_FIELDS, POST_ITEMS, POST_REQUIRED, REQUIRED_OWN, SECTIONS, SECTION_NAMES, SIZE_RANGE, TEXT_FIELDS, TOP_ONLY, VALIGNS, descriptorOf, keysOf,
 } from './look-elements.mjs';
 import { FILL_ROLES, compositionStaticChecks, gridOf, styleOf } from './look-static.mjs';
-import { OVERLAP_MAX, SHAPE_KEYS, VAULT_REF } from './look-desc.mjs';
+import { LEVELS, OVERLAP_MAX, SHAPE_KEYS, VAULT_REF } from './look-desc.mjs';
 import { INLINE, POST_LISTS } from './post-spec.mjs';
 import { POST_CHART } from './chart.mjs';
 import { PRIMITIVES } from './look-elements.mjs';
@@ -237,6 +237,12 @@ function typeRules(el, path, ctx, errs) {
       if (el[k] === undefined) continue;
       if (!INLINE.fields.includes(el.field) || (el.part !== undefined && el.part !== 'all')) bad(`draws the marks of a whole headline; show the headline (part all) to use ${k}`, k);
       else if (el.tiltBar === true || el.vertical !== undefined) bad('cannot go with tiltBar or vertical', k);
+    }
+    // a swash is drawn against a word of a headline (or a quote) set in display type, read straight: not on a label, a part or a turned line
+    if (el.swash !== undefined) {
+      if (!['headline', 'quote'].includes(el.field) || (el.part !== undefined && el.part !== 'all')) bad('is drawn against a word of the whole headline or quote', 'swash');
+      else if (style !== 'display') bad('is drawn on display type (style display)', 'swash');
+      else if (el.tiltBar === true || el.vertical !== undefined || el.rot !== undefined) bad('cannot go with a turned line (rot, vertical or tiltBar)', 'swash');
     }
     if (isObj(el.pills)) {
       const shape = el.pills.shape ?? 'pill';
@@ -497,7 +503,7 @@ function crossingRules(nodes, ctx, errs) {
   }
 }
 
-const COMP_KEYS = ['kind', 'name', 'describe', 'ground', 'fields', 'accepts', 'calm', 'fit', 'elements'];
+const COMP_KEYS = ['kind', 'name', 'describe', 'ground', 'fields', 'accepts', 'calm', 'levels', 'fit', 'elements'];
 
 function compositionProblems(c, i, ctx, errs) {
   const path = `compositions[${i}]`;
@@ -548,6 +554,18 @@ function compositionProblems(c, i, ctx, errs) {
     if (!isObj(c.calm)) push(errs, ctx, `${path}.calm`, 'must be { "maxShare": 0.6 }');
     else { unknownKeys(c.calm, ['maxShare'], `${path}.calm`, ctx, errs); check({ kind: 'number', min: 0.45, max: 0.8 }, c.calm.maxShare, `${path}.calm.maxShare`, cctx, errs); }
   }
+  // more type sizes on one page: an explicit property of the design, 3 to 5 levels, each step at least `ratio` times the next
+  if (c.levels !== undefined) {
+    if (!isObj(c.levels)) push(errs, ctx, `${path}.levels`, `must be { "max": 4, "ratio": 1.25 } (${LEVELS.min} to ${LEVELS.max} sizes of type)`);
+    else {
+      unknownKeys(c.levels, ['max', 'ratio'], `${path}.levels`, ctx, errs);
+      check({ kind: 'number', min: LEVELS.min, max: LEVELS.max, int: true }, c.levels.max, `${path}.levels.max`, cctx, errs);
+      if (c.levels.ratio !== undefined) {
+        check({ kind: 'number', min: LEVELS.ratioMin, max: LEVELS.ratioMax }, c.levels.ratio, `${path}.levels.ratio`, cctx, errs);
+        if (c.levels.max === LEVELS.min) push(errs, ctx, `${path}.levels.ratio`, `is used only with more than ${LEVELS.min} sizes of type`);
+      }
+    }
+  }
   if (c.fit !== undefined) {
     if (typeof c.fit === 'string') { if (!['margins', 'frame'].includes(c.fit)) push(errs, ctx, `${path}.fit`, 'must be margins, frame or { "pad", "top", "bottom" }'); }
     else if (!isObj(c.fit)) push(errs, ctx, `${path}.fit`, 'must be margins, frame or { "pad", "top", "bottom" }');
@@ -569,6 +587,15 @@ function compositionProblems(c, i, ctx, errs) {
     let inSticker = false;
     for (let a = n.parent; a; a = a.parent) if (a.type === 'sticker') inSticker = true;
     if (!inSticker) push(errs, ctx, `${n.path}.follow`, 'is drawn for text inside a sticker (a date numeral on a tile); put it there');
+  }
+  // at most one swash, never inside a turned box or a shape (the page draws it straight, against the measured word)
+  const swashed = st.nodes.filter((x) => x.el.swash !== undefined && (x.type === 'text' || x.type === 'fitted-stack'));
+  if (swashed.length > 1) push(errs, ctx, `${swashed[1].path}.swash`, 'a composition has at most one swash');
+  for (const n of swashed) {
+    for (let a = n.parent; a; a = a.parent) {
+      if (a.type === 'sticker' || a.type === 'band' || a.type === 'seam') { push(errs, ctx, `${n.path}.swash`, `is drawn on a headline on the page, not inside a ${a.type}`); break; }
+      if (a.el.rot !== undefined && a.el.rot !== 0) { push(errs, ctx, `${n.path}.swash`, 'is drawn straight; the box it is in is turned'); break; }
+    }
   }
   const droppers = st.nodes.filter((x) => x.type === 'text' && x.el.dropWhenTight === true);
   if (droppers.length > 1) push(errs, ctx, `${droppers[1].path}.dropWhenTight`, 'at most one element of a composition may leave itself out when tight');
