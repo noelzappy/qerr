@@ -103,7 +103,7 @@ templates and the brand's own layouts, and a `post` design is refused with a mes
 
 ### Looks
 
-The engine ships eleven looks, 121 designs in all. A brand picks one in the guided setup or in Settings, Looks, and may
+The engine ships eleven looks, 123 designs in all. A brand picks one in the guided setup or in Settings, Looks, and may
 copy it and change any design in the visual design editor.
 
 | Look | Designs | What it looks like |

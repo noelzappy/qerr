@@ -161,25 +161,25 @@
         "role": "mono",
         "weight": "400",
         "file": "design/fonts/ibm-plex-mono-v23-400-latin.woff2",
-        "range": "U+0000-00FF, U+2000-206F, U+2190-2193, U+2212"
+        "range": "U+0000-00FF, U+2000-206F, U+20AC, U+2190-2193, U+2212"
       },
       {
         "role": "mono",
         "weight": "400",
         "file": "design/fonts/ibm-plex-mono-v23-400-latin-ext.woff2",
-        "range": "U+0100-02BA, U+20A0-20C4"
+        "range": "U+0100-02BA, U+20A0-20AB, U+20AD-20C4"
       },
       {
         "role": "mono",
         "weight": "500",
         "file": "design/fonts/ibm-plex-mono-v23-500-latin.woff2",
-        "range": "U+0000-00FF, U+2000-206F, U+2190-2193, U+2212"
+        "range": "U+0000-00FF, U+2000-206F, U+20AC, U+2190-2193, U+2212"
       },
       {
         "role": "mono",
         "weight": "500",
         "file": "design/fonts/ibm-plex-mono-v23-500-latin-ext.woff2",
-        "range": "U+0100-02BA, U+20A0-20C4"
+        "range": "U+0100-02BA, U+20A0-20AB, U+20AD-20C4"
       }
     ]
   },

@@ -1,6 +1,6 @@
 # Fonts
 
-Web fonts used by the design engine, all under the SIL Open Font License 1.1 (an `OFL.txt` sits in each folder, copied from https://github.com/google/fonts, `ofl/<family>/OFL.txt`). Files are woff2, `latin` and `latin-ext` subsets only, fetched from fonts.gstatic.com through the Google Fonts CSS2 API on 2026-11-21 (Anton on 2026-11-22). `library.json` lists every file with its style, weight, stretch, subset, unicode-range and size.
+Web fonts used by the design engine, all under the SIL Open Font License 1.1 (an `OFL.txt` sits in each folder, copied from https://github.com/google/fonts, `ofl/<family>/OFL.txt`). Files are woff2, `latin` and `latin-ext` subsets only (the symbol fallback at the end: currency signs and arrows only), fetched from fonts.gstatic.com through the Google Fonts CSS2 API on 2026-11-21 (Anton on 2026-11-22). `library.json` lists every file with its style, weight, stretch, subset, unicode-range and size.
 
 Already present before this addition and untouched: Inter (`inter-v20-*.woff2`, with `OFL.txt` in this folder) and IBM Plex Mono (`ibm-plex-mono-v23-*.woff2`, weights 400 and 500).
 
@@ -95,3 +95,37 @@ A COLRv1 build (colour vector glyphs), in the eleven unicode-range slices Google
 - Fetched: 2026-11-22
 - Licence: OFL-1.1 (noto-color-emoji/OFL.txt, from https://github.com/google/fonts, `ofl/notocoloremoji/OFL.txt`)
 - Files: `noto-color-emoji/noto-color-emoji-v50-00.woff2` to `-10.woff2`, 2,084,740 bytes in all (the flags slice, `-00`, is 708,608); each file's unicode-range is in `emoji.json`
+
+## Noto Sans (currency signs only), the symbol fallback
+
+The currency fallback: a subset of Noto Sans holding only the currency signs (U+20A0 to U+20C0, with $, ¢, £, ¤, ¥ and €). Several faces of
+the library lack signs such as the cedi (₵), naira (₦), won (₩), shekel (₪) or lira (₺) although their `latin-ext` unicode-range names them,
+so a page drew them in whatever system font the server had, or as an empty box. A page whose words hold one of these signs embeds this face
+under the alias `VF Symbols` and names it in every font stack right after the role's own font (and the emoji font), so the role's font
+still draws every sign it has. `symbols.json` lists the files; `symbolsLibraryProblems()` (`lib/design/font-library.mjs`) checks them. The
+unicode-range declared for it leaves out € (U+20AC), which every library font draws.
+
+- Source: https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&text=... (the text: U+20A0 to U+20C0, $ ¢ £ ¤ ¥ €)
+- Fetched: 2026-11-22
+- Licence: OFL-1.1 (noto-sans/OFL.txt, from https://github.com/google/fonts, `ofl/notosans/OFL.txt`)
+- Axes: wght 100..900
+
+| File | Style | Weight | Stretch | Subset | Bytes |
+|---|---|---|---|---|---|
+| noto-sans/noto-sans-v42-normal-currency.woff2 | normal | 100 900 | - | currency | 15712 |
+| noto-sans/noto-sans-v42-italic-currency.woff2 | italic | 100 900 | - | currency | 18916 |
+
+## Noto Sans Symbols (arrows only)
+
+The arrows (U+2190 to U+2199: ← ↑ → ↓ ↔ ↕ ↖ ↗ ↘ ↙), which Inter, Hanken Grotesk and IBM Plex Mono lack (Plex's range names them, its file has
+only ↑ and ↓); classic templates write → in their footers. Listed in `symbols.json` with the currency signs and embedded the same way, under
+`VF Symbols`, only on a page whose words hold an arrow.
+
+- Source: https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols:wght@100..900&text=... (the text: U+2190 to U+2199)
+- Fetched: 2026-11-22
+- Licence: OFL-1.1 (noto-sans-symbols/OFL.txt, from https://github.com/google/fonts, `ofl/notosanssymbols/OFL.txt`)
+- Axes: wght 100..900
+
+| File | Style | Weight | Stretch | Subset | Bytes |
+|---|---|---|---|---|---|
+| noto-sans-symbols/noto-sans-symbols-normal-arrows.woff2 | normal | 100 900 | - | arrows | 2228 |

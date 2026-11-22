@@ -747,6 +747,7 @@ the post and the image is kept.
 | **Enlargement** | The shown size of every supplied image against its real pixel size | Above 1.3x: a warning naming the file, its size and the width it would need. |
 | **Pixel size** | The captured image and the saved file are read back | A mismatch fails the image. |
 | **Fonts and images load** | Inter and IBM Plex Mono must load; every image must decode | A missing or unreadable image fails with its path. A missing font warns. |
+| **Glyphs** | Once the fonts have loaded, the page lists every character it draws (each visible text, as its case transform draws it; spaces and invisible format marks left out), grouped by the font stack it is set in (`glyphs()` in `lib/design/runtime.mjs`). Each character must be drawn by a font the page itself embeds: a face of its stack whose `unicode-range` takes it AND whose character map, read from the embedded file itself (`lib/design/font-cmap.mjs`: the `cmap` of the woff2, through `node:zlib`'s Brotli), has a real glyph for it (glyph 0, the `.notdef` box, counts as none). The brand's fonts, the library's, the emoji font and the currency fallback all count; system fonts never do, because they differ from machine to machine (`glyphProblems` in `lib/design/glyphs.mjs`). A face the engine cannot read is trusted for its range. | A character no font of its stack draws fails the render with a sentence that names the character and its code (`"₵" (U+20B5)`) and the kind of text it is in, never the text itself, and says to write it another way (a currency by its code, such as GHS) or to choose a look whose fonts have it. |
 | **Framed phones** | A `screen` phone's file header must have transparency, and in the page its four corners must be see-through | Fails with "... is not a pre-framed phone capture ... Use a pre-framed phone capture"; nothing is written. |
 | **A look's device** | A look's `device` reads its screenshot's four corners in the page: see-through corners are a pre-framed capture, shown whole without the drawn frame; any other picture is a bare screenshot, held to the model's proportions (a phone 1.6 to 2.4 times as tall as it is wide, a tablet 1.15 to 1.6) | Outside them the image **fails** with the screenshot's size and what the device takes (never its file name). Inside them it is cropped to the screen: a note says by how much, a warning when more than 6% is cut away. |
 | **Brand text** | The brand lint, run before every render | Warnings only, see below. |
@@ -1025,7 +1026,7 @@ A carousel may be made of post pages, drawn by the brand's look like single post
 ### What the engine checks on a post
 
 Every check of the other templates still runs unchanged: text fit, contrast measured on the pixels behind the text, the
-pixel size and the loaded fonts. A post adds four, measured by the page itself (`postMetrics` in `lib/design/runtime.mjs`) and
+pixel size, the loaded fonts and the glyphs (every character drawn by a font the page embeds). A post adds four, measured by the page itself (`postMetrics` in `lib/design/runtime.mjs`) and
 judged by `findPostProblems` in `lib/design/checks.mjs`, with the numbers in `POST_LIMITS`. A failed check refuses the render
 with a sentence that says what to change.
 
@@ -1107,7 +1108,15 @@ folder under `packages/engine/design/fonts/`: Fraunces (variable, weights 300 to
 (400, 600, and 400 italic), Hanken Grotesk (400 to 800), JetBrains Mono (400 to 500), Archivo (variable weight and width) and Anton (a heavy condensed display face, one weight, 400).
 Inter and IBM Plex Mono were already there. Noto Color Emoji (OFL, a COLRv1 colour font in eleven unicode-range slices, 2.1 MB in all) is
 embedded only on a page whose words hold an emoji (see "Emoji"); `fonts/emoji.json` lists its slices and `emojiLibraryProblems()` checks
-them. Files are woff2, `latin` and `latin-ext` subsets only. `fonts/library.json` lists
+them. Several faces lack currency signs their `latin-ext` range names (Hanken Grotesk has no cedi, naira, rupee, won, shekel or lira; JetBrains
+Mono lacks most), which a server without a matching system font drew as an empty box ("GH₵ 0" in a price pill). The currency fallback, a Noto Sans
+subset of the currency signs (OFL, normal and italic, weights 100 to 900, `fonts/noto-sans/`, listed in `fonts/symbols.json`, checked by
+`symbolsLibraryProblems()`), and a Noto Sans Symbols subset of the arrows U+2190 to U+2199 (`fonts/noto-sans-symbols/`, which Inter, Hanken
+Grotesk and IBM Plex Mono lack; classic footers write →), are embedded under the alias `VF Symbols` on any page (a post or a classic template)
+whose words hold a sign from U+20A0 to U+20C0 other than € or an arrow, and named in every font stack right after the role's own font and the emoji font; the role's font still draws
+every sign it has. With it, € £ $ ¥ ₦ ₵ ₹ ₱ ₩ ₪ ₺ ₴ ₽ render in every shipped look (`test-design-glyphs.mjs`), and the glyph check (see "What the
+engine checks, by itself") refuses any character that no embedded font draws. Files are woff2, `latin` and `latin-ext` subsets only (and the
+currency subset of the fallback). `fonts/library.json` lists
 each file, and `fonts/README.md` gives each family's source URL, the fetch date, the axes and the file sizes; `libraryProblems()`
 (`lib/design/font-library.mjs`) checks that every listed file exists and is a woff2. A page embeds only what it uses: the faces
 of the roles its composition draws in, the `latin-ext` file only when a character of its words needs it, each as one
@@ -1509,7 +1518,7 @@ paper, `on-field` to the ink, `body-dark` and `muted-dark` to the light greys), 
 ### The shipped looks and the engine's hooks
 
 `shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss, soft, bloom, clean, loud, ledger, studio, roast, plate, guide }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each: two
-statements, a figure, a list, a quote, two photos, an event and an offer; soft has ten (a third statement), loud thirteen, ledger twelve, see below, studio seventeen, roast twelve, plate ten and guide ten), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
+statements, a figure, a list, a quote, two photos, an event and an offer; clean has ten (a second figure, over a photo), soft eleven (a third statement and a second figure over a photo), loud thirteen, ledger twelve, see below, studio seventeen, roast twelve, plate ten and guide ten), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
 data counterpart of the code directions of the same name: retail is held to the code (the same budgets, names and grounds; geometry within 3 px of the
 code compositions in `test-design-look-equivalence.mjs`, with the deviations listed there: the roles of the unit and the date tile, and the wrapping
 highlight bar 0.12 em against 0.13 em); swiss is held to the approved prototype by eye. Soft (one sans in medium weights on pale tints of the brand colour, the logo top
@@ -1550,6 +1559,27 @@ validator, and `test-design-look-equivalence.mjs` draws every shipped look from 
 The retail price tag (figure/0) sets its figure as large as the stage allows (up to 930 px, centred) with the unit fitted on a full-width accent block
 under it, in the code composition and the look alike. A folio is written only from the post's real place (its position in its batch, or a carousel
 page's); without one a page has no folio, never a number made up from the words or the date. The partial `testlib/looks/*.sample.json` stay as test fixtures.
+
+**Pages that make sense without their caption, and without a picture** (22 Nov 2026). Where a design leaves a large pale shape, the shape holds
+words (`test-design-look-context.mjs`). The Clean (`offer/0` Product), Soft (`offer/0` Price pill) and Bloom (`offer/0` Badge) offers without a
+picture no longer draw an empty card or disc with the price in it: the card hugs its words at the foot of the page, the price pill (Bloom: the
+price badge) and the sub under it (Bloom: beside it) inside the card, so the sub says what the price buys; with a picture the sub stays under the
+picture as before. Soft's `statement/0` Quiet sets its sub in a white rounded card at the foot, with a smaller pale dome rising behind the card's
+right end; the big dome and the white circle are drawn only when the post has no sub. Clean and Soft set labels at 34 px (was 30),
+the largest a label may take, so the label is readable at feed size; within 2 px of the 32 px body text, it adds no level of type.
+
+**Page colours in turn (`colour.rotate`).** A look may list two or three light page colours (`paper`, `soft`, `tint`, each also in its
+`colour.grounds`) that a batch takes in turn: a composition whose page colour is one of them is drawn on the one the post's own words pick
+(an FNV-1a hash of its kind, headline, figure, quote, tag, label and sub: `rotatedGround` in `directions/index.mjs`), so posts without
+pictures do not all sit on one pale tint, and the same post always gets the same colour. Dark page colours never rotate in: a composition sets
+its words in inks for a light page. The look's static ink table checks every text against every colour of the rotation, and every page check
+runs on the colour the page really has. Clean rotates `paper` and `tint`, Soft `tint` and `soft` (its white pills and cards need a tinted page).
+The look settings show it under Colour, Fine-tune ("Page colours in turn"), drawn from the catalogue like `colour.grounds`.
+
+**A figure over a photo.** Clean's `figure/1` Number over photo and Soft's `figure/1` Big number over photo carry a figure with its unit line and sub on top and a
+required picture at the foot melting into the page (as their photo designs: a plain background becomes the page colour, otherwise the top
+edge fades); a figure without a picture keeps `figure/0`. A statement with a photo is the `photo` kind (Clean `photo/0` Object, Soft `photo/0`
+Foot photo): statement and list designs take no picture.
 
 **Loud** (`loud.look.json`, thirteen compositions) is loud and friendly, like a community app: Anton (a heavy condensed display face, shipped
 in the font library) in capitals with one or two words in a pill, on the brand colour (`field`), the accent or the dark colour, or over a darkened

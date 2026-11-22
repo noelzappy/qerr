@@ -52,9 +52,11 @@ These apply to anyone who changes or runs this repository or a Qerr deployment.
     (`avatar`) of the person a quote is by: it may show that person's face only when the vault item records their consent,
     which approval enforces; it is still read, enlarged and checked like every picture. Brand names are written as the brand's
     spelling rules say and never take an emoji; image text carries emoji only where the brand turns them on (`"emoji": true`,
-    Settings, Brand), then at most three standard emoji per text, drawn with the engine's own emoji font. Never weaken a
-    design check (contrast, enlargement, text fit, pixel size) to make an image pass: change the words, the picture or the
-    crop. A chart (a post's `chart`, the look's `chart` element) is drawn only from the post's validated numbers; its labels and
+    Settings, Brand), then at most three standard emoji per text, drawn with the engine's own emoji font. Every character
+    an image draws must have a glyph in a font the page embeds (the glyph check reads each embedded file's character map;
+    system fonts never count); a missing one is fixed with a bundled OFL font, stored and credited like the others, or with
+    other words, never by letting a system font or an empty box through. Never weaken a design check (contrast,
+    enlargement, text fit, pixel size, glyphs) to make an image pass: change the words, the picture or the crop. A chart (a post's `chart`, the look's `chart` element) is drawn only from the post's validated numbers; its labels and
     values are text held to their cells and measured for contrast on the pixels behind them, its data marks reach 3:1 against
     what is behind them, every mark stays inside the chart's box, and its scale starts at zero. Only a line, area or sparkline
     may start its axis near its data, and only when the look's chart element sets `trim` (approved by the owner on 22 Nov

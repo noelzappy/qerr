@@ -9,7 +9,7 @@ import {
   LIMITS, LOOK_SCHEMA, ORIGIN, PAGE, PLACE_FORMS, PLACE_MODIFIERS, POST_FIELDS, POST_ITEMS, POST_REQUIRED, REQUIRED_OWN, SECTIONS, SECTION_NAMES, SIZE_RANGE, TEXT_FIELDS, TOP_ONLY, VALIGNS, descriptorOf, keysOf,
 } from './look-elements.mjs';
 import { FILL_ROLES, compositionStaticChecks, gridOf, styleOf } from './look-static.mjs';
-import { LEVELS, OVERLAP_MAX, SHAPE_KEYS, VAULT_REF } from './look-desc.mjs';
+import { LEVELS, OVERLAP_MAX, ROTATE_GROUNDS, SHAPE_KEYS, VAULT_REF } from './look-desc.mjs';
 import { INLINE, POST_LISTS } from './post-spec.mjs';
 import { POST_CHART } from './chart.mjs';
 import { PRIMITIVES } from './look-elements.mjs';
@@ -688,6 +688,10 @@ export function validateLook(look, where = 'look', opts = {}) {
   for (const s of SECTION_NAMES) {
     if (look[s] === undefined) { if (REQUIRED_SECTIONS.includes(s)) push(errs, ctx, s, 'is required'); continue; }
     check(SECTIONS[s], look[s], s, ctx, errs);
+  }
+  // a rotation of page colours names only page colours the look lists
+  if (isObj(look.colour) && Array.isArray(look.colour.rotate) && Array.isArray(look.colour.grounds)) {
+    for (const r of look.colour.rotate) if (ROTATE_GROUNDS.includes(r) && !look.colour.grounds.includes(r)) push(errs, ctx, 'colour.rotate', `names a page colour (${r}) the look does not list in colour.grounds (${list(look.colour.grounds)})`);
   }
   if (errs.length === 0) {
     const lib = opts.fontLibrary ?? shippedFontLibrary();

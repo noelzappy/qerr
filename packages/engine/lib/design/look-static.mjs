@@ -249,7 +249,9 @@ function backgrounds(node, comp, look) {
     if (n.type === 'rows' && (n.el.altFill || n.el.fill)) return n.el.altFill ?? [n.el.fill];
   }
   const gs = typeof comp.ground === 'string' ? [comp.ground] : comp.ground.map((c) => c.ground);
-  return gs.map((g) => GROUND_ROLE[g]);
+  // a page colour of the look's rotation may be drawn on any colour of it (colour.rotate)
+  const rot = Array.isArray(look?.colour?.rotate) ? look.colour.rotate : [];
+  return [...new Set(gs.flatMap((g) => (rot.includes(g) ? rot : [g])))].map((g) => GROUND_ROLE[g]);
 }
 
 // The colours of a named shape (its key) a crossing text must read on: a box's fill or gradient, a block's colour, a sticker's fill, a gradient
