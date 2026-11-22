@@ -180,6 +180,7 @@ const EXAMPLES = {
   'info-rows': { type: 'info-rows', place: AT(56, 900, 900, 260) },
   button: { type: 'button', place: AT(56, 1180, 600, 100) },
   'photo-row': { type: 'photo-row', place: AT(56, 600, 900, 240) },
+  ribbon: { type: 'ribbon', corner: 'top-right', at: 160, w: 72, colour: 'primary' },
 };
 const host = (...extra) => ({
   ...clone(SWISS), id: 'host', origin: 'copy:shipped:swiss',

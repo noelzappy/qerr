@@ -45,6 +45,7 @@ import * as graphic from './directions/primitives/graphic.mjs';
 import * as infoRows from './directions/primitives/info-rows.mjs';
 import * as button from './directions/primitives/button.mjs';
 import * as photoRow from './directions/primitives/photo-row.mjs';
+import * as ribbon from './directions/primitives/ribbon.mjs';
 // the shapes of a headline's pills (kit.mjs PILL_SHAPES)
 export const PILL_SHAPES = ['pill', 'soft', 'outline'];
 export { ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS, METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SOFT_SHADOWS, CORNERS, ROUND_SHAPES, RULE_STYLES, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS, WORDS, BLENDS };
@@ -53,7 +54,9 @@ export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 
   // gradients, colour over a picture, brand graphics and cut-outs
   gradient, overlay, graphic,
   // info rows, a button and a row of round pictures
-  'info-rows': infoRows, button, 'photo-row': photoRow });
+  'info-rows': infoRows, button, 'photo-row': photoRow,
+  // a ribbon across a corner of the page
+  ribbon });
 
 export const LOOK_SCHEMA = 1;
 export const KINDS = [...POST_KINDS];
@@ -168,7 +171,7 @@ const ELEMENTS_BASE = {
     label: 'Text', group: 'Text', help: 'Words of the post (or the brand name, the folio, a list number) set in one of the look\'s type styles.',
     placement: 'required', flow: true, container: null, text: true,
     own: {
-      field: field(TEXT_FIELDS, 'Field', 'Which of the post\'s words it shows (or choose a source).'), source: en(SOURCES, 'Source', 'The brand name, the folio, the index or the brand\'s web address instead of a field.'),
+      field: field(TEXT_FIELDS, 'Field', 'Which of the post\'s words it shows (or choose a source).'), source: en(SOURCES, 'Source', 'The brand name, the folio, the index, the brand\'s web address, or "Swipe" with an arrow (only on a carousel page that has a page after it) instead of a field.'),
       word: en(WORDS, 'Word', 'One of a few fixed words (such as Myth or Fact) instead of a field.'),
       part: en(PARTS, 'Part', 'The whole text, the part before the emphasised phrase, the phrase, or what follows it.', 'all'),
       split: obj({ sep: en(SPLIT_SEPARATORS, 'Separator', 'What splits the text into parts.'), pick: oneOf([{ is: 'number', desc: int(0, 3, 'Part', 'Which part (0 is the first).') }, { is: 'string', desc: en(['rest'], 'Rest', 'Everything after the first part.') }], 'Pick', 'Which part to show, or "rest".') }, 'Split', 'Shows one part of a line like "12 Dec · 6pm · Place".', ['sep', 'pick']),
