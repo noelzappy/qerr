@@ -70,7 +70,7 @@ const priceTag = {
   render(c) {
     const { left, top } = c.margin, W = c.W - left - c.margin.right, sub = c.has('sub');
     const price = c.fitLines({ flow: true, trail: true, w: W - 74, h: 440, cap: 520, floor: 150, lead: 0.78, track: -0.04, max: 1, colour: 'on-field', variant: 'numeral', grid: 'skip', html: c.text('big') })
-      + (c.has('unit') ? c.box({ flow: true, fill: 'gold', ink: 'on-accent', pad: [15, 31, 18, 31], shadow: { x: 8, y: 8, colour: 'field-deep' }, variant: 'unit', nudge: { x: 6, y: -6 } },
+      + (c.has('unit') ? c.box({ flow: true, fill: 'gold', ink: 'on-accent', pad: [15, 31, 30, 31], shadow: { x: 8, y: 8, colour: 'field-deep' }, variant: 'unit', nudge: { x: 6, y: 0 }, before: 94 },
         c.run({ html: c.text('unit'), role: 'accent', size: 92, lead: 0.9, weight: 900, track: -0.02, colour: 'on-accent' })) : '');
     // the figure centred in the room above the sub band; the band is as tall as its text needs (at least 140)
     const stage = c.box({ flow: true, w: c.W, grow: 1, flex: 'column', justify: 'center', pad: [0, left, 0, left] },

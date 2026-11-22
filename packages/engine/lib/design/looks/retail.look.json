@@ -491,7 +491,7 @@
             {
               "type": "box",
               "flow": "column",
-              "align": "start",
+              "align": "center",
               "w": 968,
               "rot": "price",
               "originPct": [
@@ -499,31 +499,31 @@
                 50
               ],
               "pad": [
+                112,
                 0,
                 0,
-                0,
-                14
+                0
               ],
               "children": [
                 {
                   "type": "fitted-stack",
                   "field": "big",
                   "mode": "lines",
-                  "cap": 520,
+                  "cap": 930,
                   "floor": 150,
                   "maxLines": 1,
                   "lead": 0.78,
                   "trail": true,
                   "stretch": 70,
-                  "padBelowEm": 0.14,
                   "ink": "on-field",
                   "textShadow": {
                     "x": 10,
                     "y": 10,
                     "colour": "field-deep"
                   },
-                  "w": 894,
-                  "h": 440
+                  "w": 920,
+                  "align": "center",
+                  "h": 730
                 },
                 {
                   "type": "box",
@@ -531,38 +531,42 @@
                   "fill": "gold",
                   "ink": "on-accent",
                   "pad": [
-                    15,
-                    31,
-                    18,
-                    31
+                    14,
+                    24,
+                    30,
+                    24
                   ],
                   "shadow": {
                     "x": 8,
                     "y": 8,
                     "colour": "field-deep"
                   },
-                  "before": -6,
-                  "nudgeX": 6,
+                  "before": 120,
                   "when": {
                     "present": "unit"
                   },
                   "children": [
                     {
-                      "type": "text",
+                      "type": "fitted-stack",
                       "field": "unit",
-                      "style": "display",
-                      "size": 92,
+                      "mode": "lines",
+                      "cap": 120,
+                      "floor": 56,
+                      "maxLines": 1,
                       "lead": 0.9,
-                      "weight": 900,
-                      "track": -0.02
+                      "align": "center",
+                      "ink": "on-accent",
+                      "w": 872,
+                      "h": 120
                     }
-                  ]
+                  ],
+                  "w": 920,
+                  "alignSelf": "center"
                 }
               ],
               "grow": 1,
               "justify": "center",
-              "nudgeX": 56,
-              "alignSelf": "start"
+              "alignSelf": "center"
             },
             {
               "type": "box",
@@ -602,7 +606,7 @@
             {
               "type": "box",
               "flow": "column",
-              "align": "start",
+              "align": "center",
               "w": 968,
               "rot": "price",
               "originPct": [
@@ -610,31 +614,31 @@
                 50
               ],
               "pad": [
+                112,
                 0,
                 0,
-                0,
-                14
+                0
               ],
               "children": [
                 {
                   "type": "fitted-stack",
                   "field": "big",
                   "mode": "lines",
-                  "cap": 520,
+                  "cap": 930,
                   "floor": 150,
                   "maxLines": 1,
                   "lead": 0.78,
                   "trail": true,
                   "stretch": 70,
-                  "padBelowEm": 0.14,
                   "ink": "on-field",
                   "textShadow": {
                     "x": 10,
                     "y": 10,
                     "colour": "field-deep"
                   },
-                  "w": 894,
-                  "h": 440
+                  "w": 920,
+                  "align": "center",
+                  "h": 730
                 },
                 {
                   "type": "box",
@@ -642,38 +646,42 @@
                   "fill": "gold",
                   "ink": "on-accent",
                   "pad": [
-                    15,
-                    31,
-                    18,
-                    31
+                    14,
+                    24,
+                    30,
+                    24
                   ],
                   "shadow": {
                     "x": 8,
                     "y": 8,
                     "colour": "field-deep"
                   },
-                  "before": -6,
-                  "nudgeX": 6,
+                  "before": 120,
                   "when": {
                     "present": "unit"
                   },
                   "children": [
                     {
-                      "type": "text",
+                      "type": "fitted-stack",
                       "field": "unit",
-                      "style": "display",
-                      "size": 92,
+                      "mode": "lines",
+                      "cap": 120,
+                      "floor": 56,
+                      "maxLines": 1,
                       "lead": 0.9,
-                      "weight": 900,
-                      "track": -0.02
+                      "align": "center",
+                      "ink": "on-accent",
+                      "w": 872,
+                      "h": 120
                     }
-                  ]
+                  ],
+                  "w": 920,
+                  "alignSelf": "center"
                 }
               ],
               "grow": 1,
               "justify": "center",
-              "nudgeX": 56,
-              "alignSelf": "start"
+              "alignSelf": "center"
             }
           ],
           "when": {

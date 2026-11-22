@@ -1,5 +1,5 @@
 // Primitive: one row for each list item, or each part of the event line: an optional number, then the words (kit box + run).
-import { oneOf, VALIGNS, RULE_WEIGHTS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, STYLES, angle, bool, en, int, list, num, obj, role, tuple } from '../../look-desc.mjs';
+import { oneOf, VALIGNS, RULE_STYLES, RULE_WEIGHTS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, STYLES, angle, bool, en, int, list, num, obj, role, tuple } from '../../look-desc.mjs';
 
 export const SPEC = {
   label: 'Rows', group: 'Layout', help: 'One row for each item of a list (or each part of the event line): an optional number, then the words. One per composition.',
@@ -7,7 +7,7 @@ export const SPEC = {
   own: {
     each: en(ROW_EACH, 'One row for each', 'Each list item, or each part of the event line.'), number: en(ROW_NUMBERS, 'Numbering', 'No number, 1 2 3, 01 02 03 or roman.', 'none'),
     numberStyle: en(STYLES, 'Number style', 'The type style of the number.', 'label'), numberSize: int(14, 300, 'Number size', 'Pixels.'),
-    numberTile: obj({ size: int(40, 140, 'Size', 'Side of the square in pixels.'), fill: role('Fill', 'Tile colour.', 'accent'), ink: role('Ink', 'Number colour.', 'on-accent'), shadow: oneOf([{ is: 'boolean', desc: bool('Shadow', 'The look\'s hard shadow.', false) }, { is: 'number', desc: int(1, 24, 'Shadow', 'A hard shadow this many pixels across and down, in the ink colour.') }], 'Shadow', 'The look\'s hard shadow (true), or one this many pixels across and down.') }, 'Number tile', 'Puts each number on a square tile.', ['size']),
+    numberTile: obj({ size: int(40, 140, 'Size', 'Side of the square in pixels.'), radius: oneOf([{ is: 'number', desc: int(0, 70, 'Corner radius', 'Pixels.') }, { is: 'string', desc: en(['full'], 'Round', 'A circle.') }], 'Corners', 'Corner radius of the tile in pixels, or "full" for a round badge.'), fill: role('Fill', 'Tile colour.', 'accent'), ink: role('Ink', 'Number colour.', 'on-accent'), shadow: oneOf([{ is: 'boolean', desc: bool('Shadow', 'The look\'s hard shadow.', false) }, { is: 'number', desc: int(1, 24, 'Shadow', 'A hard shadow this many pixels across and down, in the ink colour.') }], 'Shadow', 'The look\'s hard shadow (true), or one this many pixels across and down.') }, 'Number tile', 'Puts each number on a square tile.', ['size']),
     numberSpan: int(1, 4, 'Number columns', 'Sets the number in this many grid columns, the words after them.'),
     textStyle: en(STYLES, 'Words style', 'The type style of the words.', 'item'), textSize: int(14, 300, 'Words size', 'Pixels.'), textTrack: num(-0.1, 0.3, 'Words letter spacing', 'In em; leave out for the style\'s own (label style only).'),
     altFill: tuple([role('First', 'Colour of the first row.'), role('Second', 'Colour of the second row.')], 'Alternate fills', 'Two colours, row by row.'),
@@ -17,6 +17,9 @@ export const SPEC = {
     gap: int(0, 120, 'Gap', 'Pixels between the number and the words.', 0), rowMinH: int(0, 400, 'Least row height', 'Pixels.', 0),
     ruleEnd: bool('Rule under the last row', 'Closes the last row with a rule too (needs a rule above each row).', false),
     sizeByCount: list(tuple([int(2, 5, 'Items', 'At this many items or more.'), int(14, 300, 'Size', 'Pixels for the words (and the number, when it is not on a tile).')], 'Step', 'At this many items or more, this size.'), 4, 'Size by number of items', 'Smaller words for longer lists, as steps (list rows only); the most items listed that applies wins.', { min: 1 }),
+    rowRadius: oneOf([{ is: 'number', desc: int(0, 100, 'Corner radius', 'Pixels.') }, { is: 'string', desc: en(['full'], 'Round', 'Pill-shaped rows.') }], 'Row corners', 'Rounds the corners of each filled row, in pixels, or "full" for pills.'),
+    rowGap: int(0, 48, 'Space between rows', 'Pixels of space between the rows (for rows that are cards or pills).', 0),
+    ruleStyle: en(RULE_STYLES, 'Rule style', 'The rule above each row: a solid line or a row of round dots.', 'solid'),
     keys: list(en(ROW_KEYS, 'Label', 'A fixed label word.'), 3, 'Row labels', 'Fixed words before each row of an event table.', { min: 1 }),
   },
   common: ['place', 'z', 'when', 'ink', 'fill', 'pad', 'grow', 'minH', 'w', 'before'],
@@ -48,17 +51,17 @@ export function render(c, p, env) {
     let num = '';
     if (p.number !== 'none' && p.numberTile) {
       const t = p.numberTile;
-      num = c.box({ flow: true, w: t.size, h: t.size, fill: t.fill, ink: t.ink, rot: turn || undefined, shadow: t.shadow === true ? env.shadow : typeof t.shadow === 'number' ? { x: t.shadow, y: t.shadow, colour: 'ink' } : undefined, flex: 'column', justify: 'center', align: 'center', flexNone: true },
-        c.run({ text: NUMBER[p.number](i), role: 'label', family: numStyle === 'label' ? T.label.role : 'display', dfont: numStyle !== 'label' || undefined, size: p.numberSize ?? 46, lead: 1, weight: 900, colour: t.ink }));
+      num = c.box({ flow: true, w: t.size, h: t.size, fill: t.fill, ink: t.ink, radius: t.radius, rot: turn || undefined, shadow: t.shadow === true ? env.shadow : typeof t.shadow === 'number' ? { x: t.shadow, y: t.shadow, colour: 'ink' } : undefined, flex: 'column', justify: 'center', align: 'center', flexNone: true },
+        c.run({ text: NUMBER[p.number](i), role: 'label', family: numStyle === 'label' ? T.label.role : 'display', dfont: numStyle !== 'label' || undefined, size: p.numberSize ?? 46, lead: 1, weight: T.display.weight, colour: t.ink }));
     } else if (p.number !== 'none') {
       num = c.run(clean({ text: NUMBER[p.number](i), role: 'label', family: numStyle === 'label' ? T.label.role : 'display', size: stepped && !p.numberTile ? stepped[1] : p.numberSize ?? T.label.size, lead: 1, weight: T.label.weight, track: T.label.track, colour: i === 0 && p.firstAccent ? 'accent-type' : 'muted', nowrap: true }));
       if (p.numberSpan) num = c.box({ flow: true, w: c.span(0, p.numberSpan - 1), flexNone: true }, num);
     }
     const fill = p.altFill ? p.altFill[i % 2] : p.fill;
-    return c.box(clean({ flow: true, w, grow: p.grow ? 1 : undefined, minH: p.rowMinH || undefined, flex: 'row', align: p.valign === 'top' ? undefined : 'center', gap: p.gap, pad: [padT, padR, padB, padL], fill, ink: env.ink, }),
+    return c.box(clean({ flow: true, w, grow: p.grow ? 1 : undefined, minH: p.rowMinH || undefined, flex: 'row', align: p.valign === 'top' ? undefined : 'center', gap: p.gap, pad: [padT, padR, padB, padL], fill, ink: env.ink, radius: p.rowRadius, }),
       (labelCell || '') + num + textRun(cell, i));
   });
   const ruleW = p.rule === 'none' ? 0 : (typeof p.rule === 'string' ? env.look.devices.rule[p.rule] : 0);
-  const withRules = ruleW ? [...rows.map((r) => c.flowBlock({ w: 'fill', h: ruleW, colour: 'rule' }) + r), ...(p.ruleEnd ? [c.flowBlock({ w: 'fill', h: ruleW, colour: 'rule' })] : [])] : rows;
-  return c.box(clean({ ...env.box, flex: 'column', align: 'stretch', w, grow: p.grow ? p.grow : undefined, nudge: env.nudge }), withRules.join(''));
+  const withRules = ruleW ? [...rows.map((r) => c.flowBlock({ w: 'fill', h: ruleW, colour: 'rule', dotted: p.ruleStyle === 'dotted' || undefined }) + r), ...(p.ruleEnd ? [c.flowBlock({ w: 'fill', h: ruleW, colour: 'rule', dotted: p.ruleStyle === 'dotted' || undefined })] : [])] : rows;
+  return c.box(clean({ ...env.box, flex: 'column', align: 'stretch', gap: p.rowGap || undefined, w, grow: p.grow ? p.grow : undefined, nudge: env.nudge }), withRules.join(''));
 }

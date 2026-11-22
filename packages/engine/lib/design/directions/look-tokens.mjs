@@ -24,7 +24,7 @@ function fontOf(spec, role, brand, weights) {
   if (!fam) throw new Error(`look: the font family for ${role} is not in the font library`);
   const faces = [{ style: 'normal', weights: weights ?? spec.weights }];
   if (spec.italic) faces.push({ style: 'italic', weights: weights ?? spec.weights });
-  return { family: fam.family, fallback: fam.fallback ?? GENERIC, faces, metrics: fam.metrics ?? DEFAULT_METRICS, ...(spec.stretch ? { stretch: spec.stretch } : {}) };
+  return { family: fam.family, fallback: fam.fallback ?? GENERIC, faces, metrics: fam.metrics ?? DEFAULT_METRICS, ...(spec.stretch ? { stretch: spec.stretch } : {}), ...(spec.opsz ? { opsz: spec.opsz } : {}) };
 }
 
 export function tokensFromLook(look, brand) {
@@ -59,7 +59,8 @@ export function tokensFromLook(look, brand) {
     folio: FOLIO[D.folio ?? 'no'] ?? FOLIO.no,
     logoHeight: look.logo?.height ?? 44,
     // a look owns its page: the brand's logo corner (classic chrome) shows only when the look itself says `corner`
-    logoOn: look.logo?.default === 'corner',
+    logoOn: look.logo?.default === 'corner' || look.logo?.default === 'top-left',
+    ...(look.logo?.default === 'top-left' ? { logoCorner: 'top-left' } : {}),
   });
 }
 

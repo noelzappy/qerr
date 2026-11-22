@@ -6,8 +6,8 @@ export const SPEC = {
   label: 'Fitted headline', group: 'Text', help: 'A headline sized by the page to fill its box: line by line (lines), edge to edge (fill) or all lines at the largest size that fits (block).',
   placement: 'required', flow: true, container: null, text: true, fitted: true,
   own: {
-    field: field(['headline', 'quote', 'tag', 'big'], 'Field', 'The headline, the quote, the tag (a price) or the big figure.', 'headline'), mode: en(FIT_MODES, 'Mode', 'Each line as large as fits (lines), the ink filling the box (fill), or one size for all lines (block).'),
-    cap: int(40, 600, 'Largest', 'The largest a line may be, in pixels (lines and fill).'), floor: int(24, 300, 'Smallest', 'Below this the image is refused, in pixels (lines and fill).'),
+    field: field(['headline', 'quote', 'tag', 'big', 'unit'], 'Field', 'The headline, the quote, the tag (a price), the big figure or its unit.', 'headline'), mode: en(FIT_MODES, 'Mode', 'Each line as large as fits (lines), the ink filling the box (fill), or one size for all lines (block).'),
+    cap: int(40, 1200, 'Largest', 'The largest a line may be, in pixels (lines and fill).'), floor: int(24, 300, 'Smallest', 'Below this the image is refused, in pixels (lines and fill).'),
     maxLines: int(1, 8, 'Most lines', 'The most lines it may take (up to 5 in lines mode, 6 in block mode, 8 in fill mode).', 5), gapEm: num(0, 0.6, 'Line gap', 'Space between lines in em (fill).', { def: 0.24 }),
     lead: num(0.78, 1.2, 'Line height', 'A multiple of the size; leave out for the look\'s headline line height (lines mode).'),
     valign: en(VALIGNS, 'Vertical', 'Where the lines sit in the box.', 'top'), emphasis: en(EMPHASES, 'Emphasis', 'How the *emphasised phrase* is set.', 'none'), emphasisOwnLine: bool('Emphasis on its own line', 'Sets the emphasised phrase on its own line.', false),
@@ -21,8 +21,8 @@ export const SPEC = {
 };
 
 export function render(c, p, env) {
-  const { emphasis } = p, bar = ['bar', 'tilt-bar', 'own-line-bar'].includes(emphasis), role = p.field === 'tag' || p.field === 'big' ? 'stat' : 'headline';
-  const html = p.field === 'big' || p.field === 'tag' ? c.text(p.field) : c.fmt(p.field);
+  const { emphasis } = p, bar = ['bar', 'tilt-bar', 'own-line-bar'].includes(emphasis), role = p.field === 'tag' || p.field === 'big' || p.field === 'unit' ? 'stat' : 'headline';
+  const html = p.field === 'big' || p.field === 'tag' || p.field === 'unit' ? c.text(p.field) : c.fmt(p.field);
   const base = { ...env.box, colour: env.ink, align: p.align === 'left' ? undefined : p.align, role, emph: emphasis === 'accent' || emphasis === 'italic' ? emphasis : undefined };
   if (p.mode === 'lines') {
     const auto = env.box.flow && p.grow;
@@ -34,7 +34,7 @@ export function render(c, p, env) {
   }
   const trim = env.trim, lead = p.lead ?? env.look.type.display.lead;
   const room = env.box.h ?? env.innerH ?? Math.ceil(p.maxLines * (p.sizes?.[0] ?? p.cap) * lead);
-  if (p.mode === 'fill') return c.fitFill(clean({ ...base, w: env.box.w ?? env.innerW, h: room, cap: p.cap, floor: p.floor, gapEm: p.gapEm, max: Math.min(p.maxLines, 8), trim, lead: p.lead, html, anchor: p.valign === 'bottom' ? 'bottom' : undefined, grid: env.skipGrid ? 'skip' : undefined }));
-  return c.fitBlock(clean({ ...base, w: env.box.w ?? env.innerW, h: room, sizes: p.sizes, max: Math.min(p.maxLines, 6), trim, lead: p.lead, html, anchor: p.valign === 'bottom' ? 'bottom' : undefined, grid: env.skipGrid ? 'skip' : undefined }));
+  if (p.mode === 'fill') return c.fitFill(clean({ ...base, w: env.box.w ?? env.innerW, h: room, cap: p.cap, floor: p.floor, gapEm: p.gapEm, max: Math.min(p.maxLines, 8), trim, lead: p.lead, html, anchor: p.valign === 'bottom' ? 'bottom' : undefined, desc: env.metrics?.desc, grid: env.skipGrid ? 'skip' : undefined }));
+  return c.fitBlock(clean({ ...base, w: env.box.w ?? env.innerW, h: room, sizes: p.sizes, max: Math.min(p.maxLines, 6), trim, lead: p.lead, html, anchor: p.valign === 'bottom' ? 'bottom' : undefined, desc: env.metrics?.desc, grid: env.skipGrid ? 'skip' : undefined }));
 }
 const clean = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));

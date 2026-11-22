@@ -76,7 +76,7 @@ Write to the budgets:
 - `headline`: at most 70 characters but aim for 45 or fewer, sentence case, 2 to 12 words. Mark ONE emphasis phrase of 1 to 4 words with asterisks, for example `Save together, *see every step*`. Never the whole line, never two phrases.
 - `sub` adds a fact or the next step; it never repeats the headline.
 - `label`: 1 or 2 words, a category such as "Numbers" or "How it works".
-- `big` (kind `figure`): the number as people say it, with its sign or unit glyph (`74%`, `€14.8M`, `3,900+`), at most 8 characters, and `unit` says what it counts (`of members`, `groups`). The figure and its wording must be in a cited item.
+- `big` (kind `figure`): the bare number as people say it, with its sign or unit glyph only when it is part of the figure (`74%`, `€14.8M`, `3,900+`, `14 days`), at most 8 characters, no other words and no "about" or "over". `unit` is one or two plain words naming what is counted (`regulars`, `bags a week`), set on a bar under the figure: it is a label, not the start of a sentence, so never `of`, `about`, `roughly` or a trailing comma, and it is not the number again. `sub` is one natural sentence of its own that adds the fact behind the number (who, when, why); it must not begin by restating the figure (not "It is about 80 who...") and must not continue the unit as if the two were one sentence. The figure and its wording must be in a cited item.
 - `items` (kind `list`): 2 to 5 short points, parallel in grammar and similar in length, each within its budget.
 - `quote` (kind `quote`): words that are in a cited item verbatim (never invent a quotation); `by` says who, only as the item says.
 - `meta` (kind `event`): written like `12 Dec · 6pm · The roastery`, with date, time and place exactly as a cited item gives them.
@@ -89,7 +89,7 @@ Headlines and every text follow `brand.voice` and the hard rules above. When `br
 
 Examples of the shape (the words are made up; yours come from your own cited items):
 - `{"template":"post","kind":"statement","label":"Notes","headline":"A coffee worth *waiting for*","sub":"Small batches, roasted on Thursdays."}`
-- `{"template":"post","kind":"figure","label":"Numbers","big":"74%","unit":"of our beans","sub":"come straight from the farms we visit."}`
+- `{"template":"post","kind":"figure","label":"Numbers","big":"74%","unit":"direct trade","sub":"Most of our beans come straight from farms we have visited."}`
 - `{"template":"post","kind":"list","headline":"Three ways to *brew better*","items":["Weigh the beans","Water just off the boil","Grind fresh and coarse"]}`
 - `{"template":"post","kind":"event","headline":"Open *roastery* night","meta":"12 Dec · 6pm · The roastery"}`
 - `{"template":"post","kind":"offer","headline":"Your first bag, *half price*","tag":"-50%","sub":"Until Sunday."}`

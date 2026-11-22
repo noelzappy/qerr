@@ -122,3 +122,5 @@
 .k-look .k-tilt::before{transform:rotate(var(--k-hl-tilt,-1.5deg))}
 .k-v-fill{flex:1 1 0;min-width:0;text-wrap:balance}
 .k-look .k-dfont{font-stretch:var(--k-dstretch,100%)}
+/* a look's optical size for its display font (fonts.display.opsz): a fixed number written to --k-dvar by the engine */
+.k-look[style*="--k-dvar"] .k-display,.k-look[style*="--k-dvar"] .k-dfont{font-variation-settings:var(--k-dvar)}

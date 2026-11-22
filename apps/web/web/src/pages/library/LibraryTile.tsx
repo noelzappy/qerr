@@ -7,6 +7,7 @@ import { Check, ImageOff } from 'lucide-react';
 import { ToneBadge } from '@/components/kit';
 import { cn } from '@/lib/utils';
 import type { VaultItem } from '../vault-types';
+import { CHECKER } from './RoleSwitch';
 import { needsRights } from './util';
 
 export function LibraryTile({ item, to, back, selecting = false, selected = false, onToggle }: {
@@ -23,9 +24,9 @@ export function LibraryTile({ item, to, back, selecting = false, selected = fals
   const frame = 'group flex w-full min-w-0 flex-col gap-1.5 rounded-lg text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
   const inner = (
     <>
-      <span className={cn('relative block aspect-square w-full overflow-hidden rounded-lg bg-muted', selected && 'ring-[3px] ring-primary')}>
+      <span className={cn('relative block aspect-square w-full overflow-hidden rounded-lg', item.role === 'photo' ? 'bg-muted' : CHECKER, selected && 'ring-[3px] ring-primary')}>
         {item.fileUrl && !broken
-          ? <img src={item.fileUrl} alt={item.title} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-[1.02]" onError={() => setBroken(true)} />
+          ? <img src={item.fileUrl} alt={item.title} loading="lazy" className={cn('size-full transition-transform group-hover:scale-[1.02]', item.role === 'photo' ? 'object-cover' : 'object-contain p-2')} onError={() => setBroken(true)} />
           : (
             <span className="flex size-full flex-col items-center justify-center gap-1 p-2 text-center text-xs text-muted-foreground">
               <ImageOff className="size-6" aria-hidden="true" />

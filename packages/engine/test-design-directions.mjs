@@ -610,3 +610,16 @@ test('contrast.display: the palette keeps the brand field when light or ink read
   const pale = paletteBrand({ name: 'Pale', light: '#F5F0E6', ink: '#2A2418', primary: '#9C3B16', gold: '#EADFC0', deep: '#9A7B2E' });
   for (const need of [3, 4.5, 7]) assert.ok(contrast(palette(pale, need).accentType, palette(pale, need).paper) >= 4.5, `accent type at ${need}`);
 });
+
+test('edge check: text whose ink meets or crosses the edge of a block or rule is refused, text clear of it is not', () => {
+  const m = (ink, shape, extra = {}) => metrics({ inks: [{ role: 'headline', text: 'Word', ...ink }], shapes: [{ x0: 100, y0: 100, x1: 600, y1: 400, ...shape }], ...extra });
+  const edge = (p) => p.filter((x) => x.kind === 'edge');
+  assert.equal(edge(findPostProblems(m({ x0: 120, y0: 395, x1: 300, y1: 460 }))).length, 1, 'ink crossing the foot of a block');
+  assert.equal(edge(findPostProblems(m({ x0: 120, y0: 405, x1: 300, y1: 460 }))).length, 1, 'ink 5 px under a block');
+  assert.equal(edge(findPostProblems(m({ x0: 120, y0: 420, x1: 300, y1: 480 }))).length, 0, 'a gutter clear of it');
+  assert.equal(edge(findPostProblems(m({ x0: 120, y0: 310, x1: 300, y1: 395 }))).length, 1, 'text sitting on its block\'s foot');
+  assert.equal(edge(findPostProblems(m({ x0: 120, y0: 150, x1: 300, y1: 350 }))).length, 0, 'text inset in its block');
+  assert.equal(edge(findPostProblems(m({ x0: 90, y0: 150, x1: 300, y1: 350 }))).length, 0, 'a side bearing may stand a little out of a block');
+  assert.equal(edge(findPostProblems(m({ x0: 120, y0: 405, x1: 300, y1: 460, frame: '0' }))).length, 0, 'text and a shape in different frames are not compared');
+  assert.match(explainPostProblems(findPostProblems(m({ x0: 120, y0: 395, x1: 300, y1: 460 }))), /runs into the edge of a block or rule/);
+});

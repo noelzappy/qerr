@@ -13,6 +13,8 @@ import { errorMessage } from '../lib/errors';
 import { FilterBar } from './vault/FilterBar';
 import { VaultBulkBar } from './vault/VaultBulkBar';
 import { LibraryTile } from './library/LibraryTile';
+import { RoleSwitch } from './library/RoleSwitch';
+import { asRole, ROLE_EMPTY, ROLE_NOUN, type PictureRole } from './library/util';
 import type { VaultItem } from './vault-types';
 
 interface Page { items: VaultItem[]; total: number; page: number; pageSize: number }
@@ -39,6 +41,8 @@ export function Library() {
   const [params, setParams] = useSearchParams();
   const urlQ = params.get('q') ?? '';
   const [q, setQ] = useState(urlQ);
+  const [role, setRole] = useState<PictureRole>(asRole(params.get('role')));
+  const [counts, setCounts] = useState<Partial<Record<PictureRole, number>>>({});
   const [kind, setKind] = useState(params.get('kind') ?? '');
   const [status, setStatus] = useState(params.get('status') ?? '');
   const [tag, setTag] = useState(params.get('tag') ?? '');
@@ -54,12 +58,13 @@ export function Library() {
     if (redirecting) return;
     const next = new URLSearchParams();
     if (query) next.set('q', query);
-    if (kind) next.set('kind', kind);
+    if (role !== 'photo') next.set('role', role);
+    if (kind && role === 'photo') next.set('kind', kind);
     if (status) next.set('status', status);
     if (tagQuery) next.set('tag', tagQuery);
     written.current = query;
     if (next.toString() !== params.toString()) setParams(next, { replace: true });
-  }, [query, kind, status, tagQuery, params, setParams, redirecting]);
+  }, [query, role, kind, status, tagQuery, params, setParams, redirecting]);
 
   const [items, setItems] = useState<VaultItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -74,12 +79,13 @@ export function Library() {
 
   const fetchPage = useCallback((page: number) => {
     const p = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE), withFileUrls: 'true' });
-    if (kind) p.set('kind', kind); else p.set('images', 'true');
+    p.set('role', role);
+    if (kind && role === 'photo') p.set('kind', kind); else p.set('images', 'true');
     if (status) p.set('status', status);
     if (query) p.set('q', query);
     if (tagQuery) p.set('tag', tagQuery);
     return api.get<Page>(`/api/vault?${p.toString()}`);
-  }, [kind, status, query, tagQuery]);
+  }, [role, kind, status, query, tagQuery]);
 
   // Loads the first page again (filters changed, or something was changed in bulk).
   const reload = useCallback(async () => {
@@ -113,6 +119,9 @@ export function Library() {
     }
   }
 
+  const loadCounts = useCallback(() => { api.get<Record<PictureRole, number>>('/api/vault/counts').then(setCounts).catch(() => undefined); }, []);
+  useEffect(() => { loadCounts(); }, [loadCounts, total]);
+
   const filtered = !!(kind || status || q.trim() || tag.trim());
   const reset = () => { setQ(''); setKind(''); setStatus(''); setTag(''); };
 
@@ -120,14 +129,15 @@ export function Library() {
 
   const back = `${location.pathname}${location.search}`;
   const toggleSelecting = () => { if (selecting) selection.clear(); setSelecting(!selecting); };
-  const upload = <Button asChild className="max-sm:min-h-11"><Link to="/library/upload"><ImagePlus aria-hidden="true" />Upload pictures</Link></Button>;
+  const noun = ROLE_NOUN[role];
+  const upload = <Button asChild className="max-sm:min-h-11"><Link to={role === 'photo' ? '/library/upload' : `/library/upload?role=${role}`}><ImagePlus aria-hidden="true" />Upload {role === 'photo' ? 'pictures' : `${noun}s`}</Link></Button>;
   return (
     <>
       <PageHeader
         title="Pictures"
         actions={(
           <>
-            <Hint about="Pictures" className="max-sm:flex-none!">The photos and screens the AI may choose for posts. Describe each one: the AI reads the description when it chooses.</Hint>
+            <Hint about="Pictures" className="max-sm:flex-none!">Photos and screens are what the AI may choose for posts; describe each one. Cut-outs and graphics are for your designs.</Hint>
             {items.length > 0 && (
               <Button variant={selecting ? 'secondary' : 'outline'} className="max-sm:min-h-11" aria-pressed={selecting} onClick={toggleSelecting}>
                 <CheckSquare aria-hidden="true" />{selecting ? 'Done selecting' : 'Select'}
@@ -137,11 +147,12 @@ export function Library() {
           </>
         )}
       />
+      <div className="mb-3"><RoleSwitch value={role} onChange={(r) => { setRole(r); setKind(''); selection.clear(); }} counts={counts} /></div>
       <FilterBar
         ariaLabel="Filter your pictures"
         search={{ value: q, onChange: setQ, placeholder: 'Search pictures' }}
         selects={[
-          { key: 'kind', label: 'Kind', allLabel: 'All kinds', value: kind, onChange: setKind, options: KIND_OPTIONS },
+          ...(role === 'photo' ? [{ key: 'kind', label: 'Kind', allLabel: 'All kinds', value: kind, onChange: setKind, options: KIND_OPTIONS }] : []),
           { key: 'status', label: 'Status', allLabel: 'Any status', value: status, onChange: setStatus, options: STATUS_OPTIONS },
         ]}
         tag={{ value: tag, onChange: setTag }}
@@ -153,7 +164,7 @@ export function Library() {
         : error ? <ErrorBlock message={error} onRetry={() => void reload()} />
         : items.length === 0
           ? (
-            <EmptyBlock title={filtered ? 'No pictures match these filters.' : 'No pictures yet.'}
+            <EmptyBlock title={filtered ? 'No pictures match these filters.' : ROLE_EMPTY[role]}
               action={filtered ? <Button variant="outline" className="max-sm:min-h-11" onClick={reset}>Clear filters</Button> : upload} />
           )
           : (

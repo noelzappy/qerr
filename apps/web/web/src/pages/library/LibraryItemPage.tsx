@@ -14,19 +14,24 @@ import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsav
 import { errorMessage, fieldErrors, formProblem } from '@/lib/errors';
 import { formatDate, formatDateTime } from '@/lib/format';
 import type { VaultItem } from '../vault-types';
-import { ACCEPT, fileProblem, isHttpUrl, KIND_OPTIONS, LICENCE_OPTIONS, needsRights, type Licence, type PictureKind } from './util';
+import { cn } from '@/lib/utils';
+import { CHECKER } from './RoleSwitch';
+import { ACCEPT_BY_ROLE, fileProblem, isHttpUrl, KIND_OPTIONS, LICENCE_OPTIONS, needsRights, ROLE_ACCEPT_HINT, ROLE_NOUN, type Licence, type PictureKind } from './util';
 
-interface Form { kind: PictureKind; title: string; body: string; sourceUrl: string; licence: Licence; licenceNotes: string; peoplePresent: boolean; consentRecorded: boolean; tags: string[] }
+interface Form { kind: PictureKind; title: string; body: string; sourceUrl: string; licence: Licence; licenceNotes: string; peoplePresent: boolean; consentRecorded: boolean; tintable: boolean; tags: string[] }
 
 const toForm = (i: VaultItem): Form => ({
   kind: i.kind === 'screen' ? 'screen' : 'photo', title: i.title, body: i.body, sourceUrl: i.sourceUrl ?? '', licence: i.licence ?? '',
-  licenceNotes: i.licenceNotes ?? '', peoplePresent: i.peoplePresent, consentRecorded: i.consentRecorded, tags: i.tags,
+  licenceNotes: i.licenceNotes ?? '', peoplePresent: i.peoplePresent, consentRecorded: i.consentRecorded, tintable: i.tintable, tags: i.tags,
 });
 
 const payload = (f: Form) => ({
   kind: f.kind, title: f.title.trim(), body: f.body.trim(), sourceUrl: f.sourceUrl.trim() || null, licence: f.licence || null,
-  licenceNotes: f.licenceNotes.trim() || null, peoplePresent: f.peoplePresent, consentRecorded: f.peoplePresent && f.consentRecorded, tags: f.tags,
+  licenceNotes: f.licenceNotes.trim() || null, peoplePresent: f.peoplePresent, consentRecorded: f.peoplePresent && f.consentRecorded, tintable: f.tintable, tags: f.tags,
 });
+
+// A graphic or cut-out has no kind to choose, and only a graphic is ever recoloured.
+const payloadFor = (f: Form, role: string) => { const p: Record<string, unknown> = payload(f); if (role !== 'photo') delete p.kind; if (role !== 'graphic') delete p.tintable; return p; };
 
 function validate(f: Form): Record<string, string> {
   const e: Record<string, string> = {};
@@ -103,7 +108,7 @@ function PictureEditor({ item, backTo, onItem }: { item: VaultItem; backTo: stri
     if (Object.keys(problems).length) { setError('Check the highlighted fields and try again.'); return; }
     setBusy(true);
     try {
-      const saved = (await api.patch<{ item: VaultItem }>(`/api/vault/${item.id}`, payload(form))).item;
+      const saved = (await api.patch<{ item: VaultItem }>(`/api/vault/${item.id}`, payloadFor(form, item.role))).item;
       toast.success(item.status === 'confirmed' && saved.status === 'unconfirmed' ? 'Saved. The picture is unconfirmed again: a person needs to check it and confirm it' : 'Picture saved');
       onItem(saved);
     } catch (err) {
@@ -129,7 +134,7 @@ function PictureEditor({ item, backTo, onItem }: { item: VaultItem; backTo: stri
 
   async function replace(file: File) {
     setReplaceError('');
-    const why = fileProblem(file);
+    const why = fileProblem(file, item.role);
     if (why) { setReplaceError(why); return; }
     setReplacing(true);
     try {
@@ -147,6 +152,8 @@ function PictureEditor({ item, backTo, onItem }: { item: VaultItem; backTo: stri
   }
 
   const rights = needsRights(item);
+  const isPhoto = item.role === 'photo';
+  const noun = isPhoto ? 'picture' : ROLE_NOUN[item.role];
   const menu: MoreMenuItem[] = [
     item.status === 'confirmed'
       ? { label: 'Take confirmation off', onSelect: () => void act('unconfirm') }
@@ -157,7 +164,7 @@ function PictureEditor({ item, backTo, onItem }: { item: VaultItem; backTo: stri
   return (
     <div>
       <PageHeader
-        crumbs={[{ label: 'Pictures', to: backTo }, { label: item.title }]}
+        crumbs={[{ label: isPhoto ? 'Pictures' : item.role === 'cutout' ? 'Cut-outs' : 'Graphics', to: backTo }, { label: item.title }]}
         title={item.title}
         actions={(
           <div className="flex w-full items-center gap-2 sm:w-auto">
@@ -174,7 +181,7 @@ function PictureEditor({ item, backTo, onItem }: { item: VaultItem; backTo: stri
 
       <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,26rem)] md:items-start">
         <div className="flex flex-col gap-2 md:sticky md:top-2">
-          <div className="flex min-h-48 items-center justify-center overflow-hidden rounded-lg bg-muted">
+          <div className={cn('flex min-h-48 items-center justify-center overflow-hidden rounded-lg', isPhoto ? 'bg-muted' : CHECKER)}>
             {image.loading && !image.data ? <Skeleton className="h-72 w-full rounded-none" />
               : image.data && !broken ? <img src={image.data} alt={item.title} className="max-h-[70dvh] w-auto max-w-full object-contain" onError={() => setBroken(true)} />
               : (
@@ -188,9 +195,10 @@ function PictureEditor({ item, backTo, onItem }: { item: VaultItem; backTo: stri
             <Button variant="outline" className="max-sm:min-h-11" disabled={anyBusy} onClick={() => picker.current?.click()}>
               <Upload aria-hidden="true" />{item.hasFile ? 'Replace picture' : 'Upload picture'}
             </Button>
-            <Hint about="the picture file" id="library-file-hint">JPG, PNG, WebP or GIF, up to 15 MB.</Hint>
-            <input ref={picker} hidden type="file" accept={ACCEPT} aria-label="Choose a new picture" aria-describedby="library-file-hint" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void replace(f); }} />
+            <Hint about="the picture file" id="library-file-hint">{ROLE_ACCEPT_HINT[item.role].replace(' each', '')}</Hint>
+            <input ref={picker} hidden type="file" accept={ACCEPT_BY_ROLE[item.role]} aria-label="Choose a new picture" aria-describedby="library-file-hint" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void replace(f); }} />
             {replacing && <span className="text-[13px] text-muted-foreground" role="status">Uploading the new picture</span>}
+            {item.width && item.height && !replacing && <span className="text-[12.5px] text-muted-foreground">{item.width} x {item.height} px</span>}
             {item.fileName && !replacing && <span className="min-w-0 text-[12.5px] text-muted-foreground [overflow-wrap:anywhere]">{item.fileName}</span>}
           </div>
           {item.status === 'confirmed' && <p className="text-[12.5px] text-muted-foreground">Replacing the picture makes it unconfirmed again.</p>}
@@ -212,12 +220,13 @@ function PictureEditor({ item, backTo, onItem }: { item: VaultItem; backTo: stri
             <TextAreaField label="Description" rows={4} value={form.body} error={fields.body} disabled={anyBusy} onChange={(e) => set('body', e.target.value)}
               hint="What is in the picture, the mood, and what posts it suits. The AI reads this." />
             <div className="grid gap-3 sm:grid-cols-2">
-              <SelectField label="Kind" value={form.kind} options={KIND_OPTIONS} disabled={anyBusy} error={fields.kind} onValueChange={(v) => set('kind', v as PictureKind)} />
+              {isPhoto && <SelectField label="Kind" value={form.kind} options={KIND_OPTIONS} disabled={anyBusy} error={fields.kind} onValueChange={(v) => set('kind', v as PictureKind)} />}
               <SelectField label="Licence" value={form.licence} options={LICENCE_OPTIONS} disabled={anyBusy} error={fields.licence} onValueChange={(v) => set('licence', v as Licence)} />
             </div>
             <TagField tags={form.tags} onChange={(t) => set('tags', t)} error={fields.tags} />
-            <SwitchField label="People can be recognised" checked={form.peoplePresent} disabled={anyBusy} onCheckedChange={(v) => set('peoplePresent', v)} />
-            {form.peoplePresent && <SwitchField label="Their consent is recorded" hintMode="inline" hint="Only when you hold written or recorded permission to use their image." checked={form.consentRecorded} disabled={anyBusy} onCheckedChange={(v) => set('consentRecorded', v)} />}
+            {item.role === 'graphic' && <SwitchField label="Can be recoloured" hint="For single-colour artwork. A design may then paint it in one of your brand colours." checked={form.tintable} disabled={anyBusy} onCheckedChange={(v) => set('tintable', v)} />}
+            {item.role !== 'graphic' && <SwitchField label="People can be recognised" checked={form.peoplePresent} disabled={anyBusy} onCheckedChange={(v) => set('peoplePresent', v)} />}
+            {item.role !== 'graphic' && form.peoplePresent && <SwitchField label="Their consent is recorded" hintMode="inline" hint="Only when you hold written or recorded permission to use their image." checked={form.consentRecorded} disabled={anyBusy} onCheckedChange={(v) => set('consentRecorded', v)} />}
             <TextField label="Licence notes" optional value={form.licenceNotes} maxLength={2000} error={fields.licenceNotes} disabled={anyBusy} onChange={(e) => set('licenceNotes', e.target.value)} hint="The photographer or stock site to credit." />
             <TextField label="Source link" optional type="url" inputMode="url" placeholder="https://example.com/photo" value={form.sourceUrl} error={fields.sourceUrl} disabled={anyBusy} onChange={(e) => set('sourceUrl', e.target.value)} />
             {error && <Notice tone="bad">{error}</Notice>}
@@ -227,9 +236,9 @@ function PictureEditor({ item, backTo, onItem }: { item: VaultItem; backTo: stri
 
       <ConfirmAction
         open={deleting}
-        title="Delete this picture?"
-        message={<>"{item.title}" will be removed from your pictures and from your facts. Posts already using it keep working. You can undo this for a short while from the message that follows.</>}
-        confirmLabel="Delete picture"
+        title={`Delete this ${noun}?`}
+        message={isPhoto ? <>"{item.title}" will be removed from your pictures and from your facts. Posts already using it keep working. You can undo this for a short while from the message that follows.</> : <>"{item.title}" will be removed from your {item.role === 'cutout' ? 'cut-outs' : 'graphics'}. If a post or a look design still uses it, it cannot be deleted until you take it out. You can undo this for a short while from the message that follows.</>}
+        confirmLabel={`Delete ${noun}`}
         danger
         onCancel={() => setDeleting(false)}
         onConfirm={async () => {

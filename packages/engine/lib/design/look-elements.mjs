@@ -24,7 +24,8 @@
 import { POST_FIELDS, POST_ITEMS, POST_KINDS, POST_REQUIRED } from './post-spec.mjs';
 import {
   ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FONT_ROLES, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS,
-  METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS,
+  METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SOFT_SHADOWS, CORNERS, ROUND_SHAPES, RULE_STYLES, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS,
+  WORDS, BLENDS,
   angle, bool, d, en, field, int, length, list, num, obj, oneOf, role, text, tuple,
 } from './look-desc.mjs';
 import * as fittedStack from './directions/primitives/fitted-stack.mjs';
@@ -37,7 +38,7 @@ import * as metaRow from './directions/primitives/meta-row.mjs';
 import * as wordmarkPattern from './directions/primitives/wordmark-pattern.mjs';
 import * as scrim from './directions/primitives/scrim.mjs';
 import * as punchHole from './directions/primitives/punch-hole.mjs';
-export { ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS, METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS };
+export { ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS, METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SOFT_SHADOWS, CORNERS, ROUND_SHAPES, RULE_STYLES, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS, WORDS, BLENDS };
 export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 'mantra-rows': mantraRows, rows, seam, band, 'meta-row': metaRow, 'wordmark-pattern': wordmarkPattern, scrim, 'punch-hole': punchHole });
 
 export const LOOK_SCHEMA = 1;
@@ -46,7 +47,7 @@ export { POST_FIELDS, POST_ITEMS, POST_REQUIRED };
 
 // The palette roles of a post (the names kit.mjs COLOUR_NAMES resolves to --c-* custom properties of colour.mjs palette()). A copy, so that
 // this pure module loads without the builders; test-design-look.mjs holds it equal to the kit's list. A look names a role, never a hex.
-export const COLOUR_NAMES = Object.freeze(['paper', 'ink', 'white', 'dark', 'primary', 'field', 'on-field', 'gold', 'gold-deep', 'accent', 'accent-dark', 'on-accent', 'on-primary', 'body', 'soft', 'muted', 'body-dark', 'muted-dark', 'rule', 'rule-soft', 'rule-dark', 'rule-field', 'accent-type', 'body-field', 'field-deep', 'paper-warm', 'light-tint', 'field-text']);
+export const COLOUR_NAMES = Object.freeze(['paper', 'ink', 'white', 'dark', 'primary', 'field', 'on-field', 'gold', 'gold-deep', 'accent', 'accent-dark', 'on-accent', 'on-primary', 'body', 'soft', 'muted', 'body-dark', 'muted-dark', 'rule', 'rule-soft', 'rule-dark', 'rule-field', 'accent-type', 'body-field', 'field-deep', 'paper-warm', 'light-tint', 'field-text', 'tint-deep']);
 
 export const ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
 export const ORIGIN = /^copy:(shipped|own):[a-z0-9][a-z0-9-]{0,39}$/;
@@ -84,13 +85,14 @@ export const COMMON = Object.freeze({
   when: d({ kind: 'when' }, 'Show when', 'Shown only when a field is filled (present) or empty (absent); both must hold when both are given.'),
   fill: role('Fill', 'The colour it is filled with (a role of the brand\'s colours).'),
   ink: role('Ink', 'The colour of the type on it (a role of the brand\'s colours).'),
-  shadow: oneOf([{ is: 'string', desc: en(SHADOWS, 'Shadow', 'The look\'s own hard shadow.') }, {
+  shadow: oneOf([{ is: 'string', desc: en([...SHADOWS, ...SOFT_SHADOWS], 'Shadow', 'The look\'s own hard shadow, or a soft one: "soft" (a gentle shadow just below) or "lift" (a deeper, wider one).') }, {
     is: 'object', desc: obj({ x: int(-24, 24, 'Across', 'Pixels across.'), y: int(-24, 24, 'Down', 'Pixels down.'), colour: role('Colour', 'The shadow colour.', 'ink') }, 'Shadow', 'A hard shadow, no blur.', ['x', 'y']),
   }], 'Shadow', 'The look\'s hard shadow ("hard") or your own.'),
   ring: obj({ w: int(0, 16, 'Width', 'Pixels.'), colour: role('Colour', 'The ring colour.') }, 'Ring', 'A ring just outside it.', ['w', 'colour']),
   border: obj({ w: int(0, 16, 'Width', 'Pixels.'), colour: role('Colour', 'The border colour.', 'ink'), style: en(BORDER_STYLES, 'Style', 'Solid or dashed.', 'solid') }, 'Border', 'A border inside its edge.', ['w']),
   pad: oneOf([{ is: 'number', desc: int(0, 200, 'Padding', 'Pixels on every side.') }, { is: 'array', desc: tuple([int(0, 200, 'Top', ''), int(0, 200, 'Right', ''), int(0, 200, 'Bottom', ''), int(0, 200, 'Left', '')], 'Padding', 'Top, right, bottom, left in pixels.') }], 'Padding', 'The space inside it, in pixels (one number, or top, right, bottom, left).'),
-  radius: oneOf([{ is: 'number', desc: int(0, 200, 'Corner radius', 'Pixels.') }, { is: 'string', desc: en(['full'], 'Round', 'Fully round.') }], 'Corners', 'Corner radius in pixels, or "full" for round.'),
+  radius: oneOf([{ is: 'number', desc: int(0, 200, 'Corner radius', 'Pixels.') }, { is: 'string', desc: en(ROUND_SHAPES, 'Round', 'Fully round ("full": a circle on a square, a pill on a long box), an oval (an ellipse) or an arch (a rounded top, square foot).') }], 'Corners', 'Corner radius in pixels, or "full", "oval" or "arch".'),
+  corners: en(CORNERS, 'Which corners', 'Which corners the radius rounds: all, the top two, the bottom two, the left two or the right two.', 'all'),
   // only for an item that flows in a box (no place of its own)
   grow: int(0, 4, 'Share of the space', 'How much of the free height a flowing item takes (0 to 4).'),
   minH: int(0, 1350, 'Least height', 'The least height in pixels.'),
@@ -141,13 +143,14 @@ const ELEMENTS_BASE = {
       flow: en(['column', 'row'], 'Direction', 'Items flow down a column or across a row.', 'column'), justify: en(JUSTIFIES, 'Spread along', 'Where the items sit along the direction.', 'start'),
       align: en(FLOW_ALIGNS, 'Across', 'How the items line up across the direction (stretch fills it).', 'start'), gap: int(0, 120, 'Gap', 'Pixels between items.', 0),
     },
-    common: ['place', 'bleed', 'rot', 'origin', 'originPct', 'z', 'when', 'fill', 'ink', 'shadow', 'ring', 'border', 'pad', 'radius', 'grow', 'minH', 'w', 'h', 'before', 'nudgeX', 'alignSelf'],
+    common: ['place', 'bleed', 'rot', 'origin', 'originPct', 'z', 'when', 'fill', 'ink', 'shadow', 'ring', 'border', 'pad', 'radius', 'corners', 'grow', 'minH', 'w', 'h', 'before', 'nudgeX', 'alignSelf'],
   },
   text: {
     label: 'Text', group: 'Text', help: 'Words of the post (or the brand name, the folio, a list number) set in one of the look\'s type styles.',
     placement: 'required', flow: true, container: null, text: true,
     own: {
-      field: field(TEXT_FIELDS, 'Field', 'Which of the post\'s words it shows (or choose a source).'), source: en(SOURCES, 'Source', 'The brand name, the folio or the index instead of a field.'),
+      field: field(TEXT_FIELDS, 'Field', 'Which of the post\'s words it shows (or choose a source).'), source: en(SOURCES, 'Source', 'The brand name, the folio, the index or the brand\'s web address instead of a field.'),
+      word: en(WORDS, 'Word', 'One of a few fixed words (such as Myth or Fact) instead of a field.'),
       part: en(PARTS, 'Part', 'The whole text, the part before the emphasised phrase, the phrase, or what follows it.', 'all'),
       split: obj({ sep: en(SPLIT_SEPARATORS, 'Separator', 'What splits the text into parts.'), pick: oneOf([{ is: 'number', desc: int(0, 3, 'Part', 'Which part (0 is the first).') }, { is: 'string', desc: en(['rest'], 'Rest', 'Everything after the first part.') }], 'Pick', 'Which part to show, or "rest".') }, 'Split', 'Shows one part of a line like "12 Dec · 6pm · Place".', ['sep', 'pick']),
       format: en(FORMATS, 'Format', 'Sets a date as 12.12, a day, a month name, a two-digit number or a roman numeral.'),
@@ -167,10 +170,12 @@ const ELEMENTS_BASE = {
     label: 'Picture', group: 'Pictures', help: 'The post\'s picture, cropped to a shape and treated in the look\'s way.',
     placement: 'required', flow: false, container: null, text: false,
     own: {
-      shape: en(PHOTO_SHAPES, 'Shape', 'A rectangle, circle, arch, rounded rectangle, a card in a paper mount or a framed print.', 'rect'),
+      shape: en(PHOTO_SHAPES, 'Shape', 'A rectangle, circle, oval, pill, arch, rounded rectangle, a card in a paper mount or a framed print.', 'rect'),
       treat: list(en(PHOTO_TREATS, 'Treatment', 'Grey, multiply, grain or punch.'), 4, 'Treatment', 'How the picture is treated; leave out to use the look\'s.', { unique: true }),
       border: int(0, 60, 'Mount', 'Width of a paper mount in pixels (print and card).'), keyline: int(0, 4, 'Keyline', 'Pixels.'),
       tint: role('Tint', 'The colour of a multiply treatment.'),
+      blend: en(BLENDS, 'Melt into the page', 'none: a plain edge. ground: when the picture\'s top and side edges are one plain colour the page takes that colour and the picture runs into it (the type changes to suit); otherwise it fades. fade: the top edge fades into the page.', 'none'),
+      fade: int(0, 400, 'Fade length', 'Pixels over which the top edge of a melting picture fades into the page (160 when left out).'),
     },
     common: ['place', 'bleed', 'rot', 'origin', 'z', 'when', 'radius', 'shadow', 'ring'],
   },
@@ -187,17 +192,17 @@ const ELEMENTS_BASE = {
       textSize: int(14, 400, 'Text size', 'Pixels, when the size does not change with length.'),
       stretch: int(50, 150, 'Width of the letters', 'Font width in percent for the words, instead of the look\'s headline width (with fit; the display font must have it).'),
     },
-    common: ['place', 'rot', 'origin', 'originPct', 'z', 'when', 'fill', 'ink', 'shadow', 'ring', 'pad', 'before', 'nudgeX', 'alignSelf'],
+    common: ['place', 'rot', 'origin', 'originPct', 'z', 'when', 'fill', 'ink', 'shadow', 'ring', 'pad', 'radius', 'before', 'nudgeX', 'alignSelf'],
   },
   rule: {
     label: 'Rule', group: 'Shapes', help: 'A line.', placement: 'required', flow: true, container: null, text: false,
-    own: { weight: oneOf([{ is: 'string', desc: en(RULE_WEIGHTS, 'Weight', 'Hair or heavy, as the look sets them.') }, { is: 'number', desc: int(1, 16, 'Weight', 'Pixels.') }], 'Weight', 'Hair, heavy or a number of pixels.', 'hair'), vertical: bool('Vertical', 'Runs up and down.', false), colour: role('Colour', 'The line colour.', 'rule') },
+    own: { weight: oneOf([{ is: 'string', desc: en(RULE_WEIGHTS, 'Weight', 'Hair or heavy, as the look sets them.') }, { is: 'number', desc: int(1, 16, 'Weight', 'Pixels.') }], 'Weight', 'Hair, heavy or a number of pixels.', 'hair'), vertical: bool('Vertical', 'Runs up and down.', false), colour: role('Colour', 'The line colour.', 'rule'), style: en(RULE_STYLES, 'Style', 'A solid line or a row of round dots (the weight is the dot size).', 'solid') },
     common: ['place', 'bleed', 'z', 'when', 'w', 'h', 'before'],
   },
   block: {
     label: 'Colour block', group: 'Shapes', help: 'A solid block of colour (a bar, a square, a dot).', placement: 'required', flow: true, container: null, text: false,
     own: { colour: role('Colour', 'The block colour.', 'accent') },
-    common: ['place', 'bleed', 'rot', 'skew', 'origin', 'z', 'when', 'radius', 'shadow', 'w', 'h', 'before'],
+    common: ['place', 'bleed', 'rot', 'skew', 'origin', 'z', 'when', 'radius', 'corners', 'shadow', 'w', 'h', 'before'],
   },
   frame: {
     label: 'Frame', group: 'Shapes', help: 'A solid border round the whole page, as thick as the look\'s frame.', placement: 'none', flow: false, container: null, text: false,
@@ -237,7 +242,7 @@ const FONT_PROPS = {
   library: obj({
     source: en(['library'], 'Source', 'A font of the engine\'s library.'), family: text(40, 'Family', 'A family of the font library.'),
     weights: list(int(100, 900, 'Weight', 'Font weight.'), 4, 'Weights', 'The weights used (up to four, within what the family has).', { min: 1, unique: true }),
-    stretch: num(50, 150, 'Width', 'Font width in percent, for families that have it.', { int: true }), italic: bool('Italic', 'Also embeds the italic.', false),
+    stretch: num(50, 150, 'Width', 'Font width in percent, for families that have it.', { int: true }), opsz: num(6, 144, 'Optical size', 'For families with an optical size axis (Fraunces): a lower number draws sturdier, softer letters with less contrast between thick and thin strokes; leave out to let the size choose.', { int: true }), italic: bool('Italic', 'Also embeds the italic.', false),
   }, 'Library font', 'A font from the library.', ['source', 'family', 'weights']),
   brand: obj({ source: en(['brand'], 'Source', 'The brand\'s own font.'), role: en(['display', 'label', 'sans', 'mono'], 'Role', 'Which of the brand\'s fonts.') }, 'Brand font', 'The font the brand brought for this role.', ['source', 'role']),
 };
@@ -273,7 +278,7 @@ export const SECTIONS = Object.freeze({
   }, 'Type', 'The look\'s type styles.', ['display', 'body', 'label']),
   colour: obj({
     logic: en(COLOUR_LOGICS, 'Colour logic', 'Tonal (paper and ink), one accent, or a colour field.'), field: en(['primary', 'dark'], 'Field', 'Which colour a field is.', 'primary'),
-    sticker: en(['accent', 'primary'], 'Stickers', 'Which colour stickers are.', 'accent'), accentAsType: en(['never', 'when-contrast'], 'Accent as type', 'Whether the accent may be type: never, or where it has enough contrast.', 'never'),
+    sticker: en(['accent', 'primary'], 'Stickers', 'Which colour stickers are.', 'accent'), accentAsType: en(['never', 'when-contrast', 'field'], 'Accent as type', 'Whether the accent may be type: never, where it has enough contrast, or field: the emphasised phrase takes the deep colour of the field.', 'never'),
     grounds: list(en(GROUNDS, 'Page colour', 'A page colour.'), 5, 'Page colours', 'The page colours compositions may use.', { min: 1, unique: true }),
   }, 'Colour', 'How the brand\'s colours are used.', ['logic', 'grounds']),
   devices: obj({
@@ -290,7 +295,7 @@ export const SECTIONS = Object.freeze({
     wordmark: obj({ opacity: num(0.02, 0.08, 'Strength', 'How strong the brand name pattern is.', { def: 0.05 }), sep: en(WORDMARK_SEPS, 'Separator', 'What stands between the repeats.', 'dash') }, 'Brand name pattern', 'How the pattern is set.'),
   }, 'Devices', 'Rules, frame, shadow, angles and the other devices.'),
   photo: obj({ treat: list(en(PHOTO_TREATS, 'Treatment', 'Grey, multiply, grain or punch.'), 4, 'Treatment', 'How pictures are treated.', { unique: true, def: [] }), tint: role('Tint', 'The colour of a multiply treatment.', 'primary') }, 'Pictures', 'How pictures are treated.'),
-  logo: obj({ default: en(['off', 'corner'], 'Logo', 'No logo, or the brand\'s logo in a corner.', 'off'), height: int(24, 80, 'Height', 'Pixels.', 44) }, 'Logo', 'The brand logo.'),
+  logo: obj({ default: en(['off', 'corner', 'top-left'], 'Logo', 'No logo, the brand\'s logo in the corner the brand chose, or always at the top left.', 'off'), height: int(24, 80, 'Height', 'Pixels.', 44) }, 'Logo', 'The brand logo.'),
   dials: obj({ tilt: num(0, 1.5, 'Tilt', 'Scales every angle (0 straight, 1 as set, 1.5 more).', { def: 1 }), density: num(-1, 1, 'Density', 'Tighter (-1) to looser (1) spacing.', { def: 0 }), weightShift: int(-100, 100, 'Weight shift', 'Lighter (-100) to heavier (100) type.', 0) }, 'Dials', 'Three dials that adjust the whole look.'),
 });
 export const SECTION_NAMES = Object.keys(SECTIONS);

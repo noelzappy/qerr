@@ -16,11 +16,13 @@ import { staleInfo } from '../services/vault-rules.js';
 import { describeError, logger } from '../log.js';
 import { privateKey } from '../storage/types.js';
 import { framingOfBytes, phoneFramedOf } from '../services/screen-framing.js';
+import { cutoutProblem, imageFacts } from '../services/image-header.js';
+import { graphicUsage } from '../services/graphics.js';
 import type { Prisma } from '@prisma/client';
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 // Set by the system or by the confirm routes, never by a request body.
-const SYSTEM_FIELDS = ['status', 'confirmed', 'confirmedById', 'confirmedAt', 'fileKey', 'fileName', 'contentType', 'size', 'createdById', 'deletedAt', 'id'];
+const SYSTEM_FIELDS = ['status', 'confirmed', 'confirmedById', 'confirmedAt', 'fileKey', 'fileName', 'contentType', 'size', 'createdById', 'deletedAt', 'id', 'width', 'height', 'brandId'];
 
 const date = z.union([z.iso.datetime({ offset: true }), z.iso.date()]).nullable();
 const httpUrl = z.string().trim().max(2000).refine((v) => /^https?:\/\//i.test(v) && URL.canParse(v), 'Enter a full address starting with http:// or https://');
@@ -40,8 +42,11 @@ const fields = {
   licenceNotes: z.string().max(2000).nullable(),
   peoplePresent: z.boolean(),
   consentRecorded: z.boolean(),
+  tintable: z.boolean(),
 };
-const createBody = z.object({ ...fields, body: fields.body.optional() }).partial().required({ kind: true, title: true }).strict();
+// The role is chosen when the item is made and does not change: a cut-out or graphic has a file checked for it.
+const PICTURE_ROLES = ['photo', 'cutout', 'graphic'] as const;
+const createBody = z.object({ ...fields, body: fields.body.optional(), role: z.enum(PICTURE_ROLES) }).partial().required({ kind: true, title: true }).strict();
 const updateBody = z.object(fields).partial().strict();
 
 const listQuery = pageQuery.extend({
@@ -52,6 +57,8 @@ const listQuery = pageQuery.extend({
   stale: z.enum(['true', 'false']).optional(),
   // Both picture kinds (photo and screen) at once, for the image library. An explicit kind still narrows it.
   images: z.enum(['true', 'false']).optional(),
+  // photo | cutout | graphic: which kind of picture (screens count as photos).
+  role: z.enum(PICTURE_ROLES).optional(),
   // Adds a short-lived signed address for each item's file, so a grid of pictures needs one request, not one per tile.
   withFileUrls: z.enum(['true', 'false']).optional(),
 });
@@ -88,6 +95,8 @@ function safeName(original: string, ext: string): string {
   return `${stem}.${ext}`;
 }
 
+const BRAND_ID = 'brand';
+
 export function vaultRoutes(deps: Deps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
   app.use('*', requireUser(deps), requireRole('admin', 'editor'));
@@ -120,6 +129,7 @@ export function vaultRoutes(deps: Deps): Hono<AppEnv> {
     const where: Prisma.VaultItemWhereInput = { deletedAt: null };
     if (q.kind) where.kind = q.kind;
     else if (q.images === 'true') where.kind = { in: ['photo', 'screen'] };
+    if (q.role) where.role = q.role;
     if (q.status) where.status = q.status;
     if (q.tag) where.tags = { has: q.tag };
     if (q.q) where.OR = [{ title: { contains: q.q, mode: 'insensitive' } }, { body: { contains: q.q, mode: 'insensitive' } }];
@@ -140,21 +150,46 @@ export function vaultRoutes(deps: Deps): Hono<AppEnv> {
     return c.json({ items: await listView(items, withUrls, now, days), total, page: q.page, pageSize: q.pageSize });
   });
 
+  // How many pictures of each role there are, for the labels of the switch on the Pictures page.
+  app.get('/counts', async (c) => {
+    const rows = await deps.prisma.vaultItem.groupBy({ by: ['role'], where: { deletedAt: null, kind: { in: ['photo', 'screen'] } }, _count: { _all: true } });
+    const out: Record<string, number> = { photo: 0, cutout: 0, graphic: 0 };
+    for (const r of rows) out[r.role] = r._count._all;
+    return c.json(out);
+  });
+
+  // The compact list the look editor uses to offer a brand's cut-outs and graphics. Only items with a file; a signed, short-lived
+  // address for the thumbnail (the file itself: there is no separate thumbnail yet).
+  app.get('/graphics', async (c) => {
+    const q = readQuery(c, z.object({ role: z.enum(['cutout', 'graphic']).optional() }));
+    const rows = await deps.prisma.vaultItem.findMany({
+      where: { deletedAt: null, kind: 'photo', brandId: BRAND_ID, fileKey: { not: null }, role: q.role ?? { in: ['cutout', 'graphic'] } },
+      orderBy: { title: 'asc' }, take: 500,
+    });
+    const items = await Promise.all(rows.map(async (i) => {
+      let thumbnailUrl: string | null = null;
+      try { thumbnailUrl = await deps.storage.presignGet(i.fileKey!, FILE_URL_TTL_SECONDS); } catch (err) { logger.warn('media.sign_failed', { itemId: i.id, error: describeError(err) }); }
+      return { id: i.id, name: i.title, role: i.role, tintable: i.tintable, w: i.width, h: i.height, status: i.status, thumbnailUrl };
+    }));
+    return c.json({ items });
+  });
+
   app.get('/:id', async (c) => c.json({ item: await view(await live(c.req.param('id'))) }));
 
   app.post('/', async (c) => {
     const actor = c.get('user');
     const b = await readVaultBody(c, createBody);
+    if (b.role && b.role !== 'photo' && b.kind !== 'photo') throw new HttpError(422, 'Only a picture item can be a cut-out or a graphic', { fields: ['role'] });
     const item = await deps.prisma.vaultItem.create({
       data: {
         kind: b.kind!, title: b.title!, body: b.body ?? '', sourceUrl: b.sourceUrl ?? null, sourceNotes: b.sourceNotes ?? null,
         recordedAt: toDate(b.recordedAt) ?? null, validFrom: toDate(b.validFrom) ?? null, validUntil: toDate(b.validUntil) ?? null,
-        tags: b.tags ?? [], licence: b.licence ?? null, licenceNotes: b.licenceNotes ?? null,
+        tags: b.tags ?? [], role: b.role ?? 'photo', tintable: b.role === 'graphic' ? (b.tintable ?? false) : false, licence: b.licence ?? null, licenceNotes: b.licenceNotes ?? null,
         peoplePresent: b.peoplePresent ?? false, consentRecorded: b.consentRecorded ?? false,
         status: 'unconfirmed', createdById: actor.id,
       },
     });
-    await audit(deps, actor, 'vault.create', 'vault_item', item.id, { kind: item.kind, title: item.title, source: 'person', status: 'unconfirmed' });
+    await audit(deps, actor, 'vault.create', 'vault_item', item.id, { kind: item.kind, role: item.role, title: item.title, source: 'person', status: 'unconfirmed' });
     return c.json({ item: await view(item) }, 201);
   });
 
@@ -162,6 +197,7 @@ export function vaultRoutes(deps: Deps): Hono<AppEnv> {
     const actor = c.get('user');
     const existing = await live(c.req.param('id'));
     const b = await readVaultBody(c, updateBody);
+    if (b.tintable !== undefined && existing.role !== 'graphic') throw new HttpError(422, 'Only a graphic can be marked as recolourable', { fields: ['tintable'] });
     const data: Record<string, unknown> = {};
     const changed: string[] = [];
     for (const [k, v] of Object.entries(b)) {
@@ -184,6 +220,11 @@ export function vaultRoutes(deps: Deps): Hono<AppEnv> {
   app.delete('/:id', async (c) => {
     const actor = c.get('user');
     const item = await live(c.req.param('id'));
+    // A cut-out or graphic that a post or a look still draws cannot be removed: the image would silently disappear from it.
+    if (item.role !== 'photo') {
+      const used = await graphicUsage(deps, item.id);
+      if (used.length) throw new HttpError(409, `"${item.title}" is still used by ${used.join(' and ')}. Take it out of ${used.length > 1 ? 'those' : 'that'} first, then delete it.`, { usedBy: used });
+    }
     await deps.prisma.vaultItem.update({ where: { id: item.id }, data: { deletedAt: deps.now() } });
     await revokeApprovalsFor(deps, actor, item.id, 'The vault item was deleted');
     await audit(deps, actor, 'vault.delete', 'vault_item', item.id, { kind: item.kind, title: item.title });
@@ -231,6 +272,11 @@ export function vaultRoutes(deps: Deps): Hono<AppEnv> {
     const bytes = Buffer.from(await file.arrayBuffer());
     const kind = sniffImage(bytes);
     if (!kind) throw new HttpError(415, 'Only JPG, PNG, WebP and GIF images are accepted');
+    const facts = imageFacts(bytes);
+    if (item.role === 'cutout' || item.role === 'graphic') {
+      const why = cutoutProblem(facts, item.role);
+      if (why) throw new HttpError(415, why);
+    }
     const sha = createHash('sha256').update(bytes).digest('hex');
     const name = safeName(file.name, kind.ext);
     // The same bytes under the same name keep the stored key (old-format keys included); anything else gets a fresh unguessable key.
@@ -241,7 +287,7 @@ export function vaultRoutes(deps: Deps): Hono<AppEnv> {
     const reset = item.status === 'confirmed' && key !== item.fileKey;
     const done = await deps.prisma.vaultItem.update({
       where: { id: item.id },
-      data: { fileKey: key, fileName: name, contentType: kind.type, size: bytes.length, phoneFramed: item.kind === 'screen' ? phoneFramedOf(await framingOfBytes(bytes)) : null, ...(reset ? { status: 'unconfirmed', confirmedById: null, confirmedAt: null } : {}) },
+      data: { fileKey: key, fileName: name, contentType: kind.type, size: bytes.length, width: facts?.width ?? null, height: facts?.height ?? null, phoneFramed: item.kind === 'screen' ? phoneFramedOf(await framingOfBytes(bytes)) : null, ...(reset ? { status: 'unconfirmed', confirmedById: null, confirmedAt: null } : {}) },
     });
     if (item.fileKey && item.fileKey !== key) {
       await deps.storage.deleteObject(item.fileKey).catch((e) => logger.warn('vault.old_file_not_deleted', { itemId: item.id, message: String((e as Error).message).slice(0, 200) }));
