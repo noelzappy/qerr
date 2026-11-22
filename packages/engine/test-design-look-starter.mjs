@@ -72,6 +72,14 @@ test('starterComposition hands out fresh copies, and null for an unknown kind', 
   for (const kind of KINDS) assert.deepEqual(validateLook({ ...look, compositions: [...look.compositions, starterComposition(kind)] }, 'starter'), [], kind);
 });
 
+test('designs of the shipped looks can be added to it: at least one of every kind', () => {
+  const look = starterLook();
+  for (const kind of KINDS) {
+    const fit = Object.values(shippedLooks()).flatMap((l) => l.compositions.filter((c) => c.kind === kind)).filter((c) => validateLook({ ...look, compositions: [...look.compositions, c] }, 'starter').length === 0);
+    assert.ok(fit.length >= 1, `a ${kind} design of a shipped look fits the starter`);
+  }
+});
+
 // Fictional copy (the demo brand). No real organisation, person, place or amount.
 const COPY = {
   sample: {

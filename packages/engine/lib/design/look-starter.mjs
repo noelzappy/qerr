@@ -85,6 +85,8 @@ const COMPOSITIONS = Object.freeze({
   },
 });
 
+// The settings are deliberately accommodating, so that designs added from other looks fit: the page colours most designs use (paper, dark,
+// tint, field and soft) and a six column grid without rows, like the shipped Clean look.
 const SETTINGS = Object.freeze({
   schema: 1,
   description: 'A plain start: the brand\'s own fonts and colours, the logo at the top left and one simple design for every kind of post, to build up from.',
@@ -98,7 +100,7 @@ const SETTINGS = Object.freeze({
     label: { size: 30, track: 0.01, weight: 600, upper: false, role: 'label' },
     numeral: { track: -0.04, figures: 'lining' },
   },
-  colour: { logic: 'tonal', field: 'primary', sticker: 'primary', accentAsType: 'field', grounds: ['paper', 'dark'] },
+  colour: { logic: 'tonal', field: 'primary', sticker: 'primary', accentAsType: 'field', grounds: ['paper', 'dark', 'tint', 'field', 'soft'] },
   devices: {
     rule: { hair: 1, heavy: 4 }, frame: { t: 0, pad: 0 }, highlight: { pad: [0, 0, 0, 0], tilt: 0 }, shadow: { x: 0, y: 0, colour: 'ink' },
     angles: { sticker: 0, bar: 0, block: 0, band: 0, card: 0, price: 0 }, folio: 'no', wordmark: { opacity: 0.03, sep: 'dot' },
