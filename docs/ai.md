@@ -471,9 +471,10 @@ the same version line. The pack's file is used when it exists, the library's oth
 
 ## Weak or unverified
 
-- Tool calling (`search_facts`, `search_web`) was run against a real Anthropic model once (a December 2026 draft for the Pennyhive test
-  brand, no search key, so `search_web` was not offered); OpenAI-compatible tool calling and `search_web` and `findOccasions` against a
-  real search provider were run only against fakes in the tests.
+- Tools were offered to a real Anthropic model (`claude-sonnet-5-5`) in two December 2026 drafts for the Pennyhive test brand (country
+  IE, no search key, so only `search_facts`): the requests with `tool_choice: any` were accepted, but the model answered straight away
+  and never called `search_facts`, so a real tool round trip has not been seen. With `draft-20` one post of five took an occasion
+  (Christmas Eve); with `draft-19` none did. OpenAI-compatible tool calling, `search_web` and `findOccasions` were run only against fakes.
 - Not run against real Brave, Tavily, Exa or any OpenAI-compatible server. Brave's `page_age`/`age` and Tavily's
   `include_published_date`, and Exa's `contents.text.maxCharacters`, were not confirmed in the docs read.
 - Page reads through the real transport were run once against `example.com` only; redirect handling and the pinned lookup are covered by tests with fake transports, not by a real redirecting site.
