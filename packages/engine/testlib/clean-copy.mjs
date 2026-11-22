@@ -33,3 +33,11 @@ export const MINIMAL = {
   'clean/event/0': { headline: 'Night', meta: '12 Dec' },
   'clean/offer/0': { headline: 'Half', tag: '-50%' },
 };
+
+// The sparklines the Number page draws under its figure when a post brings a chart (test-design-chart-render.mjs). Round, illustrative.
+export const CHARTS = {
+  'clean/figure/0': [
+    { kind: 'spark', series: [1200, 1650, 1500, 2100, 2600, 2450, 3100, 3900].map((value) => ({ value })) },
+    { highlight: 'min', series: [2.1, 2.4, 2.2, 3.9, 4.6, 5.2, 6.8, 7.1, 9.4, 11.2, 12.9, 14.8].map((value) => ({ value })) },
+  ],
+};

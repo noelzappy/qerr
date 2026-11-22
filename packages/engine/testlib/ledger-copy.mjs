@@ -49,3 +49,16 @@ export const MINIMAL = {
   'ledger/event/0': { headline: 'Night', meta: '12 Dec' },
   'ledger/offer/0': { headline: 'Half', tag: '€0' },
 };
+
+// The charts the Big number page draws when a post brings one (test-design-chart-render.mjs): bars, an area and a line of the months behind the
+// figure. Round, illustrative euros.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+const months = (vals) => vals.map((value, i) => ({ label: MONTHS[i], value }));
+export const CHARTS = {
+  'ledger/figure/0': [
+    { kind: 'bar', unit: 'currency', highlight: 'last', series: months([1450, 1600, 1720, 1980, 2150, 2400]) },
+    { kind: 'area', unit: 'currency', series: [{ label: 'Q1', value: 3100 }, { label: 'Q2', value: 6900 }, { label: 'Q3', value: 10200 }, { label: 'Q4', value: 14800 }] },
+    { kind: 'line', unit: 'currency', highlight: 'max', series: months([9800, 10450, 11200, 11900, 12600, 13300, 14050, 14800]) },
+    { unit: 'currency', series: months([800, 1200, 2400]) },
+  ],
+};

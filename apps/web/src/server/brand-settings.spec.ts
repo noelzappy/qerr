@@ -122,6 +122,20 @@ describe('expanding the settings', () => {
     expect(({} as Record<string, unknown>).x).toBeUndefined();
     expect(contrast('#FFFFFF', '#000000')).toBe(21);
   });
+
+  it('writes how the numbers of a chart are written, reads it back, and refuses a sign or a pair of marks the engine would refuse', async () => {
+    const { numbersProblems } = await import('@vesk/engine/design/chart' as string) as { numbersProblems(v: unknown): string[] };
+    expect(settingsFromBrand(baseBrand()).numbers).toEqual({ decimal: '.', group: ',', currency: '€', currencyAt: 'before', currencySpace: false, percentSpace: false });
+    const own = { decimal: ',' as const, group: ' ' as const, currency: 'kr', currencyAt: 'after' as const, currencySpace: true, percentSpace: true };
+    const b = expandBrand({ ...SETTINGS, numbers: own });
+    expect(b.numbers).toEqual(own);
+    expect(numbersProblems(b.numbers)).toEqual([]);
+    expect(settingsFromBrand(b).numbers).toEqual(own);
+    expect(expandBrand(SETTINGS).numbers).toBeUndefined();
+    for (const bad of [{ ...own, currency: '<b>' }, { ...own, currency: 'EUROS' }, { ...own, currency: '1€' }, { ...own, group: ',' as const, decimal: ',' as const }, { ...own, colour: 'red' }, { ...own, currencyAt: 'middle' }]) {
+      expect(brandSettingsSchema.safeParse({ ...SETTINGS_BEFORE, numbers: bad }).success, JSON.stringify(bad)).toBe(false);
+    }
+  });
 });
 
 describe('Settings, Brand', () => {

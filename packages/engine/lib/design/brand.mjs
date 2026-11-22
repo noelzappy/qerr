@@ -7,6 +7,7 @@ import { ROOT, brandFile, repoPath } from '../core.mjs';
 import { validateLayouts } from './layout.mjs';
 import { validateLooks } from './look.mjs';
 import { readBrandAsset, readBrandImage } from './assets.mjs';
+import { numbersProblems } from './chart.mjs';
 import {
   ACCENT_DEVICES, ACCENT_STYLES, ARTWORK_FITS, DECORATION_ON, DECORATIONS, FONT_ROLES, FOOTERS, GRADIENT_NAMES, GROUND_ALIASES, GROUND_NAMES, HEX, LOGO_PLACES,
   DIRECTIONS, PHOTO_TREATMENTS, SERIES_KEY, SHADOW_NAMES, STYLE_COLOURS, STYLE_DEFAULTS, SURFACES, TYPE_CASES, groundName, isDarkColour,
@@ -175,6 +176,8 @@ export function validateBrand(b) {
       if (!ok) errors.push('brand.json: money.foreign must be a pattern of up to 300 characters that matches other currencies');
     }
   }
+  // how the brand writes numbers in a chart (decimal mark, thousands, currency, percent): fixed lists and one short currency sign (chart.mjs)
+  errors.push(...numbersProblems(b.numbers));
   const hexes = (obj, where, keys) => { for (const k of keys) if (typeof obj?.[k] !== 'string' || !HEX.test(obj[k])) errors.push(`brand.json: ${where}.${k} must be a #rrggbb colour`); };
   const same = (obj, where, keys) => { const extra = Object.keys(obj ?? {}).filter((k) => !keys.includes(k)); if (extra.length) errors.push(`brand.json: ${where} has unknown entries (${extra.join(', ')})`); };
   errors.push(...groundsProblems(b.grounds));

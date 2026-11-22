@@ -440,7 +440,7 @@ test('draftBatch: a good post passes, the vault photo is resolved by id, the bat
   assert.deepEqual(p.warnings, []);
   assert.deepEqual(batch.defaultNetworks, ['instagram', 'linkedin', 'facebook', 'x']);
   assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
-  assert.equal(notes.promptVersion, 'draft-14');
+  assert.equal(notes.promptVersion, 'draft-15');
   assert.equal(notes.model, 'claude-sonnet-5-5');
   assert.equal(notes.seriesMix['the-numbers'], 1);
   assert.equal(notes.usage.costUsd > 0, true);
@@ -823,12 +823,12 @@ const draftIn = (root, ...answers) => {
 };
 const askedOf = (f, i = 0) => { const c = f.calls[i].body.messages[0].content; return JSON.parse(c.slice(c.indexOf('{'))); };
 
-test('direction brand: gets draft-14 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
+test('direction brand: gets draft-15 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
   await withDirection('editorial', async (root) => {
     const vault = [...VAULT, { id: 'scr-1', kind: 'screen', title: 'Passbook', body: 'The passbook.', status: 'confirmed', file: 'design/assets/screens/p.png', framing: 'phone' }];
     const { f, ai } = draftIn(root, { posts: [dirPost()] }, { posts: [] });
     const { batch, notes } = await ai.draftBatch(req({ vault }));
-    assert.equal(notes.promptVersion, 'draft-14');
+    assert.equal(notes.promptVersion, 'draft-15');
     assert.equal(f.calls[0].body.system, loadPrompt('draft', { direction: true }).text);
     assert.notEqual(f.calls[0].body.system, loadPrompt('draft').text);
     assert.match(f.calls[0].body.system, /never use the same kind three posts running/);
@@ -1026,10 +1026,10 @@ test('named series: numbers follow the date order with no gap, a wrong kind is r
   });
 });
 
-test('the prompts keep one file with a direction section: draft-14 and rewrite-5 differ by brand type only where they must', () => {
+test('the prompts keep one file with a direction section: draft-15 and rewrite-5 differ by brand type only where they must', () => {
   const plain = loadPrompt('draft'), dir = loadPrompt('draft', { direction: true });
-  assert.equal(plain.version, 'draft-14');
-  assert.equal(dir.version, 'draft-14');
+  assert.equal(plain.version, 'draft-15');
+  assert.equal(dir.version, 'draft-15');
   assert.match(plain.text, /the only templates you may use/);
   assert.match(plain.text, /Only confirmed, current items/);
   assert.match(dir.text, /Only confirmed, current items/);
@@ -1576,7 +1576,7 @@ test('a look with pills, icons, an info block, a button and round pictures: the 
     const f = fakeFetch(anthropicOk({ posts: [offerPost()] }), anthropicOk({ posts: [] }));
     const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
     const { batch, notes } = await ai.draftBatch(req());
-    assert.equal(notes.promptVersion, 'draft-14');
+    assert.equal(notes.promptVersion, 'draft-15');
     assert.match(f.calls[0].body.system, /\[\[words\]\]` sets one or two runs of 1 to 3 words in a pill/);
     const k = askedOf(f).design.kinds;
     assert.match(k.offer.fields.headline.pills, /\[\[words\]\]/);
@@ -1612,6 +1612,64 @@ test('a look with pills and round pictures: marks where no design draws them, wr
       const checks = {
         a: /no statement design of this look draws pills/, b: /draws 2 to 3/, c: /key must be one of/, d: /image text \(info 1\) has numbers? not found in its sources: .*99/,
         e: /holds 5 words/, f: /is not one of the icons/, g: /cta is 30 characters/, h: /is not a vault photo/,
+      };
+      const failed = Object.entries(checks).filter(([id, re]) => !re.test(by[id] ?? ''));
+      if (failed.length) console.log(failed.map(([id]) => `${id}: ${by[id]}`).join('\n'));
+      return !failed.length;
+    });
+  });
+});
+
+// ---------- a chart (the ledger look's Big number page draws bars, an area or a line of the months behind its figure) ----------
+const withLedger = (fn) => withBrand((b) => { b.looks = [{ ...structuredClone(shippedLooks().ledger), origin: 'copy:shipped:ledger' }]; b.style = { ...(b.style ?? {}), direction: 'ledger' }; b.numbers = { currency: '€' }; }, fn);
+const POTS = { id: 'fig-pots', kind: 'figure', title: 'Group pots', body: 'The average group pot was €1,450 in January, €1,600 in February, €1,720 in March and €2,400 in June (illustrative figures).', status: 'confirmed', recordedAt: '2026-11-01' };
+const chartPost = (over = {}, design = {}) => good({
+  id: '01-pots', title: 'Pots', caption: 'The average group pot grew from €1,450 in January to €2,400 in June. (Illustrative figures.)\n\n#AcmeSavings #Savings #the region', imageReason: undefined,
+  design: { template: 'post', kind: 'figure', variant: 0, big: '€2,400', unit: 'average pot', sub: 'Illustrative figures.', chart: { kind: 'bar', unit: 'currency', highlight: 'last', series: [{ label: 'Jan', value: 1450 }, { label: 'Feb', value: 1600 }, { label: 'Mar', value: 1720 }, { label: 'Jun', value: 2400 }] }, ...design },
+  sources: ['fig-pots'], ...over,
+});
+
+test('a look that draws a chart: the model is told its kinds, counts and shape, and a chart from the cited numbers passes', async () => {
+  await withLedger(async () => {
+    const f = fakeFetch(anthropicOk({ posts: [chartPost()] }), anthropicOk({ posts: [] }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    const { batch, notes } = await ai.draftBatch(req({ vault: [...VAULT, POTS] }));
+    assert.equal(notes.promptVersion, 'draft-15');
+    assert.match(f.calls[0].body.system, /`chart` \(when the kind lists it, mostly for a `figure`\)/);
+    assert.match(f.calls[0].body.system, /When the cited items call their figures illustrative, say so on the image/);
+    const k = askedOf(f).design.kinds;
+    assert.deepEqual(k.figure.fields.chart.kinds, ['bar', 'area', 'line']);
+    assert.deepEqual([k.figure.fields.chart.min, k.figure.fields.chart.max, k.figure.fields.chart.chars], [3, 8, 14]);
+    assert.match(k.figure.fields.chart.shape, /"series": \[\{ "label"/);
+    assert.deepEqual(k.figure.variants[0].fields.chart, { required: false, kinds: ['bar', 'area', 'line'], min: 3, max: 8 });
+    assert.equal(k.figure.variants[1].fields.chart, undefined, 'the Balance card draws no chart');
+    assert.equal(k.quote?.fields.chart, undefined);
+    assert.deepEqual(batch.posts[0].design.chart.series.map((p) => p.value), [1450, 1600, 1720, 2400]);
+    assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
+  });
+});
+
+test('a chart: numbers not in the cited items, a kind or a count the design does not draw, unmarked illustrative data and bad labels are rejected', async () => {
+  await withLedger(async () => {
+    const series = (vals) => vals.map((value, i) => ({ label: ['Jan', 'Feb', 'Mar', 'Jun', 'Jul'][i], value }));
+    const posts = [
+      chartPost({ id: 'a' }, { chart: { kind: 'bar', unit: 'currency', series: series([1450, 1600, 1750, 2400]) } }),
+      chartPost({ id: 'b' }, { chart: { kind: 'donut', unit: 'percent', series: [{ value: 72 }] } }),
+      chartPost({ id: 'c' }, { chart: { kind: 'bar', unit: 'currency', series: series([1450, 2400]) } }),
+      chartPost({ id: 'd' }, { sub: 'The average pot.' }),
+      chartPost({ id: 'e', caption: 'The average group pot grew from €1,450 in January to €2,400 in June.\n\n#AcmeSavings #Savings #the region' }),
+      chartPost({ id: 'f' }, { chart: { kind: 'bar', series: [{ label: 'The whole of January', value: 1450 }, { value: 1600 }, { value: 2400 }] } }),
+      chartPost({ id: 'g' }, { chart: { kind: 'bar', series: [{ label: 'Jan', value: 1450 }, { label: 'Feb', value: 'lots' }, { label: 'Jun', value: 2400 }] } }),
+      chartPost({ id: 'h' }, { variant: 1, chart: { kind: 'bar', series: series([1450, 1600, 2400]) } }),
+    ];
+    const f = fakeFetch(anthropicOk({ posts }), anthropicOk({ posts: [] }));
+    const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
+    await assert.rejects(ai.draftBatch(req({ count: 8, vault: [...VAULT, POTS] })), (e) => {
+      const by = Object.fromEntries(e.notes.rejected.map((r) => [r.id, r.reasons.join(' ')]));
+      const checks = {
+        a: /the chart has a number not found in its sources: 1750/, b: /the Ledger look draws bar, area, line charts in a figure post, not this one/,
+        c: /draws charts of 3 to 8 points, not 2/, d: /call them illustrative; say so on the image/, e: /call them illustrative; say so in the caption too/,
+        f: /label is 20 characters; the most is 14/, g: /value must be a number/, h: /draws no chart in a figure post of this variant/,
       };
       const failed = Object.entries(checks).filter(([id, re]) => !re.test(by[id] ?? ''));
       if (failed.length) console.log(failed.map(([id]) => `${id}: ${by[id]}`).join('\n'));

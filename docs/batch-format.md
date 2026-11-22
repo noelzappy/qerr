@@ -158,6 +158,7 @@ A `post` design says what the post is and gives its words; the brand's look (or 
 | `label`, `headline`, `sub`, `big`, `unit`, `items`, `quote`, `by`, `meta`, `tag`, `cta` | The words, each with its own limit. A headline may mark `*emphasis*`, up to two `[[pill words]]` and up to two `{{icon}}` names. |
 | `info` | 1 to 4 rows `{ "key", "value" }`, the key from a fixed list of labels (`When`, `Where`, `Book on`, ...). |
 | `gallery` | 2 to 5 pictures `{ "image", "caption"? }` for a row of round pictures; each picture is checked like `image` (`vaultItemId` included). |
+| `chart` | A chart of the post's numbers, where the look draws one: `{ "kind"?, "series": [{ "label"?, "value" }], "unit"?, "highlight"?, "total"? }`, 2 to 12 points (labels of up to 14 characters, values numbers), or one point and its `total` for a donut or progress bar; `kind` bar, hbar, line, area, spark, donut or progress; `unit` number, currency or percent, written the brand's way (`numbers` in brand.json). See design.md. |
 | `image`, `vaultItemId`, `focal`, `zoom` | The post's picture, as for the other templates. |
 | `graphics` | The files of the brand graphics and cut-outs a look's pieces name, by vault id; see design.md. Leave it out: the web app fills it from the vault when the images are made, and refuses a design that sets it. |
 | `sizes`, `name`, `networkSizes` | As below; `sizes` is `["feed"]` only. |

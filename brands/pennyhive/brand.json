@@ -8,6 +8,7 @@
     "local": "Pennyhive works in euros (€) only",
     "foreign": "US\\$|\\$|£|\\b(?:dollars?|pounds? sterling|rupees?|yen|nairas?)\\b"
   },
+  "numbers": { "decimal": ".", "group": ",", "currency": "€", "currencyAt": "before" },
   "voice": "Plain, warm and exact. Short sentences. Speak to people saving together, not to investors. Never promise returns, never use hype or urgency, and always say when a figure is illustrative.",
   "language": "British English",
   "visualDirection": "Calm and orderly: deep green and white grounds, honey used sparingly for one accent, generous space, one idea per post.",

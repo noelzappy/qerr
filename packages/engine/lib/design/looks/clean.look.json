@@ -434,7 +434,7 @@
       "calm": {
         "maxShare": 0.7
       },
-      "describe": "One large figure in the brand's font, what it counts under it and a sub line with the fact behind it, in the middle of a plain page under the logo and the web address. Use for a price, a percentage or any single number (up to 8 characters).",
+      "describe": "One large figure in the brand's font, what it counts under it and a sub line with the fact behind it, in the middle of a plain page. With a chart of 4 to 12 points, a sparkline of how the figure got there runs under it. Use for a price, a percentage or any single number (up to 8 characters).",
       "ground": "paper",
       "fit": "margins",
       "fields": {
@@ -450,6 +450,10 @@
         },
         "sub": {
           "max": 125
+        },
+        "chart": {
+          "min": 4,
+          "max": 12
         }
       },
       "elements": [
@@ -515,6 +519,26 @@
               "when": {
                 "present": "unit"
               }
+            },
+            {
+              "type": "chart",
+              "kinds": [
+                "spark"
+              ],
+              "w": 600,
+              "h": 120,
+              "before": 8,
+              "when": {
+                "present": "chart"
+              },
+              "colours": {
+                "mark": "primary",
+                "highlight": "accent-type"
+              },
+              "axis": "none",
+              "marks": "end",
+              "stroke": 6,
+              "trim": true
             },
             {
               "type": "text",

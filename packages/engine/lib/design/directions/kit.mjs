@@ -9,6 +9,7 @@ import { paletteCss } from './colour.mjs';
 import { fontAlias } from '../font-library.mjs';
 import { ICONS } from '../icons.mjs';
 import { INFO_KEYS, INLINE, POST_GALLERY, POST_INFO, seenText, withoutMarks } from '../post-spec.mjs';
+import { CHART_KINDS, LINE_KINDS, chartLayout, chartProblems, formatAll, highlightIndex, totalOf } from '../chart.mjs';
 
 // ---- markup that is safe to place in the page ----
 export class Markup extends String {}
@@ -164,12 +165,42 @@ function inlineMarks(html, o) {
   out = out.replace(/\{\{([a-z][a-z-]{0,19})\}\}/g, (all, name) => (!Object.hasOwn(ICONS, name) ? all : !o.icons ? '' : badge ? `<span class="k-icb" style="background:${badge}">${iconSvg(name, { colour: o.icons.colour })}</span>` : iconSvg(name, { colour: o.icons.colour })));
   return out.replace(/ {2,}/g, ' ');
 }
+// ---- a post's chart (chart.mjs): the data checked again here, as numbers and escaped labels ----
+// The chart of a spec, or null: { kind (the post's, or undefined), values (finite numbers), labels (escaped strings, '' for none), unit, highlight,
+// total }. Anything chartProblems refuses is no chart at all (the post was checked before; this holds whatever reaches the page).
+export function chartOf(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) || chartProblems(raw).length) return null;
+  return {
+    kind: raw.kind, values: raw.series.map((p) => p.value), labels: raw.series.map((p) => (typeof p.label === 'string' ? esc(p.label) : '')),
+    unit: raw.unit ?? 'number', highlight: raw.highlight, total: totalOf(raw),
+  };
+}
+// The path of a rectangle with its corners rounded by r on the side named (top, bottom, left, right, all): numbers only.
+function roundRect(x, y, w, h, r, side) {
+  const q = Math.max(0, Math.min(r, w / 2, h / 2)), f = (v) => px(v);
+  if (!q) return `M${f(x)} ${f(y)}H${f(x + w)}V${f(y + h)}H${f(x)}Z`;
+  const tl = side === 'all' || side === 'top' || side === 'left', tr = side === 'all' || side === 'top' || side === 'right';
+  const br = side === 'all' || side === 'bottom' || side === 'right', bl = side === 'all' || side === 'bottom' || side === 'left';
+  const arc = (ex, ey) => `A${f(q)} ${f(q)} 0 0 1 ${f(ex)} ${f(ey)}`;
+  return `M${f(x)} ${f(y + (tl ? q : 0))}${tl ? arc(x + q, y) : ''}H${f(x + w - (tr ? q : 0))}${tr ? arc(x + w, y + q) : ''}V${f(y + h - (br ? q : 0))}${br ? arc(x + w - q, y + h) : ''}H${f(x + (bl ? q : 0))}${bl ? arc(x, y + h - q) : ''}Z`;
+}
+const circlePath = (cx, cy, r) => `M${px(cx - r)} ${px(cy)}a${px(r)} ${px(r)} 0 1 0 ${px(2 * r)} 0a${px(r)} ${px(r)} 0 1 0 ${px(-2 * r)} 0Z`;
+// an arc of a circle from the top, clockwise, over share (0 to 1) of the turn
+function arcPath(cx, cy, r, share) {
+  const s = Math.max(0, Math.min(1, share));
+  if (s >= 0.9999) return `M${px(cx)} ${px(cy - r)}a${px(r)} ${px(r)} 0 1 1 0 ${px(2 * r)}a${px(r)} ${px(r)} 0 1 1 0 ${px(-2 * r)}`;
+  const a = s * 2 * Math.PI, ex = cx + r * Math.sin(a), ey = cy - r * Math.cos(a);
+  return `M${px(cx)} ${px(cy - r)}A${px(r)} ${px(r)} 0 ${s > 0.5 ? 1 : 0} 1 ${px(ex)} ${px(ey)}`;
+}
+export const CHART_AXES = Object.freeze(['none', 'baseline', 'grid']);
+export const CHART_MARKS = Object.freeze(['none', 'end', 'minmax', 'all']);
+
 const colour_ = (name) => { if (!COLOUR_NAMES.includes(name)) throw new Error(`design kit: "${String(name).slice(0, 30)}" is not a palette colour`); return `var(--c-${name})`; };
 
 // the builders that refuse the old free-string options (extra, cls, attrs)
 const FREE = ['extra', 'cls', 'attrs'];
 const BUILDERS = ['type', 'label', 'body', 'display', 'fitLines', 'group', 'rule', 'block', 'flowBlock', 'folioMark', 'verticalLabel', 'sticker', 'glyph', 'wordmarkPattern', 'numeral', 'seal', 'frame', 'keyline',
-  'photo', 'print', 'box', 'band', 'run', 'shape', 'echoStack', 'fitBlock', 'fitFill', 'fitNumeral', 'scrim', 'gradient', 'overlay', 'graphic', 'tape', 'paper', 'badge'];
+  'photo', 'print', 'box', 'band', 'run', 'shape', 'echoStack', 'fitBlock', 'fitFill', 'fitNumeral', 'scrim', 'gradient', 'overlay', 'graphic', 'tape', 'paper', 'badge', 'chartSvg'];
 
 // ---- gradients: two or three palette colours, a whole-degree angle or one of nine points; written from these tables only ----
 const GRADIENT_AT = Object.freeze({ center: 'center', top: 'top', bottom: 'bottom', left: 'left', right: 'right', 'left top': 'left top', 'right top': 'right top', 'left bottom': 'left bottom', 'right bottom': 'right bottom' });
@@ -221,7 +252,7 @@ export function makeContext(args) {
       return { lefts: [...lefts, ...(tokens.extraLines ?? [])], rights, centre: W / 2 };
     },
     // ---- the words (the only way spec text reaches the page)
-    has: (f) => (f === 'items' || f === 'info' || f === 'gallery' ? Array.isArray(spec[f]) && spec[f].length > 0 : typeof spec[f] === 'string' && spec[f] !== ''),
+    has: (f) => (f === 'items' || f === 'info' || f === 'gallery' ? Array.isArray(spec[f]) && spec[f].length > 0 : f === 'chart' ? chartOf(spec.chart) !== null : typeof spec[f] === 'string' && spec[f] !== ''),
     chars: (f) => (typeof spec[f] === 'string' ? [...visible(spec[f])].length : 0),
     wordCount: (f) => (typeof spec[f] === 'string' ? visible(spec[f]).trim().split(/\s+/).filter(Boolean).length : 0),
     // plain escaped text (no emphasis, one line)
@@ -470,6 +501,75 @@ export function makeContext(args) {
     if (o.ring) shadows.push(`0 0 0 ${P(o.ring.w, 'ring')}px ${colour(o.ring.colour)}`);
     if (o.soft !== undefined) shadows.push(softCss(o.soft));
     return `<div class="k-flow ph k-photo k-round${treat.map((t) => ` k-${t}`).join('')}" data-el style="width:${d}px;height:${d}px;border-radius:50%;flex:none${shadows.length ? `;box-shadow:${shadows.join(',')}` : ''}"><img data-user data-name="${esc(p)}" data-fit="cover" src="${args.image(p)}" alt="" style="object-position:50% 50%">${treat.includes('multiply') ? `<i class="k-mul" style="background:${colour(o.tint ?? 'primary')}"></i>` : ''}${treat.includes('grain') ? '<i class="k-gr"></i>' : ''}</div>`;
+  };
+  // ---- a chart of the post's numbers (chart.mjs chartLayout), as inline SVG built from numbers only, its words as text in cells ----
+  // o: x, y, w, h (or flow: true with w and h), kind (one of CHART_KINDS), colours { mark, highlight, track, grid } (palette roles), axis
+  // (none | baseline | grid), values / labels (show the values / the points' labels), radius (bar corners), stroke (a line's width), thickness
+  // (a bar's, a ring's or a progress bar's), trim (a line's axis may start near its data, never a bar's), marks (a line's dots: none | end |
+  // minmax | all), labelSize / valueSize (px), labelFamily / valueFamily (font roles), labelWeight / valueWeight, labelInk / valueInk, upper,
+  // track (letter spacing, em), z, nudge, alignSelf. The number format is the brand's (brand.numbers, chart.mjs numberFormat).
+  // The marks are decoration (data-deco, no text); every word is a run with a role in a cell (data-cell) as large as chartLayout made room for,
+  // so the fit check refuses a label that runs out of it and the contrast check reads the pixels under each one, bars and lines included.
+  // The wrapper (data-chart) is measured against everything in it: a mark or a word outside the box is refused (checks.mjs, kind "chart").
+  c.chart = () => chartOf(spec.chart);
+  c.chartSvg = (o) => {
+    const data = chartOf(spec.chart);
+    if (!data) return '';
+    const kind = o.kind;
+    if (!CHART_KINDS.includes(kind)) throw new Error('design kit: chart kind');
+    if (o.axis !== undefined && !CHART_AXES.includes(o.axis)) throw new Error('design kit: chart axis');
+    if (o.marks !== undefined && !CHART_MARKS.includes(o.marks)) throw new Error('design kit: chart marks');
+    if (o.trim && !LINE_KINDS.includes(kind)) throw new Error('design kit: only a line chart may trim its axis');
+    const w = n(o.w, 'w'), h = n(o.h, 'h');
+    if (w < 40 || h < 24 || w > 1400 || h > 1400) throw new Error('design kit: a chart is 40 to 1400 px wide and 24 to 1400 px tall');
+    const bounded = (v, lo, hi, what, d) => { if (v === undefined) return d; n(v, what); if (v < lo || v > hi) throw new Error(`design kit: chart ${what} must be from ${lo} to ${hi}`); return v; };
+    const stroke = bounded(o.stroke, 1, 16, 'stroke', 4), radius = bounded(o.radius, 0, 40, 'radius', 0), thickness = o.thickness === undefined ? undefined : bounded(o.thickness, 2, 200, 'thickness');
+    const labelSize = bounded(o.labelSize, 12, 80, 'labelSize', 24), valueSize = bounded(o.valueSize, 12, 200, 'valueSize', 28);
+    const labelW = o.labelW === undefined ? undefined : bounded(o.labelW, 20, 700, 'labelW'), valueW = o.valueW === undefined ? undefined : bounded(o.valueW, 20, 700, 'valueW');
+    const share = kind === 'donut' || kind === 'progress';
+    const showLabels = !!o.labels && data.labels.some(Boolean) && kind !== 'spark' && kind !== 'donut', showValues = !!o.values && kind !== 'spark';
+    const lineH = (s) => Math.ceil(s * 1.25) + 2;
+    const hi = highlightIndex(data.values, data.highlight);
+    const L = chartLayout({ kind, values: data.values, total: data.total, w, h, trim: !!o.trim, stroke, thickness, radius, labelH: showLabels ? lineH(labelSize) : 0, valueH: showValues ? lineH(valueSize) : 0, marks: o.marks ?? 'none', highlight: hi, labelW, valueW });
+    const col = { mark: o.colours?.mark ?? 'primary', highlight: o.colours?.highlight ?? o.colours?.mark ?? 'accent', track: o.colours?.track ?? 'rule-soft', grid: o.colours?.grid ?? 'rule' };
+    for (const v of Object.values(col)) colour(v);
+    const paths = [];
+    const fillP = (d, c0, extra = '') => paths.push(`<path d="${d}" style="fill:${colour(c0)}${extra}"></path>`);
+    const strokeP = (d, c0, sw, cap = 'round', extra = '') => paths.push(`<path d="${d}" style="fill:none;stroke:${colour(c0)};stroke-width:${px(sw)}px;stroke-linecap:${cap};stroke-linejoin:round${extra}"></path>`);
+    const axis = o.axis ?? 'baseline';
+    if (axis === 'grid') for (const g of L.grid ?? []) strokeP(g.vertical ? `M${px(g.x)} ${px(g.y0)}V${px(g.y1)}` : `M${px(g.x0)} ${px(g.y)}H${px(g.x1)}`, col.grid, 1, 'butt', ';opacity:0.5');
+    if (L.bars) for (const b of L.bars) if (b.w >= 0.5 && b.h >= 0.5) fillP(roundRect(b.x, b.y, b.w, b.h, b.r, kind === 'hbar' ? (b.neg ? 'left' : 'right') : (b.neg ? 'bottom' : 'top')), b.i === hi ? col.highlight : col.mark);
+    if (L.track) { fillP(roundRect(L.track.x, L.track.y, L.track.w, L.track.h, L.track.r, 'all'), col.track); if (L.bar.w > 0.5) fillP(roundRect(L.bar.x, L.bar.y, L.bar.w, L.bar.h, L.bar.r, 'all'), col.highlight); }
+    if (L.ring) { const R = L.ring; strokeP(circlePath(R.cx, R.cy, R.r), col.track, R.t, 'butt'); if (R.share > 0) strokeP(arcPath(R.cx, R.cy, R.r, R.share), col.highlight, R.t, radius > 0 && R.share < 0.9999 ? 'round' : 'butt'); }
+    if (L.points) {
+      const line = L.points.map((p, i) => `${i ? 'L' : 'M'}${px(p.x)} ${px(p.y)}`).join('');
+      if (kind === 'area') fillP(`${line}L${px(L.points[L.points.length - 1].x)} ${px(L.floor)}L${px(L.points[0].x)} ${px(L.floor)}Z`, col.mark, ';opacity:0.18');
+      strokeP(line, col.mark, stroke);
+      const mk = o.marks ?? 'none', vs = data.values, mx = vs.indexOf(Math.max(...vs)), mn = vs.indexOf(Math.min(...vs));
+      const dotted = new Set(mk === 'all' ? vs.map((_, i) => i) : mk === 'end' ? [vs.length - 1] : mk === 'minmax' ? [mn, mx, vs.length - 1] : []);
+      // the highlighted point and the point whose value is written always carry a dot, in the highlight colour
+      if (hi >= 0) dotted.add(hi);
+      if (L.valueAt !== undefined) dotted.add(L.valueAt);
+      const lit = (i) => i === hi || i === L.valueAt || (hi < 0 && L.valueAt === undefined && i === vs.length - 1);
+      if (L.dot > 0) for (const i of [...dotted].sort((a, b) => a - b)) { const p = L.points[i]; fillP(circlePath(p.x, p.y, L.dot), lit(i) ? col.highlight : col.mark); }
+    }
+    if (axis !== 'none' && L.base && !share) strokeP(L.base.vertical ? `M${px(L.base.x)} ${px(L.base.y0)}V${px(L.base.y1)}` : `M${px(L.base.x0)} ${px(L.base.y)}H${px(L.base.x1)}`, col.grid, 2, 'butt');
+    const svg = `<svg class="abs k-chart-s" data-deco aria-hidden="true" width="${px(w)}" height="${px(h)}" viewBox="0 0 ${px(w)} ${px(h)}" style="left:0;top:0">${paths.join('')}</svg>`;
+    // the words: labels and values in cells, each the size chartLayout made room for
+    const fmt = formatAll([...data.values, ...(data.total !== null ? [data.total] : [])], { unit: data.unit, numbers: brand.numbers });
+    const fam = (f, d) => { const v = f ?? d; if (!FAMILIES.includes(v)) throw new Error('design kit: chart font'); return v; };
+    const words = (L.labels ?? []).map((l) => {
+      const isValue = l.what === 'value';
+      const text = isValue ? (kind === 'progress' ? `${fmt(data.values[0])} / ${fmt(data.total)}` : kind === 'donut' ? (data.unit === 'percent' && data.total === 100 ? fmt(data.values[0]) : `${Math.round((data.values[0] / data.total) * 100)}%`) : fmt(data.values[l.i])) : data.labels[l.i];
+      if (!text) return '';
+      const run = c.run({
+        html: new Markup(isValue ? esc(text) : text), role: isValue ? 'meta' : 'label', family: fam(isValue ? o.valueFamily : o.labelFamily, 'label'), size: isValue ? valueSize : labelSize, lead: 1.2,
+        weight: isValue ? o.valueWeight : o.labelWeight, track: isValue ? o.valueTrack : o.track, upper: !isValue && o.upper ? true : undefined, colour: isValue ? o.valueInk ?? 'ink' : o.labelInk ?? 'body', nowrap: true,
+      });
+      return boxEl({ x: l.x, y: l.y, w: l.w, h: l.h, cell: true, flex: 'row', align: 'center', justify: l.align === 'right' ? 'end' : l.align === 'center' ? 'center' : undefined, skipGrid: true }, run);
+    }).join('');
+    const css = o.flow ? [`width:${px(w)}px`, `height:${px(h)}px`, 'flex:none', flexCss({ alignSelf: o.alignSelf }), nudgeCss(o.nudge)].filter(Boolean).join(';') : [place({ x: o.x, y: o.y, right: o.right, bottom: o.bottom, w, h }), o.z !== undefined ? `z-index:${P(o.z, 'z')}` : ''].filter(Boolean).join(';');
+    return `<div class="${o.flow ? 'k-flow' : 'abs'} k-chart" data-el data-chart data-fill data-grid="skip" style="${css}">${svg}${words}</div>`;
   };
   // A framed print: the picture inset in a paper border with a keyline, and a caption strip beneath. The outer box is (x, y, w, h);
   // border px of paper; caption: Markup placed under the picture inside the border (kept to the label size).

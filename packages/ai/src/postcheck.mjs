@@ -209,6 +209,14 @@ function onePostKindProblems(design, ctx) {
       });
       continue;
     }
+    // a chart: a kind the design draws, within its point counts (the engine checks its shape, its numbers and its labels)
+    if (f === 'chart') {
+      if (!isObj(v) || !Array.isArray(v.series)) continue;
+      const own = variant?.fields.chart, kinds = own?.kinds ?? spec.kinds ?? [], lo = own?.min ?? spec.min, hi = own?.max ?? spec.max;
+      if (v.kind !== undefined && !kinds.includes(v.kind)) out.push(`the chart's kind is not one a ${d.kind} post${variant ? ` in the ${variant.name} variant` : ''} draws; use one of ${kinds.join(', ')}`);
+      if (v.series.length > 1 && (v.series.length < lo || v.series.length > hi)) out.push(`the chart has ${v.series.length} points; a ${d.kind} post${variant ? ` in the ${variant.name} variant` : ''} draws ${lo} to ${hi}`);
+      continue;
+    }
     if (typeof v !== 'string') continue;
     // [[pill]] words and {{icon}} marks only where the look draws them (the engine checks their form)
     if (f === 'headline') {
@@ -231,6 +239,9 @@ function onePostKindProblems(design, ctx) {
   return out;
 }
 const hasStar = (v) => typeof v === 'string' && v.includes('*');
+// The charts of a design (a post's, or each post page's of a carousel) that have a series to read.
+const chartsOf = (design) => (design.template === 'carousel' && Array.isArray(design.pages) ? design.pages : [design]).map((p) => p?.chart).filter((c) => isObj(c) && Array.isArray(c.series));
+const ILLUSTRATIVE = /\billustrative\b/i;
 
 // Never the same kind three posts running (in date order): ctx.kinds is the kinds of the posts already accepted, { date, time?, kind }.
 function kindRunProblems(design, date, ctx) {
@@ -359,6 +370,18 @@ export function checkPost(raw, ctx) {
     const bad = unsourcedNumbers(text, allowed);
     if (bad.length) reasons.push(`${where} has ${bad.length === 1 ? 'a number' : 'numbers'} not found in its sources: ${bad.join(', ')}`);
     for (const q of quotesIn(text)) if (!quoteIsSourced(q, sourceText)) reasons.push(`${where} contains a quotation not found in its sources: "${q.slice(0, 60)}"`);
+  }
+  // a chart's numbers are claims like the figures: every value (and a total) must be in a cited item; data a cited item calls illustrative
+  // is said to be illustrative on the image and in the caption, as figures are (for example "Illustrative figures." in the sub line)
+  const charts = chartsOf(design);
+  if (charts.length) {
+    const nums = charts.flatMap((c) => [...c.series.map((pt) => pt?.value), ...(c.total !== undefined ? [c.total] : [])]).filter((x) => typeof x === 'number' && Number.isFinite(x));
+    const missing = [...new Set(nums.map((x) => String(Number(Math.abs(x).toPrecision(12)))).filter((k) => !allowed.has(k)))];
+    if (missing.length) reasons.push(`the chart has ${missing.length === 1 ? 'a number' : 'numbers'} not found in its sources: ${missing.slice(0, 6).join(', ')}; draw only numbers a cited item gives`);
+    if (ILLUSTRATIVE.test(sourceText)) {
+      if (!imageFields.some((f) => ILLUSTRATIVE.test(String(f.text)))) reasons.push('the chart\'s numbers come from items that call them illustrative; say so on the image, as figures are (for example "Illustrative figures." in the sub line)');
+      if (![caption, ...Object.values(networkCaptions)].every((t) => ILLUSTRATIVE.test(String(t)))) reasons.push('the chart\'s numbers come from items that call them illustrative; say so in the caption too');
+    }
   }
   if (reasons.length) return { ok: false, reasons: reasons.map((x) => `${label}: ${x}`), repairs, post: null, imageSuggestion: raw.imageSuggestion };
 

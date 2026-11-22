@@ -5,12 +5,16 @@
 import { DIRECTIONS } from '@vesk/engine/design/tokens';
 import { INFO_KEYS, INLINE, POST_FIELDS, POST_ITEMS, POST_KINDS, POST_LISTS, POST_REQUIRED } from '@vesk/engine/design/post-spec';
 import { ICON_NAMES } from '@vesk/engine/design/icons';
+import { CHART_HIGHLIGHTS, CHART_UNITS, POST_CHART, SHARE_KINDS } from '@vesk/engine/design/chart';
 
 // What one entry of an info block or a row of round pictures looks like, for the model.
 export const LIST_SHAPES = {
   info: `[{ "key": one of ${INFO_KEYS.join(', ')} (each once), "value": one line }]`,
   gallery: '[{ "image": "vault:<id of a photo>", "caption": one line, optional (a name or a product) }]',
 };
+// What a chart looks like, for the model: its kind (one the design draws), its points, the unit its numbers are written in, the point to
+// highlight; a donut or progress bar is one point and its total.
+export const CHART_SHAPE = `{ "kind": one of the listed kinds, "series": [{ "label": one line of up to ${POST_CHART.label} characters, optional, "value": a number }], "unit": one of ${CHART_UNITS.join(', ')}, "highlight": the index of a point or one of ${CHART_HIGHLIGHTS.join(', ')}, optional; for ${SHARE_KINDS.join(' or ')}: one point and "total" (what the value is a share of; leave it out for a percentage of 100) }`;
 // Whether any composition of a kind in a look draws its headline's pills or icons (a headline text with `pills` / `icons`).
 function inlineOf(look, kind) {
   const out = { pills: false, icons: false };
@@ -75,6 +79,8 @@ function describeLook(look) {
       const have = vs.filter((v) => v.fields[f]);
       if (f === 'items') { fields[f] = { min: Math.min(...have.map((v) => v.fields.items.min ?? POST_ITEMS.min)), max: Math.max(...have.map((v) => v.fields.items.max ?? POST_ITEMS.max)), chars: POST_ITEMS.chars }; continue; }
       // an info block (labelled rows) and a row of round pictures: counted lists, each with its own shape (LIST_SHAPES)
+      // a chart: the kinds its designs draw, its point counts and the shape of its data
+      if (f === 'chart') { fields[f] = { kinds: [...new Set(have.flatMap((v) => v.fields.chart.kinds ?? []))], min: Math.min(...have.map((v) => v.fields.chart.min ?? POST_CHART.min)), max: Math.max(...have.map((v) => v.fields.chart.max ?? POST_CHART.max)), chars: POST_CHART.label, shape: CHART_SHAPE }; continue; }
       if (f === 'info' || f === 'gallery') { const L = POST_LISTS[f]; fields[f] = { min: Math.min(...have.map((v) => v.fields[f].min ?? L.min)), max: Math.max(...have.map((v) => v.fields[f].max ?? L.max)), chars: f === 'info' ? L.value : L.caption, shape: LIST_SHAPES[f] }; continue; }
       const hard = POST_FIELDS[f]?.max;
       if (!hard) continue;
@@ -85,7 +91,7 @@ function describeLook(look) {
     }
     const variants = vs.map((v) => ({
       variant: v.index, name: v.name, describe: v.describe,
-      fields: Object.fromEntries(Object.entries(v.fields).filter(([f]) => f !== 'focal' && f !== 'zoom').map(([f, o]) => [f, f === 'image' ? { required: Boolean(o.required) } : Object.hasOwn(POST_LISTS, f) ? { required: Boolean(o.required), ...(o.min !== undefined ? { min: o.min } : {}), ...(o.max !== undefined ? { max: o.max } : {}) } : { required: Boolean(o.required), ...(o.max !== undefined ? { max: Math.min(o.max, POST_FIELDS[f]?.max ?? o.max) } : {}) }])),
+      fields: Object.fromEntries(Object.entries(v.fields).filter(([f]) => f !== 'focal' && f !== 'zoom').map(([f, o]) => [f, f === 'image' ? { required: Boolean(o.required) } : f === 'chart' ? { required: Boolean(o.required), kinds: o.kinds, min: o.min, max: o.max } : Object.hasOwn(POST_LISTS, f) ? { required: Boolean(o.required), ...(o.min !== undefined ? { min: o.min } : {}), ...(o.max !== undefined ? { max: o.max } : {}) } : { required: Boolean(o.required), ...(o.max !== undefined ? { max: Math.min(o.max, POST_FIELDS[f]?.max ?? o.max) } : {}) }])),
       ...(v.accepts?.length ? { accepts: v.accepts } : {}),
     }));
     out[kind] = { required, fields, variants };

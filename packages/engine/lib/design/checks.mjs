@@ -219,6 +219,13 @@ export function findLayoutProblems(m, S) {
     if (EXEMPT_EDGE.has(a.role) || EXEMPT_EDGE.has(b.role)) continue;
     if (a.rects.some((p) => b.rects.some((q) => overlap(p, q)))) problems.push({ kind: 'overlap', role: a.role, other: b.role, text: a.text });
   }
+  // A chart stays inside its box: every mark (its stroke included) and every word of it (m.charts, runtime.mjs measure).
+  for (const ch of m.charts ?? []) {
+    if (!ch.ink) continue;
+    const out = { top: ch.box.y0 - ch.ink.y0, bottom: ch.ink.y1 - ch.box.y1, left: ch.box.x0 - ch.ink.x0, right: ch.ink.x1 - ch.box.x1 };
+    const [edge, px] = Object.entries(out).sort((a, b) => b[1] - a[1])[0];
+    if (px > 1) problems.push({ kind: 'chart', role: 'chart', text: 'chart', edge, px: Math.round(px) });
+  }
   // Drawn objects: inside the page (a phone may run off the bottom), above the footer, clear of the logo, not on each other.
   const objs = m.objs ?? [], who = m.flex ? 'headline' : 'object';
   objs.forEach((o, i) => {
@@ -284,6 +291,7 @@ export function explainProblems(problems, sizeName, lengths = {}) {
     }
     if (p.kind === 'wide') return `the ${w(p.role)} ("${p.text}") is ${p.px} px wider than its box`;
     if (p.kind === 'cell') return `the ${w(p.role)} ("${p.text}") runs ${p.px} px out of the ${p.edge} of its slot`;
+    if (p.kind === 'chart') return `the chart runs ${p.px} px out of the ${p.edge} of its box`;
     if (p.kind === 'panel') return `the ${w(p.role)} ("${p.text}") runs ${p.px} px into the panel`;
     if (p.kind === 'small') return `the ${w(p.role)} ("${p.text}") is ${p.size} px, under the ${p.min} px minimum for body text`;
     if (p.kind === 'objout') return 'a drawn object runs off the page';
@@ -380,6 +388,6 @@ export function explainFitLines(f, kind = 'headline') {
 export function explainPostFit(problems, { chars = 0, scale = 0.82, fraction = 0, kind = 'headline' } = {}) {
   const mine = problems.some((p) => ['headline', 'stat', 'accent'].includes(p.role) || ['headline', 'stat', 'accent'].includes(p.other));
   const about = mine && chars && fraction > 0 ? shorterLength(Math.max(6, Math.floor(chars * Math.min(0.95, fraction) * 0.95)), chars) : null;
-  const lines = [...new Set(problems.map((p) => `the ${p.role} ("${p.text}") ${p.kind === 'overlap' ? `overlaps the ${p.other}` : p.px ? `runs ${p.px} px out of its place` : 'does not fit'}`))];
+  const lines = [...new Set(problems.map((p) => (p.kind === 'chart' ? `the chart runs ${p.px} px out of the ${p.edge} of its box` : `the ${p.role} ("${p.text}") ${p.kind === 'overlap' ? `overlaps the ${p.other}` : p.px ? `runs ${p.px} px out of its place` : 'does not fit'}`)))];
   return `The text does not fit the post at the smallest size allowed (${Math.round(scale * 100)}% of the designed size): ${lines.join('; ')}.${about ? ` Shorten the ${kind} to about ${about} characters (it is ${chars}).` : ''}`;
 }

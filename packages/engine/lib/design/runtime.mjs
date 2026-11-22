@@ -462,7 +462,8 @@ window.__ds = {
         inks.push({ role, frame: tiltKey(el), text: L.s.trim().slice(0, 30), x0: L.x0, x1: L.x1, y0: top - mt.actualBoundingBoxAscent, y1: top + mt.actualBoundingBoxDescent });
       }
     }
-    const SKIP_SHAPE = '.k-frame,.k-keyline,.k-seal,.k-printmat,.k-echo';
+    // (a chart's box, .k-chart, holds its marks and words but has no colour of its own: its words are held to their cells instead)
+    const SKIP_SHAPE = '.k-frame,.k-keyline,.k-seal,.k-printmat,.k-echo,.k-chart';
     // a shape counts when it can be seen: a colour other than the page's, or a picture behind it (a paper box on a paper page is only a layout box)
     const pageBg = getComputedStyle(document.querySelector('.cv') || document.body).backgroundColor, pics = [...document.querySelectorAll('img')].map((i) => box(i.getBoundingClientRect()));
     const seen = (el, b) => { const bg = getComputedStyle(el).backgroundColor; if (/^rgba\(.*, 0\)$/.test(bg) || bg === 'transparent') return true; return bg !== pageBg || pics.some((p) => Math.min(p.x1, b.right) > Math.max(p.x0, b.left) && Math.min(p.y1, b.bottom) > Math.max(p.y0, b.top)); };
@@ -539,8 +540,17 @@ window.__ds = {
     const up = document.querySelector('.footer.up');
     const hd = up ? [...up.querySelectorAll('*')].map((e) => box(e.getBoundingClientRect())).filter((b) => b.x1 > b.x0 && b.y1 > b.y0).reduce((u, b) => ({ x0: Math.min(u.x0, b.x0), y0: Math.min(u.y0, b.y0), x1: Math.max(u.x1, b.x1), y1: Math.max(u.y1, b.y1) }), box(up.getBoundingClientRect())) : null;
     const imgs = [...document.querySelectorAll('img[data-user]')].map((i) => { const b = i.getBoundingClientRect(); return { name: i.dataset.name, nw: i.naturalWidth, nh: i.naturalHeight, rw: b.width, rh: b.height, fit: i.dataset.fit }; });
+    // A chart (kit c.chartSvg, [data-chart]) and everything drawn in it: each mark (its stroke included) and the ink of each of its words. The
+    // check (checks.mjs, kind "chart") holds them to the chart's box.
+    const charts = [...document.querySelectorAll('[data-chart]')].map((el) => {
+      const b = box(el.getBoundingClientRect()), u = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+      const add = (r, pad = 0) => { if (!(r.x1 - r.x0 > 0 || r.y1 - r.y0 > 0)) return; u.x0 = Math.min(u.x0, r.x0 - pad); u.y0 = Math.min(u.y0, r.y0 - pad); u.x1 = Math.max(u.x1, r.x1 + pad); u.y1 = Math.max(u.y1, r.y1 + pad); };
+      for (const p of el.querySelectorAll('path')) { const cs = getComputedStyle(p), sw = cs.stroke && cs.stroke !== 'none' ? parseFloat(cs.strokeWidth) || 0 : 0; add(box(p.getBoundingClientRect()), sw / 2); }
+      for (const t of el.querySelectorAll('[data-role]')) for (const r of rectsOf(t)) add(r);
+      return { box: b, ink: Number.isFinite(u.x0) ? u : null };
+    });
     return {
-      W: innerWidth, H: innerHeight, roles, avoid, objs, imgs, flex: document.body.dataset.flex === '1',
+      W: innerWidth, H: innerHeight, roles, avoid, objs, imgs, charts, flex: document.body.dataset.flex === '1',
       footer: ft ? box(ft.getBoundingClientRect()) : null, header: hd, panel: tb ? box(tb.getBoundingClientRect()) : null, logo: lg ? box(lg.getBoundingClientRect()) : null,
     };
   },

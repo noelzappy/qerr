@@ -152,15 +152,18 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
 
 An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, `src/server/routes/brand.ts`):
 
-- **Identity:** name, website, tagline, what the brand does, time zone, language, and an optional single currency.
+- **Identity:** name, website, tagline, what the brand does, time zone, language, an optional single currency, and how the numbers of a chart are written (Numbers in charts: the decimal mark, the thousands separator, the currency sign before or after, a space before it or before %; brand.json `numbers`).
 - **Design direction:** the old "Design direction" tab is gone: choosing how kinds of post are drawn is **Settings, Looks** (below). The
   brand setting `style.direction` stays in the settings (an older choice keeps working; an active look overrides it in the pack).
   `GET /api/posts/post-kinds` (admin and editor) tells the post editor the brand's direction, each kind's fields and required fields,
   the look (variant) names of the direction's compositions, and the field limits, all read from the engine's registry; with a look in
   force the editor also reads `GET /api/looks/brief` (see Settings, Looks). The limits also give the counted lists (`items`, `info`,
-  `gallery`: `{ min, max, chars }`), the fixed `infoKeys` and the `icons` a headline may name. The post editor then shows only what the
-  look's designs draw: a Pill button and an icon grid on the headline (`[[words]]`, `{{name}}`), the Button words (`cta`), Info rows (a
-  fixed label, added by tapping it, and a short line each) and Round pictures (2 to 5 from the Pictures page, each with an optional name). A gallery picture is
+  `gallery`: `{ min, max, chars }`), the fixed `infoKeys`, the `icons` a headline may name and the `chart` limits (`{ min, max, chars, kinds,
+  units }`). The post editor then shows only what the look's designs draw: a Pill button and an icon grid on the headline (`[[words]]`,
+  `{{name}}`), the Button words (`cta`), Info rows (a fixed label, added by tapping it, and a short line each), Round pictures (2 to 5 from the Pictures page, each
+  with an optional name) and a Chart: what it is drawn as (the kinds the chosen design draws, or the design's choice), whether its numbers
+  are a number, money or a percentage, which point stands out, a small table of points (a label and a number each; add, move, remove) and,
+  for a donut or progress bar, what the one value is out of (`editor/ChartEditor.tsx`, `editor/chart-model.ts`). A gallery picture is
   a design node like the post's own picture: the same path rule, vault copy and rights checks (`services/design-images.ts`). The
   `POST /api/settings/brand/direction-samples` route and its service were removed with the tab.
   With a look, the post editor's Design offers **Single image** or **Carousel**: a carousel is a cover, body pages and a closing page, each a
@@ -341,6 +344,10 @@ composition through `design-model.ts` (pure; `src/web-design-editor.spec.ts` loa
 draft as it is edited with the `validate` route, draws it with `preview-design` and falls back to a sketch drawn in the browser while that answers 501, saves
 with `PUT .../draft` and publishes with `POST .../publish`.
 A look in use is edited there like any other; the page says that only a published design reaches posts.
+A **Chart** piece (the post's `chart`) is added bound to the field, as bars in the brand colour with the highlighted point in the accent (on a coloured
+or dark ground it takes an ink that reads there). Its choices come first as chips (`design/parts.tsx`, `design/chart-choices.ts`): what it is drawn as
+(bars, bars across, line, area, sparkline, donut, progress bar), the axis (none, a baseline, a light grid), the corners, values and labels on or off and, for
+a line kind only, "Start the axis near the data"; the colours, the dots, the line width, the thickness and the type sizes are under Fine-tune.
 
 **Drawing a look** (`services/look-render.ts`, connected in `src/server/index.ts` with `connectLookRenderer`). Everything goes through the render queue
 (`services/render-queue.ts`: posts, then previews, then gate jobs, under the engine's single Chrome lock; a newer request with the same key, one per person

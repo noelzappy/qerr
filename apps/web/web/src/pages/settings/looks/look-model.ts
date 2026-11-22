@@ -281,8 +281,8 @@ export function designFields(def: Json, cat: LookCatalogue | null): FieldBudget[
     const f = isObj(fields[name]) ? fields[name] as Json : {};
     const info = cat?.fields[name];
     const required = f.required === true || !!cat?.kinds[String(def.kind)]?.required.includes(name);
-    const max = typeof f.max === 'number' ? f.max : info?.type === 'items' ? info.max : info?.max;
-    const min = typeof f.min === 'number' ? f.min : info?.type === 'items' ? info.min : undefined;
+    const max = typeof f.max === 'number' ? f.max : info?.type === 'items' || info?.type === 'chart' ? info.max : info?.max;
+    const min = typeof f.min === 'number' ? f.min : info?.type === 'items' || info?.type === 'chart' ? info.min : undefined;
     return { name, label: info?.label ?? name, required, ...(max !== undefined ? { max } : {}), ...(min !== undefined ? { min } : {}) };
   });
 }
@@ -290,6 +290,7 @@ export function designFields(def: Json, cat: LookCatalogue | null): FieldBudget[
 export function fieldLine(f: FieldBudget, cat: LookCatalogue | null): string {
   if (cat?.fields[f.name]?.type === 'image') return f.label;
   if (cat?.fields[f.name]?.type === 'items') return `${f.label} ${f.min ?? 2} to ${f.max ?? 5}`;
+  if (cat?.fields[f.name]?.type === 'chart') return `${f.label} of ${f.min ?? 2} to ${f.max ?? 12} points`;
   return f.max !== undefined ? `${f.label} up to ${f.max}` : f.label;
 }
 // "Headline up to 68 · Sub line up to 120 · Picture"

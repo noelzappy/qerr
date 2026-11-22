@@ -686,6 +686,8 @@ export function bindingsOf(el: Json, look: Json): Binding[] {
     case 'info-rows': return [{ field: 'info', sig: 'info|rows' }];
     case 'button': return [{ field: f ?? 'cta', sig: sig(f ?? 'cta', 'button') }];
     case 'photo-row': return [{ field: 'gallery', sig: 'gallery|row' }];
+    // the engine's primitives/chart.mjs bindings(): the post's chart
+    case 'chart': return [{ field: 'chart', sig: 'chart|chart' }];
     default: return [];
   }
 }
@@ -865,7 +867,7 @@ export function whyNotAdd(comp: Json, type: string, cat: LookCatalogue, parentPa
   }
   if (type === 'meta-row' && (!(gridOf(look)?.head ?? 0) || !(look.devices as Json | undefined)?.metaRow)) return 'This look has no top label row; set one up in the look\'s settings (Page and Devices)';
   const kind = String(comp.kind), fields = cat.kinds[kind]?.fields ?? [];
-  const needs: Record<string, string[]> = { photo: ['image'], 'taped-photo': ['image'], numeral: ['big', 'meta'], rows: ['items', 'meta'], 'mantra-rows': ['headline'], 'fitted-stack': ['headline', 'quote'], 'info-rows': ['info'], 'photo-row': ['gallery'], button: ['cta', 'tag', 'label'] };
+  const needs: Record<string, string[]> = { photo: ['image'], 'taped-photo': ['image'], numeral: ['big', 'meta'], rows: ['items', 'meta'], 'mantra-rows': ['headline'], 'fitted-stack': ['headline', 'quote'], 'info-rows': ['info'], 'photo-row': ['gallery'], button: ['cta', 'tag', 'label'], chart: ['chart'] };
   if (needs[type] && !needs[type]!.some((f) => fields.includes(f))) return `A ${kind} post has no ${needs[type]!.map((f) => fieldLabel(f, cat).toLowerCase()).join(' or ')} to show`;
   const shown = new Set(shownFields(comp, look));
   if (needs[type] && type !== 'rows' && !needs[type]!.some((f) => fields.includes(f) && !shown.has(f))) return `${needs[type]!.filter((f) => fields.includes(f)).map((f) => fieldLabel(f, cat)).join(' and ')} ${needs[type]!.filter((f) => fields.includes(f)).length > 1 ? 'are' : 'is'} shown already; a design shows each field once`;
@@ -968,11 +970,13 @@ export function newElement(comp: Json, type: string, look: Json, cat: LookCatalo
     case 'photo-row': el.size = 200; el.captions = true; size = { span: 99, rowSpan: 2, h: 260 }; break;
     // one of the engine's icons on a round badge in the brand colour (the pane changes the icon, the shape and the colours)
     case 'icon-badge': el.icon = 'check'; el.size = 64; el.shape = 'circle'; el.fill = 'field'; el.ink = 'on-field'; size = { span: 1, rowSpan: 1, w: 122, h: 122 }; break;
+    // bars of the post's numbers in the brand colour, the highlighted one in the accent, on a baseline (the pane changes the kind and the look)
+    case 'chart': el.kinds = ['bar']; el.colours = { mark: 'primary', highlight: 'accent' }; el.axis = 'baseline'; size = { span: 99, rowSpan: 3, h: 360 }; break;
     default: break;
   }
   // on a page lit by a gradient of dark colours (the ledger look), or with a dark colour laid over its picture (an overlay: the studio
   // photo pages), new words are white, so they read on every colour of it (the engine's look-static inkOnLayers)
-  if (['text', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'info-rows'].includes(type)) {
+  if (['text', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'info-rows', 'chart'].includes(type)) {
     const layers = (Array.isArray(comp.elements) ? comp.elements as Json[] : []);
     const stops = [...layers.filter((x) => x.type === 'gradient' && isObj(x.gradient)).flatMap((x) => ((x.gradient as Json).stops as string[] | undefined) ?? []),
       ...layers.filter((x) => x.type === 'overlay').map((x) => (typeof x.colour === 'string' ? x.colour : 'ink'))];
@@ -1000,6 +1004,11 @@ export function addElement(comp: Json, type: string, look: Json, cat: LookCatalo
     list.push(el);
     path = joinEl(parentPath, list.length - 1);
     for (const b of bindingsOf(el, look)) withField(c, b.field, cat);
+    // a chart's labels (body) and values (ink) must read on what it stands on: on a coloured or dark ground it takes one ink that does
+    if (type === 'chart' && el.ink === undefined) {
+      const reads = inkChoices(c, path, look, cat);
+      if (!reads.includes('body') || !reads.includes('ink')) { const ink = ['white', 'on-field', 'paper', 'body-dark', 'on-primary', 'ink'].find((r) => reads.includes(r)); if (ink) el.ink = ink; }
+    }
   });
   return { comp: next, path };
 }

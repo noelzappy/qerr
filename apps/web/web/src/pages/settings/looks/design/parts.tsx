@@ -1,10 +1,11 @@
-// Choices first for the pieces that hold words in pills, icons, info rows, buttons and round pictures: a row of chips each for the decision a
+// Choices first for the pieces that hold words in pills, icons, info rows, buttons, round pictures and charts: a row of chips each for the decision a
 // person makes (pills or not and their shape, icons on or off, the button's shape and icon, how the info rows sit, how big the pictures are),
 // with every exact value still behind the group's "Fine-tune". The chips write catalogue values only; the model says why one is refused.
 import { useState, type ReactNode } from 'react';
 import type { Json } from '../design-model';
 import type { Ctx } from '../design-controls';
 import { Chips, Label, ToggleChip } from './ui';
+import { CHART_ROUNDING, CHART_WORDS, LINE_KINDS, chartKindPatch } from './chart-choices';
 
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
 const PILL_WORDS: Record<string, string> = { pill: 'Round', soft: 'Soft', outline: 'Outline' };
@@ -13,7 +14,7 @@ const BUTTON_ICONS: Array<[string, string]> = [['none', 'None'], ['arrow-right',
 const ROW_SIZES: Array<[number, string]> = [[140, 'Small'], [200, 'Medium'], [280, 'Large']];
 
 // Whether this element has choices of its own here.
-export const hasPartChoices = (el: Json): boolean => (el.type === 'text' && el.field === 'headline' && (el.part === undefined || el.part === 'all')) || ['button', 'info-rows', 'photo-row'].includes(String(el.type));
+export const hasPartChoices = (el: Json): boolean => (el.type === 'text' && el.field === 'headline' && (el.part === undefined || el.part === 'all')) || ['button', 'info-rows', 'photo-row', 'chart'].includes(String(el.type));
 
 export function PartChoices({ ctx }: { ctx: Ctx }) {
   const el = ctx.el, type = String(el.type);
@@ -56,6 +57,27 @@ export function PartChoices({ ctx }: { ctx: Ctx }) {
         {row('Pictures', 'The most each circle is across; it is smaller when the row needs the room.', <Chips label="Picture size" value={named ? String(named[0]) : null} custom disabled={ctx.disabled} onChange={(v) => set('size', Number(v))}
           options={ROW_SIZES.map(([n, l]) => ({ value: String(n), label: l, title: `${n} px` }))} />)}
         <div className="flex flex-wrap gap-1.5"><ToggleChip on={el.captions === true} disabled={ctx.disabled} onClick={() => set('captions', el.captions === true ? undefined : true)}>Names under them</ToggleChip></div>
+      </>
+    );
+  } else if (type === 'chart') {
+    const kinds = Array.isArray(el.kinds) ? (el.kinds as string[]) : ['bar'], first = kinds[0] ?? 'bar', line = kinds.every((k) => LINE_KINDS.includes(k));
+    const radius = typeof el.radius === 'number' ? el.radius : 0, named = CHART_ROUNDING.find(([n]) => n === radius);
+    const setMany = (patch: Record<string, unknown>) => { for (const [k, v] of Object.entries(patch)) { const e = ctx.set(k, v); if (e) { setError(e); return; } } setError(''); };
+    body = (
+      <>
+        {row('Chart', kinds.length > 1 ? `This design draws ${kinds.map((k) => CHART_WORDS[k] ?? k).join(', ')}; a post may name one. Choosing here keeps one.` : 'What the post\'s numbers are drawn as. A post may bring 2 to 12 points, or one value out of a total for a donut or progress bar.',
+          <Chips label="Chart kind" value={kinds.length === 1 ? first : null} custom disabled={ctx.disabled} onChange={(v) => setMany(chartKindPatch(el, v))}
+            options={Object.entries(CHART_WORDS).map(([v, l]) => ({ value: v, label: l }))} />)}
+        {row('Axis', 'Nothing behind the marks, a baseline, or a light grid at round values.', <Chips label="Chart axis" value={String(el.axis ?? 'baseline')} disabled={ctx.disabled} onChange={(v) => set('axis', v)}
+          options={[{ value: 'none', label: 'None' }, { value: 'baseline', label: 'Baseline' }, { value: 'grid', label: 'Light grid' }]} />)}
+        {row('Corners', 'How round the ends of the bars are.', <Chips label="Chart corners" value={named ? String(named[0]) : null} custom disabled={ctx.disabled} onChange={(v) => set('radius', Number(v) || undefined)}
+          options={CHART_ROUNDING.map(([n, l]) => ({ value: String(n), label: l, title: `${n} px` }))} />)}
+        <div className="flex flex-wrap gap-1.5">
+          <ToggleChip on={el.values !== false} disabled={ctx.disabled} onClick={() => set('values', el.values === false ? undefined : false)}>Values</ToggleChip>
+          <ToggleChip on={el.labels !== false} disabled={ctx.disabled} onClick={() => set('labels', el.labels === false ? undefined : false)}>Labels</ToggleChip>
+          {line && <ToggleChip on={el.trim === true} disabled={ctx.disabled} onClick={() => set('trim', el.trim === true ? undefined : true)}>Start the axis near the data</ToggleChip>}
+        </div>
+        <p className="text-[12.5px] text-muted-foreground">Bars always start at zero. Colours, dots, the line width and the type sizes are under Fine-tune; the labels are checked for fit and contrast like any words.</p>
       </>
     );
   }

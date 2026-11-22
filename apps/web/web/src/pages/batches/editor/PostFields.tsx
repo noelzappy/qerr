@@ -14,12 +14,13 @@ import { ChoiceRow } from './ChoiceRow';
 import { ListEditor } from './ListEditor';
 import { InfoEditor } from './InfoEditor';
 import { GalleryEditor } from './GalleryEditor';
+import { ChartEditor } from './ChartEditor';
 import { PicturePicker } from './PicturePicker';
 import type { Json } from './types';
 
 const text = (v: unknown) => (typeof v === 'string' ? v : '');
 
-type TextLimit = Exclude<keyof PostLimits, 'items' | 'info' | 'gallery' | 'infoKeys' | 'icons'>;
+type TextLimit = Exclude<keyof PostLimits, 'items' | 'info' | 'gallery' | 'infoKeys' | 'icons' | 'chart'>;
 const LABELS: Record<string, string> = {
   label: 'Label', headline: 'Headline', sub: 'Sub line', big: 'Big figure', unit: 'Unit', quote: 'Quotation', by: 'Said by', meta: 'Details', tag: 'Sticker text', cta: 'Button',
 };
@@ -106,6 +107,8 @@ export function PostFields({ design, onChange, direction, kinds, limits, offered
         return <InfoEditor key={f} value={d.info} keys={lim.infoKeys} min={lim.info.min} max={lim.info.max} maxChars={lim.info.chars} disabled={disabled} onChange={(v) => set('info', v)} />;
       case 'gallery':
         return <GalleryEditor key={f} value={d.gallery} min={lim.gallery.min} max={lim.gallery.max} maxChars={lim.gallery.chars} disabled={disabled} onChange={(v) => set('gallery', v)} />;
+      case 'chart':
+        return <ChartEditor key={f} value={d.chart} limits={lim.chart} required={needs('chart')} disabled={disabled} onChange={(v) => set('chart', v)} />;
       case 'image':
         return (
           <div key={f} className="flex min-w-0 flex-col gap-3">

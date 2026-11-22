@@ -50,7 +50,10 @@ These apply to anyone who changes or runs this repository or a Vesk deployment.
     `packages/engine/design/assets/photos/CREDITS.md`); do not use tight portraits of identifiable people or imply that
     pictured people are customers. Brand names are written as the brand's spelling rules say; no emoji. Never weaken a
     design check (contrast, enlargement, text fit, pixel size) to make an image pass: change the words, the picture or the
-    crop. Look at every rendered image before you call it done. One Chrome at a time: do not run renders in parallel. A
+    crop. A chart (a post's `chart`, the look's `chart` element) is drawn only from the post's validated numbers; its labels and
+    values are text held to their cells and measured for contrast on the pixels behind them, every mark stays inside the chart's
+    box, and its scale starts at zero. Only a line, area or sparkline may start its axis near its data, and only when the look's
+    chart element sets `trim` (approved by the owner on 22 Nov 2026); a design that draws bars never trims. Look at every rendered image before you call it done. One Chrome at a time: do not run renders in parallel. A
     render replaces only the images a render made; never overwrite or drop files a person uploaded to a post by hand.
 11. **Spec text is untrusted data.** Texts for images may come from the AI, working from web research. All spec, batch
     and brand values reach the render page only through `esc()`/`fmt()` (text, attributes), `ctx.image()` (pictures:

@@ -124,6 +124,15 @@ export const brandSettingsSchema = z.object({
     local: line(200).pipe(z.string().min(1)),
     foreign: z.string().trim().max(300).refine(validPattern, 'This is not a valid pattern'),
   }).nullable().default(null),
+  // How numbers are written in charts (brand.json numbers; the engine's chart.mjs numbersProblems checks it again). null: 1,234.5 with no currency.
+  numbers: z.object({
+    decimal: z.enum(['.', ',']),
+    group: z.enum([',', '.', ' ', 'thin', 'none']),
+    currency: z.string().trim().max(4).regex(/^[\p{Sc}\p{L}]{0,4}$/u, 'One to four letters or currency signs, such as € or kr'),
+    currencyAt: z.enum(['before', 'after']),
+    currencySpace: z.boolean().default(false),
+    percentSpace: z.boolean().default(false),
+  }).strict().refine((n) => n.decimal !== n.group, { message: 'The decimal mark and the thousands separator must differ', path: ['group'] }).nullable().default(null),
   // The four colours every role starts from ("Start from four colours"); roles may then be set one by one.
   colours: z.object({ primary: hex, accent: hex, dark: hex, light: hex }).strict(),
   roles: rolesSchema,
@@ -204,6 +213,7 @@ export function expandBrand(s: BrandSettings, base: Json = baseBrand()): Json {
   Object.assign(b, { name: s.name, website: s.website, tagline: s.tagline, timezone: s.timezone, language: s.language });
   if (s.descriptor) b.descriptor = s.descriptor; else delete b.descriptor;
   if (s.money) b.money = s.money; else delete b.money;
+  if (s.numbers) b.numbers = s.numbers; else delete b.numbers;
   for (const [k, v] of [['voice', s.voice], ['visualDirection', s.visualDirection]] as const) { if (v) b[k] = v; else delete b[k]; }
   delete b.references;
   const limits = (isObj(base.contrast) ? base.contrast : {}) as Record<string, number>;
@@ -302,6 +312,7 @@ export function settingsFromBrand(b: Json): BrandSettings {
     timezone: typeof b.timezone === 'string' && validZone(b.timezone) ? b.timezone : 'UTC',
     language: typeof b.language === 'string' ? b.language : 'British English',
     money: isObj(b.money) ? b.money : null,
+    numbers: isObj(b.numbers) ? { decimal: '.', group: ',', currency: '', currencyAt: 'before', currencySpace: false, percentSpace: false, ...b.numbers } : null,
     colours: { primary: g(b.accents, 'primary', '#2F5BB7'), accent: g(b.accents, 'gold', '#F0805F'), dark: g(b.text, 'ink', '#14213D'), light: g(grounds, 'soft', '#F5F7FB') },
     headlineWeight: (HEADLINE_WEIGHTS as readonly number[]).reduce((best, w) => (Math.abs(w - weight) < Math.abs(best - weight) ? w : best), 400),
     corners: radius <= 4 ? 'square' : radius >= 16 ? 'round' : 'soft',
@@ -346,7 +357,7 @@ export const advancedSchema = z.object({
 // A whole brand.json (a brand pack's) split for the database: the settings the form can show, and the rest kept as the
 // Advanced fragment so the pack's exact colours, shadows, type and rules survive. Logo and font file paths are dropped.
 // The pack's style block becomes the form's style settings (so it can be edited there), not part of the fragment.
-const IDENTITY_KEYS = ['name', 'website', 'tagline', 'descriptor', 'timezone', 'language', 'money', 'series', 'voice', 'visualDirection', 'references', 'logos', 'style'];
+const IDENTITY_KEYS = ['name', 'website', 'tagline', 'descriptor', 'timezone', 'language', 'money', 'numbers', 'series', 'voice', 'visualDirection', 'references', 'logos', 'style'];
 export function splitPackBrand(b: Json): { settings: BrandSettings; advanced: Json } {
   const settings = settingsFromBrand(b);
   const advanced: Json = {};
