@@ -36,7 +36,8 @@ Under it are two libraries with no dependencies, which the app imports:
   design references. It uses any Anthropic or OpenAI-compatible model. See [docs/ai.md](docs/ai.md).
 
 The repository ships a fictional demo brand, Acme Savings (`brands/demo`), so a fresh install has a brand to show and
-render with until an admin sets the real one.
+render with until an admin sets the real one, and a second fictional finance brand for testing, Pennyhive
+(`brands/pennyhive`), chosen with `BRAND_DIR=brands/pennyhive`.
 
 Licence: MIT, see [LICENSE](LICENSE).
 
@@ -212,6 +213,16 @@ figures only. `brands/demo/make-assets.mjs` draws its logos, the map and three s
 helper; those files are committed, so the example batches render on a fresh install. Run
 `node brands/demo/make-assets.mjs` again only after changing a drawing (it needs Chrome).
 
+**The Pennyhive pack** (`brands/pennyhive`) is a second fictional brand, for testing with a finance brand: Pennyhive, a
+savings-club app (website `pennyhive.example`, time zone `Europe/Dublin`, money in euros). Deep green and teal grounds
+with a honey accent, Hanken Grotesk with JetBrains Mono, and `style.direction` set to `retail`, so every `post` kind
+draws. Its `vault.json` holds invented facts with round, illustrative figures; its `map.json` is an invented coastline.
+`brands/pennyhive/make-assets.mjs` draws its logos (`logos/*.svg` as the source and the `logos/*.png` the engine reads)
+and the map with the standard library only, no Chrome. It draws no pictures of its own: its example batch,
+`brands/pennyhive/batches/example-posts.json` (seven `post` designs, one per kind), uses the demo pictures above. Use it
+with `BRAND_DIR=brands/pennyhive`; `test-brand-pennyhive.mjs` keeps the pack and its batch valid. The demo stays the
+default and the pack every test and example uses.
+
 **Starting your own pack.**
 
 1. Copy the demo: `cp -r brands/demo brands/<your-brand>`, then delete `make-assets.mjs` from the copy (it writes the demo's
@@ -235,7 +246,7 @@ helper; those files are committed, so the example batches render on a fresh inst
 
 A pack can hold private facts (`vault.json`) and the brand's own artwork. Keep a real brand's pack in a private repository
 or fork, not in a public one; `npm run export-public` makes a public copy of the repository that leaves out every pack
-but the demo.
+but the two fictional ones, `brands/demo` and `brands/pennyhive` (`PUBLIC_PACKS` in `scripts/export-public.mjs`).
 
 ## How it works
 
@@ -377,6 +388,8 @@ The engine tests, in `packages/engine/`:
 - `test-design-security.mjs`: hostile text in every field of every template stays inert; the page's
   Content-Security-Policy and request blocking.
 - `test-brand-pack.mjs`: `BRAND_DIR`, the demo pack and the brand file's optional fields.
+- `test-brand-pennyhive.mjs`: the Pennyhive pack loads, its spelling rules hold, and its example batch passes the post
+  checks in its direction.
 
 The AI tests are in `packages/ai/test-ai.mjs` (fake fetch, no network), the export tests in
 `scripts/test-export-public.mjs`, and the web app's specs in `apps/web/src/**/*.spec.ts`.
@@ -390,7 +403,7 @@ An npm workspaces monorepo.
 | `apps/web/` (`@vesk/web`) | The web app: a Hono server, Postgres through Prisma, pg-boss jobs, and a React client built into `dist/web` (see [apps/web/README.md](apps/web/README.md)). The only workspace with dependencies. |
 | `packages/engine/` (`@vesk/engine`) | The engine: `lib/` (batch validation, the Buffer client, the push loop, storage, the design renderer) and `design/` (brand CSS, templates, fonts and the asset folders, including the committed demo pictures in `design/assets/demo/`), and its tests. No dependencies. The app imports its modules as `@vesk/engine/<module>`, for example `@vesk/engine/batch`. |
 | `packages/ai/` (`@vesk/ai`) | Drafting, research, rewriting and design-reference analysis (`src/`, with the versioned prompts) and its tests. No third-party dependencies; it uses the engine's validators. |
-| `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default. |
+| `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default, `brands/pennyhive` (the fictional Pennyhive, with its own example batch) a second test brand. |
 | `batches/` | Two example batch files for the demo brand, to import in the app (Create, New batch, the "Import a batch file" tab, marked Advanced) or to start from. |
 | `deploy/`, `Dockerfile` | The container image and the Docker Compose set-up, with `deploy/check.sh` to try it end to end. |
 | `docs/` | The documentation (below). |
