@@ -1537,9 +1537,9 @@ statements, a figure, a list, a quote, two photos, an event and an offer; clean 
 data counterpart of the code directions of the same name: retail is held to the code (the same budgets, names and grounds; geometry within 3 px of the
 code compositions in `test-design-look-equivalence.mjs`, with the deviations listed there: the roles of the unit and the date tile, and the wrapping
 highlight bar 0.12 em against 0.13 em); swiss is held to the approved prototype by eye. Soft (one sans in medium weights on pale tints of the brand colour, the logo top
-left and the web address top right, rounded panels and pills, pictures that melt into a page sampled from their own edge, a myth and fact page and a big
+left and the web address top right, rounded panels and pills, pictures shown whole on a page that takes their background colour (`colour.fromPicture: "picture"`), a myth and fact page and a big
 figure over a rounded panel, and a statement whose headline breaks out of a large white disc: `statement/2` Breakout, the shipped example of `overlap`) bloom (a serif with italics, arch, oval and circle windows, keylines and dotted rules) and clean (the classic poster pages as a look: the brand's own
-fonts, two-tone headlines, a picture melting into a page sampled from its edge, myth and fact on rounded cards on the dark page, fine rings of the brand colour spreading from a corner of the dark quote page: a `backdrop`) and studio (an editorial product-studio feed in Inter: a tight bold grotesk in cream or near-black on a red,
+fonts, two-tone headlines, a picture shown whole on a page that takes its background colour, myth and fact on rounded cards on the dark page, fine rings of the brand colour spreading from a corner of the dark quote page: a `backdrop`) and studio (an editorial product-studio feed in Inter: a tight bold grotesk in cream or near-black on a red,
 black or cream page, one accent (`one-accent`: the brand's primary is the field and the coloured final word), numbered rows on thin rules, report covers with a
 short red line and a red second line, a job post with a light title and a drawn phone outline, a speaker card with a picture on a colour block and a two-colour
 footer of the meta line and When / Where rows, an application page with a corner ribbon and the date on a yellow pill, yellow highlight pills, the web address
@@ -1592,9 +1592,39 @@ runs on the colour the page really has. Clean rotates `paper` and `tint`, Soft `
 The look settings show it under Colour, Fine-tune ("Page colours in turn"), drawn from the catalogue like `colour.grounds`.
 
 **A figure over a photo.** Clean's `figure/1` Number over photo and Soft's `figure/1` Big number over photo carry a figure with its unit line and sub on top and a
-required picture at the foot melting into the page (as their photo designs: a plain background becomes the page colour, otherwise the top
-edge fades); a figure without a picture keeps `figure/0`. A statement with a photo is the `photo` kind (Clean `photo/0` Object, Soft `photo/0`
-Foot photo): statement and list designs take no picture.
+required picture at the foot melting into the page (as their photo designs: the page takes the picture's background colour and shows the
+picture whole, see below; a picture with no background colour keeps the brand page and fades in at its top edge); a figure without a picture
+keeps `figure/0`. A statement with a photo is the `photo` kind (Clean `photo/0` Object, Soft `photo/0` Foot photo): statement and list designs
+take no picture.
+
+**Page colour from the picture (`colour.fromPicture`, a design's `fromPicture`)** (22 Nov 2026). Where a page with a picture takes its colour:
+`brand` (the default of a look): the brand's page colour, as before (a picture that melts into the page, `blend: "ground"`, lends its top edge
+only when that edge is one flat colour and the type reaches the strictest text target on it); `auto`: the page takes the colour of the
+picture's background whenever its edge is plain enough; `picture`: whenever the picture has a background colour at all. A composition may set
+its own `fromPicture` over the look's. **Clean and Soft set `picture`**, so the owner's peg figures on orange or red get an orange or red page,
+not the brand's sage over an orange band. The look settings show it under Colour as "Page colour from the picture" (Brand colour, Picture when
+plain, Picture), and in the composition's properties. It applies to every picture of the look that is not turned, framed (print, card) or only
+faded (`blend: "fade"`): the photo, figure-over-photo and offer designs of Clean and Soft, and any look's melting picture.
+How the colour is read (`edge.mjs pictureEdge`, the same source in the page script): the picture's top edge and the top 60% of its sides (the
+crop as shown for a picture that does not melt) are cut into twenty segments; the background is the mean of the segments most of them agree
+with (within 10 delta-E of one); `share` is the part that agrees and `grain` their texture. `auto` needs 75% to agree with a grain of at most
+7, `picture` 60% and 12; below that (a market, a street, a pile of fruit) the page keeps the brand's colour. Why the owner's images kept the
+sage page before: the old reading (`classifyEdge`) asks for a flat edge with no drift (studio light on a coloured backdrop drifts) and for one of
+white or the ink to reach the brand's strictest text target (7:1 for most packs) on it; the bright orange gave the ink 5.0:1, so the page stayed
+the brand's and the picture sat on it as a band.
+The colours of such a page (`pictureColours`, all numbers computed from the picture's pixels, never a value from a spec): the type is the ink
+or white, whichever reaches the text target (the higher when both do), else the ink deepened toward black until it does; the body and muted
+greys are mixes from the page toward the type that still reach their targets; the emphasis (`accent-type`) is a deeper shade of the picture's
+own hue on a light page, a lighter one on a dark page, moved no further than it must to reach the accent target, or for a picture without a hue
+(white, grey) the first brand colour that reaches it, else the type colour; a pill (`field`, `primary`) takes the emphasis colour with the
+page colour, white, ink or black on it, whichever reads; a label pill or panel (`paper`, `soft`, `tint`) is the page colour moved toward
+white as far as the type still reads on it. If no type reaches the text target on the picture's colour, the page keeps the brand's colour.
+Every page check still measures every text on its real pixels afterwards. A melting picture on such a page is shown whole (contained in its
+box, at its foot, centred): no crop and no band. Where its edge is plain (every segment agrees, grain at most 2.5, spread at most 1.5) it
+meets the page with no fade at all; otherwise its top, and its sides where they lie inside the page, fade softly into exactly the page's
+colour, never another. The render notes say what the page decided ("the page takes the picture's colour (rgb(...)), with dark type and a
+picture's own hue emphasis", or why it kept the brand's). `test-design-picture-colour.mjs` holds the reading, the colours, the setting and,
+with Chrome, a page that takes a studio colour and shows its subject whole, and a busy picture that keeps the brand page.
 
 **Loud** (`loud.look.json`, thirteen compositions) is loud and friendly, like a community app: Anton (a heavy condensed display face, shipped
 in the font library) in capitals with one or two words in a pill, on the brand colour (`field`), the accent or the dark colour, or over a darkened
