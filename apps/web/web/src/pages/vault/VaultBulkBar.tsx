@@ -1,4 +1,5 @@
-// The bulk actions for vault items, shared by the Pictures grid and the Facts list: Confirm, Unconfirm, Add tag, Delete.
+// The bulk actions for vault items, shared by the Pictures grid and the Facts list: Confirm, Unconfirm, Add tag, Rights (licence,
+// people and consent, for pictures), Delete.
 // Each one calls the same endpoint as the single-item action, once per item.
 import { useState } from 'react';
 import { CheckCheck, RotateCcw, Trash2 } from 'lucide-react';
@@ -9,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { mergeTags, runBulk, succeededIds } from '@/lib/bulk';
 import { errorMessage } from '@/lib/errors';
 import type { VaultItem } from '../vault-types';
+import { BulkRightsPopover } from './BulkRightsPopover';
+import { rightsPatch, type RightsChoice } from './bulk-rights';
 
 export function VaultBulkBar({ selection, items, noun, reload }: {
   selection: Selection;
@@ -33,6 +36,17 @@ export function VaultBulkBar({ selection, items, noun, reload }: {
     const existing = items.find((i) => i.id === id)?.tags ?? [];
     return api.patch(`/api/vault/${id}`, { tags: mergeTags(existing, tags) });
   });
+
+  // Only the pictures whose rights would change are sent; the others are named in one message.
+  async function setRights(choice: RightsChoice) {
+    const changes = picked.map((i) => ({ id: i.id, patch: rightsPatch(i, choice) })).filter((c) => c.patch);
+    const pictures = picked.filter((i) => i.kind === 'photo' || i.kind === 'screen').length;
+    if (!pictures) { toast.info('Rights and consent are recorded on pictures only; none of the selected items is a picture'); return; }
+    if (!changes.length) { toast.info(`The selected pictures already have these rights`); return; }
+    const patches = new Map(changes.map((c) => [c.id, c.patch]));
+    await run([...patches.keys()], 'updated', (id) => api.patch(`/api/vault/${id}`, patches.get(id)));
+    if (picked.length > pictures) toast.info(`${picked.length - pictures} selected ${picked.length - pictures === 1 ? 'item is not a picture' : 'items are not pictures'}, so ${picked.length - pictures === 1 ? 'it was' : 'they were'} left as ${picked.length - pictures === 1 ? 'it was' : 'they were'}`);
+  }
 
   async function remove() {
     const results = await run(deleting ?? [], 'deleted', (id) => api.delete(`/api/vault/${id}`));
@@ -61,6 +75,7 @@ export function VaultBulkBar({ selection, items, noun, reload }: {
         <Button className="max-sm:min-h-11" disabled={busy} onClick={() => void confirm()}><CheckCheck aria-hidden="true" />Confirm</Button>
         <Button variant="outline" className="max-sm:min-h-11" disabled={busy} onClick={() => void unconfirm()}><RotateCcw aria-hidden="true" />Unconfirm</Button>
         <BulkTagPopover count={selection.count} disabled={busy} onAdd={addTags} />
+        <BulkRightsPopover count={selection.count} disabled={busy} onApply={setRights} />
         <Button variant="outline" className="text-destructive hover:text-destructive max-sm:min-h-11" disabled={busy} onClick={() => setDeleting(selection.ids)}><Trash2 aria-hidden="true" />Delete</Button>
       </BulkBar>
       <ConfirmAction
