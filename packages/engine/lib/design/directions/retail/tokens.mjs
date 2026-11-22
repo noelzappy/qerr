@@ -21,7 +21,7 @@ export const TOKENS = Object.freeze({
   // rotations in degrees (the prototype's: sticker -8, bar -1.5, price -3, block -2, band -4, seam -7, card 4)
   device: Object.freeze({ rot: { sticker: -8, bar: -1.5, price: -3, block: -2, band: -4, card: 4 }, seam: { left: 780, right: 648 }, step: [1, 0.9, 0.82] }),
   // The type treatments a composition may name (kit variant): a name maps to a class of retail.css, never a class written by a composition.
-  variants: Object.freeze({ sticker: 'rt-sticker', date: 'rt-date', numeral: 'rt-numeral', unit: 'rt-unit', quote: 'rt-quote', item: 'rt-item', num: 'rt-num', meta: 'rt-meta', by: 'rt-by', mark: 'rt-mark' }),
+  variants: Object.freeze({ sticker: 'rt-sticker', date: 'rt-date', numeral: 'rt-numeral', figure: 'rt-figure', unit: 'rt-unit', quote: 'rt-quote', item: 'rt-item', num: 'rt-num', meta: 'rt-meta', by: 'rt-by', mark: 'rt-mark' }),
   grain: Object.freeze({ freq: 0.9, strength: 0.4 }),
   folio: (n) => String(n).padStart(2, '0'),
   logoHeight: 44,

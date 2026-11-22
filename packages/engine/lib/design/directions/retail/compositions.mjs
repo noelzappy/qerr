@@ -69,12 +69,13 @@ const priceTag = {
   fields: ['label', 'big', 'unit', 'sub'], words: { label: 28, big: 8, unit: 24, sub: 125 }, ground: 'field', dark: true, roles: ['display', 'text', 'label'],
   render(c) {
     const { left, top } = c.margin, W = c.W - left - c.margin.right, sub = c.has('sub');
-    const price = c.fitLines({ flow: true, trail: true, w: W - 74, h: 440, cap: 520, floor: 150, lead: 0.78, track: -0.04, max: 1, colour: 'on-field', variant: 'numeral', grid: 'skip', html: c.text('big') })
-      + (c.has('unit') ? c.box({ flow: true, fill: 'gold', ink: 'on-accent', pad: [15, 31, 30, 31], shadow: { x: 8, y: 8, colour: 'field-deep' }, variant: 'unit', nudge: { x: 6, y: 0 }, before: 94 },
-        c.run({ html: c.text('unit'), role: 'accent', size: 92, lead: 0.9, weight: 900, track: -0.02, colour: 'on-accent' })) : '');
+    // the figure as large as the stage allows (up to 930 px, centred), the unit fitted on a full-width accent block under it
+    const price = c.fitLines({ flow: true, trail: true, w: 920, h: 730, cap: 930, floor: 150, lead: 0.78, track: -0.04, max: 1, colour: 'on-field', variant: 'figure', grid: 'skip', align: 'center', html: c.text('big') })
+      + (c.has('unit') ? c.box({ flow: true, w: 920, fill: 'gold', ink: 'on-accent', pad: [14, 24, 30, 24], shadow: { x: 8, y: 8, colour: 'field-deep' }, nudge: { y: 120 }, alignSelf: 'center' },
+        c.fitLines({ flow: true, w: 872, h: 120, cap: 120, floor: 56, lead: 0.9, max: 1, role: 'stat', colour: 'on-accent', align: 'center', grid: 'skip', html: c.text('unit') })) : '');
     // the figure centred in the room above the sub band; the band is as tall as its text needs (at least 140)
     const stage = c.box({ flow: true, w: c.W, grow: 1, flex: 'column', justify: 'center', pad: [0, left, 0, left] },
-      c.box({ flow: true, w: W, flex: 'column', align: 'start', rot: rot(c, 'price'), origin: '30% 50%', unrot: true, pad: [0, 0, 0, 14] }, price));
+      c.box({ flow: true, w: W, flex: 'column', align: 'center', rot: rot(c, 'price'), origin: '30% 50%', unrot: true, pad: [112, 0, 0, 0] }, price));
     const band = sub ? c.box({ flow: true, w: c.W, minH: 140, fill: 'paper', pad: [26, left, 56, left] }, c.body({ flow: true, w: W, html: c.fmt('sub'), colour: 'ink' })) : '';
     let html = c.box({ x: 0, y: 0, w: c.W, h: c.H, flex: 'column', gap: 48, pad: [0, 0, sub ? 0 : 48, 0] }, stage + band);
     html += c.box({ x: left, y: top, w: 44, h: 44, radius: 'full', fill: 'field-deep', ring: { w: 7, colour: 'on-field' } });

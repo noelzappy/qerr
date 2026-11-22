@@ -545,7 +545,7 @@ test('retail: a fitted numeral and a turned page are measured straight, so a tur
     // while measured the wrapper was straight; afterwards it is turned back
     assert.match(await page.evaluate('document.querySelector("[data-unrot]").style.transform'), /rotate\(-3deg\)/);
     const w = Number(await page.evaluate('(() => { const w = document.querySelector("[data-unrot]"), t = w.style.transform; w.style.transform = "none"; const x = document.querySelector(".fl-in").getBoundingClientRect().width; w.style.transform = t; return x; })()'));
-    assert.ok(w <= 894 + 1 && w >= 894 * 0.97, `the numeral fills its measure: ${w}`);
+    assert.ok(w <= 920 + 1 && w >= 920 * 0.97, `the numeral fills its measure (920 px): ${w}`);
     // a turned text is read as slices along its direction, not as the box round it
     const m = await page.evaluate('window.__ds.measure()');
     const num = m.roles.find((r) => r.role === 'headline');
