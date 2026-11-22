@@ -433,8 +433,8 @@ model BrandProfile {
   // for headlines and labels, and a PNG, JPEG or WebP picture for the decoration)
   assets         Json     @default("{}")
   // The brand's active look, as a reference: 'shipped:<id>' (the engine's own) or 'own:<slug>' (a BrandLook of this brand);
-  // null means classic layouts. A pointer, not a flag on each look.
-  activeLookRef  String?
+  // null means classic layouts. A pointer, not a flag on each look. A newly saved brand starts on the shipped Clean look.
+  activeLookRef  String?   @default("shipped:clean")
   updatedById    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now()) @updatedAt

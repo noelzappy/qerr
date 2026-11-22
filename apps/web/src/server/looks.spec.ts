@@ -362,6 +362,14 @@ describe('publishing and using a look', () => {
     expect(runGate).toHaveBeenCalledOnce();
   });
 
+  it('starts a newly saved brand on the shipped Clean look', async () => {
+    const api = await admin();
+    expect((await api.get(BASE)).body.activeRef).toBeNull();
+    await saveBrand();
+    expect((await api.get(BASE)).body.activeRef).toBe('shipped:clean');
+    expect((await looksFor(t.deps).activeLook(scope))?.ref).toBe('shipped:clean');
+  });
+
   it('is activated only if shipped or the brand\'s own and ready, once the brand is saved; null returns to classic layouts', async () => {
     const api = await admin();
     expect((await api.put(`${BASE}/active`, { ref: 'shipped:retail' })).status).toBe(409);
@@ -419,6 +427,7 @@ describe('publishing and using a look', () => {
   it('gives the active look\'s brief to the post editor, or { look: null }', async () => {
     const api = await admin();
     await saveBrand();
+    await api.put(`${BASE}/active`, { ref: null });
     const editor = t.api(await t.signIn(await t.createUser('editor')));
     expect((await editor.get('/api/looks/brief')).body).toEqual({ look: null });
     await api.put(`${BASE}/active`, { ref: 'shipped:swiss' });
@@ -722,6 +731,7 @@ describe('the brand pack', () => {
   it('is written by syncBrand for the active look, and the engine reads the brand file with it', async () => {
     const api = await admin();
     await saveBrand();
+    await api.put(`${BASE}/active`, { ref: null });
     await syncBrand(t.deps);
     expect(activeBrand().looks).toBeUndefined();
     expect((await api.put(`${BASE}/active`, { ref: 'shipped:swiss' })).status).toBe(200);
