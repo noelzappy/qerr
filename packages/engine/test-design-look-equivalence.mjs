@@ -22,9 +22,11 @@ import { SIZES } from './lib/design/sizes.mjs';
 import { normaliseDesign } from './lib/design/spec.mjs';
 import { MINIMAL, MINIMAL_CHECKED, NORMAL, STRESS, paletteBrand, retailSpec } from './testlib/retail-copy.mjs';
 import { MINIMAL as SWISS_MINIMAL, NORMAL as SWISS_NORMAL, STRESS as SWISS_STRESS } from './testlib/swiss-copy.mjs';
+import { MINIMAL as SOFT_MINIMAL, NORMAL as SOFT_NORMAL, STRESS as SOFT_STRESS } from './testlib/soft-copy.mjs';
+import { MINIMAL as BLOOM_MINIMAL, NORMAL as BLOOM_NORMAL, STRESS as BLOOM_STRESS } from './testlib/bloom-copy.mjs';
 
 const asCopy = (l) => ({ ...l, origin: `copy:shipped:${l.id}` });
-const RETAIL = asCopy(shippedLooks().retail), SWISS = asCopy(shippedLooks().swiss);
+const RETAIL = asCopy(shippedLooks().retail), SWISS = asCopy(shippedLooks().swiss), SOFT = asCopy(shippedLooks().soft), BLOOM = asCopy(shippedLooks().bloom);
 const COLOURS = {
   demo: {},
   dark: paletteBrand({ name: 'Night Kitchen', light: '#EFEAE0', ink: '#10151F', primary: '#1B2A41', gold: '#F2B84B', deep: '#8A5A00' }),
@@ -72,13 +74,17 @@ test('retail as data: all nine compositions draw where the code compositions do 
   assert.ok(compared >= 200, `${compared} text elements compared`);
 });
 
-// Both shipped looks, every one of their nine compositions, from sample, stress and minimal copy, in three sets of brand colours: every page passes the
+// Every shipped look, every one of its nine compositions, from sample, stress and minimal copy, in three sets of brand colours: every page passes the
 // checks (fit, contrast, pixel size, emptiness, scale, levels, grid). The likeness of swiss to the prototype is judged by eye on the sheets
 // (scripts/direction-sheet.mjs --look ... --copy sample|stress|minimal).
-const COPY = { retail: { sample: NORMAL, stress: STRESS, minimal: MINIMAL_CHECKED }, swiss: { sample: SWISS_NORMAL, stress: SWISS_STRESS, minimal: SWISS_MINIMAL } };
-test('both shipped looks pass every check, all 18 compositions from sample, stress and minimal copy, in three sets of brand colours', { skip }, async () => {
+const COPY = {
+  retail: { sample: NORMAL, stress: STRESS, minimal: MINIMAL_CHECKED }, swiss: { sample: SWISS_NORMAL, stress: SWISS_STRESS, minimal: SWISS_MINIMAL },
+  soft: { sample: SOFT_NORMAL, stress: SOFT_STRESS, minimal: SOFT_MINIMAL }, bloom: { sample: BLOOM_NORMAL, stress: BLOOM_STRESS, minimal: BLOOM_MINIMAL },
+};
+test('every shipped look passes every check, all 36 compositions from sample, stress and minimal copy, in three sets of brand colours', { skip }, async () => {
+  assert.deepEqual(Object.keys(shippedLooks()).sort(), ['bloom', 'retail', 'soft', 'swiss'], 'a new shipped look is added here with its copy');
   let drawn = 0;
-  for (const look of [RETAIL, SWISS]) {
+  for (const look of [RETAIL, SWISS, SOFT, BLOOM]) {
     for (const [kind, versions] of Object.entries(Object.groupBy(look.compositions, (c) => c.kind))) {
       for (const [v, comp] of versions.entries()) {
         const id = `${look.id}/${kind}/${v}`;
@@ -94,5 +100,5 @@ test('both shipped looks pass every check, all 18 compositions from sample, stre
       }
     }
   }
-  assert.equal(drawn, 18 * 3 * 3);
+  assert.equal(drawn, 36 * 3 * 3);
 });
