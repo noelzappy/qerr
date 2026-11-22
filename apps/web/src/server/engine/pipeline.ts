@@ -96,7 +96,12 @@ export interface RenderResult {
   warnings: string[];
   notes: string[];
   error?: string;
+  // a post's own design (design.composition): whether it was drawn (used), or why the look's design drew the post instead (reasons)
+  ownDesign?: { asked: boolean; used: boolean; reasons: string[] };
 }
+
+// What the AI designer is told about a picture (packages/engine lib/design/picture-probe.mjs): a small thumbnail and its edge colour.
+export interface PictureProbe { w: number; h: number; thumb: { mediaType: string; data: string }; edge: { rgb: number[] | null; plain: boolean; auto: boolean; picture: boolean; share: number } }
 
 export interface PipelineEngine {
   root: string;
@@ -116,6 +121,8 @@ export interface PipelineEngine {
   // The device (phone or tablet) each picture of a design block is drawn on with the brand's active look, only the pictures drawn on one.
   designScreenNeeds(design: unknown, options: { root: string }): Array<{ page: number | null; kind: string; variant: number; name: string; device: 'phone' | 'tablet' }>;
   findChrome(): string | null;
+  // The thumbnail and edge colour of one picture (a path relative to the root), in one Chrome behind the lock.
+  probePicture(options: { root: string; file: string; size?: number }): Promise<PictureProbe>;
   deletePost(client: Gql, bufferId: string): Promise<{ ok: true } | { ok: false; message: string }>;
   isBufferError(e: unknown): e is Error & { ambiguous: boolean; kind?: string };
   isUploadError(e: unknown): e is Error & { errors: string[] };
@@ -153,7 +160,7 @@ let cached: Promise<PipelineEngine> | null = null;
 
 export function pipelineEngine(): Promise<PipelineEngine> {
   cached ??= (async () => {
-    const [batch, push, client, upload, render, del, chrome, core, networks, assets, layout] = await Promise.all([
+    const [batch, push, client, upload, render, del, chrome, core, networks, assets, layout, probe] = await Promise.all([
       engineImport<any>('batch'),
       engineImport<any>('push'),
       engineImport<any>('client'),
@@ -165,6 +172,7 @@ export function pipelineEngine(): Promise<PipelineEngine> {
       engineImport<any>('networks'),
       engineImport<any>('design/assets'),
       engineImport<any>('design/layout'),
+      engineImport<any>('design/picture-probe'),
     ]);
     return {
       root: core.ROOT,
@@ -182,6 +190,7 @@ export function pipelineEngine(): Promise<PipelineEngine> {
       designGraphicNeeds: render.designGraphicNeeds,
       designScreenNeeds: render.designScreenNeeds,
       findChrome: chrome.findChrome,
+      probePicture: probe.probePicture,
       deletePost: del.deletePost,
       isBufferError: (e: unknown): e is Error & { ambiguous: boolean; kind?: string } => e instanceof client.BufferError,
       isUploadError: (e: unknown): e is Error & { errors: string[] } => e instanceof upload.UploadError,

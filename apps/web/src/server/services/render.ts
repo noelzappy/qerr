@@ -21,6 +21,9 @@ import { DEFAULT_BRAND_ID } from './looks.js';
 import { asMedia, assertInside, MEDIA_TYPES, POST_KEY_RE, type MediaEntry } from './post-model.js';
 
 export const DESIGN_WARNING_PREFIX = 'Design check: ';
+// The start of the design warning a post carries when its own design (the AI's, or one edited from it) could not be drawn and the look's drew it.
+export const OWN_DESIGN_NOT_USED = "the post's own design was not used, so the look's design drew it: ";
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 
 export function renderPost(deps: Deps, payload: { postId: string; activityId?: string }): Promise<void> {
@@ -55,7 +58,13 @@ async function renderNow(deps: Deps, postId: string, handle: RunHandle): Promise
   const runDir = path.join(engine.root, 'out', 'app-render', randomUUID());
   try {
     if (!POST_KEY_RE.test(post.postKey)) return await fail(deps, post, 'This post has an id that cannot be used for files', handle);
-    const problems = await designProblems(post.design, deps);
+    let problems = await designProblems(post.design, deps);
+    // A post's own design the look no longer takes (the look changed since): the post is still drawn, with the look's design, and says why
+    // (the engine falls back and notes it). Only the own design may be the problem; anything else fails the render as before.
+    if (problems.length && isObj(post.design) && 'composition' in post.design) {
+      const { composition: _own, ...plain } = post.design as Record<string, unknown>;
+      if (!(await designProblems(plain, deps)).length) problems = [];
+    }
     if (problems.length) return await fail(deps, post, `The design is not valid: ${problems.join('; ')}`, handle);
 
     // A private copy of the spec whose vault photos point at files copied next to this run.
@@ -102,7 +111,9 @@ async function renderNow(deps: Deps, postId: string, handle: RunHandle): Promise
     const before = asMedia(latest.media);
     const kept = before.filter((m) => m.source === 'upload');
     const stale = before.filter((m) => m.source === 'render' && !uploaded.some((u) => u.key === m.key));
-    const warnings = [...latest.warnings.filter((w) => !w.startsWith(DESIGN_WARNING_PREFIX)), ...[...new Set(result.warnings)].map((w) => `${DESIGN_WARNING_PREFIX}${w}`)];
+    // a post's own design that the page refused: the look's design drew it, and the post says so (OWN_DESIGN_NOT_USED, read by the post card)
+    const ownNote = result.ownDesign?.asked && !result.ownDesign.used ? [`${OWN_DESIGN_NOT_USED}${(result.ownDesign.reasons[0] ?? 'it could not be drawn').slice(0, 400)}`] : [];
+    const warnings = [...latest.warnings.filter((w) => !w.startsWith(DESIGN_WARNING_PREFIX)), ...[...new Set([...ownNote, ...result.warnings])].map((w) => `${DESIGN_WARNING_PREFIX}${w}`)];
     const wasApproved = latest.status === 'approved';
     await deps.prisma.post.update({
       where: { id: post.id },

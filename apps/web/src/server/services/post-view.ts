@@ -3,6 +3,7 @@ import type { Batch, Post, User } from '@prisma/client';
 import type { Deps } from '../deps.js';
 import { describeError, logger } from '../log.js';
 import { asMedia, splitNetworks, type MediaEntry } from './post-model.js';
+import { DESIGN_WARNING_PREFIX, OWN_DESIGN_NOT_USED } from './render.js';
 
 const MEDIA_URL_TTL_SECONDS = 300;
 
@@ -20,6 +21,14 @@ async function signed(deps: Pick<Deps, 'storage'>, m: MediaEntry) {
   return { ...rest, url };
 }
 
+const isOwn = (d: unknown): boolean => !!d && typeof d === 'object' && !Array.isArray(d) && !!(d as Record<string, unknown>).composition && typeof (d as Record<string, unknown>).composition === 'object';
+// The post's other design: whether it is its own (the AI's) or the look's, its images (signed), and when it was kept.
+async function otherDesignView(deps: Pick<Deps, 'storage'>, post: Post) {
+  const d = post.designAlt as { design?: unknown; media?: unknown; savedAt?: unknown } | null;
+  if (!d || typeof d !== 'object' || !d.design || typeof d.design !== 'object') return null;
+  return { aiDesigned: isOwn(d.design), media: await Promise.all(asMedia(d.media).map((m) => signed(deps, m))), savedAt: typeof d.savedAt === 'string' ? d.savedAt : null };
+}
+
 export async function postView(deps: Pick<Deps, 'storage'>, post: Post) {
   const media = await Promise.all(asMedia(post.media).map((m) => signed(deps, m)));
   const { skip, overrides } = splitNetworks(post.networks);
@@ -35,6 +44,10 @@ export async function postView(deps: Pick<Deps, 'storage'>, post: Post) {
     networks: { ...overrides, ...(skip.length ? { skip } : {}) },
     design: post.design ?? null,
     media,
+    // the post's other design (the look's, or the AI's), with its images, so the post page can show both and switch
+    otherDesign: await otherDesignView(deps, post),
+    aiDesigned: isOwn(post.design),
+    ownDesignUsed: isOwn(post.design) ? !post.warnings.some((w) => w.startsWith(`${DESIGN_WARNING_PREFIX}${OWN_DESIGN_NOT_USED}`)) : null,
     renderStatus: post.renderStatus,
     renderError: post.renderError,
     sources: post.sources,
@@ -64,6 +77,9 @@ export async function postSummary(deps: Pick<Deps, 'storage'>, post: Post) {
     renderStatus: post.renderStatus,
     warningCount: post.warnings.length,
     hasDesign: !!post.design,
+    aiDesigned: isOwn(post.design),
+    ownDesignUsed: isOwn(post.design) ? !post.warnings.some((w) => w.startsWith(`${DESIGN_WARNING_PREFIX}${OWN_DESIGN_NOT_USED}`)) : null,
+    hasOtherDesign: post.designAlt !== null,
     mediaCount: asMedia(post.media).length,
     thumbnailUrl: thumbnail?.url ?? null,
     updatedAt: post.updatedAt,

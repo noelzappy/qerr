@@ -21,6 +21,7 @@ import { loadPost, patchPost, patchPostInput } from './posts.js';
 import { splitNetworks, joinNetworks, type NetworkOverride } from './post-model.js';
 import { brandScope } from './looks.js';
 import { seriesFor } from './series.js';
+import { redesignNow } from './ai-design.js';
 
 const isKind = (k: string): k is (typeof VAULT_KINDS)[number] => (VAULT_KINDS as readonly string[]).includes(k);
 const SOURCE_NOTES_MAX = 20_000;
@@ -30,7 +31,7 @@ const RESEARCH_KINDS = VAULT_KINDS.filter((k) => k !== 'photo' && k !== 'screen'
 // Every decrypted key in the config, so a run can keep them out of what it stores if a provider error quotes one.
 const keysOf = (config: Awaited<ReturnType<typeof getAiConfig>>): string[] => [...config.providers.map((p) => p.apiKey), ...(config.search ? [config.search.apiKey] : [])].filter(Boolean);
 
-async function aiFor(deps: Deps, task: 'draft' | 'research' | 'rewrite', run: AiRunContext = {}, handle: RunHandle = noHandle) {
+export async function aiFor(deps: Deps, task: 'draft' | 'research' | 'rewrite', run: AiRunContext = {}, handle: RunHandle = noHandle) {
   // The AI library reads the brand from the pack folder: make it match the brand saved in Settings first.
   await syncBrand(deps);
   const config = await getAiConfig(deps, run);
@@ -305,6 +306,9 @@ export const draftBriefSchema = z.strictObject({
   timezone: z.string().min(1).max(64).optional(),
   // The team's own words for this batch (what to cover, how varied); the AI treats them as preferences, never as facts.
   guidance: z.string().trim().min(1).max(600).optional(),
+  // How the posts are designed: with the look's own designs (the default), or each composed by the AI (services/ai-design.ts), keeping the
+  // look's design as the post's other design so a person can switch back per post.
+  design: z.enum(['look', 'ai']).optional(),
   // The occasions of the period the person kept ticked: from the calendar, their own (at most 5), or found on the web (with its
   // source). Context for the AI, never vault facts (packages/ai occasions.mjs).
   occasions: z.array(occasionSchema).max(40)
@@ -422,7 +426,7 @@ async function draftNow(deps: Deps, payload: z.infer<typeof draftPayload>, handl
     };
     const aiDraft = {
       ...(result.notes ?? {}), runId, draftedAt: deps.now().toISOString(), requestedById: actor.id,
-      brief: { count: brief.count ?? 10, series: brief.series ?? null, channels: brief.channels ?? null, period, timezone },
+      brief: { count: brief.count ?? 10, series: brief.series ?? null, channels: brief.channels ?? null, period, timezone, design: brief.design ?? 'look' },
     };
     handle.progress({ step: 'Saving the batch', done: 0, total: posts.length });
     let imported;
@@ -438,8 +442,15 @@ async function draftNow(deps: Deps, payload: z.infer<typeof draftPayload>, handl
       runId, posts: imported.posts.length, rejected: Array.isArray((result.notes as { rejected?: unknown[] } | undefined)?.rejected) ? ((result.notes as { rejected: unknown[] }).rejected.length) : 0,
     });
     const withImages = imported.posts.filter((p) => p.design).length;
+    // Design: AI-designed. The AI composes each single post's design now; a post it cannot design well keeps the look's. A failure here never
+    // undoes the batch: it says so in the result.
+    let designed: { designed: number; of: number } | { error: string } | null = null;
+    if (brief.design === 'ai') {
+      handle.progress({ step: 'Designing the posts' });
+      try { designed = await redesignNow(deps, { batchId: imported.batch.id, actorId: actor.id }, handle, runId); } catch (e) { designed = { error: readableError(e, keysOf(spent!)).slice(0, 300) }; }
+    }
     handle.progress({ step: withImages ? 'Images queued for rendering' : 'Batch saved' });
-    handle.result({ batchId: imported.batch.id, title: imported.batch.title, delivered: imported.posts.length, requested: brief.count ?? 10, imagesQueued: withImages });
+    handle.result({ batchId: imported.batch.id, title: imported.batch.title, delivered: imported.posts.length, requested: brief.count ?? 10, imagesQueued: withImages, ...(designed ? { aiDesign: designed } : {}) });
     return { batchId: imported.batch.id, posts: imported.posts.length };
   } catch (e) {
     await spent?.flush().catch(() => undefined);

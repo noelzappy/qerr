@@ -315,6 +315,9 @@ model Post {
   // engine per-network overrides, skip list under `skip`
   networks     Json       @default("{}")
   design       Json?
+  // The post's other design, kept when the AI redesigned it (or a person switched back), so a person can switch per post:
+  // { design, media: the render entries of its images, copied under their own keys, savedAt, ai: whether it is the AI's }.
+  designAlt    Json?
   // list of { rel, key, sha256, size, contentType, kind } under renders/<batchId>/...
   media        Json       @default("[]")
   // 'none' | 'queued' | 'rendering' | 'ok' | 'failed'

@@ -4,6 +4,7 @@ import type { Deps } from '../deps.js';
 import { runAnalyseReference, runDraftBatch, runResearch, runRewrite } from '../services/ai-jobs.js';
 import { pruneSystemRuns, trackRun } from '../services/activity.js';
 import { renderPost } from '../services/render.js';
+import { runRedesign } from '../services/ai-design.js';
 import { refreshDeliveries, sendBatch } from '../services/schedule.js';
 import type { JobName, JobPayloads } from './types.js';
 
@@ -33,6 +34,7 @@ export const handlers: Handlers = {
   rewritePost: async (deps, payload) => { await runRewrite(deps, payload); },
   sendBatch,
   analyseReference: async (deps, payload) => { await runAnalyseReference(deps, payload); },
+  redesignBatch: async (deps, payload) => { await runRedesign(deps, payload); },
 };
 
 const KEYS: Record<JobName, keyof Handlers> = {
@@ -44,6 +46,7 @@ const KEYS: Record<JobName, keyof Handlers> = {
   'rewrite-post': 'rewritePost',
   'send-batch': 'sendBatch',
   'analyse-reference': 'analyseReference',
+  'redesign-batch': 'redesignBatch',
 };
 
 export const handlerFor = (name: JobName): JobHandler<JobName> => handlers[KEYS[name]] as JobHandler<JobName>;

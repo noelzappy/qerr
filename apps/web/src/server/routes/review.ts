@@ -10,6 +10,9 @@ import { getSetting, SETTING_BUDGET, spentThisMonth } from '../services/ai-confi
 import { approvalReport } from '../services/approval.js';
 import { approveAll, approvePost, loadPost, MAX_UPLOAD_BYTES, patchPost, patchPostInput, removeMedia, removePost, requestRender, restorePost, unapprovePost, uploadMedia } from '../services/posts.js';
 import { postView } from '../services/post-view.js';
+import { ownDesignProblems, ownDesignStart, previewOwnDesign, saveOwnDesign, switchDesign } from '../services/ai-design.js';
+
+const ownDesignBody = z.strictObject({ definition: z.record(z.string(), z.unknown()) });
 
 export function reviewRoutes(deps: Deps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
@@ -54,6 +57,29 @@ export function reviewRoutes(deps: Deps): Hono<AppEnv> {
   app.patch('/:id', async (c) => {
     const id = c.req.param('id');
     await patchPost(deps, c.get('user'), id, await readJson(c, patchPostInput));
+    return c.json(await detail(id));
+  });
+
+  // The post's two designs: switch to the other (the look's design back, or the AI's again). Words stay; approval is taken back.
+  app.post('/:id/design/switch', async (c) => {
+    const id = c.req.param('id');
+    await switchDesign(deps, c.get('user'), id);
+    return c.json(await detail(id));
+  });
+  // The post's own design in the design editor: what is wrong with a draft of it, its real picture, and saving it (the post is drawn again).
+  app.get('/:id/own-design', async (c) => c.json(await ownDesignStart(deps, c.req.param('id'))));
+  app.post('/:id/own-design/check', async (c) => {
+    const { definition } = await readJson(c, ownDesignBody);
+    return c.json({ problems: await ownDesignProblems(deps, c.req.param('id'), definition) });
+  });
+  app.post('/:id/own-design/preview', async (c) => {
+    const { definition } = await readJson(c, ownDesignBody);
+    return c.json(await previewOwnDesign(deps, c.req.param('id'), definition));
+  });
+  app.put('/:id/own-design', async (c) => {
+    const id = c.req.param('id');
+    const { definition } = await readJson(c, ownDesignBody);
+    await saveOwnDesign(deps, c.get('user'), id, definition);
     return c.json(await detail(id));
   });
 

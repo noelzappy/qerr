@@ -1,5 +1,5 @@
 // Job names and payloads. Payloads never contain secrets: they carry ids, and the handler reads the rest from the database.
-export const JOB_NAMES = ['render-post', 'refresh-delivery', 'refresh-sweep', 'draft-batch', 'research-run', 'rewrite-post', 'send-batch', 'analyse-reference'] as const;
+export const JOB_NAMES = ['render-post', 'refresh-delivery', 'refresh-sweep', 'draft-batch', 'research-run', 'rewrite-post', 'send-batch', 'analyse-reference', 'redesign-batch'] as const;
 export type JobName = (typeof JOB_NAMES)[number];
 
 // Every payload may carry `activityId`: the ActivityRun that shows this job's progress (see services/activity.ts). Without
@@ -17,6 +17,8 @@ export interface JobPayloads {
   'send-batch': { batchId: string; mode: 'draft' | 'live'; actorId: string; planToken?: string; activityId?: string };
   // The AI describes one design reference picture (services/ai-jobs.ts)
   'analyse-reference': { referenceId: string; actorId?: string; activityId?: string };
+  // The AI composes a new design for the batch's single posts, keeping their words (services/ai-design.ts); postIds narrows it.
+  'redesign-batch': { batchId: string; actorId: string; postIds?: string[]; activityId?: string };
 }
 
 export interface EnqueueOptions {

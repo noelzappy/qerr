@@ -26,6 +26,7 @@ const SETTINGS: Record<JobName, QueueSetting> = {
   'rewrite-post': { policy: 'standard', retryLimit: 0, expireInSeconds: 600, localConcurrency: 1 },
   'send-batch': { policy: 'short', retryLimit: 0, expireInSeconds: 900, localConcurrency: 1 },
   'analyse-reference': { policy: 'short', retryLimit: 0, expireInSeconds: 600, localConcurrency: 1 },
+  'redesign-batch': { policy: 'short', retryLimit: 0, expireInSeconds: 3600, localConcurrency: 1 },
 };
 
 // renderConcurrency: how many render-post jobs this process takes at once (RENDER_CONCURRENCY); the others wait in the database.

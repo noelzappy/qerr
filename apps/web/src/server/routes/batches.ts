@@ -10,6 +10,9 @@ import { draftBriefSchema, draftTitle, findWebOccasions, periodOccasions } from 
 import { enqueueTracked } from '../services/activity.js';
 import { aiReadiness } from '../services/ai-config.js';
 import { batchView, countPosts, postSummary } from '../services/post-view.js';
+import { requestRedesign } from '../services/ai-design.js';
+
+const redesignInput = z.strictObject({ postIds: z.array(z.string().regex(/^[0-9a-f-]{36}$/i)).min(1).max(40).optional() });
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const addPostsInput = z.strictObject({ posts: z.array(postInput).min(1).max(100) });
@@ -90,6 +93,20 @@ export function batchesRoutes(deps: Deps): Hono<AppEnv> {
     if (missing === 'budget') throw new HttpError(409, 'No monthly AI budget is set, so the AI cannot run. Ask an admin to set one in Settings, AI and search');
     const { jobId, activityId } = await enqueueTracked(deps, 'draft-batch', { actorId: actor.id, brief }, { singletonKey: `draft-batch:${actor.id}` }, { title: draftTitle(deps, brief), actorId: actor.id });
     await audit(deps, actor, 'ai.draft_requested', 'batch', null, { queued: jobId !== null, count: brief.count ?? 10 });
+    return c.json({ queued: jobId !== null, alreadyQueued: jobId === null, activityId }, 202);
+  });
+
+  // Redesign with AI: the AI composes a new design for the batch's single posts (or the ones named), keeping their words. Each post keeps the
+  // design it had, so a person can switch back per post. Queued, one at a time per batch; refused when no provider or budget can run it.
+  app.post('/:id/redesign', async (c) => {
+    const actor = c.get('user');
+    const b = await load(c.req.param('id'));
+    const body = await readJson(c, redesignInput);
+    const { missing } = await aiReadiness(deps, 'draft');
+    if (missing === 'provider') throw new HttpError(409, 'No AI provider is set up for drafting, which designs posts too. Ask an admin to add one in Settings, AI and search');
+    if (missing === 'budget') throw new HttpError(409, 'No monthly AI budget is set, so the AI cannot run. Ask an admin to set one in Settings, AI and search');
+    const { jobId, activityId } = await requestRedesign(deps, actor, b.id, body.postIds);
+    await audit(deps, actor, 'ai.redesign_requested', 'batch', b.id, { queued: jobId !== null, posts: body.postIds?.length ?? null });
     return c.json({ queued: jobId !== null, alreadyQueued: jobId === null, activityId }, 202);
   });
 

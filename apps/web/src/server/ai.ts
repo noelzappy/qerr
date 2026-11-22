@@ -43,6 +43,11 @@ export interface SuggestBrandFromSiteResult { suggestion: BrandSiteSuggestion; s
 export interface DescribePictureInput { image: { mediaType: string; data: Buffer }; hints?: { title?: string; fileName?: string; role?: string } }
 export interface PictureSuggestion { title?: string; description: string; tags?: string[]; peopleVisible: boolean }
 export interface DescribePictureResult { suggestion: PictureSuggestion; notes?: Record<string, unknown> }
+// The AI designer (packages/ai src/design.mjs): a composition in the look's schema for each post, or null with the reasons it was not kept.
+export interface DesignPostInput { id: string; design: unknown; picture?: { w: number; h: number; thumb: { mediaType: string; data: string }; edge: unknown } }
+export interface DesignBatchInput { posts: DesignPostInput[]; check?: (id: string, composition: Record<string, unknown>) => Promise<string[]>; onProgress?: (p: AiProgress) => void }
+export interface DesignResult { id: string; composition: Record<string, unknown> | null; reasons: string[]; why?: string; tries: number }
+export interface DesignBatchResult { results: DesignResult[]; notes?: Record<string, unknown> }
 export interface RewriteInput { post: Record<string, unknown>; instruction: string; vault: unknown[]; series?: unknown[] }
 
 export interface AI {
@@ -53,6 +58,7 @@ export interface AI {
   suggestBrandFromSite(input: SuggestBrandFromSiteInput): Promise<SuggestBrandFromSiteResult>;
   describePicture(input: DescribePictureInput): Promise<DescribePictureResult>;
   findOccasions(input: FindOccasionsInput): Promise<FindOccasionsResult>;
+  designBatch(input: DesignBatchInput): Promise<DesignBatchResult>;
 }
 
 export interface AiModule {
