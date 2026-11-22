@@ -10,11 +10,11 @@ import { CONTROLS, choose, detect, hasGrain, pairingsFor, setGrain, type PresetC
 import { neededWeights, snapWeight, syncWeights } from '../web/src/pages/settings/looks/settings/weights';
 import type { Desc, FontFamilyInfo, Json, LookCatalogue } from '../web/src/pages/settings/looks/look-types';
 
-const engine = await import('@vesk/engine/design/look' as string) as { lookCatalogue(): LookCatalogue };
+const engine = await import('@qerr/engine/design/look' as string) as { lookCatalogue(): LookCatalogue };
 const cat = engine.lookCatalogue();
-const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@vesk/engine/package.json')), 'lib', 'design', 'looks');
+const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@qerr/engine/package.json')), 'lib', 'design', 'looks');
 const shipped = (n: string): Json & { compositions: Json[] } => JSON.parse(fs.readFileSync(path.join(dir, `${n}.look.json`), 'utf8'));
-const library = JSON.parse(fs.readFileSync(path.join(path.dirname(createRequire(import.meta.url).resolve('@vesk/engine/package.json')), 'design', 'fonts', 'library.json'), 'utf8')) as Array<{ family: string; axes: Record<string, number[]>; files: Array<{ style: string }> }>;
+const library = JSON.parse(fs.readFileSync(path.join(path.dirname(createRequire(import.meta.url).resolve('@qerr/engine/package.json')), 'design', 'fonts', 'library.json'), 'utf8')) as Array<{ family: string; axes: Record<string, number[]>; files: Array<{ style: string }> }>;
 const fonts: FontFamilyInfo[] = library.map((f) => ({ family: f.family, minWeight: f.axes.wght?.[0] ?? 400, maxWeight: f.axes.wght?.[1] ?? 400, italic: f.files.some((x) => x.style === 'italic'), stretch: !!f.axes.wdth }));
 
 const settingsOf = (l: Json): Json => { const { compositions: _c, ...rest } = l; return JSON.parse(JSON.stringify(rest)); };

@@ -15,7 +15,7 @@ describe('the brand pack in the web app', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as { appName: string; brand: { name: string; website: string; timezone: string; series: Array<{ key: string; name: string }>; logo: string | null } };
     const b = brandInfo();
-    expect(body.appName).toBe('Vesk');
+    expect(body.appName).toBe('Qerr');
     expect(body.brand).toEqual({ name: b.name, website: b.website, timezone: b.timezone, series: b.series, logo: expect.stringMatching(/^\/brand\/logo-mark\.png\?v=/) });
     expect(body.brand.series.length).toBeGreaterThan(0);
     expect(JSON.stringify(body)).not.toMatch(/logos\/|brands\/|#[0-9A-Fa-f]{6}/);
@@ -30,7 +30,7 @@ describe('the brand pack in the web app', () => {
   });
 
   it('APP_NAME and MAIL_FROM_NAME override the names taken from the brand', () => {
-    expect(testConfig().appName).toBe('Vesk');
+    expect(testConfig().appName).toBe('Qerr');
     expect(testConfig().mailFromName).toBe(brandInfo().name);
     const named = testConfig({ APP_NAME: 'Studio hub', MAIL_FROM_NAME: 'Studio' });
     expect(named.appName).toBe('Studio hub');
@@ -38,7 +38,7 @@ describe('the brand pack in the web app', () => {
   });
 
   it('reads a brand file: series in order, an unknown time zone falls back to UTC, a logo outside the repository is ignored', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-brand-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-brand-'));
     try {
       const file = path.join(dir, 'brand.json');
       fs.writeFileSync(file, JSON.stringify({ name: 'Studio', website: 'studio.example', tagline: 'Hello.', timezone: 'Mars/Base', series: { b: { name: 'Bee' }, a: {} }, logos: { mark: '/etc/passwd.png' } }));

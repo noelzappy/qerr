@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ROOT, brandFile } from '@vesk/engine/core';
+import { ROOT, brandFile } from '@qerr/engine/core';
 import { AIError } from './errors.mjs';
 
 const DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), 'prompts');

@@ -97,7 +97,7 @@ test('the emoji font: an OFL COLRv1 build in slices, checked; a page embeds only
 // ---- in Chrome ----
 const chrome = findChrome();
 const skip = chrome ? false : 'Google Chrome was not found';
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-emoji-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-emoji-'));
 let browser;
 test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(tmp, 'design.lock') }); });
 test.after(() => { browser?.close(); fs.rmSync(tmp, { recursive: true, force: true }); });

@@ -147,7 +147,7 @@ test('a layout page is drawn with its place in the carousel: "page" conditions, 
 
 const chrome = findChrome() ? false : 'Google Chrome not found';
 test('real render: a carousel of layout pages and a built-in page, page 1 drawn as page 1', { skip: chrome }, async () => {
-  const keep = process.env.VESK_KEEP_RENDERS ? path.resolve(process.env.VESK_KEEP_RENDERS) : null;
+  const keep = process.env.QERR_KEEP_RENDERS ? path.resolve(process.env.QERR_KEEP_RENDERS) : null;
   const out = keep ?? fs.mkdtempSync(path.join(os.tmpdir(), 'ss-layout-carousel-'));
   try {
     const design = carousel([

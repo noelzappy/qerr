@@ -18,7 +18,7 @@ beforeAll(async () => {
 afterAll(() => { resetBrandState(); return t.close(); });
 beforeEach(async () => { await t.reset(); resetBrandState(); });
 
-const engine = await import('@vesk/engine/design/brand' as string) as {
+const engine = await import('@qerr/engine/design/brand' as string) as {
   loadBrand(o: { root?: string; file?: string }): { font: Record<string, unknown>; fontFaces: Array<{ role: string; family: string; src: string; range: string; weight: string }> };
   validateBrand(b: unknown): string[];
 };

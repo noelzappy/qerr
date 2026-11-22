@@ -351,7 +351,7 @@ test('check: grid (every text block sits on the margin or a column line, within 
 // ---- in Chrome ----
 const chrome = findChrome();
 const skip = chrome ? false : 'Google Chrome was not found';
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-dir-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-dir-'));
 let browser;
 test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome }); });
 test.after(() => { browser?.close(); fs.rmSync(tmp, { recursive: true, force: true }); });

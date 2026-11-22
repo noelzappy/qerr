@@ -48,7 +48,7 @@ function useFontPreview(src: FontSource | null, role: FontRole, version: string)
   useEffect(() => {
     setFamily(null);
     if (!file || typeof FontFace === 'undefined') return;
-    const name = `vesk-preview-${role}-${Math.abs([...key].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 7))}`;
+    const name = `qerr-preview-${role}-${Math.abs([...key].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 7))}`;
     const face = new FontFace(name, `url("${encodeURI(file)}?v=${encodeURIComponent(key)}")`);
     let live = true;
     face.load().then((f) => { if (!live) return; document.fonts.add(f); setFamily(name); }, () => undefined);

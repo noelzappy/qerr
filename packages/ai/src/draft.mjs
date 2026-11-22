@@ -1,14 +1,14 @@
 // draftBatch: vault + request -> a batch (the engine's JSON, with design blocks) and notes. Every post is checked by
 // postcheck.mjs, then the whole batch by the engine's own validateBatch, before anything is returned.
-import { ROOT } from '@vesk/engine/core';
-import { validateBatch } from '@vesk/engine/batch';
+import { ROOT } from '@qerr/engine/core';
+import { validateBatch } from '@qerr/engine/batch';
 import { AIError } from './errors.mjs';
 import { brandBrief, checkTimezone, layoutBriefs, makeCtx, parseChannels, parsePeriod, readBrand } from './context.mjs';
 import { reporter } from './progress.mjs';
 import { checkPost, kindOfDesign, maxPagesFor } from './postcheck.mjs';
 import { loadPrompt } from './prompts.mjs';
 import { directionBrief, directionOf, lookDrawsDevice, seriesBrief } from './direction.mjs';
-import { planSeries, seriesMark, seriesProblems } from '@vesk/engine/design/series';
+import { planSeries, seriesMark, seriesProblems } from '@qerr/engine/design/series';
 import { MEDIA_KINDS, forPrompt, forPromptMedia, rank, usableItems, usableMedia } from './vault.mjs';
 
 const POST_SCHEMA = {

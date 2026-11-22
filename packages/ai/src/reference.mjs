@@ -4,9 +4,9 @@
 // proposal is only shown in Settings, and applied only when an admin accepts it. The image itself never goes into a draft
 // request. The model's answer is untrusted: it is checked against the schema (every proposed value a #rrggbb colour, a
 // number in range or a name from the engine's own lists) and cut to size; the web app checks the proposal again.
-import { ROOT } from '@vesk/engine/core';
-import { ACCENT_DEVICES, ACCENT_STYLES, DECORATION_ON, DECORATIONS, GROUND_NAMES, PHOTO_TREATMENTS, SURFACES, TYPE_CASES } from '@vesk/engine/design/tokens';
-import { BLOCKS, BLOCK_TYPES, FIELDS, FIELD_NAMES, GRID_LIMITS, LABEL_SOURCES, MAX_BLOCKS, MAX_CHILDREN, TEXTURES, gridOptions, validateLayout } from '@vesk/engine/design/layout';
+import { ROOT } from '@qerr/engine/core';
+import { ACCENT_DEVICES, ACCENT_STYLES, DECORATION_ON, DECORATIONS, GROUND_NAMES, PHOTO_TREATMENTS, SURFACES, TYPE_CASES } from '@qerr/engine/design/tokens';
+import { BLOCKS, BLOCK_TYPES, FIELDS, FIELD_NAMES, GRID_LIMITS, LABEL_SOURCES, MAX_BLOCKS, MAX_CHILDREN, TEXTURES, gridOptions, validateLayout } from '@qerr/engine/design/layout';
 import { AIError } from './errors.mjs';
 import { loadPrompt } from './prompts.mjs';
 import { IMAGE_MEDIA_TYPES } from './providers.mjs';

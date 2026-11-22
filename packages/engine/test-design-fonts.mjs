@@ -159,7 +159,7 @@ async function drawn(browser, brand, spec) {
 test('end to end: a bold role is drawn with the true bold face, a light one with the light face, and never with a synthetic bold', { skip: chrome ? false : NO_CHROME_SKIP }, async () => {
   const dir = path.join(ROOT, 'out', `test-fonts-render-${process.pid}`);
   fs.mkdirSync(dir, { recursive: true });
-  const shots = process.env.VESK_FONT_SHOTS; // a folder to keep the pictures in, to look at them
+  const shots = process.env.QERR_FONT_SHOTS; // a folder to keep the pictures in, to look at them
   const browser = await Browser.launch({ chromePath: chrome });
   try {
     const spec = { template: 'text', headline: 'Every weight *a true one*', accent: 'weight', series: Object.keys(RAW.series)[0] };

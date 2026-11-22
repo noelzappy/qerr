@@ -81,7 +81,7 @@ const chrome = findChrome();
 test('every roast composition passes every check from sample, stress and minimal copy in the Kettleworks pack', { skip: chrome ? false : 'Google Chrome was not found' }, async () => {
   const pack = loadBrand({ file: path.join(ROOT, 'brands', 'kettleworks', 'brand.json') });
   const b = { ...pack, looks: [asCopy(shippedLooks().roast)], style: { ...pack.style, direction: 'roast' } };
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-roast-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-roast-'));
   const browser = await Browser.launch({ chromePath: chrome });
   let drawn = 0;
   try {

@@ -42,6 +42,6 @@ jobs:
       - name: Tests (engine, AI library, web app)
         run: npm test
       - name: Typecheck the web app
-        run: npm run typecheck --workspace @vesk/web
+        run: npm run typecheck --workspace @qerr/web
       - name: Build the web app
         run: npm run build

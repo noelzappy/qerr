@@ -93,7 +93,7 @@ export function PreviewRail(p: SketchProps) {
       <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
         <div className="flex items-center gap-1">
           <h2 className="text-[13px] font-semibold">Preview</h2>
-          <Hint about="Preview">A sketch of your posts. The real images are made by Vesk.</Hint>
+          <Hint about="Preview">A sketch of your posts. The real images are made by Qerr.</Hint>
         </div>
         <Samples {...p} />
         <p className="text-[12.5px] text-muted-foreground" role="status">{readabilityText(checks)}</p>

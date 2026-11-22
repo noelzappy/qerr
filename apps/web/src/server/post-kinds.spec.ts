@@ -3,9 +3,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { brandSettingsSchema, resetBrandState } from './services/brand-settings.js';
 import { createTestApp, type TestApp } from './testing.js';
 
-const tokens = await import('@vesk/engine/design/tokens' as string) as { DIRECTIONS: string[]; POST_KINDS: string[] };
-const postSpec = await import('@vesk/engine/design/post-spec' as string) as { POST_FIELDS: Record<string, { max: number }>; POST_ITEMS: Record<string, number>; POST_REQUIRED: Record<string, string[]> };
-const registry = await import('@vesk/engine/design/directions/index' as string) as { compositionsFor(d: string, k: string): Array<{ name: string; describe: string; fields: string[] }> };
+const tokens = await import('@qerr/engine/design/tokens' as string) as { DIRECTIONS: string[]; POST_KINDS: string[] };
+const postSpec = await import('@qerr/engine/design/post-spec' as string) as { POST_FIELDS: Record<string, { max: number }>; POST_ITEMS: Record<string, number>; POST_REQUIRED: Record<string, string[]> };
+const registry = await import('@qerr/engine/design/directions/index' as string) as { compositionsFor(d: string, k: string): Array<{ name: string; describe: string; fields: string[] }> };
 
 let t: TestApp;
 beforeAll(async () => { t = await createTestApp(); });
@@ -37,7 +37,7 @@ describe('GET /api/posts/post-kinds', () => {
       expect(k.variants).toEqual([]);
     }
     const spec = postSpec as unknown as { POST_INFO: { min: number; max: number; value: number }; POST_GALLERY: { min: number; max: number; caption: number }; INFO_KEYS: string[] };
-    const icons = await import('@vesk/engine/design/icons' as string) as { ICON_NAMES: string[] };
+    const icons = await import('@qerr/engine/design/icons' as string) as { ICON_NAMES: string[] };
     expect(res.body.limits).toEqual({
       ...Object.fromEntries(['label', 'headline', 'sub', 'big', 'unit', 'quote', 'by', 'meta', 'tag', 'cta'].map((f) => [f, postSpec.POST_FIELDS[f]!.max])),
       items: { min: postSpec.POST_ITEMS.min, max: postSpec.POST_ITEMS.max, chars: postSpec.POST_ITEMS.chars },

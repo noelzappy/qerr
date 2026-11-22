@@ -2,10 +2,10 @@
 // post is (its kind); the direction decides how it is drawn. This file reads the kinds, fields and word budgets from the
 // engine's own registry (lib/design/directions, lib/design/post-spec.mjs), so the model is told exactly what the renderer will
 // accept and nothing is written twice. The compositions' budgets are the most characters per field they are designed for.
-import { DIRECTIONS } from '@vesk/engine/design/tokens';
-import { INFO_KEYS, INLINE, POST_FIELDS, POST_ITEMS, POST_KINDS, POST_LISTS, POST_REQUIRED } from '@vesk/engine/design/post-spec';
-import { ICON_NAMES } from '@vesk/engine/design/icons';
-import { CHART_HIGHLIGHTS, CHART_UNITS, POST_CHART, SHARE_KINDS } from '@vesk/engine/design/chart';
+import { DIRECTIONS } from '@qerr/engine/design/tokens';
+import { INFO_KEYS, INLINE, POST_FIELDS, POST_ITEMS, POST_KINDS, POST_LISTS, POST_REQUIRED } from '@qerr/engine/design/post-spec';
+import { ICON_NAMES } from '@qerr/engine/design/icons';
+import { CHART_HIGHLIGHTS, CHART_UNITS, POST_CHART, SHARE_KINDS } from '@qerr/engine/design/chart';
 
 // What one entry of an info block or a row of round pictures looks like, for the model.
 export const LIST_SHAPES = {
@@ -24,7 +24,7 @@ function inlineOf(look, kind) {
   for (const c of Array.isArray(look?.compositions) ? look.compositions : []) if (c?.kind === kind) walk(c.elements);
   return out;
 }
-import { compositionsFor, lookBrief, lookOfBrand } from '@vesk/engine/design/directions/index';
+import { compositionsFor, lookBrief, lookOfBrand } from '@qerr/engine/design/directions/index';
 
 // The brand's direction, or null (no direction, or one the engine does not know).
 // A look written as data (brand.looks) that style.direction names is a direction too: its id is returned.

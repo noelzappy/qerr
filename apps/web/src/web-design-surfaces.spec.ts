@@ -10,10 +10,10 @@ import { PATTERN_PRESETS, crossableShapes, takes } from '../web/src/pages/settin
 import type { Json, LookCatalogue } from '../web/src/pages/settings/looks/look-types';
 
 type Engine = { lookCatalogue(): LookCatalogue; validateLook(l: unknown, w?: string, o?: { shipped?: boolean }): string[] };
-const engine = await import('@vesk/engine/design/look' as string) as Engine;
-const prims = await import('@vesk/engine/design/directions/primitives/backdrop' as string) as { PRESETS: Record<string, Json> };
+const engine = await import('@qerr/engine/design/look' as string) as Engine;
+const prims = await import('@qerr/engine/design/directions/primitives/backdrop' as string) as { PRESETS: Record<string, Json> };
 const cat = engine.lookCatalogue();
-const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@vesk/engine/package.json')), 'lib', 'design', 'looks');
+const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@qerr/engine/package.json')), 'lib', 'design', 'looks');
 const soft = JSON.parse(fs.readFileSync(path.join(dir, 'soft.look.json'), 'utf8')) as Json & { compositions: Json[] };
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const verdict = (comp: Json): string[] => { const l = clone(soft); l.origin = 'copy:shipped:soft'; l.compositions[0] = comp; return engine.validateLook(l, 'look'); };

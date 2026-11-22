@@ -1,5 +1,5 @@
 {
-  "name": "vesk",
+  "name": "qerr",
   "version": "0.3.0",
   "description": "A web app that drafts, renders, reviews and schedules a brand's social posts into Buffer. A monorepo: the design and Buffer engine, the AI library and the web app.",
   "license": "MIT",
@@ -9,11 +9,11 @@
   "workspaces": ["packages/*", "apps/*"],
   "scripts": {
     "test": "npm run test:engine && npm run test:ai && npm run test:scripts && npm run test:web",
-    "test:engine": "npm test --workspace @vesk/engine",
-    "test:ai": "npm test --workspace @vesk/ai",
-    "test:web": "npm test --workspace @vesk/web",
+    "test:engine": "npm test --workspace @qerr/engine",
+    "test:ai": "npm test --workspace @qerr/ai",
+    "test:web": "npm test --workspace @qerr/web",
     "test:scripts": "node --test scripts/test-*.mjs",
     "export-public": "node scripts/export-public.mjs",
-    "build": "npm run build --workspace @vesk/web"
+    "build": "npm run build --workspace @qerr/web"
   }
 }

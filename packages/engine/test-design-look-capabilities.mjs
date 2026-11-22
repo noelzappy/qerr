@@ -279,7 +279,7 @@ test('the post spec\'s graphics are a short list of ids, picture files and a fla
 });
 
 test('the renderer reads a graphic only as a PNG or WebP with transparency, and embeds it', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-graphic-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-graphic-'));
   try {
     const ok = path.join(tmp, 'mark.png'), flat = path.join(tmp, 'flat.png'), jpg = path.join(tmp, 'photo.jpg'), liar = path.join(tmp, 'liar.png');
     fs.writeFileSync(ok, pngBytes(4, 8, (x) => [10, 20, 30, x < 2 ? 0 : 255], { alpha: true }));

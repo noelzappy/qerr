@@ -1,6 +1,6 @@
 // A live sketch of a layout at one size: the grid, every block in its slot (running to the page edges it asks for) or at its pixel
 // rectangle, the page's chrome roughly where the page puts it, with sample words, drawn in the browser as plain boxes. It shows
-// where things go while the layout is edited; the real image always comes from Vesk (the preview button), which also runs the
+// where things go while the layout is edited; the real image always comes from Qerr (the preview button), which also runs the
 // fit, contrast and enlargement checks.
 //
 // When `edit` is given the sketch is a canvas: press a block to select it, drag the selected block to move it and its edges and

@@ -1,4 +1,4 @@
-// The brand Vesk works for, read from the brand pack folder in force (BRAND_DIR, see packages/engine/lib/core.mjs, which
+// The brand Qerr works for, read from the brand pack folder in force (BRAND_DIR, see packages/engine/lib/core.mjs, which
 // syncBrand points at the brand saved in Settings): the name, website, time zone and series the web app shows, and the file
 // of the logo mark. Colours and fonts stay with the design engine, which reads the same folder when it renders.
 import fs from 'node:fs';
@@ -55,7 +55,7 @@ export function readBrandInfo(file: string = core.brandFile('brand.json')): Bran
   }
   const m = raw.money as { local?: unknown; foreign?: unknown } | undefined;
   return {
-    name: text(raw.name, 'Vesk'),
+    name: text(raw.name, 'Qerr'),
     website: text(raw.website, ''),
     tagline: text(raw.tagline, ''),
     timezone: validTimeZone(tz) ? tz : 'UTC',

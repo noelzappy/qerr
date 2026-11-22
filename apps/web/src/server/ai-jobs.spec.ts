@@ -14,7 +14,7 @@ const fake = vi.hoisted(() => ({
   research: null as any,
   draft: null as any,
   rewrite: null as any,
-  // When set, createAI is the real @vesk/ai library talking to this fetch, so the draft tests cover the library's own checks.
+  // When set, createAI is the real @qerr/ai library talking to this fetch, so the draft tests cover the library's own checks.
   fetch: null as null | ((url: string, init?: RequestInit) => Promise<Response>),
 }));
 const realCreateAI = (await aiImport<{ createAI: (options: unknown) => unknown }>()).createAI;

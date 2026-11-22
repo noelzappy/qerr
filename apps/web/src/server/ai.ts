@@ -1,4 +1,4 @@
-// The seam to the @vesk/ai workspace package: the types the app uses and loadAI(), which the specs replace with a fake.
+// The seam to the @qerr/ai workspace package: the types the app uses and loadAI(), which the specs replace with a fake.
 // Nothing else in the app imports the package directly.
 import { aiImport } from './engine/root.js';
 
@@ -29,7 +29,7 @@ export interface ResearchResult {
 }
 export interface AnalyseReferenceInput { image: { mediaType: string; data: Buffer }; note?: string | null }
 export interface AnalyseReferenceResult { analysis: Record<string, unknown>; brief: string; notes?: Record<string, unknown> }
-// Suggestions a person reviews; nothing is saved by the library (src/suggest.mjs in @vesk/ai).
+// Suggestions a person reviews; nothing is saved by the library (src/suggest.mjs in @qerr/ai).
 export interface SuggestBrandFromSiteInput { website: string }
 export interface BrandSiteSuggestion { descriptor?: string; tagline?: string; voice?: string; visualDirection?: string; colours?: { primary?: string; accent?: string } }
 export interface SuggestBrandFromSiteResult { suggestion: BrandSiteSuggestion; source?: { url: string; title: string | null }; notes?: Record<string, unknown> }

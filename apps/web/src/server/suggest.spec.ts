@@ -4,7 +4,7 @@ import { aiImport } from './engine/root.js';
 import { resetBrandState } from './services/brand-settings.js';
 import { createTestApp, type TestApp } from './testing.js';
 
-// The AI suggestions: the real @vesk/ai library, with a fake provider (fetch), a fake website (the page transport, behind the
+// The AI suggestions: the real @qerr/ai library, with a fake provider (fetch), a fake website (the page transport, behind the
 // library's real address checks) and a fake DNS (lookup). Nothing leaves the machine.
 const fake = vi.hoisted(() => ({
   fetch: null as null | ((url: string, init?: RequestInit) => Promise<Response>),
@@ -107,7 +107,7 @@ describe('POST /api/suggest/brand-from-site', () => {
     for (const website of ['http://127.0.0.1:8080/', 'http://10.1.2.3/', 'http://192.168.0.1/', 'http://169.254.169.254/latest/meta-data/', 'http://[::1]/', 'http://localhost/', 'file:///etc/passwd', 'ftp://kettle.example/']) {
       const res = await admin.post('/api/suggest/brand-from-site', { website });
       expect(res.status, website).toBe(422);
-      expect(res.body.error, website).toMatch(/^Vesk only reads public websites/);
+      expect(res.body.error, website).toMatch(/^Qerr only reads public websites/);
     }
     fake.lookup = async () => [{ address: '10.0.0.7', family: 4 }];
     expect((await admin.post('/api/suggest/brand-from-site', { website: 'intranet.kettle.example' })).status).toBe(422);

@@ -9,7 +9,7 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
-  APP_URL: z.string().url('APP_URL must be a full URL such as https://vesk.example.com'),
+  APP_URL: z.string().url('APP_URL must be a full URL such as https://qerr.example.com'),
   BETTER_AUTH_SECRET: z.string().min(32, 'BETTER_AUTH_SECRET must be at least 32 characters'),
   APP_ENCRYPTION_KEY: z.string().min(1, 'APP_ENCRYPTION_KEY is required (base64 of 32 random bytes)'),
   APP_ENCRYPTION_KEY_VERSION: z.coerce.number().int().min(1).default(1),
@@ -20,7 +20,7 @@ const schema = z.object({
   SMTP_PASS: optional,
   MAIL_FROM: optional,
   MAIL_FROM_NAME: optional,
-  // The name in page titles, emails and the sign-in page. Default: "Vesk".
+  // The name in page titles, emails and the sign-in page. Default: "Qerr".
   APP_NAME: optional,
   ZEPTOMAIL_API_KEY: optional,
   BOOTSTRAP_ADMIN_EMAIL: optional,
@@ -80,7 +80,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   if (e.ZEPTOMAIL_API_KEY && !e.MAIL_FROM) throw new Error('The environment is not usable:\n  - MAIL_FROM: required when ZEPTOMAIL_API_KEY is set (for example noreply@example.com)');
   const mailFrom = e.MAIL_FROM ?? 'no-reply@localhost';
   const mailFromName = e.MAIL_FROM_NAME ?? brandInfo().name;
-  const appName = e.APP_NAME ?? 'Vesk';
+  const appName = e.APP_NAME ?? 'Qerr';
   const s3Env: Record<string, string> = {};
   for (const [k, v] of Object.entries(env)) if (k.startsWith('S3_') && v) s3Env[k] = v;
   return {

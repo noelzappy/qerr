@@ -1,16 +1,16 @@
 // Checks one AI-written post against the vault and the engine's rules. Nothing a model wrote is trusted:
 // it either passes here, is repaired in a way that is reported, or is rejected with reasons.
-import { LIMITS, MEDIA_LIMITS, NETWORKS } from '@vesk/engine/networks';
-import { foreignMoneyWarning, lintText, textFieldsOf } from '@vesk/engine/design/lint';
-import { POSTER_TEMPLATES } from '@vesk/engine/design/spec';
-import { normalisePostDesign, postDesignProblems, screenDeviceOf } from '@vesk/engine/design/layout';
+import { LIMITS, MEDIA_LIMITS, NETWORKS } from '@qerr/engine/networks';
+import { foreignMoneyWarning, lintText, textFieldsOf } from '@qerr/engine/design/lint';
+import { POSTER_TEMPLATES } from '@qerr/engine/design/spec';
+import { normalisePostDesign, postDesignProblems, screenDeviceOf } from '@qerr/engine/design/layout';
 import { layoutImageKind } from './context.mjs';
-import { limitEmoji } from '@vesk/engine/design/emoji';
+import { limitEmoji } from '@qerr/engine/design/emoji';
 import { fixSpelling, isTitleCase, numberKeys, quoteIsSourced, quotesIn, trimToLimit, unsourcedNumbers, usSpellings } from './facts.mjs';
 import { MEDIA_KINDS, foreignMoneyPattern, mentionsForeignMoney, unusableReason } from './vault.mjs';
-import { POST_PAGES, seenText } from '@vesk/engine/design/post-spec';
-import { applySeriesSlot, seriesMark, seriesRefProblems } from '@vesk/engine/design/series';
-import { lookOfBrand } from '@vesk/engine/design/directions/index';
+import { POST_PAGES, seenText } from '@qerr/engine/design/post-spec';
+import { applySeriesSlot, seriesMark, seriesRefProblems } from '@qerr/engine/design/series';
+import { lookOfBrand } from '@qerr/engine/design/directions/index';
 import { EMPHASIS_FIELDS, directionKinds, emphasisIn, kindBrief } from './direction.mjs';
 
 // The drafting assistant may only use the poster pages (a real photo or a framed phone screen on a pale ground), a full-bleed photo,

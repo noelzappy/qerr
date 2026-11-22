@@ -1,7 +1,7 @@
 {
-  "name": "@vesk/engine",
+  "name": "@qerr/engine",
   "version": "0.2.0",
-  "description": "The library under the Vesk web app: renders on-brand post images and schedules batches of posts into Buffer through its GraphQL API.",
+  "description": "The library under the Qerr web app: renders on-brand post images and schedules batches of posts into Buffer through its GraphQL API.",
   "license": "MIT",
   "private": true,
   "type": "module",

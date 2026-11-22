@@ -20,7 +20,7 @@ import { paletteBrand } from './testlib/retail-copy.mjs';
 
 const chrome = findChrome();
 const skip = chrome ? false : 'Google Chrome was not found';
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-chart-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-chart-'));
 let browser;
 test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome }); });
 test.after(() => { browser?.close(); fs.rmSync(tmp, { recursive: true, force: true }); });

@@ -1,5 +1,5 @@
 // Checks on the words a model wrote: numbers and quotations must come from the vault items a post cites.
-import { WEB_ADDRESS } from '@vesk/engine/design/lint';
+import { WEB_ADDRESS } from '@qerr/engine/design/lint';
 const MULT = { thousand: 1e3, k: 1e3, million: 1e6, m: 1e6, billion: 1e9, b: 1e9 };
 const NUM = /(?<![\w#.,])(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d+))?(?:\s?(thousand|million|billion)\b|(?<=\d)([kKmMbB])(?![A-Za-z]))?/giu;
 const URLS = WEB_ADDRESS;

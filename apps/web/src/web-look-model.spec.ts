@@ -9,9 +9,9 @@ import {
 } from '../web/src/pages/settings/looks/look-model';
 import type { Composition, Desc, Json, LookCatalogue } from '../web/src/pages/settings/looks/look-types';
 
-const engine = await import('@vesk/engine/design/look' as string) as { lookCatalogue(): LookCatalogue; validateLook(l: unknown, w?: string, o?: { shipped?: boolean }): string[]; lookBrief(l: unknown): { kinds: Record<string, { variants: unknown[] }> } };
+const engine = await import('@qerr/engine/design/look' as string) as { lookCatalogue(): LookCatalogue; validateLook(l: unknown, w?: string, o?: { shipped?: boolean }): string[]; lookBrief(l: unknown): { kinds: Record<string, { variants: unknown[] }> } };
 const cat = engine.lookCatalogue();
-const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@vesk/engine/package.json')), 'testlib', 'looks');
+const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@qerr/engine/package.json')), 'testlib', 'looks');
 const sample = (n: string): Json & { compositions: Json[] } => JSON.parse(fs.readFileSync(path.join(dir, `${n}.sample.json`), 'utf8'));
 const SAMPLES = ['retail', 'swiss'];
 

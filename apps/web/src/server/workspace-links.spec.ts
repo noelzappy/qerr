@@ -6,21 +6,21 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { workspaceLinkProblems } from './engine/root.js';
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-links-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-links-'));
 afterAll(() => fs.rmSync(tmp, { recursive: true, force: true }));
 const mk = (dir: string) => { fs.mkdirSync(path.join(tmp, dir), { recursive: true }); fs.writeFileSync(path.join(tmp, dir, 'package.json'), '{}'); };
 mk('here/packages/engine'); mk('here/packages/ai'); mk('other/packages/engine');
 
 describe('workspaceLinkProblems', () => {
   it('accepts packages that are this repository\'s own', () => {
-    const resolve = (s: string) => path.join(tmp, 'here', 'packages', s.startsWith('@vesk/engine') ? 'engine' : 'ai', 'package.json');
+    const resolve = (s: string) => path.join(tmp, 'here', 'packages', s.startsWith('@qerr/engine') ? 'engine' : 'ai', 'package.json');
     expect(workspaceLinkProblems(path.join(tmp, 'here'), resolve)).toEqual([]);
   });
   it('names a package that resolves to another checkout, and says how to fix it', () => {
-    const resolve = (s: string) => path.join(tmp, s.startsWith('@vesk/engine') ? 'other' : 'here', 'packages', s.startsWith('@vesk/engine') ? 'engine' : 'ai', 'package.json');
+    const resolve = (s: string) => path.join(tmp, s.startsWith('@qerr/engine') ? 'other' : 'here', 'packages', s.startsWith('@qerr/engine') ? 'engine' : 'ai', 'package.json');
     const p = workspaceLinkProblems(path.join(tmp, 'here'), resolve);
     expect(p).toHaveLength(1);
-    expect(p[0]).toContain('@vesk/engine resolves to');
+    expect(p[0]).toContain('@qerr/engine resolves to');
     expect(p[0]).toContain('run npm install in this checkout');
   });
   it('holds for the checkout the tests are running in', () => {

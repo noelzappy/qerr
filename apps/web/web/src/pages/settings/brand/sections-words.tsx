@@ -61,8 +61,8 @@ export function AdvancedSection({ ctx }: { ctx: BrandCtx }) {
   const { view, s, set, fields } = ctx;
   const oldPattern = !!s.money && parseCurrencyPattern(s.money.foreign) === null;
   return (
-    <Section id="advanced" title="Advanced" description="For people who work with Vesk's brand files: brand.json (described in docs/design.md) and the dot map. Most teams never need this section.">
-      <p className="text-[13px] text-muted-foreground">For people who work with Vesk's brand files. Everything here is saved straight away, not with the Save bar.</p>
+    <Section id="advanced" title="Advanced" description="For people who work with Qerr's brand files: brand.json (described in docs/design.md) and the dot map. Most teams never need this section.">
+      <p className="text-[13px] text-muted-foreground">For people who work with Qerr's brand files. Everything here is saved straight away, not with the Save bar.</p>
       {oldPattern && s.money && (
         <div className="flex flex-col gap-2">
           <TextField

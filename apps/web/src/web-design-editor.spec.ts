@@ -9,10 +9,10 @@ import { designHealth, mergeServer } from '../web/src/pages/settings/looks/desig
 import type { Json, LookCatalogue } from '../web/src/pages/settings/looks/look-types';
 
 type Engine = { lookCatalogue(): LookCatalogue; validateLook(l: unknown, w?: string, o?: { shipped?: boolean }): string[] };
-const engine = await import('@vesk/engine/design/look' as string) as Engine;
-const statics = await import('@vesk/engine/design/look-static' as string) as { gridOf(l: unknown): unknown; placeRect(p: unknown, base: unknown, look: unknown, g: unknown, mh?: number): { x0: number; y0: number; x1: number; y1: number } };
+const engine = await import('@qerr/engine/design/look' as string) as Engine;
+const statics = await import('@qerr/engine/design/look-static' as string) as { gridOf(l: unknown): unknown; placeRect(p: unknown, base: unknown, look: unknown, g: unknown, mh?: number): { x0: number; y0: number; x1: number; y1: number } };
 const cat = engine.lookCatalogue();
-const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@vesk/engine/package.json')), 'lib', 'design', 'looks');
+const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@qerr/engine/package.json')), 'lib', 'design', 'looks');
 const load = (n: string): Json & { compositions: Json[] } => JSON.parse(fs.readFileSync(path.join(dir, `${n}.look.json`), 'utf8'));
 const LOOKS = { retail: load('retail'), swiss: load('swiss'), soft: load('soft'), bloom: load('bloom'), clean: load('clean'), loud: load('loud'), ledger: load('ledger'), studio: load('studio'), roast: load('roast'), plate: load('plate') };
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;

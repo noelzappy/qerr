@@ -1,4 +1,4 @@
-// Step 3, Your look: one of the looks Vesk ships, chosen from the gallery with live samples of the chosen one (the Looks
+// Step 3, Your look: one of the looks Qerr ships, chosen from the gallery with live samples of the chosen one (the Looks
 // gallery's own SampleStrip and sample hook, drawn in the brand just saved). Clean is chosen unless another look is in use.
 // Saved with PUT /api/settings/looks/active; the step is recorded as done, since every saved brand already starts on a look.
 import { useEffect, useState } from 'react';

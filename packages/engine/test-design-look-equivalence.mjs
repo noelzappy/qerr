@@ -42,7 +42,7 @@ const COLOURS = {
 const brandOf = (colours, look) => { const b = loadBrand(); return { ...b, ...COLOURS[colours], ...(look ? { looks: [look] } : {}), style: { ...b.style, direction: look ? look.id : 'retail' } }; };
 const chrome = findChrome();
 const skip = chrome ? false : 'Google Chrome was not found';
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-look-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-look-'));
 let browser;
 test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome }); });
 test.after(() => { browser?.close(); fs.rmSync(tmp, { recursive: true, force: true }); });

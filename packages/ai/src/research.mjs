@@ -1,7 +1,7 @@
 // research: search per topic, read the top pages, ask the model what is new and what the sources say about vault items.
 // Search results and pages are untrusted: capped, wrapped as data, and every claim the model returns is checked against
 // the text that was actually read.
-import { ROOT } from '@vesk/engine/core';
+import { ROOT } from '@qerr/engine/core';
 import { AIError } from './errors.mjs';
 import { reporter } from './progress.mjs';
 import { numberKeys, unsourcedNumbers } from './facts.mjs';

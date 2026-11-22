@@ -157,7 +157,7 @@ export type RunGate = (input: GateInput) => Promise<GateRecord>;
 let engineVersionCache: string | null = null;
 function engineVersion(): string {
   if (engineVersionCache) return engineVersionCache;
-  try { engineVersionCache = String((JSON.parse(fs.readFileSync(createRequire(import.meta.url).resolve('@vesk/engine/package.json'), 'utf8')) as Json).version ?? 'unknown'); } catch { engineVersionCache = 'unknown'; }
+  try { engineVersionCache = String((JSON.parse(fs.readFileSync(createRequire(import.meta.url).resolve('@qerr/engine/package.json'), 'utf8')) as Json).version ?? 'unknown'); } catch { engineVersionCache = 'unknown'; }
   return engineVersionCache;
 }
 export const validationGate = (engine: Pick<EngineLook, 'validateLook'>): RunGate => async ({ look, definitionHash }) => {

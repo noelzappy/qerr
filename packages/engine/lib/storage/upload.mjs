@@ -83,7 +83,7 @@ export async function runUpload({ plan, s3, config, state, saveState, fetchImpl 
     const probe = await probeMedia(url, fetchImpl);
     if (!probe.ok) {
       summary.notPublic++;
-      log(`NOT PUBLIC ${f.rel}: ${url} answered "${probe.reason}". The bucket must allow public read on ${config.prefix} (Vesk never changes the bucket's policy).`);
+      log(`NOT PUBLIC ${f.rel}: ${url} answered "${probe.reason}". The bucket must allow public read on ${config.prefix} (Qerr never changes the bucket's policy).`);
     }
   }
   return summary;

@@ -36,7 +36,7 @@ export function HealthPanel({ health, warnings }: { health: Health; warnings: st
           <ul className="list-disc space-y-0.5 pl-[18px] text-muted-foreground">{warnings.map((w, i) => <li key={i} className="[overflow-wrap:anywhere]">{w}</li>)}</ul>
         </div>
       )}
-      <p className="mt-2 text-[12px] text-muted-foreground">Vesk makes the final check when you save and publish.</p>
+      <p className="mt-2 text-[12px] text-muted-foreground">Qerr makes the final check when you save and publish.</p>
     </details>
   );
 }

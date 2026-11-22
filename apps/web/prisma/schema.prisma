@@ -1,4 +1,4 @@
-// Vesk schema. Better Auth owns User, Session, Account and Verification (field names are the library's own).
+// Qerr schema. Better Auth owns User, Session, Account and Verification (field names are the library's own).
 // Later changes go in NEW migrations; never edit a committed migration.
 
 generator client {

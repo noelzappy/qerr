@@ -246,7 +246,7 @@ describe('what the routes and the gate do with a renderer\'s answers', () => {
 });
 
 describe('the font files for the typeface cards', () => {
-  const fontsDir = path.join(path.dirname(new URL(import.meta.resolve('@vesk/engine/package.json')).pathname), 'design', 'fonts');
+  const fontsDir = path.join(path.dirname(new URL(import.meta.resolve('@qerr/engine/package.json')).pathname), 'design', 'fonts');
   it('serves a file the engine\'s font library lists, with a long-lived cache header, to a signed-in admin only', async () => {
     const lib = JSON.parse(fs.readFileSync(path.join(fontsDir, 'library.json'), 'utf8')) as Array<{ family: string; dir: string; files: Array<{ file: string }> }>;
     const fraunces = lib.find((f) => f.family === 'Fraunces')!;

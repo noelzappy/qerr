@@ -5,7 +5,7 @@
 // The fixture (testlib/retail-markup.json) holds hashes only, never markup: per case a sha256 of the page body (`markup`, with the element
 // addresses data-el, and `markup-noel`, without them) and, for the sample copy, the rectangle of every addressed element rounded to a pixel
 // (`geometry`). The body is compared exactly; the only things normalised are volatile ids (see stableMarkup in testlib/markup-fixture.mjs).
-// Record it again, on purpose and after looking at the pictures, with:  VESK_RECORD_RETAIL=1 npm test --workspace @vesk/engine
+// Record it again, on purpose and after looking at the pictures, with:  QERR_RECORD_RETAIL=1 npm test --workspace @qerr/engine
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -27,7 +27,7 @@ import { postGeometry, sameGeometry } from './testlib/post-geometry.mjs';
 
 const PIXEL = 'data:image/png;base64,iVBORw0KGgo=';
 const RETAIL = allCompositions().filter((c) => c.direction === 'retail').map((c) => c.comp);
-const opts = { file: RETAIL_FIXTURE_FILE, recordEnv: 'VESK_RECORD_RETAIL' };
+const opts = { file: RETAIL_FIXTURE_FILE, recordEnv: 'QERR_RECORD_RETAIL' };
 // The three sets of brand colours: the demo brand as it is, and two built here from colour values (a dark field; an accent that is almost the paper).
 const COLOURS = {
   demo: {},
@@ -187,7 +187,7 @@ test('retail fixture: the markup of a case depends on the words and the colours,
 // ---- in Chrome ----
 const chrome = findChrome();
 const skip = chrome ? false : 'Google Chrome was not found';
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-retail-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-retail-'));
 let browser;
 test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome }); });
 test.after(() => { browser?.close(); fs.rmSync(tmp, { recursive: true, force: true }); });

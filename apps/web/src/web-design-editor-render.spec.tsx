@@ -14,9 +14,9 @@ import { designHealth } from '../web/src/pages/settings/looks/design-health';
 import { listTree } from '../web/src/pages/settings/looks/design-model';
 import { swatchesFrom } from '../web/src/pages/settings/looks/design-colours';
 
-const engine = await import('@vesk/engine/design/look' as string) as any;
+const engine = await import('@qerr/engine/design/look' as string) as any;
 const cat = engine.lookCatalogue();
-const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@vesk/engine/package.json')), 'lib', 'design', 'looks');
+const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@qerr/engine/package.json')), 'lib', 'design', 'looks');
 const load = (n: string) => JSON.parse(fs.readFileSync(path.join(dir, `${n}.look.json`), 'utf8'));
 const sw = swatchesFrom({ palette: { grounds: { light: '#fff', dark: '#111', soft: '#eee' }, text: { ink: '#000' }, accents: { primary: '#06f', gold: '#fc0' }, slabs: {}, surfaces: {} } } as any);
 const noop = () => '';

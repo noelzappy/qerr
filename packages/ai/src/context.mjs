@@ -1,10 +1,10 @@
 // Builds the context that post checks need: brand file, series keys, vault lookups.
-import { ROOT, brandFile, readJson, validTimeZone } from '@vesk/engine/core';
+import { ROOT, brandFile, readJson, validTimeZone } from '@qerr/engine/core';
 import { AIError } from './errors.mjs';
-import { NETWORKS } from '@vesk/engine/networks';
+import { NETWORKS } from '@qerr/engine/networks';
 import { normaliseVault } from './vault.mjs';
 import { directionOf } from './direction.mjs';
-import { FIELDS, layoutSizes, optionOf, validateLayout } from '@vesk/engine/design/layout';
+import { FIELDS, layoutSizes, optionOf, validateLayout } from '@qerr/engine/design/layout';
 
 export function readBrand({ root = ROOT, override } = {}) {
   const b = readJson(brandFile('brand.json', { root }), null);

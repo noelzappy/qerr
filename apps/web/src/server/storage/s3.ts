@@ -1,6 +1,6 @@
 // Hetzner Object Storage (any S3-compatible bucket) through the engine's own client.
-// The engine module @vesk/engine/storage/s3 signs requests (SigV4) with node:crypto only; this wrapper adds read and delete
-// by reusing its exported signRequest, and signed URLs through @vesk/engine/storage/presign when that module is present.
+// The engine module @qerr/engine/storage/s3 signs requests (SigV4) with node:crypto only; this wrapper adds read and delete
+// by reusing its exported signRequest, and signed URLs through @qerr/engine/storage/presign when that module is present.
 import { engineHas, engineImport } from '../engine/root.js';
 import { StorageError, assertSafeKey, type Storage } from './types.js';
 

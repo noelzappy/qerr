@@ -3,8 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
-import { validateBatch } from '@vesk/engine/batch';
-import { brandFile } from '@vesk/engine/core';
+import { validateBatch } from '@qerr/engine/batch';
+import { brandFile } from '@qerr/engine/core';
 import { createAI, complete, estimateCost, createSearch, fetchPage, assertPublicUrl, AIError } from './src/index.mjs';
 import { validate } from './src/schema.mjs';
 import { isPrivateAddress, htmlToText, fromFetch, nodeTransport, pinnedLookup } from './src/safe-fetch.mjs';
@@ -794,12 +794,12 @@ test('rewrite: an invented number is sent back once, then fails', async () => {
 
 // ---------- a brand with a design direction ----------
 import { directionBrief, directionKinds } from './src/direction.mjs';
-import { POST_KINDS } from '@vesk/engine/design/post-spec';
+import { POST_KINDS } from '@qerr/engine/design/post-spec';
 
 // A throw-away repository root with a brand pack (the demo brand plus style.direction), and the env that points at it.
 async function withDirection(direction, fn) {
   const os = await import('node:os'), path = await import('node:path');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-dir-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-dir-'));
   const prev = process.env.BRAND_DIR;
   try {
     const brand = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
@@ -851,7 +851,7 @@ test('direction brand: gets draft-17 with the direction section, the engine\'s k
 
 async function withEmojiBrand(on, fn) {
   const os = await import('node:os'), path = await import('node:path');
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-emo-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-emo-'));
   const prev = process.env.BRAND_DIR;
   try {
     const brand = JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
@@ -1338,7 +1338,7 @@ const FIGURES = {
 
 // Runs fn with BRAND_DIR pointing at a copy of the demo pack whose brand.json has these layouts.
 async function withLayouts(layouts, fn) {
-  const { ROOT } = await import('@vesk/engine/core');
+  const { ROOT } = await import('@qerr/engine/core');
   const path = await import('node:path');
   fs.mkdirSync(path.join(ROOT, 'out'), { recursive: true });
   const dir = fs.mkdtempSync(path.join(ROOT, 'out', 'test-ai-layouts-'));
@@ -1356,7 +1356,7 @@ async function withLayouts(layouts, fn) {
 
 // Runs fn with BRAND_DIR pointing at a copy of the demo pack whose brand.json is changed by edit(brand).
 async function withBrand(edit, fn) {
-  const { ROOT } = await import('@vesk/engine/core');
+  const { ROOT } = await import('@qerr/engine/core');
   const path = await import('node:path');
   fs.mkdirSync(path.join(ROOT, 'out'), { recursive: true });
   const dir = fs.mkdtempSync(path.join(ROOT, 'out', 'test-ai-brand-'));
@@ -1585,7 +1585,7 @@ test('draftBatch: without a money setting in the brand no currency is flagged', 
 });
 
 // ---------- a look written as data with pills, icons, an info block, a button and a row of round pictures ----------
-const { shippedLooks } = await import('@vesk/engine/design/directions/index');
+const { shippedLooks } = await import('@qerr/engine/design/directions/index');
 function partsLook() {
   const PX = (x, y, w, h) => ({ px: { x, y, w, h } });
   return {

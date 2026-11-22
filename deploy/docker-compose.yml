@@ -1,4 +1,4 @@
-# Vesk on Dokploy. Build context is the repository root (this file is deploy/docker-compose.yml): the Dockerfile
+# Qerr on Dokploy. Build context is the repository root (this file is deploy/docker-compose.yml): the Dockerfile
 # there builds the npm workspaces (packages/engine, packages/ai, apps/web) into one image on Node 22.
 # Every value comes from the Dokploy environment; nothing secret is written here.
 # Written for a Dokploy server (see deploy/README.md); any Docker Compose host works the same way.
@@ -19,7 +19,7 @@ services:
     environment:
       PORT: "3000"
       DATABASE_URL: postgresql://social:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/social
-      APP_URL: ${APP_URL:?set APP_URL, for example https://vesk.example.com}
+      APP_URL: ${APP_URL:?set APP_URL, for example https://qerr.example.com}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
       APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?set APP_ENCRYPTION_KEY}
       # 'local' keeps files inside the container (development only); a real deployment sets 's3' and the S3_* values.

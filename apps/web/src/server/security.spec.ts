@@ -157,15 +157,15 @@ describe('request handling', () => {
 
 describe('the web app', () => {
   it('serves the built files, falls back to index.html for pages and never serves outside the folder', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-web-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-web-'));
     fs.mkdirSync(path.join(dir, 'assets'));
-    fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><title>vesk</title>');
+    fs.writeFileSync(path.join(dir, 'index.html'), '<!doctype html><title>qerr</title>');
     fs.writeFileSync(path.join(dir, 'assets', 'app.js'), 'console.log(1)');
     const web = await createTestApp({ webDir: dir });
     try {
       const page = await web.app.request('/batches/abc');
       expect(page.status).toBe(200);
-      expect(await page.text()).toContain('<title>vesk</title>');
+      expect(await page.text()).toContain('<title>qerr</title>');
       expect(page.headers.get('content-security-policy')).toContain("script-src 'self'");
       const js = await web.app.request('/assets/app.js');
       expect(js.headers.get('content-type')).toContain('javascript');
@@ -175,7 +175,7 @@ describe('the web app', () => {
       // a climbing path never reads outside the folder: it gets the app shell or a 404, not the file
       for (const evil of ['/..%2f..%2f..%2fetc%2fpasswd', '/%2e%2e/%2e%2e/package.json', '/assets/..%2f..%2fpackage.json']) {
         const text = await (await web.app.request(evil)).text();
-        expect(text).not.toContain('vesk-app');
+        expect(text).not.toContain('qerr-app');
         expect(text).not.toContain('root:');
       }
     } finally {

@@ -64,7 +64,7 @@ function aiProblem(err: unknown, secrets: string[], what: string): HttpError {
   const message = describeError(err, secrets).message;
   if (code === 'budget') return new HttpError(409, 'The monthly AI budget is used up. Ask an admin to raise it in Settings, AI and search');
   if (code === 'config') return new HttpError(409, 'The AI is not set up for this. Ask an admin to check Settings, AI and search');
-  if (code === 'unsafe_url') return new HttpError(422, `Vesk only reads public websites. ${message}`.slice(0, 300));
+  if (code === 'unsafe_url') return new HttpError(422, `Qerr only reads public websites. ${message}`.slice(0, 300));
   if (code === 'site') return new HttpError(422, message.slice(0, 300));
   logger.warn('ai.suggest_failed', { what, ...describeError(err, secrets) });
   if (code === 'invalid_output' || code === 'truncated') return new HttpError(502, 'The AI\'s answer could not be used. Try again.');

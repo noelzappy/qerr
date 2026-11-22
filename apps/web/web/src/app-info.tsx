@@ -8,7 +8,7 @@ export interface AppInfo {
   brand: { name: string; website: string; timezone: string; series: Array<{ key: string; name: string }>; logo: string | null };
 }
 
-const DEFAULT_APP_INFO: AppInfo = { appName: 'Vesk', brand: { name: 'Vesk', website: '', timezone: 'UTC', series: [], logo: null } };
+const DEFAULT_APP_INFO: AppInfo = { appName: 'Qerr', brand: { name: 'Qerr', website: '', timezone: 'UTC', series: [], logo: null } };
 
 const Ctx = createContext<AppInfo & { reload: () => void }>({ ...DEFAULT_APP_INFO, reload: () => {} });
 export const useAppInfo = () => useContext(Ctx);

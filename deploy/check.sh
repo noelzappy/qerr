@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Checks the container set-up end to end with throwaway values: lints the compose file, builds the real image, and starts
-# the real stack (app and Postgres) under the project name vesk-local, so every container is named
-# vesk-local-*. It checks that the app runs as a non-root user, that Chromium starts, that the engine renders a
+# the real stack (app and Postgres) under the project name qerr-local, so every container is named
+# qerr-local-*. It checks that the app runs as a non-root user, that Chromium starts, that the engine renders a
 # text page, that /healthz answers 200, that the login page loads and that the bootstrap admin invite is logged once.
 # Nothing from the repository's .env is passed in, and everything it creates is removed at the end.
 # Needs Docker running. Usage: deploy/check.sh
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
-project="vesk-local"
+project="qerr-local"
 compose=(docker compose -p "$project" -f "$repo/deploy/docker-compose.yml")
 made_network=""
 app="$project-app-1"
@@ -47,13 +47,13 @@ echo "== 4. Chromium starts headless"
 docker exec "$app" /usr/local/bin/chromium-container --version
 
 echo "== 5. the engine renders one text page (the render job's own entry point)"
-docker exec -w /srv/vesk "$app" node --input-type=module -e '
+docker exec -w /srv/qerr "$app" node --input-type=module -e '
 import { renderDesignBlock } from "./packages/engine/lib/design-render.mjs";
 const r = await renderDesignBlock({ design: { template: "text", headline: "Save together,\n*see every step.*", sub: "Container render test." }, postId: "check", outDir: "out" });
 if (!r.ok) { console.error(r.error); process.exit(1); }
 for (const f of r.files) console.log(`${f.file} ${f.w}x${f.h}`);
 '
-docker exec "$app" sh -c 'ls -l /srv/vesk/out/check-feed.jpg && head -c 3 /srv/vesk/out/check-feed.jpg | od -An -tx1'
+docker exec "$app" sh -c 'ls -l /srv/qerr/out/check-feed.jpg && head -c 3 /srv/qerr/out/check-feed.jpg | od -An -tx1'
 
 echo "== 6. migrations, /healthz and the health check"
 s=""

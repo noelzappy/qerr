@@ -7,7 +7,7 @@
 // the colours found on the page. The website itself is untrusted too: it is read through the safe page reader
 // (safe-fetch.mjs: public http(s) only, every redirect checked, the connection pinned to the checked address, size and
 // time capped), and what was read reaches the model only as JSON data the prompt says never to obey.
-import { ROOT } from '@vesk/engine/core';
+import { ROOT } from '@qerr/engine/core';
 import { readBrand } from './context.mjs';
 import { AIError } from './errors.mjs';
 import { loadPrompt } from './prompts.mjs';

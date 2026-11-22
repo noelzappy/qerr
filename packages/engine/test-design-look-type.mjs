@@ -128,7 +128,7 @@ test('the swash check: a stroke touching another word, or leaving the page, refu
 // ---- in Chrome ----
 const chrome = findChrome();
 const skip = chrome ? false : 'Google Chrome was not found';
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-type-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-type-'));
 let browser;
 test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(tmp, 'design.lock') }); });
 test.after(() => { browser?.close(); fs.rmSync(tmp, { recursive: true, force: true }); });

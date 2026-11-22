@@ -17,15 +17,15 @@ export function findChrome({ env = process.env, platform = process.platform, exi
 export const NO_CHROME = 'Neither Google Chrome nor Chromium was found. Install one, or set CHROME_PATH to its executable (on macOS, /Applications/Google Chrome.app/Contents/MacOS/Google Chrome or /Applications/Chromium.app/Contents/MacOS/Chromium).';
 
 // One Chrome at a time on the whole machine (AGENTS.md rule 10): every render, from any checkout of the repository, takes the same lock
-// file, os.tmpdir()/vesk-chrome.lock, or the file VESK_CHROME_LOCK names (an absolute path). The lock holds the pid of the process using Chrome.
+// file, os.tmpdir()/qerr-chrome.lock, or the file QERR_CHROME_LOCK names (an absolute path). The lock holds the pid of the process using Chrome.
 export function chromeLockFile(env = process.env) {
-  const f = env.VESK_CHROME_LOCK;
-  return typeof f === 'string' && f && path.isAbsolute(f) ? f : path.join(os.tmpdir(), 'vesk-chrome.lock');
+  const f = env.QERR_CHROME_LOCK;
+  return typeof f === 'string' && f && path.isAbsolute(f) ? f : path.join(os.tmpdir(), 'qerr-chrome.lock');
 }
-// How long a render waits for the machine's Chrome before giving up: VESK_CHROME_LOCK_WAIT_MS, else 30 minutes.
+// How long a render waits for the machine's Chrome before giving up: QERR_CHROME_LOCK_WAIT_MS, else 30 minutes.
 export function chromeLockWait(env = process.env) {
-  const n = Number(env.VESK_CHROME_LOCK_WAIT_MS);
-  return env.VESK_CHROME_LOCK_WAIT_MS !== undefined && Number.isFinite(n) && n >= 0 ? n : 30 * 60 * 1000;
+  const n = Number(env.QERR_CHROME_LOCK_WAIT_MS);
+  return env.QERR_CHROME_LOCK_WAIT_MS !== undefined && Number.isFinite(n) && n >= 0 ? n : 30 * 60 * 1000;
 }
 const held = new Map();
 const alive = (pid) => { if (!Number.isInteger(pid) || pid <= 0) return false; try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };

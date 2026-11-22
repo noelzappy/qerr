@@ -167,7 +167,7 @@ const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u200b-\u200f\u202
 
 // fetchPage(url) -> { url, finalUrl, title, text, truncated }, plus `html` (the raw page, capped at maxBytes) with keepHtml, for
 // callers that read the page's head (meta tags, theme colour). The raw page is as untrusted as the text.
-export async function fetchPage(url, { transport, lookup, timeoutMs = 15000, maxBytes = 1_000_000, maxChars = 8000, maxRedirects = 4, userAgent = 'vesk-research/1.0', keepHtml = false } = {}) {
+export async function fetchPage(url, { transport, lookup, timeoutMs = 15000, maxBytes = 1_000_000, maxChars = 8000, maxRedirects = 4, userAgent = 'qerr-research/1.0', keepHtml = false } = {}) {
   const send = transport ?? nodeTransport({ lookup });
   let current = url;
   for (let hop = 0; hop <= maxRedirects; hop++) {

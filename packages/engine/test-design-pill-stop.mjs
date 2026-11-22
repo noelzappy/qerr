@@ -47,7 +47,7 @@ test('a pill and the mark after it are one unbreakable run, the pill without its
 
 const chrome = findChrome();
 test('with Chrome: the ink of the full stop starts within 0.04 em of the pill, on its line, in every look', { skip: chrome ? false : 'Google Chrome was not found' }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-pill-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-pill-'));
   const browser = await Browser.launch({ chromePath: chrome });
   try {
     for (const c of CASES) {
@@ -78,7 +78,7 @@ test('with Chrome: the ink of the full stop starts within 0.04 em of the pill, o
 });
 
 test('with Chrome: words on an outline pill are judged inside its ring, never on the ring drawn in their own colour (loud Shout)', { skip: chrome ? false : 'Google Chrome was not found' }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-pill-ring-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-pill-ring-'));
   const browser = await Browser.launch({ chromePath: chrome });
   try {
     const brand = brandFor('loud'), spec = normaliseDesign({ template: 'post', kind: 'statement', variant: 0, name: 'ring', ...LOUD['loud/statement/0'] });

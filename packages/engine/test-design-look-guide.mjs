@@ -99,7 +99,7 @@ test('the logo sits above every element layer, so a colour laid over a full pict
 // ---- drawn (Chrome) ----
 const chrome = findChrome();
 const skip = chrome ? false : 'Google Chrome was not found';
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-guide-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-guide-'));
 let browser;
 test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome }); });
 test.after(() => { browser?.close(); fs.rmSync(tmp, { recursive: true, force: true }); });

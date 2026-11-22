@@ -1,4 +1,4 @@
-// The networks Vesk knows. Our names, not Buffer's: the routing (Settings, Channels in the web app) maps each to a channel.
+// The networks Qerr knows. Our names, not Buffer's: the routing (Settings, Channels in the web app) maps each to a channel.
 export const NETWORKS = ['instagram', 'linkedin', 'facebook', 'x'];
 // Where a post goes when it does not say otherwise. X is opt-in so batches written before X existed keep their meaning.
 export const CLASSIC_NETWORKS = ['instagram', 'linkedin', 'facebook'];

@@ -59,7 +59,7 @@ const activeBrand = () => JSON.parse(fs.readFileSync(path.join(root, process.env
 
 describe('expanding the settings', () => {
   it('makes a complete brand the engine accepts, with the colours spread over every ground', async () => {
-    const engine = await import('@vesk/engine/design/brand' as string) as { validateBrand(b: unknown): string[] };
+    const engine = await import('@qerr/engine/design/brand' as string) as { validateBrand(b: unknown): string[] };
     const b = expandBrand(SETTINGS);
     expect(engine.validateBrand(b)).toEqual([]);
     // The accent reads on every dark page as given; the green is nudged a shade darker so small text reads on its pale tint.
@@ -124,7 +124,7 @@ describe('expanding the settings', () => {
   });
 
   it('writes how the numbers of a chart are written, reads it back, and refuses a sign or a pair of marks the engine would refuse', async () => {
-    const { numbersProblems } = await import('@vesk/engine/design/chart' as string) as { numbersProblems(v: unknown): string[] };
+    const { numbersProblems } = await import('@qerr/engine/design/chart' as string) as { numbersProblems(v: unknown): string[] };
     expect(settingsFromBrand(baseBrand()).numbers).toEqual({ decimal: '.', group: ',', currency: '€', currencyAt: 'before', currencySpace: false, percentSpace: false });
     const own = { decimal: ',' as const, group: ' ' as const, currency: 'kr', currencyAt: 'after' as const, currencySpace: true, percentSpace: true };
     const b = expandBrand({ ...SETTINGS, numbers: own });
@@ -192,7 +192,7 @@ describe('Settings, Brand', () => {
     expect(res.status).toBe(200);
     expect(res.body.settings.contrastDisplay).toBe(7);
     expect((await api.get('/api/settings/brand')).body.settings.contrastDisplay).toBe(7);
-    const engine = await import('@vesk/engine/design/brand' as string) as { validateBrand(b: unknown): string[] };
+    const engine = await import('@qerr/engine/design/brand' as string) as { validateBrand(b: unknown): string[] };
     const written = activeBrand();
     // The pack carries it when the engine reads it (the guard drops it, and says so in the log, when it does not).
     if (engine.validateBrand({ ...written, contrast: { ...written.contrast, display: 99 } }).some((p) => /contrast\.display/.test(p))) expect(written.contrast.display).toBe(7);

@@ -30,7 +30,7 @@ export function StepChannels({ reload, mark, next }: StepProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      <StepHeader title="Channels">Vesk posts through Buffer. Add the API key of the Buffer account that holds your channels.</StepHeader>
+      <StepHeader title="Channels">Qerr posts through Buffer. Add the API key of the Buffer account that holds your channels.</StepHeader>
 
       {accounts.error ? <ErrorBlock message={accounts.error} onRetry={() => void accounts.reload()} />
         : !accounts.data ? <div className="overflow-hidden rounded-lg border"><RowsSkeleton rows={1} /></div>

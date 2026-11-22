@@ -6,7 +6,7 @@ import { POST_JSON_SCHEMA } from './draft.mjs';
 import { checkPost } from './postcheck.mjs';
 import { loadPrompt } from './prompts.mjs';
 import { MEDIA_KINDS, forPrompt, rank, usableItems } from './vault.mjs';
-import { ROOT } from '@vesk/engine/core';
+import { ROOT } from '@qerr/engine/core';
 
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
 

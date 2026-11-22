@@ -9,7 +9,7 @@
 //   test('the markup fixture ...', () => fx.done());          last: every recorded case of the group was checked
 //
 // When a change of look is intended, record the fixture again and review the pictures (testlib/template-baseline.mjs):
-//   VESK_RECORD_MARKUP=1 npm test --workspace @vesk/engine
+//   QERR_RECORD_MARKUP=1 npm test --workspace @qerr/engine
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -39,7 +39,7 @@ export function stableMarkup(html, { noEl = false } = {}) {
 export const caseId = (identity) => (typeof identity === 'string' ? identity : sha(JSON.stringify(identity)).slice(0, 16));
 export const markupHash = (pages) => sha(typeof pages === 'string' ? pages : JSON.stringify(pages));
 
-export function markupFixture(group, { file = FIXTURE_FILE, recordEnv = 'VESK_RECORD_MARKUP' } = {}) {
+export function markupFixture(group, { file = FIXTURE_FILE, recordEnv = 'QERR_RECORD_MARKUP' } = {}) {
   const RECORD = process.env[recordEnv] === '1', read = () => readFile(file), where = path.basename(file);
   const want = read()[group] ?? {};
   const got = {};
@@ -70,7 +70,7 @@ export function markupFixture(group, { file = FIXTURE_FILE, recordEnv = 'VESK_RE
 
 // A group of recorded DATA (not hashes): geometry and the like. check(id, value, { same(a, b) }) compares with the recorded value by `same`
 // (default deep equality); done() fails when a recorded case was not checked, or, recording, writes the values down.
-export function dataFixture(group, { file = FIXTURE_FILE, recordEnv = 'VESK_RECORD_MARKUP' } = {}) {
+export function dataFixture(group, { file = FIXTURE_FILE, recordEnv = 'QERR_RECORD_MARKUP' } = {}) {
   const RECORD = process.env[recordEnv] === '1', where = path.basename(file);
   const want = readFile(file)[group] ?? {};
   const got = {};

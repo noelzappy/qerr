@@ -44,7 +44,7 @@ const chrome = findChrome();
 test('every shipped design whose picture is optional draws without a picture, from sample and stress copy', { skip: chrome ? false : 'Google Chrome was not found' }, async () => {
   const demo = loadBrand({ file: path.join(ROOT, 'brands', 'demo', 'brand.json') });
   const looks = shippedLooks();
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-nopicture-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-nopicture-'));
   const browser = await Browser.launch({ chromePath: chrome });
   const failed = [];
   try {

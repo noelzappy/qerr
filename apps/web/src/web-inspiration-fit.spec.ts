@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { closestLook, lookTraits, referenceTraits } from '../web/src/pages/settings/looks/inspiration-fit';
 import type { DesignReference } from '../web/src/pages/settings/brand-types';
 
-const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@vesk/engine/package.json')), 'testlib', 'looks');
+const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@qerr/engine/package.json')), 'testlib', 'looks');
 const sample = (n: string) => JSON.parse(fs.readFileSync(path.join(dir, `${n}.sample.json`), 'utf8'));
 const looks = ['retail', 'swiss'].map((n) => ({ ref: `shipped:${n}`, name: n, traits: lookTraits(sample(n)) }));
 const analysis = (over: Partial<NonNullable<DesignReference['analysis']>>): DesignReference['analysis'] => ({ summary: '', palette: [], typography: '', layout: '', imagery: '', mood: '', avoid: '', ...over });

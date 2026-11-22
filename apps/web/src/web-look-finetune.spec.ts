@@ -11,9 +11,9 @@ import { FINE_CONTROLS, FINE_LAYOUT, fineAvailable, fineProblem, finePresets, ne
 import { toggleWeight, weightStrip } from '../web/src/pages/settings/looks/settings/weights';
 import type { FontFamilyInfo, Json, LookCatalogue } from '../web/src/pages/settings/looks/look-types';
 
-const engine = await import('@vesk/engine/design/look' as string) as { lookCatalogue(): LookCatalogue; validateLook(l: unknown, w?: string, o?: { shipped?: boolean }): string[] };
+const engine = await import('@qerr/engine/design/look' as string) as { lookCatalogue(): LookCatalogue; validateLook(l: unknown, w?: string, o?: { shipped?: boolean }): string[] };
 const cat = engine.lookCatalogue();
-const enginePkg = path.dirname(createRequire(import.meta.url).resolve('@vesk/engine/package.json'));
+const enginePkg = path.dirname(createRequire(import.meta.url).resolve('@qerr/engine/package.json'));
 const dir = path.join(enginePkg, 'lib', 'design', 'looks');
 const NAMES = fs.readdirSync(dir).filter((f) => f.endsWith('.look.json')).map((f) => f.replace('.look.json', '')).sort();
 const shipped = (n: string): Json & { compositions: Json[] } => JSON.parse(fs.readFileSync(path.join(dir, `${n}.look.json`), 'utf8'));

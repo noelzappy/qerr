@@ -1,4 +1,4 @@
-# Vesk: one image with the web app, the design engine and Chromium. A Node 22 npm-workspaces monorepo.
+# Qerr: one image with the web app, the design engine and Chromium. A Node 22 npm-workspaces monorepo.
 # apps/web/package.json has the scripts build, start and migrate; the server listens on PORT and answers GET /healthz.
 
 # ---- Stage 1: install every workspace and build the web app ----
@@ -36,10 +36,10 @@ ENV CHROME_PATH=/usr/local/bin/chromium-container \
     NODE_ENV=production \
     PORT=3000
 
-WORKDIR /srv/vesk
+WORKDIR /srv/qerr
 
 # The workspaces as they are in the repository: the root manifest, the packages (the engine and its design/ folder with
-# the templates and fonts; the AI library), the brand packs (brands/, chosen with BRAND_DIR) and the web app. node_modules keeps its @vesk/* links, which are
+# the templates and fonts; the AI library), the brand packs (brands/, chosen with BRAND_DIR) and the web app. node_modules keeps its @qerr/* links, which are
 # relative, and the generated Prisma client; `npm run migrate` needs the Prisma CLI that was installed for the build.
 COPY --from=build /build/package.json ./package.json
 COPY --from=build /build/node_modules ./node_modules
@@ -62,4 +62,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/srv/vesk/deploy/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/srv/qerr/deploy/entrypoint.sh"]

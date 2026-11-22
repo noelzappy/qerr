@@ -86,7 +86,7 @@ const chrome = findChrome();
 test('every plate composition passes every check from sample, stress and minimal copy in the Salt & Ember pack', { skip: chrome ? false : 'Google Chrome was not found' }, async () => {
   const pack = loadBrand({ file: path.join(ROOT, 'brands', 'saltandember', 'brand.json') });
   const b = { ...pack, looks: [asCopy(shippedLooks().plate)], style: { ...pack.style, direction: 'plate' } };
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-plate-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-plate-'));
   const browser = await Browser.launch({ chromePath: chrome });
   let drawn = 0;
   try {

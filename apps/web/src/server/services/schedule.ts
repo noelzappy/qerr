@@ -244,7 +244,7 @@ async function sendNow(deps: Deps, payload: { batchId: string; mode: Mode; actor
     handle.progress({ step: 'Preparing the images', done: 0, total: sendable.size });
 
     // Copy the files this send needs out of the private bucket into a temporary media folder laid out the way the engine expects.
-    tmp = path.join(os.tmpdir(), `vesk-send-${randomUUID()}`);
+    tmp = path.join(os.tmpdir(), `qerr-send-${randomUUID()}`);
     const files = new Map<string, { key: string; sha256: string }>();
     for (const post of ctx.approved) {
       for (const network of targetNetworks(post, ctx.batch.defaultNetworks, engine.networks)) {

@@ -34,7 +34,7 @@ async function routingForPlanning(deps: Pick<Deps, 'prisma'>) {
 }
 
 // A folder that does not exist: the engine only needs a path to build items; nothing is read from it here.
-const NO_MEDIA_ROOT = path.join(os.tmpdir(), 'vesk-no-media');
+const NO_MEDIA_ROOT = path.join(os.tmpdir(), 'qerr-no-media');
 
 async function staleFigureDays(deps: Pick<Deps, 'prisma'>): Promise<number | undefined> {
   const row = await deps.prisma.appSetting.findUnique({ where: { key: 'staleFigureDays' } });

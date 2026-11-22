@@ -275,7 +275,7 @@ test('backdrop: the drawn page holds only the fixed classes, palette colours and
 // ==================================================================================================== 3. with Chrome
 const chrome = findChrome();
 const skip = chrome ? false : 'Google Chrome was not found';
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-surfaces-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-surfaces-'));
 let browser;
 test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(HERE, '..', '..', 'out', 'design.lock') }); });
 test.after(() => { browser?.close(); fs.rmSync(tmp, { recursive: true, force: true }); });

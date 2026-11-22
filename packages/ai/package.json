@@ -1,7 +1,7 @@
 {
-  "name": "@vesk/ai",
+  "name": "@qerr/ai",
   "version": "0.1.0",
-  "description": "AI drafting, research, rewriting and design-reference analysis for Vesk. No dependencies: plain fetch.",
+  "description": "AI drafting, research, rewriting and design-reference analysis for Qerr. No dependencies: plain fetch.",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@vesk/engine": "*"
+    "@qerr/engine": "*"
   },
   "scripts": {
     "test": "node --test --test-concurrency=1"

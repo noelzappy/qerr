@@ -4,7 +4,7 @@
 //            indicator, and the actions: Undo and Redo, Save draft (the one primary button), Publish, and a menu (Discard draft, Advanced JSON,
 //            Reset to the original)
 //   left     the layers and the library of pieces
-//   centre   the canvas (the real image when Vesk can make one, else a sketch), with the copy to draw it with, and Design health
+//   centre   the canvas (the real image when Qerr can make one, else a sketch), with the copy to draw it with, and Design health
 //   right    the settings of the selected piece, or of the design when none is selected
 //
 // The composition is JSON and stays JSON: every control edits a copy of the object through design-model.ts, and the whole is sent when the draft is
@@ -195,7 +195,7 @@ export function DesignEditor({ initialLook, designId, list }: { initialLook: Own
       commit(parsed);
       setSelected(null);
       setJsonOpen(false);
-      toast.success('Applied; the editor shows the new design. Vesk checks it like any other change.');
+      toast.success('Applied; the editor shows the new design. Qerr checks it like any other change.');
     } catch (e) { setJsonError(errorMessage(e)); }
   }
   function remove(path: string) {
@@ -316,8 +316,8 @@ export function DesignEditor({ initialLook, designId, list }: { initialLook: Own
 
       <FormPanel open={jsonOpen} variant="dialog" size="lg" title="Advanced: JSON" onClose={() => setJsonOpen(false)} dismissOnOutside
         footer={<><Button type="button" variant="outline" onClick={() => setJsonOpen(false)}>Close</Button><Button type="button" disabled={false} onClick={applyJson}>Apply the JSON</Button></>}>
-        <TextAreaField label="The design exactly as Vesk reads it" mono rows={20} spellCheck={false} value={json} onChange={(e) => setJson(e.target.value)} error={jsonError || undefined}
-          hint="Edit it here and apply it; the editor then shows it, and Vesk checks it like any other change." />
+        <TextAreaField label="The design exactly as Qerr reads it" mono rows={20} spellCheck={false} value={json} onChange={(e) => setJson(e.target.value)} error={jsonError || undefined}
+          hint="Edit it here and apply it; the editor then shows it, and Qerr checks it like any other change." />
       </FormPanel>
       <ConfirmAction open={discarding} danger title="Discard the draft?" confirmLabel="Discard the draft" message="The unpublished changes to this design are thrown away and the published design comes back." onConfirm={discard} onCancel={() => setDiscarding(false)} />
       <ConfirmAction open={!!resetting} title="Reset to the original?" confirmLabel="Reset the design" message="The design goes back to the one the look was copied from. It stays unsaved until you save the draft, and Undo brings your version back."

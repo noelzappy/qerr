@@ -93,7 +93,7 @@ export function typeInDraft(d: BrandDraft, field: (typeof DRAFT_TEXT)[number], v
 }
 
 // Typing survives a reload (sessionStorage: this tab only, gone when it closes). Nothing secret is ever in it.
-export const DRAFT_KEY = 'vesk.setup.brand';
+export const DRAFT_KEY = 'qerr.setup.brand';
 type KV = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 const HEX = /^#[0-9a-f]{6}$/i;
 export function saveDraft(store: KV | null, d: BrandDraft): void {
@@ -117,7 +117,7 @@ export function clearDraft(store: KV | null): void {
 }
 
 // The website's colours, kept after the brand is saved so the logo step can offer them beside the logo's own.
-export const SITE_COLOURS_KEY = 'vesk.setup.siteColours';
+export const SITE_COLOURS_KEY = 'qerr.setup.siteColours';
 export function saveSiteColours(store: KV | null, colours: string[]): void {
   try { if (colours.length) store?.setItem(SITE_COLOURS_KEY, JSON.stringify(colours)); } catch { /* optional */ }
 }

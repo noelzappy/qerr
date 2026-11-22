@@ -14,7 +14,7 @@ export class ApiError extends Error {
 }
 
 // Fired when a request that needs a session gets 401, so the session provider can send the person to sign in.
-export const UNAUTHORISED_EVENT = 'vesk:unauthorised';
+export const UNAUTHORISED_EVENT = 'qerr:unauthorised';
 // Requests where a 401 is an ordinary answer (wrong password, no session yet) and not a lost session.
 const QUIET_401 = ['/api/me', '/api/auth/'];
 
@@ -28,7 +28,7 @@ async function send<T>(method: string, url: string, body: BodyInit | undefined, 
       method,
       credentials: 'same-origin',
       // The server checks Origin on every write; this header also stops a plain cross-site form post.
-      headers: { accept: 'application/json', 'x-requested-with': 'vesk', ...headers },
+      headers: { accept: 'application/json', 'x-requested-with': 'qerr', ...headers },
       body,
       signal,
     });

@@ -129,7 +129,7 @@ describe('the layout editor\'s preview as a carousel page', () => {
     }
     // page 1 has its own block and ground; the middle and last pages differ by their folio; a single post is none of them
     expect(new Set(Object.values(shots)).size).toBe(4);
-    const keep = process.env.VESK_KEEP_RENDERS;
+    const keep = process.env.QERR_KEEP_RENDERS;
     if (keep) for (const [k, v] of Object.entries(shots)) { fs.mkdirSync(keep, { recursive: true }); fs.writeFileSync(path.join(keep, `preview-${k}.jpg`), Buffer.from(v.split(',')[1]!, 'base64')); }
     expect(fs.readdirSync(path.join(root, 'out', 'layout-preview'))).toEqual([]);
   });

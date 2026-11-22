@@ -1,5 +1,5 @@
 // Settings, Layouts: the brand's own page designs. A layout is blocks (a headline, a photo, a colour panel ...) placed in slots on a
-// grid or at pixel rectangles, with options from fixed lists; Vesk draws it with the brand's look and checks every image like the
+// grid or at pixel rectangles, with options from fixed lists; Qerr draws it with the brand's look and checks every image like the
 // built-in layouts. People start from a blank layout or a starting point and edit it on its own page (layouts/EditorRoute.tsx, the
 // editor in LayoutEditor.tsx); this page lists them. The server checks every layout with the engine's own validator.
 // The built-in layouts (the templates' own) are listed read only; an admin may copy one into a layout of the brand's own, on the
@@ -142,7 +142,7 @@ export function LayoutsPage() {
                 {showBuiltins ? <ChevronDown className="size-4 shrink-0" aria-hidden="true" /> : <ChevronRight className="size-4 shrink-0" aria-hidden="true" />}
                 <span id="builtin-layouts" className="text-sm font-semibold">Built-in layouts <span className="font-normal text-muted-foreground">({data.builtins.length}, read only)</span></span>
               </button>
-              <Hint about="Built-in layouts">The layouts Vesk comes with. Duplicate one to start a layout of your own from it, with the same blocks in the same places. A copy leaves out what reads a built-in layout's own settings (the headline size and alignment a design gives, the phone's and photo's positions, the pills, a desktop window's frame and tilt): set those in the copy itself. Page covers are not post images and are not listed.</Hint>
+              <Hint about="Built-in layouts">The layouts Qerr comes with. Duplicate one to start a layout of your own from it, with the same blocks in the same places. A copy leaves out what reads a built-in layout's own settings (the headline size and alignment a design gives, the phone's and photo's positions, the pills, a desktop window's frame and tilt): set those in the copy itself. Page covers are not post images and are not listed.</Hint>
             </div>
             {showBuiltins && (
               <>

@@ -102,7 +102,7 @@ const COLOURS = {
   pale: paletteBrand({ name: 'Pale Mill', light: '#F5F0E6', ink: '#2A2418', primary: '#9C3B16', gold: '#EADFC0', deep: '#9A7B2E' }),
 };
 test('every loud composition passes every check from sample, stress and minimal copy, in three sets of brand colours', { skip, timeout: 1800000 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-loud-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-loud-'));
   const browser = await Browser.launch({ chromePath: chrome });
   const copy = { ...look, origin: 'copy:shipped:loud' }, base = loadBrand();
   let drawn = 0;

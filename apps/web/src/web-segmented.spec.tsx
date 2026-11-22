@@ -112,9 +112,9 @@ describe('Brand and look, Type', () => {
 
 describe('the design editor', () => {
   it('has no native dropdown left, and asks where text stays as segments', async () => {
-    const engine = await import('@vesk/engine/design/look' as string) as { lookCatalogue(): any };
+    const engine = await import('@qerr/engine/design/look' as string) as { lookCatalogue(): any };
     const cat = engine.lookCatalogue();
-    const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@vesk/engine/package.json')), 'lib', 'design', 'looks');
+    const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@qerr/engine/package.json')), 'lib', 'design', 'looks');
     const { compositions, ...look } = JSON.parse(fs.readFileSync(path.join(dir, 'retail.look.json'), 'utf8'));
     const sw = swatchesFrom(null);
     for (const comp of compositions) {

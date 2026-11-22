@@ -1,5 +1,5 @@
 // The style layer's fields in Settings, Brand and look: the colour roles, the type roles, surfaces and decoration, the photo
-// treatment, and the logo and footer. Each field is a choice from Vesk's fixed lists or a number in its range; the server
+// treatment, and the logo and footer. Each field is a choice from Qerr's fixed lists or a number in its range; the server
 // checks every value again before anything is saved.
 import { type ReactNode } from 'react';
 import { ImageUp, RotateCcw, Trash2 } from 'lucide-react';

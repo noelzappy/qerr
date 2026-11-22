@@ -18,8 +18,8 @@ beforeAll(async () => {
 afterAll(() => { resetBrandState(); return t.close(); });
 beforeEach(async () => { await t.reset(); resetBrandState(); });
 
-const engine = await import('@vesk/engine/design/brand' as string) as { validateBrand(b: unknown): string[] };
-const tokens = await import('@vesk/engine/design/tokens' as string) as { DIRECTIONS: string[] };
+const engine = await import('@qerr/engine/design/brand' as string) as { validateBrand(b: unknown): string[] };
+const tokens = await import('@qerr/engine/design/tokens' as string) as { DIRECTIONS: string[] };
 const DEMO = (f: string) => fs.readFileSync(path.join(root, 'brands', 'demo', f));
 const INTER = () => fs.readFileSync(path.join(root, 'packages', 'engine', 'design', 'fonts', 'inter-v20-latin.woff2'));
 const activeBrand = () => JSON.parse(fs.readFileSync(path.join(root, process.env.BRAND_DIR!, 'brand.json'), 'utf8'));

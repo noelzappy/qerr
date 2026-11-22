@@ -15,7 +15,7 @@ describe('brand graphics named by a design', () => {
     }
   });
   it('refuses one on a carousel post page too, naming the page', async () => {
-    const carousel = { template: 'carousel', pages: [post([]), post([{ ref: REF, image: '/var/lib/vesk/other-brand.png' }])] };
+    const carousel = { template: 'carousel', pages: [post([]), post([{ ref: REF, image: '/var/lib/qerr/other-brand.png' }])] };
     const problems = await designProblems(carousel);
     expect(problems.some((p) => /design page 2 graphic 1: image ".*" must be a file under design\/assets\//.test(p)), problems.join(' | ')).toBe(true);
   });

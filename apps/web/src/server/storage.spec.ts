@@ -9,7 +9,7 @@ import { createTestApp, type TestApp } from './testing.js';
 
 describe.each([
   ['memory', () => createMemoryStorage()],
-  ['local', () => createLocalStorage({ dir: fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-store-')), appUrl: 'http://localhost:3000', secret: 'a-secret' })],
+  ['local', () => createLocalStorage({ dir: fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-store-')), appUrl: 'http://localhost:3000', secret: 'a-secret' })],
 ])('%s storage', (_name, make) => {
   it('puts, heads, gets and deletes', async () => {
     const s: Storage = make();
@@ -45,7 +45,7 @@ describe('local storage served by the app', () => {
   afterAll(() => t.close());
 
   it('serves private files only through a valid, unexpired signed link', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-store-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qerr-store-'));
     const local = createLocalStorage({ dir, appUrl: 'http://localhost:3000', secret: 'k', now: t.now });
     const app = (await import('./app.js')).createAppAndDeps({ ...t.deps, storage: local }).app;
     await local.putObject('vault/secret.txt', Buffer.from('private body'), 'text/plain');

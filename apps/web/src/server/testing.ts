@@ -16,7 +16,7 @@
 // runs them), mail (t.mailer.sent), storage (in memory, t.storage.objects) and the clock (t.now / t.setNow).
 // Use them through t.deps, which is what createAppAndDeps was given and what job handlers take.
 //
-// The database: TEST_DB_NAME (default vesk_test) on TEST_DATABASE_ADMIN_URL (default the vesk-test-pg
+// The database: TEST_DB_NAME (default qerr_test) on TEST_DATABASE_ADMIN_URL (default the qerr-test-pg
 // container on 127.0.0.1:55440). Use your own name when several agents run at once. Run vitest with file parallelism off.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -32,7 +32,7 @@ import { createFakeMailer } from './mail.js';
 import { createMemoryStorage } from './storage/memory.js';
 
 const ADMIN_URL = process.env.TEST_DATABASE_ADMIN_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55440/postgres';
-const TEST_DB_NAME = process.env.TEST_DB_NAME ?? 'vesk_test';
+const TEST_DB_NAME = process.env.TEST_DB_NAME ?? 'qerr_test';
 const TEST_APP_URL = 'http://localhost:3000';
 export const TEST_ORIGIN = TEST_APP_URL;
 const TEST_PASSWORD = 'correct horse battery';

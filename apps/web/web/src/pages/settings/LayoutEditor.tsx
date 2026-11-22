@@ -372,10 +372,10 @@ export function LayoutEditor({ initial, stored, catalogue, takenIds, onSaved }: 
         <div className="flex flex-col gap-3 border-b pb-4">
           <div className="flex items-center gap-1.5">
             <h2 className="text-sm font-semibold">Advanced: JSON</h2>
-            <Hint about="Advanced: JSON">The layout exactly as Vesk reads it. Edit it here and apply it; the editor then shows it, and Vesk checks it like any other change.</Hint>
+            <Hint about="Advanced: JSON">The layout exactly as Qerr reads it. Edit it here and apply it; the editor then shows it, and Qerr checks it like any other change.</Hint>
           </div>
           {hidden.length > 0 && (
-            <Notice tone="warn" title="Settings the editor cannot show (Vesk refuses them for a brand's layout); change or remove them here:">
+            <Notice tone="warn" title="Settings the editor cannot show (Qerr refuses them for a brand's layout); change or remove them here:">
               <Lines items={hidden.slice(0, 12)} />
             </Notice>
           )}
