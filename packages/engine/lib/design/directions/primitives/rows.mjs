@@ -24,6 +24,8 @@ export const SPEC = {
     keys: list(en(ROW_KEYS, 'Label', 'A fixed label word.'), 3, 'Row labels', 'Fixed words before each row of an event table.', { min: 1 }),
     // an icon of the engine's own set on each row's tile instead of a number (a feature list): row i takes icons[i % n]
     icons: list(en(ICON_NAMES, 'Icon', 'One of the engine\'s own icons.'), 5, 'Icons', 'Icons on the rows\' tiles instead of numbers, in turn (one icon: the same on every row). Needs a number tile and no numbering.', { min: 1 }),
+    numberInk: role('Number colour', 'The colour of the numbers not on a tile (muted when left out); it must read on the page.'),
+    ruleColour: role('Rule colour', 'The colour of the rules between rows (the ink at 55% when left out; rule-dark on a dark page, rule-field on the field).', 'rule'),
   },
   common: ['place', 'z', 'when', 'ink', 'fill', 'pad', 'grow', 'minH', 'w', 'before'],
   required: ['each'],
@@ -34,6 +36,8 @@ export function rules(el, bad) {
   if (el.icons !== undefined && (el.number ?? 'none') !== 'none') bad('puts icons where the numbers go; set numbering to none', 'icons');
   if (el.icons !== undefined && el.numberTile === undefined) bad('needs a number tile to stand on', 'icons');
 }
+// For the static checks (look-static.mjs): the number colour must read on what the rows stand on.
+export const inks = (el) => (el.numberInk !== undefined ? [el.numberInk] : []);
 
 const NUMBER = {
   '1': (i) => String(i + 1), '01': (i) => String(i + 1).padStart(2, '0'),
@@ -68,7 +72,7 @@ export function render(c, p, env) {
       num = c.box({ flow: true, w: t.size, h: t.size, fill: t.fill, ink: t.ink, radius: t.radius, rot: turn || undefined, shadow: t.shadow === true ? env.shadow : typeof t.shadow === 'number' ? { x: t.shadow, y: t.shadow, colour: 'ink' } : undefined, flex: 'column', justify: 'center', align: 'center', flexNone: true },
         c.run({ text: NUMBER[p.number](i), role: 'label', family: numStyle === 'label' ? T.label.role : 'display', dfont: numStyle !== 'label' || undefined, size: p.numberSize ?? 46, lead: 1, weight: T.display.weight, colour: t.ink }));
     } else if (p.number !== 'none') {
-      num = c.run(clean({ text: NUMBER[p.number](i), role: 'label', family: numStyle === 'label' ? T.label.role : 'display', size: stepped && !p.numberTile ? stepped[1] : p.numberSize ?? T.label.size, lead: 1, weight: T.label.weight, track: T.label.track, colour: i === 0 && p.firstAccent ? 'accent-type' : 'muted', nowrap: true }));
+      num = c.run(clean({ text: NUMBER[p.number](i), role: 'label', family: numStyle === 'label' ? T.label.role : 'display', size: stepped && !p.numberTile ? stepped[1] : p.numberSize ?? T.label.size, lead: 1, weight: T.label.weight, track: T.label.track, colour: i === 0 && p.firstAccent ? 'accent-type' : p.numberInk ?? 'muted', nowrap: true }));
       if (p.numberSpan) num = c.box({ flow: true, w: c.span(0, p.numberSpan - 1), flexNone: true }, num);
     }
     const fill = p.altFill ? p.altFill[i % 2] : p.fill;
@@ -76,6 +80,6 @@ export function render(c, p, env) {
       (labelCell || '') + num + textRun(cell, i));
   });
   const ruleW = p.rule === 'none' ? 0 : (typeof p.rule === 'string' ? env.look.devices.rule[p.rule] : 0);
-  const withRules = ruleW ? [...rows.map((r) => c.flowBlock({ w: 'fill', h: ruleW, colour: 'rule', dotted: p.ruleStyle === 'dotted' || undefined }) + r), ...(p.ruleEnd ? [c.flowBlock({ w: 'fill', h: ruleW, colour: 'rule', dotted: p.ruleStyle === 'dotted' || undefined })] : [])] : rows;
+  const withRules = ruleW ? [...rows.map((r) => c.flowBlock({ w: 'fill', h: ruleW, colour: p.ruleColour ?? 'rule', dotted: p.ruleStyle === 'dotted' || undefined }) + r), ...(p.ruleEnd ? [c.flowBlock({ w: 'fill', h: ruleW, colour: p.ruleColour ?? 'rule', dotted: p.ruleStyle === 'dotted' || undefined })] : [])] : rows;
   return c.box(clean({ ...env.box, flex: 'column', align: 'stretch', gap: p.rowGap || undefined, w, grow: p.grow ? p.grow : undefined, nudge: env.nudge }), withRules.join(''));
 }

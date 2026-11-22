@@ -151,10 +151,12 @@ export function iconSvg(name, { colour, cls: extra, size } = {}) {
 function inlineMarks(html, o) {
   const pill = o.pills;
   if (pill !== undefined && (!pill || !Object.hasOwn(PILL_SHAPES, pill.shape ?? 'pill'))) throw new Error('design kit: pills must be { shape, fill, ink }');
-  let out = html.replace(/\[\[([^[\]*{}<>\n\\]{1,120})\]\]/g, (all, words) => {
-    if (!pill) return words;
+  // a pill and the punctuation right after it ("[[an app]],") stay on one line: a comma never starts a line after a pill
+  let out = html.replace(/\[\[([^[\]*{}<>\n\\]{1,120})\]\]([,.;:!?]{0,3})/g, (all, words, stop) => {
+    if (!pill) return words + stop;
     const shape = pill.shape ?? 'pill', bg = shape === 'outline' ? '' : `background:${colour_(pill.fill)};`;
-    return `<span class="k-pl ${PILL_SHAPES[shape]}" style="${bg}color:${colour_(pill.ink)}"><span class="k-pl-t" data-role="accent">${words}</span></span>`;
+    const one = `<span class="k-pl ${PILL_SHAPES[shape]}" style="${bg}color:${colour_(pill.ink)}"><span class="k-pl-t" data-role="accent">${words}</span></span>`;
+    return stop ? `<span style="white-space:nowrap">${one}${stop}</span>` : one;
   });
   const badge = o.icons?.badge === undefined ? '' : colour_(o.icons.badge);
   out = out.replace(/\{\{([a-z][a-z-]{0,19})\}\}/g, (all, name) => (!Object.hasOwn(ICONS, name) ? all : !o.icons ? '' : badge ? `<span class="k-icb" style="background:${badge}">${iconSvg(name, { colour: o.icons.colour })}</span>` : iconSvg(name, { colour: o.icons.colour })));
@@ -204,6 +206,7 @@ export function makeContext(args) {
   const colW = (W - mg.left - mg.right - (G.cols - 1) * G.gutter) / G.cols;
   const folio = folioOf({ folio: args.folio ?? (args.counter ? { n: args.counter.n, total: args.counter.total } : undefined) });
   const brandName = brand.name;
+  const carousel = args.counter && Number.isInteger(args.counter.n) && Number.isInteger(args.counter.total) ? args.counter : null;
   const c = {
     direction, kind, variant, tokens, W, H, margin: mg, grid: G, colW, folio, comp,
     // ---- the grid: column i (0-based) starts at col(i) and ends at colR(i); span(a, b) is the width from the start of a to the end of b
@@ -256,6 +259,9 @@ export function makeContext(args) {
     labelOrBrand: () => new Markup(esc(typeof spec.label === 'string' && spec.label ? spec.label : brandName)),
     // the folio as the direction sets it ("No. 07", "07/12")
     folioText: () => new Markup(folio.n ? esc(tokens.folio(folio.n, folio.total)) : ''),
+    // "Swipe" and an arrow on a carousel page that has a page after it (its place in the carousel, args.counter), else nothing: a single post
+    // or the last page has no next page to swipe to. The words and the arrow are the engine's own, never data.
+    swipe: () => (carousel && carousel.n < carousel.total ? new Markup(`Swipe ${iconSvg('arrow-right')}`) : new Markup('')),
     m, markup, emphasisParts: (f = 'headline') => emphasisParts(spec[f]),
     // an icon of the engine's own set (icons.mjs) as Markup; o: { colour (a palette role), cls: 'btn' }
     icon: (name, o = {}) => new Markup(iconSvg(name, o)),

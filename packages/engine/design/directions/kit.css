@@ -137,7 +137,7 @@
 /* ======== words in pills, inline icons, info blocks, buttons and rows of round pictures (looks only: post-spec.mjs INLINE, the primitives
    info-rows, button and photo-row). Colours arrive as palette roles (--c-*) on the element, shapes as these fixed classes. ======== */
 /* a pill round one to three words of a headline, never broken across lines */
-.k-pl{display:inline-block;white-space:nowrap;padding:.02em .3em .08em;margin:0 .03em;line-height:1;vertical-align:baseline;box-sizing:border-box}
+.k-pl{display:inline-block;white-space:nowrap;padding:.08em .3em .14em;margin:0 .03em;line-height:1;vertical-align:baseline;box-sizing:border-box}
 .k-pl-round{border-radius:999px}
 .k-pl-soft{border-radius:.2em}
 .k-pl-line{border-radius:999px;box-shadow:inset 0 0 0 .07em currentColor}
