@@ -1,0 +1,1927 @@
+{
+  "schema": 1,
+  "id": "ledger",
+  "name": "Ledger",
+  "description": "Premium and modern, like a neobank: deep grounds lit by a soft glow of the brand colour, a calm grotesk with big confident figures and small change pills, white rounded cards, phone screens, icon badges and pill buttons, with generous space.",
+  "origin": "shipped",
+  "canvas": {
+    "feed": {
+      "margin": {
+        "top": 80,
+        "right": 80,
+        "bottom": 80,
+        "left": 80
+      },
+      "grid": {
+        "cols": 6,
+        "gutter": 24,
+        "rows": 0,
+        "head": 0
+      },
+      "extraLines": [
+        144,
+        152
+      ]
+    }
+  },
+  "fonts": {
+    "display": {
+      "source": "library",
+      "family": "Inter",
+      "weights": [
+        500,
+        600
+      ]
+    },
+    "text": {
+      "source": "library",
+      "family": "Inter",
+      "weights": [
+        400,
+        500
+      ]
+    },
+    "label": {
+      "source": "library",
+      "family": "Inter",
+      "weights": [
+        600
+      ]
+    },
+    "mono": {
+      "source": "library",
+      "family": "Inter",
+      "weights": [
+        500
+      ]
+    }
+  },
+  "type": {
+    "display": {
+      "lead": 1.04,
+      "track": -0.035,
+      "weight": 600,
+      "case": "as-typed",
+      "ladder": [
+        1,
+        0.9,
+        0.82
+      ],
+      "trim": "none",
+      "optical": false
+    },
+    "body": {
+      "size": 30,
+      "lead": 1.42,
+      "weight": 400,
+      "strength": 1
+    },
+    "item": {
+      "size": 36,
+      "lead": 1.22,
+      "weight": 500
+    },
+    "label": {
+      "size": 22,
+      "track": 0.08,
+      "weight": 600,
+      "upper": true,
+      "role": "label"
+    },
+    "numeral": {
+      "track": -0.05,
+      "figures": "lining"
+    }
+  },
+  "colour": {
+    "logic": "tonal",
+    "field": "primary",
+    "sticker": "primary",
+    "accentAsType": "field",
+    "grounds": [
+      "dark",
+      "paper",
+      "tint"
+    ]
+  },
+  "devices": {
+    "rule": {
+      "hair": 1,
+      "heavy": 3
+    },
+    "frame": {
+      "t": 0,
+      "pad": 0
+    },
+    "highlight": {
+      "pad": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "tilt": 0
+    },
+    "shadow": {
+      "x": 0,
+      "y": 0,
+      "colour": "ink"
+    },
+    "angles": {
+      "sticker": 0,
+      "bar": 0,
+      "block": 0,
+      "band": 0,
+      "card": 0,
+      "price": 0
+    },
+    "folio": "pad2-of-total",
+    "wordmark": {
+      "opacity": 0.03,
+      "sep": "dot"
+    }
+  },
+  "photo": {
+    "treat": [],
+    "tint": "primary"
+  },
+  "logo": {
+    "default": "top-left",
+    "height": 40
+  },
+  "dials": {
+    "tilt": 0,
+    "density": 0,
+    "weightShift": 0
+  },
+  "compositions": [
+    {
+      "kind": "statement",
+      "name": "Gradient hero",
+      "describe": "A deep page lit by a glow of the brand colour from one corner: an outlined label chip, a big calm headline in white, a sub line and an optional button. Use for a short statement or a carousel cover: best at 40 characters, up to 70.",
+      "ground": "dark",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.6
+      },
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 70
+        },
+        "sub": {
+          "max": 120
+        },
+        "cta": {
+          "max": 24
+        }
+      },
+      "elements": [
+        {
+          "type": "gradient",
+          "place": {
+            "inset": "page"
+          },
+          "gradient": {
+            "kind": "radial",
+            "stops": [
+              "field",
+              "dark"
+            ],
+            "at": "right bottom",
+            "shape": "ellipse"
+          },
+          "z": 0
+        },
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "body-dark",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 80,
+              "top": 90
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 360,
+              "w": 920,
+              "h": 900
+            }
+          },
+          "flow": "column",
+          "justify": "end",
+          "align": "start",
+          "gap": 40,
+          "z": 2,
+          "children": [
+            {
+              "type": "button",
+              "field": "label",
+              "shape": "pill",
+              "size": 22,
+              "font": "label",
+              "icon": "none",
+              "fill": "field-deep",
+              "ink": "white",
+              "when": {
+                "present": "label"
+              }
+            },
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "ink": "white",
+              "emphasis": "none",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    24,
+                    128
+                  ],
+                  [
+                    40,
+                    112
+                  ],
+                  [
+                    56,
+                    98
+                  ],
+                  [
+                    70,
+                    88
+                  ]
+                ],
+                "maxLines": 4,
+                "maxH": 470
+              },
+              "w": 920
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "ink": "white",
+              "w": 700,
+              "when": {
+                "present": "sub"
+              }
+            },
+            {
+              "type": "button",
+              "field": "cta",
+              "shape": "pill",
+              "size": 30,
+              "font": "display",
+              "upper": false,
+              "icon": "arrow-right",
+              "fill": "gold",
+              "ink": "on-accent",
+              "when": {
+                "present": "cta"
+              },
+              "before": 16
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "statement",
+      "name": "Trust card",
+      "describe": "A pale page holding one large white card: a shield on a round badge in the brand colour, a two-tone headline (the emphasised phrase in the deep brand colour) and a sub line, with the label and the web address under the card. Use for a trust, safety or security promise of up to about 60 characters.",
+      "ground": "tint",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 64
+        },
+        "sub": {
+          "max": 130
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "body",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 80,
+              "top": 90
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 200,
+              "w": 920,
+              "h": 930
+            }
+          },
+          "fill": "paper",
+          "radius": 56,
+          "shadow": "soft",
+          "pad": [
+            72,
+            72,
+            72,
+            72
+          ],
+          "flow": "column",
+          "justify": "center",
+          "align": "start",
+          "gap": 72,
+          "z": 1,
+          "children": [
+            {
+              "type": "icon-badge",
+              "icon": "shield",
+              "size": 88,
+              "badge": 168,
+              "shape": "circle",
+              "fill": "field",
+              "ink": "on-field"
+            },
+            {
+              "type": "box",
+              "flow": "column",
+              "align": "start",
+              "gap": 32,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "emphasis": "accent",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        28,
+                        100
+                      ],
+                      [
+                        44,
+                        88
+                      ],
+                      [
+                        64,
+                        78
+                      ]
+                    ],
+                    "maxLines": 4,
+                    "maxH": 400
+                  },
+                  "w": 776
+                },
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "ink": "body",
+                  "w": 720,
+                  "when": {
+                    "present": "sub"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "ink": "body",
+          "nowrap": true,
+          "place": {
+            "anchor": {
+              "left": 80,
+              "bottom": 80
+            }
+          },
+          "z": 2,
+          "when": {
+            "present": "label"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "figure",
+      "name": "Big number",
+      "describe": "A deep page with a glow of the brand colour, the label chip at the top, one very large figure in white across the page, a small change pill (the tag, such as +12%) and what the figure counts beside it, and the sub line under a fine rule at the foot. Use for a single number of up to 8 characters.",
+      "ground": "dark",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.6
+      },
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "big": {
+          "required": true,
+          "max": 8
+        },
+        "unit": {
+          "max": 24
+        },
+        "tag": {
+          "max": 12
+        },
+        "sub": {
+          "max": 120
+        }
+      },
+      "elements": [
+        {
+          "type": "gradient",
+          "place": {
+            "inset": "page"
+          },
+          "gradient": {
+            "kind": "radial",
+            "stops": [
+              "field",
+              "dark"
+            ],
+            "at": "right top",
+            "shape": "ellipse"
+          },
+          "z": 0
+        },
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "body-dark",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 80,
+              "top": 90
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 220,
+              "w": 920
+            }
+          },
+          "flow": "column",
+          "align": "start",
+          "z": 2,
+          "when": {
+            "present": "label"
+          },
+          "children": [
+            {
+              "type": "button",
+              "field": "label",
+              "shape": "pill",
+              "size": 22,
+              "font": "label",
+              "icon": "none",
+              "fill": "field-deep",
+              "ink": "white",
+              "when": {
+                "present": "label"
+              }
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 330,
+              "w": 920,
+              "h": 640
+            }
+          },
+          "flow": "column",
+          "justify": "center",
+          "align": "stretch",
+          "gap": 48,
+          "z": 2,
+          "children": [
+            {
+              "type": "fitted-stack",
+              "field": "big",
+              "mode": "lines",
+              "cap": 360,
+              "floor": 150,
+              "maxLines": 1,
+              "trail": true,
+              "lead": 0.95,
+              "w": 920,
+              "h": 380,
+              "ink": "white"
+            },
+            {
+              "type": "box",
+              "flow": "row",
+              "justify": "between",
+              "align": "center",
+              "w": 920,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "unit",
+                  "style": "body",
+                  "weight": 500,
+                  "ink": "white",
+                  "nowrap": true,
+                  "when": {
+                    "present": "unit"
+                  }
+                },
+                {
+                  "type": "button",
+                  "field": "tag",
+                  "shape": "pill",
+                  "size": 30,
+                  "font": "display",
+                  "upper": false,
+                  "icon": "arrow-up-right",
+                  "fill": "gold",
+                  "ink": "on-accent",
+                  "when": {
+                    "present": "tag"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 1040,
+              "w": 920,
+              "h": 230
+            }
+          },
+          "flow": "column",
+          "justify": "end",
+          "align": "start",
+          "gap": 28,
+          "z": 2,
+          "when": {
+            "present": "sub"
+          },
+          "children": [
+            {
+              "type": "rule",
+              "weight": "hair",
+              "colour": "rule-dark",
+              "w": 920
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "ink": "white",
+              "w": 760
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "figure",
+      "name": "Balance card",
+      "describe": "A pale page with one white card like an account balance: the label, a large figure in the ink, a change pill in the brand colour (the tag) and what the figure counts; the sub line sits under the card. Use for a single number of up to 8 characters, such as an amount saved.",
+      "ground": "tint",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "big": {
+          "required": true,
+          "max": 8
+        },
+        "unit": {
+          "max": 24
+        },
+        "tag": {
+          "max": 12
+        },
+        "sub": {
+          "max": 120
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "body",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 80,
+              "top": 90
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 230,
+              "w": 920,
+              "h": 660
+            }
+          },
+          "fill": "paper",
+          "radius": 56,
+          "shadow": "lift",
+          "pad": [
+            64,
+            64,
+            64,
+            64
+          ],
+          "flow": "column",
+          "justify": "between",
+          "align": "start",
+          "z": 1,
+          "children": [
+            {
+              "type": "box",
+              "flow": "row",
+              "justify": "between",
+              "align": "center",
+              "w": 792,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "ink": "body",
+                  "nowrap": true,
+                  "when": {
+                    "present": "label"
+                  }
+                },
+                {
+                  "type": "icon-badge",
+                  "icon": "spark",
+                  "size": 36,
+                  "badge": 72,
+                  "shape": "circle",
+                  "fill": "light-tint",
+                  "ink": "field"
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "flow": "column",
+              "align": "stretch",
+              "gap": 40,
+              "children": [
+                {
+                  "type": "fitted-stack",
+                  "field": "big",
+                  "mode": "lines",
+                  "cap": 240,
+                  "floor": 120,
+                  "maxLines": 1,
+                  "trail": true,
+                  "lead": 0.95,
+                  "w": 792,
+                  "h": 260
+                },
+                {
+                  "type": "box",
+                  "flow": "row",
+                  "justify": "between",
+                  "align": "center",
+                  "w": 792,
+                  "children": [
+                    {
+                      "type": "text",
+                      "field": "unit",
+                      "style": "body",
+                      "weight": 500,
+                      "ink": "body",
+                      "nowrap": true,
+                      "when": {
+                        "present": "unit"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "field": "tag",
+                      "shape": "pill",
+                      "size": 30,
+                      "font": "display",
+                      "upper": false,
+                      "icon": "arrow-up-right",
+                      "fill": "field",
+                      "ink": "on-field",
+                      "when": {
+                        "present": "tag"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "field": "sub",
+          "style": "body",
+          "ink": "ink",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 960,
+              "w": 760
+            }
+          },
+          "when": {
+            "present": "sub"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "figure",
+      "name": "Step",
+      "describe": "A white page for one step of a how-it-works carousel, centred: the step number large on a rounded tile of the brand colour, a two-tone headline and a sub line under it, the page number at the top. The figure is the step number (1, 2, 3); headline up to about 50 characters.",
+      "ground": "paper",
+      "fit": "margins",
+      "fields": {
+        "big": {
+          "required": true,
+          "max": 3
+        },
+        "headline": {
+          "required": true,
+          "max": 50
+        },
+        "sub": {
+          "max": 120
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "source": "folio",
+          "style": "body",
+          "ink": "body",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 80,
+              "top": 80
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 200,
+              "w": 920,
+              "h": 1070
+            }
+          },
+          "flow": "column",
+          "justify": "center",
+          "align": "center",
+          "gap": 40,
+          "z": 2,
+          "children": [
+            {
+              "type": "box",
+              "w": 300,
+              "h": 300,
+              "fill": "field",
+              "radius": 80,
+              "flow": "column",
+              "justify": "center",
+              "align": "center",
+              "children": [
+                {
+                  "type": "fitted-stack",
+                  "field": "big",
+                  "mode": "lines",
+                  "cap": 220,
+                  "floor": 120,
+                  "maxLines": 1,
+                  "trail": true,
+                  "lead": 0.95,
+                  "w": 200,
+                  "h": 220,
+                  "align": "center",
+                  "ink": "on-field"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "emphasis": "accent",
+              "align": "center",
+              "before": 24,
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    24,
+                    104
+                  ],
+                  [
+                    36,
+                    92
+                  ],
+                  [
+                    50,
+                    84
+                  ]
+                ],
+                "maxLines": 3,
+                "maxH": 330
+              },
+              "w": 920
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "ink": "body",
+              "align": "center",
+              "w": 720,
+              "when": {
+                "present": "sub"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "list",
+      "name": "Features",
+      "calm": {
+        "maxShare": 0.62
+      },
+      "describe": "A white page with a two-tone headline at the top and the points on rows between fine rules, each with a tick on a round badge in the brand colour, and an optional button at the foot. Use for two to five features or reasons, each up to about 34 characters.",
+      "ground": "paper",
+      "fit": "margins",
+      "fields": {
+        "headline": {
+          "required": true,
+          "max": 50
+        },
+        "items": {
+          "required": true,
+          "min": 2,
+          "max": 5
+        },
+        "cta": {
+          "max": 24
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "body",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 80,
+              "top": 90
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 200,
+              "w": 920,
+              "h": 1070
+            }
+          },
+          "flow": "column",
+          "justify": "between",
+          "align": "stretch",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "emphasis": "accent",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    24,
+                    100
+                  ],
+                  [
+                    36,
+                    88
+                  ],
+                  [
+                    50,
+                    78
+                  ]
+                ],
+                "maxLines": 3,
+                "maxH": 300
+              },
+              "w": 920
+            },
+            {
+              "type": "box",
+              "flow": "column",
+              "align": "stretch",
+              "gap": 36,
+              "children": [
+                {
+                  "type": "rows",
+                  "each": "items",
+                  "number": "none",
+                  "icons": [
+                    "check"
+                  ],
+                  "numberTile": {
+                    "size": 64,
+                    "fill": "field",
+                    "ink": "on-field",
+                    "radius": "full"
+                  },
+                  "numberSize": 32,
+                  "textStyle": "item",
+                  "textSize": 34,
+                  "rule": "hair",
+                  "ruleEnd": true,
+                  "gap": 32,
+                  "pad": [
+                    24,
+                    0,
+                    24,
+                    0
+                  ],
+                  "ink": "ink"
+                },
+                {
+                  "type": "button",
+                  "field": "cta",
+                  "shape": "pill",
+                  "size": 34,
+                  "font": "display",
+                  "upper": false,
+                  "icon": "arrow-right",
+                  "fill": "field",
+                  "ink": "on-field",
+                  "when": {
+                    "present": "cta"
+                  },
+                  "alignSelf": "start"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "list",
+      "name": "How it works",
+      "describe": "A deep page lit by a glow of the brand colour: the label chip and a headline in white at the top, then the steps as rows divided by fine rules, each numbered on a round accent badge. Use for two to five steps of up to about 36 characters.",
+      "ground": "dark",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 50
+        },
+        "items": {
+          "required": true,
+          "min": 2,
+          "max": 5
+        }
+      },
+      "elements": [
+        {
+          "type": "gradient",
+          "place": {
+            "inset": "page"
+          },
+          "gradient": {
+            "kind": "radial",
+            "stops": [
+              "field",
+              "dark"
+            ],
+            "at": "right bottom",
+            "shape": "ellipse"
+          },
+          "z": 0
+        },
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "body-dark",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 80,
+              "top": 90
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 200,
+              "w": 920,
+              "h": 1070
+            }
+          },
+          "flow": "column",
+          "justify": "between",
+          "align": "stretch",
+          "z": 2,
+          "children": [
+            {
+              "type": "box",
+              "flow": "column",
+              "align": "start",
+              "gap": 36,
+              "children": [
+                {
+                  "type": "button",
+                  "field": "label",
+                  "shape": "pill",
+                  "size": 22,
+                  "font": "label",
+                  "icon": "none",
+                  "fill": "field-deep",
+                  "ink": "white",
+                  "when": {
+                    "present": "label"
+                  }
+                },
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "ink": "white",
+                  "emphasis": "none",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        24,
+                        100
+                      ],
+                      [
+                        36,
+                        88
+                      ],
+                      [
+                        50,
+                        78
+                      ]
+                    ],
+                    "maxLines": 3,
+                    "maxH": 300
+                  },
+                  "w": 920
+                }
+              ]
+            },
+            {
+              "type": "rows",
+              "each": "items",
+              "number": "1",
+              "numberTile": {
+                "size": 64,
+                "fill": "gold",
+                "ink": "on-accent",
+                "radius": "full"
+              },
+              "numberStyle": "label",
+              "numberSize": 22,
+              "textStyle": "item",
+              "textSize": 36,
+              "rule": "hair",
+              "ruleEnd": true,
+              "gap": 32,
+              "pad": [
+                28,
+                0,
+                28,
+                0
+              ],
+              "ink": "white"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "quote",
+      "name": "Testimonial",
+      "calm": {
+        "maxShare": 0.7
+      },
+      "describe": "A white page: a large opening quotation mark in the brand colour, the quotation in calm medium type, and at the foot round pictures from the row of pictures beside the name and the label. Use for a quotation of up to about 150 characters.",
+      "ground": "paper",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "quote": {
+          "required": true,
+          "max": 150
+        },
+        "by": {
+          "max": 40
+        },
+        "gallery": {
+          "min": 2,
+          "max": 3
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "body",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 80,
+              "top": 90
+            }
+          }
+        },
+        {
+          "type": "glyph",
+          "glyph": "“",
+          "size": 260,
+          "colour": "field",
+          "place": {
+            "px": {
+              "x": 66,
+              "y": 150
+            }
+          },
+          "z": 1
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 360,
+              "w": 920,
+              "h": 640
+            }
+          },
+          "flow": "column",
+          "justify": "center",
+          "align": "start",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "quote",
+              "style": "display",
+              "weight": 500,
+              "emphasis": "accent",
+              "ladder": {
+                "by": "quote",
+                "steps": [
+                  [
+                    50,
+                    88
+                  ],
+                  [
+                    90,
+                    76
+                  ],
+                  [
+                    120,
+                    68
+                  ],
+                  [
+                    150,
+                    62
+                  ]
+                ],
+                "maxLines": 7,
+                "maxH": 600
+              },
+              "w": 920
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 1070,
+              "w": 920,
+              "h": 200
+            }
+          },
+          "flow": "row",
+          "align": "center",
+          "gap": 32,
+          "z": 2,
+          "children": [
+            {
+              "type": "photo-row",
+              "size": 112,
+              "gap": 0,
+              "overlap": 34,
+              "align": "right",
+              "ring": {
+                "w": 6,
+                "colour": "paper"
+              },
+              "w": 283,
+              "when": {
+                "present": "gallery"
+              }
+            },
+            {
+              "type": "box",
+              "flow": "column",
+              "align": "start",
+              "gap": 10,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "by",
+                  "style": "body",
+                  "weight": 500,
+                  "ink": "ink",
+                  "nowrap": true,
+                  "when": {
+                    "present": "by"
+                  }
+                },
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "ink": "body",
+                  "nowrap": true,
+                  "when": {
+                    "present": "label"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "photo",
+      "name": "Phone",
+      "describe": "A deep page with a glow of the brand colour: the picture as a phone screen on the right (a pre-framed phone capture, about 660 by 1354), the label chip, a white headline, a sub line and an optional button on the left. Headline up to 44 characters.",
+      "ground": "dark",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "image": {
+          "required": true
+        },
+        "headline": {
+          "required": true,
+          "max": 44
+        },
+        "sub": {
+          "max": 90
+        },
+        "cta": {
+          "max": 18
+        }
+      },
+      "elements": [
+        {
+          "type": "gradient",
+          "place": {
+            "inset": "page"
+          },
+          "gradient": {
+            "kind": "radial",
+            "stops": [
+              "field",
+              "dark"
+            ],
+            "at": "right",
+            "shape": "ellipse"
+          },
+          "z": 0
+        },
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "body-dark",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 80,
+              "top": 90
+            }
+          }
+        },
+        {
+          "type": "photo",
+          "place": {
+            "px": {
+              "x": 580,
+              "y": 300,
+              "w": 430,
+              "h": 882
+            }
+          },
+          "shape": "rect",
+          "z": 1
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 300,
+              "w": 460,
+              "h": 882
+            }
+          },
+          "flow": "column",
+          "justify": "center",
+          "align": "start",
+          "gap": 36,
+          "z": 2,
+          "children": [
+            {
+              "type": "button",
+              "field": "label",
+              "shape": "pill",
+              "size": 22,
+              "font": "label",
+              "icon": "none",
+              "fill": "field-deep",
+              "ink": "white",
+              "when": {
+                "present": "label"
+              }
+            },
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "ink": "white",
+              "emphasis": "none",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    20,
+                    84
+                  ],
+                  [
+                    32,
+                    74
+                  ],
+                  [
+                    44,
+                    66
+                  ]
+                ],
+                "maxLines": 5,
+                "maxH": 420
+              },
+              "w": 460
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "ink": "white",
+              "w": 440,
+              "when": {
+                "present": "sub"
+              }
+            },
+            {
+              "type": "button",
+              "field": "cta",
+              "shape": "pill",
+              "size": 30,
+              "font": "display",
+              "upper": false,
+              "icon": "arrow-right",
+              "fill": "gold",
+              "ink": "on-accent",
+              "when": {
+                "present": "cta"
+              },
+              "before": 8
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "photo",
+      "name": "Photo card",
+      "describe": "A white page with the picture in a large rounded window at the top and the tag on a white pill on it, then a two-tone headline, a sub line and an optional button below, left aligned. Use for a photograph with a headline of up to about 56 characters.",
+      "ground": "paper",
+      "fit": "margins",
+      "fields": {
+        "image": {
+          "required": true
+        },
+        "headline": {
+          "required": true,
+          "max": 56
+        },
+        "sub": {
+          "max": 110
+        },
+        "tag": {
+          "max": 16
+        },
+        "cta": {
+          "max": 24
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "body",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 80,
+              "top": 90
+            }
+          }
+        },
+        {
+          "type": "photo",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 180,
+              "w": 920,
+              "h": 620
+            }
+          },
+          "shape": "rounded",
+          "radius": 48,
+          "z": 1
+        },
+        {
+          "type": "button",
+          "field": "tag",
+          "shape": "pill",
+          "size": 22,
+          "font": "label",
+          "upper": true,
+          "icon": "none",
+          "fill": "paper",
+          "ink": "ink",
+          "place": {
+            "px": {
+              "x": 112,
+              "y": 212,
+              "w": 600
+            }
+          },
+          "when": {
+            "present": "tag"
+          },
+          "z": 3
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 860,
+              "w": 920,
+              "h": 410
+            }
+          },
+          "flow": "column",
+          "justify": "start",
+          "align": "start",
+          "gap": 28,
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "emphasis": "accent",
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    28,
+                    88
+                  ],
+                  [
+                    44,
+                    80
+                  ],
+                  [
+                    56,
+                    78
+                  ]
+                ],
+                "maxLines": 2,
+                "maxH": 190
+              },
+              "w": 920
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "ink": "body",
+              "w": 760,
+              "when": {
+                "present": "sub"
+              }
+            },
+            {
+              "type": "button",
+              "field": "cta",
+              "shape": "pill",
+              "size": 30,
+              "font": "display",
+              "upper": false,
+              "icon": "arrow-right",
+              "fill": "field",
+              "ink": "on-field",
+              "when": {
+                "present": "cta"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "event",
+      "name": "Live session",
+      "calm": {
+        "maxShare": 0.66
+      },
+      "describe": "A white page: the label chip, a two-tone headline, the date, time and place on ruled rows each with a calendar, clock or pin icon, and an optional button. Use for an event of up to about 50 characters of headline with a meta line like 12 Dec, 6pm, Online.",
+      "ground": "paper",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 50
+        },
+        "meta": {
+          "required": true,
+          "max": 40
+        },
+        "cta": {
+          "max": 24
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "body",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 80,
+              "top": 90
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 200,
+              "w": 920,
+              "h": 1070
+            }
+          },
+          "flow": "column",
+          "justify": "between",
+          "align": "stretch",
+          "z": 2,
+          "children": [
+            {
+              "type": "box",
+              "flow": "column",
+              "align": "start",
+              "gap": 36,
+              "children": [
+                {
+                  "type": "button",
+                  "field": "label",
+                  "shape": "pill",
+                  "size": 22,
+                  "font": "label",
+                  "icon": "none",
+                  "fill": "light-tint",
+                  "ink": "field",
+                  "when": {
+                    "present": "label"
+                  }
+                },
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "emphasis": "accent",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        24,
+                        100
+                      ],
+                      [
+                        36,
+                        88
+                      ],
+                      [
+                        50,
+                        78
+                      ]
+                    ],
+                    "maxLines": 3,
+                    "maxH": 300
+                  },
+                  "w": 920
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "flow": "column",
+              "align": "stretch",
+              "gap": 32,
+              "children": [
+                {
+                  "type": "rows",
+                  "each": "meta-parts",
+                  "number": "none",
+                  "icons": [
+                    "calendar",
+                    "clock",
+                    "pin"
+                  ],
+                  "numberTile": {
+                    "size": 64,
+                    "fill": "light-tint",
+                    "ink": "field",
+                    "radius": "full"
+                  },
+                  "numberSize": 32,
+                  "textStyle": "body",
+                  "textSize": 34,
+                  "rule": "hair",
+                  "ruleEnd": true,
+                  "gap": 32,
+                  "pad": [
+                    24,
+                    0,
+                    24,
+                    0
+                  ],
+                  "ink": "ink"
+                },
+                {
+                  "type": "button",
+                  "field": "cta",
+                  "shape": "pill",
+                  "size": 34,
+                  "font": "display",
+                  "upper": false,
+                  "icon": "arrow-right",
+                  "fill": "field",
+                  "ink": "on-field",
+                  "when": {
+                    "present": "cta"
+                  },
+                  "alignSelf": "start"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "offer",
+      "name": "Gradient offer",
+      "describe": "A deep page lit by a glow of the brand colour: a headline in white at the top, the offer (the tag) set very large, a sub line and a button in the accent colour at the foot. Use for a deal or plan with a short tag such as 0 fees or 3 months free.",
+      "ground": "dark",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.6
+      },
+      "fields": {
+        "headline": {
+          "required": true,
+          "max": 48
+        },
+        "tag": {
+          "required": true,
+          "max": 16
+        },
+        "sub": {
+          "max": 100
+        },
+        "cta": {
+          "max": 24
+        }
+      },
+      "elements": [
+        {
+          "type": "gradient",
+          "place": {
+            "inset": "page"
+          },
+          "gradient": {
+            "kind": "radial",
+            "stops": [
+              "field",
+              "dark"
+            ],
+            "at": "right top",
+            "shape": "ellipse"
+          },
+          "z": 0
+        },
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "body-dark",
+          "align": "right",
+          "place": {
+            "anchor": {
+              "right": 80,
+              "top": 90
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 80,
+              "y": 220,
+              "w": 920,
+              "h": 1050
+            }
+          },
+          "flow": "column",
+          "justify": "between",
+          "align": "start",
+          "z": 2,
+          "children": [
+            {
+              "type": "fitted-stack",
+              "field": "headline",
+              "mode": "block",
+              "sizes": [
+                88,
+                78,
+                70
+              ],
+              "maxLines": 3,
+              "ink": "white",
+              "w": 840,
+              "h": 280
+            },
+            {
+              "type": "fitted-stack",
+              "field": "tag",
+              "mode": "lines",
+              "cap": 300,
+              "floor": 120,
+              "maxLines": 2,
+              "trail": true,
+              "lead": 0.95,
+              "w": 920,
+              "h": 420,
+              "ink": "white"
+            },
+            {
+              "type": "box",
+              "flow": "column",
+              "align": "start",
+              "gap": 36,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "ink": "white",
+                  "w": 700,
+                  "when": {
+                    "present": "sub"
+                  }
+                },
+                {
+                  "type": "button",
+                  "field": "cta",
+                  "shape": "pill",
+                  "size": 30,
+                  "font": "display",
+                  "upper": false,
+                  "icon": "arrow-right",
+                  "fill": "gold",
+                  "ink": "on-accent",
+                  "when": {
+                    "present": "cta"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
