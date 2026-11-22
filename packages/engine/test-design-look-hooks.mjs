@@ -19,7 +19,7 @@ test('shippedLooks: retail, swiss, soft, bloom, clean, roast and plate, validate
   for (const [id, look] of Object.entries(s)) {
     assert.equal(look.id, id);
     assert.equal(look.origin, 'shipped');
-    assert.equal(look.compositions.length, 9);
+    assert.equal(look.compositions.length, { roast: 12, plate: 10 }[id] ?? 9);
     assert.deepEqual(validateLook(look, id, { shipped: true }), []);
     assert.ok(Object.isFrozen(look) && Object.isFrozen(look.compositions) && Object.isFrozen(look.compositions[0].elements[0]));
     assert.throws(() => { look.compositions[0].name = 'x'; }, TypeError);
