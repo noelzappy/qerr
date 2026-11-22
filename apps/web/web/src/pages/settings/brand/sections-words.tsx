@@ -12,6 +12,7 @@ import { Section } from '../section';
 import { FileField } from './fields';
 import { parseCurrencyPattern } from './currency';
 import type { BrandCtx } from './model';
+import { BrandSettingsSiteSuggest } from '@/components/suggest/BrandSiteSuggest';
 
 const MAX_SPELLINGS = 30;
 
@@ -28,6 +29,7 @@ export function VoiceSection({ ctx }: { ctx: BrandCtx }) {
   }
   return (
     <Section id="voice" title="Voice and spelling" description="In your own words. The AI reads the voice and the visual direction every time it drafts or rewrites a post. Design references add to the visual direction.">
+      <BrandSettingsSiteSuggest ctx={ctx} />
       <TextAreaField label="Voice" optional hint="Who you talk to, the tone, words you use and avoid. For example: Warm and plain. Short sentences. We say 'members', never 'customers'." rows={5} maxLength={4000} value={s.voice} onChange={(e) => set('voice', e.target.value)} error={fields.voice} />
       <SwitchField label="Emoji in post images" hint="Off: the words on post images are words only, and an emoji is refused. On: each text on an image may carry up to three standard emoji, and the AI may use them. Never in the brand name or a caption." checked={s.emoji} onCheckedChange={(v) => set('emoji', v)} />
       <TextAreaField label="Visual direction" optional hint="How the images should feel. For example: Calm pages with lots of space, one strong photo, numbers large; avoid busy collages." rows={5} maxLength={4000} value={s.visualDirection} onChange={(e) => set('visualDirection', e.target.value)} error={fields.visualDirection} />

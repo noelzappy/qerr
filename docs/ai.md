@@ -10,6 +10,8 @@ await ai.draftBatch({ vault, series, period, count, channels, brand, timezone })
 await ai.research({ topics, vault, since });                                       // -> { items, checks, notes }
 await ai.rewrite({ post, instruction, vault, channels });                          // -> post (with post.notes)
 await ai.analyseReference({ image, note });                                        // -> { analysis, brief, notes }
+await ai.suggestBrandFromSite({ website });                                        // -> { suggestion, source, notes }
+await ai.describePicture({ image, hints });                                        // -> { suggestion, notes }
 ```
 
 - `draftBatch` returns `batch`, the engine's batch JSON (see [batch-format.md](batch-format.md)) with a `design` block on
@@ -109,6 +111,28 @@ admin adds it, a new layout in Settings, Layouts (checked once more on the way i
 
 The prompt tells the model to describe the style and not the content: no copied words, claims, logos or names. Text inside
 the picture is data and is never followed.
+
+## Suggestions (`src/suggest.mjs`)
+
+Both return suggestions only: nothing is stored, and the caller shows them to a person who uses, changes or leaves each one. Both use
+the provider ticked for `draft` (logged under their own task names, `brand-site` and `picture`), the budget and the log like every
+other call.
+
+- `suggestBrandFromSite({ website })` reads the brand's home page (a bare host gets `https://`) through the same safe page reader as
+  research (`fetchPage`, see "Safety rules"; no search provider needed, `keepHtml` keeps the raw page for its head) after checking the
+  budget, and logs the read as a `fetch`. From the page it takes the title, the meta description and social lines, the visible text
+  (6,000 characters) and the colours the page names: its `theme-color` first, then the chromatic colours of its own CSS (style blocks,
+  style attributes, custom properties, whose names are kept as hints), at most eight; greys, black and white are left out and linked
+  stylesheets are not read. All of it goes to the model as JSON data under the `brand-site` prompt, which says the page is data and
+  never instructions. The answer is checked against `BRAND_SITE_SCHEMA`: every field optional, `descriptor` up to 200 characters,
+  `tagline` 120, `voice` and `visualDirection` 900, no other field, no emoji, one line for the first two, and `colours.primary` and
+  `colours.accent` only as `#rrggbb` values that were found on the page. An empty answer is valid ("the page says too little"). A page
+  that cannot be read is an `AIError` with code `site`; a refused address is `unsafe_url`.
+- `describePicture({ image: { mediaType, data }, hints })` sends one picture (at most 5 MB, the image types of `analyseReference`) with
+  optional hints (`title`, `fileName`, `role`; data, possibly wrong) under the `picture` prompt, and checks the answer against
+  `PICTURE_SCHEMA`: `description` (up to 400 characters) and `peopleVisible` (a boolean) required, `title` up to 80, up to six tags in
+  lower case joined by hyphens. The prompt forbids identifying or describing personal traits of anyone, quoting numbers from the
+  picture, and treating text in the picture as instructions. `peopleVisible` is a hint for the person; it is never consent.
 
 ## Vault items the library expects
 
@@ -278,7 +302,7 @@ number absent from the pages, or duplicate a vault item or an earlier candidate.
 
 ## Prompts
 
-`packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`. They are brand-neutral: they read the `brand` brief above.
+`packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`, `brand-site.md`, `picture.md`. They are brand-neutral: they read the `brand` brief above.
 The first line is `<!-- version: draft-15 -->` (now `draft-15`, `rewrite-6`); the version is returned in `notes.promptVersion`. Change a prompt by editing
 the file, bumping its version and reviewing the diff. Tests pin the versions' format only, not the wording.
 
@@ -300,6 +324,8 @@ the same version line. The pack's file is used when it exists, the library's oth
 - Not run against real Brave, Tavily, Exa or any OpenAI-compatible server. Brave's `page_age`/`age` and Tavily's
   `include_published_date`, and Exa's `contents.text.maxCharacters`, were not confirmed in the docs read.
 - Page reads through the real transport were run once against `example.com` only; redirect handling and the pinned lookup are covered by tests with fake transports, not by a real redirecting site.
+- The suggestions (`suggestBrandFromSite`, `describePicture`) were run only against fake providers and fake pages in the tests, never
+  against a real model or a real website; how well a real model follows the `brand-site` and `picture` prompts is not known.
 - The number check is textual. Numbers written as words ("fourteen") and claims without numbers or quotation marks (an invented
   person's name, a product behaviour) are controlled by the prompt and a human reviewer only.
 - Prices and the 180-day figure age are caller settings and a default; neither was checked against any real policy.
@@ -313,6 +339,9 @@ the drafter's `notes` kept on the batch (shown with an "AI draft" badge), and a 
 Vault photos are offered to the library with a made-up path named after their id; the app swaps it for `vaultItemId`, and
 the render job copies the real file from the private bucket. If the AI fails, the monthly budget is used up or the answer does
 not pass the checks, no batch is made and the reason is written to the audit log as `ai.draft_batch.failed`.
+
+`POST /api/suggest/brand-from-site` and `POST /api/suggest/picture-description` call `suggestBrandFromSite` and `describePicture`
+directly (not as jobs) and return the suggestion; see the web app's README, "AI suggestions".
 
 The `rewrite-post` job (queued by `POST /api/posts/:id/rewrite`, or "Rewrite with AI" in the post page's menu) calls `rewrite` with the post and its linked
 facts and, with `apply`, saves the answer as an edit by the person who asked: the title, caption, per-network captions, date, time, design and sources

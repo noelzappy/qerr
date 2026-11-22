@@ -28,6 +28,7 @@ import { localStorageRoutes } from './routes/local-storage.js';
 import { reviewRoutes } from './routes/review.js';
 import { routingRoutes } from './routes/routing.js';
 import { scheduleRoutes } from './routes/schedule.js';
+import { suggestRoutes } from './routes/suggest.js';
 import { userRoutes } from './routes/users.js';
 import { vaultRoutes } from './routes/vault.js';
 import { spaHandler } from './static.js';
@@ -164,6 +165,7 @@ export function createAppAndDeps(input: AppDeps | Deps, options: { webDir?: stri
   app.route('/api/posts/post-kinds', postKindsRoutes(deps));
   app.route('/api/posts', reviewRoutes(deps));
   app.route('/api/schedule', scheduleRoutes(deps));
+  app.route('/api/suggest', suggestRoutes(deps));
   app.route('/', localStorageRoutes(deps));
 
   app.all('/api/*', (c) => c.json({ error: 'Not found' }, 404));
