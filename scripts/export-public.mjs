@@ -16,8 +16,10 @@ import { fileURLToPath } from 'node:url';
 
 // The packs that may be published: fictional brands only (no real company, person, place or amount). demo is the default
 // pack (Acme Savings); pennyhive is the fictional finance test brand (Pennyhive); tallyho is the fictional polls and community brand
-// that shows off the loud look (Tallyho).
-export const PUBLIC_PACKS = ['demo', 'pennyhive', 'tallyho'];
+// that shows off the loud look (Tallyho); northbeam is the fictional product studio that shows off the studio look (Northbeam);
+// kettleworks (Kettleworks Coffee, a café) and saltandember (Salt & Ember, a grill restaurant) are the fictional brands of the roast
+// and plate looks; outabout is the fictional what's-on guide of an invented city (Outabout) that shows off the guide look.
+export const PUBLIC_PACKS = ['demo', 'pennyhive', 'tallyho', 'northbeam', 'kettleworks', 'saltandember', 'outabout'];
 
 // Strings shaped like real secrets. Test fixtures use obvious fakes (sk-ant-TESTKEY..., AWS's documented example key), which
 // these patterns do not match.

@@ -1,0 +1,73 @@
+{
+  "note": "Starting vault for Northbeam, a fictional product and design studio used to show off the studio look. Every item is invented: no real company, person, place, event or figure. The numbers are round and illustrative only. Imported once on an empty database; edit or delete in the app afterwards.",
+  "vault": [
+    {
+      "kind": "figure",
+      "title": "Products shipped",
+      "body": "Northbeam has shipped 140 products with its clients since the studio opened (illustrative figure).",
+      "sourceUrl": "https://northbeam.example",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": ["numbers", "public"]
+    },
+    {
+      "kind": "figure",
+      "title": "The product teams report",
+      "body": "1,200 teams answered the studio's questions on planning, testing and shipping in 2026 (illustrative figure).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": ["numbers", "report", "public"]
+    },
+    {
+      "kind": "product",
+      "title": "How the studio works",
+      "body": "Northbeam brings four things to a team: customer research, product design, engineering and training.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": ["services", "public"]
+    },
+    {
+      "kind": "product",
+      "title": "Product sprint",
+      "body": "A six-week sprint for early teams: from a question to a tested prototype, with three people from the studio.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": ["services", "offer", "public"]
+    },
+    {
+      "kind": "event",
+      "title": "Larkford Make",
+      "body": "The studio runs a workshop on designing forms people finish at Larkford Make, an invented design event in the invented town of Larkford.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "unconfirmed",
+      "validFrom": "2026-11-01",
+      "validUntil": "2026-12-31",
+      "tags": ["event", "public"]
+    },
+    {
+      "kind": "news",
+      "title": "Studio fellowship",
+      "body": "The Northbeam studio fellowship for 2027 is taking entries: ten weeks inside the studio on live client projects, with a mentor (invented programme).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-12-01",
+      "validUntil": "2027-01-09",
+      "tags": ["news", "careers", "public"]
+    },
+    {
+      "kind": "fact",
+      "title": "Open role (internal)",
+      "body": "An example of an internal note: the salary band for the backend developer role. The tag not-for-posts tells reviewers to keep it out of posts.",
+      "sourceNote": "Example of an internal item.",
+      "status": "confirmed",
+      "tags": ["internal", "not-for-posts"]
+    }
+  ],
+  "research": {
+    "topics": ["how product teams work", "product strategy and design for early-stage software teams", "news mentioning Northbeam"]
+  }
+}

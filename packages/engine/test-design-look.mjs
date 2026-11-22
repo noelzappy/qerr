@@ -185,6 +185,7 @@ const EXAMPLES = {
   'taped-photo': { type: 'taped-photo', place: AT(140, 600, 800, 520), rot: -3 },
   'paper-texture': { type: 'paper-texture', place: { inset: 'page' } },
   'icon-badge': { type: 'icon-badge', icon: 'shield', fill: 'field', ink: 'on-field', place: AT(56, 600, 122, 122) },
+  ribbon: { type: 'ribbon', corner: 'top-right', at: 160, w: 72, colour: 'primary' },
   avatar: { type: 'avatar', size: 120, place: { px: { x: 56, y: 1100 } } },
   device: { type: 'device', place: AT(600, 300, 400, 840) },
 };
