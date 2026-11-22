@@ -4,7 +4,7 @@ import type { ActiveBrief } from '@/hooks/use-active-look';
 import { POST_LIMITS, POST_LISTS, type PostKindInfo, type PostLimits } from '../design-model';
 import type { PostKinds } from './use-post-kinds';
 
-const CANON = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag', 'cta', 'info', 'gallery'];
+const CANON = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag', 'cta', 'info', 'gallery', 'chart'];
 
 // With a look in force: only the kinds it draws, the fields its designs use, its designs as the "Look" choices (the variant a post
 // names is the design's index) and the look's name as the direction. Without one, the answer is returned as it is.
@@ -28,13 +28,13 @@ export function applyLookBrief(base: PostKinds, brief: ActiveBrief): PostKinds {
 export function budgetsFor(base: PostLimits | null | undefined, info: PostKindInfo | undefined, variant: number | undefined): PostLimits {
   // (an answer from an older server may lack the newer fields: the engine's own limits fill them)
   const b = { ...POST_LIMITS, ...(base ?? {}) } as PostLimits;
-  const lim: PostLimits = { ...b, items: { ...b.items }, info: { ...b.info }, gallery: { ...b.gallery }, infoKeys: [...b.infoKeys], icons: [...b.icons] };
+  const lim: PostLimits = { ...b, items: { ...b.items }, info: { ...b.info }, gallery: { ...b.gallery }, infoKeys: [...b.infoKeys], icons: [...b.icons], chart: { ...b.chart, kinds: [...b.chart.kinds], units: [...b.chart.units] } };
   const variants = (info?.variants ?? []).filter((v) => v.budgets);
   if (!variants.length) return lim;
   const chosen = variant === undefined ? variants : variants.filter((v) => v.variant === variant);
   const use = chosen.length ? chosen : variants;
   for (const f of Object.keys(lim) as Array<keyof PostLimits>) {
-    if ((POST_LISTS as readonly string[]).includes(f) || f === 'infoKeys' || f === 'icons') continue;
+    if ((POST_LISTS as readonly string[]).includes(f) || f === 'infoKeys' || f === 'icons' || f === 'chart') continue;
     const maxes = use.map((v) => v.budgets![f]?.max).filter((m): m is number => typeof m === 'number');
     if (maxes.length) (lim as unknown as Record<string, number>)[f] = Math.max(...maxes);
   }
@@ -44,6 +44,14 @@ export function budgetsFor(base: PostLimits | null | undefined, info: PostKindIn
     if (!own.length) continue;
     lim[f].max = Math.max(...own.map((i) => i!.max ?? lim[f].max));
     lim[f].min = Math.min(...own.map((i) => i!.min ?? lim[f].min));
+  }
+  // a chart: the kinds the chosen designs draw (in their order) and their point counts, from the designs that draw one
+  const charts = use.map((v) => v.budgets!.chart).filter(Boolean);
+  if (charts.length) {
+    const kinds = [...new Set(charts.flatMap((c) => c!.kinds ?? []))];
+    if (kinds.length) lim.chart.kinds = kinds;
+    lim.chart.max = Math.max(...charts.map((c) => c!.max ?? lim.chart.max));
+    lim.chart.min = Math.min(...charts.map((c) => c!.min ?? lim.chart.min));
   }
   return lim;
 }

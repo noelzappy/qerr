@@ -60,6 +60,7 @@ export const ROLE_LABEL: Record<string, string> = {
 };
 export const emptyRoles = (): BrandRoles => ({ grounds: {}, text: {}, accents: {}, surfaces: {}, slabs: {} });
 
+export interface BrandNumbers { decimal: '.' | ','; group: ',' | '.' | ' ' | 'thin' | 'none'; currency: string; currencyAt: 'before' | 'after'; currencySpace: boolean; percentSpace: boolean }
 export interface BrandSettings {
   name: string;
   website: string;
@@ -68,6 +69,8 @@ export interface BrandSettings {
   timezone: string;
   language: string;
   money: { local: string; foreign: string } | null;
+  // How numbers are written in charts (decimal mark, thousands separator, currency sign and where it goes); null: the engine's default.
+  numbers: BrandNumbers | null;
   colours: { primary: string; accent: string; dark: string; light: string };
   roles: BrandRoles;
   headlineWeight: number;

@@ -19,7 +19,7 @@ export interface Desc {
 }
 
 export interface KindInfo { label: string; help: string; fields: string[]; required: string[] }
-export interface FieldInfo { label: string; help: string; type: 'text' | 'items' | 'image'; max?: number; min?: number; chars?: number; emphasis?: boolean }
+export interface FieldInfo { label: string; help: string; type: 'text' | 'items' | 'image' | 'chart'; max?: number; min?: number; chars?: number; emphasis?: boolean; kinds?: string[]; units?: string[] }
 export interface ElementInfo {
   label: string; group: string; help: string; properties: Record<string, Desc & { group?: string }>;
   placement?: 'required' | 'none'; flow?: boolean; container?: 'any' | 'text' | null; text?: boolean; fitted?: boolean; required?: string[];

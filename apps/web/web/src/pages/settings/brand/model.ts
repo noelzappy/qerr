@@ -35,7 +35,7 @@ export function sectionOfPath(path: string): SectionId {
   }
   if (head === 'series') return 'post-types';
   if (head === 'voice' || head === 'visualDirection' || head === 'spellings') return 'voice';
-  if (head === 'money') return 'identity';
+  if (head === 'money' || head === 'numbers') return 'identity';
   return 'identity';
 }
 

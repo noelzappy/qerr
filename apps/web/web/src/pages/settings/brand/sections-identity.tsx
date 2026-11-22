@@ -7,6 +7,7 @@ import { buildCurrencyPattern, currencyListProblem, parseCurrencyPattern } from 
 import { TagListField } from './tag-list-field';
 import { SavedNote, useReportProblem, useUploadStatus } from './status';
 import type { BrandCtx } from './model';
+import type { BrandNumbers } from '../brand-types';
 
 function zones(): string[] {
   try { return (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.('timeZone') ?? ['UTC']; } catch { return ['UTC']; }
@@ -38,6 +39,34 @@ function OtherCurrencies({ ctx }: { ctx: BrandCtx }) {
   );
 }
 
+// How the numbers of a chart are written: the decimal mark, the thousands separator and the currency sign, before or after the number.
+const DEFAULT_NUMBERS: BrandNumbers = { decimal: '.', group: ',', currency: '', currencyAt: 'before', currencySpace: false, percentSpace: false };
+function sampleOf(n: BrandNumbers): string {
+  const group = { ',': ',', '.': '.', ' ': '\u00a0', thin: '\u202f', none: '' }[n.group];
+  const num = `1${group}234${n.decimal}50`;
+  return !n.currency ? num : n.currencyAt === 'after' ? `${num}${n.currencySpace ? '\u00a0' : ''}${n.currency}` : `${n.currency}${n.currencySpace ? '\u00a0' : ''}${num}`;
+}
+function NumbersFields({ ctx }: { ctx: BrandCtx }) {
+  const { s, set, fields } = ctx;
+  const n = s.numbers ?? DEFAULT_NUMBERS;
+  const put = (patch: Partial<BrandNumbers>) => set('numbers', { ...n, ...patch });
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm font-medium">Numbers in charts <span className="font-normal text-muted-foreground">(shown as {sampleOf(n)})</span></p>
+      <div className="grid gap-3 md:grid-cols-4">
+        <SelectField label="Decimal mark" value={n.decimal} onValueChange={(v) => put({ decimal: v as BrandNumbers['decimal'] })} options={[{ value: '.', label: 'Point (12.5)' }, { value: ',', label: 'Comma (12,5)' }]} error={fields['numbers.decimal']} />
+        <SelectField label="Thousands" value={n.group} onValueChange={(v) => put({ group: v as BrandNumbers['group'] })} options={[{ value: ',', label: 'Comma (1,234)' }, { value: '.', label: 'Point (1.234)' }, { value: ' ', label: 'Space (1 234)' }, { value: 'thin', label: 'Thin space' }, { value: 'none', label: 'None (1234)' }]} error={fields['numbers.group']} />
+        <TextField label="Currency sign" optional hint="Such as € or kr" maxLength={4} value={n.currency} onChange={(e) => put({ currency: e.target.value })} error={fields['numbers.currency']} />
+        <SelectField label="Sign goes" value={n.currencyAt} onValueChange={(v) => put({ currencyAt: v as BrandNumbers['currencyAt'] })} options={[{ value: 'before', label: 'Before (€12)' }, { value: 'after', label: 'After (12 €)' }]} error={fields['numbers.currencyAt']} />
+      </div>
+      <div className="flex flex-wrap gap-4">
+        <CheckField label="A space between the sign and the number" checked={n.currencySpace} onCheckedChange={(on) => put({ currencySpace: on })} />
+        <CheckField label="A space before %" checked={n.percentSpace} onCheckedChange={(on) => put({ percentSpace: on })} />
+      </div>
+    </div>
+  );
+}
+
 export function IdentitySection({ ctx }: { ctx: BrandCtx }) {
   const { s, set, fields } = ctx;
   return (
@@ -62,6 +91,7 @@ export function IdentitySection({ ctx }: { ctx: BrandCtx }) {
           </div>
         )}
       </div>
+      <NumbersFields ctx={ctx} />
     </Section>
   );
 }

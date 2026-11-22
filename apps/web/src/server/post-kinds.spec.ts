@@ -43,6 +43,7 @@ describe('GET /api/posts/post-kinds', () => {
       items: { min: postSpec.POST_ITEMS.min, max: postSpec.POST_ITEMS.max, chars: postSpec.POST_ITEMS.chars },
       info: { min: spec.POST_INFO.min, max: spec.POST_INFO.max, chars: spec.POST_INFO.value }, gallery: { min: spec.POST_GALLERY.min, max: spec.POST_GALLERY.max, chars: spec.POST_GALLERY.caption },
       infoKeys: spec.INFO_KEYS, icons: icons.ICON_NAMES,
+      chart: { min: 2, max: 12, chars: 14, kinds: ['bar', 'hbar', 'line', 'area', 'spark', 'donut', 'progress'], units: ['number', 'currency', 'percent'] },
     });
   });
 

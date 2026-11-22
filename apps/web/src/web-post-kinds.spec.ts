@@ -33,7 +33,7 @@ describe('the static fallback for a post design', () => {
       for (const f of own.fields) expect([...Object.keys(e.POST_FIELDS), 'items', 'image']).toContain(f);
       for (const f of own.required) expect(own.fields).toContain(f);
     }
-    const { items, info, gallery, infoKeys, icons, ...texts } = POST_LIMITS;
+    const { items, info, gallery, infoKeys, icons, chart, ...texts } = POST_LIMITS;
     expect(items).toEqual(e.POST_ITEMS);
     expect(texts).toEqual(Object.fromEntries(Object.entries(e.POST_FIELDS).map(([k, v]) => [k, v.max])));
     // the counted lists, the info labels and the icons match the engine's too
@@ -42,6 +42,9 @@ describe('the static fallback for a post design', () => {
     expect(gallery).toEqual({ min: lists.POST_GALLERY.min, max: lists.POST_GALLERY.max, chars: lists.POST_GALLERY.caption });
     expect(infoKeys).toEqual(lists.INFO_KEYS);
     expect(icons).toEqual((await engineImport<{ ICON_NAMES: string[] }>('design/icons')).ICON_NAMES);
+    // a chart's limits, its kinds and its units match the engine's (lib/design/chart.mjs)
+    const ch = await engineImport<{ POST_CHART: { min: number; max: number; label: number }; CHART_KINDS: string[]; CHART_UNITS: string[] }>('design/chart');
+    expect(chart).toEqual({ min: ch.POST_CHART.min, max: ch.POST_CHART.max, chars: ch.POST_CHART.label, kinds: ch.CHART_KINDS, units: ch.CHART_UNITS });
     // what is seen of a headline: the pill brackets do not count, an icon counts as two (the engine's seenText)
     const seen = (await engineImport<{ seenText(v: string): string }>('design/post-spec')).seenText;
     for (const h of ['Coffee [[on us]] *now*', '{{star}} New [[blend]]', 'Plain \\n words']) expect(seenLength(h)).toBe([...seen(h)].length);

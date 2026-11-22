@@ -32,10 +32,11 @@ const tokens = await engineImport<EngineTokens>('design/tokens');
 const postSpec = await engineImport<EnginePostSpec>('design/post-spec');
 const directions = await engineImport<EngineDirections>('design/directions/index');
 const icons = await engineImport<{ ICON_NAMES: string[] }>('design/icons');
+const chart = await engineImport<{ POST_CHART: { min: number; max: number; label: number }; CHART_KINDS: string[]; CHART_UNITS: string[] }>('design/chart');
 
 // The order fields are listed in.
 // (cta, info and gallery come last: the button's words, the info rows, the row of round pictures; only a look written as data draws them)
-const FIELD_ORDER = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag', 'cta', 'info', 'gallery'];
+const FIELD_ORDER = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag', 'cta', 'info', 'gallery', 'chart'];
 const LIMITED = ['label', 'headline', 'sub', 'big', 'unit', 'quote', 'by', 'meta', 'tag', 'cta'];
 
 // The brand.json in force (the pack syncBrand wrote), as written, or null.
@@ -75,6 +76,8 @@ export function postKindsRoutes(deps: Deps): Hono<AppEnv> {
       ...Object.fromEntries(LIMITED.map((f) => [f, postSpec.POST_FIELDS[f]!.max])), items: { ...postSpec.POST_ITEMS },
       info: { min: postSpec.POST_INFO.min, max: postSpec.POST_INFO.max, chars: postSpec.POST_INFO.value }, gallery: { min: postSpec.POST_GALLERY.min, max: postSpec.POST_GALLERY.max, chars: postSpec.POST_GALLERY.caption },
       infoKeys: [...postSpec.INFO_KEYS], icons: [...icons.ICON_NAMES],
+      // a chart: its points, the characters of a label, every kind the engine draws and the units its numbers are written in
+      chart: { min: chart.POST_CHART.min, max: chart.POST_CHART.max, chars: chart.POST_CHART.label, kinds: [...chart.CHART_KINDS], units: [...chart.CHART_UNITS] },
     };
     return c.json({ direction, kinds, limits });
   });

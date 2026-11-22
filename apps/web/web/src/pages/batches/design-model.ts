@@ -1,6 +1,7 @@
 // What the post editor does to a design (the form in PageFields.tsx and PagesEditor.tsx draws them), as plain functions: the layout
 // a post or a carousel page is made with (a built-in layout, or one of the brand's own as "layout:<id>"), and a carousel's pages.
 // The engine checks the result again when the post is saved (packages/engine/lib/design/layout.mjs postDesignProblems).
+import { CHART_LIMITS, type ChartLimits } from './editor/chart-model';
 import { LAYOUT_CATALOGUE, postKindName } from './editor/catalogue';
 import type { Json as DesignBlock, LayoutBrief } from './editor/types';
 
@@ -74,7 +75,7 @@ export function movePage(d: DesignBlock, i: number, by: -1 | 1): DesignBlock {
 // answer is used when it is there.
 export const POST_KINDS = ['statement', 'figure', 'list', 'quote', 'photo', 'event', 'offer'] as const;
 export type PostKind = (typeof POST_KINDS)[number];
-export type PostFieldName = 'label' | 'headline' | 'sub' | 'big' | 'unit' | 'items' | 'quote' | 'by' | 'image' | 'meta' | 'tag' | 'cta' | 'info' | 'gallery';
+export type PostFieldName = 'label' | 'headline' | 'sub' | 'big' | 'unit' | 'items' | 'quote' | 'by' | 'image' | 'meta' | 'tag' | 'cta' | 'info' | 'gallery' | 'chart';
 export interface PostKindFields { fields: PostFieldName[]; required: PostFieldName[] }
 
 export const POST_KIND_FIELDS: Record<PostKind, PostKindFields> = {
@@ -92,22 +93,25 @@ export interface ListLimit { min: number; max: number; chars: number }
 export interface PostLimits {
   label: number; headline: number; sub: number; big: number; unit: number; quote: number; by: number; meta: number; tag: number; cta: number;
   items: ListLimit; info: ListLimit; gallery: ListLimit; infoKeys: string[]; icons: string[];
+  // a chart (a look written as data only): its points, the characters of a label, the kinds a design draws and the units (the engine's POST_CHART)
+  chart: ChartLimits;
 }
 export const POST_LISTS = ['items', 'info', 'gallery'] as const;
 export const POST_LIMITS: PostLimits = {
   label: 28, headline: 70, sub: 140, big: 8, unit: 24, quote: 160, by: 40, meta: 40, tag: 16, cta: 24, items: { min: 2, max: 5, chars: 44 },
   info: { min: 1, max: 4, chars: 40 }, gallery: { min: 2, max: 5, chars: 24 },
   infoKeys: ['When', 'Where', 'Date', 'Time', 'Place', 'Book on', 'Tickets', 'Price', 'Entry', 'Who', 'Host', 'Call', 'Online', 'Starts', 'Ends', 'Open'],
+  chart: { ...CHART_LIMITS },
   icons: ['arrow-right', 'arrow-up-right', 'check', 'plus', 'star', 'spark', 'heart', 'bolt', 'leaf', 'calendar', 'clock', 'pin', 'ticket', 'tag', 'gift', 'phone', 'mail', 'user', 'play', 'dot', 'lock', 'shield'],
 };
 // What the server says about each kind (GET /api/posts/post-kinds).
 export interface PostKindInfo {
   kind: string; fields: string[]; required: string[];
   // `budgets` (a look's design only): what the design needs and its longest text per field.
-  variants: Array<{ variant: number; name: string; describe: string; budgets?: Record<string, { required: boolean; max?: number; min?: number }> }>;
+  variants: Array<{ variant: number; name: string; describe: string; budgets?: Record<string, { required: boolean; max?: number; min?: number; kinds?: string[] }> }>;
 }
 
-const CANON: PostFieldName[] = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag', 'cta', 'info', 'gallery'];
+const CANON: PostFieldName[] = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag', 'cta', 'info', 'gallery', 'chart'];
 // The keys a post may carry besides its fields; the app's vaultItemId is stripped by the server before the engine sees it.
 const POST_FRAME = ['name', 'networkSizes', 'sizes'];
 const POST_EXTRA = ['focal', 'zoom', 'vaultItemId'];
