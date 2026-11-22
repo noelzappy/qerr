@@ -332,3 +332,23 @@ describe('the copy a look is drawn with', () => {
     }
   });
 });
+
+describe('the sample copy the previews show', () => {
+  it('never ends a line on a small joining word or cuts a tag in half', async () => {
+    const eng = await lookEngine();
+    const { ATTEMPTS } = await import('./services/look-copy.js');
+    for (const look of await shippedLooks()) {
+      for (const [kind, entry] of Object.entries(eng.lookBrief(look).kinds)) {
+        for (const v of entry.variants) {
+          for (const a of ATTEMPTS.sample) {
+            const c = copyFor(kind, v, 'sample', a);
+            for (const k of ['sub', 'label', 'quote', 'by']) {
+              if (typeof c[k] === 'string') expect(String(c[k]), `${look.id}/${kind}/${v.index} ${k}`).not.toMatch(/\b(the|to|of|and|from|a|for|with|how|who)$/i);
+            }
+            if (typeof c.tag === 'string') expect(['New', 'Just in', 'New this week']).toContain(c.tag);
+          }
+        }
+      }
+    }
+  });
+});

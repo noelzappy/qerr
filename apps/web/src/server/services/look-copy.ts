@@ -25,9 +25,9 @@ const POOL = {
   label: ['Our promise'],
   unit: ['kg', 'per bag', 'per batch', 'kg per batch', 'in every single batch'],
   quote: ['We do not do things fast. We do them right, in small batches, by hand, and we check every one before it goes out.'],
-  by: ['A regular customer'],
+  by: ['A friend', 'A regular', 'A regular customer'],
   meta: ['12 Dec · 6pm · Town hall'],
-  tag: ['New this week'],
+  tag: ['New', 'Just in', 'New this week'],
   item: ['Made by hand, every time', 'Checked before it leaves', 'Sent the same day', 'Fixed for free if wrong', 'Never rushed, never cut'],
 };
 
@@ -46,6 +46,14 @@ function words(source: string, want: number, max: number): string {
   }
   if (!out) out = [...cut[0]!].slice(0, target).join('');
   return out.replace(/[\s,;:.-]+$/, '') || [...source].slice(0, target).join('');
+}
+// Sample copy (what the previews show) cut in the middle of a phrase ("from the first step to the") reads as broken: a cut that ends on a
+// small joining word loses it. Only the sample scenario is tidied, so the stress and minimal checks keep measuring exactly the length they ask for.
+const DANGLING = new Set(['a', 'an', 'the', 'to', 'of', 'and', 'or', 'from', 'for', 'with', 'by', 'in', 'on', 'at', 'is', 'it', 'its', 'how', 'who', 'that', 'this', 'every', 'before']);
+function tidy(text: string): string {
+  const whole = text.split(' ');
+  while (whole.length > 2 && DANGLING.has(whole[whole.length - 1]!.toLowerCase())) whole.pop();
+  return whole.join(' ').replace(/[\s,;:.-]+$/, '');
 }
 
 // Headlines with an emphasised ending (`*...*`), from short to long: the headline is the longest of them that fits the budget and, when a design asks
@@ -107,12 +115,13 @@ export function copyFor(kind: string, variant: Variant, scenario: CopyScenario, 
       case 'sub': out.sub = mini ? 'One short line.' : words(POOL.sub[0]!, scenario === 'sample' ? Math.round(max * Math.min(0.9, fill + 0.3)) : share(max), max); break;
       case 'label': out.label = mini ? 'New' : words(POOL.label[0]!, share(max) , max); break;
       case 'unit': out.unit = mini ? 'per bag' : ladder(POOL.unit, share(max)); break;
-      case 'by': out.by = mini ? 'A friend' : words(POOL.by[0]!, share(max), max); break;
+      case 'by': { const b = ladder(POOL.by, Math.min(max, Math.max(share(max), 8))); out.by = mini ? 'A friend' : b.length <= max ? b : words(b, max, max); break; }
       case 'meta': out.meta = mini ? '12 Dec' : words(POOL.meta[0]!, share(max), max); break;
-      case 'tag': out.tag = mini ? 'New' : words(POOL.tag[0]!, share(max), max); break;
+      case 'tag': { const g = ladder(POOL.tag, Math.min(max, Math.max(share(max), 3))); out.tag = mini ? 'New' : g.length <= max ? g : words(g, max, max); break; }
       default: break; // a field the engine's copy does not know: left off (it is optional, or the design check says what is missing)
     }
   }
+  if (scenario === 'sample') for (const k of ['sub', 'label', 'quote', 'by', 'meta'] as const) if (typeof out[k] === 'string') out[k] = tidy(out[k] as string);
   return out;
 }
 
