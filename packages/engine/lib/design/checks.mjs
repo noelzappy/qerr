@@ -362,16 +362,24 @@ export function explainPostProblems(problems, post = {}) {
   return `The page does not meet the design rules${who}: ${[...new Set(lines)].join('; ')}.`;
 }
 
+// The length to suggest for words that do not fit: the estimate, but always fewer characters than they have now (an estimate from widths can
+// come out at the length that just failed, and "shorten it to about 9 characters (it is 9)" helps nobody). null when there is nothing shorter.
+export function shorterLength(est, chars) {
+  const n = Math.min(Math.floor(Number(est) || 0), Math.floor(Number(chars) || 0) - 1);
+  return n >= 1 ? n : null;
+}
+
 // Why a headline fitted line by line (fitLines) does not fit: too many words for the box at the smallest size the direction allows.
 export function explainFitLines(f, kind = 'headline') {
-  return `The ${kind} is too long to set at a size that reads: it would need ${f.lines} lines of ${Math.round(f.min)} px at the most, under the smallest size allowed here (${Math.round(f.floor)} px) or taller than its ${Math.round(f.h)} px box. Shorten the ${kind} to about ${f.est} characters (it is ${f.chars}).`;
+  const about = shorterLength(f.est, f.chars);
+  return `The ${kind} is too long to set at a size that reads: it would need ${f.lines} lines of ${Math.round(f.min)} px at the most, under the smallest size allowed here (${Math.round(f.floor)} px) or taller than its ${Math.round(f.h)} px box. ${about ? `Shorten the ${kind} to about ${about} characters (it is ${f.chars}).` : `Use fewer or shorter words in the ${kind}.`}`;
 }
 
 // Why a post headline does not fit even at the smallest size the fit loop may use (82% of its designed size). fraction: the share of
 // the headline's height that fits (its height less the overflow, over its height), from which roughly how many characters would.
 export function explainPostFit(problems, { chars = 0, scale = 0.82, fraction = 0, kind = 'headline' } = {}) {
   const mine = problems.some((p) => ['headline', 'stat', 'accent'].includes(p.role) || ['headline', 'stat', 'accent'].includes(p.other));
-  const about = mine && chars && fraction > 0 ? Math.max(6, Math.floor(chars * Math.min(0.95, fraction) * 0.95)) : null;
+  const about = mine && chars && fraction > 0 ? shorterLength(Math.max(6, Math.floor(chars * Math.min(0.95, fraction) * 0.95)), chars) : null;
   const lines = [...new Set(problems.map((p) => `the ${p.role} ("${p.text}") ${p.kind === 'overlap' ? `overlaps the ${p.other}` : p.px ? `runs ${p.px} px out of its place` : 'does not fit'}`))];
   return `The text does not fit the post at the smallest size allowed (${Math.round(scale * 100)}% of the designed size): ${lines.join('; ')}.${about ? ` Shorten the ${kind} to about ${about} characters (it is ${chars}).` : ''}`;
 }

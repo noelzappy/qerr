@@ -10,7 +10,7 @@ import { ROOT, brandFile } from './lib/core.mjs';
 import { STYLE_DEFAULTS, DIRECTIONS, POST_KINDS } from './lib/design/tokens.mjs';
 import { loadBrand, loadDirection, resolveStyle, styleProblems, validateBrand } from './lib/design/brand.mjs';
 import { Browser, findChrome } from './lib/design/chrome.mjs';
-import { POST_LIMITS, explainPostProblems, findPostProblems } from './lib/design/checks.mjs';
+import { POST_LIMITS, explainFitLines, explainPostFit, explainPostProblems, findPostProblems, shorterLength } from './lib/design/checks.mjs';
 import { DesignError } from './lib/design/errors.mjs';
 import { allCompositions, chooseVariant, compositionsFor, fontNeeds, registryProblems, renderPost, DIRECTION_TOKENS, REGISTRY } from './lib/design/directions/index.mjs';
 import { Markup, emphasisParts, grainUri, m, makeContext, rootCss } from './lib/design/directions/kit.mjs';
@@ -622,4 +622,16 @@ test('edge check: text whose ink meets or crosses the edge of a block or rule is
   assert.equal(edge(findPostProblems(m({ x0: 90, y0: 150, x1: 300, y1: 350 }))).length, 0, 'a side bearing may stand a little out of a block');
   assert.equal(edge(findPostProblems(m({ x0: 120, y0: 405, x1: 300, y1: 460, frame: '0' }))).length, 0, 'text and a shape in different frames are not compared');
   assert.match(explainPostProblems(findPostProblems(m({ x0: 120, y0: 395, x1: 300, y1: 460 }))), /runs into the edge of a block or rule/);
+});
+
+test('a refusal never asks to shorten words to the length they already have', () => {
+  assert.equal(shorterLength(9, 9), 8);
+  assert.equal(shorterLength(12, 9), 8);
+  assert.equal(shorterLength(5, 9), 5);
+  assert.equal(shorterLength(3, 1), null);
+  const tag = explainFitLines({ lines: 2, min: 40, floor: 44, h: 110, est: 9, chars: 9 }, 'tag');
+  assert.match(tag, /Shorten the tag to about 8 characters \(it is 9\)/);
+  assert.doesNotMatch(explainFitLines({ lines: 1, min: 40, floor: 44, h: 110, est: 4, chars: 1 }, 'tag'), /about/);
+  const head = explainPostFit([{ kind: 'wide', role: 'headline', text: 'Seven', px: 2 }], { chars: 6, fraction: 0.99 });
+  assert.match(head, /about 5 characters \(it is 6\)/);
 });
