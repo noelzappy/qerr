@@ -23,6 +23,7 @@ import { SizeChips, StickerSize, TextSize } from './size';
 import { hasPartChoices, PartChoices } from './parts';
 import { Chips, Group, Disclosure, Label, spanOf, ToggleChip } from './ui';
 import { BoxFillToggle, CAPABILITY_PROPS, CapabilityGroups, GradientChoices } from './capabilities';
+import { CrossingGroup } from './surfaces';
 
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -86,6 +87,7 @@ export function ElementProperties(p: PropertiesProps) {
     rotate: (v) => p.apply((c) => setRotation(c, path, v, look, cat), `${path}.rot`),
     setPlace: (pl) => p.apply((c) => setPlace(c, path, pl, cat), `${path}.place`),
     setForm: (f) => p.apply((c) => setPlaceForm(c, path, f, look, cat)),
+    apply: (fn) => p.apply(fn),
   };
   const onBind = (field: string | null): string => {
     let found: string[] = [];
@@ -271,6 +273,8 @@ export function ElementProperties(p: PropertiesProps) {
           {errors.style && <p className="text-[12.5px] font-medium text-destructive" role="alert">{errors.style}</p>}
         </Group>
       )}
+
+      {(type === 'text' || type === 'fitted-stack') && info.properties.overlap && <CrossingGroup ctx={ctx} />}
 
       {info.properties.when && <WhenSentence ctx={ctx} />}
 

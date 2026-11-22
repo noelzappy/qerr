@@ -859,7 +859,7 @@ export function whyNotAdd(comp: Json, type: string, cat: LookCatalogue, parentPa
     if (p.depth + 1 > limit(cat, 'depth', 4)) return `Pieces can be nested ${limit(cat, 'depth', 4)} levels deep at most`;
     const parentInfo = cat.elements[String(p.el.type)];
     if (!parentInfo?.container) return 'That piece holds nothing';
-    if (info.placement === 'none') return `A ${info.label.toLowerCase()} goes on the page, not in a box`;
+    if (info.placement === 'none' || type === 'backdrop') return `A ${info.label.toLowerCase()} goes on the page, not in a box`;
     if (parentInfo.container === 'text' && type !== 'text') return 'A sticker holds text only';
     if (!info.flow && type !== 'text') { /* placed children are allowed for pieces that take a place */ }
   }
@@ -968,6 +968,8 @@ export function newElement(comp: Json, type: string, look: Json, cat: LookCatalo
     case 'photo-row': el.size = 200; el.captions = true; size = { span: 99, rowSpan: 2, h: 260 }; break;
     // one of the engine's icons on a round badge in the brand colour (the pane changes the icon, the shape and the colours)
     case 'icon-badge': el.icon = 'check'; el.size = 64; el.shape = 'circle'; el.fill = 'field'; el.ink = 'on-field'; size = { span: 1, rowSpan: 1, w: 122, h: 122 }; break;
+    // a quiet pattern over the whole page, at the back (the pane offers the other patterns and the ready-made settings)
+    case 'backdrop': el.pattern = 'dots'; el.scale = 36; el.density = 0.35; el.opacity = 0.1; break;
     default: break;
   }
   // on a page lit by a gradient of dark colours (the ledger look), or with a dark colour laid over its picture (an overlay: the studio
@@ -983,7 +985,7 @@ export function newElement(comp: Json, type: string, look: Json, cat: LookCatalo
     if (size.span === 99 && g) size = { ...size, span: g.cols, w: PAGE.w - g.m.left - g.m.right };
     const place = newPlace(comp, look, size);
     if (isObj(place.px) && type === 'rule') { const p = place.px; p.h = 4; }
-    el.place = place;
+    el.place = type === 'backdrop' ? { inset: 'page' } : place;
   }
   return el;
 }
@@ -997,8 +999,8 @@ export function addElement(comp: Json, type: string, look: Json, cat: LookCatalo
   if (parentPath) { delete el.place; delete el.z; if (!cat.elements[type]!.flow) { el.place = newPlace(comp, look); } }
   const next = mutate(comp, (c) => {
     const list = parentPath ? (() => { const p = locate(c, parentPath)!.el; return (Array.isArray(p.children) ? p.children : (p.children = [])) as Json[]; })() : elementsOf(c);
-    list.push(el);
-    path = joinEl(parentPath, list.length - 1);
+    // a pattern goes at the back of the page: first in the list, so it is drawn under what has the same layer
+    if (type === 'backdrop' && !parentPath) { list.unshift(el); path = '0'; } else { list.push(el); path = joinEl(parentPath, list.length - 1); }
     for (const b of bindingsOf(el, look)) withField(c, b.field, cat);
   });
   return { comp: next, path };

@@ -310,6 +310,10 @@ composition through `design-model.ts` (pure; `src/web-design-editor.spec.ts` loa
 draft as it is edited with the `validate` route, draws it with `preview-design` and falls back to a sketch drawn in the browser while that answers 501, saves
 with `PUT .../draft` and publishes with `POST .../publish`.
 A look in use is edited there like any other; the page says that only a published design reaches posts.
+A **Pattern** piece (`backdrop`) is chosen from thumbnails (`design/surfaces.tsx`: one per pattern, and a row of ready-made settings whose quiet ones keep
+words easy to read), with its colours as swatches and its strength and fade as chips; scale, density, strength, angle, seed and centre are under
+Fine-tune. A text or a fitted headline has a **Crosses a shape** group: No, one of the design's filled shapes by name, or Any shape; choosing a shape names
+it (its `key`) and sets the text's `overlap` in one step, and an outline for words that cross two grounds is under Fine-tune.
 
 **Drawing a look** (`services/look-render.ts`, connected in `src/server/index.ts` with `connectLookRenderer`). Everything goes through the render queue
 (`services/render-queue.ts`: posts, then previews, then gate jobs, under the engine's single Chrome lock; a newer request with the same key, one per person

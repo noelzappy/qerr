@@ -9,7 +9,7 @@ import { CheckField, FieldGroup, SelectField, SwitchField, TextField } from '@/c
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  checkLadder, coerceProp, declaredFields, fieldLabel, gridOf, ladderOf, namedAngles, turnOptions, placeForm, PLACE_FORM_WORDS, readWhen, whenText, type LadderStep, type PlaceForm,
+  checkLadder, coerceProp, declaredFields, fieldLabel, gridOf, ladderOf, namedAngles, turnOptions, placeForm, PLACE_FORM_WORDS, readWhen, whenText, type Edit, type LadderStep, type PlaceForm,
 } from './design-model';
 import { roleWord, swatchOf, type Swatches } from './design-colours';
 import { blankFor, clone } from './look-model';
@@ -58,6 +58,8 @@ export interface Ctx {
   setPlace: (place: Json) => string;
   setForm: (form: PlaceForm) => string;
   inks: string[];
+  // applies an edit to the whole design in one step (a choice that changes two elements at once); returns '' or why it was refused
+  apply?: (fn: (c: Json) => Edit) => string;
 }
 
 // ---- a number in bounds ----
