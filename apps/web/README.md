@@ -236,7 +236,8 @@ adapter, `shippedLooks()` over the engine's `shippedLooks()`) or `own:<slug>` (a
 never equals a shipped id). Tables `brand_looks` (the look without compositions, `origin`, `engineSchema`, `status` draft or ready,
 `gate`) and `brand_look_compositions` (`definition` is what is drawn, `draft` holds unpublished edits and never affects drawing,
 `enabled`, `gate`); the active look is a pointer, `brand_profiles.activeLookRef` (`shipped:<id>`, `own:<slug>` or null for classic
-layouts), so it can only be set once the brand is saved in Settings, Brand. There is no blank look: a brand starts from
+layouts), so it can only be set once the brand is saved in Settings, Brand. A newly saved brand starts on the shipped Clean look
+(`shipped:clean`); brands saved before keep their choice. There is no blank look: a brand starts from
 `POST /duplicate` (a deep copy of a shipped look or one of its own, a draft). **The scope rule:** every service function takes
 `{ brandId }` first (from `brandScope(c)`, the one place that decides it; a constant today) and every query filters on it, a row
 is found by (brandId, slug) or uuid and brandId, and no route reads a brandId from a request; `brandId` is a plain indexed
