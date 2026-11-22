@@ -9,7 +9,7 @@
 //
 // The composition is JSON and stays JSON: every control edits a copy of the object through design-model.ts, and the whole is sent when the draft is
 // saved. As it is edited the server says what is wrong (a debounced check of the whole look with this draft swapped in); Save draft is refused only
-// for what the server would refuse. A look in use is read only here. Under the lg breakpoint the three regions become tabs.
+// for what the server would refuse. A look in use is edited here like any other (the pieces keep a readOnly mode, not used here). Under the lg breakpoint the three regions become tabs.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { Braces, CircleCheck, Redo2, TriangleAlert, Undo2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -54,7 +54,8 @@ export function DesignEditor({ initialLook, designId, list }: { initialLook: Own
   const cat = list.catalogue;
   const [look, setLook] = useState<OwnDetail>(initialLook);
   const design = look.compositions.find((c) => c.id === designId) as Composition;
-  const readOnly = list.activeRef === look.ref;
+  // A look in use is edited like any other: saving keeps a draft, and only publishing changes what posts are drawn with.
+  const inUse = list.activeRef === look.ref;
   const settings = useMemo(() => settingsOf(look.definition), [look.definition]);
   const swatches = useSwatches();
   useDocumentTitle(`Edit ${design.name}`);
@@ -63,8 +64,6 @@ export function DesignEditor({ initialLook, designId, list }: { initialLook: Own
   const start = useMemo(() => clone((design.draft ?? design.definition) as Json), []); // eslint-disable-line react-hooks/exhaustive-deps
   const [comp, setComp] = useState<Json>(start);
   const compRef = useRef(comp);
-  const readOnlyRef = useRef(readOnly);
-  readOnlyRef.current = readOnly;
   const undoStack = useRef<Json[]>([]);
   const redoStack = useRef<Json[]>([]);
   const [, bump] = useState(0);
@@ -80,7 +79,6 @@ export function DesignEditor({ initialLook, designId, list }: { initialLook: Own
     setComp(next);
   }, []);
   const apply = useCallback((fn: (c: Json) => Edit, key?: string): string => {
-    if (readOnlyRef.current) return 'This look is in use, so it cannot be changed';
     const e = fn(compRef.current);
     if (e.error) return e.error;
     commit(e.comp, key);
@@ -201,7 +199,6 @@ export function DesignEditor({ initialLook, designId, list }: { initialLook: Own
     } catch (e) { setJsonError(errorMessage(e)); }
   }
   function remove(path: string) {
-    if (readOnlyRef.current) { toast.error('This look is in use, so it cannot be changed'); return; }
     const r = removeElement(compRef.current, path);
     if (r.error || !r.undo) { toast.error(r.error ?? 'It could not be removed'); return; }
     const undo0 = r.undo;
@@ -210,8 +207,8 @@ export function DesignEditor({ initialLook, designId, list }: { initialLook: Own
     toast(`Removed ${elementName(undo0.el, cat)}`, { action: { label: 'Undo', onClick: () => { const back = restoreElement(compRef.current, undo0); commit(back.comp); setSelected(back.path ?? null); } } });
   }
 
-  const saveWhy = readOnly ? 'This look is in use, so it cannot be changed.' : problems.length ? 'Fix what the design needs before you save it.' : checking || !settled ? 'Checking the design.' : !dirty ? 'There is nothing new to save.' : '';
-  const publishWhy = readOnly ? 'This look is in use, so it cannot be changed.' : problems.length ? 'Fix what the design needs first.' : checking || !settled ? 'Checking the design.' : !dirty && !design.hasDraft ? 'There is nothing to publish: save a draft first.' : '';
+  const saveWhy = problems.length ? 'Fix what the design needs before you save it.' : checking || !settled ? 'Checking the design.' : !dirty ? 'There is nothing new to save.' : '';
+  const publishWhy = problems.length ? 'Fix what the design needs first.' : checking || !settled ? 'Checking the design.' : !dirty && !design.hasDraft ? 'There is nothing to publish: save a draft first.' : '';
 
   const onKey = (e: KeyboardEvent) => {
     if ((e.target as HTMLElement).closest('input, textarea, select, [role="combobox"]')) return;
@@ -231,19 +228,19 @@ export function DesignEditor({ initialLook, designId, list }: { initialLook: Own
       <header className="sticky top-0 z-30 -mx-1 flex flex-col gap-2 border-b bg-background px-1 pb-2 pt-1">
         <Breadcrumbs items={[{ label: 'Settings', to: '/settings/preferences' }, { label: 'Looks', to: '/settings/looks' }, { label: look.name, to: `/settings/looks/${look.slug}?tab=designs` }, { label: String(comp.name ?? design.name) }]} />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <Input aria-label="Name of the design" value={String(comp.name ?? '')} maxLength={cat.limits.name} disabled={readOnly} onChange={(e) => { const v = e.target.value; const why = apply((c) => setTop(c, 'name', v, cat), 'name'); if (why) setNotice(why); }}
+          <Input aria-label="Name of the design" value={String(comp.name ?? '')} maxLength={cat.limits.name} onChange={(e) => { const v = e.target.value; const why = apply((c) => setTop(c, 'name', v, cat), 'name'); if (why) setNotice(why); }}
             className="-ml-2 h-9 min-w-40 flex-1 border-transparent bg-transparent px-2 text-[19px] font-semibold tracking-tight shadow-none hover:border-input focus-visible:border-ring sm:max-w-md md:text-[19px]" />
           {dirty && <span role="status" className="inline-flex items-center gap-1.5 text-[12.5px] text-warning-foreground"><span className="size-2 rounded-full bg-warning" aria-hidden="true" /> Unsaved changes</span>}
           {!dirty && design.hasDraft && <span className="text-[12.5px] text-muted-foreground">Draft saved, not published</span>}
           <div className="ml-auto flex flex-wrap items-center gap-2">
-            <Button type="button" size="icon" variant="ghost" aria-label="Undo" disabled={readOnly || undoStack.current.length === 0} onClick={undo} title="Undo"><Undo2 /></Button>
-            <Button type="button" size="icon" variant="ghost" aria-label="Redo" disabled={readOnly || redoStack.current.length === 0} onClick={redo} title="Redo"><Redo2 /></Button>
+            <Button type="button" size="icon" variant="ghost" aria-label="Undo" disabled={undoStack.current.length === 0} onClick={undo} title="Undo"><Undo2 /></Button>
+            <Button type="button" size="icon" variant="ghost" aria-label="Redo" disabled={redoStack.current.length === 0} onClick={redo} title="Redo"><Redo2 /></Button>
             <Button type="button" variant="outline" disabled={!!publishWhy || busy !== ''} title={publishWhy || undefined} aria-describedby={publishWhy ? 'publish-why' : undefined} onClick={() => void publish()}>Publish</Button>
             <BusyButton loading={busy === 'save'} disabled={!!saveWhy || busy !== ''} title={saveWhy || undefined} aria-describedby={saveWhy ? 'save-why' : undefined} onClick={() => void save()}>Save draft</BusyButton>
             <MoreMenu items={[
-              { label: 'Discard draft', tone: 'danger', disabled: readOnly || !design.hasDraft, onSelect: () => setDiscarding(true) },
+              { label: 'Discard draft', tone: 'danger', disabled: !design.hasDraft, onSelect: () => setDiscarding(true) },
               { label: 'Advanced: JSON', icon: <Braces />, onSelect: openJson },
-              ...(shippedIdOf(look.origin) ? [{ label: 'Reset to the shipped original', disabled: readOnly, onSelect: () => void askReset() }] : []),
+              ...(shippedIdOf(look.origin) ? [{ label: 'Reset to the shipped original', onSelect: () => void askReset() }] : []),
             ]} />
           </div>
         </div>
@@ -275,9 +272,9 @@ export function DesignEditor({ initialLook, designId, list }: { initialLook: Own
         </div>
       </header>
 
-      {readOnly && (
-        <Notice tone="info" actions={<BusyButton size="sm" variant="outline" loading={copying} onClick={() => void duplicateLook()}>Duplicate the look to change it</BusyButton>}>
-          This look is in use, so its designs are read only here. You can look at everything; to change one, duplicate the look, change the copy, then use the copy.
+      {inUse && (
+        <Notice tone="info" actions={<BusyButton size="sm" variant="outline" loading={copying} onClick={() => void duplicateLook()}>Duplicate the look</BusyButton>}>
+          This look is in use. Saving keeps your changes as a draft that posts do not use; publishing the design puts it into every post drawn from then on. Images already made stay as they are until a post is drawn again.
         </Notice>
       )}
       {gateLines.length > 0 && <Notice tone="bad" title="The checks did not pass, so the design was not published:"><Lines items={gateLines} /></Notice>}
@@ -285,7 +282,7 @@ export function DesignEditor({ initialLook, designId, list }: { initialLook: Own
 
       <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[17rem_minmax(0,1fr)_22rem] xl:grid-cols-[19rem_minmax(0,1fr)_24rem]">
         {region('layers', 'Layers', (
-          <DesignLayers comp={comp} look={settings} cat={cat} selected={selected} onSelect={select} readOnly={readOnly} apply={apply} onRemove={remove} />
+          <DesignLayers comp={comp} look={settings} cat={cat} selected={selected} onSelect={select} readOnly={false} apply={apply} onRemove={remove} />
         ), 'lg:sticky lg:top-36 lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto lg:pr-1')}
 
         {region('canvas', 'Canvas', (
@@ -299,7 +296,7 @@ export function DesignEditor({ initialLook, designId, list }: { initialLook: Own
               </div>
             </div>
             <div className="mx-auto w-full" style={{ maxWidth: canvasWidth, width: canvasWidth }}>
-              <DesignCanvas comp={comp} look={settings} cat={cat} selected={selected} onSelect={select} preview={preview} view={shownView} showGrid={grid} readOnly={readOnly} advanced={advanced} swatches={swatches}
+              <DesignCanvas comp={comp} look={settings} cat={cat} selected={selected} onSelect={select} preview={preview} view={shownView} showGrid={grid} readOnly={false} advanced={advanced} swatches={swatches}
                 onChange={(next) => commit(next, 'drag')} onGestureEnd={() => { lastKey.current = null; }} onRemove={remove}
                 onReorder={(path, by) => { let to: string | undefined; const why = apply((c) => { const e = reorderElement(c, path, by); to = e.path; return e; }); if (why) setNotice(why); else if (to) setSelected(to); }} onNotice={setNotice} />
             </div>
@@ -312,14 +309,14 @@ export function DesignEditor({ initialLook, designId, list }: { initialLook: Own
 
         {region('properties', 'Properties', (
           selected
-            ? <ElementProperties key={selected} comp={comp} look={settings} cat={cat} path={selected} swatches={swatches} advanced={advanced} readOnly={readOnly} problems={problems} apply={apply} onSelect={select} />
-            : <DesignSettings comp={comp} look={settings} cat={cat} readOnly={readOnly} apply={apply} problems={problems} />
+            ? <ElementProperties key={selected} comp={comp} look={settings} cat={cat} path={selected} swatches={swatches} advanced={advanced} readOnly={false} problems={problems} apply={apply} onSelect={select} />
+            : <DesignSettings comp={comp} look={settings} cat={cat} readOnly={false} apply={apply} problems={problems} />
         ), 'lg:sticky lg:top-36 lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto lg:pr-1')}
       </div>
 
       <FormPanel open={jsonOpen} variant="dialog" size="lg" title="Advanced: JSON" onClose={() => setJsonOpen(false)} dismissOnOutside
-        footer={<><Button type="button" variant="outline" onClick={() => setJsonOpen(false)}>Close</Button><Button type="button" disabled={readOnly} onClick={applyJson}>Apply the JSON</Button></>}>
-        <TextAreaField label="The design exactly as Vesk reads it" mono rows={20} spellCheck={false} value={json} readOnly={readOnly} onChange={(e) => setJson(e.target.value)} error={jsonError || undefined}
+        footer={<><Button type="button" variant="outline" onClick={() => setJsonOpen(false)}>Close</Button><Button type="button" disabled={false} onClick={applyJson}>Apply the JSON</Button></>}>
+        <TextAreaField label="The design exactly as Vesk reads it" mono rows={20} spellCheck={false} value={json} onChange={(e) => setJson(e.target.value)} error={jsonError || undefined}
           hint="Edit it here and apply it; the editor then shows it, and Vesk checks it like any other change." />
       </FormPanel>
       <ConfirmAction open={discarding} danger title="Discard the draft?" confirmLabel="Discard the draft" message="The unpublished changes to this design are thrown away and the published design comes back." onConfirm={discard} onCancel={() => setDiscarding(false)} />

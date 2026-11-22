@@ -1,6 +1,6 @@
 // The Designs tab of a look: one group per kind of post, each design a compact row (name, what it is for, the fields it uses with
 // their budgets, a status dot, On/Off, reorder, Edit (opens the design editor page) and a menu). "Add a design" copies one from a look we ship or one of the brand's
-// own. A look in use is read only (the page says so once); the server refuses what the rules refuse and its reason is shown.
+// own. A look in use is edited like any other (the page says what that changes); the server refuses what the rules refuse and its reason is shown.
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -14,7 +14,7 @@ import { addOptions, budgetsText, DESIGN_STATUS, designIndex, designStatus, grou
 import type { Composition, LookCatalogue, LooksAnswer, OwnDetail } from './look-types';
 import { lookApi } from './looks-api';
 
-interface Props { look: OwnDetail; list: LooksAnswer; locked: boolean; onLook: (l: OwnDetail) => void }
+interface Props { look: OwnDetail; list: LooksAnswer; onLook: (l: OwnDetail) => void }
 
 function AddDesign({ kind, look, list, onClose, onLook }: { kind: string; look: OwnDetail; list: LooksAnswer; onClose: () => void; onLook: (l: OwnDetail) => void }) {
   const [busy, setBusy] = useState('');
@@ -65,7 +65,7 @@ function AddDesign({ kind, look, list, onClose, onLook }: { kind: string; look: 
   );
 }
 
-function Row({ c, index, designs, look, catalogue, locked, onLook, onEdit }: { c: Composition; index: number; designs: Composition[]; look: OwnDetail; catalogue: LookCatalogue; locked: boolean; onLook: (l: OwnDetail) => void; onEdit: () => void }) {
+function Row({ c, index, designs, look, catalogue, onLook, onEdit }: { c: Composition; index: number; designs: Composition[]; look: OwnDetail; catalogue: LookCatalogue; onLook: (l: OwnDetail) => void; onEdit: () => void }) {
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState(false);
   const st = designStatus(c);
@@ -78,8 +78,8 @@ function Row({ c, index, designs, look, catalogue, locked, onLook, onEdit }: { c
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2.5">
       <div className="flex flex-col">
-        <Button type="button" variant="ghost" size="icon" className="size-6 max-sm:size-11" aria-label={`Move ${c.name} up`} disabled={locked || busy || up === null} onClick={() => void run(() => lookApi.moveDesign(look.slug, c.id, up!))}><ArrowUp aria-hidden="true" /></Button>
-        <Button type="button" variant="ghost" size="icon" className="size-6 max-sm:size-11" aria-label={`Move ${c.name} down`} disabled={locked || busy || down === null} onClick={() => void run(() => lookApi.moveDesign(look.slug, c.id, down!))}><ArrowDown aria-hidden="true" /></Button>
+        <Button type="button" variant="ghost" size="icon" className="size-6 max-sm:size-11" aria-label={`Move ${c.name} up`} disabled={busy || up === null} onClick={() => void run(() => lookApi.moveDesign(look.slug, c.id, up!))}><ArrowUp aria-hidden="true" /></Button>
+        <Button type="button" variant="ghost" size="icon" className="size-6 max-sm:size-11" aria-label={`Move ${c.name} down`} disabled={busy || down === null} onClick={() => void run(() => lookApi.moveDesign(look.slug, c.id, down!))}><ArrowDown aria-hidden="true" /></Button>
       </div>
       <div className="min-w-0 flex-1 basis-56">
         <div className="flex items-center gap-2"><span className="min-w-0 truncate text-[14px] font-semibold">{c.name}</span><ToneBadge tone={DESIGN_STATUS[st].tone} dot>{DESIGN_STATUS[st].label}</ToneBadge></div>
@@ -88,13 +88,13 @@ function Row({ c, index, designs, look, catalogue, locked, onLook, onEdit }: { c
       </div>
       <div className="flex items-center gap-2">
         <label className="flex items-center gap-1.5 text-[13px]">
-          <Switch checked={c.enabled} disabled={locked || busy} aria-label={`${c.name}: ${c.enabled ? 'on' : 'off'}`} onCheckedChange={(v) => void run(() => lookApi.enableDesign(look.slug, c.id, v))} />
+          <Switch checked={c.enabled} disabled={busy} aria-label={`${c.name}: ${c.enabled ? 'on' : 'off'}`} onCheckedChange={(v) => void run(() => lookApi.enableDesign(look.slug, c.id, v))} />
           <span className="w-6 text-muted-foreground">{c.enabled ? 'On' : 'Off'}</span>
         </label>
         <Button type="button" size="sm" variant="outline" onClick={onEdit}>Edit</Button>
         <MoreMenu items={[
-          { label: 'Duplicate within this look', disabled: locked, onSelect: () => void run(() => lookApi.addDesign(look.slug, look.ref, c.kind, index), `Duplicated ${c.name}.`) },
-          { label: 'Remove', tone: 'danger', disabled: locked, onSelect: () => setRemoving(true) },
+          { label: 'Duplicate within this look', onSelect: () => void run(() => lookApi.addDesign(look.slug, look.ref, c.kind, index), `Duplicated ${c.name}.`) },
+          { label: 'Remove', tone: 'danger', onSelect: () => setRemoving(true) },
         ]} />
       </div>
       <ConfirmAction open={removing} danger title={`Remove ${c.name}?`} confirmLabel="Remove the design"
@@ -104,7 +104,7 @@ function Row({ c, index, designs, look, catalogue, locked, onLook, onEdit }: { c
   );
 }
 
-export function DesignsTab({ look, list, locked, onLook }: Props) {
+export function DesignsTab({ look, list, onLook }: Props) {
   const [adding, setAdding] = useState<string | null>(null);
   const navigate = useNavigate();
   const cat = list.catalogue;
@@ -120,12 +120,12 @@ export function DesignsTab({ look, list, locked, onLook }: Props) {
           <section key={kind} aria-labelledby={`kind-${kind}`} className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3">
               <h2 id={`kind-${kind}`} className="text-sm font-semibold">{kindName(kind)}</h2>
-              <Button type="button" size="sm" variant="outline" disabled={locked || full} onClick={() => setAdding(kind)}><Plus aria-hidden="true" /> Add a design</Button>
+              <Button type="button" size="sm" variant="outline" disabled={full} onClick={() => setAdding(kind)}><Plus aria-hidden="true" /> Add a design</Button>
             </div>
-            {full && !locked && <p className="-mt-1 text-[12.5px] text-muted-foreground">Up to {list.limits.perKind} designs for each kind.</p>}
+            {full && <p className="-mt-1 text-[12.5px] text-muted-foreground">Up to {list.limits.perKind} designs for each kind.</p>}
             {designs.length === 0 ? <p className="text-[13px] text-muted-foreground">No designs: posts of this kind cannot be made with this look.</p> : (
               <ul className="divide-y rounded-lg border">
-                {designs.map((c) => <Row key={c.id} c={c} index={designIndex(look.compositions, c)} designs={designs} look={look} catalogue={cat} locked={locked} onLook={onLook} onEdit={() => navigate(`/settings/looks/${look.slug}/designs/${c.id}`)} />)}
+                {designs.map((c) => <Row key={c.id} c={c} index={designIndex(look.compositions, c)} designs={designs} look={look} catalogue={cat} onLook={onLook} onEdit={() => navigate(`/settings/looks/${look.slug}/designs/${c.id}`)} />)}
               </ul>
             )}
           </section>

@@ -76,6 +76,21 @@ function datesOf(posts: Array<{ date: string }>): { periodStart: string | null; 
   return { periodStart: dates[0] ?? null, periodEnd: dates[dates.length - 1] ?? null };
 }
 
+// Stretches a batch's period to take in these post dates, so a batch started empty and filled by hand (or a post moved
+// outside the period) shows the dates its posts are on. It only widens: a period someone set stays as it is around them.
+export async function widenBatchPeriod(deps: Pick<Deps, 'prisma'>, batchId: string, dates: string[]): Promise<void> {
+  const sorted = dates.filter((d) => DATE.test(d)).sort();
+  if (!sorted.length) return;
+  const batch = await deps.prisma.batch.findUnique({ where: { id: batchId }, select: { periodStart: true, periodEnd: true } });
+  if (!batch) return;
+  const first = sorted[0]!;
+  const last = sorted[sorted.length - 1]!;
+  const data: { periodStart?: string; periodEnd?: string } = {};
+  if (!batch.periodStart || first < batch.periodStart) data.periodStart = first;
+  if (!batch.periodEnd || last > batch.periodEnd) data.periodEnd = last;
+  if (Object.keys(data).length) await deps.prisma.batch.update({ where: { id: batchId }, data });
+}
+
 export interface StagedPost {
   postKey: string;
   title: string;
@@ -211,6 +226,7 @@ export async function addPosts(deps: Deps, actor: AuditActor & { id: string }, b
       }),
     );
   }
+  await widenBatchPeriod(deps, batchId, posts.map((p) => p.date));
   await enqueueRenders(deps, posts, actor.id);
   await audit(deps, actor, 'batch.update', 'batch', batchId, { addedPosts: posts.map((p) => p.postKey) });
   return posts;

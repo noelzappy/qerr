@@ -384,7 +384,7 @@ describe('publishing and using a look', () => {
     expect(rows.map((r) => (r.detail as { ref: string | null }).ref)).toEqual(['own:mine', 'shipped:swiss', null]);
   });
 
-  it('cannot be changed or removed while it is the active one', async () => {
+  it('can be edited and published while it is the active one, stays in use, and cannot be removed', async () => {
     const api = await admin();
     await saveBrand();
     const l = await copy(api);
@@ -392,16 +392,27 @@ describe('publishing and using a look', () => {
     await api.put(`${BASE}/active`, { ref: 'own:mine' });
     const c = comp(l, 'photo');
     expect((await api.delete(`${BASE}/mine`)).status).toBe(409);
-    expect((await api.put(`${BASE}/mine/settings`, { definition: l.definition })).status).toBe(409);
-    expect((await api.patch(`${BASE}/mine/compositions/${c.id}`, { enabled: false })).status).toBe(409);
-    expect((await api.delete(`${BASE}/mine/compositions/${comp(l, 'statement').id}`)).status).toBe(409);
-    expect((await api.post(`${BASE}/mine/compositions`, { source: 'shipped:swiss', kind: 'photo', index: 0 })).status).toBe(409);
-    // drafts never change what is drawn, so they stay open
+    expect((await api.delete(`${BASE}/mine`)).body.error).toMatch(/in use, so it cannot be removed/);
+    // every change is still validated whole: an invalid one is refused for the active look as for any other
+    expect((await api.put(`${BASE}/mine/settings`, { definition: { ...l.definition, dials: { tilt: 99 } } })).status).toBe(400);
+    expect((await api.put(`${BASE}/mine/settings`, { definition: { ...l.definition, name: 'Mine, edited' } })).status).toBe(200);
+    expect((await api.post(`${BASE}/mine/compositions`, { source: 'shipped:retail', kind: 'photo', index: 0 })).status).toBe(201);
+    expect((await api.patch(`${BASE}/mine/compositions/${comp(l, 'statement', 1).id}`, { enabled: false })).status).toBe(200);
+    // a design's edits still go through its draft and the checks
     expect((await api.put(`${BASE}/mine/compositions/${c.id}/draft`, { definition: { ...c.definition, name: 'Later' } })).status).toBe(200);
-    expect((await api.post(`${BASE}/mine/compositions/${c.id}/publish`)).status).toBe(409);
+    expect((await api.post(`${BASE}/mine/compositions/${c.id}/publish`)).status).toBe(200);
+    // the edits are what the brand draws now, and the look is still the active one; publishing it marks it ready again
+    const active = await looksFor(t.deps).activeLook(scope);
+    expect(active?.ref).toBe('own:mine');
+    expect(active?.look.name).toBe('Mine, edited');
+    expect((active?.look.compositions as Array<{ name: string }>).map((x) => x.name)).toContain('Later');
+    expect((await api.get(BASE)).body.activeRef).toBe('own:mine');
+    expect((await api.post(`${BASE}/mine/publish`)).body.look.status).toBe('ready');
+    // copying stays an option
+    expect((await api.post(`${BASE}/duplicate`, { source: 'own:mine' })).status).toBe(201);
     await api.put(`${BASE}/active`, { ref: null });
     expect((await api.delete(`${BASE}/mine`)).status).toBe(200);
-    expect(await t.prisma.brandLookComposition.count()).toBe(0);
+    expect(await t.prisma.brandLookComposition.count({ where: { look: { slug: 'mine' } } })).toBe(0);
     expect(await t.prisma.auditLog.count({ where: { action: 'look.delete' } })).toBe(1);
   });
 

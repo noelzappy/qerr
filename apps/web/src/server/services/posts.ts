@@ -9,7 +9,7 @@ import type { Deps } from '../deps.js';
 import { HttpError } from '../http.js';
 import { enqueueTracked } from './activity.js';
 import { approvalReport, type PostWithBatch } from './approval.js';
-import { designSchema, missingSources, renderTitle, networksSchema, problemsOf, type StagedPost } from './batches.js';
+import { designSchema, missingSources, renderTitle, networksSchema, problemsOf, widenBatchPeriod, type StagedPost } from './batches.js';
 import { DESIGN_WARNING_PREFIX } from './render.js';
 import { privateKey } from '../storage/types.js';
 import { asMedia, joinNetworks, MEDIA_TYPES, POST_KEY_RE, safeFileName, sniffMedia, splitNetworks, type MediaEntry, type NetworkOverride } from './post-model.js';
@@ -106,6 +106,7 @@ export async function patchPost(deps: Deps, actor: Actor, id: string, input: z.i
   if (wasApproved && contentChanged) Object.assign(data, CLEAR_APPROVAL);
 
   const updated = await deps.prisma.post.update({ where: { id }, data });
+  if (changedFields.includes('date')) await widenBatchPeriod(deps, post.batchId, [next.date]);
   await Promise.all(droppedRenders.map((m) => deps.storage.deleteObject(m.key).catch(() => undefined)));
   await audit(deps, actor, 'post.update', 'post', id, { postKey: post.postKey, fields: changedFields });
   if (wasApproved && contentChanged) await dropApproval(deps, actor, post, `Edited: ${changedFields.join(', ')}`);

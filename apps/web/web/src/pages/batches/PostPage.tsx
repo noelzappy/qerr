@@ -23,7 +23,7 @@ import { usePreview } from './editor/usePreview';
 import { postFlow } from './flow/status';
 import { CAPTION_LIMIT, NETWORKS, type Network } from './labels';
 import { buildNetworks, currentCaptions, currentFlags, goesTo, readNetworks } from './networks';
-import { mediaLabel, PostChips, PostConfirms, postProblem, UploadInput, usePostActions } from './post-parts';
+import { mediaLabel, PostChips, PostConfirms, onlyWaitingForImage, postProblem, UploadInput, usePostActions } from './post-parts';
 import type { AiDraftNotes, BatchView, DeliveryRow, DesignBlock, PostDetail, SourceView } from './types';
 import { detailLines } from './util';
 
@@ -243,7 +243,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
           </Notice>
         )}
         {blockers.length > 0 && (
-          <Notice tone="bad" title="Fix this before the post can be approved:" actions={imageBlocked ? remake : undefined}>
+          <Notice tone={onlyWaitingForImage(blockers) ? 'info' : 'bad'} title={onlyWaitingForImage(blockers) ? 'Waiting for the image before the post can be approved:' : 'Fix this before the post can be approved:'} actions={imageBlocked ? remake : undefined}>
             <ul className="mt-1.5 list-disc space-y-1 pl-[18px]">
               {blockers.map((b) => (
                 <li key={b} className="[overflow-wrap:anywhere]">

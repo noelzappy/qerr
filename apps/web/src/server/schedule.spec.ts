@@ -92,7 +92,7 @@ describe('the plan', () => {
     const plan = await planOf(owner.api, batch.id, 'draft');
     const x = plan.rows.find((r: any) => r.network === 'x');
     expect(x).toMatchObject({ account: null, willSend: false });
-    expect(x.problems[0]).toContain('No Buffer account is set for x');
+    expect(x.problems[0]).toBe('No Buffer account is set for X. An admin chooses one in Settings, Channels');
     expect(plan.willSend).toBe(6);
     await sendAndRun(owner.api, batch.id, 'draft');
     expect(buffer.get().creates()).toHaveLength(6);

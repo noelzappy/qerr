@@ -19,10 +19,10 @@ export function reviewRoutes(deps: Deps): Hono<AppEnv> {
   // which provider is set up, only whether one is.
   async function rewriteBlocker(post: Awaited<ReturnType<typeof loadPost>>): Promise<string | null> {
     if (post.status === 'removed') return 'This post has been removed. Restore it to rewrite it';
-    if (!(await deps.prisma.aiProvider.count({ where: { enabled: true, tasks: { has: 'rewrite' } } }))) return 'No AI provider is set up for rewriting posts. Ask an admin to tick "Rewriting posts" in Settings, AI';
+    if (!(await deps.prisma.aiProvider.count({ where: { enabled: true, tasks: { has: 'rewrite' } } }))) return 'No AI provider is set up for rewriting posts. Ask an admin to tick "Rewriting posts" in Settings, AI and search';
     const [limit, spent] = await Promise.all([getSetting<unknown>(deps, SETTING_BUDGET, 0), spentThisMonth(deps)]);
-    if (typeof limit !== 'number' || limit <= 0) return 'There is no monthly AI budget. Ask an admin to set one in Settings, AI';
-    if (spent >= limit) return 'The monthly AI budget is used up. Ask an admin to raise it in Settings, AI';
+    if (typeof limit !== 'number' || limit <= 0) return 'There is no monthly AI budget. Ask an admin to set one in Settings, AI and search';
+    if (spent >= limit) return 'The monthly AI budget is used up. Ask an admin to raise it in Settings, AI and search';
     const facts = post.sources.length ? await deps.prisma.vaultItem.count({ where: { id: { in: post.sources }, deletedAt: null } }) : 0;
     if (!facts) return 'This post has no linked facts to work from. Link a fact first';
     const running = await deps.prisma.activityRun.count({ where: { kind: 'rewrite-post', postId: post.id, status: { in: ACTIVE_STATUSES } } });
