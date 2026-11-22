@@ -121,7 +121,10 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
 
 An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, `src/server/routes/brand.ts`):
 
-- **Identity:** name, website, tagline, what the brand does, time zone, language, and an optional single currency.
+- **Identity:** name, website, tagline, what the brand does, time zone, language, and an optional single currency. The time zone
+  is the shared picker (`components/kit/time-zone-picker.tsx`, over the one list of zones in `lib/time-zones.ts`): the zone with its
+  offset and time now, a short list of likely zones (the one chosen, this browser's, places on the same clock, UTC) and a search over
+  every zone by city or offset; "From this browser" marks the zone the browser is in.
 - **Design direction:** the old "Design direction" tab is gone: choosing how kinds of post are drawn is **Settings, Looks** (below). The
   brand setting `style.direction` stays in the settings (an older choice keeps working; an active look overrides it in the pack).
   `GET /api/posts/post-kinds` (admin and editor) tells the post editor the brand's direction, each kind's fields and required fields,

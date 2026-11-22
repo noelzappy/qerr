@@ -12,18 +12,12 @@ import { NETWORKS } from './labels';
 import type { BatchView } from './types';
 import { detailLines } from './util';
 import { useAppInfo } from '../../app-info';
+import { ALL_TIME_ZONES } from '@/lib/time-zones';
 
 const MAX_IMPORT = 2 * 1024 * 1024;
 
-function timeZones(): string[] {
-  let zones: string[] = [];
-  try { zones = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.('timeZone') ?? []; } catch { zones = []; }
-  const base = zones.length ? zones : ['Africa/Lagos', 'Africa/Nairobi', 'Europe/London', 'UTC'];
-  return base;
-}
-const ALL_ZONES = timeZones();
-// The brand's own time zone first.
-const zonesFor = (home: string) => [home, ...ALL_ZONES.filter((z) => z !== home)];
+// The brand's own time zone first, then the panel's one list of zones (lib/time-zones.ts).
+const zonesFor = (home: string) => [home, ...ALL_TIME_ZONES.filter((z) => z !== home)];
 
 // The submit buttons live in the dialog's pinned footer, so each form tells the dialog when it is busy or has unsaved input.
 type FormState = { busy: boolean; dirty: boolean };
