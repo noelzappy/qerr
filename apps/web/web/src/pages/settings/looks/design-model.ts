@@ -96,13 +96,14 @@ export function listTree(comp: Json, cat: LookCatalogue | null): TreeRow[] {
 export const countNodes = (comp: Json): number => listTree(comp, null).length;
 export const fieldLabel = (f: string, cat: LookCatalogue | null): string => cat?.fields[f]?.label ?? f.replace(/-/g, ' ');
 
-const SOURCE_NAME: Record<string, string> = { brand: 'Brand name', folio: 'Folio', index: 'List number' };
+const SOURCE_NAME: Record<string, string> = { brand: 'Brand name', folio: 'Folio', index: 'List number', site: 'Web address' };
 // "Headline", "Sub line", "Picture", "Brand name": the plain name of an element.
 export function elementName(el: Json, cat: LookCatalogue | null): string {
   const type = String(el.type);
   const label = cat?.elements[type]?.label ?? type.replace(/-/g, ' ');
   if (type === 'text') {
     if (typeof el.source === 'string') return SOURCE_NAME[el.source] ?? el.source;
+    if (typeof el.word === 'string') return `The word ${el.word}`;
     if (typeof el.field === 'string') return fieldLabel(el.field, cat);
     return label;
   }
@@ -310,7 +311,15 @@ function guessHeight(el: Json, look: Json): number {
   }
   if (t === 'sticker') return isNum(el.size) ? el.size : isNum(el.h) ? el.h : 120;
   if (t === 'numeral' || t === 'fitted-stack' || t === 'mantra-rows') return isNum(el.cap) ? Math.round(el.cap * 0.9) : Array.isArray(el.sizes) ? Math.round(((el.sizes as number[])[0] ?? 120) * 1.1) : 160;
-  if (t === 'box') return isNum(el.minH) ? el.minH : 200;
+  if (t === 'box') {
+    // a box as tall as what flows in it (as the engine reckons it: look-static minHeight), at least its minH; 200 when it holds nothing yet
+    const kids = (Array.isArray(el.children) ? el.children as Json[] : []).filter((k) => isObj(k) && k.place === undefined);
+    if (!kids.length) return isNum(el.minH) ? el.minH : 200;
+    const padV = isNum(el.pad) ? 2 * el.pad : Array.isArray(el.pad) ? (Number(el.pad[0]) || 0) + (Number(el.pad[2]) || 0) : 0;
+    const hs = kids.map((k) => (isNum(k.h) ? k.h : guessHeight(k, look)));
+    const body = el.flow === 'row' ? Math.max(...hs) : hs.reduce((a, b) => a + b, 0) + (isNum(el.gap) ? el.gap : 0) * (hs.length - 1);
+    return Math.max(isNum(el.minH) ? el.minH : 0, Math.round(body + padV));
+  }
   return isNum(el.h) ? el.h : 120;
 }
 
@@ -710,7 +719,7 @@ export function bindField(comp: Json, path: string, field: string | null, look: 
   }
   const next = mutate(comp, (c) => {
     const el = locate(c, path)!.el;
-    if (field === null) delete el.field; else { el.field = field; delete el.source; withField(c, field, cat); }
+    if (field === null) delete el.field; else { el.field = field; delete el.source; delete el.word; withField(c, field, cat); }
   });
   return { comp: next, path, orphans: orphanFields(next, look, cat) };
 }
@@ -718,7 +727,16 @@ export function bindField(comp: Json, path: string, field: string | null, look: 
 export function setSource(comp: Json, path: string, source: string | null, look: Json, cat: LookCatalogue): Edit & { orphans: string[] } {
   const loc = locate(comp, path);
   if (!loc || String(loc.el.type) !== 'text') return { comp, error: 'Only text can show a source', orphans: [] };
-  const next = mutate(comp, (c) => { const el = locate(c, path)!.el; if (source === null) delete el.source; else { el.source = source; delete el.field; delete el.part; delete el.split; } });
+  const next = mutate(comp, (c) => { const el = locate(c, path)!.el; if (source === null) delete el.source; else { el.source = source; delete el.field; delete el.word; delete el.part; delete el.split; } });
+  return { comp: next, path, orphans: orphanFields(next, look, cat) };
+}
+// Shows one of the catalogue's fixed words (Myth, Fact ...) instead of a field or a source (a text element).
+export function setWord(comp: Json, path: string, word: string, look: Json, cat: LookCatalogue): Edit & { orphans: string[] } {
+  const loc = locate(comp, path);
+  if (!loc || String(loc.el.type) !== 'text') return { comp, error: 'Only text can show a fixed word', orphans: [] };
+  const words = (descOf('text', 'word', cat) as unknown as { values?: string[] } | null)?.values ?? [];
+  if (!words.includes(word)) return { comp, error: `"${word.slice(0, 20)}" is not one of the fixed words`, orphans: [] };
+  const next = mutate(comp, (c) => { const el = locate(c, path)!.el; el.word = word; delete el.field; delete el.source; delete el.part; delete el.split; delete el.format; });
   return { comp: next, path, orphans: orphanFields(next, look, cat) };
 }
 
@@ -904,7 +922,8 @@ export function newElement(comp: Json, type: string, look: Json, cat: LookCatalo
     case 'photo': el.shape = 'rect'; size = { span: 99, rowSpan: 3 }; break;
     case 'sticker': {
       el.shape = 'circle'; el.size = 220;
-      const f = free(['tag', 'label', 'unit', 'by']);
+      // a field nothing shows yet (a second sticker on a shown field would show it twice); else the brand name
+      const f = ['tag', 'label', 'unit', 'by'].find((x) => fields.includes(x) && !shown.has(x));
       if (f) el.field = f; else el.children = [{ type: 'text', source: 'brand', style: 'label' }];
       size = { span: 2, rowSpan: 1 }; break;
     }
@@ -1235,8 +1254,8 @@ export function checkLadder(steps: LadderStep[], max: number | undefined, range:
 
 // ================================================================== colours
 
-const GROUND_ROLE: Record<string, string> = { paper: 'paper', field: 'field', dark: 'dark', accent: 'gold', soft: 'soft' };
-export const GROUND_WORDS: Record<string, string> = { paper: 'Paper', field: 'Colour field', dark: 'Dark', accent: 'Accent', soft: 'Soft' };
+const GROUND_ROLE: Record<string, string> = { paper: 'paper', field: 'field', dark: 'dark', accent: 'gold', soft: 'soft', tint: 'light-tint' };
+export const GROUND_WORDS: Record<string, string> = { paper: 'Paper', field: 'Colour field', dark: 'Dark', accent: 'Accent', soft: 'Soft', tint: 'Pale tint' };
 // The colour roles an element is drawn on: its own fill (a box, band or sticker), else the nearest filled piece it sits in, else the page colour(s).
 export function backgroundRoles(comp: Json, path: string, look: Json): string[] {
   for (let p = path; p; p = parentOfPath(p)) {

@@ -41,7 +41,7 @@ const TINT: Record<string, string> = {
   block: 'border-emerald-700/50 bg-emerald-500/20', rule: 'border-emerald-700/50 bg-emerald-500/20', frame: 'border-dashed border-zinc-500/50 bg-transparent', keyline: 'border-dashed border-zinc-500/50 bg-transparent',
   glyph: 'border-violet-600/40 bg-violet-500/10', 'meta-row': 'border-violet-600/40 bg-violet-500/10', 'wordmark-pattern': 'border-dashed border-zinc-500/40 bg-transparent', 'punch-hole': 'border-zinc-600/50 bg-zinc-500/15',
 };
-const GROUND_ROLE: Record<string, string> = { paper: 'paper', field: 'field', dark: 'dark', accent: 'gold', soft: 'soft' };
+const GROUND_ROLE: Record<string, string> = { paper: 'paper', field: 'field', dark: 'dark', accent: 'gold', soft: 'soft', tint: 'light-tint' };
 const FILL_KEYS = ['fill', 'colour'] as const;
 
 export interface CanvasProps {

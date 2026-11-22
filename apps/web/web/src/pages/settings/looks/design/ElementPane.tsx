@@ -13,7 +13,7 @@ import { ConfirmAction } from '@/components/kit';
 import { cn } from '@/lib/utils';
 import {
   bindField, declaredFields, elementName, fieldLabel, gridOf, inkChoices, placeForm, placeReadout, PLACE_FORM_WORDS, namedAngles, propsOf, pruneFields, readWhen, setPlace,
-  setPlaceForm, setProp, setRotation, setSource, summary, whenText, type DesignProblem, type Edit, type Json,
+  setPlaceForm, setProp, setRotation, setSource, setWord, summary, whenText, type DesignProblem, type Edit, type Json,
 } from '../design-model';
 import { AngleControl, BindingEditor, PlaceEditor, Segmented, ValueControl, word, type Ctx } from '../design-controls';
 import type { Swatches } from '../design-colours';
@@ -28,7 +28,7 @@ export type GroupId = 'content' | 'size' | 'position' | 'colour' | 'style' | 'mo
 
 // ---- which group owns which property of the catalogue ----
 const SKIP = new Set(['type', 'children', 'sticker', 'when']);
-const CONTENT = ['field', 'source', 'part', 'split', 'format', 'each', 'number', 'mode', 'glyph', 'tone', 'unit', 'keys'];
+const CONTENT = ['field', 'source', 'word', 'part', 'split', 'format', 'each', 'number', 'mode', 'glyph', 'tone', 'unit', 'keys'];
 const SIZE = ['style', 'size', 'ladder', 'textSize', 'cap', 'floor', 'min', 'sizes', 'maxLines', 'fit', 'minW', 'maxW', 'rmin', 'rmax', 'rowMinH', 'numberSize', 'numberSpan', 'sizeByCount', 'skew', 'stretch', 't', 'w', 'h', 'padBelowEm', 'y', 'leftY', 'rightY', 'edge', 'vertical'];
 const POSITION = ['place', 'rot', 'origin', 'originPct', 'bleed', 'z', 'altRot'];
 const COLOUR = ['fill', 'ink', 'colour', 'tint', 'altFill', 'edgeFill', 'lower', 'keylineColour'];
@@ -89,6 +89,12 @@ export function ElementProperties(p: PropertiesProps) {
     if (!why && found.length) setOrphans(found);
     return why;
   };
+  const onWord = (w: string): string => {
+    let found: string[] = [];
+    const why = p.apply((c) => { const e = setWord(c, path, w, look, cat); found = e.orphans; return e; });
+    if (!why && found.length) setOrphans(found);
+    return why;
+  };
   const onSource = (source: string | null): string => {
     let found: string[] = [];
     const why = p.apply((c) => { const e = setSource(c, path, source, look, cat); found = e.orphans; return e; });
@@ -122,17 +128,19 @@ export function ElementProperties(p: PropertiesProps) {
   // ---- Content ----
   const fieldDesc = info.properties.field as (Desc & { of?: string[] }) | undefined;
   const sourceDesc = info.properties.source;
+  const wordDesc = info.properties.word;
   const kind = cat.kinds[String(comp.kind)];
   const allowed = (fieldDesc?.of ?? []).filter((f) => kind?.fields.includes(f));
   const declared = declaredFields(comp);
-  const bound = typeof el.source === 'string' ? `source:${el.source}` : typeof el.field === 'string' ? `field:${el.field}` : null;
+  const bound = typeof el.source === 'string' ? `source:${el.source}` : typeof el.word === 'string' ? `word:${el.word}` : typeof el.field === 'string' ? `field:${el.field}` : null;
   const bindOptions = [
     ...allowed.map((f) => ({ value: `field:${f}`, label: <>{!declared.includes(f) && <span aria-hidden="true" className="mr-1 text-muted-foreground">+</span>}{fieldLabel(f, cat)}</>, title: declared.includes(f) ? undefined : 'Adds it to the design' })),
     ...((sourceDesc?.values ?? []) as string[]).map((v) => ({ value: `source:${v}`, label: word(v), title: undefined as string | undefined })),
+    ...((wordDesc?.values ?? []) as string[]).map((v) => ({ value: `word:${v}`, label: `“${v}”`, title: 'A fixed word' as string | undefined })),
   ];
   const chooseBinding = (id: string) => {
     const [kindOf, v] = [id.slice(0, id.indexOf(':')), id.slice(id.indexOf(':') + 1)];
-    err('bind', kindOf === 'source' ? onSource(v) : el.source !== undefined ? (onSource(null) || onBind(v)) : onBind(v));
+    err('bind', kindOf === 'word' ? onWord(v) : kindOf === 'source' ? onSource(v) : el.source !== undefined ? (onSource(null) || onBind(v)) : onBind(v));
   };
   const contentChips = CONTENT_CHIPS.filter((n) => info.properties[n]?.kind === 'enum' && (el[n] !== undefined || (n === 'part' ? !!cat.fields[String(el.field)]?.emphasis : n === 'format' ? type === 'numeral' : true)));
   const showContent = !!fieldDesc || !!sourceDesc || by.content.length > 0;
@@ -175,7 +183,7 @@ export function ElementProperties(p: PropertiesProps) {
 
       {showContent && (
         <Group title="Content" force={forced('content')}
-          fine={<>{(fieldDesc || sourceDesc) && <div className="col-span-2"><BindingEditor ctx={ctx} onBind={onBind} onSource={onSource} /></div>}{by.content.filter(([n]) => n !== 'field' && n !== 'source').map(render)}</>}>
+          fine={<>{(fieldDesc || sourceDesc) && <div className="col-span-2"><BindingEditor ctx={ctx} onBind={onBind} onSource={onSource} /></div>}{by.content.filter(([n]) => n !== 'field' && n !== 'source' && n !== 'word').map(render)}</>}>
           {bindOptions.length > 0 && <Chips label="What it shows" value={bound} options={bindOptions} disabled={p.readOnly} onChange={chooseBinding} />}
           {errors.bind && <p className="text-[12.5px] font-medium text-destructive" role="alert">{errors.bind}</p>}
           {contentChips.map((n) => {

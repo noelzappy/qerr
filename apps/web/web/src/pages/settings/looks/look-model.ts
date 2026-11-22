@@ -174,19 +174,19 @@ const VALUES: Record<string, Record<string, string>> = {
   logic: { tonal: 'Tonal', 'one-accent': 'One accent', field: 'Colour as a field' },
   field: { primary: 'Your main colour', dark: 'Your dark colour' },
   sticker: { accent: 'Your accent colour', primary: 'Your main colour' },
-  accentAsType: { never: 'Never', 'when-contrast': 'Where it has enough contrast' },
-  grounds: { paper: 'Paper', field: 'Field', dark: 'Dark', accent: 'Accent', soft: 'Soft' },
+  accentAsType: { never: 'Never', 'when-contrast': 'Where it has enough contrast', field: 'In the deep colour of the field' },
+  grounds: { paper: 'Paper', field: 'Field', dark: 'Dark', accent: 'Accent', soft: 'Soft', tint: 'Pale tint' },
   case: { 'as-typed': 'As typed', upper: 'Capitals' },
   trim: { cap: 'Trim to the capital height', none: 'No trim' },
   folio: { no: 'No number', pad2: '07', 'pad2-of-total': '07/12' },
   sep: { dash: 'Dash', dot: 'Dot', slash: 'Slash', bar: 'Bar' },
   figures: { lining: 'Lining', oldstyle: 'Old-style' },
   role: { label: 'The label font', mono: 'The mono font', display: 'Headlines', sans: 'Body text' },
-  default: { off: 'No logo', corner: 'In a corner' },
+  default: { off: 'No logo', corner: 'In a corner', 'top-left': 'Top left, always' },
   strength: { '1': 'Full', '0.8': 'Softer (80%)' },
   treat: { grey: 'Greyscale', multiply: 'Colour tint', grain: 'Grain', punch: 'Punchy contrast' },
   align: { left: 'Left', center: 'Centre', right: 'Right' },
-  source: { label: 'The label', brand: 'The brand name', folio: 'The post number', library: 'A font from our library' },
+  source: { label: 'The label', brand: 'The brand name', folio: 'The post number', site: 'The web address', library: 'A font from our library' },
 };
 export function valueLabel(path: string, value: string | number): string {
   const last = (path.split('.').pop() ?? '').replace(/\[\d+\]$/, '');

@@ -22,7 +22,7 @@ const WORDS: Record<string, string> = {
   display: 'Headline', body: 'Body', item: 'List item', label: 'Label', numeral: 'Big figure', mono: 'Figures and code', text: 'Body text',
   'as-typed': 'As typed', upper: 'Capitals', none: 'None', all: 'The whole text', pre: 'Before the emphasised phrase', phrase: 'The emphasised phrase', post: 'After the emphasised phrase',
   italic: 'Italic', accent: 'Accent colour', bar: 'Highlight bar', 'tilt-bar': 'Tilted highlight bar', 'own-line-bar': 'Highlight bar on its own line',
-  'date-dd.mm': 'Date as 12.12', day: 'Day number', month: 'Month name', pad2: 'Two digits (07)', roman: 'Roman numerals', brand: 'The brand name', folio: 'The post number', index: 'The list number',
+  'date-dd.mm': 'Date as 12.12', day: 'Day number', month: 'Month name', pad2: 'Two digits (07)', roman: 'Roman numerals', brand: 'The brand name', folio: 'The post number', index: 'The list number', site: 'The web address',
   column: 'Down a column', row: 'Across a row', start: 'Start', center: 'Centre', end: 'End', stretch: 'Fill', between: 'Spread out', left: 'Left', right: 'Right', top: 'Top', bottom: 'Bottom',
   rect: 'Rectangle', circle: 'Circle', arch: 'Arch', rounded: 'Rounded rectangle', card: 'Card in a paper mount', print: 'Framed print', pill: 'Pill', tile: 'Tile', stamp: 'Stamp', seal: 'Seal',
   grey: 'Greyscale', multiply: 'Colour tint', grain: 'Grain', punch: 'Punchy contrast', hair: 'Hairline', heavy: 'Heavy rule', hard: 'The look\'s hard shadow', solid: 'Solid', dashed: 'Dashed',

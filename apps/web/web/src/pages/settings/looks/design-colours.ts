@@ -10,7 +10,7 @@ export const ROLE_WORDS: Record<string, string> = {
   paper: 'Paper', ink: 'Ink', white: 'White', dark: 'Dark', primary: 'Brand colour', field: 'Colour field', 'on-field': 'Type on field', gold: 'Accent', 'gold-deep': 'Deep accent',
   accent: 'Accent', 'accent-dark': 'Accent on dark', 'on-accent': 'Type on accent', 'on-primary': 'Type on brand colour', body: 'Body type', soft: 'Soft', muted: 'Muted type',
   'body-dark': 'Body on dark', 'muted-dark': 'Muted on dark', rule: 'Rule', 'rule-soft': 'Soft rule', 'rule-dark': 'Rule on dark', 'rule-field': 'Rule on field', 'accent-type': 'Accent type',
-  'body-field': 'Body on field', 'field-deep': 'Deep field', 'paper-warm': 'Warm paper', 'light-tint': 'Light tint', 'field-text': 'Field type',
+  'body-field': 'Body on field', 'field-deep': 'Deep field', 'paper-warm': 'Warm paper', 'light-tint': 'Light tint', 'tint-deep': 'Deeper tint', 'field-text': 'Field type',
 };
 export const roleWord = (role: string): string => ROLE_WORDS[role] ?? role.replace(/-/g, ' ');
 
@@ -25,7 +25,7 @@ export function swatchesFrom(view: Pick<BrandView, 'palette'> | null): Swatches 
     paper, white: '#ffffff', ink: t.ink ?? dark, dark, primary, field: primary, 'field-deep': g.deep ?? dark, 'on-field': t.inverse ?? '#ffffff', gold, accent: gold, 'gold-deep': a.goldDeep ?? gold,
     'accent-dark': gold, 'on-accent': t.ink ?? dark, 'on-primary': t.inverse ?? '#ffffff', body: t.body ?? t.ink ?? dark, soft: g.soft ?? paper, muted: t.muted ?? NEUTRAL,
     'body-dark': t.invBody ?? '#e5e7eb', 'muted-dark': t.mutedInv ?? NEUTRAL, rule: t.muted ?? NEUTRAL, 'rule-soft': g.soft ?? paper, 'rule-dark': t.mutedInv ?? NEUTRAL, 'rule-field': t.mutedInv ?? NEUTRAL,
-    'accent-type': a.goldDeep ?? gold, 'body-field': t.invBody ?? '#e5e7eb', 'paper-warm': g.warm ?? paper, 'light-tint': g.cool ?? paper, 'field-text': dark,
+    'accent-type': a.goldDeep ?? gold, 'body-field': t.invBody ?? '#e5e7eb', 'paper-warm': g.warm ?? paper, 'light-tint': g.cool ?? paper, 'tint-deep': g.cool ?? paper, 'field-text': dark,
   };
 }
 export const swatchOf = (s: Swatches, role: string): string => s[role] ?? NEUTRAL;

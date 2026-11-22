@@ -1,5 +1,5 @@
 // The design editor's model (web/src/pages/settings/looks/design-model.ts and design-health.ts), against the engine's real catalogue and
-// the two looks it ships as data (retail and swiss): every composition of both is loaded, edited and checked against the engine's validator.
+// the looks it ships as data (retail, swiss, soft and bloom): every composition of each is loaded, edited and checked against the engine's validator.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -14,7 +14,7 @@ const statics = await import('@vesk/engine/design/look-static' as string) as { g
 const cat = engine.lookCatalogue();
 const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@vesk/engine/package.json')), 'lib', 'design', 'looks');
 const load = (n: string): Json & { compositions: Json[] } => JSON.parse(fs.readFileSync(path.join(dir, `${n}.look.json`), 'utf8'));
-const LOOKS = { retail: load('retail'), swiss: load('swiss') };
+const LOOKS = { retail: load('retail'), swiss: load('swiss'), soft: load('soft'), bloom: load('bloom') };
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 const settings = (l: Json): Json => { const { compositions: _c, ...rest } = l; return rest; };
 const all = Object.entries(LOOKS).flatMap(([name, look]) => look.compositions.map((comp, i) => ({ name, look, comp, i, id: `${name}/${comp.kind}/${comp.name}`, s: settings(look) })));
@@ -419,6 +419,36 @@ describe('fields, budgets, conditions and accepts', () => {
     expect(M.elementAt(un.comp, '2')!.field).toBeUndefined();
     expect(un.orphans).toEqual(['sub']);
     expect(M.setSource(comp(), '2', 'folio', look, cat).orphans).toEqual(['sub']);
+  });
+  it('shows a fixed word (Myth, Fact) instead of a field or a source, and a field or source replaces it again', () => {
+    const soft = LOOKS.soft, s = settings(soft);
+    const i = soft.compositions.findIndex((c) => c.name === 'Myth and fact');
+    const mf = soft.compositions[i]!;
+    const at = M.listTree(mf, cat).find((r) => r.el.word === 'Myth')!.path;
+    expect(M.elementName(M.elementAt(mf, at)!, cat)).toBe('The word Myth');
+    const fact = M.setWord(mf, at, 'Fact', s, cat);
+    expect(M.elementAt(fact.comp, at)).toMatchObject({ word: 'Fact' });
+    expect(M.setWord(mf, at, 'Rumour', s, cat).error).toMatch(/not one of the fixed words/);
+    for (const e of [M.bindField(fact.comp, at, 'label', s, cat), M.setSource(fact.comp, at, 'site', s, cat)]) {
+      const el = M.elementAt(e.comp, at)!;
+      expect(el.word).toBeUndefined();
+      expect(el.field ?? el.source).toBeTruthy();
+    }
+    expect(verdict(soft, i, fact.comp)).toEqual([]);
+    const t = M.addElement(mf, 'text', s, cat);
+    expect(M.setWord(t.comp, t.path!, 'Yes', s, cat).comp).not.toBe(t.comp);
+  });
+  it('a new sticker shows a field nothing shows yet, else the brand name (never a field twice)', () => {
+    const soft = LOOKS.soft, s = settings(soft);
+    const photo = soft.compositions.find((c) => c.kind === 'photo')!;
+    const e = M.addElement(photo, 'sticker', s, cat);
+    const el = M.elementAt(e.comp, e.path!)!;
+    expect(el.field).toBeUndefined();
+    expect(el.children).toEqual([{ type: 'text', source: 'brand', style: 'label' }]);
+  });
+  it('draws the pale tint ground of a soft design in its own colour', () => {
+    expect(M.backgroundRoles({ kind: 'statement', ground: 'tint', elements: [{ type: 'text', field: 'headline' }] }, '0', settings(LOOKS.soft))).toEqual(['light-tint']);
+    expect(M.GROUND_WORDS.tint).toBe('Pale tint');
   });
   it('fills in the budget of a required field and lists items with min and max', () => {
     expect(M.defaultBudget('headline', 'photo', cat)).toEqual({ required: true, max: 70 });
