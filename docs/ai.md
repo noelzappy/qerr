@@ -459,7 +459,7 @@ editable designs, and the same security model (AGENTS.md rule 11).
 
 - **One call per post** (`rt.llm('design', { using: 'draft' })`: the draft provider, the budget, one `ai_calls` row and a cost per call). A per-post
   call is the cheaper of the two that are still good: the model looks at that post's picture only, and a failure costs one post.
-- **What the model is given**: the system prompt `src/prompts/design.md` (versioned, `design-1`); a compact catalogue built from the engine's own
+- **What the model is given**: the system prompt `src/prompts/design.md` (versioned, now `design-3`); a compact catalogue built from the engine's own
   tables (`designCatalogue()`: every element type with its own properties and ranges, the common properties, the places, the art layer's shapes and
   caps; a brand graphic, a device and the top label row are not offered); the look's settings (canvas, fonts, type, colour, devices, photo, logo,
   dials) and the brand's palette as role names with their colours; the brand brief; the post's kind and words; the picture's thumbnail as an image
@@ -474,7 +474,7 @@ editable designs, and the same security model (AGENTS.md rule 11).
 
 ## Prompts
 
-`packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`, `brand-site.md`, `picture.md`, `design.md` (`design-1`). They are brand-neutral: they read the `brand` brief above.
+`packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`, `brand-site.md`, `picture.md`, `design.md` (`design-3`). They are brand-neutral: they read the `brand` brief above.
 The first line is `<!-- version: draft-20 -->` (now `draft-20`, `rewrite-7`); the version is returned in `notes.promptVersion`. Change a prompt by editing
 the file, bumping its version and reviewing the diff. Tests pin the versions' format only, not the wording.
 
