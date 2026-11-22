@@ -7,7 +7,8 @@ import { POST_FIELDS, POST_ITEMS, POST_KINDS, POST_REQUIRED } from '@vesk/engine
 import { compositionsFor, lookBrief, lookOfBrand } from '@vesk/engine/design/directions/index';
 
 // The brand's direction, or null (no direction, or one the engine does not know).
-export const directionOf = (brand) => (DIRECTIONS.includes(brand?.style?.direction) ? brand.style.direction : null);
+// A look written as data that the brand carries (brand.looks, named by style.direction) is a direction too.
+export const directionOf = (brand) => (DIRECTIONS.includes(brand?.style?.direction) || lookOfBrand(brand) ? brand.style.direction : null);
 
 // The fields that take the `*emphasis*` marker.
 export const EMPHASIS_FIELDS = Object.entries(POST_FIELDS).filter(([, f]) => f.emphasis).map(([k]) => k).concat('quote');
@@ -80,6 +81,20 @@ export const directionKinds = (direction, brand) => Object.keys(describeKinds(di
 
 // What the model is given: the direction's name and each drawable kind with its fields and budgets.
 export const directionBrief = (direction, brand) => ({ direction, template: 'post', kinds: describeKinds(direction, brand) });
+
+// The brand's look in the shape of the engine's lookBrief ({ name, kinds: { kind: { variants: [{ index, name, fields: { f: { max } } }] } } }), for
+// planning named series against it: the look written as data when the brand has one, else the direction's own compositions. null: no direction.
+export function seriesBrief(brand) {
+  const direction = directionOf(brand), own = lookOfBrand(brand);
+  if (own) return lookBrief(own);
+  if (!direction) return null;
+  const kinds = {};
+  for (const kind of POST_KINDS) {
+    const comps = compositionsFor(direction, kind);
+    if (comps.length) kinds[kind] = { variants: comps.map((c, index) => ({ index, name: c.name, describe: c.describe, fields: Object.fromEntries(c.fields.map((f) => [f, c.words?.[f] ? { max: c.words[f] } : {}])) })) };
+  }
+  return { id: direction, name: direction, kinds };
+}
 
 // The emphasis phrases of a text: the parts between asterisks.
 export const emphasisIn = (text) => [...String(text ?? '').matchAll(/\*([^*]*)\*/g)].map((m) => m[1]);

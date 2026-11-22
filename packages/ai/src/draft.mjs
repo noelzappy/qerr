@@ -5,9 +5,10 @@ import { validateBatch } from '@vesk/engine/batch';
 import { AIError } from './errors.mjs';
 import { brandBrief, checkTimezone, layoutBriefs, makeCtx, parseChannels, parsePeriod, readBrand } from './context.mjs';
 import { reporter } from './progress.mjs';
-import { checkPost } from './postcheck.mjs';
+import { checkPost, kindOfDesign, maxPagesFor } from './postcheck.mjs';
 import { loadPrompt } from './prompts.mjs';
-import { directionBrief, directionOf } from './direction.mjs';
+import { directionBrief, directionOf, seriesBrief } from './direction.mjs';
+import { planSeries, seriesMark, seriesProblems } from '@vesk/engine/design/series';
 import { MEDIA_KINDS, forPrompt, forPromptMedia, rank, usableItems, usableMedia } from './vault.mjs';
 
 const POST_SCHEMA = {
@@ -21,6 +22,8 @@ const POST_SCHEMA = {
     caption: { type: 'string', minLength: 1, maxLength: 4000 },
     networkCaptions: { type: 'object', properties: { x: { type: 'string', maxLength: 1000 }, instagram: { type: 'string', maxLength: 4000 }, linkedin: { type: 'string', maxLength: 4000 }, facebook: { type: 'string', maxLength: 4000 } }, additionalProperties: false },
     design: { type: 'object', required: ['template'], properties: { template: { type: 'string' } } },
+    // the slug of a named series from the request's seriesPlan, when this post fills one of its slots
+    series: { type: 'string', maxLength: 40 },
     sources: { type: 'array', minItems: 1, maxItems: 12, items: { type: 'string', maxLength: 200 } },
     imageSuggestion: { type: 'string', maxLength: 300 },
     imageReason: { type: 'string', maxLength: 200 },
@@ -42,7 +45,7 @@ const MAX_PROMPT_MEDIA = 150;
 export const DRAFT_CHUNK = 4;
 
 export async function draftBatch(rt, input = {}) {
-  const { vault, count, series, period, channels, brand: brandOverride, timezone } = input;
+  const { vault, count, series, period, channels, brand: brandOverride, timezone, recurring } = input;
   const guidance = typeof input.guidance === 'string' && input.guidance.trim() ? input.guidance.trim().slice(0, 600) : null;
   const progress = reporter(input.onProgress);
   const now = rt.now();
@@ -73,6 +76,23 @@ export async function draftBatch(rt, input = {}) {
   const media = usableMedia(ranked).filter((i) => !direction || i.kind === 'photo');
   const pictures = [...media.filter((i) => i.kind === 'screen'), ...media.filter((i) => i.kind !== 'screen')].slice(0, MAX_PROMPT_MEDIA);
   const facts = ranked.filter((i) => !MEDIA_KINDS.includes(i.kind)).slice(0, MAX_PROMPT_ITEMS);
+  // The brand's named series (the app's list, Settings, Looks, Series): their slots in this period, numbered, at most one per post. A series the
+  // look in force cannot draw (the look changed since it was saved) is left out with a note, never drafted wrongly.
+  const notesSeries = [];
+  const sBrief = direction ? seriesBrief(brand) : null;
+  const usable = [];
+  if (recurring !== undefined && !Array.isArray(recurring)) throw new AIError('recurring must be a list of series', { code: 'config' });
+  for (const s of recurring ?? []) {
+    const problems = seriesProblems(s, `series ${String(s?.slug ?? '?').slice(0, 40)}`, { brief: sBrief ?? undefined });
+    if (!direction) notesSeries.push(`series ${String(s?.slug ?? '?').slice(0, 40)} was not planned: named series need a look`);
+    else if (problems.length) notesSeries.push(`series ${String(s?.slug ?? '?').slice(0, 40)} was not planned: ${problems[0]}`);
+    else usable.push(s);
+  }
+  const plan = planSeries(usable, { period: per, count: n, brief: sBrief ?? undefined });
+  ctx.seriesSlots = [...plan.slots];
+  ctx.seriesList = usable;
+  if (plan.dropped.length) notesSeries.push(`${plan.dropped.length} series slot(s) did not fit in a batch of ${n} posts and were left for the next batch`);
+  const maxPages = maxPagesFor(chans);
   ctx.usedImages = new Map();
   ctx.kinds = [];
   ctx.requireImageReason = true;
@@ -83,16 +103,18 @@ export async function draftBatch(rt, input = {}) {
     ...(guidance ? { teamGuidance: guidance } : {}),
     series: wanted.map((k) => ({ key: k, name: brand.series[k].name })),
     // The brand's own layouts (Settings, Layouts), when it has some: what each is for and the fields it takes.
-    ...(direction ? { design: directionBrief(direction, brand) } : layoutBriefs(brand).length ? { layouts: layoutBriefs(brand) } : {}),
+    ...(direction ? { design: { ...directionBrief(direction, brand), carousel: { pages: { min: 3, max: maxPages } } } } : layoutBriefs(brand).length ? { layouts: layoutBriefs(brand) } : {}),
     vault: [...facts.map((i) => forPrompt(i, opts)), ...pictures.map((i) => forPromptMedia(i))],
   };
   const meter = rt.newMeter();
   const usedNote = () => (ctx.usedImages.size ? `\nPictures already used in this batch (do not use these pictures again, on any page): ${JSON.stringify([...ctx.usedImages.keys()])}` : '');
-  const ask = (k, extraNote = '') => [{ role: 'user', content: `Draft ${k} posts for this request.${extraNote}${usedNote()}${layoutNote()}\n\n${JSON.stringify({ ...request, postCount: k, batchPostCount: n })}` }];
+  // The series slots still open, for each call: the model fills them, the app numbers them and writes the mark.
+  const seriesPlanNow = () => (ctx.seriesSlots.length ? { seriesPlan: ctx.seriesSlots.map((x) => ({ date: x.date, series: x.slug, name: x.name, kind: x.kind, number: x.number, ...(x.variant !== undefined ? { variant: x.variant } : {}), ...(x.mark ? { mark: { field: x.markField, text: x.mark } } : {}) })) } : {});
+  const ask = (k, extraNote = '') => [{ role: 'user', content: `Draft ${k} posts for this request.${extraNote}${usedNote()}${layoutNote()}\n\n${JSON.stringify({ ...request, postCount: k, batchPostCount: n, ...seriesPlanNow() })}` }];
   // What the model sees of the posts already drafted, with the brand layout each one (or each carousel page) uses: a later call
   // plans on its own, so without the layout ids it cannot tell which layouts the batch has already leaned on.
   const layoutsOf = (d) => (d?.template === 'layout' ? [d.layout] : Array.isArray(d?.pages) ? d.pages.filter((x) => x?.template === 'layout').map((x) => x.layout) : []);
-  const draftedSoFar = () => accepted.map((p) => ({ id: p.id, date: p.date, title: p.title, template: p.design?.template, ...(p.design?.kind ? { kind: p.design.kind } : {}), ...(layoutsOf(p.design).length ? { layouts: layoutsOf(p.design) } : {}), sources: p.sources }));
+  const draftedSoFar = () => accepted.map((p) => ({ id: p.id, date: p.date, title: p.title, template: p.design?.template, ...(p.design?.kind ? { kind: p.design.kind } : {}), ...(p.series ? { series: p.series.slug } : {}), ...(layoutsOf(p.design).length ? { layouts: layoutsOf(p.design) } : {}), sources: p.sources }));
   const layoutNote = () => {
     const ids = direction ? [] : layoutBriefs(brand).map((l) => l.id);
     if (ids.length < 2 || !accepted.length) return '';
@@ -108,7 +130,8 @@ export async function draftBatch(rt, input = {}) {
       const r = checkPost(raw, ctx);
       if (!r.ok) { rejected.push({ id: typeof raw?.id === 'string' ? raw.id : null, reasons: r.reasons }); continue; }
       ctx.takenIds.add(r.post.id);
-      if (r.post.design?.kind) ctx.kinds.push({ date: r.post.date, time: r.post.time ?? '', kind: r.post.design.kind });
+      if (kindOfDesign(r.post.design)) ctx.kinds.push({ date: r.post.date, time: r.post.time ?? '', kind: kindOfDesign(r.post.design) });
+      if (r.post.series) ctx.seriesSlots = ctx.seriesSlots.filter((x) => !(x.slug === r.post.series.slug && x.number === r.post.series.number));
       for (const pid of r.post.photoIds) ctx.usedImages.set(pid, r.post.id);
       accepted.push(r.post);
       if (r.repairs.length) repaired.push({ id: r.post.id, repairs: r.repairs });
@@ -174,6 +197,20 @@ export async function draftBatch(rt, input = {}) {
   }
   const first = firstResult;
 
+  // Series posts are numbered in date order from each series' next number, so a slot the model did not fill leaves no gap.
+  for (const s of usable) {
+    const mine = accepted.filter((p) => p.series?.slug === s.slug).sort((a, b) => `${a.date} ${a.time ?? ''}`.localeCompare(`${b.date} ${b.time ?? ''}`));
+    mine.forEach((p, i) => {
+      const number = (s.nextNumber ?? 1) + i;
+      if (number === p.series.number) return;
+      p.series = { slug: s.slug, number };
+      if (s.mark && p.design?.template === 'post') p.design = { ...p.design, [s.markField ?? 'label']: seriesMark(s.mark, number) };
+    });
+  }
+  // (named by date: the posts drafted were renumbered, so a slot's planned number may now belong to a later post)
+  const openSlots = ctx.seriesSlots.map((x) => `${x.name} on ${x.date}`);
+  if (openSlots.length) notesSeries.push(`${openSlots.length} series post(s) were not drafted: ${openSlots.slice(0, 6).join(', ')}${openSlots.length > 6 ? ', ...' : ''}`);
+
   // The engine's own validation, over the whole batch. A post it refuses is dropped and reported.
   const build = (posts) => {
     const name = `${per.from.slice(0, 7)}-ai-draft`;
@@ -203,15 +240,17 @@ export async function draftBatch(rt, input = {}) {
   const seriesMix = {};
   for (const p of batch.posts) { const k = p.design.series ?? p.design.pages?.find((x) => x.series)?.series ?? 'none'; seriesMix[k] = (seriesMix[k] ?? 0) + 1; }
   const kindMix = {};
-  for (const p of batch.posts) if (p.design.kind) kindMix[p.design.kind] = (kindMix[p.design.kind] ?? 0) + 1;
+  for (const p of batch.posts) if (kindOfDesign(p.design)) kindMix[kindOfDesign(p.design)] = (kindMix[kindOfDesign(p.design)] ?? 0) + 1;
   const keptIds = new Set(batch.posts.map((p) => p.id));
   const notes = {
     task: 'draft', promptVersion: prompt.version, model: first.model, usage: rt.summarise(meter),
     plan: first.data.plan ?? null, requested: n, delivered: batch.posts.length, period: per,
-    seriesMix, ...(direction ? { direction, kindMix } : {}), rejected, repaired: repaired.filter((r) => keptIds.has(r.id)),
+    seriesMix, ...(direction ? { direction, kindMix } : {}),
+    ...(usable.length ? { namedSeries: Object.fromEntries(usable.map((s) => [s.slug, batch.posts.filter((p) => p.series?.slug === s.slug).map((p) => p.series.number)])) } : {}),
+    rejected, repaired: repaired.filter((r) => keptIds.has(r.id)),
     imageSuggestions: suggestions.filter((s) => keptIds.has(s.postId)),
     imageReasons: imageReasons.filter((s) => keptIds.has(s.postId)),
-    messages: [...notesEarly, ...(extra ? [`the model returned ${extra} more post(s) than requested; the extra ones were ignored`] : []), ...(batch.posts.length < n ? [`only ${batch.posts.length} of ${n} requested posts passed the checks`] : [])],
+    messages: [...notesEarly, ...notesSeries, ...(extra ? [`the model returned ${extra} more post(s) than requested; the extra ones were ignored`] : []), ...(batch.posts.length < n ? [`only ${batch.posts.length} of ${n} requested posts passed the checks`] : [])],
   };
   return { batch, notes };
 }

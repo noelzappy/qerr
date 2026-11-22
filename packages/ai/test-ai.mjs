@@ -440,7 +440,7 @@ test('draftBatch: a good post passes, the vault photo is resolved by id, the bat
   assert.deepEqual(p.warnings, []);
   assert.deepEqual(batch.defaultNetworks, ['instagram', 'linkedin', 'facebook', 'x']);
   assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
-  assert.equal(notes.promptVersion, 'draft-12');
+  assert.equal(notes.promptVersion, 'draft-13');
   assert.equal(notes.model, 'claude-sonnet-5-5');
   assert.equal(notes.seriesMix['the-numbers'], 1);
   assert.equal(notes.usage.costUsd > 0, true);
@@ -823,19 +823,19 @@ const draftIn = (root, ...answers) => {
 };
 const askedOf = (f, i = 0) => { const c = f.calls[i].body.messages[0].content; return JSON.parse(c.slice(c.indexOf('{'))); };
 
-test('direction brand: gets draft-12 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
+test('direction brand: gets draft-13 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
   await withDirection('editorial', async (root) => {
     const vault = [...VAULT, { id: 'scr-1', kind: 'screen', title: 'Passbook', body: 'The passbook.', status: 'confirmed', file: 'design/assets/screens/p.png', framing: 'phone' }];
     const { f, ai } = draftIn(root, { posts: [dirPost()] }, { posts: [] });
     const { batch, notes } = await ai.draftBatch(req({ vault }));
-    assert.equal(notes.promptVersion, 'draft-12');
+    assert.equal(notes.promptVersion, 'draft-13');
     assert.equal(f.calls[0].body.system, loadPrompt('draft', { direction: true }).text);
     assert.notEqual(f.calls[0].body.system, loadPrompt('draft').text);
     assert.match(f.calls[0].body.system, /never use the same kind three posts running/);
     assert.doesNotMatch(f.calls[0].body.system, /the only templates you may use/);
     const asked = askedOf(f);
     assert.equal(asked.design.direction, 'editorial');
-    assert.deepEqual(asked.design, directionBrief('editorial'), 'the kinds, fields and budgets come from the engine');
+    assert.deepEqual(asked.design, { ...directionBrief('editorial'), carousel: { pages: { min: 3, max: 4 } } }, 'the kinds, fields and budgets come from the engine; X on the channels holds a carousel to 4 pages');
     assert.deepEqual(Object.keys(asked.design.kinds), directionKinds('editorial'));
     assert.equal(asked.design.kinds.statement.fields.headline.max, 70);
     assert.ok(asked.design.kinds.statement.fields.headline.budget <= 70);
@@ -849,7 +849,7 @@ test('direction brand: gets draft-12 with the direction section, the engine\'s k
   });
 });
 
-test('direction brand: only post designs are accepted; the old templates, layouts and carousels are rejected with the reason', async () => {
+test('direction brand: only post designs are accepted; the old templates, layouts and carousels of old pages are rejected with the reason', async () => {
   await withDirection('swiss', async (root) => {
     const posts = [
       dirPost({ id: 'a' }, {}),
@@ -862,7 +862,7 @@ test('direction brand: only post designs are accepted; the old templates, layout
     assert.deepEqual(batch.posts.map((p) => p.id), ['a']);
     const all = notes.rejected.flatMap((r) => r.reasons).join('\n');
     assert.match(all, /template "object" is not allowed: this brand has the "swiss" design direction, so every post is designed with template "post"/);
-    assert.match(all, /template "carousel" is not allowed/);
+    assert.match(all, /carousel page 1 uses template "object", which is not allowed: this brand has the "swiss" design direction, so every carousel page is a post page/);
   });
 });
 
@@ -941,10 +941,95 @@ test('direction brand: a post may not use an unconfirmed picture, and a photo po
   });
 });
 
-test('the prompts keep one file with a direction section: draft-12 and rewrite-5 differ by brand type only where they must', () => {
+const page = (design = {}) => ({ template: 'post', kind: 'statement', headline: 'Every euro, *on the record*', ...design });
+const withCarousel = (pages, over = {}) => ({ ...dirPost({ id: 'car', caption: 'Swipe to see how a deposit is recorded.\n\n#AcmeSavings #Savings #the region', ...over }), design: { template: 'carousel', pages } });
+
+test('direction brand: a carousel of post pages (cover, body, closing) is drafted page by page and passes the engine', async () => {
+  await withDirection('editorial', async (root) => {
+    const pages = [page({ label: 'How it works' }), page({ headline: 'Agents *record each deposit*', sub: 'On their phone, as it happens.' }), page({ headline: 'The office *confirms the cash*', sub: 'At the end of the day.' })];
+    const { f, ai } = draftIn(root, { posts: [withCarousel(pages)] });
+    const { batch, notes } = await ai.draftBatch(req({ channels: ['instagram', 'linkedin'] }));
+    assert.equal(askedOf(f).design.carousel.pages.max, 10, 'without X a carousel may have 10 pages');
+    const d = batch.posts[0].design;
+    assert.equal(d.template, 'carousel');
+    assert.deepEqual(d.pages.map((p) => p.template), ['post', 'post', 'post']);
+    assert.deepEqual(notes.kindMix, { carousel: 1 });
+    assert.deepEqual(validateBatch(batch, { fallbackName: 'x', root }).errors, []);
+  });
+});
+
+test('direction brand: a carousel is held to its channels\' image limits, its pages to the budgets, and old pages are refused', async () => {
+  await withDirection('editorial', async (root) => {
+    const five = Array.from({ length: 5 }, () => page());
+    const budget = directionBrief('editorial').kinds.statement.fields.headline.budget;
+    const posts = [
+      withCarousel(five, { id: 'five' }),
+      withCarousel([page(), page({ headline: 'x'.repeat(budget + 1) }), page()], { id: 'long' }),
+      withCarousel([page(), { template: 'closing' }], { id: 'old' }),
+      withCarousel([page(), page({ headline: 'Over 77 *new groups*' })], { id: 'num' }),
+    ];
+    const { ai } = draftIn(root, { posts }, { posts: [] });
+    await assert.rejects(ai.draftBatch(req({ count: 4 })), (e) => {
+      const by = Object.fromEntries(e.notes.rejected.map((r) => [r.id, r.reasons.join(' ')]));
+      return /the carousel has 5 pages; X takes 4 images in one post, so a carousel for these channels has at most 4/.test(by.five)
+        && new RegExp(`carousel page 2: headline is ${budget + 1} characters`).test(by.long)
+        && /carousel page 2 uses template "closing", which is not allowed/.test(by.old)
+        && /page 2 headline\) has a number not found in its sources: 77/.test(by.num);
+    });
+  });
+});
+
+const tipSeries = (over = {}) => ({ slug: 'tip-of-the-week', name: 'Tip of the week', kind: 'statement', variants: [], mark: 'Tip #{n}', markField: 'label', cadence: 'weekly', weekday: 1, nextNumber: 12, ...over });
+
+test('named series: the plan goes to the model, the app sets the slot\'s date, the mark and the number', async () => {
+  await withDirection('editorial', async (root) => {
+    const posts = [
+      dirPost({ id: 'c', date: '2026-12-09', series: 'no-such-series' }),
+      dirPost({ id: 'a', date: '2026-12-03', series: 'tip-of-the-week' }, { label: 'Tips' }),
+      dirPost({ id: 'b', date: '2026-12-08', series: 'tip-of-the-week' }),
+    ];
+    const { f, ai } = draftIn(root, { posts }, { posts: [] });
+    const { batch, notes } = await ai.draftBatch(req({ count: 2, recurring: [tipSeries()] }));
+    assert.deepEqual(askedOf(f).seriesPlan, [
+      { date: '2026-12-01', series: 'tip-of-the-week', name: 'Tip of the week', kind: 'statement', number: 12, mark: { field: 'label', text: 'Tip #12' } },
+      { date: '2026-12-08', series: 'tip-of-the-week', name: 'Tip of the week', kind: 'statement', number: 13, mark: { field: 'label', text: 'Tip #13' } },
+    ]);
+    assert.deepEqual(batch.posts.map((p) => [p.id, p.date, p.series, p.design.label]), [['a', '2026-12-01', { slug: 'tip-of-the-week', number: 12 }, 'Tip #12'], ['b', '2026-12-08', { slug: 'tip-of-the-week', number: 13 }, 'Tip #13']]);
+    const fixes = JSON.stringify(notes.repaired);
+    assert.match(fixes, /label set to the series mark \\"Tip #12\\"/);
+    assert.match(fixes, /date moved from 2026-12-03 to 2026-12-01/);
+    assert.match(allReasons({ notes }), /series "no-such-series" has no open slot/);
+    assert.deepEqual(notes.namedSeries, { 'tip-of-the-week': [12, 13] });
+    assert.deepEqual(validateBatch(batch, { fallbackName: 'x', root }).errors, []);
+  });
+});
+
+test('named series: numbers follow the date order with no gap, a wrong kind is refused, and a series the look cannot draw is left out', async () => {
+  await withDirection('editorial', async (root) => {
+    const posts = [dirPost({ id: 'late', date: '2026-12-15', series: 'tip-of-the-week' }), dirPost({ id: 'early', date: '2026-12-01', series: 'tip-of-the-week' })];
+    const { ai } = draftIn(root, { posts }, { posts: [] });
+    const { batch, notes } = await ai.draftBatch(req({ count: 3, recurring: [tipSeries(), tipSeries({ slug: 'figures', name: 'Figures', kind: 'figure', mark: undefined })] }));
+    assert.deepEqual(batch.posts.map((p) => [p.id, p.series.number, p.design.label]), [['early', 12, 'Tip #12'], ['late', 13, 'Tip #13']]);
+    const msgs = notes.messages.join('\n');
+    assert.match(msgs, /series figures was not planned: series figures: the editorial look draws no figure post/);
+    assert.match(msgs, /1 series post\(s\) were not drafted: Tip of the week on 2026-12-08/);
+  });
+  await withDirection('editorial', async (root) => {
+    const carousel = { ...dirPost({ id: 'x', series: 'tip-of-the-week' }), design: { template: 'carousel', pages: [page(), page()] } };
+    const { ai } = draftIn(root, { posts: [carousel] }, { posts: [] });
+    await assert.rejects(ai.draftBatch(req({ recurring: [tipSeries()] })), (e) => /a "Tip of the week" post is a single statement post \(template "post"\), not a carousel/.test(allReasons(e)));
+  });
+  await withDirection(null, async (root) => {
+    const { ai } = draftIn(root, { posts: [good()] });
+    const { notes } = await ai.draftBatch(req({ recurring: [tipSeries()] }));
+    assert.match(notes.messages.join('\n'), /series tip-of-the-week was not planned: named series need a look/);
+  });
+});
+
+test('the prompts keep one file with a direction section: draft-13 and rewrite-5 differ by brand type only where they must', () => {
   const plain = loadPrompt('draft'), dir = loadPrompt('draft', { direction: true });
-  assert.equal(plain.version, 'draft-12');
-  assert.equal(dir.version, 'draft-12');
+  assert.equal(plain.version, 'draft-13');
+  assert.equal(dir.version, 'draft-13');
   assert.match(plain.text, /the only templates you may use/);
   assert.match(plain.text, /Only confirmed, current items/);
   assert.match(dir.text, /Only confirmed, current items/);
