@@ -379,6 +379,11 @@ npm test                            # database vesk_test on 127.0.0.1:55440, cre
 TEST_DB_NAME=vesk_other npm test   # another database, so two runs do not clash
 ```
 
+The tests refuse to start when `@vesk/engine` or `@vesk/ai` resolves to another checkout of the repository (a git worktree
+without its own install finds the main checkout's packages by walking up the folders, and would test this app against
+another engine). Run `npm install` in the checkout, or link `node_modules/@vesk/engine` and `node_modules/@vesk/ai` to its
+own `packages/engine` and `packages/ai`.
+
 Set `TEST_DB_NAME` for another database name and `TEST_DATABASE_ADMIN_URL` for another server (default
 `postgresql://postgres:postgres@127.0.0.1:55440/postgres`). Test files are named `*.spec.ts` so the repository's root
 `node --test` does not pick them up. Helpers are in `src/server/testing.ts` and `src/server/testing-batches.ts`.

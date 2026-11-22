@@ -53,3 +53,19 @@ export async function aiImport<T = unknown>(): Promise<T> {
   const specifier = '@vesk/ai';
   return (await import(/* @vite-ignore */ specifier)) as T;
 }
+
+// The workspace packages must be this repository's own. In a second checkout of the repository (a git worktree) without its own
+// install, Node finds @vesk/engine and @vesk/ai by walking up the folders and may load ANOTHER checkout's engine: the tests then run
+// this app against an older renderer and report design checks that are not this code's. Returns one sentence per package that
+// resolves outside `repoRoot` (resolve: a package specifier -> its file path; it throws when nothing is found).
+export function workspaceLinkProblems(repoRoot: string, resolve: (specifier: string) => string): string[] {
+  const out: string[] = [];
+  for (const [name, dir] of [['@vesk/engine', 'packages/engine'], ['@vesk/ai', 'packages/ai']] as const) {
+    let file: string;
+    try { file = fs.realpathSync(resolve(`${name}/package.json`)); } catch { continue; }
+    const want = fs.realpathSync(path.join(repoRoot, dir));
+    if (path.dirname(file) !== want) out.push(`${name} resolves to ${path.dirname(file)}, not this repository's ${dir}: run npm install in this checkout (or link node_modules/${name} to ../../${dir}) before running the tests`);
+  }
+  return out;
+}
+
