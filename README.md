@@ -226,6 +226,16 @@ and the map with the standard library only, no Chrome. It draws no pictures of i
 with `BRAND_DIR=brands/pennyhive`; `test-brand-pennyhive.mjs` keeps the pack and its batch valid. The demo stays the
 default and the pack every test and example uses.
 
+**The Outabout pack** (`brands/outabout`) is a third fictional brand, made to show off the shipped guide look: Outabout,
+a what's-on guide for Tallowmere, an invented city (website `outabout.example`, time zone `Europe/London`, prices in
+pounds). A bright orange field, near-black ink and a cream paper, Archivo for text, and `style.direction` set to `guide`
+with its own copy of the shipped guide look in `looks`. Its `vault.json` holds invented plans and round, illustrative
+figures. `brands/outabout/make-assets.mjs` draws its logos with the standard library only. Its example batch,
+`brands/outabout/batches/example-posts.json` (ten `post` designs, one for every composition of the guide look), uses CC0
+photos recorded in `packages/engine/design/assets/photos/CREDITS.md`; the photos themselves are not committed, so put
+them in that folder before rendering it. Use it with `BRAND_DIR=brands/outabout`; `test-brand-outabout.mjs` keeps the
+pack and its batch valid.
+
 **Starting your own pack.**
 
 1. Copy the demo: `cp -r brands/demo brands/<your-brand>`, then delete `make-assets.mjs` from the copy (it writes the demo's
@@ -249,7 +259,7 @@ default and the pack every test and example uses.
 
 A pack can hold private facts (`vault.json`) and the brand's own artwork. Keep a real brand's pack in a private repository
 or fork, not in a public one; `npm run export-public` makes a public copy of the repository that leaves out every pack
-but the two fictional ones, `brands/demo` and `brands/pennyhive` (`PUBLIC_PACKS` in `scripts/export-public.mjs`).
+but the fictional ones, `brands/demo`, `brands/pennyhive` and `brands/outabout` (`PUBLIC_PACKS` in `scripts/export-public.mjs`).
 
 ## How it works
 
@@ -393,6 +403,8 @@ The engine tests, in `packages/engine/`:
 - `test-brand-pack.mjs`: `BRAND_DIR`, the demo pack and the brand file's optional fields.
 - `test-brand-pennyhive.mjs`: the Pennyhive pack loads, its spelling rules hold, and its example batch passes the post
   checks in its direction.
+- `test-brand-outabout.mjs`: the Outabout pack loads in its copy of the guide look, its spelling rules hold, and its example
+  batch covers every composition of the look within its budgets.
 
 The AI tests are in `packages/ai/test-ai.mjs` (fake fetch, no network), the export tests in
 `scripts/test-export-public.mjs`, and the web app's specs in `apps/web/src/**/*.spec.ts`.
@@ -406,7 +418,7 @@ An npm workspaces monorepo.
 | `apps/web/` (`@vesk/web`) | The web app: a Hono server, Postgres through Prisma, pg-boss jobs, and a React client built into `dist/web` (see [apps/web/README.md](apps/web/README.md)). The only workspace with dependencies. |
 | `packages/engine/` (`@vesk/engine`) | The engine: `lib/` (batch validation, the Buffer client, the push loop, storage, the design renderer) and `design/` (brand CSS, templates, fonts and the asset folders, including the committed demo pictures in `design/assets/demo/`), and its tests. No dependencies. The app imports its modules as `@vesk/engine/<module>`, for example `@vesk/engine/batch`. |
 | `packages/ai/` (`@vesk/ai`) | Drafting, research, rewriting and design-reference analysis (`src/`, with the versioned prompts) and its tests. No third-party dependencies; it uses the engine's validators. |
-| `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default, `brands/pennyhive` (the fictional Pennyhive, with its own example batch) a second test brand. |
+| `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default, `brands/pennyhive` (the fictional Pennyhive, with its own example batch) a second test brand, `brands/outabout` (the fictional Outabout, a what's-on guide in the guide look) a third. |
 | `batches/` | Two example batch files for the demo brand, to import in the app (Create, New batch, the "Import a batch file" tab, marked Advanced) or to start from. |
 | `deploy/`, `Dockerfile` | The container image and the Docker Compose set-up, with `deploy/check.sh` to try it end to end. |
 | `docs/` | The documentation (below). |
