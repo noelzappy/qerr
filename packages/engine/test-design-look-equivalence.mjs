@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { loadBrand } from './lib/design/brand.mjs';
-import { shippedLooks } from './lib/design/directions/index.mjs';
+import { renderPost, shippedLooks } from './lib/design/directions/index.mjs';
 import { Browser, findChrome } from './lib/design/chrome.mjs';
 import { buildPage } from './lib/design/page.mjs';
 import { preparePage, renderImage } from './lib/design/render.mjs';
@@ -73,6 +73,33 @@ test('retail as data: all nine compositions draw where the code compositions do 
     }
   }
   assert.ok(compared >= 200, `${compared} text elements compared`);
+});
+
+// An offer without a picture draws no empty card where the picture would be (a big colour panel with nothing in it): the stamp is larger and
+// centred with the sub line under it, in the code composition and the look alike, and the page passes every check.
+test('retail offer without a picture: no empty picture card, the data version where the code one is, every check passed', { skip }, async () => {
+  const spec = { template: 'post', kind: 'offer', variant: 0, name: 'no-picture', headline: 'Free for clubs *up to 20*', tag: 'Free', sub: 'No card needed.' };
+  for (const brand of [brandOf('demo'), brandOf('demo', RETAIL)]) {
+    const { body } = renderPost(spec, { size: SIZES.feed, brand, image: () => '', imageSize: () => ({ w: 1, h: 1 }) });
+    assert.doesNotMatch(body, /width:520px/, 'no picture card');
+    assert.match(body, /k-shape-stamp/);
+    await renderImage(browser, brand, { spec: normaliseDesign(spec), sizeName: 'feed', outFile: path.join(tmp, `offer-no-picture-${brand.looks ? 'data' : 'code'}.png`) }, { tmpDir: tmp });
+  }
+  const oracle = await texts(brandOf('demo'), spec), data = await texts(brandOf('demo', RETAIL), spec);
+  assert.equal(data.length, oracle.length);
+  oracle.forEach((o, i) => o.slice(1, 5).forEach((v, k) => assert.ok(Math.abs(v - data[i][k + 1]) <= 3, `#${i} ${o[0]}: edge ${k + 1} is ${data[i][k + 1]}, the oracle's ${v}`)));
+});
+
+// The price tag with figures of five to eight characters and a unit (a real batch had "2,000" and "10,000" refused: the figure ran into the
+// edge of its unit block): every check passes, in the code composition and the look.
+test('retail price tag: figures of five to eight characters with a unit pass every check', { skip }, async () => {
+  for (const [big, unit] of [['2,000', 'members'], ['10,000', 'deposits a month'], ['100,000', 'savers'], ['€14.8M+', 'saved']]) {
+    const spec = { template: 'post', kind: 'figure', variant: 0, name: 'figures', label: 'This year', big, unit, sub: 'Groups in twelve towns now keep their records in the app.' };
+    for (const brand of [brandOf('demo'), brandOf('demo', RETAIL)]) {
+      try { await renderImage(browser, brand, { spec: normaliseDesign(spec), sizeName: 'feed', outFile: path.join(tmp, 'figure.png') }, { tmpDir: tmp }); }
+      catch (e) { assert.fail(`${big} ${unit} (${brand.looks ? 'data' : 'code'}): ${e.message}`); }
+    }
+  }
 });
 
 // Every shipped look, every one of its nine compositions, from sample, stress and minimal copy, in three sets of brand colours: every page passes the

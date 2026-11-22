@@ -183,17 +183,25 @@ const posterBand = {
 // ---- offer/0 Sticker ----
 const sticker = {
   id: 'retail/offer/0', name: 'Sticker',
-  describe: 'A light card inside a primary frame: the headline at the top, under it a turned photo card with a hard primary shadow and a big round accent stamp with the price or the offer overlapping both, the sub at the foot beside the picture.',
+  describe: 'A light card inside a primary frame: the headline at the top, under it a turned photo card with a hard primary shadow and a big round accent stamp with the price or the offer overlapping both, the sub at the foot beside the picture; without a picture the stamp is larger and centred with the sub under it.',
   fields: ['headline', 'tag', 'sub', 'image'], words: { headline: 60, tag: 16, sub: 100 }, ground: 'paper', fit: { pad: 114, top: 114, bottom: 114 }, roles: ['display', 'text', 'label'],
   render(c) {
     const f = c.tokens.frame, inset = f.t + f.pad;
     let html = c.frame({ t: f.t, colour: 'field' });
-    const card = c.box({ right: 0, y: 0, bottom: 0, w: 520, rot: rot(c, 'card'), fill: c.hasImage ? 'paper-warm' : 'field', pad: 8, shadow: { x: 16, y: 16, colour: 'field' } }, c.photo({ x: 8, y: 8, right: 8, bottom: 8 }));
-    const stamp = c.has('tag') ? c.shape({ flow: true, shape: 'stamp', size: 410, rot: rot(c, 'sticker'), ring: { w: 6, colour: 'paper' }, nudge: { x: -6, y: -12 }, flexNone: true }, tagFit(c, { w: 310, h: 260, cap: 195, floor: 60 })) : '';
-    const sub = c.has('sub') ? c.body({ flow: true, w: 282, html: c.fmt('sub'), colour: 'ink' }) : '';
-    // the sticker at the top of the left column and the sub at its foot; when the stage is too short for both they run on past its foot,
-    // which the fit loop reads as the headline being too long (it shrinks it, then refuses with the length it would take)
-    const stage = c.box({ flow: true, w: c.W - 2 * inset, grow: 1, minH: 520, flex: 'row', nudge: { y: 28 } }, card + c.box({ flow: true, w: 282, flex: 'column', justify: 'between', alignSelf: 'stretch', flexNone: true }, stamp + sub));
+    let stage;
+    if (c.hasImage) {
+      const card = c.box({ right: 0, y: 0, bottom: 0, w: 520, rot: rot(c, 'card'), fill: 'paper-warm', pad: 8, shadow: { x: 16, y: 16, colour: 'field' } }, c.photo({ x: 8, y: 8, right: 8, bottom: 8 }));
+      const stamp = c.has('tag') ? c.shape({ flow: true, shape: 'stamp', size: 410, rot: rot(c, 'sticker'), ring: { w: 6, colour: 'paper' }, nudge: { x: -6, y: -12 }, flexNone: true }, tagFit(c, { w: 310, h: 260, cap: 195, floor: 60 })) : '';
+      const sub = c.has('sub') ? c.body({ flow: true, w: 282, html: c.fmt('sub'), colour: 'ink' }) : '';
+      // the sticker at the top of the left column and the sub at its foot; when the stage is too short for both they run on past its foot,
+      // which the fit loop reads as the headline being too long (it shrinks it, then refuses with the length it would take)
+      stage = c.box({ flow: true, w: c.W - 2 * inset, grow: 1, minH: 520, flex: 'row', nudge: { y: 28 } }, card + c.box({ flow: true, w: 282, flex: 'column', justify: 'between', alignSelf: 'stretch', flexNone: true }, stamp + sub));
+    } else {
+      // no picture: no empty card where it would be; the stamp is larger and stands in the middle of the stage with the sub under it
+      const stamp = c.has('tag') ? c.shape({ flow: true, shape: 'stamp', size: 560, rot: rot(c, 'sticker'), ring: { w: 6, colour: 'paper' }, flexNone: true }, tagFit(c, { w: 430, h: 360, cap: 260, floor: 80 })) : '';
+      const sub = c.has('sub') ? c.body({ flow: true, w: 600, html: c.fmt('sub'), colour: 'ink', align: 'center' }) : '';
+      stage = c.box({ flow: true, w: c.W - 2 * inset, grow: 1, minH: 520, flex: 'column', justify: 'center', align: 'center', gap: 40, nudge: { y: 28 } }, stamp + sub);
+    }
     html += c.box({ x: inset, y: inset, w: c.W - 2 * inset, h: c.H - 2 * inset, flex: 'column' }, c.display({ flow: true, w: c.W - 2 * inset, steps: [172.5, ...ladder(150)], maxH: OFFER_ROOM, split: true, band: true, html: c.fmt('headline', SPEC_BAR), colour: 'ink' }) + stage);
     return { html };
   },

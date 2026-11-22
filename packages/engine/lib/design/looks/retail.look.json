@@ -1355,7 +1355,7 @@
     {
       "kind": "offer",
       "name": "Sticker",
-      "describe": "A light card inside a primary frame: the headline at the top, under it a turned photo card with a hard primary shadow and a big round accent stamp carrying the price or offer, the sub at the foot beside the picture. Use for a product or deal with a short price or offer tag.",
+      "describe": "A light card in a primary frame: the headline on top, a turned photo card with a hard shadow and a big round accent stamp with the price, the sub beside the picture (no picture: a bigger stamp, centred). For a product or deal with a short price or offer tag.",
       "ground": "paper",
       "fit": {
         "pad": 114,
@@ -1467,28 +1467,6 @@
                 },
                 {
                   "type": "box",
-                  "place": {
-                    "anchor": {
-                      "right": 0,
-                      "top": 0,
-                      "bottom": 0,
-                      "w": 520
-                    }
-                  },
-                  "rot": "card",
-                  "fill": "field",
-                  "pad": 8,
-                  "shadow": {
-                    "x": 16,
-                    "y": 16,
-                    "colour": "field"
-                  },
-                  "when": {
-                    "absent": "image"
-                  }
-                },
-                {
-                  "type": "box",
                   "flow": "column",
                   "justify": "between",
                   "w": 282,
@@ -1525,6 +1503,54 @@
                     }
                   ],
                   "alignSelf": "stretch"
+                }
+              ],
+              "when": {
+                "present": "image"
+              }
+            },
+            {
+              "type": "box",
+              "flow": "column",
+              "justify": "center",
+              "align": "center",
+              "gap": 40,
+              "minH": 520,
+              "grow": 1,
+              "before": 28,
+              "when": {
+                "absent": "image"
+              },
+              "children": [
+                {
+                  "type": "sticker",
+                  "shape": "stamp",
+                  "size": 560,
+                  "rot": "sticker",
+                  "ring": {
+                    "w": 6,
+                    "colour": "paper"
+                  },
+                  "field": "tag",
+                  "fit": {
+                    "cap": 260,
+                    "floor": 80,
+                    "w": 430,
+                    "h": 360,
+                    "maxLines": 2
+                  },
+                  "stretch": 84
+                },
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "ink": "ink",
+                  "w": 600,
+                  "align": "center",
+                  "when": {
+                    "present": "sub"
+                  }
                 }
               ]
             }
