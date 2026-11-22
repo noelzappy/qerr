@@ -304,7 +304,9 @@ highest `seriesNumber` of a live post of the series, or `firstNumber`. A post li
 (`PATCH /api/posts/:id { series: { id, number } | null }`, also on new posts; a change does not take an approval back, since the reader sees
 only the design's own label); deleting a series keeps its posts and drops the link. An imported batch links a post's `series: { slug, number }`
 by slug and warns about a slug the brand has none of. The AI draft job passes the enabled series with their next numbers (`forDrafting`) to
-`draftBatch` as `recurring`, and a rewrite of a series post keeps its mark.
+`draftBatch` as `recurring`, and a rewrite of a series post keeps its mark. In Settings, Looks, Series a series is added and edited in a centred
+dialog (with the unsaved-changes guard); its mark is chosen from No mark, Tip #12, No. 12 and Part 12 (`looks/series-marks.ts`), or
+Custom for a mark typed with `{n}`; where the mark goes and the first number are under Fine-tune.
 
 | Route | What it does |
 | --- | --- |
