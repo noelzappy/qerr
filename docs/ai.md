@@ -207,7 +207,7 @@ For a look written as data the kinds come from the engine's `lookBrief` instead,
 (`variant`, `name`, `describe` and the variant's own `fields`).
 
 `prompts/draft.md` is one file; the parts that differ are between `<!-- if direction -->`, `<!-- else -->` and `<!-- end -->`
-lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-17`, serves both kinds of brand and a brand without a
+lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-18`, serves both kinds of brand and a brand without a
 direction gets what it got under `draft-11`, except for the confirmed-only rule. The direction part teaches: choose the kind from
 the content (a number is a `figure`; steps or reasons a `list`; a date and place an `event`; a price or "new" an `offer`; a picture
 that carries the post a `photo`; a house line a `quote`; otherwise a `statement`); write to the budgets (headline at most 70, aim
@@ -240,7 +240,7 @@ the same way figures are marked. The engine refuses a kind or a count the design
 the `avatar`: one portrait picture of the person a quote is by (or an event's speaker), `{ "image": "vault:<id>", "focal"? }`, only where the
 kind lists it (the brief gives its `shape`). It is held to every rule of a picture: a vault `photo` (never a screen), confirmed, current,
 its rights settled and, when it shows identifiable people, their consent recorded (an item without it is never offered and is refused
-if named), used once in the batch with the other pictures; never with a `gallery`. `draft-17` (and `rewrite-6`) let the image text carry up to
+if named), used once in the batch with the other pictures; never with a `gallery`. `draft-18` (and `rewrite-6`) let the image text carry up to
 three standard emoji per text when the brand's `emoji` is true, never in the brand name, a caption or a series mark; with it false, none.
 `notes` gains `direction` and `kindMix`.
 
@@ -318,7 +318,7 @@ number absent from the pages, or duplicate a vault item or an earlier candidate.
 ## Prompts
 
 `packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`, `brand-site.md`, `picture.md`. They are brand-neutral: they read the `brand` brief above.
-The first line is `<!-- version: draft-17 -->` (now `draft-17`, `rewrite-6`); the version is returned in `notes.promptVersion`. Change a prompt by editing
+The first line is `<!-- version: draft-17 -->` (now `draft-18`, `rewrite-6`); the version is returned in `notes.promptVersion`. Change a prompt by editing
 the file, bumping its version and reviewing the diff. Tests pin the versions' format only, not the wording.
 
 A brand pack can replace any of them with its own `prompts/<name>.md` (for example `brands/acme/prompts/draft.md`), with

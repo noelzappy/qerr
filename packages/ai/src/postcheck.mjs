@@ -12,6 +12,8 @@ import { POST_PAGES, seenText } from '@qerr/engine/design/post-spec';
 import { applySeriesSlot, seriesMark, seriesRefProblems } from '@qerr/engine/design/series';
 import { lookOfBrand } from '@qerr/engine/design/directions/index';
 import { EMPHASIS_FIELDS, directionKinds, emphasisIn, kindBrief } from './direction.mjs';
+import { occasionNumberKeys } from './occasions.mjs';
+import { WEB_FACT_WARNING } from './draft-tools.mjs';
 
 // The drafting assistant may only use the poster pages (a real photo or a framed phone screen on a pale ground), a full-bleed photo,
 // carousels of poster pages, and the brand's own layouts (template "layout", when the brand has some, as a post or as a carousel
@@ -337,7 +339,11 @@ export function checkPost(raw, ctx) {
   const unknown = sources.filter((s) => !ctx.byId.has(s));
   if (unknown.length) reasons.push(`sources name items that are not in the vault: ${unknown.join(', ')}`);
   const sourceItems = sources.map((s) => ctx.byId.get(s)).filter(Boolean);
+  // (a fact the model found on the web while drafting is cited but flagged: the app creates it unconfirmed and blocks approval)
+  const fromWeb = sourceItems.filter((i) => ctx.webFound?.has(i.id));
+  if (fromWeb.length) warnings.push(WEB_FACT_WARNING);
   for (const i of sourceItems) {
+    if (fromWeb.includes(i)) continue;
     const why = unusableReason(i, { now: ctx.now });
     if (why) reasons.push(`source ${i.id}${i.title ? ` ("${String(i.title).slice(0, 50)}")` : ''} ${why}, so a post may not cite it; use only the items in the vault list`);
   }
@@ -401,6 +407,8 @@ export function checkPost(raw, ctx) {
   if (series) for (const k of numberKeys(String(series.number))) allowed.add(k);
   const imageFields = textFieldsOf(normalisePostDesign(design, ctx.layouts));
   const texts = [{ where: 'caption', text: caption }, ...Object.entries(networkCaptions).map(([n, text]) => ({ where: `${n} caption`, text })), ...imageFields.map((f) => ({ where: `image text (${f.field})`, text: f.text }))];
+  // an occasion the request chose is context, not a claim: its name and its dates may be written without a source (occasions.mjs)
+  if (ctx.occasions?.length) for (const k of occasionNumberKeys([raw.title, ...texts.map((x) => x.text)].join('\n'), ctx.occasions, raw.occasion)) allowed.add(k);
   for (const { where, text } of texts) {
     const bad = unsourcedNumbers(text, allowed);
     if (bad.length) reasons.push(`${where} has ${bad.length === 1 ? 'a number' : 'numbers'} not found in its sources: ${bad.join(', ')}`);

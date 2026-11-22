@@ -440,7 +440,7 @@ test('draftBatch: a good post passes, the vault photo is resolved by id, the bat
   assert.deepEqual(p.warnings, []);
   assert.deepEqual(batch.defaultNetworks, ['instagram', 'linkedin', 'facebook', 'x']);
   assert.deepEqual(validateBatch(batch, { fallbackName: 'x' }).errors, []);
-  assert.equal(notes.promptVersion, 'draft-17');
+  assert.equal(notes.promptVersion, 'draft-18');
   assert.equal(notes.model, 'claude-sonnet-5-5');
   assert.equal(notes.seriesMix['the-numbers'], 1);
   assert.equal(notes.usage.costUsd > 0, true);
@@ -823,12 +823,12 @@ const draftIn = (root, ...answers) => {
 };
 const askedOf = (f, i = 0) => { const c = f.calls[i].body.messages[0].content; return JSON.parse(c.slice(c.indexOf('{'))); };
 
-test('direction brand: gets draft-17 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
+test('direction brand: gets draft-18 with the direction section, the engine\'s kinds and budgets, and no layouts, screens or old templates', async () => {
   await withDirection('editorial', async (root) => {
     const vault = [...VAULT, { id: 'scr-1', kind: 'screen', title: 'Passbook', body: 'The passbook.', status: 'confirmed', file: 'design/assets/screens/p.png', framing: 'phone' }];
     const { f, ai } = draftIn(root, { posts: [dirPost()] }, { posts: [] });
     const { batch, notes } = await ai.draftBatch(req({ vault }));
-    assert.equal(notes.promptVersion, 'draft-17');
+    assert.equal(notes.promptVersion, 'draft-18');
     assert.equal(f.calls[0].body.system, loadPrompt('draft', { direction: true }).text);
     assert.notEqual(f.calls[0].body.system, loadPrompt('draft').text);
     assert.match(f.calls[0].body.system, /never use the same kind three posts running/);
@@ -1067,10 +1067,10 @@ test('named series: numbers follow the date order with no gap, a wrong kind is r
   });
 });
 
-test('the prompts keep one file with a direction section: draft-17 and rewrite-6 differ by brand type only where they must', () => {
+test('the prompts keep one file with a direction section: draft-18 and rewrite-6 differ by brand type only where they must', () => {
   const plain = loadPrompt('draft'), dir = loadPrompt('draft', { direction: true });
-  assert.equal(plain.version, 'draft-17');
-  assert.equal(dir.version, 'draft-17');
+  assert.equal(plain.version, 'draft-18');
+  assert.equal(dir.version, 'draft-18');
   assert.match(plain.text, /the only templates you may use/);
   assert.match(plain.text, /Only confirmed, current items/);
   assert.match(dir.text, /Only confirmed, current items/);
@@ -1617,7 +1617,7 @@ test('a look with pills, icons, an info block, a button and round pictures: the 
     const f = fakeFetch(anthropicOk({ posts: [offerPost()] }), anthropicOk({ posts: [] }));
     const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
     const { batch, notes } = await ai.draftBatch(req());
-    assert.equal(notes.promptVersion, 'draft-17');
+    assert.equal(notes.promptVersion, 'draft-18');
     assert.match(f.calls[0].body.system, /\[\[words\]\]` sets one or two runs of 1 to 3 words in a pill/);
     const k = askedOf(f).design.kinds;
     assert.match(k.offer.fields.headline.pills, /\[\[words\]\]/);
@@ -1675,7 +1675,7 @@ test('a look that draws a chart: the model is told its kinds, counts and shape, 
     const f = fakeFetch(anthropicOk({ posts: [chartPost()] }), anthropicOk({ posts: [] }));
     const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
     const { batch, notes } = await ai.draftBatch(req({ vault: [...VAULT, POTS] }));
-    assert.equal(notes.promptVersion, 'draft-17');
+    assert.equal(notes.promptVersion, 'draft-18');
     assert.match(f.calls[0].body.system, /`chart` \(when the kind lists it, mostly for a `figure`\)/);
     assert.match(f.calls[0].body.system, /When the cited items call their figures illustrative, say so on the image/);
     const k = askedOf(f).design.kinds;
@@ -1748,7 +1748,7 @@ test('a look with an avatar and a phone: the model is told the avatar\'s shape a
     const f = fakeFetch(anthropicOk({ posts: [quotePost(), phonePost({ date: '2026-12-04' })] }), anthropicOk({ posts: [] }));
     const ai = createAI({ providers: [anthropic], fetch: f, now: NOW, prices: PRICES, sleep: noSleep });
     const { batch, notes } = await ai.draftBatch(req({ vault: PICS_VAULT, count: 2 }));
-    assert.equal(notes.promptVersion, 'draft-17');
+    assert.equal(notes.promptVersion, 'draft-18');
     assert.match(f.calls[0].body.system, /`avatar` \(when the kind lists it\): ONE picture of the person quoted/);
     assert.match(f.calls[0].body.system, /Put a screen only in such a variant, named with `"variant"`/);
     const asked = askedOf(f), k = asked.design.kinds;

@@ -437,7 +437,36 @@ export function cleanOccasions(list, period) {
     const source = typeof x.source === 'string' && /^https?:\/\/\S+$/i.test(x.source) ? x.source.slice(0, OCCASION_LIMITS.source) : undefined;
     if (period && x.date && (x.end ?? x.date) < period.from) return;
     if (period && x.date && x.date > period.to) return;
-    occasions.push({ name, ...(x.date ? { date: x.date } : {}), ...(x.end ? { end: x.end } : {}), kind, ...(typeof x.note === 'string' && x.note.trim() ? { note: x.note.trim().slice(0, OCCASION_LIMITS.note) } : {}), ...(source ? { source } : {}) });
+    occasions.push({ name, ...(x.date ? { date: x.date } : {}), ...(x.end ? { end: x.end } : {}), ...(x.date && realDay(x.observed) ? { observed: x.observed } : {}), kind, ...(typeof x.note === 'string' && x.note.trim() ? { note: x.note.trim().slice(0, OCCASION_LIMITS.note) } : {}), ...(source ? { source } : {}) });
   });
   return { occasions, problems };
+}
+
+// ---- occasions in a post's words ----
+const flat = (s) => String(s ?? '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+// Words too common to show which occasion a text means.
+const COMMON = new Set(['day', 'days', 'eve', 'the', 'and', 'of', 'for', 'our', 'your', 'national', 'international', 'holiday', 'holidays', 'bank', 'public', 'first', 'second', 'last', 'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'week', 'month', 'year', 'season', 'begins', 'end', 'deadline', 'new', 'back', 'school', 'sales', 'winter', 'summer', 'spring', 'autumn', 'night', 'time']);
+export const distinctiveWords = (name) => [...new Set(flat(name).split(' ').filter((w) => w.length >= 4 && !COMMON.has(w)))];
+
+// The occasion a post names: the one it declares (`occasion`, its name as given), else every occasion whose name, or a distinctive
+// word of it ("christmas", "brigid"), the text mentions.
+export function occasionsNamedIn(text, occasions = [], declared) {
+  const t = ` ${flat(text)} `;
+  return occasions.filter((x) => (typeof declared === 'string' && flat(declared) === flat(x.name))
+    || t.includes(` ${flat(x.name)} `) || distinctiveWords(x.name).some((w) => t.includes(` ${w} `)));
+}
+
+// The numbers an occasion allows in a post's words that name it: its dates as days of the month and years (and its day off when
+// that moves), and any number in its name ("Victory in Europe Day 1945"). An occasion is context, never a vault fact, so no other
+// number is allowed by it: every figure in a post still needs a cited item.
+export function occasionNumberKeys(text, occasions = [], declared) {
+  const keys = new Set();
+  for (const x of occasionsNamedIn(text, occasions, declared)) {
+    for (const d of [x.date, x.end, x.observed].filter((v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v))) {
+      keys.add(String(Number(d.slice(8, 10))));
+      keys.add(d.slice(0, 4));
+    }
+    for (const m of String(x.name).matchAll(/\d+/g)) keys.add(String(Number(m[0])));
+  }
+  return keys;
 }
