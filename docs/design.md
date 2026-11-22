@@ -1,9 +1,9 @@
 # Making the post images
 
-The design engine turns a post's texts and pictures into finished post images. It drives headless Google Chrome, so what
-you get is what Chrome draws, at the exact pixel size, checked before it is saved.
+The design engine turns a post's texts and pictures into finished post images. It drives headless Google Chrome or Chromium, so
+what you get is what the browser draws, at the exact pixel size, checked before it is saved.
 
-Everything here is taken from the code in `packages/engine/lib/design/` and `packages/engine/design/templates/`. Five poster templates (`object`, `number`, `product`, `myth-fact`, `closing`, see "The poster look"), seven earlier editorial templates (`cover`, `text`, `ledger`, `passbook`, `stats`, `screen`, `photo-story`), `carousel`, full-bleed `photo` posts, `page-cover` and `post` (the design directions' template, see "Design directions and the post template") make up the engine. Where something has not been proved, it
+Everything here is taken from the code in `packages/engine/lib/design/` and `packages/engine/design/templates/`. Five poster templates (`object`, `number`, `product`, `myth-fact`, `closing`, see "The poster look"), seven earlier editorial templates (`cover`, `text`, `ledger`, `passbook`, `stats`, `screen`, `photo-story`), `carousel`, full-bleed `photo` posts, `page-cover` and `post` (the template of the design directions and the looks, see "Design directions and the post template" and "Looks as data: the schema") make up the engine. Where something has not been proved, it
 says so (see "What is weak or unverified" at the end).
 
 ## The short version
@@ -653,6 +653,10 @@ the editor, to be fixed under Advanced: JSON.
   identifiable people appear and whether their consent is recorded. A design names one with `vaultItemId` (the AI does
   this for the pictures it picks); the render copies the file from the private bucket for that render only. A photo whose
   rights are still to be confirmed, or with people and no recorded consent, blocks approval of the post.
+- **Picture roles.** A vault picture is a photo (the default), a cut-out or a graphic, chosen when it is made and changed on
+  its page in the app ("Use as"). A cut-out or graphic must be a PNG or WebP with transparency, at least 256 px on its longer
+  side; only a graphic may be marked recolourable. A look's `graphic` piece names one by its vault id, and the engine draws
+  it from the post's `graphics` (see "The fields" of the post template). The AI is offered photos only.
 - **Files in the repository.** A picture written as `design/...` (for example `design/assets/photos/market.jpg`) is
   looked up under the repository root first, then in `packages/engine/design/`, where the fonts and the asset folders are.
   The web app accepts no other path. `packages/engine/design/assets/photos/` and `assets/screens/` are ignored by git
@@ -842,6 +846,11 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
 
     `footer`: `website` (default), `pill` (the logo on a light pill, and the website) or `none` (the logo alone; page 1 of a
     carousel still says "Swipe").
+  - `direction`: how `post` designs are drawn, a code direction (`editorial`, `swiss`, `retail`) or the `id` of an entry of
+    `looks`. See "Design directions and the post template".
+- **`looks`** (optional): the brand's looks written as data, at most 20, each checked in full by `validateLook` (problems start
+  `brand.json: looks[i]`), ids unique, origin `copy:...`. The web app writes the active look here (a shipped look as a copy of
+  itself, `copy:shipped:<id>`). See "Looks as data: the schema".
 - **`timezone`** (optional): an IANA time zone such as `Europe/London`. The AI drafts in it and the web app shows it; a batch
   still names its own.
 - **`money`** (optional): `{ "local": "...", "foreign": "..." }`. `local` is one sentence on what the brand's money is (the
@@ -866,15 +875,20 @@ template does not name a layout. A post says **what it is**, and the brand's dir
 ```
 
 - **`kind`** is one of `statement`, `figure`, `list`, `quote`, `photo`, `event`, `offer`.
-- **The direction** is `style.direction` in `brand.json` (`editorial`, `swiss` or `retail`; Settings, Brand and look in the
-  web app). It is optional. When it is absent the brand behaves exactly as before, and a `post` design is refused with a message
-  that names the way out (set `style.direction`). Every other template ignores it.
+- **The direction** is `style.direction` in `brand.json`: one of the code directions (`editorial`, `swiss` or `retail`) or the
+  `id` of one of the brand's looks in `brand.looks` (see "Looks as data: the schema"). In the web app it is set by the active look
+  (Settings, Looks), which the app writes into the pack with `style.direction` naming it; a newly saved brand starts on the shipped
+  Clean look, and choosing classic layouts there leaves the look out of the pack. It is optional. When it is absent the brand behaves
+  exactly as before, and a `post` design is refused with a message that names the way out (set `style.direction`). Every other
+  template ignores it.
 - **`variant`** (a whole number from 0 to 9) picks one of the direction's compositions of that kind. Leave it out and the
   engine chooses one from a hash of the post's name and words (`chooseVariant`), so a batch varies but a re-render never
   changes. A variant the direction does not have is refused with the number it does have.
 - **Size**: `feed` (1080 x 1350) only for now, like the poster templates.
-- **No logo and no website** are drawn on a post page. A brand that sets `style.logo` to a corner gets its logo there, and
-  nothing else.
+- **The logo and the website.** A code direction draws no website, and the logo only when the brand sets `style.logo` to a
+  corner. A look decides with its `logo.default`: `off` draws none, `corner` draws the logo in the corner `style.logo` names,
+  and `top-left` draws it top left whatever the brand chose. A look's `text` element with `source: "site"` draws the brand's
+  web address (Soft and Clean do).
 
 ### The fields
 
@@ -898,7 +912,7 @@ that is empty, over its limit or on two lines where one is required is refused, 
 | `info` | 1 to 4 rows | `{ "key", "value" }`: `key` one of When, Where, Date, Time, Place, Book on, Tickets, Price, Entry, Who, Host, Call, Online, Starts, Ends, Open (`INFO_KEYS`, never free text), each once; `value` one line of up to 40, no marks |
 | `gallery` | 2 to 5 pictures | `{ "image", "caption"? }`: each picture once, read and checked like `image`; `caption` one line of up to 24 (a name, a product) |
 | `image`, `focal`, `zoom` | as elsewhere | `.jpg .jpeg .png .webp .gif`; zoom 1 to 3 |
-| `graphics` | up to 6 | `[{ ref, image, tintable? }]`: the brand graphics and cut-outs the look's `graphic` pieces name, by vault id (`ref`, a lowercase UUID), each a `.png` or `.webp` file read when the page is made and refused unless it has transparency. The app fills this from the vault for the composition that will draw the post (`designGraphicNeeds` in `lib/design-render.mjs`; `lookCompositionGraphics` in `lib/design/look.mjs` for one design of a look) and refuses a design that sets it itself; a piece whose `ref` is not listed is left out with a warning |
+| `graphics` | up to 6 | `[{ ref, image, tintable? }]`: the brand graphics and cut-outs the look's `graphic` pieces name, by vault id (`ref`, a lowercase UUID), each a `.png` or `.webp` file (a path relative to the repository that stays inside it) read when the page is made and refused unless it has transparency. A piece whose `ref` is not listed is left out with a warning. The web app fills this from the vault for the composition that will draw the post (`designGraphicNeeds` in `lib/design-render.mjs`; `lookCompositionGraphics` in `lib/design/look.mjs` for one design of a look), with copies of the vault files in the run's own folder; it refuses a design that sets `graphics` itself (and holds any graphic file a design names to `design/assets/`) |
 
 **Words in pills and inline icons.** Besides its `*emphasis*`, a headline (and only a headline) may mark up to two runs of one to three words as
 `[[pill words]]` and place up to two icons as `{{name}}`, the name one of the engine's own icons (`lib/design/icons.mjs`: arrow-right,
@@ -922,6 +936,9 @@ may be set smaller than intended.
 | `editorial` | Quiet luxury, a magazine rather than an advert. Margins 96, 6 columns. Fraunces (display), Source Serif 4 (text), Inter (label); the emphasis is italic, not a colour; a 2 px rule and a folio ("No. 07"). | `statement/0` "Cover line" |
 | `swiss` | An international-style poster. Margins 64, 12 columns and an 8-row rhythm. Hanken Grotesk (display, text), JetBrains Mono (meta); a meta row (label, brand name, folio, 4 px rule above); one accent block. | `statement/0` "Poster" |
 | `retail` | A high-street campaign. Margin 56 (a frame of 70 plus 44 padding on the framed pages, so text there starts at 114). Archivo, heavy and condensed; the primary colour as a field; highlight bars, stickers, hard shadows and turned boxes. | all seven kinds, nine compositions (below) |
+
+These are the directions written as code. The looks the engine ships as data draw all seven kinds, nine compositions each (see
+"The shipped looks and the engine's hooks").
 
 Retail's nine compositions, ported from the owner-approved prototype. `words` is the most characters a field holds (the prototype's
 longest copy that holds, tested on every composition); beyond it the page may be refused with "shorten the headline to about N
@@ -1004,8 +1021,8 @@ every other role are untouched. The palette of a post page (`colour.mjs`) uses i
 colour stays the field as it is whenever the light or the ink reads on it at the target, and is deepened (by the smallest step that
 passes) only when neither does. A composition that sets small body text directly on the field (`bodyOnField`: retail's Stack and
 Seam) needs the stricter of the display target and `contrast.sub` there, so its field is deepened as before; a low-contrast accent
-still never becomes small text. The Settings form needs a control for it ("Contrast for large headlines": Standard 4.5, High 7, or
-a custom value from 3 to 7, with a note under 4.5); the web app does not have it yet.
+still never becomes small text. The web app sets it in Settings, Brand and look, Colours ("Contrast for large headlines": Standard
+4.5, High 7, or a custom value from 3 to 7, with a note under 4.5).
 
 ### Fonts
 

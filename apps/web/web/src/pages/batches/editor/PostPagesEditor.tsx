@@ -2,7 +2,7 @@
 // (a kind and its words); pages move, are added before the closing page and are removed. The look draws each page as its own image.
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
-import { Notice } from '@/components/kit';
+import { Hint, Notice } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { postKindName } from './catalogue';
 import { PostFields } from './PostFields';
@@ -64,8 +64,11 @@ export function PostPagesEditor({ design, onChange, direction, kinds, limits, of
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h4 className="text-sm font-semibold">Pages</h4>
-        <span className="text-[13px] text-muted-foreground">{pages.length} of {MAX_PAGES}. The first page is the cover, the last the closing page.</span>
+        <div className="flex items-center gap-1.5">
+          <h4 className="text-sm font-semibold">Pages</h4>
+          <Hint about="Pages">The first page is the cover, the last the closing page. Each page is drawn as its own image.</Hint>
+        </div>
+        <span className="text-[13px] text-muted-foreground tabular-nums">{pages.length} of {MAX_PAGES}</span>
       </div>
       {tooMany.map((m) => <Notice key={m} tone="warn">{m}</Notice>)}
       {pages.map((page, i) => {

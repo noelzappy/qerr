@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { useLoad } from '../../hooks';
-import { ChevronLeft, ChevronRight, ImageOff, Maximize2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GalleryHorizontalEnd, ImageOff, Maximize2 } from 'lucide-react';
 import { BusyButton, MoreMenu, SelectBox, Spin } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -17,6 +17,7 @@ import { blockerKind, tidyBlocker } from '../../lib/errors';
 import { splitNotes } from '../../lib/post-notes';
 import { postFlow } from './flow/status';
 import { NETWORKS } from './labels';
+import { carouselPages } from './media-groups';
 import { goesTo, readNetworks } from './networks';
 import { mediaLabel, NetworkRow, PostChips, PostConfirms, postProblem, UploadInput, usePostActions } from './post-parts';
 import type { BatchView, DeliveryRow, MediaView, PostDetail, PostSummary } from './types';
@@ -109,6 +110,7 @@ export function PostCard({ summary, batch, version, onChanged, deliveries, highl
   const working = render === 'queued' || render === 'rendering';
   const editTo = `/batches/${batch.id}/posts/${summary.id}`;
   const first = post?.media[0] ?? null;
+  const pages = post ? carouselPages(post.design, post.media) : null;
 
   const blocked = blockers.length > 0 && post?.status !== 'removed';
   const caption = (post?.caption ?? summary.caption ?? '').trim();
@@ -120,8 +122,8 @@ export function PostCard({ summary, batch, version, onChanged, deliveries, highl
         <div className="relative min-h-28 w-20 shrink-0 self-stretch bg-muted sm:w-28">
           {!post
             ? (load.error ? <div className="flex size-full items-center justify-center"><ImageOff className="size-4 text-muted-foreground" aria-hidden="true" /></div> : <Skeleton className="size-full rounded-none" role="status" aria-label="Loading the post" />)
-            : <Picture post={post} first={first} working={working} onFail={pictureFailed} onView={() => setViewing(0)} />}
-          {select && <SelectBox className="absolute left-1.5 top-1.5 bg-background" checked={select.selected} label={`Select ${summary.title}`} onToggle={select.onToggle} />}
+            : <Picture post={post} first={first} carousel={pages !== null} working={working} onFail={pictureFailed} onView={() => setViewing(0)} />}
+          {pages !== null && <CarouselBadge pages={pages} />}
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3">
@@ -129,6 +131,8 @@ export function PostCard({ summary, batch, version, onChanged, deliveries, highl
             <h3 className="min-w-0 flex-1 text-[13.5px] leading-snug font-semibold [overflow-wrap:anywhere] line-clamp-1">
               <Link to={editTo} className="rounded-sm outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 underline-offset-4">{title}</Link>
             </h3>
+            {/* The selection box sits with the card's actions, never over its picture. */}
+            {select && <SelectBox className="mt-px shrink-0" checked={select.selected} label={`Select ${summary.title}`} onToggle={select.onToggle} />}
             {post && (
               <MoreMenu
                 className="-my-1 -mr-1.5 size-7"
@@ -189,8 +193,19 @@ function When({ date, time, zone }: { date: string; time: string; zone: string }
   );
 }
 
+// "Carousel, 4 pages" on the thumbnail: an icon and the page count, the words for screen readers.
+function CarouselBadge({ pages }: { pages: number }) {
+  return (
+    <span className="pointer-events-none absolute bottom-1 left-1 inline-flex items-center gap-0.5 rounded bg-background/90 px-1 py-px text-[11px] leading-4 font-medium text-foreground tabular-nums">
+      <GalleryHorizontalEnd className="size-3" aria-hidden="true" />
+      <span aria-hidden="true">{pages}</span>
+      <span className="sr-only">Carousel, {pages} pages</span>
+    </span>
+  );
+}
+
 // The first picture as a thumbnail that fills the left of the card; a click opens the larger view.
-function Picture({ post, first, working, onFail, onView }: { post: PostDetail['post']; first: MediaView | null; working: boolean; onFail: () => void; onView: () => void }) {
+function Picture({ post, first, carousel, working, onFail, onView }: { post: PostDetail['post']; first: MediaView | null; carousel: boolean; working: boolean; onFail: () => void; onView: () => void }) {
   const box = 'flex size-full min-h-28 flex-col items-center justify-center gap-1 px-1 text-center text-[11.5px] leading-tight text-muted-foreground';
   if (!first) {
     if (working) return <div className={box} role="status"><Spin className="size-4" /><span className="sr-only">{post.renderStatus === 'queued' ? 'Waiting to make the image' : 'Making the image'}</span></div>;
@@ -209,7 +224,7 @@ function Picture({ post, first, working, onFail, onView }: { post: PostDetail['p
             <span className="absolute right-1 top-1 rounded-md bg-background/85 p-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden="true"><Maximize2 className="size-3" /></span>
           </button>
         )}
-      {more > 0 && <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-background/85 px-1 text-[11px] text-muted-foreground">+{more}</span>}
+      {more > 0 && !carousel && <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-background/85 px-1 text-[11px] text-muted-foreground">+{more}</span>}
       {working && <span className="pointer-events-none absolute bottom-1 right-1 rounded bg-background/90 p-1" role="status"><Spin className="size-3" /><span className="sr-only">Making the image</span></span>}
     </div>
   );

@@ -2,7 +2,7 @@
 
 A batch is a month (or any period) of posts: the words, the pictures and the dates. In the web app a batch is made in
 Create: drafted by the AI from the vault, built post by post, or imported from a JSON file in this format (Create, New
-batch, "Import batch JSON"). The format is the engine's: everything here is taken from `packages/engine/lib/batch.mjs` (validation and
+batch, "Advanced: import a batch file"). The format is the engine's: everything here is taken from `packages/engine/lib/batch.mjs` (validation and
 resolution) and `apps/web/src/server/services/batches.ts` (the import). If a batch is wrong, every problem is listed at
 once and nothing is saved; fix them all and import again.
 
@@ -77,7 +77,8 @@ The rules for the file names a post carries (the app writes them itself; they al
 - The URL sent to Buffer is the file's public URL: just before a send, the app copies each file under the bucket's
   public prefix (`S3_PREFIX`) under a key made from its content hash, and checks the URL answers. A file with no public
   copy is not sent. The hash does not depend on the URL.
-- The order is the order in a carousel.
+- The order is the order in a carousel. Whether Buffer keeps that order is unverified (see
+  [buffer-api-notes.md](buffer-api-notes.md)).
 
 ### Per-network overrides
 
@@ -133,7 +134,7 @@ the images an earlier render made. The full guide, with every template and optio
 
 | Field | Applies to | Meaning |
 | --- | --- | --- |
-| `template` | all | Required: a poster template (`object`, `number`, `product`, `myth-fact`, `closing`), an editorial one (`cover`, `text`, `ledger`, `passbook`, `stats`, `screen`, `photo-story`), `photo`, `carousel` or `layout` with `layout` naming one of the brand's own layouts (`pagecover` is not allowed in a batch). A carousel's page is a poster or editorial template, or `layout` (see design.md, "Your own layouts"); or, for a brand with a look, every page is a `post` page (`{ "template": "post", "kind": ... }`, see design.md, "Carousels of post pages"). |
+| `template` | all | Required: a poster template (`object`, `number`, `product`, `myth-fact`, `closing`), an editorial one (`cover`, `text`, `ledger`, `passbook`, `stats`, `screen`, `photo-story`), `photo`, `carousel`, `layout` with `layout` naming one of the brand's own layouts, or `post` for a brand with a look or a design direction (below; `pagecover` is not allowed in a batch). A carousel's page is a poster or editorial template, or `layout` (see design.md, "Your own layouts"); or, for a brand with a look, every page is a `post` page (`{ "template": "post", "kind": ... }`, see design.md, "Carousels of post pages"). |
 | `series`, `label`, `ground`, `accent`, `headRight`, `headline`, `sub`, `myth`, `factLead`, `fact`, `big`, `line`, `stats`, `caption`, `artefact`, `columns`, `rows`, `days`, `register`, `beside`, `layout`, `device`, `framed`, `title`, `tilt`, `region`, `silk`, `dots`, `glow`, `fade`, `pills`, `checks`, `map`, `pages` | per template | The texts and content. See design.md. A carousel takes `pages`. |
 | `image` | `object`, `number`, `product`, `cover`, `stats`, `screen`, `photo-story`, `photo` | The picture: a file under `design/assets/` (for example `design/assets/demo/object-jar.jpg`), or, with `vaultItemId`, a vault photo (below). Any other path is refused. |
 | `vaultItemId` | wherever `image` is | The id of a vault photo or screen. The render copies that file from the private bucket and uses it instead of `image`, which must still be an image file name. The photo's rights are checked before the post can be approved. A carousel page may carry its own. |
@@ -142,6 +143,28 @@ the images an earlier render made. The full guide, with every template and optio
 | `sizes` | all | `["feed"]` for every template except `photo` (a list from `feed`, `wide`, `story`, `square`). Default `["feed"]`. |
 | `name` | all | The file name stem. Default: the post id. |
 | `networkSizes` | all | For example `{ "linkedin": "wide" }`: that network gets that size's images. Each size named must be in `sizes`. Other networks get the first size. |
+
+A `post` design says what the post is and gives its words; the brand's look (or design direction) decides how it is drawn:
+
+```json
+{ "template": "post", "kind": "event", "headline": "Savings *open day*", "meta": "12 Dec · 6pm · Town hall",
+  "info": [{ "key": "Where", "value": "Town hall" }], "cta": "Book a seat" }
+```
+
+| Field | Meaning |
+| --- | --- |
+| `kind` | Required: `statement`, `figure`, `list`, `quote`, `photo`, `event` or `offer`. Each kind has its required fields. |
+| `variant` | Optional, 0 to 9: which of the look's designs of the kind draws it. Left out, the engine chooses one from the post's words, the same on every render. |
+| `label`, `headline`, `sub`, `big`, `unit`, `items`, `quote`, `by`, `meta`, `tag`, `cta` | The words, each with its own limit. A headline may mark `*emphasis*`, up to two `[[pill words]]` and up to two `{{icon}}` names. |
+| `info` | 1 to 4 rows `{ "key", "value" }`, the key from a fixed list of labels (`When`, `Where`, `Book on`, ...). |
+| `gallery` | 2 to 5 pictures `{ "image", "caption"? }` for a row of round pictures; each picture is checked like `image` (`vaultItemId` included). |
+| `image`, `vaultItemId`, `focal`, `zoom` | The post's picture, as for the other templates. |
+| `graphics` | The files of the brand graphics and cut-outs a look's pieces name, by vault id; see design.md. Leave it out: the web app fills it from the vault when the images are made, and refuses a design that sets it. |
+| `sizes`, `name`, `networkSizes` | As below; `sizes` is `["feed"]` only. |
+
+A field the chosen design does not draw is left out of the image with a warning. A carousel of post pages is
+`{ "template": "carousel", "pages": [ { "template": "post", ... }, ... ] }`, 2 to 10 pages, every page a post page. The full
+rules, with every limit, are in [design.md](design.md), "The fields" and "Carousels of post pages".
 
 File names: `<stem>-<size>.jpg` for single images (`01-what-is-acme-feed.jpg`), `<stem>-<n>.jpg` for a one-size
 carousel, `<stem>-<size>-<n>.jpg` for a carousel in several sizes. The engine also writes `<stem>.pdf`, a PDF of a
@@ -163,7 +186,7 @@ LinkedIn and Facebook limits through Buffer are not known, so none is enforced f
 | instagram | 2200 | 30 hashtags |
 | linkedin | 3000 | |
 | facebook | 63206 | |
-| x | 280 | Buffer's free X tier. A paid X tier allows more: raise the account's X caption limit in Settings, Buffer accounts. Up to 4 images. |
+| x | 280 | Buffer's free X tier. A paid X tier allows more: raise the account's X caption limit in Settings, Channels, under Buffer accounts. Up to 4 images. |
 
 The limit used for a post is the one of the account its network is routed to. X counts a link as 23 characters and
 some characters (for example many CJK ones) as two; Vesk counts plain characters, so near the limit check the count in
@@ -294,5 +317,6 @@ invented: they are format examples, not posts to send.
 
 The fictional Pennyhive pack has one of its own, `brands/pennyhive/batches/example-posts.json`: seven `post` designs, one
 of each kind (statement, figure, list, quote, photo, event, offer), with the same synthetic pictures and round,
-illustrative figures. Import it while the brand is Pennyhive (`BRAND_DIR=brands/pennyhive`): a `post` design is drawn in
-the brand's design direction, and the demo brand has none.
+illustrative figures. Import it while the brand is Pennyhive (`BRAND_DIR=brands/pennyhive`): a `post` design is drawn by
+the brand's look or design direction (Pennyhive names `retail`), and the demo pack on its own has neither (a brand saved in
+Settings starts on the Clean look).

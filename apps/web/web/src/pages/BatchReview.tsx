@@ -8,10 +8,11 @@ import { detailMessages, draftSummary } from '../lib/ai-draft-note';
 import { errorMessage } from '../lib/errors';
 import type { ChannelsOverview } from '../lib/overview';
 import { useSession } from '../session';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { BusyButton, ConfirmAction, EmptyBlock, ErrorBlock, Lines, MoreMenu, Notice, PageHeader, SelectBox, StatusBadge, useSelection } from '@/components/kit';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -297,34 +298,45 @@ function ReviewView({ data, reload, deliveriesByPost, focusPost, command, onComm
   );
 }
 
-// What the AI reported when it drafted this batch, in a few plain lines: how many posts, what the checks threw out (the reasons
-// behind "Why") and the technical notes behind "Details".
-function AiDraftCard({ notes }: { notes: AiDraftNotes }) {
+// What the AI reported when it drafted this batch: one line (written by AI, check it, how many posts), and one "Details" toggle that
+// opens what the checks threw out and the technical notes.
+export function AiDraftCard({ notes }: { notes: AiDraftNotes }) {
+  const [open, setOpen] = useState(false);
   const s = draftSummary(notes);
   const suggestions = notes.imageSuggestions ?? [];
   const messages = detailMessages(notes);
-  const hasDetails = !!notes.plan || !!notes.promptVersion || !!notes.model || messages.length > 0 || suggestions.length > 0;
-  const toggle = 'flex min-h-8 w-fit cursor-pointer items-center text-[13px] font-medium underline-offset-4 hover:underline max-sm:min-h-11';
+  const technical = [
+    ...(notes.plan ? [`Plan: ${notes.plan}`] : []),
+    ...((notes.promptVersion || notes.model) ? [[notes.promptVersion ? `Prompt ${notes.promptVersion}` : '', notes.model ? `model ${notes.model}` : ''].filter(Boolean).join(', ')] : []),
+    ...messages,
+    ...suggestions.map((x) => `Picture wanted for ${x.postId}: ${x.suggestion}`),
+  ];
+  const hasDetails = !!s.followUp || s.why.length > 0 || technical.length > 0;
   return (
     <div className="mb-4">
-      <Notice tone="info" title="Written by AI. Check every post and its sources before approving.">
-        <p className="mt-1.5">{s.headline}{s.followUp ? ` ${s.followUp}` : ''}</p>
-        {s.why.length > 0 && (
-          <details className="mt-1">
-            <summary className={toggle}>Why</summary>
-            <ul className="mt-1 list-disc space-y-1 pl-[18px] [overflow-wrap:anywhere]">{s.why.map((w, i) => <li key={i}>{w}</li>)}</ul>
-          </details>
+      <Notice
+        tone="info"
+        title="Written by AI."
+        actions={hasDetails && (
+          <Button
+            type="button" variant="ghost" size="sm" aria-expanded={open} aria-controls="ai-draft-details" onClick={() => setOpen(!open)}
+            className="-my-1 h-7 gap-1 px-2 text-[13px] max-sm:min-h-11"
+          >
+            Details <ChevronDown className={cn('size-3.5 transition-transform', open && 'rotate-180')} aria-hidden="true" />
+          </Button>
         )}
-        {hasDetails && (
-          <details className="mt-1">
-            <summary className={toggle}>Details</summary>
-            <ul className="mt-1 list-disc space-y-1 pl-[18px] [overflow-wrap:anywhere]">
-              {notes.plan && <li>Plan: {notes.plan}</li>}
-              {(notes.promptVersion || notes.model) && <li>{[notes.promptVersion ? `Prompt ${notes.promptVersion}` : '', notes.model ? `model ${notes.model}` : ''].filter(Boolean).join(', ')}</li>}
-              {messages.map((m, i) => <li key={`m${i}`}>{m}</li>)}
-              {suggestions.map((x, i) => <li key={`s${i}`}>Picture wanted for {x.postId}: {x.suggestion}</li>)}
-            </ul>
-          </details>
+      >
+        Check every post and its sources before approving. <span className="text-muted-foreground">{s.headline}</span>
+        {open && hasDetails && (
+          <div id="ai-draft-details" className="mt-2 flex flex-col gap-2 text-[13px] [overflow-wrap:anywhere]">
+            {(s.followUp || s.why.length > 0) && (
+              <div>
+                {s.followUp && <p>{s.followUp}</p>}
+                {s.why.length > 0 && <ul className="mt-1 list-disc space-y-1 pl-[18px]">{s.why.map((w, i) => <li key={i}>{w}</li>)}</ul>}
+              </div>
+            )}
+            {technical.length > 0 && <ul className="list-disc space-y-1 pl-[18px] text-muted-foreground">{technical.map((t, i) => <li key={i}>{t}</li>)}</ul>}
+          </div>
         )}
       </Notice>
     </div>

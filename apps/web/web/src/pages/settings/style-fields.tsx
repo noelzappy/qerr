@@ -145,11 +145,20 @@ export function TypeFields({ style, headlineWeight, onChange, fonts, version, bu
 
 // ---- surfaces, decoration, photos, logo ----
 
-export function LookFields({ style, onChange, artwork, busy, onArtwork, onRemoveArtwork }: {
+// `part`: 'logo' is only the logo row (a look reads it too), 'surfaces' everything else; both by default.
+export function LookFields({ style, onChange, artwork, busy, onArtwork, onRemoveArtwork, part }: {
   style: StyleSettings; onChange: (s: StyleSettings) => void; artwork: string | null; busy: boolean; onArtwork: (f: File) => void; onRemoveArtwork: () => void;
+  part?: 'logo' | 'surfaces';
 }) {
   const d = style.decoration, p = style.photo;
   const set = <K extends keyof StyleSettings>(k: K, v: StyleSettings[K]) => onChange({ ...style, [k]: v });
+  const logo = (
+    <div className="grid gap-3 md:grid-cols-2">
+      <SelectField label="Logo" hint="Moves the logo on posters, editorial pages and photo posts, with what shares its edge; a page whose picture takes that edge keeps its logo where it is and follows the side. A layout's own logo block stays where the layout puts it." value={style.logo} onValueChange={(v) => set('logo', v as StyleSettings['logo'])} options={[{ value: 'auto', label: 'As each page is laid out' }, ...optionsOf(LOGO_PLACES.filter((x) => x !== 'auto'))]} />
+      <SelectField label="Beside the logo" value={style.footer} onValueChange={(v) => set('footer', v as StyleSettings['footer'])} options={optionsOf(FOOTERS, 'footer')} />
+    </div>
+  );
+  if (part === 'logo') return logo;
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-3 md:grid-cols-2">
@@ -190,10 +199,7 @@ export function LookFields({ style, onChange, artwork, busy, onArtwork, onRemove
           <SelectField label="Highlights in" value={p.highlights} onValueChange={(v) => set('photo', { ...p, highlights: v })} options={optionsOf(STYLE_COLOURS)} />
         </>}
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <SelectField label="Logo" hint="Moves the logo on posters, editorial pages and photo posts, with what shares its edge; a page whose picture takes that edge keeps its logo where it is and follows the side. A layout's own logo block stays where the layout puts it." value={style.logo} onValueChange={(v) => set('logo', v as StyleSettings['logo'])} options={[{ value: 'auto', label: 'As each page is laid out' }, ...optionsOf(LOGO_PLACES.filter((x) => x !== 'auto'))]} />
-        <SelectField label="Beside the logo" value={style.footer} onValueChange={(v) => set('footer', v as StyleSettings['footer'])} options={optionsOf(FOOTERS, 'footer')} />
-      </div>
+      {part !== 'surfaces' && logo}
     </div>
   );
 }

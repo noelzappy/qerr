@@ -7,8 +7,9 @@ What Vesk relies on in Buffer's API, where it came from, and how much of it is c
 ## Status of this information
 
 Everything below was taken from Buffer's public developer documentation (<https://developers.buffer.com>) on
-2026-11-20, when the code was written. **None of it has been confirmed against a live Buffer account**, because no API
-key existed. The tests use a fake Buffer that was built from the same documentation, so they prove Vesk is consistent
+2026-11-20, when the code was written, because no API key existed. **Only the three points marked confirmed under "What
+is not confirmed" have been checked against a live Buffer account** (a read-only check on 22 Nov 2026); no post, draft or
+other mutation has been sent. The tests use a fake Buffer that was built from the same documentation, so they prove Vesk is consistent
 with its own assumptions, not with Buffer.
 
 The way to turn assumptions into facts is the first run against real Buffer: Check on the account in Settings, then
@@ -21,7 +22,7 @@ one draft to one channel, looked at in Buffer (see "The first run against real B
 | Endpoint | `POST https://api.buffer.com` | `packages/engine/lib/client.mjs` |
 | Auth | Header `Authorization: Bearer <key>`; `Content-Type: application/json` | `packages/engine/lib/client.mjs` |
 | Body | `{ "query": "...", "variables": { ... } }` | `packages/engine/lib/client.mjs` |
-| Key | Created at <https://publish.buffer.com/settings/api>. One key belongs to one account; an admin enters it in Settings, Buffer accounts, where it is stored encrypted. **Keys expire** (30 days by default, according to `docs/spec/web-app.md`; not confirmed here), so a `401` or `403` after a quiet month usually means "create a new key" | |
+| Key | Created at <https://publish.buffer.com/settings/api>. One key belongs to one account; an admin enters it in Settings, Channels, under Buffer accounts, where it is stored encrypted. **Keys expire** (30 days by default, according to `docs/spec/web-app.md`; not confirmed here), so a `401` or `403` after a quiet month usually means "create a new key" | |
 | Errors | HTTP 429 for rate limits; 401 or 403 for a bad key; a GraphQL `errors` array on a 200 answer | `packages/engine/lib/client.mjs` |
 
 ### Queries
@@ -95,7 +96,7 @@ apply per key, per account or per organisation is not confirmed; Vesk assumes pe
 
 ### Several accounts, and X
 
-- Each account has its own key (entered in Settings, Buffer accounts) and its own channels. An admin maps our network
+- Each account has its own key (entered in Settings, Channels, under Buffer accounts) and its own channels. An admin maps our network
   names (`instagram`, `linkedin`, `facebook`, `x`) to an account and a channel id in Settings, Channels, choosing from
   the channels the account's check listed; a post goes only through the account its network is routed to.
 - X is sent like LinkedIn: `text`, `channelId`, the schedule fields and optional `assets`; no `type`, no `metadata`.
@@ -149,7 +150,7 @@ mutation was sent, so everything else stays unconfirmed.
 The command-line tool once checked Buffer's schema by GraphQL introspection; that check went with the tool. What is left
 is what the app does with a real key:
 
-1. **Check** on an account (Settings, Buffer accounts) confirms that the key works and lists the organisations and the
+1. **Check** on an account (Settings, Channels, Buffer accounts) confirms that the key works and lists the organisations and the
    channels (points 1, 2, 15 and 17).
 2. **One draft to one channel** (see "The first run against real Buffer" in the [README](../README.md)) shows whether
    `createPost`, `saveToDraft`, the assets and the metadata are accepted (points 3 to 8, 10, 11 and 14; a carousel draft also shows point 19).

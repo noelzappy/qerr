@@ -93,8 +93,10 @@ test('a post design: kinds, required fields, limits, unknown keys, variant, feed
   assert.ok(has(none, 'this brand has none; set style.direction in brand.json to one of editorial, swiss, retail'), none.join('|'));
   assert.deepEqual(validateDesign({ template: 'post', kind: 'statement', headline: 'x' }, 'p'), [], 'without a brand to ask, only the design is judged');
   assert.ok(has(designBlockProblems({ template: 'post', kind: 'statement', headline: 'x' }), 'design direction'), 'the demo pack has no direction');
-  // a post is not a carousel page, and the older templates are as they were
-  assert.ok(validateDesign({ template: 'carousel', pages: [{ template: 'post', kind: 'statement', headline: 'x' }, { template: 'post', kind: 'statement', headline: 'x' }] }, 'c').length);
+  // a carousel may be made of post pages (judged against the look when a brand is given; see test-design-post-carousel.mjs),
+  // but post pages and the older templates never mix, and the older templates are as they were
+  assert.deepEqual(validateDesign({ template: 'carousel', pages: [{ template: 'post', kind: 'statement', headline: 'x' }, { template: 'post', kind: 'statement', headline: 'x' }] }, 'c'), []);
+  assert.ok(validateDesign({ template: 'carousel', pages: [{ template: 'post', kind: 'statement', headline: 'x' }, { template: 'closing' }] }, 'c').length);
   assert.deepEqual(validateDesign({ template: 'photo', image: 'a.jpg', headline: 'x' }, 'p'), []);
   assert.deepEqual(normaliseDesign({ template: 'post', kind: 'statement', headline: 'x' }).sizes, ['feed']);
 });

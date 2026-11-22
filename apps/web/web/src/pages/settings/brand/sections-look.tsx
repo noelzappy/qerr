@@ -1,7 +1,9 @@
 // Brand and look, Colours, Type, Surfaces and photos, Post types.
-import { Plus, Trash2 } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Notice, SelectField } from '@/components/kit';
+import { Hint, Notice, SelectField } from '@/components/kit';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -11,7 +13,7 @@ import { Section } from '../section';
 import { ColourRoles, LookFields, TypeFields } from '../style-fields';
 import { ColourField } from './fields';
 import { useActiveLook } from '@/hooks/use-active-look';
-import { LOOK_HINT, type BrandCtx } from './model';
+import { LOOK_HINT, lookInForce, sectionHasProblem, type BrandCtx } from './model';
 import { Changes, Readability } from './preview';
 import { ContrastDisplay } from './contrast-display';
 
@@ -45,29 +47,59 @@ export function ColoursSection({ ctx }: { ctx: BrandCtx }) {
   );
 }
 
+// While a look draws the posts, a section whose settings only the classic layouts use shows one line pointing to Settings, Looks,
+// with the settings themselves one click away (they still apply to classic layouts). With classic layouts in use, they show as usual.
+function ClassicOnly({ id, inForce, problem, children }: { id: string; inForce: boolean; problem: boolean; children: ReactNode }) {
+  const [shown, setShown] = useState(false);
+  if (!inForce) return <>{children}</>;
+  const open = shown || problem;
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[13px] text-muted-foreground">
+          <span>Your look sets this.</span>
+          <Hint about="Your look">{LOOK_HINT}</Hint>
+          <Link to="/settings/looks" className="rounded-sm font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">Settings, Looks</Link>
+        </p>
+        <button
+          type="button" aria-expanded={open} aria-controls={`${id}-classic`} onClick={() => setShown(!shown)}
+          className="inline-flex min-h-8 items-center gap-1 rounded-md px-1 text-[13px] font-medium outline-none hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-11"
+        >
+          Settings for classic layouts <ChevronDown className={`size-3.5 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+        </button>
+      </div>
+      <div id={`${id}-classic`} hidden={!open} className="flex flex-col gap-3">{open && children}</div>
+    </>
+  );
+}
+
 export function TypeSection({ ctx }: { ctx: BrandCtx }) {
   const { s, view } = ctx;
-  const lookActive = useActiveLook().active === true;
+  const inForce = lookInForce(s.style.direction, useActiveLook().active);
   return (
     <Section id="type" title="Type" description="How headlines, body text and labels are set. Leave a value empty to keep the brand's own.">
-      {(s.style.direction || lookActive) && <Notice tone="info">{LOOK_HINT}</Notice>}
-      <p className="text-[13px] text-muted-foreground">Fonts you choose here are saved straight away, not with the Save bar.</p>
-      <TypeFields
-        style={s.style} headlineWeight={s.headlineWeight} fonts={view.fontSources} version={view.updatedAt ?? ''} busy={ctx.busy}
-        onChange={(type, headline) => ctx.update((cur) => ({ ...cur, style: { ...cur.style, type }, ...(headline !== undefined ? { headlineWeight: headline } : {}) }))}
-        onUpload={(role, f, fam) => ctx.uploadFont(f, fam, role)} onGoogle={(role, fam) => ctx.pickGoogleFont(role, fam)} onRemove={(role) => ctx.askRemoveFont(role)}
-      />
+      <ClassicOnly id="type" inForce={inForce} problem={sectionHasProblem(ctx.fields, 'type')}>
+        <p className="text-[13px] text-muted-foreground">Fonts you choose here are saved straight away, not with the Save bar.</p>
+        <TypeFields
+          style={s.style} headlineWeight={s.headlineWeight} fonts={view.fontSources} version={view.updatedAt ?? ''} busy={ctx.busy}
+          onChange={(type, headline) => ctx.update((cur) => ({ ...cur, style: { ...cur.style, type }, ...(headline !== undefined ? { headlineWeight: headline } : {}) }))}
+          onUpload={(role, f, fam) => ctx.uploadFont(f, fam, role)} onGoogle={(role, fam) => ctx.pickGoogleFont(role, fam)} onRemove={(role) => ctx.askRemoveFont(role)}
+        />
+      </ClassicOnly>
     </Section>
   );
 }
 
 export function SurfacesSection({ ctx }: { ctx: BrandCtx }) {
   const { s, set } = ctx;
-  const lookActive = useActiveLook().active === true;
+  const inForce = lookInForce(s.style.direction, useActiveLook().active);
   return (
     <Section id="surfaces" title="Surfaces and photos" description="How cards and panels stand off the page, the texture behind pages, what happens to photos, and where the logo goes.">
-      {(s.style.direction || lookActive) && <Notice tone="info">{LOOK_HINT}</Notice>}
-      <LookFields style={s.style} onChange={(style) => set('style', style)} artwork={ctx.artworkUrl} busy={ctx.busy === 'artwork'} onArtwork={ctx.uploadArtwork} onRemoveArtwork={ctx.askRemoveArtwork} />
+      <ClassicOnly id="surfaces" inForce={inForce} problem={sectionHasProblem(ctx.fields, 'surfaces')}>
+        <LookFields part={inForce ? 'surfaces' : undefined} style={s.style} onChange={(style) => set('style', style)} artwork={ctx.artworkUrl} busy={ctx.busy === 'artwork'} onArtwork={ctx.uploadArtwork} onRemoveArtwork={ctx.askRemoveArtwork} />
+      </ClassicOnly>
+      {/* A look places the logo where the brand says too, so the logo row stays in view. */}
+      {inForce && <LookFields part="logo" style={s.style} onChange={(style) => set('style', style)} artwork={ctx.artworkUrl} busy={false} onArtwork={ctx.uploadArtwork} onRemoveArtwork={ctx.askRemoveArtwork} />}
     </Section>
   );
 }

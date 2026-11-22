@@ -75,6 +75,16 @@ export const MIN_LONG_SIDE = 256;
 export const MAX_SIDE = 8000;
 export const MAX_PIXELS = 40_000_000;
 
+// Every picture, whatever its role: a ceiling far above any camera's, so that a small file claiming a huge canvas (a decompression bomb)
+// never reaches the renderer's Chrome, which would decode all of its pixels.
+export const PHOTO_MAX_SIDE = 16384;
+export const PHOTO_MAX_PIXELS = 100_000_000;
+export function pictureSizeProblem(facts: ImageFacts | null): string | null {
+  if (!facts) return null;
+  if (Math.max(facts.width, facts.height) > PHOTO_MAX_SIDE || facts.width * facts.height > PHOTO_MAX_PIXELS) return `This picture is ${facts.width} x ${facts.height} px, which is larger than the ${PHOTO_MAX_SIDE} px or ${PHOTO_MAX_PIXELS / 1_000_000} megapixel limit`;
+  return null;
+}
+
 // Why a file cannot be a cut-out or a graphic, or null when it can.
 export function cutoutProblem(facts: ImageFacts | null, role: 'cutout' | 'graphic'): string | null {
   const noun = role === 'cutout' ? 'cut-out' : 'graphic';

@@ -13,8 +13,9 @@ the app shows the brand pack named by `BRAND_DIR` (default `brands/demo`, the fi
 is a second fictional test brand, a savings-club app) and seeds its first vault from that pack's `vault.json`. See "The
 brand" below.
 
-The app has only been run against a fake Buffer and local or fake storage, never against a real Buffer account or a
-real bucket.
+The app has been run against a fake Buffer and local or fake storage. It has sent no post to a real Buffer account and
+never used a real bucket; only the account check's two read-only queries have run against real Buffer, once (see
+[docs/buffer-api-notes.md](../../docs/buffer-api-notes.md)).
 
 ## Requirements
 
@@ -99,7 +100,8 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   item's `role` is chosen when it is made and may be changed on the picture's page ("Use as"; `PATCH /api/vault/:id` with `role`,
   which checks the stored file and makes the item unconfirmed again; only a graphic may be marked recolourable, `tintable`). A
   cut-out or graphic must be a PNG or WebP with an alpha
-  channel, at least 256 px on its longer side (`services/image-header.ts`, which reads only the file header). The upload page
+  channel, at least 256 px on its longer side (`services/image-header.ts`, which reads only the file header). Any picture, whatever its
+  role, is refused above 16384 px on a side or 100 megapixels (a small file claiming a huge canvas would make Chrome decode it). The upload page
   asks `POST /api/vault/file-check?role=` (multipart, nothing stored) before it makes an item, so a refused file leaves no empty
   item; `POST /api/vault/:id/file` checks again. `GET /api/vault/graphics` is the compact list of cut-outs and graphics the
   look editor offers; a cut-out or graphic a post or look still uses cannot be deleted (`services/graphics.ts`). The AI is
@@ -153,7 +155,7 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
 - **Post types** (the engine's `series`): each with its page colour and headline style.
 - **Voice and visual direction:** in the team's own words, with names to spell exactly.
 
-The page has eight sections, each with its own address: `/settings/brand/<identity|logos|colours|type|surfaces|post-types|voice|advanced>` (`/settings/brand#logos`, used by the setup checklist, still opens Logos; `/settings/brand/direction` and `#direction` go to Settings, Looks). Uploads (logos, fonts, artwork) and Advanced save the moment they are done; everything else is one form that waits for Save, and asks before it is left with changes. "Other currencies to flag" is a list of words; a stored pattern that the list cannot show is edited under Advanced.
+The page has eight sections, each with its own address: `/settings/brand/<identity|logos|colours|type|surfaces|post-types|voice|advanced>` (`/settings/brand#logos`, used by the setup checklist, still opens Logos; `/settings/brand/direction` and `#direction` go to Settings, Looks). Uploads (logos, fonts, artwork) and Advanced save the moment they are done; everything else is one form that waits for Save, and asks before it is left with changes. "Other currencies to flag" is a list of words; a stored pattern that the list cannot show is edited under Advanced. While a look is in use (Settings, Looks; or the brand names a design direction), Type and Surfaces and photos open on one line, "Your look sets this", pointing to Settings, Looks; their settings, which still apply to the classic layouts, are behind "Settings for classic layouts" and open by themselves when the server names a problem there. The logo row stays in view, since a look places the logo too.
 - **Advanced:** a `brand.json` fragment merged over the rest, a dot map, and "Import a brand pack", which moves a pack's
   `brand.json`, logos and map in at once and keeps its exact colours and rules.
 
@@ -206,8 +208,8 @@ file, declared for every weight.
 `fonts.gstatic.com` (HTTPS). A deployment with an egress allowlist must allow both for the feature; nothing else needs them,
 and rendering never does. Uploading a woff2 file needs no outbound access.
 
-**Settings, Layouts** (`/api/settings/layouts`, `src/server/routes/layouts.ts`, admins only) holds the brand's own
-compositions: blocks placed in slots on a grid, as data the engine's layout validator checks
+**Settings, Layouts** (`/api/settings/layouts`, `src/server/routes/layouts.ts`, admins only; "Classic layouts" in the menu, shown
+only while no look is active) holds the brand's own compositions: blocks placed in slots on a grid, as data the engine's layout validator checks
 (`packages/engine/lib/design/layout.mjs`; the format is in [docs/design.md](../../docs/design.md), "Your own layouts"). The
 editor covers everything a brand's layout can say, from the engine's catalogue (`layoutCatalogue().pages`) for the layout's
 kind of page: blocks dragged and resized on a canvas, snapped to the grid's cells, or placed in pixels, on every size or per size; every option, the blocks
@@ -302,9 +304,11 @@ by slug and warns about a slug the brand has none of. The AI draft job passes th
 | `DELETE /api/settings/series/:id` | remove it; its posts lose the link and keep their words |
 | `GET /api/series` | admins and editors: `{ series }`, the same rows, for the post editor |
 
-**The design editor** (`/settings/looks/:slug/designs/:id`, `apps/web/web/src/pages/settings/looks/`; see `web/README-ui.md`) edits one composition as
-JSON (`design-model.ts`, pure and specced over every composition of both shipped looks), checks the draft as it is edited with the `validate` route, draws it
-with `preview-design` and falls back to a sketch drawn in the browser while that answers 501, saves with `PUT .../draft` and publishes with `POST .../publish`.
+**The design editor** (`/settings/looks/:slug/designs/:id`, `apps/web/web/src/pages/settings/looks/`; see `web/README-ui.md`) edits one composition
+visually: the layers and a library of pieces, a canvas, and the settings of the selected piece, with the JSON under Advanced. Every control edits the
+composition through `design-model.ts` (pure; `src/web-design-editor.spec.ts` loads, edits and checks every composition of every shipped look). It checks the
+draft as it is edited with the `validate` route, draws it with `preview-design` and falls back to a sketch drawn in the browser while that answers 501, saves
+with `PUT .../draft` and publishes with `POST .../publish`.
 A look in use is edited there like any other; the page says that only a published design reaches posts.
 
 **Drawing a look** (`services/look-render.ts`, connected in `src/server/index.ts` with `connectLookRenderer`). Everything goes through the render queue
@@ -371,7 +375,7 @@ TEST_DB_NAME=vesk_other npm test   # another database, so two runs do not clash
 Set `TEST_DB_NAME` for another database name and `TEST_DATABASE_ADMIN_URL` for another server (default
 `postgresql://postgres:postgres@127.0.0.1:55440/postgres`). Test files are named `*.spec.ts` so the repository's root
 `node --test` does not pick them up. Helpers are in `src/server/testing.ts` and `src/server/testing-batches.ts`.
-The render specs launch real Chrome, one at a time. `npm run typecheck` covers the server, the tests and the web app.
+The render specs launch real Chrome or Chromium (`CHROME_PATH`), one at a time. `npm run typecheck` covers the server, the tests and the web app.
 
 ## Environment variables
 
@@ -557,7 +561,7 @@ characters are ever shown.
   assumptions that have only run against a fake Buffer (see `docs/buffer-api-notes.md`); try them with one real draft
   before relying on them.
 - Posts are published to a network only through Buffer; the app does not talk to Instagram, LinkedIn, Facebook or X.
-- Chrome is needed on the machine that runs the server, and rendering is one post at a time (a batch of seven takes
+- Chrome or Chromium is needed on the machine that runs the server, and rendering is one post at a time (a batch of seven takes
   about a minute on a laptop).
 - Without ZeptoMail or SMTP, invite and reset links are shown to the admin to copy rather than emailed.
 - Deleting a post from Buffer removes it there and marks the delivery deleted; a live send after a delete asks for the
@@ -587,8 +591,8 @@ edited: the page says that saved changes reach posts drawn from then on while im
 the edits have not been checked, and **Duplicate** still offers a copy to try changes on.
 Tabs: **Settings** (drawn from `lookCatalogue().sections`, so a setting the engine adds appears without UI work: Dials, Typefaces, Type,
 Page, Colour, Devices, Pictures, Logo; numbers show their range and an inline error, never clamped; server problems are mapped to the control
-by path), **Designs** (per kind: reorder, On/Off, status, Edit as a read-only detail, Duplicate within this look, Remove, "Add a design" from
-any shipped or own look, at most three per kind) and **Check** (the stored gate records; "Run the checks" draws every design with sample, stress and minimal copy and shows what each check said). `/settings/looks/:slug/designs/:id` is a placeholder page ("Editing a design's layout comes with the design editor").
+by path), **Designs** (per kind: reorder, On/Off, status, Edit, which opens the design editor, Duplicate within this look, Remove, "Add a design" from
+any shipped or own look, at most three per kind) and **Check** (the stored gate records; "Run the checks" draws every design with sample, stress and minimal copy and shows what each check said). `/settings/looks/:slug/designs/:id` is the design editor (see "The design editor" above).
 **Classic layouts** is in the menu only while no look is active (the page itself shows a one-line notice with a link to Looks otherwise).
 Sample pictures: `useLookSamples` asks `POST /api/settings/looks/preview` (debounced, stale requests cancelled, cached by the hash the server
 returns); while it answers 501 (no renderer connected) the strips show quiet placeholders named by kind and one line. The post editor reads `GET /api/looks/brief` when a look is active: kinds without an enabled design are not offered, the "Look"
