@@ -302,3 +302,14 @@ test('looks: hostile pill words, icon names, info rows, button words and picture
     for (const m of r.body.matchAll(/ data-name="([^"]*)"/g)) assert.ok(!/["<>]/.test(m[1]));
   }
 });
+
+test('post graphics: a graphic file is a path relative to the repository that stays inside it', async () => {
+  const { graphicsProblems } = await import('./lib/design/post-spec.mjs');
+  const REF = '0f8fad5b-d9cb-469f-a165-70867728950e';
+  for (const image of ['/etc/secret.png', '../secret.png', 'design/assets/../../../secret.webp', 'C:\\secret.png', 'a\\..\\..\\secret.png']) {
+    const p = graphicsProblems([{ ref: REF, image }], 'design');
+    assert.ok(p.some((m) => /inside the repository/.test(m)), `${image}: ${p.join(' | ')}`);
+    assert.ok(!p.some((m) => m.includes(image)), `${image}: the path is not echoed`);
+  }
+  assert.deepEqual(graphicsProblems([{ ref: REF, image: 'design/assets/demo/mark.png' }, { ref: '7c9e6679-7425-40de-944b-e07fc1f90ae7', image: 'out/app-render/x/in/1-mark.webp' }], 'design'), []);
+});
