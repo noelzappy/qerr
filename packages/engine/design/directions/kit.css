@@ -110,7 +110,9 @@
 .k-look .k-hl em{color:var(--c-on-accent)}
 /* in a fitted headline the bar is a pseudo-element behind ALL the type of its line, turned a little */
 .k-look .k-fit .k-hl{display:inline-block;position:relative;background:none;padding:0 var(--k-hl-pr,.12em) 0 var(--k-hl-pl,.12em);margin:0;isolation:isolate}
-.k-look .k-fit .k-hl::before{content:"";position:absolute;left:0;right:0;top:.03em;bottom:.03em;background:var(--c-gold);transform:skewX(var(--k-hl-tilt,0deg));z-index:-1}
+/* the bar is turned by skewing it: its corners lean out by half its height times tan(turn); it is drawn that much narrower so the turned bar stays
+   inside the measure its line was fitted to (a corner past the measure makes the line wider than its box) */
+.k-look .k-fit .k-hl::before{content:"";position:absolute;left:calc(.47em * max(tan(var(--k-hl-tilt,0deg)), -1 * tan(var(--k-hl-tilt,0deg))));right:calc(.47em * max(tan(var(--k-hl-tilt,0deg)), -1 * tan(var(--k-hl-tilt,0deg))));top:.03em;bottom:.03em;background:var(--c-gold);transform:skewX(var(--k-hl-tilt,0deg));z-index:-1}
 /* photo treatment: punch */
 .k-look .k-punch img{filter:saturate(1.12) contrast(1.05)}
 /* the words in a shape; a run that takes the rest of a row */
