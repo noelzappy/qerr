@@ -45,6 +45,7 @@ import * as graphic from './directions/primitives/graphic.mjs';
 import * as infoRows from './directions/primitives/info-rows.mjs';
 import * as button from './directions/primitives/button.mjs';
 import * as photoRow from './directions/primitives/photo-row.mjs';
+import * as iconBadge from './directions/primitives/icon-badge.mjs';
 // the shapes of a headline's pills (kit.mjs PILL_SHAPES)
 export const PILL_SHAPES = ['pill', 'soft', 'outline'];
 export { ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS, METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SOFT_SHADOWS, CORNERS, ROUND_SHAPES, RULE_STYLES, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS, WORDS, BLENDS };
@@ -53,7 +54,9 @@ export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 
   // gradients, colour over a picture, brand graphics and cut-outs
   gradient, overlay, graphic,
   // info rows, a button and a row of round pictures
-  'info-rows': infoRows, button, 'photo-row': photoRow });
+  'info-rows': infoRows, button, 'photo-row': photoRow,
+  // one of the engine's icons drawn large, bare or on a badge
+  'icon-badge': iconBadge });
 
 export const LOOK_SCHEMA = 1;
 export const KINDS = [...POST_KINDS];
@@ -74,11 +77,12 @@ export const FORBIDDEN_KEYS = Object.freeze(['render', '__proto__', 'constructor
 // Which fields a composition of a kind may use (a superset of the compositions of the shipped directions); the required ones come
 // from POST_REQUIRED and must be declared required.
 // cta (a button's words), info (an info block's rows) and gallery (a row of round pictures) are the optional parts a post may add; they come last.
+// A figure may carry a tag (a small change pill such as "+12%"), a quote a gallery (the round picture of the person quoted).
 export const KIND_FIELDS = Object.freeze({
   statement: ['label', 'headline', 'sub', 'cta', 'info', 'gallery'],
-  figure: ['label', 'headline', 'big', 'unit', 'sub'],
+  figure: ['label', 'headline', 'big', 'unit', 'sub', 'tag'],
   list: ['label', 'headline', 'sub', 'items', 'cta'],
-  quote: ['label', 'quote', 'by'],
+  quote: ['label', 'quote', 'by', 'gallery'],
   photo: ['label', 'image', 'headline', 'sub', 'tag', 'cta', 'info', 'gallery'],
   event: ['label', 'image', 'headline', 'meta', 'sub', 'tag', 'cta', 'info', 'gallery'],
   offer: ['label', 'image', 'headline', 'tag', 'sub', 'unit', 'cta', 'info', 'gallery'],

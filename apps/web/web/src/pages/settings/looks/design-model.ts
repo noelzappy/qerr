@@ -964,7 +964,14 @@ export function newElement(comp: Json, type: string, look: Json, cat: LookCatalo
     case 'info-rows': el.layout = 'beside'; size = { span: 99, rowSpan: 2, h: 220 }; break;
     case 'button': { const f = free(['cta', 'tag', 'label']); if (f && f !== 'cta') el.field = f; el.shape = 'pill'; el.icon = 'arrow-right'; size = { span: 6, rowSpan: 1, w: 480, h: 110 }; break; }
     case 'photo-row': el.size = 200; el.captions = true; size = { span: 99, rowSpan: 2, h: 260 }; break;
+    // one of the engine's icons on a round badge in the brand colour (the pane changes the icon, the shape and the colours)
+    case 'icon-badge': el.icon = 'check'; el.size = 64; el.shape = 'circle'; el.fill = 'field'; el.ink = 'on-field'; size = { span: 1, rowSpan: 1, w: 122, h: 122 }; break;
     default: break;
+  }
+  // on a page lit by a gradient of dark colours (the ledger look), new words are white, so they read on every colour of it
+  if (['text', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'info-rows'].includes(type)) {
+    const stops = (Array.isArray(comp.elements) ? comp.elements as Json[] : []).filter((x) => x.type === 'gradient' && isObj(x.gradient)).flatMap((x) => ((x.gradient as Json).stops as string[] | undefined) ?? []);
+    if (stops.length && stops.every((s) => ['dark', 'field', 'field-deep', 'ink'].includes(s))) el.ink = 'white';
   }
   if (info.placement === 'required') {
     const g = gridOf(look);

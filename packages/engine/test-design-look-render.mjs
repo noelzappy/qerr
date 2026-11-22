@@ -49,6 +49,7 @@ const ALLOWED_CLASSES = new Set([
   'k-wm', 'k-wm-row', 'k-wm-fade',                                                                         // wordmarkPattern()
   'k-logo', 'logo-inv', 'ly-logo',                                                                         // logoHtml(), only when the brand switched its logo on
   'k-grad', 'k-overlay', 'k-graphic', 'k-tinted',                                                          // gradient(), overlay(), graphic() and a recoloured graphic
+  'k-ic',                                                                                                  // iconSvg(): an icon of the engine's own table (an icon badge, a row's tile)
 ]);
 // The classes with no rule in kit.css: the page and picture classes live in other sheets (cv, ph, post), the rest are hooks the runtime or the checks read.
 const NO_RULE = new Set(['cv', 'k-multiply', 'k-grain', 'k-em-n', 'k-shape-circle', 'k-shape-pill', 'k-shape-tile', 'k-numeral-n', 'k-numeral-u', 'logo-inv', 'ly-logo']);
@@ -379,6 +380,7 @@ function bindingLook() {
       { type: 'info-rows', place: { px: { x: 60, y: 1060, w: 600, h: 200 } }, rule: 'hair', valueStyle: 'label', when: { present: 'info' } },
       { type: 'button', place: { px: { x: 700, y: 1180, w: 320, h: 100 } }, size: 24, icon: 'arrow-right', when: { present: 'cta' } },
       { type: 'photo-row', place: { px: { x: 700, y: 560, w: 320, h: 160 } }, ring: { w: 4, colour: 'paper' }, when: { present: 'gallery' } },
+      { type: 'icon-badge', icon: 'calendar', size: 48, badge: 96, fill: 'field', ink: 'on-field', place: { px: { x: 700, y: 760 } } },
       { type: 'photo', place: { px: { x: 60, y: 60, w: 600, h: 700 } }, shape: 'card', border: 14, tint: 'gold', rot: 'card', treat: ['multiply'] },
       T('meta', { style: 'numeral', size: 220, format: 'day' }, { px: { x: 700, y: 60 } }),
       T('meta', { style: 'display', size: 90, format: 'month', upper: true }, { px: { x: 700, y: 330 } }),

@@ -137,10 +137,13 @@ const visible = (s) => seenText(s);
 // text and judged as the accent role on the pill. Icons: {{name}} as the engine's own SVG (icons.mjs), decoration in the text's colour.
 const PILL_SHAPES = Object.freeze({ pill: 'k-pl-round', soft: 'k-pl-soft', outline: 'k-pl-line' });
 // one icon as inline SVG from the fixed table: the path is the engine's own constant, never data
-export function iconSvg(name, { colour, cls: extra } = {}) {
+// size: whole pixels 8 to 600 (an icon drawn at a size of its own: a badge, a row's tile), else it follows the size of the words it sits in
+export function iconSvg(name, { colour, cls: extra, size } = {}) {
   if (!Object.hasOwn(ICONS, name)) throw new Error('design kit: an icon must be one of the engine\'s icons');
   const k = extra === undefined ? '' : extra === 'btn' ? ' k-ic-btn' : (() => { throw new Error('design kit: icon class'); })();
-  return `<svg class="k-ic${k}" viewBox="0 0 24 24" aria-hidden="true" data-deco${colour ? ` style="fill:${colour_(colour)}"` : ''}><path d="${esc(ICONS[name].d)}"/></svg>`;
+  if (size !== undefined && !(Number.isInteger(size) && size >= 8 && size <= 600)) throw new Error('design kit: an icon size is whole pixels from 8 to 600');
+  const css = [size !== undefined ? `width:${size}px;height:${size}px` : '', colour ? `fill:${colour_(colour)}` : ''].filter(Boolean).join(';');
+  return `<svg class="k-ic${k}" viewBox="0 0 24 24" aria-hidden="true" data-deco${css ? ` style="${css}"` : ''}><path d="${esc(ICONS[name].d)}"/></svg>`;
 }
 // The escaped, formatted html of a headline with its marks set: o.pills ({ shape, fill, ink }) draws pills, else the words stay plain;
 // o.icons ({ colour? }) draws icons, else they are left out. An unknown {{name}} stays as the escaped text it is.

@@ -23,6 +23,9 @@ export const ICONS = Object.freeze({
   user: { label: 'Person', d: 'M12 3a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zm0 10.5c4.4 0 8 2.2 8 5V21H4v-2.5c0-2.8 3.6-5 8-5z' },
   play: { label: 'Play', d: 'M7 4v16l13-8z' },
   dot: { label: 'Dot', d: 'M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10z' },
+  // a padlock with a keyhole, and a shield with a tick (trust and security posts): the hole and the tick are cut out by the even-odd fill
+  lock: { label: 'Padlock', d: 'M7 10V7a5 5 0 0 1 10 0v3h2v12H5V10zm2 0h6V7a3 3 0 0 0-6 0zm2 4v4h2v-4z' },
+  shield: { label: 'Shield', d: 'M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5zm-1.2 13.6-3.5-3.5 1.4-1.4 2.1 2.1 4.9-4.9 1.4 1.4z' },
 });
 export const ICON_NAMES = Object.freeze(Object.keys(ICONS));
 // What a path may hold: SVG path commands and numbers only (test-design-look-parts.mjs holds every entry to it).
