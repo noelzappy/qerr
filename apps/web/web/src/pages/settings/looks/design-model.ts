@@ -970,9 +970,12 @@ export function newElement(comp: Json, type: string, look: Json, cat: LookCatalo
     case 'icon-badge': el.icon = 'check'; el.size = 64; el.shape = 'circle'; el.fill = 'field'; el.ink = 'on-field'; size = { span: 1, rowSpan: 1, w: 122, h: 122 }; break;
     default: break;
   }
-  // on a page lit by a gradient of dark colours (the ledger look), new words are white, so they read on every colour of it
+  // on a page lit by a gradient of dark colours (the ledger look), or with a dark colour laid over its picture (an overlay: the studio
+  // photo pages), new words are white, so they read on every colour of it (the engine's look-static inkOnLayers)
   if (['text', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'info-rows'].includes(type)) {
-    const stops = (Array.isArray(comp.elements) ? comp.elements as Json[] : []).filter((x) => x.type === 'gradient' && isObj(x.gradient)).flatMap((x) => ((x.gradient as Json).stops as string[] | undefined) ?? []);
+    const layers = (Array.isArray(comp.elements) ? comp.elements as Json[] : []);
+    const stops = [...layers.filter((x) => x.type === 'gradient' && isObj(x.gradient)).flatMap((x) => ((x.gradient as Json).stops as string[] | undefined) ?? []),
+      ...layers.filter((x) => x.type === 'overlay').map((x) => (typeof x.colour === 'string' ? x.colour : 'ink'))];
     if (stops.length && stops.every((s) => ['dark', 'field', 'field-deep', 'ink'].includes(s))) el.ink = 'white';
   }
   if (info.placement === 'required') {

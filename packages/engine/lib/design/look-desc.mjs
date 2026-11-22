@@ -26,7 +26,7 @@ export const EMPHASES = ['none', 'italic', 'accent', 'bar', 'tilt-bar', 'own-lin
 export const PARTS = ['all', 'pre', 'phrase', 'post'];
 export const FORMATS = ['date-dd.mm', 'day', 'month', 'not-date', 'pad2', 'roman'];
 export const SPLIT_SEPARATORS = ['·', '/', '|', '–'];
-export const SOURCES = ['brand', 'folio', 'index', 'site'];
+export const SOURCES = ['brand', 'folio', 'index', 'site', 'swipe'];
 // The fixed words a text may be: labels like the two panels of a myth and a fact page. Never free text.
 export const WORDS = ['Myth', 'Fact', 'Before', 'After', 'Yes', 'No'];
 // How a picture melts into the page: not at all, the page takes the colour of the picture's own plain edge (and the top edge fades), or only a fade.

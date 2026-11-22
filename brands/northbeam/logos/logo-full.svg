@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2063" height="338" viewBox="0 0 2063 338" role="img" aria-label="Northbeam">
+  <rect x="13.5" y="13.5" width="311" height="311" rx="33.8" fill="#F5C431"/>
+  <line x1="87.9" y1="250.1" x2="196" y2="142" stroke="#141414" stroke-width="43.940000000000005" stroke-linecap="round"/>
+  <circle cx="236.6" cy="101.4" r="27.2" fill="#141414"/>
+  <line x1="405" y1="229" x2="405" y2="111" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <path d="M405 170 A59 59 0 0 1 523 170" fill="none" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <line x1="523" y1="170" x2="523" y2="229" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <circle cx="648" cy="170" r="59" fill="none" stroke="#141414" stroke-width="42"/>
+  <line x1="773" y1="229" x2="773" y2="111" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <path d="M773 170 A59 59 0 0 1 852.2 114.6" fill="none" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <line x1="945.2" y1="229" x2="945.2" y2="44" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <line x1="908.6" y1="111" x2="989.5" y2="111" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <line x1="1055.5" y1="229" x2="1055.5" y2="35" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <path d="M1055.5 170 A59 59 0 0 1 1173.5 170" fill="none" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <line x1="1173.5" y1="170" x2="1173.5" y2="229" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <line x1="1239.5" y1="229" x2="1239.5" y2="35" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <circle cx="1298.5" cy="170" r="59" fill="none" stroke="#141414" stroke-width="42"/>
+  <line x1="1423.5" y1="170" x2="1541.5" y2="170" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <path d="M1526.3 209.5 A59 59 0 1 1 1541.5 170" fill="none" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <circle cx="1666.5" cy="170" r="59" fill="none" stroke="#141414" stroke-width="42"/>
+  <line x1="1725.5" y1="229" x2="1725.5" y2="111" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <line x1="1791.5" y1="229" x2="1791.5" y2="111" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <path d="M1791.5 157 A46.02 46.02 0 0 1 1883.5 157" fill="none" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <line x1="1883.5" y1="157" x2="1883.5" y2="229" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <path d="M1883.5 157 A46.02 46.02 0 0 1 1975.5 157" fill="none" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <line x1="1975.5" y1="157" x2="1975.5" y2="229" stroke="#141414" stroke-width="42" stroke-linecap="round"/>
+  <circle cx="2031.9" cy="225.9" r="24.2" fill="#CC2A1F"/>
+</svg>

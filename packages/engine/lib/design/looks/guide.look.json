@@ -1,0 +1,1707 @@
+{
+  "schema": 1,
+  "id": "guide",
+  "name": "Guide",
+  "description": "A city what's-on guide: a bright field in the brand colour, huge tight condensed capitals with a pill or an icon, a row of round pictures and a round arrow, the week as a label top right; event posters on full photos with a black title block and a two-colour info footer.",
+  "origin": "shipped",
+  "canvas": {
+    "feed": {
+      "margin": {
+        "top": 60,
+        "right": 60,
+        "bottom": 60,
+        "left": 60
+      },
+      "grid": {
+        "cols": 6,
+        "gutter": 24,
+        "rows": 0,
+        "head": 0
+      },
+      "extraLines": []
+    }
+  },
+  "fonts": {
+    "display": {
+      "source": "library",
+      "family": "Anton",
+      "weights": [
+        400
+      ]
+    },
+    "text": {
+      "source": "library",
+      "family": "Archivo",
+      "weights": [
+        500,
+        700
+      ]
+    },
+    "label": {
+      "source": "library",
+      "family": "Archivo",
+      "weights": [
+        800
+      ]
+    },
+    "mono": {
+      "source": "library",
+      "family": "Archivo",
+      "weights": [
+        500
+      ]
+    }
+  },
+  "type": {
+    "display": {
+      "lead": 0.98,
+      "track": 0,
+      "weight": 400,
+      "case": "upper",
+      "ladder": [
+        1,
+        0.9,
+        0.82
+      ],
+      "trim": "none",
+      "optical": false
+    },
+    "body": {
+      "size": 30,
+      "lead": 1.3,
+      "weight": 500,
+      "strength": 1
+    },
+    "item": {
+      "size": 44,
+      "lead": 1.1,
+      "weight": 700
+    },
+    "label": {
+      "size": 24,
+      "track": 0.06,
+      "weight": 800,
+      "upper": true,
+      "role": "label"
+    },
+    "numeral": {
+      "track": -0.02,
+      "figures": "lining"
+    }
+  },
+  "colour": {
+    "logic": "field",
+    "field": "primary",
+    "sticker": "accent",
+    "accentAsType": "never",
+    "grounds": [
+      "field",
+      "dark",
+      "paper"
+    ]
+  },
+  "devices": {
+    "rule": {
+      "hair": 2,
+      "heavy": 6
+    },
+    "frame": {
+      "t": 0,
+      "pad": 0
+    },
+    "highlight": {
+      "pad": [
+        0.04,
+        0.12,
+        0.02,
+        0.12
+      ],
+      "tilt": 0
+    },
+    "shadow": {
+      "x": 0,
+      "y": 0,
+      "colour": "ink"
+    },
+    "angles": {
+      "sticker": -8,
+      "bar": 0,
+      "block": 0,
+      "band": 0,
+      "card": 0,
+      "price": -6
+    },
+    "folio": "no",
+    "wordmark": {
+      "opacity": 0.05,
+      "sep": "dot"
+    }
+  },
+  "photo": {
+    "treat": [],
+    "tint": "primary"
+  },
+  "logo": {
+    "default": "top-left",
+    "height": 40
+  },
+  "dials": {
+    "tilt": 1,
+    "density": 0,
+    "weightShift": 0
+  },
+  "compositions": [
+    {
+      "kind": "statement",
+      "name": "Week cover",
+      "describe": "The weekly cover: a huge stack of black capitals on the brand field (one or two words may sit in a pill), a row of overlapping round pictures at the foot, a short line and a round arrow. For a short headline of up to 30 characters.",
+      "ground": "field",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.66
+      },
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 30
+        },
+        "sub": {
+          "max": 60
+        },
+        "cta": {
+          "max": 16
+        },
+        "gallery": {
+          "min": 2,
+          "max": 5
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "ink": "on-field",
+          "align": "right",
+          "nowrap": true,
+          "place": {
+            "anchor": {
+              "right": 60,
+              "top": 72
+            }
+          },
+          "when": {
+            "present": "label"
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 60,
+              "y": 140,
+              "w": 960,
+              "h": 880
+            }
+          },
+          "flow": "column",
+          "justify": "start",
+          "align": "start",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "w": 960,
+              "ink": "on-field",
+              "pills": {
+                "shape": "pill",
+                "fill": "ink",
+                "ink": "accent-dark"
+              },
+              "icons": {
+                "colour": "ink"
+              },
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    12,
+                    262
+                  ],
+                  [
+                    22,
+                    210
+                  ],
+                  [
+                    30,
+                    176
+                  ]
+                ],
+                "maxLines": 4,
+                "maxH": 880
+              }
+            }
+          ]
+        },
+        {
+          "type": "photo-row",
+          "place": {
+            "px": {
+              "x": 60,
+              "y": 1050,
+              "w": 560,
+              "h": 240
+            }
+          },
+          "size": 200,
+          "gap": 0,
+          "overlap": 44,
+          "ring": {
+            "w": 5,
+            "colour": "ink"
+          },
+          "align": "left",
+          "when": {
+            "present": "gallery"
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 716,
+              "y": 1050,
+              "w": 304,
+              "h": 240
+            }
+          },
+          "flow": "column",
+          "justify": "end",
+          "align": "end",
+          "gap": 24,
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "size": 30,
+              "ink": "on-field",
+              "align": "right",
+              "w": 304,
+              "when": {
+                "present": "sub"
+              }
+            },
+            {
+              "type": "button",
+              "field": "cta",
+              "shape": "pill",
+              "size": 24,
+              "icon": "arrow-right",
+              "fill": "ink",
+              "ink": "white",
+              "when": {
+                "present": "cta"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "statement",
+      "name": "Sticker line",
+      "describe": "A big line of black capitals on the brand field with an icon set into it as a sticker (write {{bowl}} or another icon), a short line under it, a row of round pictures and the web address at the foot. For a headline of up to 44 characters.",
+      "ground": "field",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.66
+      },
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 44
+        },
+        "sub": {
+          "max": 80
+        },
+        "cta": {
+          "max": 16
+        },
+        "gallery": {
+          "min": 2,
+          "max": 5
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "ink": "on-field",
+          "align": "right",
+          "nowrap": true,
+          "place": {
+            "anchor": {
+              "right": 60,
+              "top": 72
+            }
+          },
+          "when": {
+            "present": "label"
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 60,
+              "y": 150,
+              "w": 960,
+              "h": 820
+            }
+          },
+          "flow": "column",
+          "align": "start",
+          "gap": 28,
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "w": 960,
+              "ink": "on-field",
+              "icons": {
+                "colour": "ink"
+              },
+              "pills": {
+                "shape": "pill",
+                "fill": "ink",
+                "ink": "accent-dark"
+              },
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    24,
+                    189
+                  ],
+                  [
+                    34,
+                    163
+                  ],
+                  [
+                    44,
+                    138
+                  ]
+                ],
+                "maxLines": 5,
+                "maxH": 720
+              }
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "weight": 700,
+              "ink": "on-field",
+              "w": 760,
+              "when": {
+                "present": "sub"
+              }
+            }
+          ]
+        },
+        {
+          "type": "photo-row",
+          "place": {
+            "px": {
+              "x": 60,
+              "y": 1000,
+              "w": 960,
+              "h": 150
+            }
+          },
+          "size": 150,
+          "gap": 14,
+          "ring": {
+            "w": 4,
+            "colour": "ink"
+          },
+          "align": "left",
+          "when": {
+            "present": "gallery"
+          }
+        },
+        {
+          "type": "text",
+          "source": "site",
+          "style": "label",
+          "ink": "on-field",
+          "place": {
+            "anchor": {
+              "left": 60,
+              "bottom": 60
+            }
+          }
+        },
+        {
+          "type": "button",
+          "field": "cta",
+          "shape": "pill",
+          "size": 24,
+          "icon": "arrow-right",
+          "fill": "ink",
+          "ink": "white",
+          "when": {
+            "present": "cta"
+          },
+          "place": {
+            "anchor": {
+              "right": 60,
+              "bottom": 52
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "figure",
+      "name": "Big count",
+      "describe": "One figure as large as the width allows in black on the brand field, what it counts in condensed capitals under it and a short line in small capitals. For a count such as \"10 plans\" (up to 6 characters).",
+      "ground": "field",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.6
+      },
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "big": {
+          "required": true,
+          "max": 6
+        },
+        "unit": {
+          "max": 24
+        },
+        "sub": {
+          "max": 90
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "ink": "on-field",
+          "align": "right",
+          "nowrap": true,
+          "place": {
+            "anchor": {
+              "right": 60,
+              "top": 72
+            }
+          },
+          "when": {
+            "present": "label"
+          },
+          "size": 30
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 60,
+              "y": 170,
+              "w": 960,
+              "h": 1120
+            }
+          },
+          "flow": "column",
+          "justify": "end",
+          "align": "start",
+          "gap": 24,
+          "z": 2,
+          "children": [
+            {
+              "type": "fitted-stack",
+              "field": "big",
+              "mode": "lines",
+              "cap": 640,
+              "floor": 220,
+              "maxLines": 1,
+              "lead": 0.86,
+              "w": 960,
+              "h": 600
+            },
+            {
+              "type": "text",
+              "field": "unit",
+              "style": "display",
+              "size": 110,
+              "ink": "on-field",
+              "w": 960,
+              "when": {
+                "present": "unit"
+              }
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "weight": 700,
+              "ink": "on-field",
+              "w": 760,
+              "when": {
+                "present": "sub"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "list",
+      "name": "Plans list",
+      "describe": "A condensed headline on the brand field and the plans as rows on black hairlines, each with a black round number. For two to five short plans.",
+      "ground": "field",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.6
+      },
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 36
+        },
+        "items": {
+          "required": true,
+          "min": 2,
+          "max": 5
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "ink": "on-field",
+          "align": "right",
+          "nowrap": true,
+          "place": {
+            "anchor": {
+              "right": 60,
+              "top": 72
+            }
+          },
+          "when": {
+            "present": "label"
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 60,
+              "y": 160,
+              "w": 960,
+              "h": 1130
+            }
+          },
+          "flow": "column",
+          "justify": "between",
+          "align": "stretch",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "ink": "on-field",
+              "w": 960,
+              "pills": {
+                "shape": "pill",
+                "fill": "ink",
+                "ink": "accent-dark"
+              },
+              "icons": {
+                "colour": "ink"
+              },
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    12,
+                    198
+                  ],
+                  [
+                    20,
+                    163
+                  ],
+                  [
+                    28,
+                    138
+                  ],
+                  [
+                    36,
+                    112
+                  ]
+                ],
+                "maxLines": 3,
+                "maxH": 520
+              }
+            },
+            {
+              "type": "rows",
+              "each": "items",
+              "number": "1",
+              "numberStyle": "display",
+              "numberSize": 44,
+              "numberTile": {
+                "size": 76,
+                "fill": "ink",
+                "ink": "accent-dark",
+                "radius": "full"
+              },
+              "textStyle": "item",
+              "textSize": 44,
+              "rule": "hair",
+              "gap": 28,
+              "pad": [
+                0,
+                0,
+                0,
+                0
+              ],
+              "rowMinH": 108,
+              "ink": "on-field"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "quote",
+      "name": "Overheard",
+      "describe": "Something overheard, in big light capitals on the dark page under a brand-colour quotation mark, with the source in brand-colour small capitals. For a line of up to 120 characters.",
+      "ground": "dark",
+      "fit": "margins",
+      "calm": {
+        "maxShare": 0.66
+      },
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "quote": {
+          "required": true,
+          "max": 120
+        },
+        "by": {
+          "max": 40
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "ink": "muted-dark",
+          "align": "right",
+          "nowrap": true,
+          "place": {
+            "anchor": {
+              "right": 60,
+              "top": 72
+            }
+          },
+          "when": {
+            "present": "label"
+          }
+        },
+        {
+          "type": "glyph",
+          "glyph": "“",
+          "size": 360,
+          "colour": "accent-dark",
+          "place": {
+            "px": {
+              "x": 44,
+              "y": 120
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 60,
+              "y": 380,
+              "w": 960,
+              "h": 910
+            }
+          },
+          "flow": "column",
+          "justify": "start",
+          "align": "start",
+          "gap": 36,
+          "ink": "white",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "quote",
+              "style": "display",
+              "w": 960,
+              "ladder": {
+                "by": "quote",
+                "steps": [
+                  [
+                    50,
+                    120
+                  ],
+                  [
+                    80,
+                    103
+                  ],
+                  [
+                    120,
+                    86
+                  ]
+                ],
+                "maxLines": 7,
+                "maxH": 800
+              }
+            },
+            {
+              "type": "text",
+              "field": "by",
+              "style": "label",
+              "ink": "accent-dark",
+              "when": {
+                "present": "by"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "photo",
+      "name": "Talk of the week",
+      "describe": "A full photograph darkened at the foot, the headline in light condensed capitals over it (a word may sit in a brand-colour pill), a short line and an arrow; the week in a brand-colour chip top right. For a headline of up to 60 characters.",
+      "ground": "dark",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "image": {
+          "required": true
+        },
+        "headline": {
+          "required": true,
+          "max": 60
+        },
+        "sub": {
+          "max": 90
+        },
+        "cta": {
+          "max": 16
+        }
+      },
+      "elements": [
+        {
+          "type": "photo",
+          "place": {
+            "inset": "page"
+          },
+          "shape": "rect",
+          "z": 0
+        },
+        {
+          "type": "overlay",
+          "colour": "ink",
+          "from": "bottom",
+          "place": {
+            "anchor": {
+              "left": 0,
+              "right": 0,
+              "bottom": 0,
+              "h": 760
+            }
+          },
+          "need": 7,
+          "floor": 0.45,
+          "cap": 0.92,
+          "z": 1
+        },
+        {
+          "type": "overlay",
+          "colour": "ink",
+          "from": "top",
+          "place": {
+            "anchor": {
+              "left": 0,
+              "right": 0,
+              "top": 0,
+              "h": 320
+            }
+          },
+          "floor": 0.5,
+          "cap": 0.6,
+          "fade": 280,
+          "z": 1
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "right": 60,
+              "top": 60
+            }
+          },
+          "fill": "field",
+          "ink": "on-field",
+          "radius": "full",
+          "pad": [
+            12,
+            22,
+            12,
+            22
+          ],
+          "rot": -2,
+          "origin": "right",
+          "z": 3,
+          "when": {
+            "present": "label"
+          },
+          "children": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "nowrap": true
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": 60,
+              "right": 60,
+              "bottom": 60
+            }
+          },
+          "flow": "column",
+          "align": "start",
+          "gap": 24,
+          "ink": "white",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "w": 960,
+              "pills": {
+                "shape": "pill",
+                "fill": "field",
+                "ink": "on-field"
+              },
+              "icons": {
+                "colour": "field"
+              },
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    30,
+                    103
+                  ],
+                  [
+                    46,
+                    89
+                  ],
+                  [
+                    60,
+                    79
+                  ]
+                ],
+                "maxLines": 4,
+                "maxH": 420
+              }
+            },
+            {
+              "type": "box",
+              "flow": "row",
+              "justify": "between",
+              "align": "end",
+              "gap": 24,
+              "w": 960,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "ink": "white",
+                  "w": 640,
+                  "when": {
+                    "present": "sub"
+                  }
+                },
+                {
+                  "type": "button",
+                  "field": "cta",
+                  "shape": "pill",
+                  "size": 24,
+                  "icon": "arrow-right",
+                  "fill": "field",
+                  "ink": "on-field",
+                  "when": {
+                    "present": "cta"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "photo",
+      "name": "Now hiring",
+      "describe": "A darkened photograph with the headline in light condensed capitals, a word or two of it (written [[like this]]) on a brand-colour block, the roles or details as labelled rows and an apply button in the brand colour. For a job post: a headline of up to 36 characters and one to three info rows.",
+      "ground": "dark",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "image": {
+          "required": true
+        },
+        "headline": {
+          "required": true,
+          "max": 36
+        },
+        "cta": {
+          "max": 24
+        },
+        "info": {
+          "min": 1,
+          "max": 3
+        }
+      },
+      "elements": [
+        {
+          "type": "photo",
+          "place": {
+            "inset": "page"
+          },
+          "shape": "rect",
+          "treat": [
+            "grey"
+          ],
+          "z": 0
+        },
+        {
+          "type": "overlay",
+          "colour": "ink",
+          "from": "flat",
+          "place": {
+            "inset": "page"
+          },
+          "need": 7,
+          "floor": 0.4,
+          "cap": 0.9,
+          "z": 1
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "right": 60,
+              "top": 60
+            }
+          },
+          "fill": "field",
+          "ink": "on-field",
+          "radius": "full",
+          "pad": [
+            12,
+            22,
+            12,
+            22
+          ],
+          "rot": -2,
+          "origin": "right",
+          "z": 3,
+          "when": {
+            "present": "label"
+          },
+          "children": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "nowrap": true
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": 60,
+              "right": 60,
+              "bottom": 60
+            }
+          },
+          "flow": "column",
+          "align": "start",
+          "gap": 32,
+          "ink": "white",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "w": 960,
+              "pills": {
+                "shape": "soft",
+                "fill": "field",
+                "ink": "on-field"
+              },
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    18,
+                    146
+                  ],
+                  [
+                    28,
+                    120
+                  ],
+                  [
+                    36,
+                    103
+                  ]
+                ],
+                "maxLines": 3,
+                "maxH": 480
+              }
+            },
+            {
+              "type": "info-rows",
+              "layout": "beside",
+              "labelSpan": 1,
+              "valueStyle": "body",
+              "rule": "hair",
+              "gap": 16,
+              "labelInk": "accent-dark",
+              "w": 960,
+              "when": {
+                "present": "info"
+              }
+            },
+            {
+              "type": "button",
+              "field": "cta",
+              "shape": "pill",
+              "size": 24,
+              "icon": "arrow-right",
+              "fill": "field",
+              "ink": "on-field",
+              "when": {
+                "present": "cta"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "event",
+      "name": "Poster",
+      "describe": "An event poster: the photograph full page, the kind of event in small capitals, the title in light condensed capitals on a black block, a short line and a two-colour footer (When and Where on the light paper, the booking button in the brand colour). For a title of up to 24 characters.",
+      "ground": "dark",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "image": {
+          "required": true
+        },
+        "headline": {
+          "required": true,
+          "max": 24
+        },
+        "meta": {
+          "required": true,
+          "max": 30
+        },
+        "sub": {
+          "max": 90
+        },
+        "cta": {
+          "max": 18
+        },
+        "info": {
+          "min": 1,
+          "max": 2
+        }
+      },
+      "elements": [
+        {
+          "type": "photo",
+          "place": {
+            "inset": "page"
+          },
+          "shape": "rect",
+          "z": 0
+        },
+        {
+          "type": "overlay",
+          "colour": "ink",
+          "from": "bottom",
+          "place": {
+            "anchor": {
+              "left": 0,
+              "right": 0,
+              "bottom": 0,
+              "h": 900
+            }
+          },
+          "need": 7,
+          "floor": 0.4,
+          "cap": 0.92,
+          "z": 1
+        },
+        {
+          "type": "overlay",
+          "colour": "ink",
+          "from": "top",
+          "place": {
+            "anchor": {
+              "left": 0,
+              "right": 0,
+              "top": 0,
+              "h": 320
+            }
+          },
+          "floor": 0.5,
+          "cap": 0.6,
+          "fade": 280,
+          "z": 1
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "right": 60,
+              "top": 60
+            }
+          },
+          "fill": "field",
+          "ink": "on-field",
+          "radius": "full",
+          "pad": [
+            12,
+            22,
+            12,
+            22
+          ],
+          "rot": -2,
+          "origin": "right",
+          "z": 3,
+          "when": {
+            "present": "label"
+          },
+          "children": [
+            {
+              "type": "text",
+              "field": "label",
+              "style": "label",
+              "nowrap": true
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": 60,
+              "right": 60,
+              "bottom": 60
+            }
+          },
+          "flow": "column",
+          "align": "start",
+          "gap": 20,
+          "ink": "white",
+          "z": 2,
+          "children": [
+            {
+              "type": "box",
+              "fill": "field",
+              "ink": "on-field",
+              "pad": [
+                8,
+                14,
+                8,
+                14
+              ],
+              "nudgeX": -14,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "meta",
+                  "style": "label",
+                  "nowrap": true
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "fill": "ink",
+              "ink": "white",
+              "pad": [
+                18,
+                24,
+                20,
+                24
+              ],
+              "nudgeX": -24,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "w": 900,
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        12,
+                        146
+                      ],
+                      [
+                        18,
+                        129
+                      ],
+                      [
+                        24,
+                        112
+                      ]
+                    ],
+                    "maxLines": 2,
+                    "maxH": 300
+                  }
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "ink": "white",
+              "w": 820,
+              "when": {
+                "present": "sub"
+              }
+            },
+            {
+              "type": "box",
+              "flow": "row",
+              "align": "stretch",
+              "gap": 0,
+              "w": 960,
+              "before": 8,
+              "children": [
+                {
+                  "type": "box",
+                  "fill": "paper",
+                  "ink": "ink",
+                  "pad": [
+                    18,
+                    24,
+                    18,
+                    24
+                  ],
+                  "w": 520,
+                  "when": {
+                    "present": "info"
+                  },
+                  "children": [
+                    {
+                      "type": "info-rows",
+                      "layout": "beside",
+                      "labelSpan": 1,
+                      "valueStyle": "body",
+                      "maxLines": 2,
+                      "gap": 8,
+                      "w": 472
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "fill": "field",
+                  "ink": "on-field",
+                  "pad": [
+                    18,
+                    24,
+                    18,
+                    24
+                  ],
+                  "grow": 1,
+                  "justify": "center",
+                  "when": {
+                    "present": "cta"
+                  },
+                  "children": [
+                    {
+                      "type": "button",
+                      "field": "cta",
+                      "shape": "square",
+                      "size": 24,
+                      "icon": "arrow-up-right",
+                      "fill": "field",
+                      "ink": "on-field",
+                      "width": "full"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "event",
+      "name": "Listing",
+      "describe": "A listing on the brand field: the photograph in a rounded window at the top, the title in black condensed capitals, the date and place in small capitals and the details as labelled rows, with a round arrow. For a title of up to 36 characters.",
+      "ground": "field",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "image": {
+          "required": true
+        },
+        "headline": {
+          "required": true,
+          "max": 36
+        },
+        "meta": {
+          "required": true,
+          "max": 40
+        },
+        "cta": {
+          "max": 16
+        },
+        "info": {
+          "min": 1,
+          "max": 3
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "ink": "on-field",
+          "align": "right",
+          "nowrap": true,
+          "place": {
+            "anchor": {
+              "right": 60,
+              "top": 72
+            }
+          },
+          "when": {
+            "present": "label"
+          }
+        },
+        {
+          "type": "photo",
+          "place": {
+            "px": {
+              "x": 60,
+              "y": 140,
+              "w": 960,
+              "h": 560
+            }
+          },
+          "shape": "rounded",
+          "radius": 32,
+          "z": 1
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 60,
+              "y": 740,
+              "w": 960,
+              "h": 550
+            }
+          },
+          "flow": "column",
+          "align": "start",
+          "gap": 22,
+          "ink": "on-field",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "meta",
+              "style": "label"
+            },
+            {
+              "type": "text",
+              "field": "headline",
+              "style": "display",
+              "w": 960,
+              "ladder": {
+                "by": "headline",
+                "steps": [
+                  [
+                    16,
+                    129
+                  ],
+                  [
+                    26,
+                    107
+                  ],
+                  [
+                    36,
+                    93
+                  ]
+                ],
+                "maxLines": 2,
+                "maxH": 260
+              }
+            },
+            {
+              "type": "info-rows",
+              "layout": "beside",
+              "labelSpan": 1,
+              "valueStyle": "body",
+              "rule": "hair",
+              "gap": 12,
+              "w": 960,
+              "when": {
+                "present": "info"
+              }
+            }
+          ]
+        },
+        {
+          "type": "button",
+          "field": "cta",
+          "shape": "pill",
+          "size": 24,
+          "icon": "arrow-right",
+          "fill": "ink",
+          "ink": "white",
+          "when": {
+            "present": "cta"
+          },
+          "place": {
+            "anchor": {
+              "right": 60,
+              "bottom": 60
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "offer",
+      "name": "Tickets",
+      "describe": "Tickets on the brand field: the headline in black condensed capitals, the photograph as a rounded card, the price in a turned black sticker over its corner, a short line and a booking button. For a headline of up to 36 characters and a price of up to 8.",
+      "ground": "field",
+      "fit": "margins",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "image": {
+          "required": true
+        },
+        "headline": {
+          "required": true,
+          "max": 36
+        },
+        "tag": {
+          "required": true,
+          "max": 8
+        },
+        "sub": {
+          "max": 80
+        },
+        "cta": {
+          "max": 20
+        }
+      },
+      "elements": [
+        {
+          "type": "text",
+          "field": "label",
+          "style": "label",
+          "ink": "on-field",
+          "align": "right",
+          "nowrap": true,
+          "place": {
+            "anchor": {
+              "right": 60,
+              "top": 72
+            }
+          },
+          "when": {
+            "present": "label"
+          },
+          "size": 30
+        },
+        {
+          "type": "text",
+          "field": "headline",
+          "style": "display",
+          "ink": "on-field",
+          "place": {
+            "px": {
+              "x": 60,
+              "y": 150,
+              "w": 960,
+              "h": 330
+            }
+          },
+          "pills": {
+            "shape": "pill",
+            "fill": "ink",
+            "ink": "accent-dark"
+          },
+          "ladder": {
+            "by": "headline",
+            "steps": [
+              [
+                16,
+                138
+              ],
+              [
+                26,
+                117
+              ],
+              [
+                36,
+                100
+              ]
+            ],
+            "maxLines": 2,
+            "maxH": 330
+          }
+        },
+        {
+          "type": "photo",
+          "place": {
+            "px": {
+              "x": 60,
+              "y": 520,
+              "w": 960,
+              "h": 560
+            }
+          },
+          "shape": "rounded",
+          "radius": 32,
+          "z": 1
+        },
+        {
+          "type": "sticker",
+          "shape": "circle",
+          "size": 240,
+          "place": {
+            "px": {
+              "x": 780,
+              "y": 440
+            }
+          },
+          "rot": "sticker",
+          "fill": "ink",
+          "ink": "accent-dark",
+          "field": "tag",
+          "z": 3,
+          "fit": {
+            "cap": 110,
+            "floor": 56,
+            "w": 180,
+            "h": 120,
+            "maxLines": 1
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 60,
+              "y": 1110,
+              "w": 960,
+              "h": 180
+            }
+          },
+          "flow": "row",
+          "justify": "between",
+          "align": "end",
+          "gap": 24,
+          "ink": "on-field",
+          "z": 2,
+          "children": [
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "weight": 700,
+              "w": 600,
+              "when": {
+                "present": "sub"
+              }
+            },
+            {
+              "type": "button",
+              "field": "cta",
+              "shape": "pill",
+              "size": 30,
+              "icon": "arrow-right",
+              "fill": "ink",
+              "ink": "white",
+              "when": {
+                "present": "cta"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

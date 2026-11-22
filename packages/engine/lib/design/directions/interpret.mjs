@@ -68,6 +68,7 @@ export function renderComposition(look, comp, c) {
     if (el.source === 'site') return { html: c.site, role: 'label' };
     if (el.source === 'brand') return { html: c.brand, role: SOURCE_ROLE.brand };
     if (el.source === 'folio') return { html: c.folioText(), role: 'folio' };
+    if (el.source === 'swipe') return { html: c.swipe(), role: 'label' };
     if (el.source === 'index') return { html: c.m``, role: 'label' };
     const f = el.field, role = ROLE_OF[f] ?? 'sub';
     if (el.split) {

@@ -26,6 +26,8 @@ export const ICONS = Object.freeze({
   // a padlock with a keyhole, and a shield with a tick (trust and security posts): the hole and the tick are cut out by the even-odd fill
   lock: { label: 'Padlock', d: 'M7 10V7a5 5 0 0 1 10 0v3h2v12H5V10zm2 0h6V7a3 3 0 0 0-6 0zm2 4v4h2v-4z' },
   shield: { label: 'Shield', d: 'M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5zm-1.2 13.6-3.5-3.5 1.4-1.4 2.1 2.1 4.9-4.9 1.4 1.4z' },
+  // a bowl of rice with chopsticks (the sticker of a food post): the shapes never overlap, so the even-odd fill leaves no hole
+  bowl: { label: 'Bowl of rice', d: 'M5 9.5a7 3.5 0 0 1 14 0zM3 10.5h18a9 8.5 0 0 1-18 0zM9 19.4h6V21H9zM15.6 4.4 21.6.4l.8 1.2-6 4zM17.2 5.6 22.9 2.2l.7 1.2-5.7 3.4z' },
 });
 export const ICON_NAMES = Object.freeze(Object.keys(ICONS));
 // What a path may hold: SVG path commands and numbers only (test-design-look-parts.mjs holds every entry to it).

@@ -1,0 +1,265 @@
+{
+  "name": "saltandember-example-posts",
+  "timezone": "Europe/Dublin",
+  "defaultTime": "09:00",
+  "mediaRoot": "media/saltandember-example-posts",
+  "posts": [
+    {
+      "id": "01-cooked-over-wood-served-after-dark",
+      "date": "2026-12-07",
+      "title": "Cooked over wood, served after dark",
+      "caption": "Cooked over wood, served after dark.\n\nEvery cut meets the fire slowly. Tables from six, every evening.\n\nhttps://saltandember.example\n\n#SaltAndEmber #Cindervale #CookedOverFire",
+      "media": [
+        "01-cooked-over-wood-served-after-dark-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "statement",
+        "variant": 0,
+        "label": "From the fire",
+        "headline": "Cooked over wood, *served after dark.*",
+        "sub": "Every cut meets the fire slowly. Tables from six, every evening."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "02-salt-smoke-and-time",
+      "date": "2026-12-08",
+      "title": "Salt, smoke and time",
+      "caption": "Salt, smoke and time.\n\nThree things we never rush. The rest is the work of the fire.\n\nhttps://saltandember.example\n\n#SaltAndEmber #Cindervale #CookedOverFire",
+      "media": [
+        "02-salt-smoke-and-time-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "statement",
+        "variant": 1,
+        "label": "The kitchen",
+        "headline": "Salt, smoke and *time.*",
+        "sub": "Three things we never rush. The rest is the work of the fire."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "03-12-hour-smoke",
+      "date": "2026-12-09",
+      "title": "12 hour smoke",
+      "caption": "12 hour smoke\n\nOur brisket goes over oak at dawn and comes off the fire just before service.\n\nhttps://saltandember.example\n\n#SaltAndEmber #Cindervale #CookedOverFire",
+      "media": [
+        "03-12-hour-smoke-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "figure",
+        "variant": 0,
+        "label": "Brisket",
+        "big": "12",
+        "unit": "hour smoke",
+        "sub": "Our brisket goes over oak at dawn and comes off the fire just before service."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "04-from-the-grill",
+      "date": "2026-12-10",
+      "title": "From the grill",
+      "caption": "From the grill\n\nBread and cultured butter to start, on the house.\n\nPrices are illustrative, for a fictional brand.\n\nhttps://saltandember.example\n\n#SaltAndEmber #Cindervale #CookedOverFire",
+      "media": [
+        "04-from-the-grill-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "list",
+        "variant": 0,
+        "label": "This week",
+        "headline": "From the *grill*",
+        "items": [
+          "Bone marrow, sourdough · €14",
+          "Flat iron steak · €28",
+          "Charred leeks, hazelnut · €12",
+          "Ember-baked potato · €8"
+        ],
+        "sub": "Bread and cultured butter to start, on the house."
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "05-fire-is-the-oldest-cook-in-the-room-our",
+      "date": "2026-12-11",
+      "title": "Fire is the oldest cook in the room. Our job is to listen to",
+      "caption": "Fire is the oldest cook in the room. Our job is to listen to it and never hurry the meat.\n\nTomas Reyne, head chef (an invented quote for a fictional brand).\n\nhttps://saltandember.example\n\n#SaltAndEmber #Cindervale #CookedOverFire",
+      "media": [
+        "05-fire-is-the-oldest-cook-in-the-room-our-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "quote",
+        "variant": 0,
+        "label": "The kitchen",
+        "quote": "Fire is the oldest cook in the room. Our job is to *listen to it* and never hurry the meat.",
+        "by": "Tomas Reyne, head chef"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "06-oak-ember-and-patience",
+      "date": "2026-12-12",
+      "title": "Oak, ember and patience",
+      "caption": "Oak, ember and patience\n\nThe grill is lit at dawn and the coals are ready by the first table.\n\nhttps://saltandember.example\n\n#SaltAndEmber #Cindervale #CookedOverFire",
+      "media": [
+        "06-oak-ember-and-patience-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "photo",
+        "variant": 0,
+        "label": "From the fire",
+        "headline": "Oak, ember and *patience*",
+        "sub": "The grill is lit at dawn and the coals are ready by the first table.",
+        "image": "design/assets/photos/scout-embers-and-flames-close.jpg"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "07-mushrooms-and-peppers-charred",
+      "date": "2026-12-13",
+      "title": "Mushrooms and peppers, charred",
+      "caption": "Mushrooms and peppers, charred\n\nhttps://saltandember.example\n\n#SaltAndEmber #Cindervale #CookedOverFire",
+      "media": [
+        "07-mushrooms-and-peppers-charred-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "photo",
+        "variant": 1,
+        "label": "On the grill",
+        "headline": "Mushrooms and peppers, *charred*",
+        "image": "design/assets/photos/scout-grilled-vegetables-over-charcoal.jpg"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "08-a-fire-cooked-tasting-menu",
+      "date": "2026-12-14",
+      "title": "A fire-cooked tasting menu",
+      "caption": "A fire-cooked tasting menu\n\nhttps://saltandember.example\n\n#SaltAndEmber #Cindervale #CookedOverFire",
+      "media": [
+        "08-a-fire-cooked-tasting-menu-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "event",
+        "variant": 0,
+        "label": "Book a table",
+        "headline": "A *fire-cooked* tasting menu",
+        "meta": "Fridays in December",
+        "info": [
+          {
+            "key": "When",
+            "value": "Fridays in December, 19:30"
+          },
+          {
+            "key": "Where",
+            "value": "Salt & Ember, Cindervale"
+          },
+          {
+            "key": "Book on",
+            "value": "saltandember.example"
+          }
+        ],
+        "cta": "Reserve a table",
+        "image": "design/assets/photos/scout-steaks-on-grill-over-coals.jpg"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "09-a-long-table-by-the-fire",
+      "date": "2026-12-15",
+      "title": "A long table by the fire",
+      "caption": "A long table by the fire\n\nPrices are illustrative, for a fictional brand.\n\nhttps://saltandember.example\n\n#SaltAndEmber #Cindervale #CookedOverFire",
+      "media": [
+        "09-a-long-table-by-the-fire-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "event",
+        "variant": 1,
+        "label": "Supper club",
+        "headline": "A long table *by the fire*",
+        "meta": "18 Dec · 19:00 · Cindervale",
+        "info": [
+          {
+            "key": "Where",
+            "value": "The back room, Salt & Ember"
+          },
+          {
+            "key": "Price",
+            "value": "€60 a guest, wine extra"
+          }
+        ],
+        "cta": "Book a seat"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    },
+    {
+      "id": "10-rib-eye-from-the-grill-with-frites",
+      "date": "2026-12-16",
+      "title": "Rib eye from the grill, with frites",
+      "caption": "Rib eye from the grill, with frites\n\nPrices are illustrative, for a fictional brand.\n\nhttps://saltandember.example\n\n#SaltAndEmber #Cindervale #CookedOverFire",
+      "media": [
+        "10-rib-eye-from-the-grill-with-frites-feed.jpg"
+      ],
+      "design": {
+        "template": "post",
+        "kind": "offer",
+        "variant": 0,
+        "label": "Tonight's special",
+        "headline": "Rib eye from the grill, *with frites*",
+        "tag": "€32",
+        "cta": "Reserve tonight",
+        "image": "design/assets/photos/scout-grilled-steak-vegetables-plate.jpg"
+      },
+      "networks": {
+        "instagram": {
+          "type": "post"
+        }
+      }
+    }
+  ]
+}
