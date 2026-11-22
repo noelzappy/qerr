@@ -8,7 +8,7 @@ stylesheet are gone: everything is Tailwind utilities, the theme tokens and the 
 | Path | What |
 | --- | --- |
 | `src/components/ui/*` | shadcn components (button, input, textarea, label, select, checkbox, switch, dialog, alert-dialog, sheet, drawer, table, badge, card, tabs, dropdown-menu, sonner, alert, skeleton, tooltip, popover). Owned by us: edit freely. |
-| `src/components/kit/` | The one shared kit, imported from `@/components/kit`: `TextField`, `FormField`, `Notice`, `FormPanel` (see below), `PageHeader`, `DataList`, field wrappers, states (`RowsSkeleton`, `EmptyBlock`, `ErrorBlock`, `LoadingBlock`, `Pager`, `BusyButton`), `ConfirmAction`, badges. Add new shared composites here. `src/components/*.tsx` holds the domain pieces (activity parts, network icon, post row). Shared hooks that are not data loading are in `src/hooks/` (`use-media-query.ts`); the data hooks are in `src/hooks.ts`. |
+| `src/components/kit/` | The one shared kit, imported from `@/components/kit`: `TextField`, `FormField`, `Notice`, `FormPanel` (see below), `PageHeader`, `DataList`, field wrappers, states (`RowsSkeleton`, `EmptyBlock`, `ErrorBlock`, `LoadingBlock`, `Pager`, `BusyButton`), `ConfirmAction`, badges, `PresetNumber` (named presets in a segmented row, each with an optional picture of its value, and "Custom…" for the exact number with its range and step; it shows which preset a value is or Custom, and never snaps a value). Add new shared composites here. `src/components/*.tsx` holds the domain pieces (activity parts, network icon, post row). Shared hooks that are not data loading are in `src/hooks/` (`use-media-query.ts`); the data hooks are in `src/hooks.ts`. |
 | `src/index.css` | Tailwind import, fonts, theme tokens (light and dark). |
 | `src/lib/utils.ts` | `cn()` for class names. |
 | `src/lib/theme.ts` | `initTheme()`, `setTheme('light' \| 'dark' \| 'system')`, `useTheme()`. |
@@ -181,7 +181,7 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
 - Brand and look has eight sections at `/settings/brand/<identity|logos|colours|type|surfaces|post-types|voice|advanced>`
   (`#logos` still opens the Logos section; `/settings/brand/direction` and `#direction` go to Looks). Uploads and Advanced save the moment
   they are done; everything else waits for Save. The old Design direction tab is gone: choosing a look is **Settings, Looks**. Colours has
-  **Contrast for large headlines** (Standard 4.5, High 7, or Custom 3 to 7, with a note below 4.5; `brand/contrast-display.tsx`). "Series" is
+  **Contrast for large headlines** (Standard 4.5, High 7, or Custom 3 to 7, with a note below 4.5; `brand/contrast-display.tsx`, drawn by the kit's `PresetNumber`). "Series" is
   called "Post types". "Other currencies to flag" is a list of words; a stored pattern that the list cannot show is edited under Advanced.
 - **Looks** (`pages/settings/looks/`): `/settings/looks` (tabs Looks and Inspiration at `/settings/looks/inspiration`; the design references
   moved there from their own menu entry, `/settings/references` redirects), `/settings/looks/:slug` and `/settings/looks/:slug/designs/:id`
