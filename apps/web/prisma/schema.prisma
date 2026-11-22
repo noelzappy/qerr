@@ -331,9 +331,15 @@ model Post {
   updatedAt    DateTime   @default(now()) @updatedAt
   deliveries   Delivery[]
   activityRuns ActivityRun[]
+  // The brand's named series this post belongs to, and its number in it ("Tip #12" is the design's own label; these only link it).
+  // Deleting a series keeps its posts and their words.
+  seriesId     String?
+  series       BrandSeries? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  seriesNumber Int?
 
   @@unique([batchId, postKey])
   @@index([batchId])
+  @@index([seriesId])
   @@map("posts")
 }
 
@@ -542,4 +548,43 @@ model BrandLookComposition {
   @@unique([lookId, kind, position])
   @@index([brandId])
   @@map("brand_look_compositions")
+}
+
+// A named recurring series of the brand (Settings, Looks, Series): a kind of post drawn by chosen designs of the active look, with an
+// optional mark ("Tip #{n}") written into the post's label or tag, at a cadence. Checked by the engine's seriesProblems
+// (packages/engine/lib/design/series.mjs) before it is stored. The next number is worked out from the posts, never stored.
+model BrandSeries {
+  id          String   @id @default(uuid())
+  brandId     String   @default("brand")
+  // lowercase letters, digits and -; what a batch post names in series.slug
+  slug        String
+  name        String
+  // a post kind: statement, figure, list, quote, photo, event, offer
+  kind        String
+  // composition numbers of the kind in the look lookRef names; empty: any design of the kind
+  variants    Int[]
+  // the look the designs were chosen in ('shipped:<id>' | 'own:<slug>'); when another look is in use, variants are not used
+  lookRef     String?
+  // the mark, with {n} or {nn} for the number; null: none
+  mark        String?
+  // 'label' | 'tag'
+  markField   String   @default("label")
+  // 'weekly' | 'fortnightly' | 'monthly'
+  cadence     String
+  // 0 Monday to 6 Sunday; null: from the first day of the period
+  weekday     Int?
+  // the number the first post gets (for a series that ran before)
+  firstNumber Int      @default(1)
+  // only enabled series are planned into AI drafts
+  enabled     Boolean  @default(true)
+  position    Int      @default(0)
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+  posts       Post[]
+
+  @@unique([brandId, slug])
+  @@index([brandId, position])
+  @@map("brand_series")
 }

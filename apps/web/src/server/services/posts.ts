@@ -9,7 +9,9 @@ import type { Deps } from '../deps.js';
 import { HttpError } from '../http.js';
 import { enqueueTracked } from './activity.js';
 import { approvalReport, type PostWithBatch } from './approval.js';
-import { designSchema, missingSources, renderTitle, networksSchema, problemsOf, type StagedPost } from './batches.js';
+import { designSchema, missingSources, renderTitle, networksSchema, problemsOf, seriesRefInput, type StagedPost } from './batches.js';
+import { brandScope } from './looks.js';
+import { seriesFor } from './series.js';
 import { DESIGN_WARNING_PREFIX } from './render.js';
 import { privateKey } from '../storage/types.js';
 import { asMedia, joinNetworks, MEDIA_TYPES, POST_KEY_RE, safeFileName, sniffMedia, splitNetworks, type MediaEntry, type NetworkOverride } from './post-model.js';
@@ -24,6 +26,8 @@ export const patchPostInput = z.strictObject({
   networks: networksSchema.optional(),
   design: designSchema.nullable().optional(),
   sources: z.array(z.string().min(1).max(64)).max(50).optional(),
+  // the brand's named series the post belongs to and its number in it; null takes it out (its words stay)
+  series: seriesRefInput.nullable().optional(),
 });
 
 const MAX_MEDIA_PER_POST = 20;
@@ -69,13 +73,16 @@ export async function patchPost(deps: Deps, actor: Actor, id: string, input: z.i
     for (const rel of o.media ?? []) if (!media.some((m) => m.rel === rel)) errors.push(`${n}: media "${rel}" is not one of this post's files`);
   }
   if (input.sources) for (const s of await missingSources(deps, input.sources)) errors.push(`source ${s} is not in the vault`);
+  if (input.series) await seriesFor(deps).forPost(brandScope(), input.series.id).catch(() => { errors.push('The series is not one of the brand\'s series'); });
   if (errors.length) throw new HttpError(422, 'The post is not valid', [...new Set(errors)]);
+  // The series is a link for the team (what the reader sees is the design's own label): it changes neither content nor approval.
+  const seriesChanged = input.series !== undefined && ((input.series?.id ?? null) !== post.seriesId || (input.series?.number ?? null) !== post.seriesNumber);
 
   const changedFields = (['title', 'caption', 'date', 'time', 'networks', 'design', 'sources'] as const).filter((k) => {
     if (input[k] === undefined) return false;
     return !sameJson(next[k], k === 'networks' ? post.networks : k === 'design' ? post.design : post[k]);
   });
-  if (!changedFields.length) return post;
+  if (!changedFields.length && !seriesChanged) return post;
   const designChanged = changedFields.includes('design');
   // The title is a label for the team; everything else changes what is published or where.
   const contentChanged = changedFields.some((f) => f !== 'title');
@@ -87,6 +94,7 @@ export async function patchPost(deps: Deps, actor: Actor, id: string, input: z.i
   if (changedFields.includes('time')) data.time = next.time;
   if (changedFields.includes('networks')) data.networks = next.networks as Prisma.InputJsonValue;
   if (changedFields.includes('sources')) data.sources = next.sources;
+  if (seriesChanged) Object.assign(data, input.series ? { series: { connect: { id: input.series.id } }, seriesNumber: input.series.number } : { series: { disconnect: true }, seriesNumber: null });
   let droppedRenders: MediaEntry[] = [];
   if (designChanged) {
     if (next.design) {
@@ -107,7 +115,7 @@ export async function patchPost(deps: Deps, actor: Actor, id: string, input: z.i
 
   const updated = await deps.prisma.post.update({ where: { id }, data });
   await Promise.all(droppedRenders.map((m) => deps.storage.deleteObject(m.key).catch(() => undefined)));
-  await audit(deps, actor, 'post.update', 'post', id, { postKey: post.postKey, fields: changedFields });
+  await audit(deps, actor, 'post.update', 'post', id, { postKey: post.postKey, fields: seriesChanged ? [...changedFields, 'series'] : changedFields });
   if (wasApproved && contentChanged) await dropApproval(deps, actor, post, `Edited: ${changedFields.join(', ')}`);
   if (designChanged && next.design) await enqueueTracked(deps, 'render-post', { postId: id }, { singletonKey: id }, { title: renderTitle(post.title), actorId: actor.id, batchId: post.batchId, postId: id });
   return (await deps.prisma.post.findUnique({ where: { id } })) ?? updated;

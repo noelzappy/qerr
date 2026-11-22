@@ -22,6 +22,7 @@ import { designPreviewRoutes } from './routes/design-preview.js';
 import { postKindsRoutes } from './routes/post-kinds.js';
 import { layoutRoutes } from './routes/layouts.js';
 import { lookRoutes, looksBriefRoute } from './routes/looks.js';
+import { seriesReadRoutes, seriesSettingsRoutes } from './routes/series.js';
 import { layoutBriefs } from './services/layouts.js';
 import { localStorageRoutes } from './routes/local-storage.js';
 import { reviewRoutes } from './routes/review.js';
@@ -153,6 +154,8 @@ export function createAppAndDeps(input: AppDeps | Deps, options: { webDir?: stri
   app.route('/api/settings/layouts', layoutRoutes(deps));
   app.route('/api/settings/looks', lookRoutes(deps));
   app.route('/api/looks', looksBriefRoute(deps));
+  app.route('/api/settings/series', seriesSettingsRoutes(deps));
+  app.route('/api/series', seriesReadRoutes(deps));
   app.route('/api/overview', overviewRoutes(deps));
   app.route('/api/settings', aiSettingsRoutes(deps));
   app.route('/api/vault', vaultRoutes(deps));

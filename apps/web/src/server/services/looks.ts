@@ -91,7 +91,7 @@ export async function fontFamilies(): Promise<FontFamilyInfo[]> {
 
 export const SLUG = /^[a-z0-9][a-z0-9-]{0,39}$/;
 // Addresses of the panel's Looks pages (/settings/looks/<slug>) that a look must not take.
-export const RESERVED_SLUGS = ['inspiration'];
+export const RESERVED_SLUGS = ['inspiration', 'series'];
 export interface LookRef { source: 'shipped' | 'own'; id: string }
 // 'shipped:retail' or 'own:my-look'. Anything else, an id with a ':' included, is not a reference.
 export function parseRef(ref: unknown): LookRef | null {
