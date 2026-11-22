@@ -214,7 +214,7 @@ existing pack moves into the app through Settings, Brand and look, Advanced, "Im
 
 | File | Needed | What it is |
 | --- | --- | --- |
-| `brand.json` | yes | Name, website, tagline, descriptor, colours (grounds, text, accents, gradient, surfaces), shadows, radii, window and phone chrome, fonts, logo paths, series, spelling rules, length guidance, contrast targets and photo thresholds. Optional `timezone` and `money`. Every value is checked on load; a wrong one stops with the full list. See "The brand file" in [docs/design.md](docs/design.md). |
+| `brand.json` | yes | Name, website, tagline, descriptor, colours (grounds, text, accents, gradient, surfaces), shadows, radii, window and phone chrome, fonts, logo paths, series, spelling rules, length guidance, contrast targets and photo thresholds. Optional `timezone`, `money` and `emoji` (true lets post images carry up to three standard emoji per text). Every value is checked on load; a wrong one stops with the full list. See "The brand file" in [docs/design.md](docs/design.md). |
 | `logos/logo-full.png`, `logos/logo-mark.png` | yes | The full colour logo (the mark, then the wordmark) and the mark alone, transparent PNGs. `brand.json` names them by paths relative to the repository root, for example `brands/demo/logos/logo-full.png`. |
 | `vault.json` | no | The first vault: facts, figures and research topics the app imports once, into an empty database (see [apps/web/README.md](apps/web/README.md)). |
 | `map.json` | no | A dot map for the `closing` template's `map: true`: a grid, regions of cells and the regions to light. |
@@ -451,7 +451,9 @@ The engine tests, in `packages/engine/`:
 - `test-brand-tallyho.mjs`: the Tallyho pack loads, its spelling rules hold, its example batch passes the post checks in the
   loud look, and its vault holds round, invented figures. `test-design-look-loud.mjs`: the loud look (pure, and with Chrome
   every composition through every check). `test-design-look-paste.mjs`: the taped picture, paper texture, icon badges, bold
-  emphasis and badged icons, with hostile values.
+  emphasis and badged icons, with hostile values. `test-design-look-type.mjs`: swashes (validation, hostile values, the
+  collision check, and with Chrome bloom's Moon and four sizes of type on its Price card). `test-design-emoji.mjs`: emoji
+  off by default, at most three real ones when the brand turns them on, the bundled emoji font, and a render in Chrome.
 - `test-brand-northbeam.mjs`: the Northbeam pack loads, its colours carry the studio look, its spelling rules hold, and
   its example batch passes the post checks of the studio look.
 - `test-brand-outabout.mjs`: the Outabout pack loads in its copy of the guide look, its spelling rules hold, and its example
