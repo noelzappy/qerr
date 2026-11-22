@@ -3,7 +3,8 @@
 // is not chosen is not written, so the layout decides. The server and the preview stay the authority on what is valid; a value the
 // form cannot show (a focal point set per size, say) is left as it is and named as something for Advanced.
 import { useEffect, useId, useState } from 'react';
-import { SelectField, TextField } from '@/components/kit';
+import { ChevronRight } from 'lucide-react';
+import { Hint, SelectField, TextField } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
@@ -41,10 +42,9 @@ export function FocalPicker({ value, onChange, disabled }: { value: unknown; onC
   const cells = [0, 50, 100];
   return (
     <div className="flex min-w-0 flex-col gap-2" role="group" aria-labelledby={`${id}-l`}>
-      <span id={`${id}-l`} className="text-sm font-medium">Picture position</span>
-      <p className="text-[13px] text-muted-foreground">Which part of the picture stays in view when it is cropped.</p>
+      <span className="flex items-center gap-1"><span id={`${id}-l`} className="text-[13px] font-medium">Picture position</span><Hint about="Picture position">Which part of the picture stays in view when it is cropped.</Hint></span>
       <div className="flex flex-wrap items-start gap-4">
-        <div className="grid size-24 shrink-0 grid-cols-3 gap-1 max-sm:size-32">
+        <div className="grid size-20 shrink-0 grid-cols-3 gap-1 max-sm:size-32">
           {cells.flatMap((cy) => cells.map((cx) => {
             const on = set && Math.round(x) === cx && Math.round(y) === cy;
             const names = ['top', 'middle', 'bottom'];
@@ -56,10 +56,10 @@ export function FocalPicker({ value, onChange, disabled }: { value: unknown; onC
             );
           }))}
         </div>
-        <div className="flex min-w-40 flex-1 flex-col gap-2">
-          <Label htmlFor={`${id}-x`} className="font-normal">Across: {Math.round(x)}%</Label>
+        <div className="flex min-w-40 flex-1 flex-col gap-1.5">
+          <Label htmlFor={`${id}-x`} className="text-[12.5px] font-normal text-muted-foreground">Across: {Math.round(x)}%</Label>
           <input id={`${id}-x`} type="range" min={0} max={100} step={1} value={x} disabled={disabled} className="w-full max-sm:h-8" onChange={(e) => onChange(focalText(Number(e.target.value), y))} />
-          <Label htmlFor={`${id}-y`} className="font-normal">Down: {Math.round(y)}%</Label>
+          <Label htmlFor={`${id}-y`} className="text-[12.5px] font-normal text-muted-foreground">Down: {Math.round(y)}%</Label>
           <input id={`${id}-y`} type="range" min={0} max={100} step={1} value={y} disabled={disabled} className="w-full max-sm:h-8" onChange={(e) => onChange(focalText(x, Number(e.target.value)))} />
         </div>
       </div>
@@ -72,10 +72,12 @@ export function ZoomField({ value, onChange, disabled }: { value: unknown; onCha
   const id = useId();
   const n = typeof value === 'number' && Number.isFinite(value) ? value : 1;
   return (
-    <div className="flex min-w-0 flex-col gap-2">
-      <Label htmlFor={id}>Zoom: {n.toFixed(1)}x{value === undefined && <span className="font-normal text-muted-foreground"> (as the layout has it)</span>}</Label>
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <span className="flex items-center gap-1">
+        <Label htmlFor={id} className="text-[13px]">Zoom: {n.toFixed(1)}x{value === undefined && <span className="font-normal text-muted-foreground"> (as the layout has it)</span>}</Label>
+        <Hint about="Zoom">1 shows the whole crop. Up to 3 moves in on the picture position. A picture enlarged too far is refused when the image is made.</Hint>
+      </span>
       <input id={id} type="range" min={1} max={3} step={0.1} value={n} disabled={disabled} className="w-full max-sm:h-8" onChange={(e) => { const v = Math.round(Number(e.target.value) * 10) / 10; onChange(v <= 1 ? undefined : v); }} />
-      <p className="text-[13px] text-muted-foreground">1 shows the whole crop. Up to 3 moves in on the picture position. A picture enlarged too far is refused when the image is made.</p>
     </div>
   );
 }
@@ -105,9 +107,13 @@ export function ImageOptions({ design, onChange, brandLayouts, disabled }: { des
   const known = (list: { value: string }[], v: unknown) => (typeof v === 'string' && v && !list.some((o) => o.value === v) ? [{ value: v, label: v }] : []);
 
   return (
-    <details className="rounded-md border px-3 py-2" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
-      <summary className="cursor-pointer rounded-sm text-sm font-medium outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-9">Image options</summary>
-      <div className="mt-3 flex min-w-0 flex-col gap-4">
+    <details className="group border-t pt-3" open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary className="flex w-fit cursor-pointer list-none items-center gap-1 rounded-sm text-[13px] font-medium outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-11 [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="size-4 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden="true" />Image options
+        {/* A click on the info icon must not open or close the section. */}
+        <span onClick={(e) => e.preventDefault()}><Hint about="Image options">Anything not set here is left to the layout. Other settings, such as the headline size or where text and pictures start, are in Advanced.</Hint></span>
+      </summary>
+      <div className="mt-3 flex min-w-0 flex-col gap-3">
         {s.focal && <FocalPicker value={d.focal} disabled={disabled} onChange={(v) => setField('focal', v)} />}
         {s.zoom && <ZoomField value={d.zoom} disabled={disabled} onChange={(v) => setField('zoom', v)} />}
         {(s.frame || s.photo || s.screen || s.glow) && (
@@ -141,7 +147,6 @@ export function ImageOptions({ design, onChange, brandLayouts, disabled }: { des
             {s.screen && phone && bool('fade')}
           </div>
         )}
-        <p className="text-[13px] text-muted-foreground">Anything not set here is left to the layout. Other settings, such as the headline size or where text and pictures start, are in Advanced.</p>
       </div>
     </details>
   );

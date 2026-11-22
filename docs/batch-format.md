@@ -288,3 +288,8 @@ Their still-image posts carry `design` blocks, so the app renders their images o
 synthetic files in `packages/engine/design/assets/demo/` (committed), so a fresh install needs no photos or screenshots.
 They also carry `mediaRoot` and the `media` names an earlier version wrote; both are ignored on import. Their figures are
 invented: they are format examples, not posts to send.
+
+The fictional Pennyhive pack has one of its own, `brands/pennyhive/batches/example-posts.json`: seven `post` designs, one
+of each kind (statement, figure, list, quote, photo, event, offer), with the same synthetic pictures and round,
+illustrative figures. Import it while the brand is Pennyhive (`BRAND_DIR=brands/pennyhive`): a `post` design is drawn in
+the brand's design direction, and the demo brand has none.

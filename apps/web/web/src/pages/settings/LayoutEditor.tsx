@@ -331,8 +331,8 @@ export function LayoutEditor({ initial, stored, catalogue, takenIds, onSaved }: 
         <Breadcrumbs items={[{ label: 'Settings', to: '/settings/preferences' }, { label: 'Classic layouts', to: '/settings/layouts' }, { label: layout.name?.trim() || stored?.name || 'New layout' }]} />
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Input aria-label="Layout name" value={layout.name ?? ''} maxLength={catalogue.layout.name.max} placeholder="Name this layout" onChange={(e) => setName(e.target.value)}
-            className="h-9 min-w-40 flex-1 border-transparent bg-transparent px-2 text-base font-semibold shadow-none hover:border-input focus-visible:border-ring sm:max-w-md" />
-          {dirty && <span role="status" className="inline-flex items-center gap-1.5 text-[12.5px] text-warning-foreground"><span className="size-2 rounded-full bg-warning" aria-hidden="true" /> You have changes that are not saved</span>}
+            className="-ml-2 h-9 min-w-40 flex-1 border-transparent bg-transparent px-2 text-[19px] font-semibold tracking-tight shadow-none md:text-[19px] hover:border-input focus-visible:border-ring sm:max-w-md" />
+          {dirty && <span role="status" className="inline-flex items-center gap-1.5 text-[12.5px] text-warning-foreground"><span className="size-2 rounded-full bg-warning" aria-hidden="true" /> Unsaved changes</span>}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <Button variant={advanced ? 'secondary' : 'ghost'} size="sm" aria-pressed={advanced} onClick={toggleAdvanced}><Braces aria-hidden="true" /> Advanced: JSON</Button>
             <Button variant="outline" onClick={() => navigate('/settings/layouts')} disabled={busy === 'save'}>Cancel</Button>

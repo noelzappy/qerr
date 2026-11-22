@@ -13,7 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { fromSelectValue, toSelectValue } from '@/lib/select-value';
 import { cn } from '@/lib/utils';
-import { Hint } from './hint';
+import { Hint, textOf } from './hint';
 
 interface FieldExtras {
   label: ReactNode;
@@ -78,16 +78,32 @@ export function TextAreaField({ label, hint, hintMode, error, optional, classNam
 
 interface Option { value: string; label: string }
 
-export function SelectField({ label, value, onValueChange, options, placeholder, hint, hintMode, error, disabled, optional, className }: FieldExtras & {
+export function SelectField({ label, value, onValueChange, options, placeholder, hint, hintMode, error, disabled, optional, className, hideLabel }: FieldExtras & {
   value: string;
   onValueChange: (v: string) => void;
   options: Option[];
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  // A filter in a toolbar: the label is read out but not shown, so the row stays one line.
+  hideLabel?: boolean;
 }) {
   const id = useId();
   const d = describedBy(id, hint, error);
+  if (hideLabel) {
+    return (
+      <div className={className}>
+        <Select value={toSelectValue(value, options)} onValueChange={(v) => onValueChange(fromSelectValue(v))} disabled={disabled}>
+          <SelectTrigger id={id} aria-label={textOf(label)} className="w-full max-sm:h-11 max-sm:text-base">
+            <SelectValue placeholder={placeholder} />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            {options.map((o) => <SelectItem key={o.value} value={toSelectValue(o.value, [o])}>{o.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
   return (
     <FormField id={id} label={label} hint={hint} hintMode={hintMode} error={error} optional={optional} hintId={d.hintId} errorId={d.errorId} className={className}>
       <Select value={toSelectValue(value, options)} onValueChange={(v) => onValueChange(fromSelectValue(v))} disabled={disabled}>

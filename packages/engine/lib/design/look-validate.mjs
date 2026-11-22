@@ -9,6 +9,7 @@ import {
   LIMITS, LOOK_SCHEMA, ORIGIN, PAGE, PLACE_FORMS, PLACE_MODIFIERS, POST_FIELDS, POST_ITEMS, POST_REQUIRED, REQUIRED_OWN, SECTIONS, SECTION_NAMES, SIZE_RANGE, TEXT_FIELDS, TOP_ONLY, VALIGNS, descriptorOf, keysOf,
 } from './look-elements.mjs';
 import { FILL_ROLES, compositionStaticChecks, gridOf, styleOf } from './look-static.mjs';
+import { VAULT_REF } from './look-desc.mjs';
 
 export const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const SAFE = /^[A-Za-z0-9 ._+-]{0,24}$/;
@@ -119,6 +120,9 @@ export function check(desc, v, path, ctx, errs) {
       return;
     }
     case 'when': return checkWhen(v, path, ctx, errs);
+    case 'ref':
+      if (typeof v !== 'string' || !VAULT_REF.test(v)) bad('must be the id of one of the brand\'s pictures (a lowercase UUID)');
+      return;
     case 'place': return;
     default: bad('has a setting the engine does not know');
   }
@@ -319,11 +323,33 @@ function typeRules(el, path, ctx, errs) {
     }
   }
   if (t === 'scrim' && Number.isFinite(el.floor) && Number.isFinite(el.cap) && el.floor > el.cap) bad('is above the most strength', 'floor');
+  gradientCapabilityRules(el, path, ctx, errs);
   if (t === 'wordmark-pattern' && el.fadeFrom !== undefined && !el.fade) bad('needs fade', 'fadeFrom');
   if (t === 'rule' && el.vertical && el.h === undefined && el.place === undefined) bad('a vertical rule needs a height (h)');
 }
 
 const FILL_ROLES_HELP = 'a colour a panel can be filled with';
+
+// ---- gradients, colour over a picture, brand graphics: the rules that need more than one property ----
+function gradientRules(g, path, ctx, errs) {
+  if (!isObj(g)) return;
+  const bad = (t, sub) => push(errs, ctx, sub ? `${path}.${sub}` : path, t);
+  if (Array.isArray(g.stops)) g.stops.forEach((s, i) => { if (typeof s === 'string' && COLOUR_NAMES.includes(s) && !ctx.fillRoles.includes(s)) bad(`must be ${FILL_ROLES_HELP} (${list(ctx.fillRoles)})`, `stops[${i}]`); });
+  if (g.mid !== undefined && !(Array.isArray(g.stops) && g.stops.length === 3)) bad('places the middle colour, so the gradient needs three colours', 'mid');
+  if (g.kind === 'radial' && g.angle !== undefined) bad('is the direction of a linear gradient; a radial one spreads from its point (at)', 'angle');
+  if (g.kind === 'linear') for (const k of ['at', 'shape']) if (g[k] !== undefined) bad('is for a radial gradient', k);
+}
+function gradientCapabilityRules(el, path, ctx, errs) {
+  const bad = (t, sub) => push(errs, ctx, sub ? `${path}.${sub}` : path, t);
+  if (el.gradient !== undefined) gradientRules(el.gradient, `${path}.gradient`, ctx, errs);
+  if (el.type === 'box' && el.gradient !== undefined && el.fill !== undefined) bad('gives fill and a gradient fill; use one', 'gradient');
+  if (el.type === 'overlay') {
+    if (typeof el.colour === 'string' && COLOUR_NAMES.includes(el.colour) && !ctx.fillRoles.includes(el.colour)) bad(`must be ${FILL_ROLES_HELP} (${list(ctx.fillRoles)})`, 'colour');
+    if (Number.isFinite(el.floor) && Number.isFinite(el.cap) && el.floor > el.cap) bad('is above the most strength', 'floor');
+    if (el.fade !== undefined && el.from === 'flat') bad('is the fade of an overlay strongest at the foot or the top; an even one does not fade', 'fade');
+  }
+  if (el.type === 'graphic' && el.tint !== undefined && typeof el.tint === 'string' && COLOUR_NAMES.includes(el.tint) && !ctx.fillRoles.includes(el.tint)) bad(`must be ${FILL_ROLES_HELP} (${list(ctx.fillRoles)})`, 'tint');
+}
 
 function element(el, path, ctx, errs, st, parent, depth, comp, slot = false) {
   if (!isObj(el)) return push(errs, ctx, path, 'must be an object like { "type": "text", ... }');

@@ -1,20 +1,20 @@
-// Drives headless Google Chrome over the DevTools protocol through a pipe (--remote-debugging-pipe): Node built-ins only.
+// Drives headless Google Chrome or Chromium over the DevTools protocol through a pipe (--remote-debugging-pipe): Node built-ins only.
 // One Chrome at a time: the machine has 8 GB of RAM, so a lock file stops a second design run from starting another.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
-const MAC = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const LINUX = ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
+// Chrome first, then Chromium: both speak the same DevTools protocol.
+const MAC = ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Chromium.app/Contents/MacOS/Chromium'];
+const LINUX = ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/snap/bin/chromium'];
 
-// CHROME_PATH wins. Returns null when nothing is found.
+// CHROME_PATH wins (any Chrome or Chromium executable). Returns null when nothing is found.
 export function findChrome({ env = process.env, platform = process.platform, exists = fs.existsSync } = {}) {
   if (env.CHROME_PATH) return exists(env.CHROME_PATH) ? env.CHROME_PATH : null;
-  if (platform === 'darwin') return exists(MAC) ? MAC : null;
-  return LINUX.find((p) => exists(p)) ?? null;
+  return (platform === 'darwin' ? MAC : LINUX).find((p) => exists(p)) ?? null;
 }
-export const NO_CHROME = 'Google Chrome was not found. Install it, or set CHROME_PATH to the Chrome executable (on macOS it is /Applications/Google Chrome.app/Contents/MacOS/Google Chrome).';
+export const NO_CHROME = 'Neither Google Chrome nor Chromium was found. Install one, or set CHROME_PATH to its executable (on macOS, /Applications/Google Chrome.app/Contents/MacOS/Google Chrome or /Applications/Chromium.app/Contents/MacOS/Chromium).';
 
 export function acquireLock(file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });

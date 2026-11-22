@@ -22,6 +22,9 @@ import { clientsFor, loadAccountsConfig, type AccountsConfig } from './buffer-ac
 import { createPersister, stateFromDeliveries, type DeliveryWithPostKey } from './delivery-state.js';
 import { assertInside, engineRel, mediaFor, rawBatchForEngine, targetNetworks } from './post-model.js';
 
+// Network names as people read them, for the plan's notes.
+const NETWORK_LABEL: Record<string, string> = { instagram: 'Instagram', linkedin: 'LinkedIn', facebook: 'Facebook', x: 'X' };
+
 export type Mode = 'draft' | 'live';
 type Actor = AuditActor & { id: string; role?: string };
 
@@ -115,10 +118,10 @@ export async function buildPlan(deps: Deps, batchId: string, mode: Mode): Promis
     const rec = state.posts[item.postId]?.[item.network];
     const problems: string[] = [];
     const account = item.account ? cfg.accounts.find((a) => a.name === item.account) : undefined;
-    if (!item.account) problems.push(`No Buffer account is set for ${item.network}. An admin adds the route under Routing`);
+    if (!item.account) problems.push(`No Buffer account is set for ${NETWORK_LABEL[item.network] ?? item.network}. An admin chooses one in Settings, Channels`);
     else if (!account) problems.push(`The Buffer account "${item.account}" no longer exists`);
     else if (!account.apiKey) problems.push(`The Buffer account "${item.account}" has no key`);
-    if (item.account && !item.channelId) problems.push(`No channel is set for ${item.network}`);
+    if (item.account && !item.channelId) problems.push(`No channel is set for ${NETWORK_LABEL[item.network] ?? item.network}. An admin chooses one in Settings, Channels`);
     if (r.action === 'create' && mode === 'live' && Date.parse(item.dueAt) <= now) problems.push(`The due time (${item.date} ${item.time}) has passed`);
     // Approval can go stale: a source unconfirmed or deleted, a photo's rights changed, a time that has passed.
     for (const b of blockersByPost.get(post.id) ?? []) problems.push(`Approval no longer holds: ${b}`);

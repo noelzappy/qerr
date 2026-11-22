@@ -597,6 +597,21 @@ export function angleDegrees(v: unknown, look: Json): number {
   if (typeof v === 'string') { const a = (look.devices as Json | undefined)?.angles as Json | undefined; return (isNum(a?.[v]) ? (a![v] as number) : 0) * tiltOf(look); }
   return 0;
 }
+// The look's named angles read as amounts ("3° left", "6° right"), smallest turn first, with the look's tilt dial applied. The
+// angle's own name ("sticker", "price") only shows in the tip, and joins the label when two angles turn by the same amount.
+// The value stays the name, which is what the design stores.
+export function turnOptions(named: NamedAngle[], look: Json): Array<{ value: string; label: string; title: string }> {
+  const cap = (n: string) => n.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase());
+  const rows = named.map((a) => {
+    const d = Math.round(angleDegrees(a.name, look) * 10) / 10;
+    return { name: a.name, d, text: d === 0 ? 'Straight' : `${Math.abs(d)}° ${d < 0 ? 'left' : 'right'}` };
+  }).sort((x, y) => Math.abs(x.d) - Math.abs(y.d) || x.d - y.d);
+  return rows.map((r) => ({
+    value: r.name,
+    label: rows.filter((o) => o.text === r.text).length > 1 ? `${r.text} (${r.name.replace(/-/g, ' ')})` : r.text,
+    title: `${cap(r.name)} angle: ${r.text}`,
+  }));
+}
 export const isTurned = (v: unknown, look: Json): boolean => (isNum(v) ? v !== 0 : typeof v === 'string' && angleDegrees(v, look) !== 0);
 export function rotatedCount(comp: Json, look: Json): number {
   let n = 0;
@@ -938,6 +953,10 @@ export function newElement(comp: Json, type: string, look: Json, cat: LookCatalo
     case 'scrim': size = { span: 99, rowSpan: 3 }; break;
     case 'frame': if (!(frameOf(look).t > 0)) el.t = 24; break;
     case 'punch-hole': size = { span: 1, rowSpan: 1, w: 44, h: 44 }; break;
+    // gradients, colour over a picture, brand graphics (the graphic is chosen in the pane: it names a vault picture)
+    case 'gradient': el.gradient = { kind: 'linear', stops: ['field', 'dark'] }; size = { span: 99, rowSpan: 3 }; break;
+    case 'overlay': el.colour = 'ink'; el.from = 'bottom'; size = { span: 99, rowSpan: 3 }; break;
+    case 'graphic': el.at = 'bottom-right'; el.size = 'm'; break;
     default: break;
   }
   if (info.placement === 'required') {

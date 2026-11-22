@@ -145,7 +145,11 @@
   /* From md up the shell is a fixed frame: only <main> and the sidebar scroll, never the document. Below md the document
      scrolls as usual under its sticky top bar. */
   @media (min-width: 48rem) {
-    html, body, #root { height: 100%; overflow: hidden; }
+    /* clip, not just hidden: a hidden box can still be scrolled by focus, find-in-page or scrollIntoView, which slid the
+       sidebar up and left a gap under it. */
+    html, body, #root { height: 100%; overflow: hidden; overflow: clip; }
   }
   button:not(:disabled), [role='button']:not(:disabled) { cursor: pointer; }
+  /* Native sliders and boxes in the brand green, not the browser's blue. */
+  input[type='range'], input[type='checkbox'], input[type='radio'], progress { accent-color: var(--primary); }
 }

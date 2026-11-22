@@ -34,7 +34,7 @@ async function aiFor(deps: Deps, task: 'draft' | 'research' | 'rewrite', run: Ai
   const config = await getAiConfig(deps, run);
   handle.hide(...keysOf(config));
   if (!config.providers.some((p) => p.tasks.includes(task))) {
-    throw new Error(`No AI provider is set up for ${task}. Add one in Settings, AI.`);
+    throw new Error(`No AI provider is set up for ${task}. Add one in Settings, AI and search.`);
   }
   const { createAI } = await loadAI();
   return { ai: createAI(config), config };
@@ -81,7 +81,7 @@ async function researchNow(deps: Deps, payload: { actorId?: string; topics?: str
   handle.progress({ step: 'Reading the vault' });
   const stored = await getSetting<unknown>(deps, SETTING_TOPICS, []);
   const topics = (payload.topics?.length ? payload.topics : Array.isArray(stored) ? (stored as string[]) : []).filter((t) => typeof t === 'string' && t.trim());
-  if (!topics.length) throw new Error('There are no research topics. Add some in Settings, AI.');
+  if (!topics.length) throw new Error('There are no research topics. Add some in Settings, AI and search.');
   const { ai, config } = await aiFor(deps, 'research', {}, handle);
   const since = await getSetting<string | null>(deps, SETTING_RESEARCH_LAST_RUN, null);
   const startedAt = deps.now();

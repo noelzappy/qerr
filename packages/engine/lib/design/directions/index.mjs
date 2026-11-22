@@ -217,7 +217,7 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
   if (typeof made !== 'string') throw new Error(`${comp.id}: render must return { html }`);
   const classes = typeof out === 'object' && out.classes ? String(out.classes) : '';
   if (!/^[a-z0-9 _-]*$/.test(classes)) throw new Error(`${comp.id}: classes may only use lowercase letters, digits, space, - and _`);
-  const warnings = [];
+  const warnings = [...new Set(c.lookNotes ?? [])];
   for (const f of ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'meta', 'tag', 'image']) if (spec[f] !== undefined && !comp.fields.includes(f)) warnings.push(`${f} is not used by the ${comp.name} composition (${comp.id}); it is left out of the image`);
   for (const [f, max] of Object.entries(comp.words)) {
     if (f === 'items') continue;

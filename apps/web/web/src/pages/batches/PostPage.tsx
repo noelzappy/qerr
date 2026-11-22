@@ -23,7 +23,7 @@ import { usePreview } from './editor/usePreview';
 import { postFlow } from './flow/status';
 import { CAPTION_LIMIT, NETWORKS, type Network } from './labels';
 import { buildNetworks, currentCaptions, currentFlags, goesTo, readNetworks } from './networks';
-import { mediaLabel, PostChips, PostConfirms, postProblem, UploadInput, usePostActions } from './post-parts';
+import { mediaLabel, PostChips, PostConfirms, onlyWaitingForImage, postProblem, UploadInput, usePostActions } from './post-parts';
 import type { AiDraftNotes, BatchView, DeliveryRow, DesignBlock, PostDetail, SourceView } from './types';
 import { detailLines } from './util';
 
@@ -195,6 +195,10 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
   const approved = post?.status === 'approved';
   const imageReason = post ? batch.aiDraft?.imageReasons?.find((r) => r.postId === post.postKey)?.reason : undefined;
   const shownTitle = post?.title ?? 'New post';
+  const imageBlocked = blockers.some((b) => b.startsWith('The image could not be made'));
+  const remake = post?.design && render === 'failed'
+    ? <BusyButton size="sm" variant="outline" loading={a.busy === 'render'} disabled={!!a.busy || working} onClick={() => void a.rerender()}>Make the image again</BusyButton>
+    : undefined;
 
   return (
     <form onSubmit={(e) => void submit(e)} noValidate>
@@ -232,8 +236,14 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
         {approved && (
           <Notice tone="warn">This post is approved. Changing its words, date, time, networks or design takes the approval back, so it goes back to Writing. Changing only the title does not.</Notice>
         )}
+        {/* The failed image is said once: in this list when it stops approval, on its own otherwise. */}
+        {post && render === 'failed' && !imageBlocked && (
+          <Notice tone="bad" title="The image could not be made." actions={remake}>
+            <FailureText text={post.renderError} />
+          </Notice>
+        )}
         {blockers.length > 0 && (
-          <Notice tone="bad" title="Fix this before the post can be approved:">
+          <Notice tone={onlyWaitingForImage(blockers) ? 'info' : 'bad'} title={onlyWaitingForImage(blockers) ? 'Waiting for the image before the post can be approved:' : 'Fix this before the post can be approved:'} actions={imageBlocked ? remake : undefined}>
             <ul className="mt-1.5 list-disc space-y-1 pl-[18px]">
               {blockers.map((b) => (
                 <li key={b} className="[overflow-wrap:anywhere]">
@@ -327,15 +337,6 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
             </button>
           </div>
           <div id="post-preview" className={cn('flex flex-col gap-4', !showPreview && 'max-lg:hidden')}>
-            {post && render === 'failed' && (
-              <Notice
-                tone="bad"
-                title="The image could not be made."
-                actions={post.design ? <BusyButton size="sm" variant="outline" loading={a.busy === 'render'} disabled={!!a.busy || working} onClick={() => void a.rerender()}>Make the image again</BusyButton> : undefined}
-              >
-                <FailureText text={post.renderError} />
-              </Notice>
-            )}
             <PreviewPane design={design} preview={preview} />
             {post && <SavedPictures post={post} working={working} onDrop={a.setDropping} />}
             {warnings.length > 0 && <Notice tone="warn" title="Worth a look:"><ul className="mt-1.5 list-disc space-y-1 pl-[18px]">{warnings.map((w, i) => <li key={i} className="[overflow-wrap:anywhere]">{w}</li>)}</ul></Notice>}

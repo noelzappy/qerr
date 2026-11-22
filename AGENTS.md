@@ -64,9 +64,10 @@ These apply to anyone who changes or runs this repository or a Vesk deployment.
     never changes the bucket's policy or ACLs; the public prefix must hold nothing but media meant to be posted. Never print the
     S3 secret or put it anywhere but the deployment's environment.
 14. **Brand packs.** A brand that lives in files (name, colours, logos, prompts, facts, example batches, known photos)
-    lives in its folder under `brands/`. Tests and examples use the fictional demo pack, `brands/demo`. A private pack
-    holds a company's own data: it is never copied into a public repository (`scripts/export-public.mjs` leaves out every
-    pack but the demo).
+    lives in its folder under `brands/`. Tests and examples use the fictional demo pack, `brands/demo`; the fictional
+    finance pack `brands/pennyhive` is the brand for trying the app and its looks. Both are invented, with no real
+    organisation, person, place or amount. A private pack holds a company's own data: it is never copied into a public
+    repository (`scripts/export-public.mjs` leaves out every pack but the demo and Pennyhive).
 
 Commit messages: imperative, conventional, one logical change per commit, for example `fix(web): refuse live sends in
 the past`.

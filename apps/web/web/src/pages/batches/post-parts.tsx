@@ -38,6 +38,9 @@ export interface PostProblem {
 const FLAG_ORDER: PostFlag[] = ['render_failed', 'failed', 'needs_look', 'deleted', 'warnings'];
 export const NO_SOURCES = 'No sources linked. Every claim should link to a fact.';
 
+// The approval check's words for a render that has not finished yet (services/approval.ts).
+export const onlyWaitingForImage = (blockers: string[]) => blockers.length > 0 && blockers.every((b) => b.startsWith('The images are not ready yet'));
+
 export function postProblem(flow: PostFlow, d?: { blockers?: string[]; warnings?: string[]; renderError?: string | null; noSources?: boolean }): PostProblem | null {
   const blockers = (d?.blockers ?? []).map(tidyBlocker);
   // The approval check already says the image failed; do not say it twice.
@@ -49,6 +52,8 @@ export function postProblem(flow: PostFlow, d?: { blockers?: string[]; warnings?
   ];
   const flag = FLAG_ORDER.find((f) => flow.flags.includes(f));
   if (flag) return { label: FLAG_LABEL[flag], tone: FLAG_TONE[flag], blockers, notes };
+  // A post whose only hold-up is an image still being made is waiting, not broken.
+  if (onlyWaitingForImage(blockers)) return { label: 'Image on its way', tone: 'info', blockers, notes };
   if (blockers.length) return { label: 'Needs fixing', tone: 'bad', blockers, notes };
   if (notes.length) return { label: FLAG_LABEL.warnings, tone: 'warn', blockers, notes };
   return null;
@@ -89,15 +94,17 @@ export function PostChips({ flow, problem, className }: { flow: PostFlow; proble
   );
 }
 
-// Small network icons in a row; a network the post does not go to is greyed.
-export function NetworkRow({ on, className }: { on: (n: string) => boolean; className?: string }) {
+// Small network icons in a row; a network the post does not go to is greyed, or left out when `only` lists the ones to show.
+export function NetworkRow({ on, only, className }: { on: (n: string) => boolean; only?: readonly string[]; className?: string }) {
+  const shown = only ?? NETWORKS;
+  if (only && only.length === 0) return <span className="text-[12px] text-muted-foreground">No networks</span>;
   return (
-    <ul className={cn('flex items-center gap-1.5', className)} aria-label="Networks">
-      {NETWORKS.map((n) => {
+    <ul className={cn('flex items-center', only ? 'gap-1' : 'gap-1.5', className)} aria-label="Networks">
+      {shown.map((n) => {
         const yes = on(n);
         return (
           <li key={n} role="img" aria-label={yes ? networkLabel(n) : `${networkLabel(n)}, not sent here`} className={cn('flex', !yes && 'opacity-30 grayscale')}>
-            <NetworkIcon network={n} className="size-[18px] rounded-[4px]" />
+            <NetworkIcon network={n} className={cn('rounded-[4px]', only ? 'size-4' : 'size-[18px]')} />
           </li>
         );
       })}

@@ -9,8 +9,9 @@ modules by subpath (`engineImport('batch')` is `@vesk/engine/batch`, see `src/se
 `src/server/ai.ts`.
 
 The brand is set by an admin in Settings, Brand and look, and kept in the database: no file to edit. Until it is saved
-the app shows the brand pack named by `BRAND_DIR` (default `brands/demo`, the fictional Acme Savings) and seeds its first
-vault from that pack's `vault.json`. See "The brand" below.
+the app shows the brand pack named by `BRAND_DIR` (default `brands/demo`, the fictional Acme Savings; `brands/pennyhive`
+is a second fictional test brand, a savings-club app) and seeds its first vault from that pack's `vault.json`. See "The
+brand" below.
 
 The app has only been run against a fake Buffer and local or fake storage, never against a real Buffer account or a
 real bucket.
@@ -19,7 +20,7 @@ real bucket.
 
 - Node 22.12 or newer (the machine used for development has Node 24).
 - Postgres 16. The app and pg-boss share one database (pg-boss keeps its tables in the `pgboss` schema).
-- Google Chrome, for rendering post images. Set `CHROME_PATH` if it is not in the usual place. JPG conversion uses `sips`
+- Google Chrome or Chromium, for rendering post images. Set `CHROME_PATH` if neither is in the usual place. JPG conversion uses `sips`
   (macOS) or `ffmpeg`.
 - The npm workspaces at the repository root: the server imports `@vesk/engine` and `@vesk/ai` from `packages/`, so install from the root.
 
@@ -84,21 +85,29 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   `/batches/:id/posts/:postId`, a page with breadcrumbs, the form on the left and a live preview on the right. Network choices
   and captions are edited there and saved with the post. It has a picture picker and structured editors for figures, lists, carousel
   pages, tables and cards; a carousel's pages are listed one by one, each made with a built-in page layout or one of the brand's
-  own layouts that has the feed size, whose fields the page then shows (`web/src/pages/batches/design-model.ts`); the raw design JSON is under "Advanced". The post card on the batch page shows the image, title, date,
-  one status chip (plus a problem chip when there is one), the network icons, Edit, Approve and a More menu. The preview calls `POST /api/posts/preview-design`
+  own layouts that has the feed size, whose fields the page then shows (`web/src/pages/batches/design-model.ts`); the raw design JSON is under "Advanced". The post card on the batch page is one row: a thumbnail, the title (a link to the
+  post page), date, the networks it goes to, two lines of the caption, one status chip (plus a problem chip, whose popover lists
+  what is wrong), one action (Approve, or Fix when something stops approval) and a More menu (Edit, Take approval off, the image,
+  upload, Remove). The preview calls `POST /api/posts/preview-design`
   (`src/server/routes/design-preview.ts`, roles admin and editor): the body is `{ design, size? }`, and the answer is
   `{ ok, image, images, size, warnings, notes }` (`ok: false` with an `error` when the design was fine but could not be
   drawn). A design that saving would refuse is a 422 `{ error, details }`, in the same words as saving; a brand without its
   logos is a 409. Nothing is stored, and the drawing runs under the render lock, one at a time.
 - **Facts and Pictures.** A fact has its own page, `/vault/:id` (`/vault/new` adds one). A picture has `/library/:id`; uploading
-  is the page `/library/upload` (`/library?upload=1` redirects there). List filters live in the URL. Pictures has a switch,
-  Photos | Cut-outs | Graphics (`?role=`, counts from `GET /api/vault/counts`): a picture item's `role` is `photo`, `cutout` or
-  `graphic`, chosen on upload and changed on the picture's page ("Use as"; `PATCH /api/vault/:id` with `role`, which checks the
-  stored file and makes the item unconfirmed again). A cut-out or graphic must be a PNG or WebP with transparency and at least
-  256 px on its longer side; only a graphic may be marked recolourable (`tintable`); the AI is offered photos only; one that a post
-  or a look design still uses cannot be deleted. `GET /api/vault/graphics` lists them for the design editor (`useBrandGraphics`);
-  placing them on designs is the engine's next step and not built yet.
-- **Dialogs.** New batch and Draft with AI open as centred dialogs (`/batches/new`, `/batches/ai-draft` still open them). The Team
+  is the page `/library/upload` (`/library?upload=1` redirects there). List filters live in the URL.
+  Pictures has a Photos / Cut-outs / Graphics switch (`?role=cutout|graphic`; counts from `GET /api/vault/counts`). A picture
+  item's `role` is chosen when it is made and may be changed on the picture's page ("Use as"; `PATCH /api/vault/:id` with `role`,
+  which checks the stored file and makes the item unconfirmed again; only a graphic may be marked recolourable, `tintable`). A
+  cut-out or graphic must be a PNG or WebP with an alpha
+  channel, at least 256 px on its longer side (`services/image-header.ts`, which reads only the file header). The upload page
+  asks `POST /api/vault/file-check?role=` (multipart, nothing stored) before it makes an item, so a refused file leaves no empty
+  item; `POST /api/vault/:id/file` checks again. `GET /api/vault/graphics` is the compact list of cut-outs and graphics the
+  look editor offers; a cut-out or graphic a post or look still uses cannot be deleted (`services/graphics.ts`). The AI is
+  offered photos only.
+- **Dialogs.** New batch and Draft with AI open as centred dialogs (`/batches/new`, `/batches/ai-draft` still open them).
+  Draft with AI first asks `GET /api/batches/ai-draft` (`{ ready, missing: 'provider' | 'budget' | null }`) and, when drafting
+  cannot run, says what is missing and where to add it instead of queuing a job that would fail; `POST /api/batches/ai-draft`
+  refuses with a 409 in the same two cases. The Team
   and AI provider forms are dialogs too. Settings, Channels is one page with two sections: the Buffer accounts (compact rows, their forms are dialogs; `/settings/accounts`, `/admin/accounts` and `/admin/routing` redirect there, `#accounts` scrolls to the accounts) and a table with a row per network (where it posts).
 - **Conventions.** Field help is behind an info icon (kit `Hint`, `hintMode`); pages use `PageHeader` with `crumbs`; small forms
   use `FormPanel variant="dialog"`; secondary and destructive actions sit in `MoreMenu`; on a desktop only the content area and the
@@ -233,8 +242,14 @@ layouts), so it can only be set once the brand is saved in Settings, Brand. Ther
 is found by (brandId, slug) or uuid and brandId, and no route reads a brandId from a request; `brandId` is a plain indexed
 column (not a foreign key, because the profile row exists only once Settings, Brand is saved). Limits per brand: 20 looks,
 21 compositions per look (3 per kind), a look up to 256 KB. A look the installed engine refuses is left out of drawing and logged
-once (`look.skipped`) and the list marks it `needsAttention`. A look that is the active one cannot be changed (settings,
-publishing a composition, switching on or off, reordering, adding, removing) or deleted: edit a copy, or switch away first; drafts stay open.
+once (`look.skipped`) and the list marks it `needsAttention`. The active look can be edited like any other (every change is
+validated whole first; a design's edits still go through its draft, and publishing it runs the gate); only deleting it is refused
+(409), so the brand is never left drawing nothing. An edit to the active look marks it Draft until it is published again, and it stays
+in use meanwhile. What an edit changes: every post drawn from then on uses the look as it is. Images already made are stored files and
+do not change; a post is drawn again only when its design changes or someone asks for it (nothing re-renders by itself). A post that
+names a design by number (`variant`) keeps the number, so moving, switching off or removing a design of that kind can change which
+design the number names, or put it out of range (that post's next render then says so). Copying a look (Duplicate) stays the way to
+try changes without touching posts.
 
 | Route | Does |
 |---|---|
@@ -254,13 +269,13 @@ publishing a composition, switching on or off, reordering, adding, removing) or 
 | `POST /api/settings/looks/:slug/compositions/:id/publish` | the draft becomes the composition, once the gate passes (validation and the render checks above; `runGate` replaces them in tests) |
 | `PATCH` / `DELETE /api/settings/looks/:slug/compositions/:id` | `{ enabled?, position? }` (position among its kind); remove (never the last of its kind) |
 | `POST /api/settings/looks/:slug/publish` | the look is `ready`: it validates and every enabled composition has a passing gate record for its current definition (the checks are run now for any that has none, in one Chrome run; a failure names the design and the reason) |
-| `DELETE /api/settings/looks/:slug` | refused while active |
+| `DELETE /api/settings/looks/:slug` | refused while active (the only change that is) |
 | `GET /api/looks/brief` | any signed-in person: `{ look }`, the active look's kinds, variants, fields and budgets (`lookBrief`), or `{ look: null }` |
 
 **The design editor** (`/settings/looks/:slug/designs/:id`, `apps/web/web/src/pages/settings/looks/`; see `web/README-ui.md`) edits one composition as
 JSON (`design-model.ts`, pure and specced over every composition of both shipped looks), checks the draft as it is edited with the `validate` route, draws it
 with `preview-design` and falls back to a sketch drawn in the browser while that answers 501, saves with `PUT .../draft` and publishes with `POST .../publish`.
-A look in use is read only there.
+A look in use is edited there like any other; the page says that only a published design reaches posts.
 
 **Drawing a look** (`services/look-render.ts`, connected in `src/server/index.ts` with `connectLookRenderer`). Everything goes through the render queue
 (`services/render-queue.ts`: posts, then previews, then gate jobs, under the engine's single Chrome lock; a newer request with the same key, one per person
@@ -345,7 +360,7 @@ that names the variable, never its value.
 | `S3_REGION` | Region, for Hetzner the location (`fsn1`, `nbg1`, `hel1`). Taken from the endpoint when it is a Hetzner `*.your-objectstorage.com` host; required otherwise. |
 | `S3_PREFIX` | The public prefix, default `public/`. Vault files (`vault/`) and renders (`renders/`) stay private; only what is about to be sent is copied under this prefix. The bucket is publicly readable, so private objects are protected only by an unguessable key: `vault/<random>/<id>/<sha>-<name>` and `renders/<random>/<batchId>/<postKey>/<sha>-<name>`, where `<random>` is 32 random bytes in base64url (43 characters) drawn per object and stored in the database. Old keys without it still work. |
 | `S3_PATH_STYLE` | `false` for virtual-hosted style addressing; default is path style |
-| `CHROME_PATH` | Path to the Chrome executable, read by the design engine. Without Chrome, rendering fails with a message that says so. |
+| `CHROME_PATH` | Path to the Chrome or Chromium executable, read by the design engine. Unset, it looks for Chrome, then Chromium, in the usual places. Without either, rendering fails with a message that says so. |
 
 Buffer keys and AI and search provider keys are not environment variables: an admin enters them in Settings (Buffer
 accounts; AI and search), and they are stored encrypted with `APP_ENCRYPTION_KEY` (AES-256-GCM, a fresh nonce per value,
@@ -522,8 +537,9 @@ posts already made keep theirs, and **Customise**, which duplicates into the bra
 Ready or Needs attention with the first problem, origin, last changed; Open, Use when Ready, and a menu with Duplicate and Delete, whose
 refusal while active shows the server's reason). `/settings/looks/:slug` is a wide page, crumbs `Settings / Looks / <name>`, with the name
 editable in the header, a status chip, Save (with "You have changes that are not saved" and the unsaved guard), **Publish** (a dialog listing the
-check of every design, with a link to each failing design) and, when Ready and not active, **Use this look**. A look that is ACTIVE is locked
-(the server answers 409 to changes that alter what is drawn): the page says so, every control is read only and **Duplicate** offers a copy.
+check of every design, with a link to each failing design) and, when Ready and not active, **Use this look**. A look that is ACTIVE can be
+edited: the page says that saved changes reach posts drawn from then on while images already made stay as they are, shows Publish when
+the edits have not been checked, and **Duplicate** still offers a copy to try changes on.
 Tabs: **Settings** (drawn from `lookCatalogue().sections`, so a setting the engine adds appears without UI work: Dials, Typefaces, Type,
 Page, Colour, Devices, Pictures, Logo; numbers show their range and an inline error, never clamped; server problems are mapped to the control
 by path), **Designs** (per kind: reorder, On/Off, status, Edit as a read-only detail, Duplicate within this look, Remove, "Add a design" from

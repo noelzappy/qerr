@@ -12,7 +12,7 @@ import { AlignCenter, AlignLeft, AlignRight } from 'lucide-react';
 import { ConfirmAction } from '@/components/kit';
 import { cn } from '@/lib/utils';
 import {
-  bindField, declaredFields, elementName, fieldLabel, gridOf, inkChoices, placeForm, placeReadout, PLACE_FORM_WORDS, namedAngles, propsOf, pruneFields, readWhen, setPlace,
+  bindField, declaredFields, elementName, fieldLabel, gridOf, inkChoices, placeForm, placeReadout, PLACE_FORM_WORDS, namedAngles, propsOf, turnOptions, pruneFields, readWhen, setPlace,
   setPlaceForm, setProp, setRotation, setSource, setWord, summary, whenText, type DesignProblem, type Edit, type Json,
 } from '../design-model';
 import { AngleControl, BindingEditor, PlaceEditor, Segmented, ValueControl, word, type Ctx } from '../design-controls';
@@ -21,6 +21,7 @@ import { blankFor } from '../look-model';
 import type { Desc, LookCatalogue } from '../look-types';
 import { SizeChips, StickerSize, TextSize } from './size';
 import { Chips, Group, Disclosure, Label, spanOf, ToggleChip } from './ui';
+import { BoxFillToggle, CAPABILITY_PROPS, CapabilityGroups, GradientChoices } from './capabilities';
 
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -104,7 +105,9 @@ export function ElementProperties(p: PropertiesProps) {
 
   // the catalogue's properties of this element, by the group that owns them
   const flowing = !isObj(el.place) && path.includes('.');
-  const props = propsOf(type, cat).filter(([name, d]) => !SKIP.has(name) && (d.group !== 'flow' || flowing || name in el));
+  // a gradient, a colour over a picture and a brand graphic have groups of their own (capabilities.tsx); a box's gradient fill is under Colour
+  const own = new Set([...(CAPABILITY_PROPS[type] ?? []), ...(type === 'box' ? ['gradient'] : [])]);
+  const props = propsOf(type, cat).filter(([name, d]) => !SKIP.has(name) && !own.has(name) && (d.group !== 'flow' || flowing || name in el));
   const by: Record<GroupId, Array<[string, Desc & { group?: string }]>> = { content: [], size: [], position: [], colour: [], style: [], more: [] };
   for (const pr of props) by[ownerOf(pr[0], pr[1])].push(pr);
   const required = new Set(info.required ?? []);
@@ -154,7 +157,8 @@ export function ElementProperties(p: PropertiesProps) {
   const turn = info.properties.rot && el.vertical === undefined;
 
   // ---- Colour ----
-  const mainColour = ['fill', 'ink', 'colour'].filter((n) => has(n));
+  const gradientFill = type === 'box' && isObj(el.gradient);
+  const mainColour = ['fill', 'ink', 'colour'].filter((n) => has(n) && !own.has(n) && !(n === 'fill' && gradientFill));
   const fineColour = by.colour.filter(([n]) => !mainColour.includes(n));
 
   // ---- Style ----
@@ -180,6 +184,8 @@ export function ElementProperties(p: PropertiesProps) {
         <p className="text-[12.5px] text-muted-foreground">{summary(el, cat, look)}</p>
       </div>
       {mine.length > 0 && <ul className="list-disc space-y-0.5 pl-[18px] text-[12.5px] font-medium text-destructive" role="alert">{mine.map((m, i) => <li key={i}>{m.message}</li>)}</ul>}
+
+      <CapabilityGroups ctx={ctx} />
 
       {showContent && (
         <Group title="Content" force={forced('content')}
@@ -207,7 +213,7 @@ export function ElementProperties(p: PropertiesProps) {
         </Group>
       )}
 
-      <Group title="Position" hint="Drag the piece on the canvas to move or resize it; the grid readout follows." force={forced('position')}
+      {type !== 'graphic' && <Group title="Position" hint="Drag the piece on the canvas to move or resize it; the grid readout follows." force={forced('position')}
         fine={<>
           <div className="col-span-2"><PlaceEditor ctx={ctx} /></div>
           {info.properties.rot && el.vertical === undefined && <div className="col-span-2"><AngleControl label="Turn" value={el.rot} ctx={ctx} disabled={p.readOnly} onChange={(v) => ctx.rotate(v)} /></div>}
@@ -223,10 +229,11 @@ export function ElementProperties(p: PropertiesProps) {
           </div>
         )}
         {turn && <TurnChips ctx={ctx} onError={(m) => err('turn', m)} error={errors.turn} />}
-      </Group>
+      </Group>}
 
       {mainColour.length > 0 && (
         <Group title="Colour" force={forced('colour')} fine={fineColour.length > 0 ? fineColour.map(render) : undefined}>
+          {type === 'box' && has('gradient') && <BoxFillToggle ctx={ctx} />}
           {mainColour.map((n) => {
             const d = info.properties[n]!;
             return <ValueControl key={n} name={n} desc={d} value={el[n]} ctx={ctx} optional={!required.has(n)} onChange={(v) => ctx.set(n, v)} />;
@@ -234,6 +241,7 @@ export function ElementProperties(p: PropertiesProps) {
         </Group>
       )}
       {mainColour.length === 0 && fineColour.length > 0 && <Group title="Colour" force={forced('colour')} fine={fineColour.map(render)} summary={valuesLine(fineColour, el)} />}
+      {gradientFill && <GradientChoices ctx={ctx} />}
 
       {showStyle && (
         <Group title="Style" force={forced('style')} fine={by.style.map(render)}>
@@ -322,7 +330,7 @@ function TurnChips({ ctx, onError, error }: { ctx: Ctx; onError: (m: string) => 
     <div className="flex flex-col gap-1">
       <Label hint="The look’s own angles, so the design turns the way the look does.">Turn</Label>
       <Chips label="Turn" value={cur} custom disabled={ctx.disabled} onChange={(id) => onError(ctx.rotate(id === 'none' ? undefined : id))}
-        options={[{ value: 'none', label: 'None' }, ...named.map((a) => ({ value: a.name, label: word(a.name), title: `${a.deg}°` }))]} />
+        options={[{ value: 'none', label: 'Straight' }, ...turnOptions(named, ctx.look)]} />
       {error && <p className="text-[12.5px] font-medium text-destructive" role="alert">{error}</p>}
     </div>
   );

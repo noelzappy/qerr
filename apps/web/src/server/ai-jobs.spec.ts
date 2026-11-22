@@ -236,6 +236,20 @@ describe('draft-batch', () => {
     expect((await editor.post('/api/batches/ai-draft', { count: 99 })).status).toBe(400);
   });
 
+  it('says what drafting is missing, and refuses to queue a draft without a monthly budget', async () => {
+    const editor = t.api(await t.signIn(await t.createUser('editor')));
+    expect((await editor.get('/api/batches/ai-draft')).body).toEqual({ ready: false, missing: 'provider' });
+    const admin = t.api(await t.signIn(await t.createUser('admin')));
+    expect((await admin.post('/api/settings/ai/providers', { name: 'Claude', kind: 'anthropic', model: MODEL, apiKey: KEY, tasks: ['draft'] })).status).toBe(201);
+    expect((await editor.get('/api/batches/ai-draft')).body).toEqual({ ready: false, missing: 'budget' });
+    const refused = await editor.post('/api/batches/ai-draft', BRIEF);
+    expect(refused.status).toBe(409);
+    expect(refused.body.message ?? refused.body.error).toContain('No monthly AI budget is set');
+    expect(t.jobs.enqueued.some((j) => j.name === 'draft-batch')).toBe(false);
+    await admin.put('/api/settings/ai/budget', { monthlyBudgetUsd: 5 });
+    expect((await editor.get('/api/batches/ai-draft')).body).toEqual({ ready: true, missing: null });
+  });
+
   it('stops with a clear error and makes nothing when the monthly budget is used up', async () => {
     const { editor, figure, photo } = await setup({ budget: 0.01 });
     // Spend already logged this month reaches the limit.
@@ -323,7 +337,7 @@ describe('activity of the AI jobs', () => {
     const res = await admin.post('/api/settings/research/run');
     await expect(t.jobs.drain(t.deps)).rejects.toThrow('No AI provider is set up for research');
     const run = await t.prisma.activityRun.findUniqueOrThrow({ where: { id: res.body.activityId } });
-    expect(run).toMatchObject({ status: 'failed', error: 'No AI provider is set up for research. Add one in Settings, AI.' });
+    expect(run).toMatchObject({ status: 'failed', error: 'No AI provider is set up for research. Add one in Settings, AI and search.' });
     expect(run.finishedAt).not.toBeNull();
     expect(JSON.stringify(run)).not.toContain('SECRETAIKEY');
   });

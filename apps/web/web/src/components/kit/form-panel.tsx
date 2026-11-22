@@ -84,7 +84,7 @@ export function FormPanel({ open, onClose, title, description, size = 'md', vari
   if (variant === 'dialog') {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent {...noDescription} showCloseButton={false} onInteractOutside={keepOpenOnOutside} className={cn('max-h-[85dvh] w-full gap-0 overflow-hidden p-0', WIDTH[size])}>
+        <DialogContent {...noDescription} showCloseButton={false} onInteractOutside={keepOpenOnOutside} onOpenAutoFocus={focusFirstField} className={cn('max-h-[85dvh] w-full gap-0 overflow-hidden p-0', WIDTH[size])}>
           <DialogHeader className="relative gap-1 border-b px-5 py-4 pr-12 text-left">
             <DialogTitle className="text-base">{title}</DialogTitle>
             {description && <DialogDescription>{description}</DialogDescription>}
@@ -109,4 +109,14 @@ export function FormPanel({ open, onClose, title, description, size = 'md', vari
       </SheetContent>
     </Sheet>
   );
+}
+
+// A dialog opens with its first field focused rather than its close button, so the first thing seen is not a focus ring
+// around the X. With no field, Radix's own choice stands.
+function focusFirstField(e: Event) {
+  const root = e.currentTarget as HTMLElement | null;
+  const field = root?.querySelector<HTMLElement>('input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), [role="combobox"]:not([disabled])');
+  if (!field) return;
+  e.preventDefault();
+  field.focus({ preventScroll: true });
 }

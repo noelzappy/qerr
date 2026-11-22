@@ -1,0 +1,127 @@
+{
+  "note": "Starting vault for Pennyhive, a fictional savings-club app used as a test brand. Every item is invented: no real company, person, place or figure. The numbers are round and illustrative only. Imported once on an empty database; edit or delete in the app afterwards.",
+  "vault": [
+    {
+      "kind": "figure",
+      "title": "Clubs on Pennyhive",
+      "body": "2,000 savings clubs keep their pot on Pennyhive (illustrative figure).",
+      "sourceUrl": "https://pennyhive.example",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": ["numbers", "public"]
+    },
+    {
+      "kind": "figure",
+      "title": "Members saving each week",
+      "body": "10,000 members put money into their club every week (illustrative figure).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": ["numbers", "public"]
+    },
+    {
+      "kind": "figure",
+      "title": "Payments recorded",
+      "body": "100,000 payments into clubs were recorded on Pennyhive last year (illustrative figure).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": ["numbers", "public"]
+    },
+    {
+      "kind": "fact",
+      "title": "What a savings club is",
+      "body": "A savings club is a group of people who each put the same amount into a shared pot on a set day. In some clubs the pot goes to one member each round, in turn, until everyone has had it once.",
+      "sourceNote": "General explanation written for the test brand.",
+      "status": "confirmed",
+      "tags": ["background", "public"]
+    },
+    {
+      "kind": "fact",
+      "title": "Why clubs keep records",
+      "body": "A club runs on trust. When every payment and every payout is written down where all members can see it, questions are settled by looking, not by arguing.",
+      "sourceNote": "General explanation written for the test brand.",
+      "status": "confirmed",
+      "tags": ["background", "public"]
+    },
+    {
+      "kind": "fact",
+      "title": "Free plan",
+      "body": "Pennyhive is free for clubs of up to 20 members.",
+      "sourceUrl": "https://pennyhive.example/pricing",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": ["pricing", "public"]
+    },
+    {
+      "kind": "product",
+      "title": "The shared pot",
+      "body": "Every member sees the club's pot, who has paid this round and whose turn it is next, on their phone.",
+      "sourceNote": "Product description written for the test brand.",
+      "status": "confirmed",
+      "tags": ["product", "pot", "public"]
+    },
+    {
+      "kind": "product",
+      "title": "Payout order",
+      "body": "The club agrees the payout order once, at the start. Pennyhive shows it to everyone and changes it only when the whole club agrees.",
+      "sourceNote": "Product description written for the test brand.",
+      "status": "confirmed",
+      "tags": ["product", "controls", "public"]
+    },
+    {
+      "kind": "product",
+      "title": "Reminders",
+      "body": "A gentle reminder goes out the day before a payment is due, and the club's organiser sees who still has to pay.",
+      "sourceNote": "Product description written for the test brand.",
+      "status": "confirmed",
+      "tags": ["product", "reminders", "public"]
+    },
+    {
+      "kind": "product",
+      "title": "Round statements",
+      "body": "At the end of each round every member gets a short statement: what they paid, what the pot held and who received it.",
+      "sourceNote": "Product description written for the test brand.",
+      "status": "confirmed",
+      "tags": ["product", "statements", "public"]
+    },
+    {
+      "kind": "news",
+      "title": "The Thursday Club joins",
+      "body": "The Thursday Club, an invented club of 12 friends, moved its pot from a notebook to Pennyhive.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-11-01",
+      "tags": ["news", "community", "public"]
+    },
+    {
+      "kind": "event",
+      "title": "Organisers' evening",
+      "body": "Pennyhive holds an online evening for club organisers on the first Tuesday of February (invented event).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "unconfirmed",
+      "validFrom": "2027-01-01",
+      "validUntil": "2027-02-28",
+      "tags": ["event", "community"]
+    },
+    {
+      "kind": "fact",
+      "title": "Planned features (internal)",
+      "body": "An example of an internal note: plans that are not public yet. The tag not-for-posts tells reviewers to keep it out of posts.",
+      "sourceNote": "Example of an internal item.",
+      "status": "confirmed",
+      "tags": ["internal", "not-for-posts"]
+    }
+  ],
+  "research": {
+    "topics": [
+      "savings clubs and rotating savings groups",
+      "household budgeting tips for people saving together",
+      "news mentioning Pennyhive"
+    ]
+  }
+}

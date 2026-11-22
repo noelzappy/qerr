@@ -9,7 +9,7 @@ import { useSession } from '../session';
 import { useActivity } from '@/hooks/use-activity';
 import { runTitle } from '@/lib/activity';
 import { RunStatusBadge } from '@/components/activity-parts';
-import { PostRow } from '@/components/post-row';
+import { PostRow, PostRows } from '@/components/post-row';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -27,7 +27,7 @@ function Stat({ value, label, to }: { value: string | number; label: string; to:
   return (
     <Link to={to} className="flex min-w-0 flex-col rounded-md px-2 py-1 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-ring/50">
       <span className="text-xl font-semibold tabular-nums leading-7">{value}</span>
-      <span className="truncate text-[12.5px] text-muted-foreground">{label}</span>
+      <span className="text-[12.5px] leading-snug text-muted-foreground sm:truncate">{label}</span>
     </Link>
   );
 }
@@ -168,7 +168,7 @@ export function Home() {
                       <Button asChild size="sm" variant="outline"><Link to="/batches/ai-draft">Draft posts with AI</Link></Button>
                     </div>
                   )
-                  : <div className="flex flex-col gap-2">{h.upNext.map((p) => <PostRow key={p.id} post={p} />)}</div>}
+                  : <PostRows>{h.upNext.map((p) => <PostRow key={p.id} post={p} />)}</PostRows>}
             </section>
             <RecentActivity />
           </div>

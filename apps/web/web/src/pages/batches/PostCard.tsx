@@ -6,7 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { useLoad } from '../../hooks';
 import { ChevronLeft, ChevronRight, ImageOff, Maximize2 } from 'lucide-react';
-import { BusyButton, MoreMenu, Notice, SelectBox, Spin } from '@/components/kit';
+import { BusyButton, MoreMenu, SelectBox, Spin } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -110,57 +110,61 @@ export function PostCard({ summary, batch, version, onChanged, deliveries, highl
   const editTo = `/batches/${batch.id}/posts/${summary.id}`;
   const first = post?.media[0] ?? null;
 
+  const blocked = blockers.length > 0 && post?.status !== 'removed';
+  const caption = (post?.caption ?? summary.caption ?? '').trim();
+  const goes = NETWORKS.filter(onNetwork);
+
   return (
     <div ref={ref} className="min-w-0">
-      <Card role="article" aria-label={`Post: ${summary.title}`} className={cn('min-w-0 gap-2.5 p-3 shadow-none transition-shadow', select?.selected && 'border-primary ring-[3px] ring-primary', flash && 'ring-[3px] ring-primary/60')}>
-        {!post ? (
-          load.error
-            ? <Notice tone="bad" actions={<BusyButton size="sm" variant="outline" onClick={() => void load.reload()}>Try again</BusyButton>}>{load.error}</Notice>
-            : <Skeleton className="h-44 w-full" role="status" aria-label="Loading the post" />
-        ) : (
-          <Picture post={post} first={first} working={working} onFail={pictureFailed} onView={() => setViewing(0)} />
-        )}
-
-        <div className="flex items-start gap-2">
-          {select && <SelectBox className="mt-0.5" checked={select.selected} label={`Select ${summary.title}`} onToggle={select.onToggle} />}
-          <h3 className="min-w-0 flex-1 text-[14px] leading-snug font-semibold [overflow-wrap:anywhere] line-clamp-2">{title}</h3>
-          {post && (
-            <MoreMenu
-              className="-my-1 -mr-1.5 size-7"
-              items={[
-                ...(post.design ? [{ label: post.renderStatus === 'none' ? 'Make the image' : 'Make the image again', onSelect: () => void a.rerender(), disabled: !!a.busy || working }] : []),
-                { label: 'Upload a file', onSelect: () => a.fileRef.current?.click(), disabled: !!a.busy },
-                { label: 'Remove', tone: 'danger' as const, onSelect: () => a.setRemoving(true), disabled: !!a.busy },
-              ]}
-            />
-          )}
+      <Card role="article" aria-label={`Post: ${summary.title}`} className={cn('min-w-0 flex-row gap-0 overflow-hidden p-0 shadow-none transition-shadow', select?.selected && 'border-primary ring-[3px] ring-primary', flash && 'ring-[3px] ring-primary/60')}>
+        <div className="relative min-h-28 w-20 shrink-0 self-stretch bg-muted sm:w-28">
+          {!post
+            ? (load.error ? <div className="flex size-full items-center justify-center"><ImageOff className="size-4 text-muted-foreground" aria-hidden="true" /></div> : <Skeleton className="size-full rounded-none" role="status" aria-label="Loading the post" />)
+            : <Picture post={post} first={first} working={working} onFail={pictureFailed} onView={() => setViewing(0)} />}
+          {select && <SelectBox className="absolute left-1.5 top-1.5 bg-background" checked={select.selected} label={`Select ${summary.title}`} onToggle={select.onToggle} />}
         </div>
 
-        <When date={post?.date ?? summary.date} time={post?.time ?? summary.time} zone={batch.timezone} />
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-3">
+          <div className="flex items-start gap-1.5">
+            <h3 className="min-w-0 flex-1 text-[13.5px] leading-snug font-semibold [overflow-wrap:anywhere] line-clamp-1">
+              <Link to={editTo} className="rounded-sm outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 underline-offset-4">{title}</Link>
+            </h3>
+            {post && (
+              <MoreMenu
+                className="-my-1 -mr-1.5 size-7"
+                items={[
+                  { label: 'Edit', onSelect: () => navigate(editTo) },
+                  ...(approved ? [{ label: 'Take approval off', onSelect: () => void a.unapprove(), disabled: !!a.busy }] : []),
+                  ...(post.design ? [{ label: post.renderStatus === 'none' ? 'Make the image' : 'Make the image again', onSelect: () => void a.rerender(), disabled: !!a.busy || working }] : []),
+                  { label: 'Upload a file', onSelect: () => a.fileRef.current?.click(), disabled: !!a.busy },
+                  { label: 'Remove', tone: 'danger' as const, onSelect: () => a.setRemoving(true), disabled: !!a.busy },
+                ]}
+              />
+            )}
+          </div>
 
-        <PostChips flow={flow} problem={problem} />
-        {blockers.length > 0 && post?.status !== 'removed' && (
-          <p className="text-[12.5px] text-destructive [overflow-wrap:anywhere]">
-            {blockers[0]}{blockers.length > 1 ? ` (and ${blockers.length - 1} more)` : ''}
-            {fixLink && <> <Link to={fixLink.to} className="whitespace-nowrap font-medium underline underline-offset-4">{fixLink.label}</Link></>}
-          </p>
-        )}
-        {a.error && (
-          <p className="text-[12.5px] font-medium text-destructive [overflow-wrap:anywhere]" role="alert">
-            {a.error}{a.errorLines.length > 0 ? `: ${a.errorLines.join('; ')}` : ''}
-          </p>
-        )}
+          <div className="flex min-w-0 items-center gap-2">
+            <When date={post?.date ?? summary.date} time={post?.time ?? summary.time} zone={batch.timezone} />
+            <NetworkRow on={onNetwork} only={goes} />
+          </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <NetworkRow on={onNetwork} />
-          {post && (
-            <div className="flex items-center gap-1.5">
-              <Button size="sm" variant="outline" className="max-sm:min-h-11" onClick={() => navigate(editTo)} disabled={!!a.busy}>Edit</Button>
-              {approved
-                ? <BusyButton size="sm" variant="outline" onClick={() => void a.unapprove()} loading={a.busy === 'approve'} disabled={!!a.busy}>Take approval off</BusyButton>
-                : <BusyButton size="sm" onClick={() => void a.approve()} loading={a.busy === 'approve'} disabled={!!a.busy || blockers.length > 0}>Approve</BusyButton>}
-            </div>
+          {caption
+            ? <p className="text-[12.5px] leading-snug text-muted-foreground [overflow-wrap:anywhere] line-clamp-2">{caption}</p>
+            : <p className="text-[12.5px] italic text-muted-foreground">No caption yet</p>}
+
+          {load.error && !post && <p className="text-[12.5px] text-destructive" role="alert">{load.error} <button type="button" className="font-medium underline underline-offset-4" onClick={() => void load.reload()}>Try again</button></p>}
+          {a.error && (
+            <p className="text-[12.5px] font-medium text-destructive [overflow-wrap:anywhere]" role="alert">
+              {a.error}{a.errorLines.length > 0 ? `: ${a.errorLines.join('; ')}` : ''}
+            </p>
           )}
+
+          <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+            <PostChips flow={flow} problem={problem} className="min-w-0 gap-x-2" />
+            {post && !approved && (blocked
+              ? <Button size="sm" variant="outline" className="h-7 shrink-0 px-2.5 max-sm:min-h-11" onClick={() => navigate(fixLink?.to ?? editTo)}>Fix</Button>
+              : <BusyButton size="sm" className="h-7 shrink-0 px-2.5" onClick={() => void a.approve()} loading={a.busy === 'approve'} disabled={!!a.busy}>Approve</BusyButton>)}
+          </div>
         </div>
         {post && <UploadInput a={a} title={post.title} />}
       </Card>
@@ -176,7 +180,7 @@ function When({ date, time, zone }: { date: string; time: string; zone: string }
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <p tabIndex={0} className="w-fit rounded-sm text-[13px] text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" aria-label={`${dayLabel(date)}, ${time}, ${zone}`}>
+        <p tabIndex={0} className="w-fit shrink-0 whitespace-nowrap rounded-sm text-[12.5px] text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50" aria-label={`${dayLabel(date)}, ${time}, ${zone}`}>
           {dayLabel(date)}, {time}
         </p>
       </TooltipTrigger>
@@ -185,28 +189,28 @@ function When({ date, time, zone }: { date: string; time: string; zone: string }
   );
 }
 
-// The first picture, a fixed height so cards line up; a click opens the larger view.
+// The first picture as a thumbnail that fills the left of the card; a click opens the larger view.
 function Picture({ post, first, working, onFail, onView }: { post: PostDetail['post']; first: MediaView | null; working: boolean; onFail: () => void; onView: () => void }) {
-  const box = 'flex h-44 w-full items-center justify-center gap-2 rounded-md bg-muted text-center text-[13px] text-muted-foreground';
+  const box = 'flex size-full min-h-28 flex-col items-center justify-center gap-1 px-1 text-center text-[11.5px] leading-tight text-muted-foreground';
   if (!first) {
-    if (working) return <div className={box} role="status"><Spin />{post.renderStatus === 'queued' ? 'Waiting to make the image' : 'Making the image'}</div>;
-    return <div className={box}><ImageOff className="size-4" aria-hidden="true" />{post.design ? 'No image yet' : 'No picture yet'}</div>;
+    if (working) return <div className={box} role="status"><Spin className="size-4" /><span className="sr-only">{post.renderStatus === 'queued' ? 'Waiting to make the image' : 'Making the image'}</span></div>;
+    return <div className={box}><ImageOff className="size-4" aria-hidden="true" /><span>{post.design ? 'No image yet' : 'No picture yet'}</span></div>;
   }
   const label = mediaLabel(first, post.media);
   const alt = `${post.title}: ${label}`;
   const more = post.media.length - 1;
   return (
-    <div className="relative">
+    <div className="absolute inset-0">
       {!first.url ? <div className={box}>Picture not available</div>
-        : first.kind === 'video' ? <video src={first.url} controls preload="none" aria-label={alt} onError={onFail} className="block h-44 w-full rounded-md bg-muted object-contain" />
+        : first.kind === 'video' ? <video src={first.url} controls preload="none" aria-label={alt} onError={onFail} className="block size-full bg-muted object-cover" />
         : (
-          <button type="button" onClick={onView} aria-label={`View ${alt} larger`} className="group relative block h-44 w-full cursor-zoom-in rounded-md bg-muted outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
-            <img src={first.url} alt={alt} loading="lazy" decoding="async" onError={onFail} className={cn('block size-full rounded-md object-contain', working && 'opacity-50')} />
-            <span className="absolute right-1.5 top-1.5 rounded-md bg-background/85 p-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 max-sm:opacity-100" aria-hidden="true"><Maximize2 className="size-3.5" /></span>
+          <button type="button" onClick={onView} aria-label={`View ${alt} larger`} className="group relative block size-full cursor-zoom-in outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/50">
+            <img src={first.url} alt={alt} loading="lazy" decoding="async" onError={onFail} className={cn('block size-full object-cover', working && 'opacity-50')} />
+            <span className="absolute right-1 top-1 rounded-md bg-background/85 p-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden="true"><Maximize2 className="size-3" /></span>
           </button>
         )}
-      {more > 0 && <span className="pointer-events-none absolute bottom-1.5 left-1.5 rounded-md bg-background/85 px-1.5 py-0.5 text-[11.5px] text-muted-foreground">+{more} more</span>}
-      {working && <span className="pointer-events-none absolute bottom-1.5 right-1.5 flex items-center gap-1.5 rounded-md bg-background/90 px-1.5 py-0.5 text-[11.5px] text-muted-foreground" role="status"><Spin className="size-3" />Making the image</span>}
+      {more > 0 && <span className="pointer-events-none absolute bottom-1 left-1 rounded bg-background/85 px-1 text-[11px] text-muted-foreground">+{more}</span>}
+      {working && <span className="pointer-events-none absolute bottom-1 right-1 rounded bg-background/90 p-1" role="status"><Spin className="size-3" /><span className="sr-only">Making the image</span></span>}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 // "Draft with AI": says what to draft (period, how many posts, optional title and networks) and queues the job. Once it
 // is queued the panel shows the run live (the step and how far it is) and, when it is done, a button to open the batch.
-import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { RunProgress, RunResult, RunStatusBadge } from '@/components/activity-parts';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,9 @@ import { errorMessage, fieldErrors } from '../../lib/errors';
 import { networkLabel } from '../../lib/labels';
 import { toast } from 'sonner';
 import { NETWORKS } from './labels';
+import { useSession } from '../../session';
+
+type Readiness = { ready: boolean; missing: 'provider' | 'budget' | null };
 
 // The first and last day of next month, as the form's starting point.
 function nextMonth(): { from: string; to: string } {
@@ -36,6 +39,17 @@ export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => 
   // The run that was started from this panel; while set, the panel shows it instead of the form.
   const [runId, setRunId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { me } = useSession();
+  // Whether drafting can run at all (a provider ticked for drafting and a monthly budget), asked each time the panel opens.
+  const [readiness, setReadiness] = useState<Readiness | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    let current = true;
+    api.get<Readiness>('/api/batches/ai-draft').then((r) => { if (current) setReadiness(r); }).catch(() => { if (current) setReadiness(null); });
+    return () => { current = false; };
+  }, [open]);
+  const blocked = readiness?.ready === false;
+  const isAdmin = me?.role === 'admin';
   const live = useActivityRun(runId);
   const now = useNow(!!live.run && isActive(live.run));
   const dirty = !runId && (periodStart !== initial.from || periodEnd !== initial.to || count !== '10' || !!title.trim() || networks.length !== NETWORKS.length);
@@ -111,11 +125,23 @@ export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => 
       footer={(
         <>
           <BusyButton variant="outline" onClick={requestClose} disabled={busy}>Cancel</BusyButton>
-          <BusyButton type="submit" form="ai-draft-form" loading={busy}>Start drafting</BusyButton>
+          <BusyButton type="submit" form="ai-draft-form" loading={busy} disabled={blocked}>Start drafting</BusyButton>
         </>
       )}
     >
       <form id="ai-draft-form" className="flex flex-col gap-3" onSubmit={(e) => void submit(e)} noValidate>
+        {blocked && (
+          <Notice
+            tone="warn"
+            title={readiness?.missing === 'provider' ? 'No AI provider is set up for drafting.' : 'No monthly AI budget is set.'}
+            actions={isAdmin ? <Button asChild size="sm" variant="outline"><Link to="/settings/ai" onClick={() => withoutGuard(onClose)}>Open AI and search</Link></Button> : undefined}
+          >
+            {readiness?.missing === 'provider'
+              ? 'The AI cannot draft until a provider with its key is added and ticked for drafting'
+              : 'The AI does not run until a monthly budget above zero is set'}
+            {isAdmin ? ' in Settings, AI and search.' : '. Ask an admin to set it up in Settings, AI and search.'} You can still start a batch by hand.
+          </Notice>
+        )}
         <FormProblem error={error} />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <TextField label="First day" type="date" value={periodStart} error={fields.periodStart} onChange={(e) => setPeriodStart(e.target.value)} />

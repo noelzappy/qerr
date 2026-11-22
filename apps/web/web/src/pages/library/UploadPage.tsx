@@ -114,16 +114,30 @@ export function UploadPage() {
     for (const r of checked) {
       patch(r.key, { phase: 'working', status: r.itemId ? 'Saving the details' : 'Creating the item', error: '' });
       let id = r.itemId;
+      let made = false;
       try {
+        const body = new FormData();
+        body.append('file', r.file);
         if (id) await api.patch(`/api/vault/${id}`, payload(r, role));
         else {
+          // The server checks the file for its role first (a cut-out or graphic needs transparency and a size), so a file it
+          // would refuse never leaves an empty item behind.
+          patch(r.key, { status: 'Checking the file' });
+          await api.upload(`/api/vault/file-check?role=${role}`, body);
           id = (await api.post<{ item: VaultItem }>('/api/vault', { ...payload(r, role), role })).item.id;
+          made = true;
           patch(r.key, { itemId: id });
         }
         patch(r.key, { status: 'Uploading the image' });
-        const body = new FormData();
-        body.append('file', r.file);
-        await api.upload(`/api/vault/${id}/file`, body);
+        try {
+          await api.upload(`/api/vault/${id}/file`, body);
+        } catch (err) {
+          // An item made just now for a file that was then refused is taken away again, so the list holds no empty item.
+          if (made && id) {
+            await api.delete(`/api/vault/${id}`).then(() => { patch(r.key, { itemId: null }); id = null; }).catch(() => {});
+          }
+          throw err;
+        }
         URL.revokeObjectURL(r.previewUrl);
         setRows((rs) => rs.filter((x) => x.key !== r.key));
         added++;

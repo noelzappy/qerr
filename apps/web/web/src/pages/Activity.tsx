@@ -42,12 +42,12 @@ export function Activity() {
 
   return (
     <>
-      <PageHeader title="Activity" description="What the app is doing in the background and what it did. It updates by itself." />
+      <PageHeader title="Activity" />
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-end gap-x-3 gap-y-2" role="search" aria-label="Filter the activity">
-          <SelectField className="w-40 max-sm:w-[calc(50%-0.375rem)]" label="Status" value={status} onValueChange={(v) => { setStatus(v); setPage(1); }} options={STATUS_OPTIONS} />
-          <SelectField className="w-44 max-sm:w-[calc(50%-0.375rem)]" label="Kind of work" value={kind} onValueChange={(v) => { setKind(v); setPage(1); }} options={KIND_OPTIONS} />
-          <SwitchField className="pb-1.5" label="Show automatic status checks" checked={showSystem} onCheckedChange={(v) => { setShowSystem(v); setPage(1); }} />
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-2" role="search" aria-label="Filter the activity">
+          <SelectField hideLabel className="w-36 max-sm:w-[calc(50%-0.25rem)]" label="Status" value={status} onValueChange={(v) => { setStatus(v); setPage(1); }} options={STATUS_OPTIONS} />
+          <SelectField hideLabel className="w-40 max-sm:w-[calc(50%-0.25rem)]" label="Kind of work" value={kind} onValueChange={(v) => { setKind(v); setPage(1); }} options={KIND_OPTIONS} />
+          <SwitchField className="sm:ml-2" label="Show automatic status checks" checked={showSystem} onCheckedChange={(v) => { setShowSystem(v); setPage(1); }} />
         </div>
         <div className="overflow-hidden rounded-lg border" aria-label="Activity">
           {list.loading && list.items.length === 0 && !list.error ? <RowsSkeleton rows={6} />

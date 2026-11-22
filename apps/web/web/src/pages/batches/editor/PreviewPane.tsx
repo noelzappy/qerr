@@ -5,6 +5,7 @@ import { Hint, Lines, Notice, SelectField, Spin } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { failureLine } from '@/lib/errors';
 import type { DesignBlock } from '../types';
 import type { PreviewResult } from './usePreview';
 
@@ -61,6 +62,12 @@ export function PreviewPane({ design, preview }: { design: DesignBlock | null; p
         >
           {image ? (
             <img src={image} alt="Preview of the designed image" className={cn('max-h-[70vh] max-w-full object-contain transition-opacity', (updating || problems.length > 0) && 'opacity-60')} />
+          ) : error ? (
+            <div className="flex max-w-80 flex-col items-center gap-1.5 p-6 text-center text-[13px]" role="alert">
+              <ImageOff className="size-5 text-destructive" aria-hidden="true" />
+              <p className="font-medium text-destructive">The preview could not be made</p>
+              <p className="text-muted-foreground [overflow-wrap:anywhere]">{failureLine(error)}</p>
+            </div>
           ) : state === 'problem' ? (
             <div className="flex flex-col items-center gap-2 p-6 text-center text-sm text-muted-foreground"><ImageOff className="size-6" aria-hidden="true" /><p>No picture yet</p></div>
           ) : (
@@ -85,7 +92,7 @@ export function PreviewPane({ design, preview }: { design: DesignBlock | null; p
       {problems.length > 0 && (
         <Notice tone="warn" title="Fix these to see the image"><Lines items={problems} className="max-h-48 overflow-y-auto" /></Notice>
       )}
-      {error && <Notice tone="bad" title="The image could not be made">{error}</Notice>}
+      {error && image && <Notice tone="bad" title="The preview could not be updated">{failureLine(error)}</Notice>}
       {warnings.length > 0 && (
         <Notice tone="warn" title="Worth a look"><Lines items={warnings} className="max-h-48 overflow-y-auto" /></Notice>
       )}

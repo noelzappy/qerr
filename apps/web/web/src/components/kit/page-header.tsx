@@ -23,7 +23,7 @@ export function PageHeader({ title, description, actions, crumbs, className }: {
           </div>
           {description && !long && <div className="text-[13px] text-muted-foreground max-md:line-clamp-2 md:truncate">{description}</div>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:[&>*]:flex-1">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:[&>*]:flex-1 max-sm:[&>[aria-haspopup]]:ml-auto max-sm:[&>[aria-haspopup]]:flex-none max-sm:[&:has(>[aria-haspopup]:only-child)]:w-auto">{actions}</div>}
       </div>
     </header>
   );

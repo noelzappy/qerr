@@ -9,6 +9,7 @@ import { SCALABLE, autoLines, explainFitLines, explainPostFit, explainPostProble
 import { convertToJpeg } from './convert.mjs';
 import { hasAlpha, readImageBytes, sniff } from './assets.mjs';
 import { DesignError } from './errors.mjs';
+import { POST_GRAPHICS } from './post-spec.mjs';
 import { pdfPages, snapMediaBox } from './pdf.mjs';
 import { findLayout, layoutUsesPhone } from './layout.mjs';
 import { layoutFit, renderLayout, renderLayoutWith } from './layout-render.mjs';
@@ -59,6 +60,18 @@ export function preparePage(brand, job) {
     if (isPhoneScreen(spec, layout) && hasAlpha(buf) === false) throw new DesignError(unframedPhone(spec.image, 'it has no transparency, so it is a plain screenshot'));
     images.set(spec.image, `data:${type};base64,${buf.toString('base64')}`);
     dims.set(spec.image, imageSize(buf));
+  }
+  // The brand graphics and cut-outs a post hands to its look (post-spec.mjs graphics): each a PNG or WebP with transparency, read and checked
+  // like the picture and embedded the same way, so a look's pieces reach them only through ctx.image().
+  if (spec.template === 'post' && Array.isArray(spec.graphics)) {
+    for (const g of spec.graphics.slice(0, POST_GRAPHICS.max)) {
+      if (!g || typeof g.image !== 'string') continue;
+      const { type, buf } = readImageBytes(g.image, { root: brand.root });
+      if (type !== 'image/png' && type !== 'image/webp') throw new DesignError(`graphic "${g.image}" must be a PNG or WebP picture with a transparent background`);
+      if (hasAlpha(buf) !== true) throw new DesignError(`graphic "${g.image}" has no transparency; a cut-out or graphic must be a PNG or WebP with a transparent background`);
+      images.set(g.image, `data:${type};base64,${buf.toString('base64')}`);
+      dims.set(g.image, imageSize(buf));
+    }
   }
   const out = tpl(spec, { size: S, brand, counter: job.counter, folio: job.folio, date: job.date, layouts, image: (p) => images.get(p) ?? (() => { throw new DesignError(`image not loaded: ${p}`); })(), imageSize: (p) => dims.get(p) ?? null });
   return { S, spec, layout, out };

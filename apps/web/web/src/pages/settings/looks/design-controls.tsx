@@ -9,7 +9,7 @@ import { CheckField, FieldGroup, SelectField, SwitchField, TextField } from '@/c
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
-  checkLadder, coerceProp, declaredFields, fieldLabel, gridOf, ladderOf, namedAngles, placeForm, PLACE_FORM_WORDS, readWhen, whenText, type LadderStep, type PlaceForm,
+  checkLadder, coerceProp, declaredFields, fieldLabel, gridOf, ladderOf, namedAngles, turnOptions, placeForm, PLACE_FORM_WORDS, readWhen, whenText, type LadderStep, type PlaceForm,
 } from './design-model';
 import { roleWord, swatchOf, type Swatches } from './design-colours';
 import { blankFor, clone } from './look-model';
@@ -124,7 +124,7 @@ export function AngleControl({ label, value, ctx, onChange, disabled }: { label:
   const named = namedAngles(ctx.look, ctx.cat);
   const cur = value === undefined || value === 0 ? '' : typeof value === 'string' ? value : 'custom';
   const [error, setError] = useState('');
-  const opts = [{ value: '', label: 'Straight' }, ...named.map((a) => ({ value: a.name, label: `${word(a.name)} angle (${a.deg}°)` })), ...(cur === 'custom' || ctx.advanced ? [{ value: 'custom', label: 'Our own angle' }] : [])];
+  const opts = [{ value: '', label: 'Straight' }, ...turnOptions(named, ctx.look).map(({ value: v, label: l }) => ({ value: v, label: l })), ...(cur === 'custom' || ctx.advanced ? [{ value: 'custom', label: 'Our own angle' }] : [])];
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <SelectField label={label} value={cur} options={opts} disabled={disabled} error={error || undefined} hint="A named angle of this look, so the design turns the way the look does. Our own angle needs Advanced."
