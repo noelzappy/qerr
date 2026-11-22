@@ -92,6 +92,13 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   logos is a 409. Nothing is stored, and the drawing runs under the render lock, one at a time.
 - **Facts and Pictures.** A fact has its own page, `/vault/:id` (`/vault/new` adds one). A picture has `/library/:id`; uploading
   is the page `/library/upload` (`/library?upload=1` redirects there). List filters live in the URL.
+  Pictures has a Photos / Cut-outs / Graphics switch (`?role=cutout|graphic`; counts from `GET /api/vault/counts`). A picture
+  item's `role` is chosen when it is made and never changes. A cut-out or graphic must be a PNG or WebP with an alpha
+  channel, at least 256 px on its longer side (`services/image-header.ts`, which reads only the file header). The upload page
+  asks `POST /api/vault/file-check?role=` (multipart, nothing stored) before it makes an item, so a refused file leaves no empty
+  item; `POST /api/vault/:id/file` checks again. `GET /api/vault/graphics` is the compact list of cut-outs and graphics the
+  look editor offers; a cut-out or graphic a post or look still uses cannot be deleted (`services/graphics.ts`). The AI is
+  offered photos only.
 - **Dialogs.** New batch and Draft with AI open as centred dialogs (`/batches/new`, `/batches/ai-draft` still open them).
   Draft with AI first asks `GET /api/batches/ai-draft` (`{ ready, missing: 'provider' | 'budget' | null }`) and, when drafting
   cannot run, says what is missing and where to add it instead of queuing a job that would fail; `POST /api/batches/ai-draft`

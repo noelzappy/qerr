@@ -5,7 +5,7 @@
 // writes "unconfirmed".
 import { revokeApprovalsFor } from '../services/approval-revoke.js';
 import { createHash } from 'node:crypto';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { audit } from '../audit.js';
 import type { AppEnv, Deps } from '../deps.js';
@@ -259,10 +259,8 @@ export function vaultRoutes(deps: Deps): Hono<AppEnv> {
     return c.json({ item: await view(done) });
   });
 
-  app.post('/:id/file', async (c) => {
-    const actor = c.get('user');
-    const item = await live(c.req.param('id'));
-    if (item.kind !== 'photo' && item.kind !== 'screen') throw new HttpError(422, 'Only photos and screens can have a file');
+  // Reads the uploaded picture and checks it for its role, with the same words whether it is only checked or stored.
+  async function readPicture(c: Context<AppEnv>, role: string) {
     let form: Record<string, unknown>;
     try { form = await c.req.parseBody(); } catch { throw new HttpError(400, 'Send the file as multipart form data in a field named "file"'); }
     const file = form.file;
@@ -273,10 +271,25 @@ export function vaultRoutes(deps: Deps): Hono<AppEnv> {
     const kind = sniffImage(bytes);
     if (!kind) throw new HttpError(415, 'Only JPG, PNG, WebP and GIF images are accepted');
     const facts = imageFacts(bytes);
-    if (item.role === 'cutout' || item.role === 'graphic') {
-      const why = cutoutProblem(facts, item.role);
+    if (role === 'cutout' || role === 'graphic') {
+      const why = cutoutProblem(facts, role);
       if (why) throw new HttpError(415, why);
     }
+    return { file, bytes, kind, facts };
+  }
+
+  // Checks a file for a role without storing anything, so the upload page can refuse it before it makes an item for it.
+  app.post('/file-check', async (c) => {
+    const { role } = readQuery(c, z.object({ role: z.enum(PICTURE_ROLES).default('photo') }));
+    const { kind, facts } = await readPicture(c, role);
+    return c.json({ ok: true, type: kind.type, width: facts?.width ?? null, height: facts?.height ?? null });
+  });
+
+  app.post('/:id/file', async (c) => {
+    const actor = c.get('user');
+    const item = await live(c.req.param('id'));
+    if (item.kind !== 'photo' && item.kind !== 'screen') throw new HttpError(422, 'Only photos and screens can have a file');
+    const { file, bytes, kind, facts } = await readPicture(c, item.role);
     const sha = createHash('sha256').update(bytes).digest('hex');
     const name = safeName(file.name, kind.ext);
     // The same bytes under the same name keep the stored key (old-format keys included); anything else gets a fresh unguessable key.
