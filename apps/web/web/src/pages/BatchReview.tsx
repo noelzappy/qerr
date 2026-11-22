@@ -20,6 +20,7 @@ import { BatchActivityStrip } from './batches/ActivityStrip';
 import { BatchFlow } from './batches/flow/BatchFlow';
 import { batchCountBadges, flowCounts, flowSteps, nextAction, postFlow, type FlowCommand, type FlowKey } from './batches/flow/status';
 import { BATCH_STATUS, POST_FILTERS } from './batches/labels';
+import { matchesPostFilter, postFilterCounts } from './batches/post-filter';
 import { PostBulkBar } from './batches/PostBulkBar';
 import { PostCard } from './batches/PostCard';
 import { ScheduleView } from './batches/ScheduleView';
@@ -165,8 +166,8 @@ function ReviewView({ data, reload, deliveriesByPost, focusPost, command, onComm
 
   const live = posts.filter((p) => p.status !== 'removed');
   const removed = posts.filter((p) => p.status === 'removed');
-  const shown = live.filter((p) => !filter
-    || (filter === 'render-failed' ? p.renderStatus === 'failed' : filter === 'warnings' ? p.warningCount > 0 : p.status === filter));
+  const shown = live.filter((p) => matchesPostFilter(p, filter));
+  const filterCounts = postFilterCounts(live);
   const shownIds = shown.map((p) => p.id);
   const selection = useSelection([...shownIds, ...removed.map((p) => p.id)]);
   const allShownTicked = shownIds.length > 0 && shownIds.every((pid) => selection.isSelected(pid));
@@ -217,11 +218,15 @@ function ReviewView({ data, reload, deliveriesByPost, focusPost, command, onComm
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="flex items-center gap-2">
             <Select value={filter || ALL_POSTS} onValueChange={(v) => setFilter(v === ALL_POSTS ? '' : v)}>
-              <SelectTrigger aria-label="Show" className="w-44 max-sm:h-11 max-sm:text-base">
+              <SelectTrigger aria-label="Show" className="w-auto min-w-44 max-sm:h-11 max-sm:text-base">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper">
-                {POST_FILTERS.map((f) => <SelectItem key={f.value || ALL_POSTS} value={f.value || ALL_POSTS}>{f.label}</SelectItem>)}
+                {POST_FILTERS.map((f) => (
+                  <SelectItem key={f.value || ALL_POSTS} value={f.value || ALL_POSTS}>
+                    {f.label}<span className="ml-1.5 text-muted-foreground tabular-nums">{filterCounts[f.value] ?? 0}</span>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <BusyButton variant="outline" onClick={addPost}>Add a post</BusyButton>

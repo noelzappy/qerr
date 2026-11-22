@@ -151,9 +151,9 @@ export function Library() {
       <FilterBar
         ariaLabel="Filter your pictures"
         search={{ value: q, onChange: setQ, placeholder: 'Search pictures' }}
-        selects={[
-          ...(role === 'photo' ? [{ key: 'kind', label: 'Kind', allLabel: 'All kinds', value: kind, onChange: setKind, options: KIND_OPTIONS }] : []),
-          { key: 'status', label: 'Status', allLabel: 'Any status', value: status, onChange: setStatus, options: STATUS_OPTIONS },
+        filters={[
+          { key: 'status', label: 'Status', allLabel: 'Any', value: status, onChange: setStatus, options: STATUS_OPTIONS },
+          ...(role === 'photo' ? [{ key: 'kind', label: 'Kind', allLabel: 'Any', value: kind, onChange: setKind, options: KIND_OPTIONS }] : []),
         ]}
         tag={{ value: tag, onChange: setTag }}
         active={filtered}

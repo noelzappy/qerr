@@ -9,15 +9,15 @@ const S = { title: 'Hands pouring coffee', description: 'Hands pouring coffee in
 
 describe('pictureSuggestionPatch', () => {
   it('replaces a title made from the file name, keeps one a person typed, and adds the tags to the ones there', () => {
-    expect(pictureSuggestionPatch({ title: 'IMG 2041', tags: '' }, S, 'IMG 2041')).toEqual({ title: 'Hands pouring coffee', body: S.description, tags: 'coffee, hands' });
-    expect(pictureSuggestionPatch({ title: 'Our Tuesday roast', tags: 'news, coffee' }, S, 'IMG 2041')).toEqual({ title: 'Our Tuesday roast', body: S.description, tags: 'news, coffee, hands' });
+    expect(pictureSuggestionPatch({ title: 'IMG 2041', tags: [] }, S, 'IMG 2041')).toEqual({ title: 'Hands pouring coffee', body: S.description, tags: ['coffee', 'hands'] });
+    expect(pictureSuggestionPatch({ title: 'Our Tuesday roast', tags: ['news', 'Coffee'] }, S, 'IMG 2041')).toEqual({ title: 'Our Tuesday roast', body: S.description, tags: ['news', 'Coffee', 'hands'] });
     // an emptied title is filled; a suggestion without a title leaves the title as it is
-    expect(pictureSuggestionPatch({ title: '', tags: '' }, S, 'IMG 2041').title).toBe('Hands pouring coffee');
-    expect(pictureSuggestionPatch({ title: 'IMG 2041', tags: '' }, { ...S, title: undefined }, 'IMG 2041').title).toBe('IMG 2041');
+    expect(pictureSuggestionPatch({ title: '', tags: [] }, S, 'IMG 2041').title).toBe('Hands pouring coffee');
+    expect(pictureSuggestionPatch({ title: 'IMG 2041', tags: [] }, { ...S, title: undefined }, 'IMG 2041').title).toBe('IMG 2041');
   });
 
   it('never says anything about people or consent: those stay the person\'s to set', () => {
-    expect(Object.keys(pictureSuggestionPatch({ title: 'x', tags: '' }, S, 'x')).sort()).toEqual(['body', 'tags', 'title']);
+    expect(Object.keys(pictureSuggestionPatch({ title: 'x', tags: [] }, S, 'x')).sort()).toEqual(['body', 'tags', 'title']);
   });
 });
 

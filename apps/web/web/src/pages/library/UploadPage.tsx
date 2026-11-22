@@ -1,73 +1,25 @@
-// Adds pictures (/library/upload): drop or choose files, give each a title and kind (and, under More details, a description,
-// licence, consent, tags and notes), then create the vault items and upload the files. A picture that fails stays in the list
-// with its reason so it can be retried; those that worked are removed.
-import { useEffect, useRef, useState } from 'react';
+// Adds pictures (/library/upload): drop or choose files, then each card shows its title (from the file name), its kind
+// (guessed), its description (required for photos), its licence and who is in it; tags, licence notes and the source are under
+// More details. With two or more pictures, "For all pictures" sets the licence, the people and tags on every card at once; a
+// card can still choose its own. Then the vault items are created and the files uploaded. A picture that fails stays in the
+// list with its reason so it can be retried; those that worked are removed.
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronDown, CircleCheck, Loader2, UploadCloud, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/api';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BusyButton, Hint, Notice, PageHeader, parseTags, SelectField, SwitchField, TextAreaField, TextField } from '@/components/kit';
+import { BusyButton, FilledTag, Hint, Notice, PageHeader, SegmentedField, SwitchField, TagInput, TextAreaField, TextField } from '@/components/kit';
 import { useDocumentTitle } from '@/hooks';
 import { formProblem } from '@/lib/errors';
 import { cn } from '@/lib/utils';
 import { CHECKER } from './RoleSwitch';
 import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsaved-guard';
 import type { VaultItem } from '../vault-types';
+import { ChoiceRow } from '../batches/editor/ChoiceRow';
+import { applyForAll, editRow, makeRow, NO_FOR_ALL, rowPayload, validateRow, type ForAll, type UploadRow as Row } from './upload-rows';
 import { DescribeAllButton, PictureSuggest, PictureSuggestProvider, pictureSuggestionPatch } from '@/components/suggest/PictureSuggest';
-import { ACCEPT_BY_ROLE, asRole, fileProblem, guessKind, humaniseFileName, isHttpUrl, KIND_OPTIONS, LICENCE_OPTIONS, ROLE_ACCEPT_HINT, ROLE_NOUN, type Licence, type PictureKind, type PictureRole } from './util';
-
-interface Row {
-  key: string;
-  file: File;
-  previewUrl: string;
-  title: string;
-  body: string;
-  kind: PictureKind;
-  licence: Licence;
-  licenceNotes: string;
-  sourceUrl: string;
-  peoplePresent: boolean;
-  consentRecorded: boolean;
-  tintable: boolean;
-  tags: string;
-  expanded: boolean;
-  phase: 'idle' | 'working' | 'error';
-  status: string;
-  error: string;
-  // Set once the vault item exists, so a retry after a failed upload does not make a second item.
-  itemId: string | null;
-  problems: Record<string, string>;
-}
-
-let nextKey = 0;
-function newRow(file: File, role: PictureRole): Row {
-  return {
-    key: `row-${nextKey++}`, file, previewUrl: URL.createObjectURL(file),
-    title: humaniseFileName(file.name), body: '', kind: role === 'photo' ? guessKind(file.name) : 'photo', licence: role === 'photo' ? '' : 'own', licenceNotes: role === 'photo' ? '' : 'Made by us', sourceUrl: '',
-    peoplePresent: false, consentRecorded: false, tintable: false, tags: '', expanded: false, phase: 'idle', status: '', error: '', itemId: null, problems: {},
-  };
-}
-
-function validateRow(r: Row, role: PictureRole): Record<string, string> {
-  const e: Record<string, string> = {};
-  if (!r.title.trim()) e.title = 'Give the picture a title';
-  else if (r.title.trim().length > 200) e.title = 'Keep the title to 200 characters or fewer';
-  if (role === 'photo' && !r.body.trim()) e.body = 'Describe the picture: the AI reads this to choose it';
-  if (r.sourceUrl.trim() && !isHttpUrl(r.sourceUrl.trim())) e.sourceUrl = 'Enter a full address starting with http:// or https://';
-  const tags = parseTags(r.tags);
-  if (tags.some((t) => t.length > 40)) e.tags = 'A tag can be at most 40 characters';
-  else if (new Set(tags).size > 30) e.tags = 'A picture can have at most 30 tags';
-  return e;
-}
-
-const payload = (r: Row, role: PictureRole) => ({
-  kind: r.kind, ...(role !== 'photo' ? { tintable: role === 'graphic' && r.tintable } : {}), title: r.title.trim(), body: r.body.trim(), tags: [...new Set(parseTags(r.tags))],
-  licence: r.licence || null, licenceNotes: r.licenceNotes.trim() || null, sourceUrl: r.sourceUrl.trim() || null,
-  peoplePresent: r.peoplePresent, consentRecorded: r.peoplePresent && r.consentRecorded,
-});
+import { ACCEPT_BY_ROLE, asRole, fileProblem, humaniseFileName, KIND_OPTIONS, LICENCE_CHOICES, PEOPLE_CHOICES, peopleFlags, peopleOf, ROLE_ACCEPT_HINT, ROLE_NOUN, type Licence, type People, type PictureKind, type PictureRole } from './util';
 
 export function UploadPage() {
   useDocumentTitle('Upload pictures');
@@ -78,14 +30,16 @@ export function UploadPage() {
   const [rejected, setRejected] = useState<string[]>([]);
   const [over, setOver] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [allLicence, setAllLicence] = useState<Licence>('');
-  const [allTags, setAllTags] = useState('');
+  const [forAll, setForAll] = useState<ForAll>(NO_FOR_ALL);
   const picker = useRef<HTMLInputElement>(null);
   const live = useRef<Row[]>([]);
   live.current = rows;
   useEffect(() => () => { for (const r of live.current) URL.revokeObjectURL(r.previewUrl); }, []);
 
   const patch = (key: string, change: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...change } : r)));
+  // A change the person made on one card (it becomes that card's own).
+  const edit = (key: string, change: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? editRow(r, change) : r)));
+  const changeForAll = (next: ForAll) => { setRows((rs) => applyForAll(rs, forAll, next, role)); setForAll(next); };
 
   function addFiles(list: FileList | File[]) {
     const accepted: Row[] = [];
@@ -93,7 +47,7 @@ export function UploadPage() {
     for (const f of Array.from(list)) {
       const why = fileProblem(f, role);
       if (why) bad.push(`${f.name}: ${why}`);
-      else accepted.push(newRow(f, role));
+      else accepted.push(makeRow(f, URL.createObjectURL(f), role, forAll));
     }
     setRejected(bad);
     if (accepted.length) setRows((rs) => [...rs, ...accepted]);
@@ -106,7 +60,11 @@ export function UploadPage() {
   }
 
   async function uploadAll() {
-    const checked = rows.map((r) => ({ ...r, problems: validateRow(r, role) }));
+    const checked = rows.map((r) => {
+      const problems = validateRow(r, role);
+      // A problem in the details opens them, so the message is never hidden.
+      return { ...r, problems, expanded: r.expanded || !!(problems.tags || problems.sourceUrl) };
+    });
     setRows(checked);
     if (checked.some((r) => Object.keys(r.problems).length)) return;
     setBusy(true);
@@ -119,13 +77,13 @@ export function UploadPage() {
       try {
         const body = new FormData();
         body.append('file', r.file);
-        if (id) await api.patch(`/api/vault/${id}`, payload(r, role));
+        if (id) await api.patch(`/api/vault/${id}`, rowPayload(r, role));
         else {
           // The server checks the file for its role first (a cut-out or graphic needs transparency and a size), so a file it
           // would refuse never leaves an empty item behind.
           patch(r.key, { status: 'Checking the file' });
           await api.upload(`/api/vault/file-check?role=${role}`, body);
-          id = (await api.post<{ item: VaultItem }>('/api/vault', { ...payload(r, role), role })).item.id;
+          id = (await api.post<{ item: VaultItem }>('/api/vault', { ...rowPayload(r, role), role })).item.id;
           made = true;
           patch(r.key, { itemId: id });
         }
@@ -152,8 +110,6 @@ export function UploadPage() {
     if (added) toast.success(`${added} ${added === 1 ? 'picture' : 'pictures'} added`);
     if (!failures) withoutGuard(() => navigate(role === 'photo' ? '/library' : `/library?role=${role}`));
   }
-
-  const applyAll = () => setRows((rs) => rs.map((r) => ({ ...r, ...(allLicence ? { licence: allLicence } : {}), ...(allTags.trim() ? { tags: allTags } : {}) })));
 
   const dirty = rows.length > 0;
   useUnsavedGuard(dirty, { message: 'The pictures you chose have not been uploaded yet.' });
@@ -194,22 +150,11 @@ export function UploadPage() {
           </Notice>
         )}
 
-        {rows.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Apply to all pictures">
-            <span className="text-[13px] font-medium">Apply to all</span>
-            <Select value={allLicence} onValueChange={(v) => setAllLicence(v as Licence)}>
-              <SelectTrigger aria-label="Licence for all" className="w-full max-sm:h-11 max-sm:text-base sm:w-44"><SelectValue placeholder="Licence" /></SelectTrigger>
-              <SelectContent position="popper">{LICENCE_OPTIONS.filter((o) => o.value).map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
-            </Select>
-            <Input aria-label="Tags for all" placeholder="Tags, e.g. news, the-numbers" value={allTags} onChange={(e) => setAllTags(e.target.value)} className="max-sm:h-11 max-sm:text-base sm:w-56" />
-            <Button variant="outline" className="max-sm:min-h-11" disabled={busy || (!allLicence && !allTags.trim())} onClick={applyAll}>Apply</Button>
-          </div>
-        )}
+        {rows.length > 1 && <ForAllBar count={rows.length} role={role} value={forAll} disabled={busy} onChange={changeForAll} />}
 
-        {rows.length > 0 && <DescribeAllButton disabled={busy} />}
         {rows.length > 0 && (
           <ul className="m-0 flex list-none flex-col divide-y overflow-hidden rounded-lg border p-0" aria-label="Pictures to upload">
-            {rows.map((r) => <UploadRow key={r.key} row={r} role={role} disabled={busy} onChange={(c) => patch(r.key, c)} onRemove={() => remove(r.key)} />)}
+            {rows.map((r) => <UploadRow key={r.key} row={r} role={role} disabled={busy} forAll={rows.length > 1 ? forAll : NO_FOR_ALL} onChange={(c) => edit(r.key, c)} onToggle={() => patch(r.key, { expanded: !r.expanded })} onRemove={() => remove(r.key)} />)}
           </ul>
         )}
       </div>
@@ -217,51 +162,85 @@ export function UploadPage() {
   );
 }
 
-function UploadRow({ row: r, role, disabled, onChange, onRemove }: { row: Row; role: PictureRole; disabled: boolean; onChange: (c: Partial<Row>) => void; onRemove: () => void }) {
+// "For all pictures": the licence, who is in them and tags, set once for every card. Shown with two or more pictures.
+export function ForAllBar({ count, role, value, disabled, onChange }: { count: number; role: PictureRole; value: ForAll; disabled: boolean; onChange: (v: ForAll) => void }) {
+  return (
+    <section aria-labelledby="for-all-title" className="flex flex-col gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h2 id="for-all-title" className="text-[13.5px] font-semibold">For all {count} {role === 'photo' ? 'pictures' : `${ROLE_NOUN[role]}s`}</h2>
+        <DescribeAllButton disabled={disabled} />
+      </div>
+      <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
+        <SegmentedField label="Licence" options={LICENCE_CHOICES.filter((o) => o.value)} value={value.licence} disabled={disabled} onChange={(v) => onChange({ ...value, licence: v })} />
+        {role !== 'graphic' && <PeopleChoice value={value.people} disabled={disabled} onChange={(p) => onChange({ ...value, people: p })} />}
+      </div>
+      <TagInput label="Tags" optional values={value.tags} disabled={disabled} onChange={(t) => onChange({ ...value, tags: t })} chipsLabel="Tags for every picture" placeholder="news" className="sm:max-w-sm" />
+    </section>
+  );
+}
+
+// No people, people with consent recorded, or people without: the two stored flags as one choice of three chips.
+function PeopleChoice({ value, onChange, disabled, marker }: { value: People | null; onChange: (p: People) => void; disabled: boolean; marker?: ReactNode }) {
+  return <ChoiceRow<People> legend={<>People{marker}</>} choices={PEOPLE_CHOICES} value={value} disabled={disabled} onChange={(v) => onChange(v as People)} />;
+}
+
+export function UploadRow({ row: r, role, disabled, forAll, onChange, onToggle, onRemove }: { row: Row; role: PictureRole; disabled: boolean; forAll: ForAll; onChange: (c: Partial<Row>) => void; onToggle: () => void; onRemove: () => void }) {
   const locked = disabled || r.phase === 'working';
   // A problem with a field in the details opens them, so the message is never hidden.
-  const detailProblem = !!(r.problems.body || r.problems.tags || r.problems.sourceUrl);
+  const detailProblem = !!(r.problems.tags || r.problems.sourceUrl);
   const expanded = r.expanded || detailProblem;
   const panel = `${r.key}-details`;
+  const size = r.file.size < 1024 * 1024 ? `${Math.max(1, Math.round(r.file.size / 1024))} KB` : `${(r.file.size / 1024 / 1024).toFixed(1)} MB`;
   return (
-    <li className="flex flex-col gap-2 px-3 py-2.5">
-      <div className="flex items-start gap-3">
-        <img src={r.previewUrl} alt={`Preview of ${r.file.name}`} className={cn('size-12 flex-none rounded-md', role === 'photo' ? 'object-cover' : cn('object-contain', CHECKER))} />
-        <div className={cn('grid min-w-0 flex-1 gap-2', role === 'photo' && 'sm:grid-cols-[minmax(0,1fr)_9rem]')}>
-          <TextField label="Title" className="[&>div:first-child]:sr-only" value={r.title} disabled={locked} maxLength={200} error={r.problems.title} onChange={(e) => onChange({ title: e.target.value })} />
-          {role === 'photo' && <SelectField label="Kind" className="[&>div:first-child]:sr-only" value={r.kind} disabled={locked} onValueChange={(v) => onChange({ kind: v as PictureKind })} options={KIND_OPTIONS} />}
+    <li className="grid grid-cols-[4rem_minmax(0,1fr)_auto] gap-3 px-3 py-3 sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:gap-4 sm:px-4">
+      <img src={r.previewUrl} alt={`Preview of ${r.file.name}`} className={cn('size-16 rounded-md sm:row-span-2 sm:size-24', role === 'photo' ? 'object-cover' : cn('object-contain', CHECKER))} />
+      <div className="col-span-3 row-start-2 flex min-w-0 flex-col gap-3 sm:col-span-1 sm:col-start-2 sm:row-span-2 sm:row-start-1">
+        <div className={cn('grid min-w-0 items-start gap-3', role === 'photo' && 'lg:grid-cols-[minmax(0,1fr)_auto]')}>
+          <TextField label={<>Title{r.titleAuto && <FilledTag>From the file name</FilledTag>}</>} value={r.title} disabled={locked} maxLength={200} error={r.problems.title} onChange={(e) => onChange({ title: e.target.value })} />
+          {role === 'photo' && (
+            <SegmentedField label="Kind" marker={r.kindGuessed ? <FilledTag>Guessed</FilledTag> : undefined} options={KIND_OPTIONS} value={r.kind} disabled={locked} onChange={(v) => onChange({ kind: v as PictureKind })} />
+          )}
         </div>
-        <Button variant="ghost" size="icon" className="max-sm:size-11" aria-label={`Remove ${r.file.name} from the upload`} disabled={locked} onClick={onRemove}><X aria-hidden="true" /></Button>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[60px] text-[12.5px] text-muted-foreground">
-        <button type="button" aria-expanded={expanded} aria-controls={panel} onClick={() => onChange({ expanded: !r.expanded })}
-          className="inline-flex min-h-6 items-center gap-1 rounded-sm font-medium text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-11">
-          <ChevronDown className={cn('size-3.5 transition-transform', expanded && 'rotate-180')} aria-hidden="true" />More details
-        </button>
-        <PictureSuggest id={r.key} source={{ file: r.file, title: r.title, role: r.kind === 'screen' ? 'screen' : role }} hasDescription={!!r.body.trim()} disabled={locked} onUse={(s, mode) => onChange({ ...pictureSuggestionPatch(r, s, humaniseFileName(r.file.name)), ...(mode === 'edit' ? { expanded: true } : {}) })} />
-        {role === 'photo' && !r.body.trim() && !expanded && <span>Description needed</span>}
-        <span className="truncate">{r.file.name} · {r.file.size < 1024 * 1024 ? `${Math.max(1, Math.round(r.file.size / 1024))} KB` : `${(r.file.size / 1024 / 1024).toFixed(1)} MB`}</span>
-        {r.phase === 'working' && <span className="flex items-center gap-1.5" role="status"><Loader2 className="size-3.5 animate-spin" aria-hidden="true" />{r.status}</span>}
-        {r.phase === 'idle' && r.itemId && <span className="flex items-center gap-1.5 text-success"><CircleCheck className="size-3.5" aria-hidden="true" />Item created</span>}
-      </div>
-      {r.phase === 'error' && <div className="pl-[60px]"><Notice tone="bad">{r.error}</Notice></div>}
-      {expanded && (
-        <div id={panel} className="flex flex-col gap-3 pb-1 pl-[60px]">
-          <TextAreaField label="Description" rows={2} value={r.body} disabled={locked} error={r.problems.body} onChange={(e) => onChange({ body: e.target.value })}
-            hint="What is in the picture, the mood, and what posts it suits. The AI reads this." />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <SelectField label="Licence" value={r.licence} disabled={locked} onValueChange={(v) => onChange({ licence: v as Licence })} options={LICENCE_OPTIONS} />
-            <TextField label="Tags" optional placeholder="news, the-numbers" value={r.tags} disabled={locked} error={r.problems.tags} onChange={(e) => onChange({ tags: e.target.value })} hint="Separate several with commas." />
-          </div>
-          {role === 'graphic' && <SwitchField label="Can be recoloured" hint="For single-colour artwork. A design may then paint it in one of your brand colours." checked={r.tintable} disabled={locked} onCheckedChange={(v) => onChange({ tintable: v })} />}
-          {role !== 'graphic' && <SwitchField label="People can be recognised" checked={r.peoplePresent} disabled={locked} onCheckedChange={(v) => onChange({ peoplePresent: v, consentRecorded: v ? r.consentRecorded : false })} />}
-          {role !== 'graphic' && r.peoplePresent && <SwitchField label="Their consent is recorded" hintMode="inline" hint="Only when you hold written or recorded permission." checked={r.consentRecorded} disabled={locked} onCheckedChange={(v) => onChange({ consentRecorded: v })} />}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <TextField label="Licence notes" optional value={r.licenceNotes} disabled={locked} maxLength={2000} onChange={(e) => onChange({ licenceNotes: e.target.value })} hint="The photographer or stock site to credit." />
-            <TextField label="Source link" optional type="url" inputMode="url" placeholder="https://example.com/photo" value={r.sourceUrl} disabled={locked} error={r.problems.sourceUrl} onChange={(e) => onChange({ sourceUrl: e.target.value })} />
-          </div>
+        <TextAreaField label="Description" optional={role !== 'photo'} rows={2} value={r.body} disabled={locked} error={r.problems.body} onChange={(e) => onChange({ body: e.target.value })}
+          placeholder="A jar of honey on a stall, morning light" hint="What is in the picture, the mood, and what posts it suits. The AI reads this." />
+        <PictureSuggest id={r.key} source={{ file: r.file, title: r.title, role: r.kind === 'screen' ? 'screen' : role }} hasDescription={!!r.body.trim()} disabled={locked}
+          onUse={(s, mode) => {
+            const p = pictureSuggestionPatch(r, s, humaniseFileName(r.file.name));
+            // the title is passed on only when the suggestion changes it, so a title still made from the file name stays marked as such
+            onChange({ body: p.body, tags: p.tags, ...(p.title !== r.title ? { title: p.title } : {}), ...(mode === 'edit' ? { expanded: true } : {}) });
+          }} />
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-3">
+          <SegmentedField label="Licence" options={LICENCE_CHOICES} value={r.licence} disabled={locked} onChange={(v) => onChange({ licence: v as Licence })}
+            marker={!r.licenceOwn && forAll.licence !== null && r.licence === forAll.licence ? <FilledTag>For all</FilledTag> : undefined} />
+          {role !== 'graphic' && (
+            <PeopleChoice value={peopleOf(r)} disabled={locked} onChange={(p) => onChange(peopleFlags(p))}
+              marker={!r.peopleOwn && forAll.people !== null && peopleOf(r) === forAll.people ? <FilledTag>For all</FilledTag> : undefined} />
+          )}
         </div>
-      )}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-muted-foreground">
+          <button type="button" aria-expanded={expanded} aria-controls={panel} onClick={onToggle}
+            className="inline-flex min-h-6 items-center gap-1 rounded-sm font-medium text-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-11">
+            <ChevronDown className={cn('size-3.5 transition-transform', expanded && 'rotate-180')} aria-hidden="true" />More details
+          </button>
+          {!expanded && r.tags.length > 0 && <span className="truncate">{r.tags.map((t) => `#${t}`).join(' ')}</span>}
+          <span className="truncate">{r.file.name} · {size}</span>
+          {r.phase === 'working' && <span className="flex items-center gap-1.5" role="status"><Loader2 className="size-3.5 animate-spin" aria-hidden="true" />{r.status}</span>}
+          {r.phase === 'idle' && r.itemId && <span className="flex items-center gap-1.5 text-success"><CircleCheck className="size-3.5" aria-hidden="true" />Item created</span>}
+        </div>
+        {r.phase === 'error' && <Notice tone="bad">{r.error}</Notice>}
+        {expanded && (
+          <div id={panel} className="flex flex-col gap-3">
+            <TagInput label="Tags" optional values={r.tags} disabled={locked} error={r.problems.tags} onChange={(t) => onChange({ tags: t })} chipsLabel={`Tags on ${r.title || r.file.name}`} placeholder="news" />
+            {role === 'graphic' && <SwitchField label="Can be recoloured" hint="For single-colour artwork. A design may then paint it in one of your brand colours." checked={r.tintable} disabled={locked} onCheckedChange={(v) => onChange({ tintable: v })} />}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <TextField label="Licence notes" optional value={r.licenceNotes} disabled={locked} maxLength={2000} onChange={(e) => onChange({ licenceNotes: e.target.value })} hint="The photographer or stock site to credit." />
+              <TextField label="Source link" optional type="url" inputMode="url" placeholder="https://example.com/photo" value={r.sourceUrl} disabled={locked} error={r.problems.sourceUrl} onChange={(e) => onChange({ sourceUrl: e.target.value })} />
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="truncate self-center text-[13px] font-medium sm:hidden">{r.file.name}</div>
+      <Button variant="ghost" size="icon" className="col-start-3 row-start-1 -mt-1 -mr-1 max-sm:size-11" aria-label={`Remove ${r.file.name} from the upload`} disabled={locked} onClick={onRemove}><X aria-hidden="true" /></Button>
     </li>
   );
 }

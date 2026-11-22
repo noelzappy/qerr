@@ -57,13 +57,13 @@ export async function describePicture(source: PictureSource): Promise<PictureSug
 }
 
 // A suggestion merged into a card's fields: the description; the title only while it is still the one made from the file name
-// (`autoTitle`), so a title someone typed is kept; the tags added to the ones there. Tags are a comma-separated text, as the
-// upload page holds them. Never touches people or consent.
-export function pictureSuggestionPatch(current: { title: string; tags: string }, s: PictureSuggestion, autoTitle: string): { title: string; body: string; tags: string } {
-  const have = current.tags.split(',').map((t) => t.trim()).filter(Boolean);
-  const tags = [...new Set([...have, ...(s.tags ?? [])])].slice(0, 30);
+// (`autoTitle`), so a title someone typed is kept; the tags added to the ones there (a tag already there in any case is not added
+// twice; 30 at most), as the upload page holds them. Never touches people or consent.
+export function pictureSuggestionPatch(current: { title: string; tags: string[] }, s: PictureSuggestion, autoTitle: string): { title: string; body: string; tags: string[] } {
+  const tags = [...current.tags];
+  for (const t of s.tags ?? []) if (!tags.some((x) => x.toLowerCase() === t.toLowerCase())) tags.push(t);
   const keepTitle = current.title.trim() && current.title.trim() !== autoTitle.trim();
-  return { title: keepTitle || !s.title ? current.title : s.title, body: s.description, tags: tags.join(', ') };
+  return { title: keepTitle || !s.title ? current.title : s.title, body: s.description, tags: tags.slice(0, 30) };
 }
 
 // ---- the list: availability and "Describe all" ----
