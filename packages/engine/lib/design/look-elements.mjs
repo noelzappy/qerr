@@ -28,6 +28,7 @@ import {
   WORDS, BLENDS,
   angle, bool, d, en, field, int, length, list, num, obj, oneOf, role, text, tuple,
 } from './look-desc.mjs';
+import { GRADIENT_AT, GRADIENT_KINDS, GRADIENT_SHAPES, GRADIENT_STOPS, GRAPHIC_SIZES, GRAPHIC_SLOTS, OVERLAY_FROM, VAULT_REF, gradientDesc } from './look-desc.mjs';
 import * as fittedStack from './directions/primitives/fitted-stack.mjs';
 import * as numeral from './directions/primitives/numeral.mjs';
 import * as mantraRows from './directions/primitives/mantra-rows.mjs';
@@ -38,8 +39,14 @@ import * as metaRow from './directions/primitives/meta-row.mjs';
 import * as wordmarkPattern from './directions/primitives/wordmark-pattern.mjs';
 import * as scrim from './directions/primitives/scrim.mjs';
 import * as punchHole from './directions/primitives/punch-hole.mjs';
+import * as gradient from './directions/primitives/gradient.mjs';
+import * as overlay from './directions/primitives/overlay.mjs';
+import * as graphic from './directions/primitives/graphic.mjs';
 export { ALIGNS, ANGLE_NAMES, BASELINES, BODY_SIZES, BORDER_STYLES, COLOUR_LOGICS, EDGES, EMPHASES, FIT_MODES, FLOW_ALIGNS, FOLIOS, FORMATS, GLYPHS, GROUNDS, ITEM_SIZES, JUSTIFIES, LABEL_SIZES, LENGTH_TOKENS, LIMITS, METAROW_SOURCES, ORIGINS, PARTS, PHOTO_SHAPES, PHOTO_TREATS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, RULE_WEIGHTS, SHADOWS, SOFT_SHADOWS, CORNERS, ROUND_SHAPES, RULE_STYLES, SHORT_FIELDS, SIZE_RANGE, SOURCES, SPLIT_SEPARATORS, STICKER_SHAPES, STYLES, TEXT_FIELDS, UNIT_AT, VALIGNS, WORDMARK_SEPS, WORDS, BLENDS };
-export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 'mantra-rows': mantraRows, rows, seam, band, 'meta-row': metaRow, 'wordmark-pattern': wordmarkPattern, scrim, 'punch-hole': punchHole });
+export { GRADIENT_AT, GRADIENT_KINDS, GRADIENT_SHAPES, GRADIENT_STOPS, GRAPHIC_SIZES, GRAPHIC_SLOTS, OVERLAY_FROM, VAULT_REF };
+export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 'mantra-rows': mantraRows, rows, seam, band, 'meta-row': metaRow, 'wordmark-pattern': wordmarkPattern, scrim, 'punch-hole': punchHole,
+  // gradients, colour over a picture, brand graphics and cut-outs
+  gradient, overlay, graphic });
 
 export const LOOK_SCHEMA = 1;
 export const KINDS = [...POST_KINDS];
@@ -104,6 +111,8 @@ export const COMMON = Object.freeze({
   textShadow: oneOf([{ is: 'string', desc: en(SHADOWS, 'Shadow', 'The look\'s own hard shadow.') }, {
     is: 'object', desc: obj({ x: int(-24, 24, 'Across', 'Pixels across.'), y: int(-24, 24, 'Down', 'Pixels down.'), colour: role('Colour', 'The shadow colour.', 'ink') }, 'Shadow', 'A hard shadow behind the letters, no blur.', ['x', 'y']),
   }], 'Letter shadow', 'A hard shadow behind the letters: the look\'s ("hard") or your own.'),
+  // a box filled with a gradient instead of one colour (not with fill)
+  gradient: gradientDesc('Gradient fill', 'Fills it with a blend of two or three of the brand\'s colours instead of one (leave out fill).'),
 });
 // The properties only an item flowing in a box takes.
 export const FLOW_ONLY = ['grow', 'minH', 'w', 'h', 'before', 'nudgeX', 'alignSelf'];
@@ -143,7 +152,7 @@ const ELEMENTS_BASE = {
       flow: en(['column', 'row'], 'Direction', 'Items flow down a column or across a row.', 'column'), justify: en(JUSTIFIES, 'Spread along', 'Where the items sit along the direction.', 'start'),
       align: en(FLOW_ALIGNS, 'Across', 'How the items line up across the direction (stretch fills it).', 'start'), gap: int(0, 120, 'Gap', 'Pixels between items.', 0),
     },
-    common: ['place', 'bleed', 'rot', 'origin', 'originPct', 'z', 'when', 'fill', 'ink', 'shadow', 'ring', 'border', 'pad', 'radius', 'corners', 'grow', 'minH', 'w', 'h', 'before', 'nudgeX', 'alignSelf'],
+    common: ['place', 'bleed', 'rot', 'origin', 'originPct', 'z', 'when', 'fill', 'ink', 'shadow', 'ring', 'border', 'pad', 'radius', 'corners', 'grow', 'minH', 'w', 'h', 'before', 'nudgeX', 'alignSelf', 'gradient'],
   },
   text: {
     label: 'Text', group: 'Text', help: 'Words of the post (or the brand name, the folio, a list number) set in one of the look\'s type styles.',

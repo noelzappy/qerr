@@ -20,7 +20,29 @@ export const POST_REQUIRED = {
   statement: ['headline'], figure: ['big'], list: ['headline', 'items'], quote: ['quote'], photo: ['image', 'headline'], event: ['headline', 'meta'], offer: ['headline', 'tag'],
 };
 // The keys a post design may carry besides its fields (a batch's file name and sizes, the network sizes).
-const OWN = ['template', 'kind', 'variant', 'sizes', 'name', 'networkSizes', 'image', 'focal', 'zoom', 'items'];
+const OWN = ['template', 'kind', 'variant', 'sizes', 'name', 'networkSizes', 'image', 'focal', 'zoom', 'items', 'graphics'];
+// The brand graphics and cut-outs a post hands to its look (the app fills this from the vault for the graphics the look's pieces name):
+// [{ ref: the vault item's id, image: a PNG or WebP file with transparency, tintable: whether a piece may recolour it }]. Checked here by
+// shape; the files are read and checked (type, size, transparency) when the page is made (render.mjs preparePage).
+export const POST_GRAPHICS = Object.freeze({ max: 6, exts: ['.png', '.webp'] });
+const GRAPHIC_REF = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export function graphicsProblems(list, where) {
+  if (list === undefined) return [];
+  if (!Array.isArray(list) || list.length > POST_GRAPHICS.max) return [`${where}: graphics must be a list of up to ${POST_GRAPHICS.max} { ref, image, tintable }`];
+  const e = [], refs = new Set();
+  list.forEach((g, i) => {
+    const w = `${where}: graphics[${i}]`;
+    if (!g || typeof g !== 'object' || Array.isArray(g)) return e.push(`${w} must be an object with ref (the vault id), image (the file) and tintable`);
+    for (const k of Object.keys(g)) if (!['ref', 'image', 'tintable'].includes(k)) e.push(`${w}: "${clip(k).replace(/[^A-Za-z0-9 ._-]/g, '?')}" is not a setting of a graphic (ref, image, tintable)`);
+    if (typeof g.ref !== 'string' || !GRAPHIC_REF.test(g.ref)) e.push(`${w}: ref must be the id of a vault picture (a lowercase UUID)`);
+    else if (refs.has(g.ref)) e.push(`${w}: the same graphic is listed twice`);
+    else refs.add(g.ref);
+    if (typeof g.image !== 'string' || !g.image.trim() || g.image.includes('\0')) e.push(`${w}: image must be a file path`);
+    else if (!POST_GRAPHICS.exts.includes(path.extname(g.image).toLowerCase())) e.push(`${w}: image must be a PNG or WebP file (${POST_GRAPHICS.exts.join(' ')}) with a transparent background`);
+    if (g.tintable !== undefined && typeof g.tintable !== 'boolean') e.push(`${w}: tintable must be true or false`);
+  });
+  return e;
+}
 export const POST_KEYS = [...OWN, ...Object.keys(POST_FIELDS)];
 
 const seen = (v) => String(v).replace(/\*/g, '').replace(/\\n|\n/g, '');
@@ -62,6 +84,7 @@ export function postProblems(d, where = 'design', { direction, focalOk, brief } 
   }
   if (d.focal !== undefined && focalOk && !focalOk(d.focal)) e.push(`${where}: focal must look like "60% 40%", "center", "left top" or { "x": 0.6, "y": 0.4 }`);
   if (d.zoom !== undefined && !isNum(d.zoom, 1, 3)) e.push(`${where}: zoom must be a number from 1 to 3`);
+  e.push(...graphicsProblems(d.graphics, where));
   for (const f of POST_REQUIRED[d.kind] ?? []) if (d[f] === undefined) e.push(`${where}: a ${d.kind} post needs ${f}`);
   return e;
 }

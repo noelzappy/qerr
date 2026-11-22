@@ -208,11 +208,14 @@ const levelCount = (sizes) => {
   return groups.length;
 };
 
-const hasFill = (n) => n.el.fill !== undefined && ['box', 'band'].includes(n.type);
+const hasFill = (n) => (n.el.fill !== undefined && ['box', 'band'].includes(n.type)) || hasGradient(n);
+// a box filled with a gradient: every one of its colours is a fill its text must read on
+const hasGradient = (n) => n.type === 'box' && isObj(n.el.gradient) && Array.isArray(n.el.gradient.stops);
 // The role a node is drawn on: the nearest filled ancestor (or the node itself), else the page colour(s).
 function backgrounds(node, comp, look) {
   for (let n = node; n; n = n.parent) {
     if (n.type === 'sticker') return [n.el.fill ?? (look.colour?.sticker === 'primary' ? 'primary' : 'gold')];
+    if (hasGradient(n)) return [...n.el.gradient.stops];
     if (hasFill(n)) return [n.el.fill];
     if (n.type === 'seam') return [n.el.lower];
     if (n.type === 'rows' && (n.el.altFill || n.el.fill)) return n.el.altFill ?? [n.el.fill];
@@ -313,7 +316,7 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
   if (g) {
     const cache = new Map();
     const photos = nodes.filter((n) => n.type === 'photo' || (n.type === 'seam' && n.el.upper !== 'field'));
-    const backers = nodes.filter((n) => n.type === 'scrim' || n.type === 'block' || n.type === 'sticker' || hasFill(n) || (n.type === 'rows' && (n.el.fill || n.el.altFill))).map((n) => ({ n, rect: rectOf(n, look, g, cache), key: keyOf(topOf(n)) }));
+    const backers = nodes.filter((n) => n.type === 'scrim' || n.type === 'overlay' || n.type === 'gradient' || n.type === 'block' || n.type === 'sticker' || hasFill(n) || (n.type === 'rows' && (n.el.fill || n.el.altFill))).map((n) => ({ n, rect: rectOf(n, look, g, cache), key: keyOf(topOf(n)) }));
     for (const s of nodes.filter((x) => x.type === 'seam')) {
       const y = Math.max(s.el.leftY, s.el.rightY);
       backers.push({ n: s, rect: { x0: 0, y0: y, x1: PAGE.w, y1: PAGE.h }, key: keyOf(s) + 0.5 });
@@ -329,6 +332,37 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
         if (!overlaps(rectOf(p, look, g, cache), tr)) continue;
         if (!backers.some((b) => b.key > pk - 0.001 && b.key < tk && b.n !== t && contains(b.rect, tr))) { at(t, 'its text lies over a picture with no filled box under it and no dark fade behind it; put it in a filled box or add a dark fade (scrim) between them'); break; }
       }
+    }
+    inkOnLayers(nodes, look, g, cache, at);
+  }
+}
+
+// ---- ink on a gradient or a colour over a picture ----
+// Text drawn over a gradient area (or a colour laid over a picture) that is below it on the page, and not in a filled box of its own, must read on
+// EVERY colour of the gradient (the worst stop decides) and on the overlay's colour. The ink is the text's own, else the nearest box's, else its
+// style's (display and figures ink, body and items body, labels muted). The pixels are measured again when the page is made.
+const STYLE_INK = { display: 'ink', numeral: 'ink', body: 'body', item: 'body', label: 'muted' };
+function inkOf(t) {
+  for (let a = t; a; a = a.parent) if (typeof a.el.ink === 'string') return a.el.ink;
+  if (t.type === 'text') return STYLE_INK[styleOf(t.el)];
+  if (['fitted-stack', 'mantra-rows', 'numeral'].includes(t.type)) return 'ink';
+  return null;
+}
+function inkOnLayers(nodes, look, g, cache, at) {
+  const layers = nodes.filter((n) => !n.parent && (n.type === 'gradient' || n.type === 'overlay'));
+  if (!layers.length) return;
+  for (const t of nodes.filter((x) => TEXT_TYPES.includes(x.type))) {
+    let boxed = false;
+    for (let a = t.parent; a; a = a.parent) if (a.type === 'sticker' || a.type === 'seam' || hasFill(a)) boxed = true;
+    if (boxed) continue;
+    const ink = inkOf(t);
+    if (!ink) continue;
+    const tr = rectOf(t, look, g, cache), tk = keyOf(topOf(t));
+    for (const l of layers) {
+      if (keyOf(l) >= tk || !overlaps(rectOf(l, look, g, cache), tr)) continue;
+      const fills = l.type === 'gradient' ? (Array.isArray(l.el.gradient?.stops) ? l.el.gradient.stops : []) : [l.el.colour ?? 'ink'];
+      const worst = fills.find((f) => INK_ON[f] && !INK_ON[f].includes(ink));
+      if (worst) { at(t, `its ink ${ink} does not read on ${worst}, ${l.type === 'gradient' ? 'one of the colours of the gradient' : 'the colour over the picture'} under it (use ${list(INK_ON[worst])}, or a colour that reads on every one)`); break; }
     }
   }
 }

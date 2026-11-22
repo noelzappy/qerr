@@ -895,6 +895,7 @@ that is empty, over its limit or on two lines where one is required is refused, 
 | `meta` | 40 | one line, for example the date and place of an event |
 | `tag` | 16 | one line, the words of a seal or sticker |
 | `image`, `focal`, `zoom` | as elsewhere | `.jpg .jpeg .png .webp .gif`; zoom 1 to 3 |
+| `graphics` | up to 6 | `[{ ref, image, tintable? }]`: the brand graphics and cut-outs the look's `graphic` pieces name, by vault id (`ref`, a lowercase UUID), each a `.png` or `.webp` file read when the page is made and refused unless it has transparency. The app fills this from the vault; a piece whose `ref` is not listed is left out with a warning |
 
 Required per kind: `statement` needs `headline`; `figure` `big`; `list` `headline` and `items`; `quote` `quote`; `photo`
 `image` and `headline`; `event` `headline` and `meta`; `offer` `headline` and `tag`. A field the chosen composition does not
@@ -1142,6 +1143,9 @@ stored. At most 21 compositions, at most 3 of a kind.
 | `glyph` | A decorative mark from a fixed list (opening and closing quotes, `&`, `№`, arrows) |
 | `meta-row` | The top label row, built from the look's own cells |
 | `wordmark-pattern`, `scrim`, `punch-hole` | The brand name as texture, a dark fade behind text over a picture, a punched hole |
+| `gradient` | An area filled with a linear or radial blend of two or three colour roles |
+| `overlay` | A colour role laid over a full picture (even, or strongest at the foot or the top), measured so the words on it read |
+| `graphic` | One of the brand's graphics or cut-outs (vault id), at one of nine slots, sized, turned, mirrored, a recolourable one in a colour role |
 
 Common to most: `place` (exactly one of a grid position, pixels, an anchor, or an inset of the page, margins or frame; a flow child of a
 box has none), `bleed`, `rot` (a named angle or -15 to 15), `origin` or `originPct`, `skew` (a plain block only), `z`, `when` (`{ present }` / `{ absent }`), `fill`, `ink`,
@@ -1177,6 +1181,9 @@ need two properties are listed here.
 | `seam` | `children` | Items that flow in the colour below the edge, like the flowing children of a box: they take no `place` and no `z`, count as text on the seam's colour (no picture needs to back them) and may use `before`, `w` and the like |
 | `seam` | `sticker` | At most one `sticker` element, given as the seam's own property (not in `children`). It is checked like any sticker and counts as an element, one level below the seam; its `place` is required and is an `anchor` or `px` place measured from the top edge of the split (a negative `top` lifts it above the edge); it takes no `z`. `normaliseLook` fills its defaults and `lookCatalogue()` lists it under the seam's `slots` |
 | `type.display` | `wordSpace` | Extra space between the words of headlines, 0 to 0.2 em (default 0) |
+| `box`, `gradient` | `gradient` | `{ kind: linear\|radial, stops, angle?, at?, shape?, mid? }`: two or three colour roles a panel can be filled with (never a hex), `angle` a whole number 0 to 359 (linear only, 180 when left out), `at` one of the nine points and `shape` circle or ellipse (radial only), `mid` 20 to 80 percent (three stops only). A box takes `fill` or `gradient`, not both. Text on a gradient (its own box, or a gradient area under it) must use an ink that reads on EVERY stop: the worst stop decides |
+| `overlay` | `colour`, `from`, `need`, `floor`, `cap`, `fade` | A colour a panel can be filled with; `flat`, `bottom` or `top`; the contrast 3 to 7 the words must reach; the strength range (`floor` at most `cap`, `cap` at most 0.95); `fade` 0 to 800 px, not on a flat overlay. It backs words over a picture like a scrim (the words must lie inside it), and their ink must read on its colour. When the page is made the runtime reads the picture's own pixels under the words and raises the strength from `floor` until they reach `need` (light words: the brightest 5% are held to it; dark words: the darkest 5%), no further than `cap`; the render's contrast check then measures the finished pixels as for every page |
+| `graphic` | `ref`, `at`, `size`, `edge`, `dx`, `dy`, `flip`, `tint`, `rot`, `z`, `when` | `ref` a vault id; `at` one of `top-left`, `top`, `top-right`, `left`, `center`, `right`, `bottom-left`, `bottom`, `bottom-right`, inside the margins or, with `edge`, against the page edge; `size` `s`, `m`, `l`, `xl` (0.22, 0.34, 0.5, 0.72 of the page width) or 24 to 1350 px, the height from the picture's own proportions and never taller than the page; `dx` -540 to 540, `dy` -675 to 675; `tint` a fill colour role, drawn only for a graphic marked recolourable (else it keeps its colours, with a warning). It goes on the page, never in a box, and takes no `place`. The picture reaches the page only as the checked `data:` URI of the post's `graphics` (ctx.image); it is a user image, so the enlargement and emptiness checks read it. The text-over-a-picture rule does not judge it (its height is known only when drawn); the contrast check on the pixels does |
 
 **What `validateLook` refuses** (every message says where, quotes only a short plain value, never echoes other input, and is at most 200
 characters): unknown keys at every level, wrong types, out-of-range numbers, values outside a fixed list, a family not in the font
@@ -1250,6 +1257,9 @@ outside the margin.
 | `wordmark-pattern` | `size`, `altItalic`, `fade`, `fadeFrom`, `colour` |
 | `scrim` | `need`, `floor`, `cap`, `fade`, `colour` |
 | `punch-hole` | `size` |
+| `gradient` | `gradient` (see above), `radius`, `corners` |
+| `overlay` | `colour`, `from`, `need`, `floor`, `cap`, `fade` |
+| `graphic` | `ref`, `at`, `size`, `edge`, `dx`, `dy`, `flip`, `tint` |
 
 **What the schema grew to draw the two full looks.** Each is a table entry (catalogue, validator, fuzz) with a bounded value and a rule; none is an
 expression, a reference or a free string. A property that validates has an effect: what the renderer does not draw is refused or not in the schema

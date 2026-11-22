@@ -95,7 +95,7 @@ test('the catalogue is JSON, stable and complete', () => {
     assert.equal(e.container !== null, keysOf(t).includes('children'));
   }
   // every descriptor anywhere has a kind the validator knows and a label, and nothing is a function
-  const kinds = new Set(['number', 'enum', 'bool', 'role', 'length', 'angle', 'field', 'text', 'list', 'tuple', 'object', 'oneOf', 'tagged', 'place', 'when']);
+  const kinds = new Set(['number', 'enum', 'bool', 'role', 'length', 'angle', 'field', 'text', 'list', 'tuple', 'object', 'oneOf', 'tagged', 'place', 'when', 'ref']);
   const seen = (d, where) => {
     if (d && typeof d === 'object' && typeof d.kind === 'string') {
       assert.ok(kinds.has(d.kind), `${where}: kind ${d.kind}`);
@@ -171,6 +171,9 @@ const EXAMPLES = {
   'wordmark-pattern': { type: 'wordmark-pattern', size: 100, place: AT(56, 700, 900, 300) },
   scrim: { type: 'scrim', place: AT(56, 700, 900, 300) },
   'punch-hole': { type: 'punch-hole', place: AT(56, 700, 100, 100) },
+  gradient: { type: 'gradient', gradient: { kind: 'linear', stops: ['paper', 'soft'], angle: 135 }, place: AT(56, 700, 900, 300) },
+  overlay: { type: 'overlay', place: AT(56, 700, 900, 300) },
+  graphic: { type: 'graphic', ref: '0f8fad5b-d9cb-469f-a165-70867728950e', at: 'bottom-right', size: 'm' },
 };
 const host = (...extra) => ({
   ...clone(SWISS), id: 'host', origin: 'copy:shipped:swiss',
@@ -202,6 +205,7 @@ function hostile(d) {
     case 'tuple': keep.push([], new Array(d.items.length + 1).fill(1), 'x'); break;
     case 'object': keep.push([1, 2, 3], 'x', 7); break;
     case 'oneOf': keep.push([1, 2, 3, 4, 5], 'x', true); break;
+    case 'ref': keep.push('0F8FAD5B-D9CB-469F-A165-70867728950E', '0f8fad5b-d9cb-469f-a165-70867728950e;x', '../../etc/passwd', 'design/assets/photos/a.png', 'https://evil.example/x.png', '', 7, true); break;
     default: keep.push([1, 2, 3], 'x', 7, true);
   }
   return keep;
