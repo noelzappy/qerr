@@ -337,7 +337,7 @@ describe('activity of the AI jobs', () => {
     const res = await admin.post('/api/settings/research/run');
     await expect(t.jobs.drain(t.deps)).rejects.toThrow('No AI provider is set up for research');
     const run = await t.prisma.activityRun.findUniqueOrThrow({ where: { id: res.body.activityId } });
-    expect(run).toMatchObject({ status: 'failed', error: 'No AI provider is set up for research. Add one in Settings, AI.' });
+    expect(run).toMatchObject({ status: 'failed', error: 'No AI provider is set up for research. Add one in Settings, AI and search.' });
     expect(run.finishedAt).not.toBeNull();
     expect(JSON.stringify(run)).not.toContain('SECRETAIKEY');
   });
