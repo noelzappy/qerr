@@ -1,0 +1,137 @@
+{
+  "name": "pennyhive-example-posts",
+  "timezone": "Europe/Dublin",
+  "defaultTime": "09:00",
+  "mediaRoot": "media/pennyhive-example-posts",
+  "posts": [
+    {
+      "id": "01-save-as-a-hive",
+      "date": "2026-12-07",
+      "title": "Save as a hive",
+      "caption": "Save as a hive, see every penny.\n\nPennyhive is one place for your savings club: the pot, the payments and whose turn it is, on every member's phone.\n\nSee how it works: https://pennyhive.example\n\n#Pennyhive #SavingsClub #SaveTogether",
+      "media": ["01-save-as-a-hive-feed.jpg"],
+      "design": {
+        "template": "post",
+        "kind": "statement",
+        "label": "Pennyhive",
+        "headline": "Save as a hive, *see every penny.*",
+        "sub": "Your club's pot, payments and turns, on every member's phone."
+      },
+      "networks": {
+        "instagram": { "type": "post" },
+        "x": { "caption": "Save as a hive, see every penny. Your savings club's pot, payments and turns in one place.\n\nhttps://pennyhive.example" }
+      }
+    },
+    {
+      "id": "02-the-numbers",
+      "date": "2026-12-09",
+      "title": "The numbers",
+      "caption": "10,000 members put money into their club every week on Pennyhive. (Illustrative figures for a fictional brand.)\n\n#Pennyhive #SavingsClub #SaveTogether",
+      "media": ["02-the-numbers-feed.jpg"],
+      "design": {
+        "template": "post",
+        "kind": "figure",
+        "label": "The numbers",
+        "big": "10,000",
+        "unit": "members a week",
+        "sub": "put money into their club every week on Pennyhive. Illustrative figure."
+      },
+      "networks": {
+        "instagram": { "type": "post" },
+        "x": { "caption": "10,000 members save with their club every week on Pennyhive. (Illustrative figure.)" }
+      }
+    },
+    {
+      "id": "03-start-a-club",
+      "date": "2026-12-11",
+      "title": "Start a club in three steps",
+      "caption": "Starting a savings club takes three decisions: who is in, how much each person puts in, and the order of payouts. Pennyhive keeps all three where everyone can see them.\n\n#Pennyhive #SavingsClub #SaveTogether",
+      "media": ["03-start-a-club-feed.jpg"],
+      "design": {
+        "template": "post",
+        "kind": "list",
+        "label": "Money basics",
+        "headline": "Start a club in *three steps.*",
+        "items": ["Choose who is in", "Agree the amount and the day", "Set the payout order once"]
+      },
+      "networks": {
+        "instagram": { "type": "post" },
+        "x": { "caption": "Start a savings club in three steps: choose who is in, agree the amount and the day, set the payout order once." }
+      }
+    },
+    {
+      "id": "04-member-voice",
+      "date": "2026-12-14",
+      "title": "Member voice",
+      "caption": "A club runs on trust, and trust is easier when everyone can see the same record.\n\nA quote written for our fictional test brand.\n\n#Pennyhive #SavingsClub #SaveTogether",
+      "media": ["04-member-voice-feed.jpg"],
+      "design": {
+        "template": "post",
+        "kind": "quote",
+        "quote": "We stopped arguing about who paid. *Now we just look.*",
+        "by": "A club organiser (invented)"
+      },
+      "networks": {
+        "instagram": { "type": "post" },
+        "x": { "caption": "\"We stopped arguing about who paid. Now we just look.\" A club organiser (invented quote for a fictional brand)." }
+      }
+    },
+    {
+      "id": "05-the-pot",
+      "date": "2026-12-16",
+      "title": "The shared pot",
+      "caption": "Every member sees the pot, who has paid this round and whose turn it is next.\n\n#Pennyhive #SavingsClub #SaveTogether",
+      "media": ["05-the-pot-feed.jpg"],
+      "design": {
+        "template": "post",
+        "kind": "photo",
+        "headline": "One pot, *open to everyone in it.*",
+        "sub": "See who has paid this round and whose turn it is next.",
+        "tag": "The pot",
+        "image": "design/assets/demo/object-jar.jpg"
+      },
+      "networks": {
+        "instagram": { "type": "post" },
+        "x": { "caption": "One pot, open to everyone in it: see who has paid this round and whose turn it is next." }
+      }
+    },
+    {
+      "id": "06-organisers-evening",
+      "date": "2026-12-18",
+      "title": "Organisers' evening",
+      "caption": "Run a savings club? Join our online evening for organisers: how to set the payout order, chase a late payment kindly and close a round.\n\nAn invented event for a fictional brand.\n\n#Pennyhive #SavingsClub",
+      "media": ["06-organisers-evening-feed.jpg"],
+      "design": {
+        "template": "post",
+        "kind": "event",
+        "headline": "Organisers' evening, *online.*",
+        "meta": "2 Feb · 7pm · Online",
+        "sub": "Payout order, late payments and closing a round.",
+        "image": "design/assets/demo/scene-market.jpg"
+      },
+      "networks": {
+        "instagram": { "type": "post" },
+        "x": { "caption": "Organisers' evening, online, 2 Feb at 7pm: payout order, late payments and closing a round." }
+      }
+    },
+    {
+      "id": "07-free-plan",
+      "date": "2026-12-21",
+      "title": "Free for small clubs",
+      "caption": "Pennyhive is free for clubs of up to 20 members. Start one before the new year.\n\nhttps://pennyhive.example/pricing\n\n#Pennyhive #SavingsClub #SaveTogether",
+      "media": ["07-free-plan-feed.jpg"],
+      "design": {
+        "template": "post",
+        "kind": "offer",
+        "headline": "Small clubs save *for free.*",
+        "tag": "Free",
+        "sub": "Pennyhive is free for clubs of up to 20 members.",
+        "image": "design/assets/demo/scene-market.jpg"
+      },
+      "networks": {
+        "instagram": { "type": "post" },
+        "x": { "caption": "Pennyhive is free for clubs of up to 20 members.\n\nhttps://pennyhive.example/pricing" }
+      }
+    }
+  ]
+}
