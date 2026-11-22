@@ -1249,7 +1249,22 @@ height of a top label row, extra text lines), `fonts` (four roles, each a librar
 be type, which page colours compositions may use), `devices` (rules, frame, highlight bar, hard shadow, six named angles, the top label
 row, the folio, the brand-name pattern), `photo`, `logo` and `dials` (tilt 0 to 1.5, density, weight shift). A look names **no hex
 colour, no CSS font name, no asset path, no URL, no brand id**: colours are palette roles, families come from `design/fonts/library.json`.
-`origin` is `"shipped"` (only the engine's own looks, `validateLook(look, where, { shipped: true })`) or `copy:shipped:<id>` / `copy:own:<slug>`.
+`origin` is `"shipped"` (only the engine's own looks, `validateLook(look, where, { shipped: true })`), `copy:shipped:<id>` / `copy:own:<slug>`, or
+`"starter"` for a look started blank (below).
+
+**The blank starter.** `look-starter.mjs` holds the look a brand starts from when it starts blank, as data: `starterLook({ id, name })` (a fresh
+copy, origin `"starter"`) and `starterComposition(kind)` (the plain design of one kind, for "Add a blank design"). It is not a shipped look: it is
+not in `shippedLooks()` and never in the gallery. Its settings are neutral and take the brand's own fonts (every font role is `source: "brand"`)
+and colours (palette roles): margins of 72, a six column grid without rows, tonal colour with the page colours most designs use (paper, dark,
+tint, field, soft), the logo at the top left. It has one plain composition for every kind, on paper: a headline and a sub line (a statement), a
+big figure with its unit and a sub line (a figure), a headline over numbered rows (a list), the quotation centred with who said it (a quote), a
+headline and sub line over the picture (a photo), a headline, the event line and a sub line (an event), a headline, the tag on a pill and a sub
+line (an offer). `test-design-look-starter.mjs` holds it to `validateLook`, checks that a design of every kind from the shipped looks fits it,
+and draws every composition from sample, stress and minimal copy in three sets of brand colours through every page check.
+
+**A design brings no typefaces.** A composition names the look's font roles (`display`, `text`, `label`, `mono`, and a text element's `font`) and
+palette roles, never a family, a size scale outside its own ladders, or a colour. Copied into another look, it is drawn in that look's fonts,
+colours and type settings; there is no per-composition override of the look's fonts.
 
 **A composition** is `{ kind, name, describe, ground, fields, accepts?, calm?, levels?, fit?, elements }` (`levels`: see "More sizes of type"). `kind` is one of the seven post kinds;
 `fields` names the post fields it draws, each with `required` and `max` (never above what a post allows, and the kind's own required fields
