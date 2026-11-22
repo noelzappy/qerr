@@ -12,9 +12,9 @@ import { validateDesign } from './lib/design/spec.mjs';
 const raw = () => JSON.parse(fs.readFileSync(brandFile('brand.json'), 'utf8'));
 const copyOf = (id, as) => ({ ...structuredClone(shippedLooks()[id]), id: as, origin: `copy:shipped:${id}` });
 
-test('shippedLooks: retail, swiss, soft, bloom and clean, validated, deep frozen, the same object every call', () => {
+test('shippedLooks: retail, swiss, soft, bloom, clean, roast and plate, validated, deep frozen, the same object every call', () => {
   const s = shippedLooks();
-  assert.deepEqual(Object.keys(s), ['retail', 'swiss', 'soft', 'bloom', 'clean']);
+  assert.deepEqual(Object.keys(s), ['retail', 'swiss', 'soft', 'bloom', 'clean', 'roast', 'plate']);
   assert.equal(shippedLooks(), s);
   for (const [id, look] of Object.entries(s)) {
     assert.equal(look.id, id);

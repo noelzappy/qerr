@@ -1,0 +1,97 @@
+{
+  "note": "Starting vault for Salt & Ember, a fictional grill restaurant used as a test brand. Every item is invented: no real company, person, place or figure. The numbers and prices are round and illustrative only. Imported once on an empty database; edit or delete in the app afterwards.",
+  "vault": [
+    {
+      "kind": "figure",
+      "title": "Brisket smoke",
+      "body": "The brisket smokes over oak for 12 hours before service (illustrative figure).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": [
+        "numbers",
+        "kitchen"
+      ]
+    },
+    {
+      "kind": "figure",
+      "title": "Dry-aged beef",
+      "body": "The flat iron is aged for 30 days (illustrative figure).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "validFrom": "2026-01-01",
+      "validUntil": "2027-12-31",
+      "tags": [
+        "numbers",
+        "kitchen"
+      ]
+    },
+    {
+      "kind": "product",
+      "title": "From the grill",
+      "body": "Bone marrow €14, flat iron steak €28, charred leeks €12, ember-baked potato €8 (round, illustrative prices).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "menu",
+        "prices"
+      ]
+    },
+    {
+      "kind": "product",
+      "title": "Tonight's special",
+      "body": "Rib eye from the grill with frites, €32 (illustrative price).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "menu",
+        "prices"
+      ]
+    },
+    {
+      "kind": "event",
+      "title": "Tasting menu",
+      "body": "A six-course fire-cooked tasting menu on Fridays in December from 19:30 (invented event).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "events",
+        "bookings"
+      ]
+    },
+    {
+      "kind": "event",
+      "title": "Supper club",
+      "body": "A long table in the back room on 18 December at 19:00, €60 a guest, wine extra (invented event).",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "events",
+        "bookings"
+      ]
+    },
+    {
+      "kind": "fact",
+      "title": "The fire",
+      "body": "The grill is lit at dawn and fed with oak through the day.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "kitchen",
+        "public"
+      ]
+    },
+    {
+      "kind": "fact",
+      "title": "Bookings",
+      "body": "Tables are booked on saltandember.example; the restaurant is in Harrowgate, an invented city.",
+      "sourceNote": "Invented for the test brand.",
+      "status": "confirmed",
+      "tags": [
+        "bookings",
+        "public"
+      ]
+    }
+  ]
+}
