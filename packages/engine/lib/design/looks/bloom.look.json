@@ -1592,7 +1592,7 @@
     {
       "kind": "offer",
       "name": "Price card",
-      "describe": "Four sizes of type in a clear order: a small label, a big serif headline, a round price badge on the edge of an arch picture and the sub line at the foot. For a product with a short price; with no picture a thin arch outline.",
+      "describe": "Four sizes of type in a clear order: a small label, a big serif headline, a round price badge on the edge of an arch picture and the sub line at the foot. For a product with a short price and a picture of it.",
       "ground": "paper",
       "fit": "margins",
       "levels": {
@@ -1614,7 +1614,9 @@
         "sub": {
           "max": 100
         },
-        "image": {}
+        "image": {
+          "required": true
+        }
       },
       "elements": [
         {
@@ -1690,33 +1692,12 @@
               "h": 710
             }
           },
-          "z": 1,
-          "when": {
-            "present": "image"
-          }
-        },
-        {
-          "type": "keyline",
-          "weight": 2,
-          "colour": "primary",
-          "radius": "arch",
-          "place": {
-            "px": {
-              "x": 560,
-              "y": 560,
-              "w": 440,
-              "h": 710
-            }
-          },
-          "z": 1,
-          "when": {
-            "absent": "image"
-          }
+          "z": 1
         },
         {
           "type": "sticker",
           "shape": "circle",
-          "size": 250,
+          "size": 270,
           "place": {
             "px": {
               "x": 420,
@@ -1730,12 +1711,16 @@
             "by": "tag",
             "steps": [
               [
-                7,
-                64
+                4,
+                84
+              ],
+              [
+                9,
+                58
               ],
               [
                 16,
-                50
+                46
               ]
             ],
             "maxLines": 2

@@ -154,3 +154,20 @@ test('in Chrome: the bloom Price card sets four sizes (badge, label, headline, s
   assert.equal(ok.post.name, 'Price card');
   await assert.rejects(render(bloomWith((l) => { delete l.compositions[card].levels; }), design), /sets type in 4 sizes|levels/);
 });
+
+test('the bloom Price card asks for its picture, and without one draws no empty frame', async () => {
+  const look = { ...clone(shippedLooks().bloom), origin: 'copy:shipped:bloom' };
+  const card = look.compositions.find((c) => c.name === 'Price card');
+  assert.equal(card.fields.image.required, true, 'the design asks for a picture');
+  assert.ok(!JSON.stringify(card.elements).includes('"keyline"'), 'no outline stands in for a missing picture');
+  const variant = look.compositions.filter((c) => c.kind === 'offer').indexOf(card);
+  const body = renderPostWithLook(look, { template: 'post', name: 'p', kind: 'offer', variant, headline: 'Half', tag: '-50%' }, { size: SIZES.feed, brand, image: () => '', imageSize: () => null }).body;
+  assert.ok(!/k-keyline|k-photo/.test(body), 'nothing of a frame is drawn without the picture');
+});
+
+test('in Chrome: without its picture the Price card draws its words and badge only, and still passes every check', { skip }, async () => {
+  const variant = shippedLooks().bloom.compositions.filter((c) => c.kind === 'offer').findIndex((c) => c.name === 'Price card');
+  const r = await render(bloomWith(), { kind: 'offer', variant, label: 'The house blend', headline: 'Ember No. 1, our *everyday* house blend', tag: '£9.50', sub: 'Chocolate, hazelnut and orange peel. 250 g.' });
+  assert.deepEqual(r.warnings, []);
+  assert.equal(r.post.name, 'Price card');
+});
