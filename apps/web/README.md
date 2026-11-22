@@ -85,8 +85,10 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   `/batches/:id/posts/:postId`, a page with breadcrumbs, the form on the left and a live preview on the right. Network choices
   and captions are edited there and saved with the post. It has a picture picker and structured editors for figures, lists, carousel
   pages, tables and cards; a carousel's pages are listed one by one, each made with a built-in page layout or one of the brand's
-  own layouts that has the feed size, whose fields the page then shows (`web/src/pages/batches/design-model.ts`); the raw design JSON is under "Advanced". The post card on the batch page shows the image, title, date,
-  one status chip (plus a problem chip when there is one), the network icons, Edit, Approve and a More menu. The preview calls `POST /api/posts/preview-design`
+  own layouts that has the feed size, whose fields the page then shows (`web/src/pages/batches/design-model.ts`); the raw design JSON is under "Advanced". The post card on the batch page is one row: a thumbnail, the title (a link to the
+  post page), date, the networks it goes to, two lines of the caption, one status chip (plus a problem chip, whose popover lists
+  what is wrong), one action (Approve, or Fix when something stops approval) and a More menu (Edit, Take approval off, the image,
+  upload, Remove). The preview calls `POST /api/posts/preview-design`
   (`src/server/routes/design-preview.ts`, roles admin and editor): the body is `{ design, size? }`, and the answer is
   `{ ok, image, images, size, warnings, notes }` (`ok: false` with an `error` when the design was fine but could not be
   drawn). A design that saving would refuse is a 422 `{ error, details }`, in the same words as saving; a brand without its

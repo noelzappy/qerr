@@ -89,15 +89,17 @@ export function PostChips({ flow, problem, className }: { flow: PostFlow; proble
   );
 }
 
-// Small network icons in a row; a network the post does not go to is greyed.
-export function NetworkRow({ on, className }: { on: (n: string) => boolean; className?: string }) {
+// Small network icons in a row; a network the post does not go to is greyed, or left out when `only` lists the ones to show.
+export function NetworkRow({ on, only, className }: { on: (n: string) => boolean; only?: readonly string[]; className?: string }) {
+  const shown = only ?? NETWORKS;
+  if (only && only.length === 0) return <span className="text-[12px] text-muted-foreground">No networks</span>;
   return (
-    <ul className={cn('flex items-center gap-1.5', className)} aria-label="Networks">
-      {NETWORKS.map((n) => {
+    <ul className={cn('flex items-center', only ? 'gap-1' : 'gap-1.5', className)} aria-label="Networks">
+      {shown.map((n) => {
         const yes = on(n);
         return (
           <li key={n} role="img" aria-label={yes ? networkLabel(n) : `${networkLabel(n)}, not sent here`} className={cn('flex', !yes && 'opacity-30 grayscale')}>
-            <NetworkIcon network={n} className="size-[18px] rounded-[4px]" />
+            <NetworkIcon network={n} className={cn('rounded-[4px]', only ? 'size-4' : 'size-[18px]')} />
           </li>
         );
       })}

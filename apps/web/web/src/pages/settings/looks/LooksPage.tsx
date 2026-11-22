@@ -56,7 +56,7 @@ function ShippedCard({ l, kinds, active, onUse, onCustomise, busy }: { l: Shippe
     <li className="flex min-w-0 flex-col gap-2.5 rounded-lg border bg-card p-3">
       <div>
         <div className="flex items-center gap-2"><Name l={l} />{active && <ToneBadge tone="good" dot>In use</ToneBadge>}</div>
-        <p className="text-[13px] text-muted-foreground">{l.description}</p>
+        <p className="line-clamp-2 text-[13px] text-muted-foreground" title={l.description}>{l.description}</p>
         <p className="mt-0.5 text-[12.5px] text-muted-foreground">{kindsSummary(l.kinds)}</p>
       </div>
       <SampleStrip state={samples} kinds={kinds} lookName={l.name} compact />

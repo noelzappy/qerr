@@ -230,7 +230,7 @@ function SearchCard({ search, onChanged }: { search: Settings['search']; onChang
       <form className="flex max-w-[520px] flex-col gap-3" onSubmit={(e) => void save(e)} noValidate>
         <SelectField label="Service" value={kind} onValueChange={(v) => setKind(v as typeof kind)} options={SEARCH_OPTIONS} />
         <TextField label={search ? 'New key' : 'Key'} type="password" autoComplete="off" mono value={apiKey} onChange={(e) => setApiKey(e.target.value)} error={fields.apiKey} optional={!!search}
-          placeholder={search ? `Leave blank to keep the key ending ${search.keyLast4}` : ''} hintMode="inline" hint="Stored encrypted. It cannot be shown again." />
+          placeholder={search ? `Leave blank to keep the key ending ${search.keyLast4}` : ''} />
         {error && <Notice tone="bad">{error}</Notice>}
         <div><BusyButton type="submit" loading={busy} disabled={!dirty}>Save search service</BusyButton></div>
       </form>
@@ -271,7 +271,7 @@ function BudgetCard({ budget, onChanged }: { budget: Settings['budget']; onChang
           {pct !== null && <> ({pct}% of the budget)</>}
           {budget.unpricedCalls > 0 && <>. {budget.unpricedCalls} {budget.unpricedCalls === 1 ? 'call' : 'calls'} this month had no price, so {budget.unpricedCalls === 1 ? 'it is' : 'they are'} not counted. Add the provider's prices above.</>}
         </p>
-        <p className="text-[13px] text-muted-foreground">The AI does not run without a budget above zero{budget.monthlyBudgetUsd === null ? '. No budget is set yet.' : '.'}</p>
+        {!(budget.monthlyBudgetUsd && budget.monthlyBudgetUsd > 0) && <p className="text-[13px] text-warning-foreground">{budget.monthlyBudgetUsd === null ? 'No budget is set yet' : 'The budget is zero'}, so the AI does not run.</p>}
         <div><BusyButton type="submit" loading={busy} disabled={!dirty}>Save budget</BusyButton></div>
       </form>
     </Section>

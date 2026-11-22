@@ -219,9 +219,9 @@ export function Frame({ sidebar, mobileTitle, children }: { sidebar: ReactNode; 
   useMoveFocusOnPageChange(location.pathname);
   return (
     <PaletteProvider>
-    <div className="relative min-h-dvh bg-frame md:grid md:h-dvh md:grid-cols-[15.5rem_minmax(0,1fr)] md:overflow-hidden">
+    <div className="relative min-h-dvh bg-frame md:grid md:h-dvh md:grid-cols-[15.5rem_minmax(0,1fr)] md:overflow-clip">
       <a className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[100] focus:rounded-md focus:bg-foreground focus:px-3.5 focus:py-2.5 focus:text-background" href="#main">Skip to the content</a>
-      <aside className="relative hidden h-dvh flex-col gap-3 overflow-y-auto bg-sidebar px-3 pb-3 pt-4 text-sidebar-foreground md:flex">{sidebar}</aside>
+      <aside className="sticky top-0 hidden h-dvh flex-col overscroll-contain gap-3 overflow-y-auto bg-sidebar px-3 pb-3 pt-4 text-sidebar-foreground md:flex">{sidebar}</aside>
       <div className="flex min-w-0 flex-col md:h-dvh md:py-2 md:pr-2">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-frame px-3 md:hidden">
           <Button variant="ghost" size="icon" className="size-11" aria-label="Open the menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
@@ -237,7 +237,7 @@ export function Frame({ sidebar, mobileTitle, children }: { sidebar: ReactNode; 
             {sidebar}
           </SheetContent>
         </Sheet>
-        <main id="main" tabIndex={-1} className="relative min-h-0 flex-1 overflow-y-auto bg-background outline-none md:rounded-xl md:border">
+        <main id="main" tabIndex={-1} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background outline-none md:rounded-xl md:border">
           <div className="mx-auto max-w-[1440px] px-4 py-4 md:px-6 md:pb-8 md:pt-4">
             <ErrorBoundary resetKey={location.pathname}>{children}</ErrorBoundary>
           </div>

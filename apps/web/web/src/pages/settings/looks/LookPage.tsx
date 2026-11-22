@@ -87,12 +87,12 @@ export function LookPage({ initial, list, activeRef, onActive }: { initial: OwnD
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <div className="flex min-w-0 flex-1 basis-64 items-center gap-2.5">
             <Input aria-label="Name of the look" value={name} maxLength={cat.limits.name} disabled={locked} aria-invalid={nameProblem ? true : undefined}
-              onChange={(e) => setDraft((cur) => ({ ...cur, name: e.target.value }))} className="h-9 min-w-0 flex-1 border-transparent bg-transparent px-1.5 text-[19px] font-semibold tracking-tight shadow-none hover:border-input focus-visible:border-input md:text-[19px]" />
+              onChange={(e) => setDraft((cur) => ({ ...cur, name: e.target.value }))} className="-ml-1.5 h-9 min-w-0 flex-1 border-transparent bg-transparent px-1.5 text-[19px] font-semibold tracking-tight shadow-none hover:border-input focus-visible:border-input md:text-[19px]" />
             <ToneBadge tone={LOOK_STATUS[status].tone} dot>{LOOK_STATUS[status].label}</ToneBadge>
             {locked && <ToneBadge tone="good" dot>In use</ToneBadge>}
           </div>
           <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
-            {dirty && <span className="text-[13px] text-muted-foreground" role="status">You have changes that are not saved.</span>}
+            {dirty && <span className="text-[13px] text-muted-foreground" role="status">Unsaved changes</span>}
             {dirty && <Button type="button" variant="ghost" onClick={() => { setDraft(settingsOf(look.definition)); setServer([]); setError(''); }}>Undo</Button>}
             {!locked && dirty && <BusyButton variant={primary === 'save' ? 'default' : 'outline'} loading={saving} disabled={invalid} onClick={() => void save()}>Save</BusyButton>}
             {!locked && <Button type="button" variant={primary === 'publish' ? 'default' : 'outline'} disabled={dirty} title={dirty ? 'Save your changes first' : undefined} onClick={() => setPublishing(true)}>Publish</Button>}

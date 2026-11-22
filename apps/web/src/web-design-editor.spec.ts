@@ -293,6 +293,18 @@ describe('turning', () => {
     expect(M.nearestAngle(5.5, look, cat)?.name).toBe('sticker');
     expect(M.namedAngles(look, cat).map((a) => a.name)).toEqual(['sticker', 'bar', 'block', 'band', 'card', 'price']);
   });
+  it('names the turn choices by how far they turn, not by the angle names', () => {
+    const named = M.namedAngles(look, cat).filter((a) => a.deg !== 0);
+    expect(M.turnOptions(named, look).map((o) => [o.value, o.label])).toEqual([
+      ['card', '1° right'], ['block', '2° left'], ['bar', '3° left'], ['price', '3° right'], ['sticker', '6° right'],
+    ]);
+    expect(M.turnOptions(named, look).find((o) => o.value === 'price')?.title).toBe('Price angle: 3° right');
+    // The tilt dial is applied, and two angles that turn alike keep their names apart.
+    const tilted = { ...look, dials: { tilt: 0.5 } };
+    expect(M.turnOptions(named, tilted).find((o) => o.value === 'sticker')?.label).toBe('3° right');
+    const same = { devices: { angles: { sticker: 3, price: 3 } }, dials: { tilt: 1 } };
+    expect(M.turnOptions(M.namedAngles(same, cat).filter((a) => a.deg !== 0), same).map((o) => o.label)).toEqual(['3° right (sticker)', '3° right (price)']);
+  });
 });
 
 describe('structure', () => {

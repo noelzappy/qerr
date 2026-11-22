@@ -219,10 +219,13 @@ export function VaultItemPage() {
 
       <div className="flex flex-col gap-7">
         {item && (
-          <div className="flex flex-col gap-3">
-            <p className="flex flex-wrap items-center gap-x-1 text-[13px] text-muted-foreground">
-              {item.status === 'confirmed' && item.confirmedAt ? `Confirmed by a person on ${formatDateTime(item.confirmedAt)}.` : 'Not confirmed yet.'} Last changed {formatDateTime(item.updatedAt)}.
+          <div className="-mt-2 flex flex-col gap-3">
+            <p className="flex flex-wrap items-center gap-x-1.5 text-[12.5px] text-muted-foreground">
+              <span>{item.status === 'confirmed' && item.confirmedAt ? `Confirmed by a person on ${formatDateTime(item.confirmedAt)}` : 'Not confirmed yet'}</span>
               <Hint about="confirming">Only people confirm. The AI can add items and check them, but it can never confirm one. Confirming means you have checked the text against its source and are happy for posts to rely on it.</Hint>
+              <span aria-hidden="true">·</span>
+              <span>Last changed {formatDateTime(item.updatedAt)}</span>
+              {!hasProblems(item) && <><span aria-hidden="true">·</span><span className="inline-flex items-center gap-1" aria-label="Problems: none"><CircleCheck className="size-3.5 text-success" aria-hidden="true" />No problems</span></>}
             </p>
             {dirty && item.status !== 'confirmed' && <Notice tone="info">Save your changes before confirming, so what you confirm is what is stored.</Notice>}
             {actionError && <Notice tone="bad">{actionError}</Notice>}
@@ -231,9 +234,10 @@ export function VaultItemPage() {
         )}
 
         <form id="vault-item-form" className="flex flex-col gap-7" onSubmit={(e) => void submit(e)} noValidate>
-          {item?.status === 'confirmed' && (
-            <Notice tone="warn" title="This item is confirmed.">
-              Changing its kind, title, text, source or dates makes it unconfirmed again, and a person has to confirm it again. Changing the file does the same.
+          {/* Said once there is something to save, not before. */}
+          {item?.status === 'confirmed' && dirty && (
+            <Notice tone="warn" title="Saving may take the confirmation off.">
+              Changing its kind, title, text, source, dates or file makes it unconfirmed again, and a person has to confirm it again.
             </Notice>
           )}
 
@@ -307,13 +311,13 @@ export function VaultItemPage() {
   );
 }
 
-// What stops the item being relied on: a plain line when nothing does, a notice with the reasons when something does.
+const hasProblems = (item: VaultItem) => item.problems.source.length > 0 || (isFileKind(item.kind) && item.problems.rights.length > 0);
+
+// What stops the item being relied on, as a notice with the reasons (nothing when nothing does: the line above says so).
 function ProblemsPanel({ item }: { item: VaultItem }) {
   const rights = isFileKind(item.kind) ? item.problems.rights : [];
   const source = item.problems.source;
-  if (rights.length === 0 && source.length === 0) {
-    return <p className="flex items-center gap-1.5 text-[13px] text-muted-foreground" aria-label="Problems"><CircleCheck className="size-3.5 text-success" aria-hidden="true" />No problems. Posts can use this item.</p>;
-  }
+  if (rights.length === 0 && source.length === 0) return null;
   return (
     <section aria-label="Problems">
       <Notice tone="warn" title="Stops this item being relied on in an approved post.">

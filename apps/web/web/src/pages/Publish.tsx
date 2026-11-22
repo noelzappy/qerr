@@ -7,7 +7,7 @@ import { api } from '../api';
 import { useAppInfo } from '../app-info';
 import { useDocumentTitle, useLoad } from '../hooks';
 import { NetworkIcon } from '@/components/network-icon';
-import { dayLabel, PostRow } from '@/components/post-row';
+import { dayLabel, PostRow, PostRows } from '@/components/post-row';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -155,7 +155,7 @@ function ListView({ start, today, posts }: { start: string; today: string; posts
       {groups.map(([day, list]) => (
         <section key={day} aria-label={dayLabel(day)} className="flex flex-col gap-2">
           <h2 className="text-[13px] font-semibold">{day === today ? 'Today' : day === addDays(today, 1) ? 'Tomorrow' : dayLabel(day)}{(day === today || day === addDays(today, 1)) && <span className="ml-1.5 font-normal text-muted-foreground">{dayLabel(day)}</span>}</h2>
-          {list.map((p) => <PostRow key={p.id} post={p} showDate={false} />)}
+          <PostRows>{list.map((p) => <PostRow key={p.id} post={p} showDate={false} />)}</PostRows>
         </section>
       ))}
     </div>
