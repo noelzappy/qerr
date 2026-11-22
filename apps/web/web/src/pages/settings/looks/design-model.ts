@@ -934,6 +934,10 @@ export function newElement(comp: Json, type: string, look: Json, cat: LookCatalo
     case 'scrim': size = { span: 99, rowSpan: 3 }; break;
     case 'frame': if (!(frameOf(look).t > 0)) el.t = 24; break;
     case 'punch-hole': size = { span: 1, rowSpan: 1, w: 44, h: 44 }; break;
+    // gradients, colour over a picture, brand graphics (the graphic is chosen in the pane: it names a vault picture)
+    case 'gradient': el.gradient = { kind: 'linear', stops: ['field', 'dark'] }; size = { span: 99, rowSpan: 3 }; break;
+    case 'overlay': el.colour = 'ink'; el.from = 'bottom'; size = { span: 99, rowSpan: 3 }; break;
+    case 'graphic': el.at = 'bottom-right'; el.size = 'm'; break;
     default: break;
   }
   if (info.placement === 'required') {

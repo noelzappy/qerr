@@ -175,7 +175,7 @@ export function renderComposition(look, comp, c) {
     const kids = walk(el.children ?? [], { kind: 'box', w: inner, h, ink: env.ink, skipGrid: env.skipGrid || rot !== 0, flexDir: el.flow, stretch: el.align === 'stretch' });
     return c.box(clean({
       ...env.box, fill: el.fill, ink: el.ink, rot: rot || undefined, origin: rot ? originOf(el) : undefined, shadow: env.shadowOpt, ring: el.ring, border: el.border ? { w: el.border.w, colour: el.border.colour, style: el.border.style } : undefined,
-      pad, radius: el.radius, corners: el.radius !== undefined && el.corners !== 'all' ? el.corners : undefined, flex: el.children?.length ? el.flow : undefined, justify: el.justify === 'start' ? undefined : el.justify, align: el.align === 'start' ? undefined : el.align, gap: el.gap || undefined,
+      gradient: el.gradient, pad, radius: el.radius, corners: el.radius !== undefined && el.corners !== 'all' ? el.corners : undefined, flex: el.children?.length ? el.flow : undefined, justify: el.justify === 'start' ? undefined : el.justify, align: el.align === 'start' ? undefined : el.align, gap: el.gap || undefined,
       z: env.z, nudge: env.nudge, unrot: rot && fittedInside(el) ? true : undefined, flexNone: env.box.flow && P.flexDir === 'row' && w !== undefined ? true : undefined,
     }), kids);
   }

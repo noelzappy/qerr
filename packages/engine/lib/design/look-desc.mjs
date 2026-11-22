@@ -80,3 +80,28 @@ export const list = (of, max, label, help, o = {}) => d({ kind: 'list', of, max,
 export const tuple = (items, label, help) => d({ kind: 'tuple', items }, label, help);
 export const obj = (props, label, help, required = []) => d({ kind: 'object', props, ...(required.length ? { required } : {}) }, label, help);
 export const oneOf = (forms, label, help, def) => d({ kind: 'oneOf', forms }, label, help, def);
+
+// ---- gradients, overlays over a picture, brand graphics and cut-outs (each a separate, bounded capability) ----
+// A gradient: two or three brand colour roles (never a hex), linear at a whole-degree angle or radial from one of nine points.
+export const GRADIENT_KINDS = ['linear', 'radial'];
+export const GRADIENT_AT = ['center', 'top', 'bottom', 'left', 'right', 'left top', 'right top', 'left bottom', 'right bottom'];
+export const GRADIENT_SHAPES = ['circle', 'ellipse'];
+export const GRADIENT_STOPS = Object.freeze({ min: 2, max: 3 });
+// The one gradient descriptor every element that takes a gradient shares (the gradient primitive, a box's gradient fill).
+export const gradientDesc = (label = 'Gradient', help = 'A blend of two or three of the brand\'s colours.') => obj({
+  kind: en(GRADIENT_KINDS, 'Kind', 'Linear (along a direction) or radial (out from a point).', 'linear'),
+  stops: list(role('Colour', 'A colour of the brand.'), GRADIENT_STOPS.max, 'Colours', 'Two or three colours of the brand, in order.', { min: GRADIENT_STOPS.min }),
+  angle: int(0, 359, 'Direction', 'Degrees, for a linear gradient: 0 runs up, 90 to the right, 180 down (when left out), 270 to the left.'),
+  at: en(GRADIENT_AT, 'From', 'The point a radial gradient spreads out from (the centre when left out).'),
+  shape: en(GRADIENT_SHAPES, 'Shape', 'A radial gradient spreads as a circle or an ellipse (an ellipse when left out).'),
+  mid: int(20, 80, 'Middle colour at', 'Where the middle colour of three sits, in percent along the gradient (50 when left out).'),
+}, label, help, ['kind', 'stops']);
+// An overlay over a picture: flat, or strongest at the foot or the head of its box; its strength is measured so the text reaches its contrast.
+export const OVERLAY_FROM = ['flat', 'bottom', 'top'];
+// A brand graphic or cut-out on the page: where it sits (nine slots, inside the margins or on the page edge) and how wide (a share of the page
+// width, or pixels). Its height follows its own proportions.
+export const GRAPHIC_SLOTS = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'];
+export const GRAPHIC_SIZES = Object.freeze({ s: 0.22, m: 0.34, l: 0.5, xl: 0.72 });
+// A vault item named by a look: its id (a UUID, lowercase), nothing else; the file is found by the app and checked when the page is made.
+export const VAULT_REF = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export const ref = (label, help) => d({ kind: 'ref' }, label, help);

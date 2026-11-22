@@ -131,7 +131,36 @@ const visible = (s) => String(s).replace(/\*/g, '').replace(/\\n|\n/g, '');
 // the builders that refuse the old free-string options (extra, cls, attrs)
 const FREE = ['extra', 'cls', 'attrs'];
 const BUILDERS = ['type', 'label', 'body', 'display', 'fitLines', 'group', 'rule', 'block', 'flowBlock', 'folioMark', 'verticalLabel', 'sticker', 'glyph', 'wordmarkPattern', 'numeral', 'seal', 'frame', 'keyline',
-  'photo', 'print', 'box', 'band', 'run', 'shape', 'echoStack', 'fitBlock', 'fitFill', 'fitNumeral', 'scrim'];
+  'photo', 'print', 'box', 'band', 'run', 'shape', 'echoStack', 'fitBlock', 'fitFill', 'fitNumeral', 'scrim', 'gradient', 'overlay', 'graphic'];
+
+// ---- gradients: two or three palette colours, a whole-degree angle or one of nine points; written from these tables only ----
+const GRADIENT_AT = Object.freeze({ center: 'center', top: 'top', bottom: 'bottom', left: 'left', right: 'right', 'left top': 'left top', 'right top': 'right top', 'left bottom': 'left bottom', 'right bottom': 'right bottom' });
+export function gradientCss(g) {
+  if (!g || typeof g !== 'object' || Array.isArray(g)) throw new Error('design kit: gradient must be { kind, stops, ... }');
+  const stops = g.stops;
+  if (!Array.isArray(stops) || stops.length < 2 || stops.length > 3) throw new Error('design kit: a gradient has two or three colours');
+  const cs = stops.map((s) => colour(s));
+  let pos = [0, 100];
+  if (cs.length === 3) {
+    const mid = g.mid ?? 50;
+    if (!Number.isInteger(mid) || mid < 20 || mid > 80) throw new Error('design kit: the middle colour of a gradient sits from 20 to 80 percent');
+    pos = [0, mid, 100];
+  }
+  const list = cs.map((c, i) => `${c} ${pos[i]}%`).join(',');
+  if (g.kind === 'linear') {
+    const a = g.angle ?? 180;
+    if (!Number.isInteger(a) || a < 0 || a > 359) throw new Error('design kit: a gradient angle is a whole number of degrees from 0 to 359');
+    return `linear-gradient(${a}deg,${list})`;
+  }
+  if (g.kind === 'radial') {
+    const shape = g.shape ?? 'ellipse', at = g.at ?? 'center';
+    if (shape !== 'circle' && shape !== 'ellipse') throw new Error('design kit: a radial gradient is a circle or an ellipse');
+    if (!Object.hasOwn(GRADIENT_AT, at)) throw new Error('design kit: a radial gradient spreads from one of nine points');
+    return `radial-gradient(${shape} at ${GRADIENT_AT[at]},${list})`;
+  }
+  throw new Error('design kit: a gradient is linear or radial');
+}
+const OVERLAY_MODES = Object.freeze(['flat', 'bottom', 'top']);
 
 // ---- the context ----
 // args: { spec, brand, tokens, direction, kind, variant, comp, size, image, imageSize, counter, folio, date }
@@ -186,6 +215,17 @@ export function makeContext(args) {
     hasImage: typeof spec.image === 'string' && spec.image !== '' && typeof args.image === 'function',
     // the picture's own size (width, height) in pixels, or null
     imageDims: () => (c.hasImage ? args.imageSize?.(spec.image) ?? null : null),
+    // notes a look's pieces leave for the person (a graphic that is not there), added to the render's warnings
+    lookNotes: [],
+  };
+  // A brand graphic or cut-out the post spec hands over (spec.graphics: [{ ref, image, tintable }], checked by post-spec.mjs, the files read, checked
+  // and embedded by render.mjs preparePage): { src (the data: URI, through args.image only), name, w, h, tintable }, or null when it is not there.
+  c.graphicOf = (ref) => {
+    const list = Array.isArray(spec.graphics) ? spec.graphics : [];
+    const g = list.find((x) => x && typeof x === 'object' && x.ref === ref && typeof x.image === 'string');
+    if (!g || typeof args.image !== 'function') return null;
+    const dims = args.imageSize?.(g.image) ?? null;
+    return { src: args.image(g.image), name: g.image, w: dims?.w ?? null, h: dims?.h ?? null, tintable: g.tintable === true };
   };
 
   // The CSS font stack of a role: the brand's own font when it brought one for that role (font.display / font.label with files),
@@ -405,7 +445,8 @@ export function makeContext(args) {
     if (o.origin !== undefined && !ORIGIN.test(o.origin)) throw new Error('design kit: box origin');
     if (o.border && !['solid', 'dashed'].includes(o.border.style ?? 'solid')) throw new Error('design kit: border style');
     if (o.slant !== undefined && (!Number.isFinite(o.slant) || o.slant < 0 || o.slant > 600)) throw new Error('design kit: slant must be from 0 to 600 px');
-    const css = [place(o), o.minH !== undefined && o.grow === undefined ? `min-height:${P(o.minH, 'minH')}px` : '', o.fill ? `background:${colour(o.fill)}` : '', o.ink ? `color:${colour(o.ink)}` : '', rot ? `transform:rotate(${P(rot, 'rot')}deg)` : '', rot && o.origin ? `transform-origin:${o.origin}` : '',
+    if (o.fill && o.gradient) throw new Error('design kit: a box takes fill or a gradient, not both');
+    const css = [place(o), o.minH !== undefined && o.grow === undefined ? `min-height:${P(o.minH, 'minH')}px` : '', o.fill ? `background:${colour(o.fill)}` : '', o.gradient ? `background:${gradientCss(o.gradient)}` : '', o.ink ? `color:${colour(o.ink)}` : '', rot ? `transform:rotate(${P(rot, 'rot')}deg)` : '', rot && o.origin ? `transform-origin:${o.origin}` : '',
       shadows.length ? `box-shadow:${shadows.join(',')}` : '', o.border ? `border:${P(o.border.w, 'border')}px ${o.border.style ?? 'solid'} ${colour(o.border.colour ?? 'ink')}` : '', o.pad !== undefined ? `padding:${padOf(o.pad)}` : '',
       o.radius !== undefined ? `border-radius:${radiusCss(o.radius, o.corners)}` : '',
       o.clip ? `clip-path:polygon(${o.clip.map(([px_, py]) => `${P(px_, 'clip x')}px ${P(py, 'clip y')}px`).join(',')})` : '',
@@ -415,7 +456,7 @@ export function makeContext(args) {
       flexCss(o), nudgeCss(o.nudge),
       o.z !== undefined ? `z-index:${P(o.z, 'z')}` : ''].filter(Boolean).join(';');
     const v = variantOf(tokens, o.variant);
-    return `<div class="${o.flow ? 'k-flow' : 'abs'} k-box${base ? ` ${base}` : ''}${v ? ` ${v}` : ''}" data-el${o.fill ? ' data-fill' : ''}${o.unrot ? ' data-unrot' : ''}${rot ? ` data-tilt="${P(rot, 'rot')}"` : ''}${rot || o.skipGrid ? ' data-grid="skip"' : ''} style="${css}">${inner}</div>`;
+    return `<div class="${o.flow ? 'k-flow' : 'abs'} k-box${base ? ` ${base}` : ''}${v ? ` ${v}` : ''}" data-el${o.fill || o.gradient ? ' data-fill' : ''}${o.unrot ? ' data-unrot' : ''}${rot ? ` data-tilt="${P(rot, 'rot')}"` : ''}${rot || o.skipGrid ? ' data-grid="skip"' : ''} style="${css}">${inner}</div>`;
   };
   c.box = (o, inner = '') => boxEl(o, inner);
   // A band: a full-width slab turned by rot degrees, wider than the page (overscan px each side) so its ends never show. y, h: where its
@@ -559,6 +600,31 @@ function kitExtras(c, brand, spec) {
   // scrim (colour: a palette name, default ink) until the text reaches `need`:1 there, no stronger than `cap` and no weaker than `floor`;
   // it holds that strength to the foot of the lowest text and fades out over `fade` px below. o: x, y, w, h, need, floor, cap, fade, colour.
   x.scrim = (o) => `<i class="abs k-scrim" aria-hidden="true" data-el data-scrim data-need="${P(o.need ?? 4.5, 'need')}" data-floor="${P(o.floor ?? 0.45, 'floor')}" data-capa="${P(o.cap ?? 0.92, 'cap')}" data-fade="${P(o.fade ?? 56, 'fade')}" style="${place(o)};color:${colour(o.colour ?? 'ink')}"></i>`;
+  // An area filled with a gradient (gradientCss: palette colours, a whole-degree angle or one of nine points). It counts as deliberate fill.
+  // o: x, y, w, h, right, bottom, gradient, radius (px or a round name), corners, z.
+  x.gradient = (o) => `<i class="abs k-grad" aria-hidden="true" data-el data-fill style="${place(o)};background:${gradientCss(o.gradient)}${o.radius !== undefined ? `;border-radius:${radiusCss(o.radius, o.corners)}` : ''}${o.z !== undefined ? `;z-index:${P(o.z, 'z')}` : ''}"></i>`;
+  // A colour laid over the picture under text (the scrim's measurement, read by runtime.mjs swScrims): flat, or strongest at the foot (from: bottom)
+  // or the top (from: top) of its box, fading out `fade` px beyond the words. It starts at `floor` of the colour and is raised until the words in
+  // its box reach `need`:1 against the picture's own pixels, no further than `cap`. o: x, y, w, h, colour, from, need, floor, cap, fade, z.
+  x.overlay = (o) => {
+    const from = o.from ?? 'bottom';
+    if (!OVERLAY_MODES.includes(from)) throw new Error('design kit: an overlay is flat or strongest at the bottom or the top');
+    const lim = (v, lo, hi, what) => { n(v, what); if (v < lo || v > hi) throw new Error(`design kit: ${what} must be from ${lo} to ${hi}`); return px(v); };
+    return `<i class="abs k-scrim k-overlay" aria-hidden="true" data-el data-scrim data-mode="${from}" data-need="${lim(o.need ?? 4.5, 3, 7, 'need')}" data-floor="${lim(o.floor ?? 0.35, 0.1, 0.9, 'floor')}" data-capa="${lim(o.cap ?? 0.85, 0.3, 0.95, 'cap')}" data-fade="${lim(o.fade ?? 240, 0, 800, 'fade')}" style="${place(o)};color:${colour(o.colour ?? 'ink')}${o.z !== undefined ? `;z-index:${P(o.z, 'z')}` : ''}"></i>`;
+  };
+  // One of the brand's graphics or cut-outs (c.graphicOf: the picture handed over in the post spec, embedded as a data: URI by args.image) in a box
+  // of w x h px at x, y, turned by rot degrees and mirrored with flip. tint (a palette colour) recolours a recolourable graphic: the picture is drawn
+  // one box to the left, outside the clip, and its drop shadow (no blur) falls exactly into the box in that colour, its outline the graphic's own.
+  // The picture is a user image (data-user) so the enlargement check and the emptiness check read it; data-graphic keeps it apart from the post's photo.
+  x.graphic = (o) => {
+    const g = c.graphicOf(o.ref);
+    if (!g) return '';
+    const w = P(o.w, 'w'), rot = o.rot === undefined ? 0 : n(o.rot, 'rot');
+    if (Math.abs(rot) > 15) throw new Error('design kit: a graphic turns at most 15 degrees');
+    const tr = [rot ? `rotate(${P(rot, 'rot')}deg)` : '', o.flip ? 'scaleX(-1)' : ''].filter(Boolean).join(' ');
+    const tint = o.tint === undefined ? '' : colour(o.tint);
+    return `<div class="abs k-graphic${tint ? ' k-tinted' : ''}" data-el data-grid="skip" style="${place({ x: o.x, y: o.y, w: o.w, h: o.h })}${tr ? `;transform:${tr}` : ''}${o.z !== undefined ? `;z-index:${P(o.z, 'z')}` : ''}"><img data-user data-graphic data-name="${esc(g.name)}" data-fit="contain" src="${g.src}" alt=""${tint ? ` style="filter:drop-shadow(${w}px 0 0 ${tint})"` : ''}></div>`;
+  };
   return x;
 }
 

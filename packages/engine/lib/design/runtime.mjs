@@ -717,7 +717,8 @@ window.__ds = {
   // grey treatment), and no stronger. It holds that strength to the foot of the lowest text and fades out below.
   swScrims() {
     for (const el of document.querySelectorAll('[data-scrim]')) {
-      const d = el.dataset, img = document.querySelector('img[data-user]'); if (!img || !img.naturalWidth) continue;
+      const d = el.dataset, img = document.querySelector('img[data-user]:not([data-graphic])'); if (!img || !img.naturalWidth) continue;
+      const mode = d.mode || 'scrim';
       const need = +d.need, floorA = +d.floor, capA = +d.capa, fade = +d.fade, sb = el.getBoundingClientRect();
       const kc = (getComputedStyle(el).color.match(/\d+/g) || [0, 0, 0]).slice(0, 3).map(Number);
       const lin = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
@@ -734,7 +735,7 @@ window.__ds = {
       const tf = getComputedStyle(img).transform, z = tf && tf !== 'none' ? new DOMMatrix(tf).a || 1 : 1, vw = sw / z, vh = sh / z, vx = (nw - sw) * fx + (sw - vw) * fx, vy = (nh - sh) * fy + (sh - vh) * fy;
       const grey = !!img.closest('.k-grey');
       for (const { b, c } of texts) {
-        hold = Math.max(hold, b.bottom - sb.top + 10);
+        hold = Math.max(hold, mode === 'bottom' ? sb.bottom - b.top + 10 : b.bottom - sb.top + 10);
         const r = { x0: Math.max(b.left, ib.left), y0: Math.max(b.top, ib.top), x1: Math.min(b.right, ib.right), y1: Math.min(b.bottom, ib.bottom) };
         if (r.x1 - r.x0 < 2 || r.y1 - r.y0 < 2) continue;
         const cw = Math.min(96, Math.ceil(r.x1 - r.x0)), ch = Math.min(40, Math.ceil(r.y1 - r.y0)), cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
@@ -744,10 +745,23 @@ window.__ds = {
         for (let k = 0; k < px.length; k += 4) { let R = px[k], G = px[k + 1], B = px[k + 2]; if (grey) { let g = 0.2126 * R + 0.7152 * G + 0.0722 * B; g = Math.min(255, Math.max(0, (g - 128) * 1.04 + 128)); R = G = B = g; } pix.push([R, G, B]); }
         const lt = lum(c[0], c[1], c[2]), lmax = (lt + 0.05) / (need * 1.03) - 0.05;
         const p95 = (a) => { const L = pix.map(([R, G, B]) => lum(R * (1 - a) + kc[0] * a, G * (1 - a) + kc[1] * a, B * (1 - a) + kc[2] * a)).sort((x, y) => x - y); return L[Math.min(L.length - 1, Math.round(0.95 * (L.length - 1)))]; };
-        let a = floorA; while (a < capA && p95(a) > lmax) a = Math.min(capA, +(a + 0.02).toFixed(3));
+        let a = floorA;
+        if (mode !== 'scrim' && lt < 0.18) {
+          // an overlay under dark words: the picture must be LIGHT enough, so the darkest 5% of the blended pixels are held to the target
+          const lmin = need * 1.03 * (lt + 0.05) - 0.05;
+          const p05 = (q) => { const L = pix.map(([R, G, B]) => lum(R * (1 - q) + kc[0] * q, G * (1 - q) + kc[1] * q, B * (1 - q) + kc[2] * q)).sort((x, y) => x - y); return L[Math.min(L.length - 1, Math.round(0.05 * (L.length - 1)))]; };
+          while (a < capA && p05(a) < lmin) a = Math.min(capA, +(a + 0.02).toFixed(3));
+        } else while (a < capA && p95(a) > lmax) a = Math.min(capA, +(a + 0.02).toFixed(3));
         alpha = Math.max(alpha, a);
       }
       const rgba = (o) => 'rgba(' + kc.join(',') + ',' + o.toFixed(3) + ')', h = Math.max(hold, 24) + fade;
+      if (mode !== 'scrim') {
+        // an overlay keeps the box it was placed in: even, or held from its foot (or head) past the words and fading out over its fade length
+        el.dataset.alpha = alpha.toFixed(2);
+        const held = Math.min(sb.height, Math.max(hold, 24)), gone = Math.min(sb.height, held + fade);
+        el.style.background = mode === 'flat' ? rgba(alpha) : 'linear-gradient(to ' + (mode === 'bottom' ? 'top' : 'bottom') + ',' + rgba(alpha) + ' 0,' + rgba(alpha) + ' ' + held + 'px,' + rgba(0) + ' ' + gone + 'px)';
+        continue;
+      }
       el.style.height = h + 'px'; el.dataset.alpha = alpha.toFixed(2);
       el.style.background = 'linear-gradient(to bottom,' + rgba(alpha) + ' 0,' + rgba(alpha) + ' ' + Math.max(hold, 24) + 'px,' + rgba(0) + ' ' + h + 'px)';
     }
