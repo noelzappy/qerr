@@ -16,12 +16,12 @@ import { formatDate, formatDateTime } from '@/lib/format';
 import type { VaultItem } from '../vault-types';
 import { cn } from '@/lib/utils';
 import { CHECKER } from './RoleSwitch';
-import { ACCEPT_BY_ROLE, fileProblem, isHttpUrl, KIND_OPTIONS, LICENCE_OPTIONS, needsRights, ROLE_ACCEPT_HINT, ROLE_NOUN, type Licence, type PictureKind } from './util';
+import { ACCEPT_BY_ROLE, fileProblem, isHttpUrl, KIND_OPTIONS, LICENCE_OPTIONS, needsRights, ROLE_ACCEPT_HINT, ROLE_NOUN, type Licence, type PictureKind, type PictureRole } from './util';
 
-interface Form { kind: PictureKind; title: string; body: string; sourceUrl: string; licence: Licence; licenceNotes: string; peoplePresent: boolean; consentRecorded: boolean; tintable: boolean; tags: string[] }
+interface Form { kind: PictureKind; role: PictureRole; title: string; body: string; sourceUrl: string; licence: Licence; licenceNotes: string; peoplePresent: boolean; consentRecorded: boolean; tintable: boolean; tags: string[] }
 
 const toForm = (i: VaultItem): Form => ({
-  kind: i.kind === 'screen' ? 'screen' : 'photo', title: i.title, body: i.body, sourceUrl: i.sourceUrl ?? '', licence: i.licence ?? '',
+  kind: i.kind === 'screen' ? 'screen' : 'photo', role: i.role, title: i.title, body: i.body, sourceUrl: i.sourceUrl ?? '', licence: i.licence ?? '',
   licenceNotes: i.licenceNotes ?? '', peoplePresent: i.peoplePresent, consentRecorded: i.consentRecorded, tintable: i.tintable, tags: i.tags,
 });
 
@@ -30,8 +30,16 @@ const payload = (f: Form) => ({
   licenceNotes: f.licenceNotes.trim() || null, peoplePresent: f.peoplePresent, consentRecorded: f.peoplePresent && f.consentRecorded, tintable: f.tintable, tags: f.tags,
 });
 
-// A graphic or cut-out has no kind to choose, and only a graphic is ever recoloured.
-const payloadFor = (f: Form, role: string) => { const p: Record<string, unknown> = payload(f); if (role !== 'photo') delete p.kind; if (role !== 'graphic') delete p.tintable; return p; };
+// A graphic or cut-out has no kind to choose, and only a graphic is ever recoloured. The role is sent only when it changes (the
+// server then checks the file suits it).
+const payloadFor = (f: Form, was: PictureRole) => {
+  const p: Record<string, unknown> = payload(f);
+  if (f.role !== was) p.role = f.role;
+  if (f.role !== 'photo') delete p.kind;
+  if (f.role !== 'graphic') delete p.tintable;
+  return p;
+};
+const USE_OPTIONS = [{ value: 'photo', label: 'A photo for posts' }, { value: 'cutout', label: 'A cut-out for designs' }, { value: 'graphic', label: 'A brand graphic for designs' }];
 
 function validate(f: Form): Record<string, string> {
   const e: Record<string, string> = {};
@@ -220,13 +228,15 @@ function PictureEditor({ item, backTo, onItem }: { item: VaultItem; backTo: stri
             <TextAreaField label="Description" rows={4} value={form.body} error={fields.body} disabled={anyBusy} onChange={(e) => set('body', e.target.value)}
               hint="What is in the picture, the mood, and what posts it suits. The AI reads this." />
             <div className="grid gap-3 sm:grid-cols-2">
-              {isPhoto && <SelectField label="Kind" value={form.kind} options={KIND_OPTIONS} disabled={anyBusy} error={fields.kind} onValueChange={(v) => set('kind', v as PictureKind)} />}
+              {form.role === 'photo' && <SelectField label="Kind" value={form.kind} options={KIND_OPTIONS} disabled={anyBusy} error={fields.kind} onValueChange={(v) => set('kind', v as PictureKind)} />}
+              {form.kind === 'photo' && <SelectField label="Use as" value={form.role} options={USE_OPTIONS} disabled={anyBusy} error={fields.role} onValueChange={(v) => set('role', v as PictureRole)}
+                hint="Cut-outs and brand graphics need a PNG or WebP with a transparent background. The AI picks only photos." />}
               <SelectField label="Licence" value={form.licence} options={LICENCE_OPTIONS} disabled={anyBusy} error={fields.licence} onValueChange={(v) => set('licence', v as Licence)} />
             </div>
             <TagField tags={form.tags} onChange={(t) => set('tags', t)} error={fields.tags} />
-            {item.role === 'graphic' && <SwitchField label="Can be recoloured" hint="For single-colour artwork. A design may then paint it in one of your brand colours." checked={form.tintable} disabled={anyBusy} onCheckedChange={(v) => set('tintable', v)} />}
-            {item.role !== 'graphic' && <SwitchField label="People can be recognised" checked={form.peoplePresent} disabled={anyBusy} onCheckedChange={(v) => set('peoplePresent', v)} />}
-            {item.role !== 'graphic' && form.peoplePresent && <SwitchField label="Their consent is recorded" hintMode="inline" hint="Only when you hold written or recorded permission to use their image." checked={form.consentRecorded} disabled={anyBusy} onCheckedChange={(v) => set('consentRecorded', v)} />}
+            {form.role === 'graphic' && <SwitchField label="Can be recoloured" hint="For single-colour artwork. A design may then paint it in one of your brand colours." checked={form.tintable} disabled={anyBusy} onCheckedChange={(v) => set('tintable', v)} />}
+            {form.role !== 'graphic' && <SwitchField label="People can be recognised" checked={form.peoplePresent} disabled={anyBusy} onCheckedChange={(v) => set('peoplePresent', v)} />}
+            {form.role !== 'graphic' && form.peoplePresent && <SwitchField label="Their consent is recorded" hintMode="inline" hint="Only when you hold written or recorded permission to use their image." checked={form.consentRecorded} disabled={anyBusy} onCheckedChange={(v) => set('consentRecorded', v)} />}
             <TextField label="Licence notes" optional value={form.licenceNotes} maxLength={2000} error={fields.licenceNotes} disabled={anyBusy} onChange={(e) => set('licenceNotes', e.target.value)} hint="The photographer or stock site to credit." />
             <TextField label="Source link" optional type="url" inputMode="url" placeholder="https://example.com/photo" value={form.sourceUrl} error={fields.sourceUrl} disabled={anyBusy} onChange={(e) => set('sourceUrl', e.target.value)} />
             {error && <Notice tone="bad">{error}</Notice>}

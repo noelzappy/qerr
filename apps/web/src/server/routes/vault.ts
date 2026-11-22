@@ -44,10 +44,11 @@ const fields = {
   consentRecorded: z.boolean(),
   tintable: z.boolean(),
 };
-// The role is chosen when the item is made and does not change: a cut-out or graphic has a file checked for it.
+// A picture's role: an ordinary photo, a cut-out or a graphic. It is chosen when the item is made and may be changed later
+// (marking a picture as a brand graphic); a cut-out or graphic always has its file checked for it (image-header.ts cutoutProblem).
 const PICTURE_ROLES = ['photo', 'cutout', 'graphic'] as const;
 const createBody = z.object({ ...fields, body: fields.body.optional(), role: z.enum(PICTURE_ROLES) }).partial().required({ kind: true, title: true }).strict();
-const updateBody = z.object(fields).partial().strict();
+const updateBody = z.object({ ...fields, role: z.enum(PICTURE_ROLES) }).partial().strict();
 
 const listQuery = pageQuery.extend({
   kind: z.enum(VAULT_KINDS).optional(),
@@ -64,7 +65,7 @@ const listQuery = pageQuery.extend({
 });
 
 // Fields whose change means the facts are no longer what a person confirmed.
-const CONFIRMED_FIELDS = ['kind', 'title', 'body', 'sourceUrl', 'validFrom', 'validUntil', 'recordedAt'] as const;
+const CONFIRMED_FIELDS = ['kind', 'role', 'title', 'body', 'sourceUrl', 'validFrom', 'validUntil', 'recordedAt'] as const;
 
 const toDate = (v: string | null | undefined): Date | null | undefined => (v === undefined ? undefined : v === null ? null : new Date(v));
 const same = (a: unknown, b: unknown) => (a instanceof Date || b instanceof Date ? (a as Date | null)?.getTime() === (b as Date | null)?.getTime() : a === b);
@@ -197,7 +198,18 @@ export function vaultRoutes(deps: Deps): Hono<AppEnv> {
     const actor = c.get('user');
     const existing = await live(c.req.param('id'));
     const b = await readVaultBody(c, updateBody);
-    if (b.tintable !== undefined && existing.role !== 'graphic') throw new HttpError(422, 'Only a graphic can be marked as recolourable', { fields: ['tintable'] });
+    const role = b.role ?? existing.role;
+    if (role !== 'photo' && (b.kind ?? existing.kind) !== 'photo') throw new HttpError(422, 'Only a picture item can be a cut-out or a graphic', { fields: [b.role ? 'role' : 'kind'] });
+    if (b.tintable !== undefined && role !== 'graphic') throw new HttpError(422, 'Only a graphic can be marked as recolourable', { fields: ['tintable'] });
+    if (b.role && b.role !== existing.role) {
+      // the file it already has must suit its new role (a transparent PNG or WebP of a usable size)
+      if (b.role !== 'photo' && existing.fileKey) {
+        const why = cutoutProblem(imageFacts(await deps.storage.getObject(existing.fileKey)), b.role);
+        if (why) throw new HttpError(422, why, { fields: ['role'] });
+      }
+      // only a graphic is ever recoloured
+      if (b.role !== 'graphic' && existing.tintable) b.tintable = false;
+    }
     const data: Record<string, unknown> = {};
     const changed: string[] = [];
     for (const [k, v] of Object.entries(b)) {

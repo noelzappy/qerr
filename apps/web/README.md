@@ -91,7 +91,13 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   drawn). A design that saving would refuse is a 422 `{ error, details }`, in the same words as saving; a brand without its
   logos is a 409. Nothing is stored, and the drawing runs under the render lock, one at a time.
 - **Facts and Pictures.** A fact has its own page, `/vault/:id` (`/vault/new` adds one). A picture has `/library/:id`; uploading
-  is the page `/library/upload` (`/library?upload=1` redirects there). List filters live in the URL.
+  is the page `/library/upload` (`/library?upload=1` redirects there). List filters live in the URL. Pictures has a switch,
+  Photos | Cut-outs | Graphics (`?role=`, counts from `GET /api/vault/counts`): a picture item's `role` is `photo`, `cutout` or
+  `graphic`, chosen on upload and changed on the picture's page ("Use as"; `PATCH /api/vault/:id` with `role`, which checks the
+  stored file and makes the item unconfirmed again). A cut-out or graphic must be a PNG or WebP with transparency and at least
+  256 px on its longer side; only a graphic may be marked recolourable (`tintable`); the AI is offered photos only; one that a post
+  or a look design still uses cannot be deleted. `GET /api/vault/graphics` lists them for the design editor (`useBrandGraphics`);
+  placing them on designs is the engine's next step and not built yet.
 - **Dialogs.** New batch and Draft with AI open as centred dialogs (`/batches/new`, `/batches/ai-draft` still open them). The Team
   and AI provider forms are dialogs too. Settings, Channels is one page with two sections: the Buffer accounts (compact rows, their forms are dialogs; `/settings/accounts`, `/admin/accounts` and `/admin/routing` redirect there, `#accounts` scrolls to the accounts) and a table with a row per network (where it posts).
 - **Conventions.** Field help is behind an info icon (kit `Hint`, `hintMode`); pages use `PageHeader` with `crumbs`; small forms

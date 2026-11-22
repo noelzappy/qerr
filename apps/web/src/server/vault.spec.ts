@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { usableForAi } from './services/ai-vault.js';
 import { createVaultItemFromSystem } from './services/vault.js';
 import { rightsProblems, sourceProblems, staleInfo } from './services/vault-rules.js';
 import { createTestApp, type TestApp } from './testing.js';
@@ -313,5 +314,82 @@ describe('vault rules', () => {
     const item = (await editorApi.post('/api/vault', { kind: 'screen', title: 'Dashboard', licence: 'rights_to_confirm' })).body.item;
     expect(item.problems.rights.length).toBeGreaterThan(0);
     expect(item.problems.source[0]).toContain('not been confirmed');
+  });
+});
+
+// ---- brand graphics and cut-outs: a picture's role ----
+// A PNG header (signature, then IHDR) of a given size and colour type: 6 is RGBA (transparency), 2 is RGB (none).
+const pngOf = (w: number, h: number, colourType: number) => {
+  const ihdr = Buffer.alloc(25);
+  ihdr.writeUInt32BE(13, 0); ihdr.write('IHDR', 4, 'latin1'); ihdr.writeUInt32BE(w, 8); ihdr.writeUInt32BE(h, 12); ihdr[16] = 8; ihdr[17] = colourType;
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), ihdr, Buffer.alloc(32)]);
+};
+const ALPHA = pngOf(600, 400, 6), OPAQUE = pngOf(600, 400, 2), TINY = pngOf(120, 80, 6);
+
+describe('vault: brand graphics and cut-outs', () => {
+  it('makes a graphic only from a transparent PNG or WebP of a usable size, and records its pixel size', async () => {
+    const { editorApi } = await users();
+    const g = (await editorApi.post('/api/vault', { kind: 'photo', title: 'Leaf mark', role: 'graphic', tintable: true })).body.item;
+    expect(g).toMatchObject({ role: 'graphic', tintable: true });
+    expect((await editorApi.post(`/api/vault/${g.id}/file`, upload(JPG, 'leaf.jpg', 'image/jpeg'))).status).toBe(415);
+    expect((await editorApi.post(`/api/vault/${g.id}/file`, upload(OPAQUE, 'leaf.png'))).body.error).toMatch(/no transparency/);
+    expect((await editorApi.post(`/api/vault/${g.id}/file`, upload(TINY, 'leaf.png'))).body.error).toMatch(/at least 256 px/);
+    expect((await editorApi.post(`/api/vault/${g.id}/file`, upload(ALPHA, 'leaf.png'))).status).toBe(200);
+    expect(await t.prisma.vaultItem.findUniqueOrThrow({ where: { id: g.id } })).toMatchObject({ width: 600, height: 400 });
+    // a screen or a fact is never a graphic
+    expect((await editorApi.post('/api/vault', { ...fact(), role: 'graphic' })).status).toBe(422);
+  });
+
+  it('lists pictures by role, counts each role, and gives the design editor its graphics with a signed address', async () => {
+    const { editorApi } = await users();
+    await editorApi.post('/api/vault', { kind: 'photo', title: 'Market' });
+    const g = (await editorApi.post('/api/vault', { kind: 'photo', title: 'Leaf mark', role: 'graphic' })).body.item;
+    await editorApi.post(`/api/vault/${g.id}/file`, upload(ALPHA, 'leaf.png'));
+    await editorApi.post('/api/vault', { kind: 'photo', title: 'Founder', role: 'cutout' });
+    expect((await editorApi.get('/api/vault?images=true&role=graphic')).body.items.map((i: { title: string }) => i.title)).toEqual(['Leaf mark']);
+    expect((await editorApi.get('/api/vault/counts')).body).toEqual({ photo: 1, cutout: 1, graphic: 1 });
+    // only items with a file are offered to designs
+    const list = (await editorApi.get('/api/vault/graphics')).body.items;
+    expect(list).toEqual([expect.objectContaining({ id: g.id, name: 'Leaf mark', role: 'graphic', w: 600, h: 400, thumbnailUrl: expect.any(String) })]);
+    expect(list[0]).not.toHaveProperty('fileKey');
+  });
+
+  it('marks an existing picture as a brand graphic when its file suits, and makes it confirm again', async () => {
+    const { editorApi, adminApi } = await users();
+    const p = (await editorApi.post('/api/vault', { kind: 'photo', title: 'Leaf', licence: 'own' })).body.item;
+    await editorApi.post(`/api/vault/${p.id}/file`, upload(OPAQUE, 'leaf.png'));
+    const refused = await editorApi.patch(`/api/vault/${p.id}`, { role: 'graphic' });
+    expect(refused.status).toBe(422);
+    expect(refused.body.error).toMatch(/no transparency/);
+    await editorApi.post(`/api/vault/${p.id}/file`, upload(ALPHA, 'leaf.png'));
+    await adminApi.post(`/api/vault/${p.id}/confirm`, {});
+    const marked = await editorApi.patch(`/api/vault/${p.id}`, { role: 'graphic', tintable: true });
+    expect(marked.status).toBe(200);
+    expect(marked.body.item).toMatchObject({ role: 'graphic', tintable: true, status: 'unconfirmed' });
+    // back to a photo: it is no longer recolourable
+    expect((await editorApi.patch(`/api/vault/${p.id}`, { role: 'photo' })).body.item).toMatchObject({ role: 'photo', tintable: false });
+    // only a graphic is recolourable, and a screen is never a graphic
+    expect((await editorApi.patch(`/api/vault/${p.id}`, { tintable: true })).status).toBe(422);
+    const s = (await editorApi.post('/api/vault', { kind: 'screen', title: 'Dashboard' })).body.item;
+    expect((await editorApi.patch(`/api/vault/${s.id}`, { role: 'cutout' })).status).toBe(422);
+  });
+
+  it('never offers a cut-out or a graphic to the AI', async () => {
+    const { editorApi } = await users();
+    const g = (await editorApi.post('/api/vault', { kind: 'photo', title: 'Leaf mark', role: 'graphic', licence: 'own' })).body.item;
+    const row = await t.prisma.vaultItem.update({ where: { id: g.id }, data: { status: 'confirmed', fileKey: 'k', fileName: 'leaf.png' } });
+    expect(usableForAi(row, new Date())).toBe(false);
+    expect(usableForAi({ ...row, role: 'photo' }, new Date())).toBe(true);
+  });
+
+  it('refuses to delete a graphic a post or a look design still draws, and deletes it once nothing does', async () => {
+    const { editorApi } = await users();
+    const g = (await editorApi.post('/api/vault', { kind: 'photo', title: 'Leaf mark', role: 'graphic' })).body.item;
+    const look = await t.prisma.brandLook.create({ data: { slug: 'with-leaf', name: 'With leaf', definition: { note: `vault:${g.id}` }, origin: 'own:with-leaf', engineSchema: 1 } });
+    const res = await editorApi.delete(`/api/vault/${g.id}`);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toMatch(/1 look design/);
+    await t.prisma.brandLook.delete({ where: { id: look.id } });
+    expect((await editorApi.delete(`/api/vault/${g.id}`)).status).toBe(200);
   });
 });
