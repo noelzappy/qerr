@@ -129,8 +129,13 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
   force the editor also reads `GET /api/looks/brief` (see Settings, Looks). The limits also give the counted lists (`items`, `info`,
   `gallery`: `{ min, max, chars }`), the fixed `infoKeys` and the `icons` a headline may name. The post editor then shows only what the
   look's designs draw: a Pill button and an icon menu on the headline (`[[words]]`, `{{name}}`), the Button words (`cta`), Info rows (a
-  fixed label and a short line each) and Round pictures (2 to 5 from the Pictures page, each with an optional name). A gallery picture is
-  a design node like the post's own picture: the same path rule, vault copy and rights checks (`services/design-images.ts`). The
+  fixed label and a short line each), Round pictures (2 to 5 from the Pictures page, each with an optional name) and a Portrait picture
+  (`avatar`: one picture of the person a quote is by, from the same picker, with its position). A gallery picture and the portrait are
+  design nodes like the post's own picture: the same path rule, vault copy and rights checks, a face blocking approval until its consent
+  is recorded (`services/design-images.ts`). A screen in Pictures is a framed phone capture, a bare phone screenshot (`phone-bare`: a plain
+  one 1.6 to 2.4 times as tall as it is wide, read from its size at upload; the item page says so) or a desktop screenshot; a look's design
+  that draws a phone round its picture (`device`) takes the first two and refuses a desktop screenshot or a photo before any render
+  (`designScreenNeeds`), while a classic phone layout still takes only a framed capture. The
   `POST /api/settings/brand/direction-samples` route and its service were removed with the tab.
   With a look, the post editor's Design offers **Single image** or **Carousel**: a carousel is a cover, body pages and a closing page, each a
   post page of its own kind (moved, added before the closing page, removed; 2 to 10), drawn as one image per page and sent in that order. It

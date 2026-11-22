@@ -113,6 +113,8 @@ export interface PipelineEngine {
   renderDesignBlock(options: Record<string, unknown>): Promise<RenderResult>;
   // The brand graphics each picture of a design block places with the brand's active look (the composition the renderer will choose).
   designGraphicNeeds(design: unknown, options: { root: string }): Array<{ page: number | null; kind: string; variant: number; name: string; refs: string[] }>;
+  // The device (phone or tablet) each picture of a design block is drawn on with the brand's active look, only the pictures drawn on one.
+  designScreenNeeds(design: unknown, options: { root: string }): Array<{ page: number | null; kind: string; variant: number; name: string; device: 'phone' | 'tablet' }>;
   findChrome(): string | null;
   deletePost(client: Gql, bufferId: string): Promise<{ ok: true } | { ok: false; message: string }>;
   isBufferError(e: unknown): e is Error & { ambiguous: boolean; kind?: string };
@@ -178,6 +180,7 @@ export function pipelineEngine(): Promise<PipelineEngine> {
       designBlockProblems: render.designBlockProblems,
       renderDesignBlock: render.renderDesignBlock,
       designGraphicNeeds: render.designGraphicNeeds,
+      designScreenNeeds: render.designScreenNeeds,
       findChrome: chrome.findChrome,
       deletePost: del.deletePost,
       isBufferError: (e: unknown): e is Error & { ambiguous: boolean; kind?: string } => e instanceof client.BufferError,
