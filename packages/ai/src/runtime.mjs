@@ -22,16 +22,25 @@ export function createRuntime({ providers = [], search, budget, log, prices = {}
     }
   };
   const newMeter = () => ({ calls: 0, inputTokens: 0, outputTokens: 0, costUsd: 0, costKnown: true, tokensKnown: true });
-  const summarise = (m) => ({ calls: m.calls, inputTokens: m.tokensKnown ? m.inputTokens : null, outputTokens: m.tokensKnown ? m.outputTokens : null, costUsd: m.costKnown ? m.costUsd : null, cost: m.costKnown ? m.costUsd : 'unknown' });
+  const summarise = (m) => ({ calls: m.calls, inputTokens: m.tokensKnown ? m.inputTokens : null, outputTokens: m.tokensKnown ? m.outputTokens : null, costUsd: m.costKnown ? m.costUsd : null, cost: m.costKnown ? m.costUsd : 'unknown', ...(m.toolCalls ? { toolCalls: m.toolCalls } : {}), ...(m.searches ? { searches: m.searches } : {}) });
 
   // `using` names the provider's task when it differs from the task logged (a reference analysis uses the draft provider).
-  async function llm(task, { system, messages, schema, maxTokens, temperature, validate, using = task }, meter) {
+  // `tools` ([{ name, description, schema, run }]) may be called up to `maxToolCalls` times; the budget is checked before every
+  // round trip, and every tool call is logged (kind "tool", no cost of its own; a web search inside one logs its own "search").
+  async function llm(task, { system, messages, schema, maxTokens, temperature, validate, using = task, tools, maxToolCalls }, meter) {
     const provider = list.find((p) => p?.tasks?.includes(using));
     if (!provider) throw new AIError(`No AI provider is set up for the "${using}" task`, { code: 'config' });
     guard();
     try {
       return await complete({
         provider, system, messages, schema, maxTokens, temperature: temperature ?? provider.temperature, validate, task, prices: { ...(provider.prices ?? {}), ...prices }, fetch, sleep, timeoutMs,
+        ...(tools?.length ? {
+          tools, maxToolCalls, beforeCall: guard,
+          onTool: (t) => {
+            if (meter) meter.toolCalls = (meter.toolCalls ?? 0) + 1;
+            emit({ kind: 'tool', provider: null, model: null, task, tokensIn: null, tokensOut: null, cost: 0, ms: 0, ok: t.ok, tool: t.name, ...(t.error ? { error: redact(t.error, secrets) } : {}) });
+          },
+        } : {}),
         onCall: (r) => {
           if (r.ok) {
             if (meter) {
