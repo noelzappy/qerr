@@ -6,13 +6,16 @@ import { HttpError, notFound, readJson } from '../http.js';
 import { requireRole, requireUser } from '../middleware.js';
 import { addPosts, createBatch, deleteBatch, importEngineBatch, importInput, patchBatchInput, createBatchInput, patchBatch, postInput } from '../services/batches.js';
 import { audit } from '../audit.js';
-import { draftBriefSchema, draftTitle } from '../services/ai-jobs.js';
+import { draftBriefSchema, draftTitle, findWebOccasions, periodOccasions } from '../services/ai-jobs.js';
 import { enqueueTracked } from '../services/activity.js';
 import { aiReadiness } from '../services/ai-config.js';
 import { batchView, countPosts, postSummary } from '../services/post-view.js';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const addPostsInput = z.strictObject({ posts: z.array(postInput).min(1).max(100) });
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const periodQuery = z.object({ from: z.string().regex(DAY), to: z.string().regex(DAY) });
+const webOccasionsInput = z.strictObject({ periodStart: z.string().regex(DAY), periodEnd: z.string().regex(DAY), known: z.array(z.string().max(80)).max(60).optional() });
 
 export function batchesRoutes(deps: Deps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
@@ -56,7 +59,28 @@ export function batchesRoutes(deps: Deps): Hono<AppEnv> {
   // Asks the AI to draft a batch in the background. The batch appears in the list, marked as an AI draft, when it is ready;
   // if the drafting fails, the reason is in the audit log (ai.draft_batch.failed).
   // Whether drafting can run, so the dialog can say what is missing before anyone fills it in.
-  app.get('/ai-draft', async (c) => c.json(await aiReadiness(deps, 'draft')));
+  app.get('/ai-draft', async (c) => {
+    const [ready, search] = await Promise.all([aiReadiness(deps, 'draft'), deps.prisma.searchSetting.findUnique({ where: { id: 'search' }, select: { id: true } })]);
+    return c.json({ ...ready, search: !!search });
+  });
+
+  // The occasions of a period for "This period" in Draft with AI: the calendar's, for the brand's country. Free: no AI runs.
+  app.get('/ai-draft/occasions', async (c) => {
+    const p = periodQuery.safeParse({ from: c.req.query('from'), to: c.req.query('to') });
+    if (!p.success || p.data.to < p.data.from) throw new HttpError(422, 'Give the period as from and to, like 2026-12-01');
+    if (Date.parse(p.data.to) - Date.parse(p.data.from) > 400 * 86_400_000) throw new HttpError(422, 'A period of at most 400 days');
+    return c.json(await periodOccasions(deps, p.data));
+  });
+
+  // "Look for events this month": a web search and an AI call (budget, log and cost apply). Proposals only; nothing is saved.
+  app.post('/ai-draft/occasions/web', async (c) => {
+    const body = await readJson(c, webOccasionsInput);
+    if (body.periodEnd < body.periodStart) throw new HttpError(422, 'The end must be on or after the start');
+    const { missing } = await aiReadiness(deps, 'draft');
+    if (missing === 'provider') throw new HttpError(409, 'No AI provider is set up for drafting. Ask an admin to add one in Settings, AI and search');
+    if (missing === 'budget') throw new HttpError(409, 'No monthly AI budget is set, so the AI cannot run. Ask an admin to set one in Settings, AI and search');
+    return c.json(await findWebOccasions(deps, c.get('user'), { period: { from: body.periodStart, to: body.periodEnd }, known: body.known ?? [] }));
+  });
 
   app.post('/ai-draft', async (c) => {
     const actor = c.get('user');

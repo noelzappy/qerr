@@ -4,7 +4,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { loadAI, type DraftBatchResult, type ResearchResult } from '../ai.js';
+import { loadAI, loadOccasions, type DraftBatchResult, type FoundFact, type ResearchResult } from '../ai.js';
 import { audit } from '../audit.js';
 import { noHandle, readableError, trackRun, type RunHandle } from './activity.js';
 import type { Deps } from '../deps.js';
@@ -282,6 +282,19 @@ async function analyseNow(deps: Deps, payload: { referenceId: string; actorId?: 
 // ---- draft ----
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+export const MAX_OWN_OCCASIONS = 5;
+const occasionSchema = z.strictObject({
+  name: z.string().trim().min(1).max(80).refine((s) => !/[\r\n]/.test(s), 'One line'),
+  date: z.string().regex(DATE).optional(),
+  end: z.string().regex(DATE).optional(),
+  observed: z.string().regex(DATE).optional(),
+  kind: z.enum(['holiday', 'observance', 'season', 'commerce']),
+  note: z.string().trim().max(300).optional(),
+  source: z.string().url().max(600).refine((u) => /^https?:\/\//i.test(u), 'A web address').optional(),
+  // where it came from: the calendar, the person ("own") or a web search ("web")
+  origin: z.enum(['calendar', 'own', 'web']).optional(),
+});
+export type DraftOccasion = z.infer<typeof occasionSchema>;
 export const draftBriefSchema = z.strictObject({
   title: z.string().trim().min(1).max(200).optional(),
   periodStart: z.string().regex(DATE, 'Use a date like 2026-12-01').optional(),
@@ -292,6 +305,11 @@ export const draftBriefSchema = z.strictObject({
   timezone: z.string().min(1).max(64).optional(),
   // The team's own words for this batch (what to cover, how varied); the AI treats them as preferences, never as facts.
   guidance: z.string().trim().min(1).max(600).optional(),
+  // The occasions of the period the person kept ticked: from the calendar, their own (at most 5), or found on the web (with its
+  // source). Context for the AI, never vault facts (packages/ai occasions.mjs).
+  occasions: z.array(occasionSchema).max(40)
+    .refine((list) => list.filter((o) => o.origin === 'own').length <= MAX_OWN_OCCASIONS, `Add at most ${MAX_OWN_OCCASIONS} occasions of your own`)
+    .optional(),
 });
 export type DraftBrief = z.infer<typeof draftBriefSchema>;
 
@@ -307,6 +325,27 @@ function nextMonth(now: Date): { from: string; to: string } {
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 0));
   return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10) };
+}
+
+export const FOUND_WHILE_DRAFTING_TAG = 'found-while-drafting';
+
+// Saves the facts a draft found on the web as unconfirmed vault items; returns the AI's id of each -> the new item's id.
+async function saveFoundFacts(deps: Deps, found: FoundFact[], actor: { id: string; email: string }, periodFrom: string): Promise<Map<string, string>> {
+  const ids = new Map<string, string>();
+  for (const f of found.slice(0, 12)) {
+    if (!f || typeof f.id !== 'string' || typeof f.title !== 'string' || !f.title.trim()) continue;
+    const urls = (Array.isArray(f.sourceUrls) ? f.sourceUrls : []).filter((u) => typeof u === 'string' && /^https?:\/\//i.test(u));
+    if (!urls.length) continue;
+    const kind = kindFromAi(String(f.kind));
+    const item = await createVaultItemFromSystem(deps, {
+      kind: isKind(kind) && (RESEARCH_KINDS as readonly string[]).includes(kind) ? kind : 'news',
+      title: f.title, body: typeof f.body === 'string' ? f.body : '', sourceUrl: urls[0]!,
+      sourceNotes: `Found on the web while drafting the batch for ${monthLabel(periodFrom)} (${deps.now().toISOString().slice(0, 10)}). Not checked by a person.\nSource:\n${urls.join('\n')}`.slice(0, SOURCE_NOTES_MAX),
+      tags: [FOUND_WHILE_DRAFTING_TAG], createdById: null,
+    }, actor);
+    ids.set(f.id, item.id);
+  }
+  return ids;
 }
 
 const problemsText = (e: unknown): string => {
@@ -355,6 +394,7 @@ async function draftNow(deps: Deps, payload: z.infer<typeof draftPayload>, handl
         count: brief.count ?? 10,
         ...(brief.channels ? { channels: brief.channels } : {}),
         ...(brief.guidance ? { guidance: brief.guidance } : {}),
+        ...(brief.occasions?.length ? { occasions: brief.occasions.map(({ origin: _o, ...o }) => o) } : {}),
         // the brand's enabled named series, each with its next number (planned into the period by the drafter)
         recurring,
         timezone,
@@ -367,14 +407,17 @@ async function draftNow(deps: Deps, payload: z.infer<typeof draftPayload>, handl
     const drafted = result?.batch;
     const posts = drafted && Array.isArray((drafted as { posts?: unknown }).posts) ? ((drafted as { posts: unknown[] }).posts) : null;
     if (!drafted || !posts?.length) throw new Error('The AI returned no posts, so no batch was made');
+    // Facts the AI took from the web while drafting become unconfirmed vault items ("found while drafting"), and the posts that
+    // cite them point at the new items. Approval refuses a post whose source is unconfirmed, so a person confirms each one first.
+    const foundIds = await saveFoundFacts(deps, result.found ?? [], actor, period.from);
     const raw = {
       ...drafted,
       title: brief.title ?? `AI draft for ${monthLabel(period.from)}`,
       periodStart: period.from,
       periodEnd: period.to,
       posts: posts.map((p) => {
-        const { design, photoIds: _photoIds, ...rest } = (p ?? {}) as Record<string, unknown>;
-        return { ...rest, ...(design === undefined ? {} : { design: linkVaultPhotos(design).design }) };
+        const { design, photoIds: _photoIds, sources, ...rest } = (p ?? {}) as Record<string, unknown>;
+        return { ...rest, ...(Array.isArray(sources) ? { sources: sources.map((s) => foundIds.get(String(s)) ?? s) } : {}), ...(design === undefined ? {} : { design: linkVaultPhotos(design).design }) };
       }),
     };
     const aiDraft = {
@@ -386,6 +429,8 @@ async function draftNow(deps: Deps, payload: z.infer<typeof draftPayload>, handl
     try {
       imported = await importEngineBatch(deps, { id: actor.id, email: actor.email }, raw, { aiDraft: aiDraft as Prisma.InputJsonValue });
     } catch (e) {
+      // the finds belonged to the batch that was not made: they are taken out of the vault again
+      if (foundIds.size) await deps.prisma.vaultItem.updateMany({ where: { id: { in: [...foundIds.values()] } }, data: { deletedAt: deps.now() } });
       throw new Error(`The AI's draft did not pass the app's checks, so no batch was made. ${problemsText(e)}`.slice(0, 1500));
     }
     await deps.prisma.aiCall.updateMany({ where: { runId }, data: { batchId: imported.batch.id } });
@@ -404,4 +449,32 @@ async function draftNow(deps: Deps, payload: z.infer<typeof draftPayload>, handl
     });
     throw e;
   }
+}
+
+// ---- occasions of a period ----
+
+// The calendar's occasions for the brand's country in the period (no AI, nothing spent).
+export async function periodOccasions(deps: Deps, period: { from: string; to: string }) {
+  await syncBrand(deps);
+  const country = brandInfo().country;
+  const { occasionsFor, OCCASION_COUNTRIES } = await loadOccasions();
+  return { country, covered: !!country && OCCASION_COUNTRIES.includes(country), occasions: occasionsFor({ country, from: period.from, to: period.to }) };
+}
+
+// "Look for events this month": one web search and one AI call through the drafting provider, with the budget, the call log and
+// the cost of any AI run. The proposals come back for the person to tick; nothing is saved.
+export async function findWebOccasions(deps: Deps, actor: { id: string; email: string }, input: { period: { from: string; to: string }; known: string[] }) {
+  const runId = randomUUID();
+  const { ai, config } = await aiFor(deps, 'draft', { runId, actorId: actor.id });
+  const country = brandInfo().country;
+  if (!country) throw new HttpError(409, 'Set the brand\'s country first, in Settings, Brand and look');
+  if (!config.search) throw new HttpError(409, 'No search provider is set up. An admin can add one in Settings, AI and search');
+  let out;
+  try {
+    out = await ai.findOccasions({ country, period: input.period, known: input.known.map((name) => ({ name })) });
+  } finally {
+    await config.flush();
+  }
+  await audit(deps, actor, 'ai.find_occasions', 'batch', null, { runId, country, period: input.period, found: out.occasions.length });
+  return { country, occasions: out.occasions.slice(0, 6) };
 }
