@@ -1216,7 +1216,7 @@ stored. At most 21 compositions, at most 3 of a kind.
 | `device` | The post's picture, a bare app screenshot, on a phone (camera island or notch, side buttons) or a tablet the engine draws round it in a light, dark or brand-colour finish, with a small lean and a soft shadow; a capture that already has its phone drawn is shown as it is |
 
 A `text` with `source: "swipe"` writes "Swipe" and the engine's arrow icon, only on a carousel page that has a page after it (its place in the carousel); on a
-single post, a post placed in a batch and the last page it is empty. A pill and the punctuation right after it (`[[an app]],`) are kept on one line, and a pill's
+single post, a post placed in a batch and the last page it is empty. A pill and the punctuation right after it (`[[an app]],`) are kept on one line, the mark snug against the pill (the pill drops its outer margin on that side and the page pulls the mark in by its own side bearing, so its ink starts 0.02 em after the pill's edge in any face), and a pill's
 padding (0.08 em above, 0.14 em below) covers the whole height of its words, so the contrast check reads them on the pill.
 
 A headline `text` also takes `pills` (`shape` pill, soft or outline; `fill`, a fill role, none for an outline; `ink`, which must read on the

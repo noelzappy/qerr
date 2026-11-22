@@ -109,7 +109,7 @@ test('Swipe and its arrow show on a carousel page with a next page only', () => 
 
 test('a pill keeps the punctuation right after it on its line', () => {
   const body = renderPostWithLook({ ...look, origin: 'copy:shipped:studio' }, { template: 'post', kind: 'statement', variant: 0, name: 'p', headline: 'Bring us [[a sketch]], we plan it' }, { size: SIZES.feed, brand: brand(), image: () => '', imageSize: () => null }, { shipped: false }).body;
-  assert.match(body, /<span style="white-space:nowrap"><span class="k-pl k-pl-soft"[^>]*><span class="k-pl-t" data-role="accent">a sketch<\/span><\/span>,<\/span>/);
+  assert.match(body, /<span class="k-pl-stop"><span class="k-pl k-pl-soft k-pl-end"[^>]*><span class="k-pl-t" data-role="accent">a sketch<\/span><\/span><span class="k-pl-p">,<\/span><\/span>/);
 });
 
 test('the logo takes the ink of the page it sits on, also when a dark page turned light for a brand whose colour does not read on its dark', () => {

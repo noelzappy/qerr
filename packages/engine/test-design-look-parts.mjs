@@ -202,7 +202,7 @@ test('the look schema: the primitives\' own rules, counts and inks', () => {
 // ======================================================================= 3. drawing
 const ALLOWED_TAGS = new Set(['div', 'span', 'i', 'em', 'img', 'br', 'svg', 'path', 'text', 'textPath']);
 const ALLOWED_ATTRS = new Set(['class', 'style', 'src', 'alt', 'viewBox', 'd', 'aria-hidden', 'aria-label', 'role', 'id', 'href', 'width', 'height', 'fill', 'textLength', 'lengthAdjust']);
-const NEW_CLASSES = ['k-pl', 'k-pl-round', 'k-pl-soft', 'k-pl-line', 'k-pl-t', 'k-ic', 'k-ic-btn', 'k-round'];
+const NEW_CLASSES = ['k-pl', 'k-pl-round', 'k-pl-soft', 'k-pl-line', 'k-pl-t', 'k-pl-stop', 'k-pl-end', 'k-pl-p', 'k-ic', 'k-ic-btn', 'k-round'];
 const KIT_CSS = fs.readFileSync(path.join(HERE, 'design', 'directions', 'kit.css'), 'utf8');
 const NAME = `(?:${COLOUR_NAMES.join('|')})`;
 // every declaration of a style outside the page root: a property of this list, a value of numbers, fixed words and palette roles only

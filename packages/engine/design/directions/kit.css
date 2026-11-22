@@ -139,6 +139,10 @@
    info-rows, button and photo-row). Colours arrive as palette roles (--c-*) on the element, shapes as these fixed classes. ======== */
 /* a pill round one to three words of a headline, never broken across lines */
 .k-pl{display:inline-block;white-space:nowrap;padding:.08em .3em .14em;margin:0 .03em;line-height:1;vertical-align:baseline;box-sizing:border-box}
+/* a pill and the punctuation right after it: one unbreakable run, the mark against the pill's edge (no margin between them) */
+.k-pl-stop{white-space:nowrap}
+.k-pl-p{display:inline}
+.k-pl.k-pl-end{margin-right:0}
 .k-pl-round{border-radius:999px}
 .k-pl-soft{border-radius:.2em}
 .k-pl-line{border-radius:999px;box-shadow:inset 0 0 0 .07em currentColor}
