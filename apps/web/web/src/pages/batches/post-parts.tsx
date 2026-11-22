@@ -38,6 +38,9 @@ export interface PostProblem {
 const FLAG_ORDER: PostFlag[] = ['render_failed', 'failed', 'needs_look', 'deleted', 'warnings'];
 export const NO_SOURCES = 'No sources linked. Every claim should link to a fact.';
 
+// The approval check's words for a render that has not finished yet (services/approval.ts).
+export const onlyWaitingForImage = (blockers: string[]) => blockers.length > 0 && blockers.every((b) => b.startsWith('The images are not ready yet'));
+
 export function postProblem(flow: PostFlow, d?: { blockers?: string[]; warnings?: string[]; renderError?: string | null; noSources?: boolean }): PostProblem | null {
   const blockers = (d?.blockers ?? []).map(tidyBlocker);
   // The approval check already says the image failed; do not say it twice.
@@ -49,6 +52,8 @@ export function postProblem(flow: PostFlow, d?: { blockers?: string[]; warnings?
   ];
   const flag = FLAG_ORDER.find((f) => flow.flags.includes(f));
   if (flag) return { label: FLAG_LABEL[flag], tone: FLAG_TONE[flag], blockers, notes };
+  // A post whose only hold-up is an image still being made is waiting, not broken.
+  if (onlyWaitingForImage(blockers)) return { label: 'Image on its way', tone: 'info', blockers, notes };
   if (blockers.length) return { label: 'Needs fixing', tone: 'bad', blockers, notes };
   if (notes.length) return { label: FLAG_LABEL.warnings, tone: 'warn', blockers, notes };
   return null;

@@ -64,7 +64,8 @@ export function DesignFields({ design, onChange, jsonError }: Props) {
         label="This post has a designed image"
         hint="Turn this off for a post that uses only pictures you upload."
         checked={enabled}
-        onCheckedChange={(c) => { onChange(c ? (directed ? { template: 'post', kind: 'statement' } : { template: 'cover' }) : null, ''); }}
+        // Starts on a layout that needs only a headline, so a brand with no pictures yet can make its first image.
+        onCheckedChange={(c) => { onChange(c ? (directed ? { template: 'post', kind: 'statement' } : { template: 'text' }) : null, ''); }}
       />
       {enabled && (
         <>
