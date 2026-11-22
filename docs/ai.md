@@ -173,7 +173,7 @@ compositions draw, and for each text the hard `max` and the `budget` (the most t
 `variant` the engine may pick any composition of the kind, so the budget is the smallest one). Items carry `min`, `max`, `chars`.
 
 `prompts/draft.md` is one file; the parts that differ are between `<!-- if direction -->`, `<!-- else -->` and `<!-- end -->`
-lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-12`, serves both kinds of brand and a brand without a
+lines (`forDirection` in `src/prompts.mjs`), so the same version, `draft-13`, serves both kinds of brand and a brand without a
 direction gets what it got under `draft-11`, except for the confirmed-only rule. The direction part teaches: choose the kind from
 the content (a number is a `figure`; steps or reasons a `list`; a date and place an `event`; a price or "new" an `offer`; a picture
 that carries the post a `photo`; a house line a `quote`; otherwise a `statement`); write to the budgets (headline at most 70, aim
@@ -189,7 +189,11 @@ fields that kind's compositions draw (a `statement` with an `image` is refused);
 stated as "headline is 62 characters; ... draws at most 60. Shorten it to about 45"; one emphasis phrase, 1 to 4 words, not the
 whole text, and asterisks only in `headline` and `quote`; a `variant` is removed and reported as a repair; the picture of any
 post is a vault `photo` item; numbers in `big`, `unit`, `meta`, `tag`, `items` and the other image texts must be in the cited
-items; and the same kind may not make three posts in a row by date (the third is rejected, `ctx.kinds`). `notes` gains `direction`
+items; and the same kind may not make three posts in a row by date (the third is rejected, `ctx.kinds`). With a look written as data
+(`draft-13`): `[[pill]]` words and `{{icon}}` marks in the headline only where a design of the kind draws them (the brief's headline lists
+`pills` / `icons`, with the icon names), `cta`, `info` (rows of a fixed label and a value) and `gallery` (vault photos with captions) only
+where the kind lists them, within each design's own counts and characters; the info values and picture names are image text, so their
+numbers are checked against the cited items like the others, and a gallery picture is a vault `photo` used once in the batch. `notes` gains `direction`
 and `kindMix`.
 
 `rewrite` uses the same file (`rewrite-5`): a direction brand's rewrite is told the kinds and budgets, to keep the post's `kind`
@@ -252,7 +256,7 @@ number absent from the pages, or duplicate a vault item or an earlier candidate.
 ## Prompts
 
 `packages/ai/src/prompts/draft.md`, `research.md`, `rewrite.md`, `reference.md`. They are brand-neutral: they read the `brand` brief above.
-The first line is `<!-- version: draft-12 -->` (now `draft-12`, `rewrite-5`); the version is returned in `notes.promptVersion`. Change a prompt by editing
+The first line is `<!-- version: draft-13 -->` (now `draft-13`, `rewrite-5`); the version is returned in `notes.promptVersion`. Change a prompt by editing
 the file, bumping its version and reviewing the diff. Tests pin the versions' format only, not the wording.
 
 A brand pack can replace any of them with its own `prompts/<name>.md` (for example `brands/acme/prompts/draft.md`), with

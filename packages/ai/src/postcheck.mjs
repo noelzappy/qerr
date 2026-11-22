@@ -8,6 +8,8 @@ import { layoutImageKind } from './context.mjs';
 import { EMOJI_G, fixSpelling, isTitleCase, numberKeys, quoteIsSourced, quotesIn, trimToLimit, unsourcedNumbers, usSpellings } from './facts.mjs';
 import { MEDIA_KINDS, foreignMoneyPattern, mentionsForeignMoney, unusableReason } from './vault.mjs';
 import { EMPHASIS_FIELDS, directionKinds, emphasisIn, kindBrief } from './direction.mjs';
+import { seenText } from '@vesk/engine/design/post-spec';
+import { lookOfBrand } from '@vesk/engine/design/directions/index';
 
 // The drafting assistant may only use the poster pages (a real photo or a framed phone screen on a pale ground), a full-bleed photo,
 // carousels of poster pages, and the brand's own layouts (template "layout", when the brand has some, as a post or as a carousel
@@ -20,7 +22,7 @@ const IMAGE_KIND = { product: 'screen', object: 'photo', number: 'photo', photo:
 const ID_OK = /^[A-Za-z0-9._-]+$/;
 const DATE_OK = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_OK = /^([01]\d|2[0-3]):[0-5]\d$/;
-const IMAGE_KEEP = new Set(['image', 'template', 'series', 'ground', 'accent', 'tick', 'layout', 'name', 'statusFill', 'kind', 'textAt', 'scrim']);
+const IMAGE_KEEP = new Set(['image', 'template', 'series', 'ground', 'accent', 'tick', 'layout', 'name', 'statusFill', 'kind', 'textAt', 'scrim', 'key']);
 const len = (s) => [...s].length;
 const hashtags = (t) => (t.match(/(^|\s)#[\p{L}\p{N}_]+/gu) ?? []).length;
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
@@ -88,6 +90,11 @@ function templateProblems(design, ctx) {
 function imageKindProblems(design, ctx) {
   const pages = design.template === 'carousel' && Array.isArray(design.pages) ? design.pages.map((p, i) => [p, `carousel page ${i + 1}: `]) : [[design, '']];
   const out = [];
+  // the pictures of a post's row of round pictures are photos
+  if (design.template === 'post' && Array.isArray(design.gallery)) design.gallery.forEach((g, i) => {
+    const item = vaultItemOf(g?.image, ctx);
+    if (item && MEDIA_KINDS.includes(item.kind) && item.kind !== 'photo') out.push(`gallery[${i}] needs a vault photo, but ${item.id} is a ${item.kind}; pick a photo item instead`);
+  });
   for (const [p, at] of pages) {
     const want = p?.template === 'layout' ? layoutImageKind(ctx.layouts?.find((l) => l.id === p.layout)) : IMAGE_KIND[p?.template], item = vaultItemOf(p?.image, ctx);
     if (!want || !item || !MEDIA_KINDS.includes(item.kind)) continue;
@@ -106,9 +113,10 @@ function imageKindProblems(design, ctx) {
 }
 
 // Every image of a design in page order (a carousel's pages, or the one image), repeats kept.
+// (a post's row of round pictures counts too, each picture after the post's own)
 function imageIdsOf(design, ctx) {
   const pages = design.template === 'carousel' && Array.isArray(design.pages) ? design.pages : [design];
-  return pages.map((p) => vaultItemOf(p?.image, ctx)?.id).filter(Boolean);
+  return pages.flatMap((p) => [p?.image, ...(Array.isArray(p?.gallery) ? p.gallery.map((g) => g?.image) : [])]).map((im) => vaultItemOf(im, ctx)?.id).filter(Boolean);
 }
 
 // Pictures must not repeat inside a post or across the batch, and must not show foreign money.
@@ -140,7 +148,8 @@ function repairGround(design) {
 
 // The engine's own checks of a design block: a brand layout's (a post or a carousel page) against the fields it declares, the rest
 // against the templates.
-const designProblems = (design, ctx) => postDesignProblems(design, 'design', { layouts: ctx.layouts ?? [], series: ctx.seriesKeys, direction: ctx.direction ?? null });
+// (a brand whose direction is its own look written as data is held to that look's compositions)
+const designProblems = (design, ctx) => postDesignProblems(design, 'design', { layouts: ctx.layouts ?? [], series: ctx.seriesKeys, direction: ctx.direction ?? null, look: lookOfBrand(ctx.brand) ?? undefined });
 
 // A `post` design (a brand with a design direction): the kind must be one its direction can draw, only fields that kind's
 // compositions draw, every text within its budget, at most one emphasis phrase (1 to 4 words, never the whole text), and no
@@ -154,7 +163,7 @@ function postKindProblems(design, ctx) {
     if (ctx.direction && typeof d.kind === 'string') out.push(`kind "${String(d.kind).slice(0, 20)}" cannot be drawn in the "${ctx.direction}" direction; use one of: ${directionKinds(ctx.direction, ctx.brand).join(', ')}`);
     return out;
   }
-  const visible = (v) => [...String(v).replace(/\*/g, '').replace(/\\n|\n/g, '')].length;
+  const visible = (v) => [...seenText(v)].length;
   // A look written as data lists variants: one a post names is held to that variant's own fields and budgets.
   const variant = d.variant !== undefined && brief.variants ? brief.variants[d.variant] : undefined;
   if (d.variant !== undefined && brief.variants && !variant) out.push(`a ${d.kind} post has variants 0 to ${brief.variants.length - 1}, not ${JSON.stringify(d.variant).slice(0, 12)}; use one of them or leave variant out`);
@@ -169,7 +178,23 @@ function postKindProblems(design, ctx) {
       if (Array.isArray(v)) v.forEach((t, i) => { if (typeof t === 'string' && visible(t) > spec.chars) out.push(`items[${i}] is ${visible(t)} characters; this direction draws items of at most ${spec.chars}. Shorten it and keep the items parallel in length`); });
       continue;
     }
+    // an info block and a row of round pictures: within the design's own counts (a named variant's, else any that draws one)
+    if (f === 'info' || f === 'gallery') {
+      if (!Array.isArray(v)) continue;
+      const own = variant?.fields[f], lo = own?.min ?? spec.min, hi = own?.max ?? spec.max;
+      if (v.length < lo || v.length > hi) out.push(`${f} has ${v.length} ${f === 'info' ? 'rows' : 'pictures'}; a ${d.kind} post${variant ? ` in the ${variant.name} variant` : ''} draws ${lo} to ${hi}`);
+      v.forEach((e, i) => {
+        const t = f === 'info' ? e?.value : e?.caption;
+        if (typeof t === 'string' && visible(t) > spec.chars) out.push(`${f}[${i}].${f === 'info' ? 'value' : 'caption'} is ${visible(t)} characters; the most is ${spec.chars}. Shorten it`);
+      });
+      continue;
+    }
     if (typeof v !== 'string') continue;
+    // [[pill]] words and {{icon}} marks only where the look draws them (the engine checks their form)
+    if (f === 'headline') {
+      if (/\[\[/.test(v) && !spec.pills) out.push(`the headline has [[pill]] words, but no ${d.kind} design of this look draws pills; remove the [[ ]] brackets`);
+      if (/\{\{/.test(v) && !spec.icons) out.push(`the headline has {{icon}} marks, but no ${d.kind} design of this look draws icons; remove them`);
+    }
     const budget = variant?.fields[f]?.max ?? spec.budget;
     if (budget && visible(v) > budget) out.push(`${f} is ${visible(v)} characters; a ${d.kind} post${variant ? ` in the ${variant.name} variant` : ''} in the "${ctx.direction}" direction draws at most ${budget}. Shorten it to about ${Math.max(10, Math.floor(budget * 0.75))}`);
     const marks = emphasisIn(v);
