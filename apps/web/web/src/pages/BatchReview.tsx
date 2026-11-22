@@ -10,8 +10,9 @@ import type { ChannelsOverview } from '../lib/overview';
 import { useSession } from '../session';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { BusyButton, ConfirmAction, EmptyBlock, ErrorBlock, Lines, MoreMenu, Notice, PageHeader, SelectBox, SelectField, StatusBadge, useSelection } from '@/components/kit';
+import { BusyButton, ConfirmAction, EmptyBlock, ErrorBlock, Lines, MoreMenu, Notice, PageHeader, SelectBox, StatusBadge, useSelection } from '@/components/kit';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { BatchActivityStrip } from './batches/ActivityStrip';
@@ -25,6 +26,8 @@ import type { AiDraftNotes, ApproveAllResult, BatchView, DeliveriesResponse, Del
 import { periodLabel } from './batches/util';
 
 interface BatchData { batch: BatchView & { aiDraft?: AiDraftNotes | null }; posts: PostSummary[] }
+// The select cannot hold an empty value, so "All posts" has a stand-in.
+const ALL_POSTS = '__all__';
 
 
 export function BatchReview() {
@@ -210,9 +213,16 @@ function ReviewView({ data, reload, deliveriesByPost, focusPost, command, onComm
   return (
     <div className="flex flex-col gap-4">
       <div role="region" aria-label="Filter and batch actions" className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
-          <div className="flex items-end gap-2">
-            <SelectField className="w-44 sm:w-52" label="Show" value={filter} onValueChange={setFilter} options={POST_FILTERS.map((f) => ({ value: f.value, label: f.label }))} />
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex items-center gap-2">
+            <Select value={filter || ALL_POSTS} onValueChange={(v) => setFilter(v === ALL_POSTS ? '' : v)}>
+              <SelectTrigger aria-label="Show" className="w-44 max-sm:h-11 max-sm:text-base">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                {POST_FILTERS.map((f) => <SelectItem key={f.value || ALL_POSTS} value={f.value || ALL_POSTS}>{f.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <BusyButton variant="outline" onClick={addPost}>Add a post</BusyButton>
             {!primaryIsApproveAll && (
               <MoreMenu label="More batch actions" items={[{ label: 'Approve all without warnings', onSelect: () => void approveAll(), disabled: busy || live.length === 0 }]} />
@@ -234,7 +244,7 @@ function ReviewView({ data, reload, deliveriesByPost, focusPost, command, onComm
         <Card className="gap-0 p-0"><EmptyBlock title="No posts match this filter" action={<BusyButton variant="outline" onClick={() => setFilter('')}>Show all posts</BusyButton>}>Choose another filter to see the rest.</EmptyBlock></Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 min-[1600px]:grid-cols-3">
             {shown.map((p) => (
               <PostCard key={p.id} summary={p} batch={batch} version={version} onChanged={changed}
                 deliveries={deliveriesByPost.get(p.id)} highlight={p.id === focusPost}
