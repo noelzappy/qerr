@@ -2,7 +2,7 @@
 import { api } from '../../../api';
 import { refreshActiveLook } from '@/hooks/use-active-look';
 import { resetPostKindsCache } from '../../batches/editor/use-post-kinds';
-import type { GateRecord, LookDetail, LooksAnswer, OwnDetail, Json } from './look-types';
+import type { GateRecord, LookDetail, LooksAnswer, OwnDetail, Json, Problem } from './look-types';
 
 const B = '/api/settings/looks';
 const body = <T,>(p: Promise<{ look: T }>) => p.then((r) => r.look);
@@ -18,6 +18,11 @@ export const lookApi = {
   enableDesign: (slug: string, id: string, enabled: boolean) => body(api.patch<{ look: OwnDetail }>(`${B}/${slug}/compositions/${id}`, { enabled })),
   moveDesign: (slug: string, id: string, position: number) => body(api.patch<{ look: OwnDetail }>(`${B}/${slug}/compositions/${id}`, { position })),
   removeDesign: (slug: string, id: string) => body(api.delete<{ look: OwnDetail }>(`${B}/${slug}/compositions/${id}`)),
+  // The design editor: validate a draft as it is edited, save it as the design's draft, publish it, discard it.
+  validateDraft: (slug: string, id: string, definition: Json, signal?: AbortSignal) => api.post<{ problems: Problem[] }>(`${B}/${slug}/compositions/${id}/validate`, { definition }, signal),
+  saveDraft: (slug: string, id: string, definition: Json) => body(api.put<{ look: OwnDetail }>(`${B}/${slug}/compositions/${id}/draft`, { definition })),
+  discardDraft: (slug: string, id: string) => body(api.delete<{ look: OwnDetail }>(`${B}/${slug}/compositions/${id}/draft`)),
+  publishDesign: (slug: string, id: string) => body(api.post<{ look: OwnDetail }>(`${B}/${slug}/compositions/${id}/publish`)),
   publish: (slug: string) => body(api.post<{ look: OwnDetail }>(`${B}/${slug}/publish`)),
   gate: (slug: string) => api.post<{ record?: GateRecord }>(`${B}/${slug}/gate`),
 };

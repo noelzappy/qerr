@@ -16,12 +16,12 @@
 // stored only if the WHOLE look validates with it swapped in, and moves into `definition` by publishComposition once the gate
 // (injectable: runGate; validation only today, render checks later) passes.
 //
-// WHAT IS NOT HERE YET: drawing. The interpreter that draws a look does not exist yet, so previews and the render gate answer
-// "not available" (lookRenderer returns null).
+// DRAWING. A renderer (services/look-render.ts, connected at start with setLookRenderer) draws a look's sample pictures, one design on
+// its own, and the render checks of the gate (class `gate` of the render queue). Without one (tests that do not connect one) the
+// preview routes answer 501 and the gate is validation only.
 import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
-import path from 'node:path';
 import { Prisma, type BrandLook, type BrandLookComposition } from '@prisma/client';
 import type { Context } from 'hono';
 import { audit, type AuditActor } from '../audit.js';
@@ -76,12 +76,14 @@ export async function lookLimits() {
 
 // The font library's families, for the look's typeface pickers: the family, the weights it has (lowest and highest across its
 // files), whether it has an italic and a width axis.
-export interface FontFamilyInfo { family: string; minWeight: number; maxWeight: number; italic: boolean; stretch: boolean }
+export interface FontFile { file: string; style: string; weight: string; range: string }
+export interface FontFamilyInfo { family: string; minWeight: number; maxWeight: number; italic: boolean; stretch: boolean; files: FontFile[] }
 export async function fontFamilies(): Promise<FontFamilyInfo[]> {
-  const lib = await engineImport<{ fontLibrary(): Array<{ family: string; axes?: Json; files?: Array<{ style?: string; weight?: string; stretch?: string }> }> }>('design/font-library');
+  const lib = await engineImport<{ fontLibrary(): Array<{ family: string; axes?: Json; files?: Array<{ file?: string; style?: string; weight?: string; stretch?: string; range?: string }> }> }>('design/font-library');
   return lib.fontLibrary().map((f) => {
     const w = (f.files ?? []).flatMap((x) => String(x.weight ?? '').split(' ').map(Number).filter(Number.isFinite));
-    return { family: f.family, minWeight: w.length ? Math.min(...w) : 400, maxWeight: w.length ? Math.max(...w) : 400, italic: (f.files ?? []).some((x) => x.style === 'italic'), stretch: (f.files ?? []).some((x) => !!x.stretch) || !!(f.axes && 'wdth' in f.axes) };
+    return { family: f.family, minWeight: w.length ? Math.min(...w) : 400, maxWeight: w.length ? Math.max(...w) : 400, italic: (f.files ?? []).some((x) => x.style === 'italic'), stretch: (f.files ?? []).some((x) => !!x.stretch) || !!(f.axes && 'wdth' in f.axes),
+      files: (f.files ?? []).map((x) => ({ file: String(x.file ?? ''), style: String(x.style ?? 'normal'), weight: String(x.weight ?? '400'), range: String(x.range ?? '') })) };
   });
 }
 
@@ -105,25 +107,14 @@ export const formatRef = (source: LookRef['source'], id: string): string => {
 
 // ---- shipped looks -------------------------------------------------------------------------------------------------------
 
-// THE ONE ADAPTER for the engine's own looks. They will be exported by the engine (`shippedLooks` or `SHIPPED_LOOKS`, a list, a
-// map or a function returning either, from directions/index.mjs or look.mjs, frozen data authored in packages/engine/lib/design/
-// looks/*.mjs). Until the engine has them, the two sample looks in packages/engine/testlib/looks stand in. Nothing else in the
-// web app knows where shipped looks come from. Every look it returns passes validateLook(..., { shipped: true }).
+// THE ONE ADAPTER for the engine's own looks: shippedLooks() of directions/index.mjs, frozen data authored in
+// packages/engine/lib/design/looks/*.look.json ({ retail, swiss }). Nothing else in the web app knows where shipped looks come from.
+// Every look it returns passes validateLook(..., { shipped: true }).
 async function loadShippedLooks(engine: EngineLook): Promise<Json[]> {
-  let found: unknown[] | null = null;
-  for (const mod of ['design/directions/index', 'design/look']) {
-    let m: Record<string, unknown>;
-    try { m = await engineImport<Record<string, unknown>>(mod); } catch { continue; }
-    let v: unknown = m.shippedLooks ?? m.SHIPPED_LOOKS;
-    if (typeof v === 'function') v = await (v as () => unknown)();
-    const list = Array.isArray(v) ? v : isObj(v) ? Object.values(v) : null;
-    if (list?.length) { found = list; break; }
-  }
-  if (!found) {
-    // Fallback: the sample looks (read from the engine package, not copied anywhere).
-    const dir = path.join(path.dirname(createRequire(import.meta.url).resolve('@vesk/engine/package.json')), 'testlib', 'looks');
-    found = fs.readdirSync(dir).filter((f) => f.endsWith('.sample.json')).sort().map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) as unknown);
-  }
+  const m = await engineImport<Record<string, unknown>>('design/directions/index');
+  const v = typeof m.shippedLooks === 'function' ? await (m.shippedLooks as () => unknown)() : m.shippedLooks;
+  const found: unknown[] = Array.isArray(v) ? v : isObj(v) ? Object.values(v) : [];
+  if (!found.length) throw new Error('The engine ships no looks (design/directions/index shippedLooks)');
   const out: Json[] = [], seen = new Set<string>();
   for (const l of found) {
     const problems = engine.validateLook(l, 'look', { shipped: true });
@@ -158,8 +149,9 @@ export interface GateCheck { name: string; passed: boolean; message?: string }
 // checked, when, whether it passed, and each check.
 export interface GateRecord { engineVersion: string; definitionHash: string; at: string; passed: boolean; checks: GateCheck[] }
 export interface GateInput { scope: LookScope; look: Json; kind: string; composition: Json; definitionHash: string }
-// THE HOOK for the checks a composition must pass before it replaces what is drawn. Today: validation only. The render checks
-// (fit, contrast, emptiness, scale, levels, grid over sample, stress and minimal copy) join here when the interpreter exists.
+// THE HOOK for the checks one composition must pass before it replaces what is drawn. By default (gateMany below): the look validates, and when a
+// renderer is connected the composition is drawn with sample, stress and minimal copy under the engine's own page checks (fit, contrast,
+// emptiness, scale, levels, grid). Tests inject their own per composition.
 export type RunGate = (input: GateInput) => Promise<GateRecord>;
 
 let engineVersionCache: string | null = null;
@@ -173,21 +165,41 @@ export const validationGate = (engine: Pick<EngineLook, 'validateLook'>): RunGat
   return { engineVersion: engineVersion(), definitionHash, at: new Date().toISOString(), passed: problems.length === 0, checks: [{ name: 'validate', passed: problems.length === 0, ...(problems.length ? { message: problems[0] } : {}) }] };
 };
 
-// ---- the renderer that does not exist yet --------------------------------------------------------------------------------
+// ---- the renderer --------------------------------------------------------------------------------
 
 export interface PreviewSample { kind: string; ok: boolean; image?: string; error?: string; warnings: string[] }
-export interface PreviewRequest { scope: LookScope; look: Json; kinds: string[] }
-export interface LookRenderer {
-  // One picture per kind the look has a composition for (or the kinds asked for), with the checks' warnings.
-  preview(req: PreviewRequest): Promise<{ samples: PreviewSample[] }>;
-  gate(...args: unknown[]): Promise<unknown>;
+// `userId` (the signed-in person) keys the render queue, so a newer request from the same person for the same look replaces an older one still waiting.
+export interface PreviewRequest { scope: LookScope; look: Json; kinds: string[]; userId?: string }
+// One design of a look drawn on its own, for the design editor: the copy to draw it with (the post's sample words, the longest the design
+// accepts, or only what it needs), and the rectangle of every element that has an address (its data-el path) so the editor can put its
+// handles where the page put the element.
+export type PreviewScenario = 'sample' | 'stress' | 'minimal';
+export const SCENARIOS: readonly PreviewScenario[] = ['sample', 'stress', 'minimal'];
+export interface CompositionRect { el: string; x: number; y: number; w: number; h: number; rot?: number }
+export interface CompositionPreviewRequest {
+  scope: LookScope;
+  // the whole look with the composition to draw in place; `kind` and `index` (among ALL the look's compositions of the kind) pick it
+  look: Json; kind: string; index: number; scenario: PreviewScenario; withRects: boolean; userId?: string;
 }
-// Drawing a look (a preview, the render gate) needs the interpreter (a later step). Until then this is null and the routes answer
-// 501. When it exists, this is the one function that returns it (setLookRenderer connects it; tests use it for a stand-in).
+export interface CompositionPreview { image?: string; rects?: CompositionRect[]; warnings?: string[]; error?: string; superseded?: boolean }
+// The render checks of one look: each target is one composition (kind, index among the look's compositions of the kind, in the `look` given), drawn with
+// sample, stress and minimal copy; the answer holds the checks of each, in the same order. A target the renderer did not get to is a failed check.
+export interface GateTarget { kind: string; index: number }
+export interface GateRenderRequest { scope: LookScope; look: Json; targets: GateTarget[]; userId?: string }
+export interface LookRenderer {
+  // One picture per kind the look has a composition for (or the kinds asked for), with the checks' warnings. `superseded` when a newer
+  // request replaced this one before it ran (the samples are then empty).
+  preview(req: PreviewRequest): Promise<{ samples: PreviewSample[]; superseded?: boolean }>;
+  // One composition, with its element rectangles. Optional: a renderer without it answers the design editor 501 and the editor draws a sketch.
+  previewComposition?(req: CompositionPreviewRequest): Promise<CompositionPreview>;
+  // The render checks (class `gate` in the render queue). Optional: without it a gate is validation only.
+  gate?(req: GateRenderRequest): Promise<GateCheck[][]>;
+}
+// The connected renderer (the app connects the engine's at start; tests connect a stand-in); null answers the preview routes 501.
 let renderer: LookRenderer | null = null;
 export function lookRenderer(): LookRenderer | null { return renderer; }
 export function setLookRenderer(r: LookRenderer | null): void { renderer = r; }
-export const PREVIEW_UNAVAILABLE = 'Previews of looks are not available yet';
+export const PREVIEW_UNAVAILABLE = 'Previews of looks are not available on this server';
 
 // ---- problems ------------------------------------------------------------------------------------------------------------
 
@@ -198,6 +210,8 @@ export function problemDetails(problems: string[]): Array<{ path: string; messag
     return { path: m ? m[1]! : 'definition', message };
   });
 }
+// The sentences about composition number `at` (and the ones about the look as a whole): what a design editor has to show for one design.
+const aboutComposition = (problems: string[], at: number): string[] => problems.filter((p) => p.includes(`compositions[${at}]`) || !/compositions\[\d+\]/.test(p));
 const refuse = (what: string, problems: string[]) => badRequest(what, problemDetails(problems));
 
 // ---- the service ---------------------------------------------------------------------------------------------------------
@@ -333,6 +347,50 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
     // A shipped look passed validateLook(..., { shipped: true }) when it was loaded.
     if (!isShipped) await checked(look, 'The look is not valid');
     return { look, hash: eng.lookHash(look) };
+  }
+
+  // What a one-design preview draws: a look (by reference, with every composition whether enabled or not, or sent whole) with the
+  // composition `kind`/`index` replaced by `draft` when one is given. Problems come back as details, never thrown, so the editor can keep
+  // showing its sketch while a draft is unfinished.
+  async function compositionPreviewTarget(scope: LookScope, input: { ref?: string; look?: unknown; kind: string; index: number; draft?: unknown }) {
+    const eng = await lookEngine();
+    if (!eng.KINDS.includes(input.kind)) throw badRequest(`Unknown kind of post: ${input.kind.slice(0, 20)}`);
+    if ((input.ref === undefined) === (input.look === undefined)) throw badRequest('Send either ref or look');
+    let look: Json;
+    let isShipped = false;
+    if (input.ref !== undefined) {
+      const p = parseRef(input.ref);
+      if (!p) throw badRequest('That is not a look reference (shipped:<id> or own:<slug>)');
+      if (p.source === 'shipped') { const l = await shippedById(p.id); if (!l) throw notFound('Look not found'); look = clone(l); isShipped = true; }
+      else look = await assemble(await needRow(scope, p.id), { all: true });
+    } else {
+      if (!isObj(input.look)) throw badRequest('look must be an object');
+      look = clone(input.look);
+      if (JSON.stringify(look).length > eng.LIMITS.definitionBytes) throw badRequest(`The look is larger than ${eng.LIMITS.definitionBytes / 1024} KB`);
+    }
+    const list = Array.isArray(look.compositions) ? (look.compositions as Json[]) : [];
+    const positions = list.map((c, i) => (isObj(c) && c.kind === input.kind ? i : -1)).filter((i) => i >= 0);
+    const at = positions[input.index];
+    if (at === undefined) throw notFound('That design is not in the look');
+    if (input.draft !== undefined) {
+      if (isShipped) throw badRequest('A look we ship has no drafts; customise it first');
+      if (!isObj(input.draft)) throw badRequest('A draft must be an object');
+      if (input.draft.kind !== input.kind) throw badRequest(`A design keeps its kind (${input.kind})`);
+      list[at] = clone(input.draft);
+    }
+    const problems = isShipped ? [] : aboutComposition(eng.validateLook(look, 'look'), at);
+    return { look, index: input.index, problems: problemDetails(problems), hash: problems.length ? '' : eng.lookHash(look) };
+  }
+
+  // What is wrong with a draft of one composition once swapped into its look, nothing stored: path-prefixed details.
+  async function draftProblems(scope: LookScope, slug: string, compId: string, draft: unknown) {
+    const row = await needRow(scope, slug);
+    const comp = needComp(row, compId);
+    if (!isObj(draft)) throw badRequest('A draft must be an object');
+    if (draft.kind !== comp.kind) throw badRequest(`A composition keeps its kind (${comp.kind}); add another composition for another kind`);
+    if (JSON.stringify(draft).length > (await lookEngine()).LIMITS.definitionBytes) throw badRequest('The draft is too large');
+    const at = (await sorted(row.compositions)).findIndex((c) => c.id === comp.id);
+    return { problems: problemDetails(aboutComposition(await problemsOf(await assemble(row, { all: true, swap: { id: comp.id, definition: draft } })), at)) };
   }
 
   async function activeLook(scope: LookScope) {
@@ -489,8 +547,29 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
   }
 
   const compHash = async (definition: unknown) => sha((await lookEngine()).canonicalJson(definition));
-  const gateOf = async (scope: LookScope, look: Json, comp: { kind: string; definition: unknown }) =>
-    (options.runGate ?? validationGate(await lookEngine()))({ scope, look, kind: comp.kind, composition: comp.definition as Json, definitionHash: await compHash(comp.definition) });
+  // The checks of `comps` (compositions of `look`, found by identity: the very objects the look holds) as gate records: the look validates,
+  // then, when a renderer is connected, each composition is drawn with sample, stress and minimal copy (one Chrome run for all of them).
+  // An injected `runGate` (tests) replaces all of it, one call per composition.
+  const gateMany = async (scope: LookScope, look: Json, comps: Array<{ kind: string; definition: unknown }>, userId?: string): Promise<GateRecord[]> => {
+    const eng = await lookEngine();
+    if (options.runGate) {
+      return Promise.all(comps.map(async (c) => options.runGate!({ scope, look, kind: c.kind, composition: c.definition as Json, definitionHash: await compHash(c.definition) })));
+    }
+    const base = await Promise.all(comps.map(async (c) => validationGate(eng)({ scope, look, kind: c.kind, composition: c.definition as Json, definitionHash: await compHash(c.definition) })));
+    const renderer = lookRenderer();
+    if (!renderer?.gate) return base;
+    const list = Array.isArray(look.compositions) ? (look.compositions as Json[]) : [];
+    const todo = comps.map((c, i) => ({ i, kind: c.kind, index: list.filter((x) => isObj(x) && x.kind === c.kind).indexOf(c.definition as Json) })).filter((t) => base[t.i]!.passed && t.index >= 0);
+    if (!todo.length) return base;
+    const answers = await renderer.gate({ scope, look, targets: todo.map((t) => ({ kind: t.kind, index: t.index })), userId });
+    todo.forEach((t, n) => {
+      const rec = base[t.i]!;
+      rec.checks.push(...(answers[n] ?? [{ name: 'render', passed: false, message: 'The render checks gave no answer' }]));
+      rec.passed = rec.checks.every((k) => k.passed);
+    });
+    return base;
+  };
+  const gateOf = async (scope: LookScope, look: Json, comp: { kind: string; definition: unknown }, userId?: string) => (await gateMany(scope, look, [comp], userId))[0]!;
 
   // Moves the draft into the definition once the whole look is valid with it and the gate passes. A failed gate is recorded on
   // the composition and the draft stays.
@@ -501,7 +580,7 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
     if (!isObj(comp.draft)) throw conflict('There is no draft to publish');
     const look = await assemble(row, { all: true, swap: { id: comp.id, definition: comp.draft } });
     await checked(look, 'The draft is not valid');
-    const gate = await gateOf(scope, look, { kind: comp.kind, definition: comp.draft });
+    const gate = await gateOf(scope, look, { kind: comp.kind, definition: comp.draft }, actor.id);
     if (!gate.passed) {
       await prisma.brandLookComposition.update({ where: { id: comp.id }, data: { gate: gate as unknown as Prisma.InputJsonValue } });
       throw badRequest('The checks did not pass, so the draft was not published', gate.checks.filter((c) => !c.passed).map((c) => ({ path: c.name, message: c.message ?? c.name })));
@@ -600,8 +679,23 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
 
   // ---- publishing and activating ----
 
+  // Runs the checks of every enabled composition of an own look (validation, then the render checks) and stores a record on each; a
+  // composition whose definition changed since keeps no stale record. Returns the look as the panel reads it.
+  async function gateLook(scope: LookScope, actor: Actor, slug: string) {
+    const row = await needRow(scope, slug);
+    const drawn = await assemble(row);
+    const enabled = await sorted(row.compositions.filter((c) => c.enabled));
+    if (!enabled.length) throw badRequest('The look has no composition switched on');
+    await checked(drawn, 'The look is not valid, so it cannot be checked');
+    const list = Array.isArray(drawn.compositions) ? (drawn.compositions as unknown[]) : [];
+    const records = await gateMany(scope, drawn, enabled.map((c, i) => ({ kind: c.kind, definition: list[i] })), actor.id);
+    await prisma.$transaction(enabled.map((c, i) => prisma.brandLookComposition.update({ where: { id: c.id }, data: { gate: records[i] as unknown as Prisma.InputJsonValue } })));
+    await audit(deps, actor, 'look.gate', 'look', row.id, { look: slug, passed: records.filter((r) => r.passed).length, failed: records.filter((r) => !r.passed).length });
+    return ownView((await findRow(scope, slug))!, true);
+  }
+
   // Marks the look ready: the whole look validates as it is drawn, no enabled composition has an invalid pending draft, and every
-  // enabled composition has a passing gate record for exactly its current definition (one is made now for any that lacks it).
+  // enabled composition has a passing gate record for exactly its current definition (the checks are run now for any that lacks one).
   async function publishLook(scope: LookScope, actor: Actor, slug: string) {
     const eng = await lookEngine();
     const row = await needRow(scope, slug);
@@ -613,16 +707,25 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
       const p = await problemsOf(await assemble(row, { all: true, swap: { id: c.id, definition: c.draft } }));
       if (p.length) throw refuse(`The pending draft of "${c.name}" is not valid; publish a valid one or discard it`, p);
     }
-    const checks: GateCheck[] = [];
+    const list = Array.isArray(drawn.compositions) ? (drawn.compositions as unknown[]) : [];
+    const records: Array<GateRecord | null> = [];
     for (const c of enabled) {
       const hash = await compHash(c.definition);
-      let g = isObj(c.gate) ? (c.gate as unknown as GateRecord) : null;
-      if (!(g && g.passed === true && g.definitionHash === hash)) {
-        g = await gateOf(scope, drawn, { kind: c.kind, definition: c.definition });
-        await prisma.brandLookComposition.update({ where: { id: c.id }, data: { gate: g as unknown as Prisma.InputJsonValue } });
-      }
-      checks.push({ name: `${c.kind}/${c.name}`, passed: g.passed, ...(g.passed ? {} : { message: g.checks.find((k) => !k.passed)?.message }) });
+      const g = isObj(c.gate) ? (c.gate as unknown as GateRecord) : null;
+      records.push(g && g.passed === true && g.definitionHash === hash ? g : null);
     }
+    const missing = enabled.map((c, i) => ({ c, i })).filter((x) => !records[x.i]);
+    if (missing.length) {
+      const fresh = await gateMany(scope, drawn, missing.map((x) => ({ kind: x.c.kind, definition: list[x.i] })), actor.id);
+      for (const [n, x] of missing.entries()) {
+        records[x.i] = fresh[n]!;
+        await prisma.brandLookComposition.update({ where: { id: x.c.id }, data: { gate: fresh[n] as unknown as Prisma.InputJsonValue } });
+      }
+    }
+    const checks: GateCheck[] = enabled.map((c, i) => {
+      const g = records[i]!;
+      return { name: `${c.kind}/${c.name}`, passed: g.passed, ...(g.passed ? {} : { message: g.checks.find((k) => !k.passed)?.message }) };
+    });
     if (checks.some((c) => !c.passed)) throw badRequest('The checks did not pass, so the look was not published', checks.filter((c) => !c.passed).map((c) => ({ path: c.name, message: c.message ?? 'did not pass' })));
     const record: GateRecord = { engineVersion: engineVersion(), definitionHash: eng.lookHash(drawn), at: new Date().toISOString(), passed: true, checks };
     await prisma.brandLook.update({ where: { id: row.id }, data: { status: 'ready', gate: record as unknown as Prisma.InputJsonValue, engineSchema: eng.LOOK_SCHEMA, updatedById: actor.id } });
@@ -650,11 +753,11 @@ export function createLooks(deps: Pick<Deps, 'prisma'>, options: LookOptions = {
   }
 
   return {
-    resolveLook, activeLook, previewTarget, listLooks, getLook, lookBriefs, lookForPack,
+    resolveLook, activeLook, previewTarget, compositionPreviewTarget, draftProblems, listLooks, getLook, lookBriefs, lookForPack,
     duplicateLook, updateLookSettings, deleteLook,
     saveCompositionDraft, discardCompositionDraft, publishComposition, addCompositionFrom,
     setCompositionEnabled, reorderCompositions, moveComposition, removeComposition,
-    publishLook, setActiveLook,
+    publishLook, gateLook, setActiveLook,
     // for the validate route
     problems: (look: unknown) => lookEngine().then((e) => e.validateLook(look, 'look')),
   };
@@ -671,17 +774,11 @@ export const looksFor = (deps: Pick<Deps, 'prisma'>): Looks => {
 
 // ---- the brand pack ------------------------------------------------------------------------------------------------------
 
-// Whether an engine reads brand.json "looks": it does when a brand with a deliberately empty look is refused for the look itself.
-// An engine that does not know looks yet either says nothing about them or calls the key unknown.
-export function engineReadsLooks(brand: Json, validate: (b: Json) => string[]): boolean {
-  return validate({ ...brand, looks: [{}] }).some((p) => /look/i.test(p) && !/unknown entries/i.test(p));
-}
-
-// The brand a pack would be written from, with the active look in it: `looks: [<the look>]` and style.direction naming it. Only
-// when the engine reads looks; otherwise the brand is returned as it is (and logged once), so an engine without looks never
-// fails to write a brand because a look is active.
-export function packWithLook(brand: Json, look: Json | null, validate: (b: Json) => string[]): Json {
+// The brand a pack would be written from, with the active look in it: `looks: [<the look>]` and style.direction naming it. A shipped
+// look is written as a copy of itself ("copy:shipped:<id>"): the brand file's validator accepts the engine's own origin only for the
+// engine's own files. The engine draws a post with it from the brand file (renderPost: style.direction names an entry of looks).
+export function packWithLook(brand: Json, look: Json | null): Json {
   if (!look) return brand;
-  if (!engineReadsLooks(brand, validate)) { logOnce('engine', 'look.engine_unsupported', { look: String(look.id) }); return brand; }
-  return { ...brand, looks: [look], style: { ...(isObj(brand.style) ? brand.style : {}), direction: look.id } };
+  const entry = look.origin === 'shipped' ? { ...clone(look), origin: `copy:shipped:${String(look.id)}` } : look;
+  return { ...brand, looks: [entry], style: { ...(isObj(brand.style) ? brand.style : {}), direction: String(look.id) } };
 }

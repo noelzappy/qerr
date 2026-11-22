@@ -745,8 +745,8 @@ async function materialise(deps: Deps, snap: BrandSnapshot, draft?: { settings: 
   if (refs.length) brand.references = refs;
   // The layouts of Settings, Layouts, ahead of any the pack already had (checked again by validateBrand just below).
   if (layouts.length) brand.layouts = mergeLayouts(layouts, brand.layouts);
-  // The active look (Settings, Looks), written as `looks` with style.direction naming it, once the engine reads looks (looks.ts).
-  if (snap.profile?.activeLookRef) brand = packWithLook(brand, await looksFor(deps).lookForPack(brandScope()), brandProblems);
+  // The active look (Settings, Looks), written as `looks` with style.direction naming it, (packWithLook, looks.ts).
+  if (snap.profile?.activeLookRef) brand = packWithLook(brand, await looksFor(deps).lookForPack(brandScope()));
   brand = withoutUnreadContrast(brand);
   const problems = brandProblems(brand);
   if (problems.length) throw new BrandNotValid(problems, draft ? 'The brand is not valid' : 'The saved brand is not valid');

@@ -217,8 +217,7 @@ as `layouts` on every sync (one that no longer passes is left out and logged), w
 brand's looks: whole ways of composing a post, as data the engine's look module checks (`packages/engine/lib/design/look.mjs`;
 `validateLook`, `lookBrief`, `lookHash`). Classic layouts above stay as they are; a brand with an active look ignores them.
 A look is named by a reference everywhere: `shipped:<id>` (the engine's own looks: global, read only, never rows; loaded by one
-adapter, `shippedLooks()`, which uses the engine's export when it has one and the sample looks in
-`packages/engine/testlib/looks` until then) or `own:<slug>` (a slug is lowercase letters, digits and `-`, never contains `:`, and
+adapter, `shippedLooks()` over the engine's `shippedLooks()`) or `own:<slug>` (a slug is lowercase letters, digits and `-`, never contains `:`, and
 never equals a shipped id). Tables `brand_looks` (the look without compositions, `origin`, `engineSchema`, `status` draft or ready,
 `gate`) and `brand_look_compositions` (`definition` is what is drawn, `draft` holds unpublished edits and never affects drawing,
 `enabled`, `gate`); the active look is a pointer, `brand_profiles.activeLookRef` (`shipped:<id>`, `own:<slug>` or null for classic
@@ -237,23 +236,41 @@ publishing a composition, switching on or off, reordering, adding, removing) or 
 | `GET /api/settings/looks/:ref` | one look in full; an own look with its drafts and gate records |
 | `POST /api/settings/looks/duplicate` | `{ source, name?, slug? }` |
 | `POST /api/settings/looks/validate` | `{ problems }` for a whole look, nothing stored |
-| `POST /api/settings/looks/preview` | `{ ref }` or `{ look }` (a whole look as the panel holds it, validated first) and optionally `kinds`: `{ hash, samples: [{ kind, ok, image, error, warnings }] }`, one picture per kind, drawn by `lookRenderer()` (connected with `setLookRenderer`; 501 until then) |
+| `POST /api/settings/looks/preview` | `{ ref }` or `{ look }` (a whole look as the panel holds it, validated first) and optionally `kinds`: `{ hash, samples: [{ kind, ok, image, error, warnings }] }`, one picture per kind (the first design of the kind, sample copy), drawn by `lookRenderer()` (`services/look-render.ts`, connected at start with `setLookRenderer`; 501 when none is connected, as in tests that do not connect one); `superseded: true` with no samples when a newer request from the same person for the same look replaced this one while it waited |
+| `POST /api/settings/looks/preview-design` | one design on its own, for the design editor: `{ ref }` or `{ look }`, `kind`, `index` (among all the look's compositions of the kind, enabled or not), optionally `draft` (an own look's unsaved composition swapped in), `scenario` (`sample`, `stress` = the longest copy it accepts, `minimal` = only what it needs) and `withRects`: `{ hash, image, rects: [{ el, x, y, w, h, rot }], warnings, problems }`. `el` is the element's address in the composition (digits and dots: `2`, `2.0`; a seam's sticker is the child after its children). An unfinished draft is not drawn: `problems` come back with status 200 so the editor keeps its sketch. Drawn by `lookRenderer().previewComposition` (optional on the renderer, so a renderer that only draws samples answers 501 here too); `rects` come from the page's own `postMetrics().els`; a refusal of the engine's page checks comes back as `problems` with status 200, never a 500 |
+| `POST /api/settings/looks/:slug/gate` | the render checks: every enabled design is drawn with sample, stress (the longest copy that holds, down to half of the limit its brief states) and minimal copy under the engine's own page checks (class `gate` of the render queue, one Chrome run, at most 150 s once running; a design not reached fails with "ran out of time"), and a record `{ passed, checks: [validate, render:sample, render:stress, render:minimal] }` is stored on each design; answers `{ look }`. Without a renderer it validates only |
+| `GET /api/settings/looks/fonts/:family/:file` | a shipped font file (woff2) for the typeface cards: only a `family` and `file` the engine's `design/fonts/library.json` lists are served (a lookup in a map built from it; nothing from the request reaches the file system), `cache-control: private, max-age=31536000, immutable`; admins only; the page's CSP already has `font-src 'self'`. `GET /api/settings/looks` lists each family's `files` (`file`, `style`, `weight`, `range`) |
 | `PUT /api/settings/looks/active` | `{ ref }`: a shipped look or an own look that is ready; `null` for classic layouts; writes the brand pack |
 | `PUT /api/settings/looks/:slug/settings` | `{ definition }`: the look without compositions, checked with the compositions it has; resets the gate |
 | `POST /api/settings/looks/:slug/compositions` | `{ source, kind, index }`: copy one composition from a shipped or an own look |
+| `POST /api/settings/looks/:slug/compositions/:id/validate` | `{ definition }`: `{ problems: [{ path, message }] }` for a draft swapped into its look, nothing stored (the design editor's check as it is edited; paths read `compositions[n].elements[i].children[j].size`) |
 | `PUT` / `DELETE /api/settings/looks/:slug/compositions/:id/draft` | save (the whole look must validate with it) or discard a draft |
-| `POST /api/settings/looks/:slug/compositions/:id/publish` | the draft becomes the composition, once the gate passes (today the gate is validation only: `runGate`) |
+| `POST /api/settings/looks/:slug/compositions/:id/publish` | the draft becomes the composition, once the gate passes (validation and the render checks above; `runGate` replaces them in tests) |
 | `PATCH` / `DELETE /api/settings/looks/:slug/compositions/:id` | `{ enabled?, position? }` (position among its kind); remove (never the last of its kind) |
-| `POST /api/settings/looks/:slug/publish` | the look is `ready`: it validates and every enabled composition has a passing gate record for its current definition |
+| `POST /api/settings/looks/:slug/publish` | the look is `ready`: it validates and every enabled composition has a passing gate record for its current definition (the checks are run now for any that has none, in one Chrome run; a failure names the design and the reason) |
 | `DELETE /api/settings/looks/:slug` | refused while active |
 | `GET /api/looks/brief` | any signed-in person: `{ look }`, the active look's kinds, variants, fields and budgets (`lookBrief`), or `{ look: null }` |
 
-**Not available yet.** Drawing a look needs the interpreter, a later step: `POST /api/settings/looks/preview` (the route is built, tested with a stand-in renderer) and
-`POST /api/settings/looks/:slug/gate` answer 501 (`Previews of looks are not available yet`, behind `lookRenderer()`), and the gate
-only validates. The brand pack gets `looks` and `style.direction` for the active look only once the engine's `validateBrand`
-reads looks (`engineReadsLooks`, `packWithLook`); until then the choice is stored and `look.engine_unsupported` is logged once.
-`src/server/services/render-queue.ts` is the queue interface over the render lock (posts, then previews, then gate jobs; a newer
-job with the same key replaces a waiting one; expired previews are dropped); nothing calls it yet.
+**The design editor** (`/settings/looks/:slug/designs/:id`, `apps/web/web/src/pages/settings/looks/`; see `web/README-ui.md`) edits one composition as
+JSON (`design-model.ts`, pure and specced over every composition of both shipped looks), checks the draft as it is edited with the `validate` route, draws it
+with `preview-design` and falls back to a sketch drawn in the browser while that answers 501, saves with `PUT .../draft` and publishes with `POST .../publish`.
+A look in use is read only there.
+
+**Drawing a look** (`services/look-render.ts`, connected in `src/server/index.ts` with `connectLookRenderer`). Everything goes through the render queue
+(`services/render-queue.ts`: posts, then previews, then gate jobs, under the engine's single Chrome lock; a newer request with the same key, one per person
+and look, replaces one still waiting; a preview that waits over 60 s is dropped; a gate over 5 minutes). The brand is the one in force (the pack `syncBrand`
+wrote: its colours, fonts and logo), with the look asked for as its direction; a brand with no logo yet draws a placeholder one and warns. The words are
+neutral sample copy made from the look's own brief (`services/look-copy.ts`: no customer's text; the stress copy is tried at 100%, 85%, 70%, 60% and 50% of each limit and
+the longest that the engine accepts is the one drawn), the picture of a photo, event or offer is a synthetic one the engine ships
+(`design/assets/demo/`). The look and the design are validated by the engine (`resolveLook`, `validateDesign`) before any drawing; nothing here builds markup.
+**What is cached:** sample pictures only, in memory, at most 64, by look hash + brand hash + kind (the brand hash is the pack's files and brand file
+without its looks and direction, so changing the active look does not empty it); a design preview is never cached (a draft changes at every key) and neither is a
+refusal caused by a busy or broken Chrome. A gate record is stored on each design and goes stale with the design's definition; it does not know the brand, so a
+changed brand is not rechecked until the checks are run again.
+The brand pack carries the active look (`looks: [<the look>]`, `style.direction` = its id; a shipped look is written as a copy of itself, `copy:shipped:<id>`), so
+the render job and `POST /api/posts/preview-design` draw `template: "post"` designs with it, a post is held to the look's own designs and budgets before drawing
+(`designBlockProblems` reads the look), and `GET /api/posts/post-kinds` answers from the engine's `postKinds(brand)` for it.
+`src/server/services/render-queue.ts`: the older previews (`routes/layouts.ts`, `routes/brand.ts`, `routes/design-preview.ts`) still take the render lock directly.
 
 A design reference's analysis may suggest a layout (`analysis.composition`); it is checked by the same validator before it
 is stored, and "Use this layout" on the reference previews it with the brand before an admin adds it.
@@ -504,12 +521,10 @@ check of every design, with a link to each failing design) and, when Ready and n
 Tabs: **Settings** (drawn from `lookCatalogue().sections`, so a setting the engine adds appears without UI work: Dials, Typefaces, Type,
 Page, Colour, Devices, Pictures, Logo; numbers show their range and an inline error, never clamped; server problems are mapped to the control
 by path), **Designs** (per kind: reorder, On/Off, status, Edit as a read-only detail, Duplicate within this look, Remove, "Add a design" from
-any shipped or own look, at most three per kind) and **Check** (the stored gate records; "Run the checks" shows the server's "not available
-yet" gracefully). `/settings/looks/:slug/designs/:id` is a placeholder page ("Editing a design's layout comes with the design editor").
+any shipped or own look, at most three per kind) and **Check** (the stored gate records; "Run the checks" draws every design with sample, stress and minimal copy and shows what each check said). `/settings/looks/:slug/designs/:id` is a placeholder page ("Editing a design's layout comes with the design editor").
 **Classic layouts** is in the menu only while no look is active (the page itself shows a one-line notice with a link to Looks otherwise).
 Sample pictures: `useLookSamples` asks `POST /api/settings/looks/preview` (debounced, stale requests cancelled, cached by the hash the server
-returns); while it answers 501 the strips show quiet placeholders named by kind and one line, and pictures appear by themselves when the server
-can draw. The post editor reads `GET /api/looks/brief` when a look is active: kinds without an enabled design are not offered, the "Look"
+returns); while it answers 501 (no renderer connected) the strips show quiet placeholders named by kind and one line. The post editor reads `GET /api/looks/brief` when a look is active: kinds without an enabled design are not offered, the "Look"
 choice lists the look's designs by name, and the field counters follow the chosen design's budgets (`editor/look-brief.ts`). Logic that needs no
 browser is in `web/src/pages/settings/looks/look-model.ts` (specs `src/web-look-model.spec.ts`, `web-look-brief.spec.ts`,
 `web-inspiration-fit.spec.ts`, `web-nav.spec.ts`).

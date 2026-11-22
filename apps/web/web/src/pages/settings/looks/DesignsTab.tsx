@@ -1,16 +1,15 @@
 // The Designs tab of a look: one group per kind of post, each design a compact row (name, what it is for, the fields it uses with
-// their budgets, a status dot, On/Off, reorder, Edit and a menu). "Add a design" copies one from a look we ship or one of the brand's
+// their budgets, a status dot, On/Off, reorder, Edit (opens the design editor page) and a menu). "Add a design" copies one from a look we ship or one of the brand's
 // own. A look in use is read only (the page says so once); the server refuses what the rules refuse and its reason is shown.
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, Plus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useLoad } from '../../../hooks';
 import { errorMessage } from '../../../lib/errors';
 import { BusyButton, ConfirmAction, ErrorBlock, FormPanel, LoadingBlock, MoreMenu, ToneBadge } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { DesignDetail } from './DesignDetail';
 import { addOptions, budgetsText, DESIGN_STATUS, designIndex, designStatus, groupByKind, kindName, kindOrder, movedPosition, type AddOption } from './look-model';
 import type { Composition, LookCatalogue, LooksAnswer, OwnDetail } from './look-types';
 import { lookApi } from './looks-api';
@@ -107,7 +106,7 @@ function Row({ c, index, designs, look, catalogue, locked, onLook, onEdit }: { c
 
 export function DesignsTab({ look, list, locked, onLook }: Props) {
   const [adding, setAdding] = useState<string | null>(null);
-  const [editing, setEditing] = useState<Composition | null>(null);
+  const navigate = useNavigate();
   const cat = list.catalogue;
   const groups = groupByKind(look.compositions, kindOrder(cat));
   const withDesigns = new Set(groups.map((g) => g.kind));
@@ -126,17 +125,13 @@ export function DesignsTab({ look, list, locked, onLook }: Props) {
             {full && !locked && <p className="-mt-1 text-[12.5px] text-muted-foreground">Up to {list.limits.perKind} designs for each kind.</p>}
             {designs.length === 0 ? <p className="text-[13px] text-muted-foreground">No designs: posts of this kind cannot be made with this look.</p> : (
               <ul className="divide-y rounded-lg border">
-                {designs.map((c) => <Row key={c.id} c={c} index={designIndex(look.compositions, c)} designs={designs} look={look} catalogue={cat} locked={locked} onLook={onLook} onEdit={() => setEditing(c)} />)}
+                {designs.map((c) => <Row key={c.id} c={c} index={designIndex(look.compositions, c)} designs={designs} look={look} catalogue={cat} locked={locked} onLook={onLook} onEdit={() => navigate(`/settings/looks/${look.slug}/designs/${c.id}`)} />)}
               </ul>
             )}
           </section>
         );
       })}
       {adding && <AddDesign kind={adding} look={look} list={list} onClose={() => setAdding(null)} onLook={onLook} />}
-      <FormPanel open={!!editing} variant="dialog" size="lg" title={editing ? editing.name : ''} onClose={() => setEditing(null)} dismissOnOutside
-        footer={<>{editing && <Button asChild variant="outline"><Link to={`/settings/looks/${look.slug}/designs/${editing.id}`}>Open the design page</Link></Button>}<Button type="button" onClick={() => setEditing(null)}>Close</Button></>}>
-        {editing && <DesignDetail definition={editing.definition} catalogue={cat} />}
-      </FormPanel>
     </div>
   );
 }

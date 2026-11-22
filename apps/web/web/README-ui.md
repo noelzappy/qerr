@@ -185,10 +185,46 @@ The post editor, Brand and look and the layout editor use it, as do the other fo
   called "Post types". "Other currencies to flag" is a list of words; a stored pattern that the list cannot show is edited under Advanced.
 - **Looks** (`pages/settings/looks/`): `/settings/looks` (tabs Looks and Inspiration at `/settings/looks/inspiration`; the design references
   moved there from their own menu entry, `/settings/references` redirects), `/settings/looks/:slug` and `/settings/looks/:slug/designs/:id`
-  (a placeholder until the design editor). The settings menu reads You, Brand (Brand and look, Looks, Classic layouts), Organisation (Team,
+  (the design editor, below). The settings menu reads You, Brand (Brand and look, Looks, Classic layouts), Organisation (Team,
   Channels, AI and search), Records; **Classic layouts** shows only while no look is active (`useActiveLook`, from `GET /api/looks/brief`).
   An active look is locked: the page says so, controls are read only and Duplicate makes a copy to change. Routes used are listed in
   apps/web/README.md, "The Looks pages (web)". The post editor takes kinds, design names and budgets from the active look.
+  The look's **Settings tab** is choices, not configuration (`looks/settings/`): two columns on wide screens (the samples, larger and
+  sticky, fed the draft look; one collapsible block first on phones) and one calm column of groups: Typeface (curated pairings of the
+  font library, plus "Our own font" when the brand uploaded fonts), Headline voice (Weight, Case, Spacing), Feel (Tilt, Density, Weight
+  sliders), Colour (One accent, Colour as a field, Tonal, drawn in the brand's colours, and a switch for accent colour in large
+  words), Space (Tight, Standard, Airy, scaled from the look's origin), Pictures (As shot, Greyscale, Colour tint, Punchy, and Grain)
+  and Logo (Off or in a corner, and a size), then Details, which has no choice. Each choice is a preset (`presets.ts`) that says which
+  option the values match now and writes only the values it owns; a look that fits none shows a "Custom" chip and nothing is snapped.
+  Every group has a closed "Fine-tune" link that opens that group's exact values (the catalogue-driven controls, compact, the range in
+  the tooltip) with "n values changed from the original" and "Reset this group" (to the origin look, else as opened). Every catalogue
+  value is in exactly one group's Fine-tune (`groups.ts`; what no group names falls to Details, so a setting the engine adds appears
+  there). Font weights are not asked for: `weights.ts` works out what the type settings and designs need and writes it whenever a
+  choice or a dial changes; the manual list is in Typeface's Fine-tune.
+  The typeface cards load their real family: `settings/load-fonts.ts` registers the family's woff2 files (listed with each family by `GET /api/settings/looks`, served by `GET /api/settings/looks/fonts/:family/:file`) with the browser's FontFace API under the alias `Look <family>`, once per family, and shows the sample in it; where FontFace is missing nothing happens. The sample and design-preview hooks ignore an answer marked `superseded` (the server replaced that request by a newer one from the same person). A server problem on a value opens its group's Fine-tune.
+- **The design editor** (`pages/settings/looks/DesignEditor.tsx`, at `/settings/looks/:slug/designs/:id`, Edit on the Designs tab) builds a look's
+  design (one composition) entirely from the panel. The composition JSON is the state; `design-model.ts` (pure, specced in
+  `src/web-design-editor.spec.ts` over every composition of both shipped looks) reads and writes it by the engine catalogue's descriptors and never clamps:
+  a value out of range is refused with a sentence. Three panes (tabs Layers, Canvas, Properties under `lg`): **Layers** (`DesignLayers.tsx`: the
+  elements back to front as a tree, an eye with a tooltip for a condition, back and forward buttons or drag, a menu to copy, remove, move into or out of a
+  box; below, the library of pieces grouped Text, Pictures, Shapes and devices, Special pieces, each saying why it cannot be added when a limit is
+  reached: 40 elements, 4 levels, one rows, a seam, a frame or a top label row); **Canvas** (`DesignCanvas.tsx`) and **Properties**
+  (`DesignProperties.tsx`, `design-controls.tsx`: Place, Size and rotation, Content, Type, Colour, Effects, Conditions for a piece; the design's own name,
+  "when to use it", page colour, fields with their budgets, accepted words and empty space with none selected).
+  The canvas has two layers. The picture is the real image when the server can make one (`POST /api/settings/looks/preview-design`, about 400 ms after
+  the last change, an older request aborted; Sketch or Real image toggle; copy Sample, Longest or Shortest; the switch is hidden while the answer is 501)
+  and otherwise a schematic drawn from the places (boxes with their plain names, text as its field's name, brand colours as swatches). On top, a target
+  for every element, the selection with eight handles and a turning handle, positioned from the page's own rectangles when it has them and from the places
+  otherwise. Drag to move, handles to resize (snapped to grid cells, or 4 px for a piece placed in pixels or anchored; a readout says "Columns 5-12, rows
+  2-6"), the turning handle snaps to the look's named angles; Advanced allows a free angle (-15 to 15), pixel placement and a fixed size. A piece with no place
+  of its own (it flows in its box) is selected, shows "Positioned by its box" and moves by reordering. **Keyboard** on the canvas: arrows move by a cell
+  (4 px when placed free), Shift with an arrow resizes, `[` and `]` send back and forward, Escape lets go, Delete removes (with Undo), Ctrl or Cmd+Z undoes,
+  with Shift redoes. **Design health** (`DesignHealth.tsx`, `design-health.ts`) mirrors the engine's static rules while editing (at most 3 type sizes, a
+  headline at least 2.6 times the body, at most 3 turned pieces, every needed field shown once, text over a picture with a block or fade under it) and shows
+  the server's sentences when it has spoken. The header says whether the design is ready to save (each problem a link to its piece), Save draft is the one
+  primary button and is refused only for what the server refuses, Publish saves first and shows the failed checks, the menu holds Discard draft, Advanced:
+  JSON and Reset to the shipped original. Not looked at in a browser when this was written: it was typechecked, specced as static markup and tested through
+  the model and the routes.
 - A layout opens its own page, not a side sheet: `/settings/layouts/new` (with `?from=<starter>`, `?duplicate=<layout id>`
   or `?copy=<built-in id>`) and `/settings/layouts/:id`. Blocks are dragged and resized on a large canvas, snapped to the
   grid's cells, or placed with the number fields or in pixels. Keyboard: arrows move the selected block, Shift+arrows resize

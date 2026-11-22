@@ -2,6 +2,7 @@
 import { serve } from '@hono/node-server';
 import { createAppAndDeps } from './app.js';
 import { syncBrand } from './services/brand-settings.js';
+import { connectLookRenderer } from './services/look-render.js';
 import { bootstrapAdmin } from './bootstrap.js';
 import { loadConfig } from './config.js';
 import { reconcileActivity } from './services/activity.js';
@@ -28,6 +29,8 @@ async function main() {
   if (orphaned.failed) logger.info('activity.reconciled', orphaned);
   // The brand saved in Settings becomes the pack folder the engine and the AI read.
   await syncBrand(deps);
+  // The Looks pages' previews and render checks draw with the engine (one Chrome at a time, through the render queue).
+  connectLookRenderer(deps);
   await jobs.start(deps);
   const server = serve({ fetch: app.fetch, port: config.port }, (info) => logger.info('server.listening', { port: info.port }));
 

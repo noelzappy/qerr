@@ -35,6 +35,8 @@ export function useLookSamples(target: SampleTarget | null, opts: { delay?: numb
     const timer = setTimeout(() => {
       const body = 'ref' in target ? { ref: target.ref, ...(kindsKey ? { kinds: kindsKey.split(',') } : {}) } : { look: target.look, ...(kindsKey ? { kinds: kindsKey.split(',') } : {}) };
       api.post<PreviewAnswer>('/api/settings/looks/preview', body, controller.signal).then((answer) => {
+        // replaced on the server by a newer request of ours (its answer is the one that counts)
+        if (answer.superseded) return;
         byHash.set(answer.hash, answer.samples);
         hashOfTarget.set(key + '|' + kindsKey, answer.hash);
         setState({ status: 'ready', samples: answer.samples, hash: answer.hash, error: '' });

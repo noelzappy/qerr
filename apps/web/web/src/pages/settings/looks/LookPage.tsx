@@ -1,5 +1,5 @@
-// A look on its own page: its name, status and actions in the header, a strip of sample pictures, and three tabs: Settings (typefaces,
-// type, page, colour, devices, pictures, logo and the three dials, drawn from the engine's catalogue), Designs (one group per kind of
+// A look on its own page: its name, status and actions in the header, and three tabs: Settings (a few choices beside larger sample
+// pictures: typeface, headline voice, feel, colour, space, pictures, logo and details, each with its exact values under Fine-tune), Designs (one group per kind of
 // post) and Check (what the checks said). A look in use is locked: every control is read only and the page offers a copy instead.
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -19,7 +19,8 @@ import { SampleStrip } from './SampleStrip';
 import { collectControls, kindOrder, LOOK_STATUS, lookForPreview, lookStatus, mapProblems, settingsOf, settingsProblems, writeSetting } from './look-model';
 import { isOwn, type LooksAnswer, type OwnDetail, type Problem } from './look-types';
 import { afterLookChange, lookApi } from './looks-api';
-import { SettingsForm } from './look-settings';
+import { SettingsTab } from './settings/SettingsTab';
+import { LookSamples } from './settings/LookSamples';
 import { USE_MESSAGE } from './LooksPage';
 import { useLookSamples } from './use-look-samples';
 
@@ -108,7 +109,7 @@ export function LookPage({ initial, list, activeRef, onActive }: { initial: OwnD
       )}
       {status === 'attention' && look.problems?.[0] && <Notice tone="warn">{look.problems[0]}</Notice>}
 
-      <SampleStrip state={samples} kinds={order} lookName={look.name} compact className="max-w-xl" />
+      {tab !== 'settings' && <SampleStrip state={samples} kinds={order} lookName={look.name} compact className="max-w-xl" />}
 
       <nav aria-label="Parts of the look" className="-mb-2">
         <ul className="flex gap-1 border-b">
@@ -124,9 +125,13 @@ export function LookPage({ initial, list, activeRef, onActive }: { initial: OwnD
       </nav>
 
       {tab === 'settings' && (
-        <div className="max-w-4xl">
-          <SettingsForm ctx={{ look: draft, catalogue: cat, fonts: list.fonts, errors, disabled: locked, onChange: change }} />
-          <div className="mt-4"><FormProblem error={error} lines={mapped.other} /></div>
+        <div className="grid gap-x-10 gap-y-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:items-start">
+          <LookSamples state={samples} kinds={order} lookName={look.name} className="md:sticky md:top-4" />
+          <div className="max-w-2xl">
+            <SettingsTab ctx={{ look: draft, catalogue: cat, fonts: list.fonts, errors, disabled: locked, onChange: change }} comps={look.compositions.map((c) => c.definition)}
+              originRef={look.origin.startsWith('copy:') ? look.origin : null} saved={settingsOf(look.definition)} onLook={setDraft} />
+            <div className="mt-4"><FormProblem error={error} lines={mapped.other} /></div>
+          </div>
         </div>
       )}
       {tab === 'designs' && <DesignsTab look={look} list={list} locked={locked} onLook={(l) => apply(l, dirty)} />}

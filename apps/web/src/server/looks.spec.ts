@@ -6,7 +6,7 @@ import { pipelineEngine } from './engine/pipeline.js';
 import { engineImport } from './engine/root.js';
 import { logger } from './log.js';
 import { currentSettings, resetBrandState, syncBrand } from './services/brand-settings.js';
-import { brandScope, createLooks, setLookRenderer, engineReadsLooks, formatRef, looksFor, packWithLook, parseRef, resetLookLogs, shippedLooks, type GateRecord } from './services/looks.js';
+import { brandScope, createLooks, setLookRenderer, formatRef, looksFor, packWithLook, parseRef, resetLookLogs, shippedLooks, type GateRecord } from './services/looks.js';
 import { createTestApp, type TestApp } from './testing.js';
 
 let t: TestApp;
@@ -117,7 +117,7 @@ describe('duplicating', () => {
     const l = await copy(api);
     expect(l).toMatchObject({ slug: 'mine', status: 'draft' });
     expect(l.definition).toMatchObject({ id: 'mine', name: 'Mine', origin: 'copy:shipped:retail', schema: 1 });
-    expect(l.compositions.map((c) => c.kind)).toEqual(['statement', 'statement', 'list', 'photo'].sort((a, b) => ['statement', 'figure', 'list', 'quote', 'photo', 'event', 'offer'].indexOf(a) - ['statement', 'figure', 'list', 'quote', 'photo', 'event', 'offer'].indexOf(b)));
+    expect(l.compositions.map((c) => c.kind)).toEqual(['statement', 'statement', 'figure', 'list', 'quote', 'photo', 'photo', 'event', 'offer']);
     const src = (await shippedLooks()).find((s) => s.id === 'retail')!;
     expect(new Set(l.compositions.map((c) => c.id)).size).toBe(l.compositions.length);
     expect(l.compositions.map((c) => c.name).sort()).toEqual((src.compositions as Array<{ name: string }>).map((c) => c.name).sort());
@@ -127,7 +127,7 @@ describe('duplicating', () => {
     const c = comp(l, 'photo');
     await api.put(`${BASE}/mine/compositions/${c.id}/draft`, { definition: { ...c.definition, name: 'Changed' } });
     await api.post(`${BASE}/mine/compositions/${c.id}/publish`);
-    expect(((await shippedLooks()).find((s) => s.id === 'retail')!.compositions as Array<{ name: string }>)[0]!.name).toBe('Frame pop');
+    expect(((await shippedLooks()).find((s) => s.id === 'retail')!.compositions as Array<{ name: string }>).map((c) => c.name)).toContain('Frame pop');
   });
 
   it('copies one of the brand\'s own looks, with its switches, and not its drafts', async () => {
@@ -258,14 +258,14 @@ describe('compositions and drafts', () => {
     const api = await admin();
     const l = await copy(api, 'mine', 'shipped:swiss');
     const add = (source: string, kind: string, index: number) => api.post(`${BASE}/mine/compositions`, { source, kind, index });
-    const one = await add('shipped:swiss', 'photo', 0);
+    const one = await add('shipped:swiss', 'figure', 0);
     expect(one.status).toBe(201);
-    expect(one.body.look.compositions.filter((c: { kind: string }) => c.kind === 'photo')).toHaveLength(2);
-    expect((await add('own:mine', 'photo', 0)).status).toBe(201);
-    const full = await add('shipped:swiss', 'photo', 0);
+    expect(one.body.look.compositions.filter((c: { kind: string }) => c.kind === 'figure')).toHaveLength(2);
+    expect((await add('own:mine', 'figure', 0)).status).toBe(201);
+    const full = await add('shipped:swiss', 'figure', 0);
     expect(full.status).toBe(409);
     expect(full.body.error).toMatch(/at most 3 compositions of one kind/);
-    expect((await add('shipped:swiss', 'event', 0)).status).toBe(404);
+    expect((await add('shipped:swiss', 'event', 7)).status).toBe(404);
     expect((await add('shipped:swiss', 'list', 7)).status).toBe(404);
     expect((await add('own:nope', 'photo', 0)).status).toBe(404);
     expect(l.compositions.length + 2).toBe(await t.prisma.brandLookComposition.count({ where: { look: { slug: 'mine' } } }));
@@ -285,13 +285,12 @@ describe('compositions and drafts', () => {
   it('switches compositions on and off, but keeps one on', async () => {
     const api = await admin();
     const l = await copy(api, 'mine', 'shipped:swiss');
-    const [a, b, c] = l.compositions;
-    expect((await api.patch(`${BASE}/mine/compositions/${a!.id}`, { enabled: false })).status).toBe(200);
-    expect((await api.patch(`${BASE}/mine/compositions/${b!.id}`, { enabled: false })).status).toBe(200);
-    const res = await api.patch(`${BASE}/mine/compositions/${c!.id}`, { enabled: false });
+    const last = l.compositions[l.compositions.length - 1]!;
+    for (const x of l.compositions.slice(0, -1)) expect((await api.patch(`${BASE}/mine/compositions/${x.id}`, { enabled: false })).status).toBe(200);
+    const res = await api.patch(`${BASE}/mine/compositions/${last.id}`, { enabled: false });
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/at least one composition/);
-    expect((await api.patch(`${BASE}/mine/compositions/${c!.id}`, {})).status).toBe(400);
+    expect((await api.patch(`${BASE}/mine/compositions/${last.id}`, {})).status).toBe(400);
     const drawn = (await looksFor(t.deps).resolveLook(scope, 'own:mine'))!.look.compositions as unknown[];
     expect(drawn).toHaveLength(1);
   });
@@ -312,10 +311,10 @@ describe('compositions and drafts', () => {
   it('removes a composition, never the last of its kind', async () => {
     const api = await admin();
     const l = await copy(api);
-    const photo = comp(l, 'photo');
-    const res = await api.delete(`${BASE}/mine/compositions/${photo.id}`);
+    const figure = comp(l, 'figure');
+    const res = await api.delete(`${BASE}/mine/compositions/${figure.id}`);
     expect(res.status).toBe(409);
-    expect(res.body.error).toMatch(/only photo composition/);
+    expect(res.body.error).toMatch(/only figure composition/);
     const gone = await api.delete(`${BASE}/mine/compositions/${comp(l, 'statement', 0).id}`);
     expect(gone.status).toBe(200);
     expect(gone.body.look.compositions.filter((c: { kind: string }) => c.kind === 'statement')).toHaveLength(1);
@@ -414,8 +413,8 @@ describe('publishing and using a look', () => {
     await api.put(`${BASE}/active`, { ref: 'shipped:swiss' });
     const { body } = await editor.get('/api/looks/brief');
     expect(body.look).toMatchObject({ ref: 'shipped:swiss', id: 'swiss' });
-    expect(Object.keys(body.look.kinds).sort()).toEqual(['list', 'photo', 'statement']);
-    expect(body.look.kinds.photo.variants[0]).toMatchObject({ index: 0, name: 'Grid photo', fields: { headline: { required: true, max: 64 } } });
+    expect(Object.keys(body.look.kinds).sort()).toEqual(['event', 'figure', 'list', 'offer', 'photo', 'quote', 'statement']);
+    expect(body.look.kinds.photo.variants[0]).toMatchObject({ index: 0, name: 'Grid photo', fields: { headline: { required: true, max: 56 } } });
     expect((await looksFor(t.deps).lookBriefs(scope))?.ref).toBe('shipped:swiss');
   });
 });
@@ -431,16 +430,19 @@ describe('validating without storing', () => {
   });
 });
 
-describe('what is not available yet', () => {
-  it('answers 501 for previews and the gate', async () => {
+describe('without a renderer', () => {
+  it('answers 501 for previews, and checks a look by validation only', async () => {
     const api = await admin();
     await copy(api);
-    for (const res of [await api.post(`${BASE}/preview`, { definition: {} }), await api.post(`${BASE}/mine/gate`)]) {
-      expect(res.status).toBe(501);
-      expect(res.body).toMatchObject({ error: 'Previews of looks are not available yet' });
-    }
+    const res = await api.post(`${BASE}/preview`, { definition: {} });
+    expect(res.status).toBe(501);
+    expect(res.body).toMatchObject({ error: 'Previews of looks are not available on this server' });
+    const gate = await api.post(`${BASE}/mine/gate`);
+    expect(gate.status).toBe(200);
+    expect(gate.body.look.compositions.every((c: { gate: { passed: boolean; checks: Array<{ name: string }> } }) => c.gate.passed && c.gate.checks.map((k) => k.name).join() === 'validate')).toBe(true);
     const editor = t.api(await t.signIn(await t.createUser('editor')));
     expect((await editor.post(`${BASE}/preview`, {})).status).toBe(403);
+    expect((await editor.post(`${BASE}/mine/gate`)).status).toBe(403);
   });
 });
 
@@ -451,7 +453,6 @@ describe('previews of a whole look (with a stand-in renderer)', () => {
     const seen: Array<{ kinds: string[]; look: Record<string, any> }> = [];
     setLookRenderer({
       preview: async ({ look, kinds }) => { seen.push({ kinds, look }); return { samples: kinds.map((kind) => ({ kind, ok: true, image: PNG, warnings: [] })) }; },
-      gate: async () => ({}),
     });
     return seen;
   };
@@ -460,7 +461,7 @@ describe('previews of a whole look (with a stand-in renderer)', () => {
     const api = await admin();
     const res = await api.post(`${BASE}/preview`, { ref: 'shipped:retail' });
     expect(res.status).toBe(501);
-    expect(res.body.error).toBe('Previews of looks are not available yet');
+    expect(res.body.error).toBe('Previews of looks are not available on this server');
   });
 
   it('draws one picture per kind for a reference and returns the look hash', async () => {
@@ -495,6 +496,120 @@ describe('previews of a whole look (with a stand-in renderer)', () => {
     standIn();
     const editor = t.api(await t.signIn(await t.createUser('editor')));
     expect((await editor.post(`${BASE}/preview`, { ref: 'shipped:retail' })).status).toBe(403);
+  });
+});
+
+describe('one design drawn on its own (with a stand-in renderer)', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+  afterEach(() => setLookRenderer(null));
+  const standIn = () => {
+    const seen: Array<{ kind: string; index: number; scenario: string; withRects: boolean; look: Record<string, any> }> = [];
+    setLookRenderer({
+      preview: async () => ({ samples: [] }),
+      previewComposition: async (req) => {
+        seen.push({ kind: req.kind, index: req.index, scenario: req.scenario, withRects: req.withRects, look: req.look });
+        return { image: PNG, rects: [{ el: '0', x: 1, y: 2, w: 3, h: 4, rot: -2 }, { el: '1.0', x: 5, y: 6, w: 7, h: 8 }, { el: 'bad<path>', x: 0, y: 0, w: 1, h: 1 }, { el: '2', x: Number.NaN, y: 0, w: 1, h: 1 }], warnings: ['The headline is close to the edge'] };
+      },
+    });
+    return seen;
+  };
+
+  it('answers 501 without a renderer, and with one that cannot draw a single design', async () => {
+    const api = await admin();
+    const none = await api.post(`${BASE}/preview-design`, { ref: 'shipped:retail', kind: 'photo', index: 0 });
+    expect(none.status).toBe(501);
+    expect(none.body.error).toBe('Previews of looks are not available on this server');
+    setLookRenderer({ preview: async () => ({ samples: [] }) });
+    expect((await api.post(`${BASE}/preview-design`, { ref: 'shipped:retail', kind: 'photo', index: 0 })).status).toBe(501);
+  });
+
+  it('draws the chosen design of a shipped look with its rectangles (only addresses it can use)', async () => {
+    const seen = standIn();
+    const api = await admin();
+    const res = await api.post(`${BASE}/preview-design`, { ref: 'shipped:retail', kind: 'statement', index: 1, scenario: 'stress' });
+    expect(res.status).toBe(200);
+    expect(res.body.image).toBe(PNG);
+    expect(res.body.rects).toEqual([{ el: '0', x: 1, y: 2, w: 3, h: 4, rot: -2 }, { el: '1.0', x: 5, y: 6, w: 7, h: 8, rot: 0 }]);
+    expect(res.body.warnings).toEqual(['The headline is close to the edge']);
+    expect(res.body.problems).toEqual([]);
+    expect(res.body.hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(seen[0]).toMatchObject({ kind: 'statement', index: 1, scenario: 'stress', withRects: true });
+    expect((await api.post(`${BASE}/preview-design`, { ref: 'shipped:retail', kind: 'photo', index: 0 })).status).toBe(200);
+    expect(seen[1]!.scenario).toBe('sample');
+  });
+
+  it('swaps a draft in for the design, counting disabled designs, and returns the problems of an unfinished draft instead of drawing it', async () => {
+    const seen = standIn();
+    const api = await admin();
+    const look = await copy(api);
+    const c = comp(look, 'statement', 1);
+    await api.patch(`${BASE}/mine/compositions/${c.id}`, { enabled: false });
+    const draft = { ...c.definition, name: 'A draft' };
+    const ok = await api.post(`${BASE}/preview-design`, { ref: 'own:mine', kind: 'statement', index: 1, draft });
+    expect(ok.status).toBe(200);
+    expect(ok.body.image).toBe(PNG);
+    expect(seen[0]!.look.compositions.filter((x: any) => x.kind === 'statement')[1].name).toBe('A draft');
+    const broken = { ...c.definition, elements: [{ type: 'text', field: 'headline', style: 'display', size: 99999, place: { px: { x: 0, y: 0 } } }] };
+    const bad = await api.post(`${BASE}/preview-design`, { ref: 'own:mine', kind: 'statement', index: 1, draft: broken });
+    expect(bad.status).toBe(200);
+    expect(bad.body.image).toBeUndefined();
+    expect(bad.body.problems.length).toBeGreaterThan(0);
+    expect(bad.body.problems.every((p: any) => typeof p.path === 'string' && typeof p.message === 'string')).toBe(true);
+    expect(seen).toHaveLength(1);
+  });
+
+  it('refuses a bad body, a wrong kind, a missing design and a draft of a shipped look', async () => {
+    standIn();
+    const api = await admin();
+    await copy(api);
+    const url = `${BASE}/preview-design`;
+    expect((await api.post(url, {})).status).toBe(400);
+    expect((await api.post(url, { ref: 'shipped:retail', kind: 'nope', index: 0 })).status).toBe(400);
+    expect((await api.post(url, { ref: 'shipped:retail', kind: 'photo', index: 0, look: {} })).status).toBe(400);
+    expect((await api.post(url, { kind: 'photo', index: 0 })).status).toBe(400);
+    expect((await api.post(url, { ref: 'shipped:retail', kind: 'photo', index: 9 })).status).toBe(404);
+    expect((await api.post(url, { ref: 'own:missing', kind: 'photo', index: 0 })).status).toBe(404);
+    expect((await api.post(url, { ref: 'shipped:retail', kind: 'photo', index: 0, scenario: 'huge' })).status).toBe(400);
+    expect((await api.post(url, { ref: 'shipped:retail', kind: 'photo', index: 0, draft: {} })).status).toBe(400);
+    expect((await api.post(url, { ref: 'own:mine', kind: 'photo', index: 0, draft: { kind: 'figure' } })).status).toBe(400);
+    expect((await api.post(url, { ref: 'shipped:retail', kind: 'photo', index: 0, extra: 1 })).status).toBe(400);
+  });
+
+  it('keeps it for admins', async () => {
+    standIn();
+    const editor = t.api(await t.signIn(await t.createUser('editor')));
+    expect((await editor.post(`${BASE}/preview-design`, { ref: 'shipped:retail', kind: 'photo', index: 0 })).status).toBe(403);
+  });
+});
+
+describe('checking a draft of one design as it is edited', () => {
+  it('reports problems with their paths and stores nothing', async () => {
+    const api = await admin();
+    const look = await copy(api);
+    const c = comp(look, 'statement', 0);
+    const ok = await api.post(`${BASE}/mine/compositions/${c.id}/validate`, { definition: c.definition });
+    expect(ok.status).toBe(200);
+    expect(ok.body.problems).toEqual([]);
+    const draft = JSON.parse(JSON.stringify(c.definition));
+    draft.elements[1].children = [{ type: 'text', field: 'sub', size: 99999 }];
+    draft.elements.push({ type: 'text', field: 'sub', style: 'body', size: 99999, place: { px: { x: 0, y: 0 } } });
+    const bad = await api.post(`${BASE}/mine/compositions/${c.id}/validate`, { definition: draft });
+    expect(bad.status).toBe(200);
+    expect(bad.body.problems.length).toBeGreaterThan(0);
+    expect(bad.body.problems.some((p: any) => /elements\[\d+\]/.test(p.path))).toBe(true);
+    expect((await t.prisma.brandLookComposition.findUniqueOrThrow({ where: { id: c.id } })).draft).toBeNull();
+  });
+
+  it('refuses another kind, a missing design and a non-admin', async () => {
+    const api = await admin();
+    const look = await copy(api);
+    const c = comp(look, 'statement', 0);
+    expect((await api.post(`${BASE}/mine/compositions/${c.id}/validate`, { definition: { ...c.definition, kind: 'figure' } })).status).toBe(400);
+    expect((await api.post(`${BASE}/mine/compositions/${c.id}/validate`, { definition: 5 })).status).toBe(400);
+    expect((await api.post(`${BASE}/mine/compositions/00000000-0000-0000-0000-000000000000/validate`, { definition: c.definition })).status).toBe(404);
+    expect((await api.post(`${BASE}/nope/compositions/${c.id}/validate`, { definition: c.definition })).status).toBe(404);
+    const editor = t.api(await t.signIn(await t.createUser('editor')));
+    expect((await editor.post(`${BASE}/mine/compositions/${c.id}/validate`, { definition: c.definition })).status).toBe(403);
   });
 });
 
@@ -584,40 +699,25 @@ describe('a look this engine refuses', () => {
 
 describe('the brand pack', () => {
   const brand = { name: 'B', style: { corners: 'soft' } };
-  const retail = { id: 'retail', name: 'Retail' };
+  const retail = { id: 'retail', name: 'Retail', origin: 'shipped' };
 
-  it('writes the look and names it in style.direction only when the engine reads looks', () => {
-    const reads = (b: Record<string, unknown>) => ('looks' in b ? ["brand.json: looks[0] must have an id"] : []);
-    expect(engineReadsLooks(brand, reads)).toBe(true);
-    expect(packWithLook(brand, retail, reads)).toEqual({ name: 'B', style: { corners: 'soft', direction: 'retail' }, looks: [retail] });
+  it('writes the look and names it in style.direction; a shipped look is written as a copy of itself', () => {
+    expect(packWithLook(brand, { id: 'mine', name: 'Mine', origin: 'copy:shipped:retail' })).toEqual({ name: 'B', style: { corners: 'soft', direction: 'mine' }, looks: [{ id: 'mine', name: 'Mine', origin: 'copy:shipped:retail' }] });
+    expect(packWithLook(brand, retail)).toEqual({ name: 'B', style: { corners: 'soft', direction: 'retail' }, looks: [{ id: 'retail', name: 'Retail', origin: 'copy:shipped:retail' }] });
+    expect(retail.origin).toBe('shipped');
+    expect(packWithLook(brand, null)).toBe(brand);
   });
 
-  it('leaves the brand as it is, and logs once, when the engine does not read looks', () => {
-    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
-    for (const validate of [() => [] as string[], () => ['brand.json: looks has unknown entries (looks)']]) {
-      expect(engineReadsLooks(brand, validate)).toBe(false);
-      expect(packWithLook(brand, retail, validate)).toBe(brand);
-    }
-    expect(warn.mock.calls.filter((c) => c[0] === 'look.engine_unsupported')).toHaveLength(1);
-    expect(packWithLook(brand, null, () => ['x'])).toBe(brand);
-  });
-
-  it('is written by syncBrand for the active look, in whichever way the installed engine reads looks', async () => {
+  it('is written by syncBrand for the active look, and the engine reads the brand file with it', async () => {
     const api = await admin();
     await saveBrand();
     await syncBrand(t.deps);
     expect(activeBrand().looks).toBeUndefined();
-    const engine = await engineImport<{ validateBrand(b: unknown): string[] }>('design/brand');
-    const reads = engineReadsLooks(activeBrand(), (b) => engine.validateBrand(b));
-    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     expect((await api.put(`${BASE}/active`, { ref: 'shipped:swiss' })).status).toBe(200);
-    if (reads) {
-      expect(activeBrand().looks.map((l: { id: string }) => l.id)).toEqual(['swiss']);
-      expect(activeBrand().style.direction).toBe('swiss');
-    } else {
-      expect(activeBrand().looks).toBeUndefined();
-      expect(warn.mock.calls.some((c) => c[0] === 'look.engine_unsupported')).toBe(true);
-    }
+    expect(activeBrand().looks.map((l: { id: string; origin: string }) => [l.id, l.origin])).toEqual([['swiss', 'copy:shipped:swiss']]);
+    expect(activeBrand().style.direction).toBe('swiss');
+    const engine = await engineImport<{ validateBrand(b: unknown): string[] }>('design/brand');
+    expect(engine.validateBrand(activeBrand())).toEqual([]);
     await api.put(`${BASE}/active`, { ref: null });
     expect(activeBrand().looks).toBeUndefined();
   });

@@ -1025,7 +1025,7 @@ direction as a whole (margins, grid, fonts, type scale, devices, the folio forma
   largest first) with `maxLines` and/or `maxH` sets a text at the largest step it fits at; `fitLines` takes `h: 'auto'` (the height of
   its own flex slot) and `w: 'fit'` (its own natural width, between `minW` and `maxW`).
 - **Element addresses.** Every element a builder makes carries `data-el`, its index path among the addressed elements (digits and
-  dots, document order; `numberElements` in the kit), and the runtime's `postMetrics().els` lists a rectangle for each one.
+  dots, document order; `numberElements` in the kit), and the runtime's `postMetrics().els` lists a rectangle for each one. `renderImage` returns that list as `els` for a `post` (the web app's design editor reads it), and `designBlockProblems` holds a `post` to the brand's own look (`loadLook` in `lib/design/brand.mjs`: the entry of `brand.looks` that `style.direction` names) when it has one.
 - **Palette contract.** `palette(brand, need)` returns colour roles only (every value `#rrggbb` or `rgba(...)`); the non-colour facts
   of the derivation are `paletteFacts(brand)`: `{ accentInk: boolean, accentShift: number }`.
 - **Colours** are names, never literals: `paper ink white dark primary field on-field gold gold-deep accent accent-dark

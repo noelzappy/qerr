@@ -19,8 +19,12 @@ export interface Desc {
 }
 
 export interface KindInfo { label: string; help: string; fields: string[]; required: string[] }
-export interface FieldInfo { label: string; help: string; type: 'text' | 'items' | 'image'; max?: number; min?: number; chars?: number }
-export interface ElementInfo { label: string; group: string; help: string; properties: Record<string, Desc & { group?: string }> }
+export interface FieldInfo { label: string; help: string; type: 'text' | 'items' | 'image'; max?: number; min?: number; chars?: number; emphasis?: boolean }
+export interface ElementInfo {
+  label: string; group: string; help: string; properties: Record<string, Desc & { group?: string }>;
+  placement?: 'required' | 'none'; flow?: boolean; container?: 'any' | 'text' | null; text?: boolean; fitted?: boolean; required?: string[];
+  slots?: Record<string, { of: string; label: string; help: string; places: string[] }>;
+}
 export interface LookCatalogue {
   schema: number;
   limits: Record<string, number>;
@@ -29,9 +33,16 @@ export interface LookCatalogue {
   lists: Record<string, unknown[]>;
   elements: Record<string, ElementInfo>;
   sections: Record<string, Desc>;
+  // present in the engine's catalogue; optional here so older fixtures still type
+  page?: { w: number; h: number };
+  common?: Record<string, Desc>;
+  place?: { forms: Record<string, Desc>; modifiers: Record<string, Desc> };
+  sizeRange?: Record<string, [number, number]>;
+  inkOn?: Record<string, string[]>;
 }
 
-export interface FontFamilyInfo { family: string; minWeight: number; maxWeight: number; italic: boolean; stretch: boolean }
+export interface FontFile { file: string; style: string; weight: string; range: string }
+export interface FontFamilyInfo { family: string; minWeight: number; maxWeight: number; italic: boolean; stretch: boolean; files?: FontFile[] }
 export interface LookLimits { looks: number; compositions: number; perKind: number; definitionBytes: number }
 
 export interface ShippedSummary { ref: string; source: 'shipped'; id: string; name: string; description: string; readOnly: true; kinds: Record<string, number> }
@@ -56,5 +67,5 @@ export type LookDetail = OwnDetail | ShippedDetail;
 export const isOwn = (l: LookDetail | OwnSummary | ShippedSummary): l is OwnDetail => l.source === 'own';
 
 export interface PreviewSample { kind: string; ok: boolean; image?: string; error?: string; warnings: string[] }
-export interface PreviewAnswer { hash: string; samples: PreviewSample[] }
+export interface PreviewAnswer { hash: string; samples: PreviewSample[]; superseded?: boolean }
 export interface Problem { path: string; message: string }

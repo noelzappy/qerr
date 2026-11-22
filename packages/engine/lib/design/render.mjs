@@ -130,7 +130,7 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
       const bad = fitted.find((f) => !f.ok);
       if (bad) throw new DesignError(explainFitLines(bad, bad.what || 'headline'));
     }
-    let peak = 0;
+    let peak = 0, postEls;
     if (isPhoto && spec.scrim !== 'none') peak = spec.scrimPeak ?? brand.photo.scrimStart;
     if (isPhoto) await page.evaluate(`window.__ds.setScrim(${Number(peak) || 0})`);
 
@@ -175,6 +175,7 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
     // 1b. A post's design checks: emptiness, scale, levels of type and the grid (checks.mjs findPostProblems).
     if (isPost) {
       const pm = await page.evaluate('window.__ds.postMetrics()');
+      postEls = pm.els;
       const bad = findPostProblems(pm, { grid: out.post.grid });
       if (bad.length) throw new DesignError(explainPostProblems(bad, out.post));
       notes.push(`composition ${out.post.id} (${out.post.name})`);
@@ -263,7 +264,7 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
     const written = imageSize(fs.readFileSync(outFile));
     if (!written || written.w !== S.w || written.h !== S.h) throw new DesignError(`the saved file is ${written ? `${written.w}x${written.h}` : 'unreadable'}, expected ${S.w}x${S.h}`);
     if (page.blocked.length) warnings.push(`the page tried to load ${page.blocked.length} outside resource(s), which were blocked (${page.blocked.join(', ')}); a template must not need the network`);
-    return { file: outFile, w: S.w, h: S.h, warnings, notes, ratios, ...(isPost ? { post: out.post } : {}) };
+    return { file: outFile, w: S.w, h: S.h, warnings, notes, ratios, ...(isPost ? { post: out.post, els: postEls ?? [] } : {}) };
   } finally {
     await page.close();
   }

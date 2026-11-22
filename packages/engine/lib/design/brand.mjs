@@ -273,6 +273,16 @@ export function loadDirection({ root = ROOT, file = brandFile('brand.json', { ro
   try { return JSON.parse(fs.readFileSync(file, 'utf8')).style?.direction ?? null; } catch { return null; }
 }
 
+// The look the brand's direction names (style.direction is the id of an entry of brand.looks), as written in the file, or null (a code
+// direction, none, or no file). Not validated here: loadBrand validates the whole file, and the interpreter validates the look again.
+export function loadLook({ root = ROOT, file = brandFile('brand.json', { root }) } = {}) {
+  try {
+    const b = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const id = b.style?.direction;
+    return Array.isArray(b.looks) && typeof id === 'string' ? b.looks.find((l) => l && typeof l === 'object' && l.id === id) ?? null : null;
+  } catch { return null; }
+}
+
 export function loadBrand({ root = ROOT, file = brandFile('brand.json', { root }) } = {}) {
   if (!fs.existsSync(file)) throw new Error(`brand file not found: ${path.relative(root, file)} (set BRAND_DIR to a brand pack such as brands/demo)`);
   let raw;

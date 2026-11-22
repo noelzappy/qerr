@@ -1,13 +1,12 @@
-// The routes of one look: /settings/looks/:slug (the look page) and /settings/looks/:slug/designs/:id (a design: for now a read-only
-// page with a note, so links to it are stable until the design editor exists). Both load the list (catalogue, fonts, limits) and the
-// look; an unknown address shows a way back.
+// The routes of one look: /settings/looks/:slug (the look page) and /settings/looks/:slug/designs/:id (the design editor). Both load the
+// list (catalogue, fonts, limits) and the look; an unknown address shows a way back.
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useDocumentTitle, useLoad } from '../../../hooks';
 import { errorMessage } from '../../../lib/errors';
-import { BusyButton, Breadcrumbs, EmptyBlock, ErrorBlock, LoadingBlock } from '@/components/kit';
+import { BusyButton, EmptyBlock, ErrorBlock, LoadingBlock } from '@/components/kit';
 import { Button } from '@/components/ui/button';
-import { DesignDetail } from './DesignDetail';
+import { DesignEditor } from './DesignEditor';
 import { LookPage } from './LookPage';
 import { isOwn } from './look-types';
 import { lookApi } from './looks-api';
@@ -58,13 +57,5 @@ export function DesignRoute() {
   const look = detail.data;
   const design = isOwn(look) ? look.compositions.find((c) => c.id === id) : undefined;
   if (!isOwn(look) || !design) return <EmptyBlock title="This design could not be found" action={<Button asChild variant="outline"><Link to={`/settings/looks/${slug}?tab=designs`}>Back to the look</Link></Button>} />;
-  return (
-    <div className="flex flex-col gap-4 pb-10">
-      <header className="flex flex-col gap-1.5">
-        <Breadcrumbs items={[{ label: 'Settings', to: '/settings/preferences' }, { label: 'Looks', to: '/settings/looks' }, { label: look.name, to: `/settings/looks/${look.slug}?tab=designs` }, { label: design.name }]} />
-        <h1 className="text-[19px] leading-7 font-semibold tracking-tight">{design.name}</h1>
-      </header>
-      <DesignDetail definition={design.definition} catalogue={list.data.catalogue} className="max-w-3xl" />
-    </div>
-  );
+  return <DesignEditor key={`${look.slug}/${design.id}`} initialLook={look} designId={design.id} list={list.data} />;
 }

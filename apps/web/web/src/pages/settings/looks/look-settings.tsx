@@ -20,7 +20,24 @@ export interface SettingsCtx {
   errors: Record<string, string>;
   disabled: boolean;
   onChange: (path: string, value: unknown) => void;
+  // Fine-tune: compact controls (the range goes in the tooltip, units sit inside the row) and the dials as exact numbers.
+  compact?: boolean;
+  exact?: boolean;
 }
+
+// The unit a number is in, shown beside it.
+export function unitOf(path: string): string {
+  if (path.startsWith('devices.angles.') || path === 'devices.highlight.tilt') return '°';
+  if (/(^|\.)(lead|track|wordSpace|pad\[\d\])$/.test(path) && !path.startsWith('devices.frame')) return path.startsWith('devices.highlight') ? '' : 'em';
+  if (/(margin|gutter|\.head$|extraLines|^devices\.(rule|frame|shadow)\.|\.size$|^logo\.height$|ruleTop|ruleBelow)/.test(path)) return 'px';
+  return '';
+}
+// The help beside a label; in compact mode it also carries the range the stepper would otherwise print under the field.
+const helpWith = (desc: Desc, ctx: SettingsCtx, dial?: boolean): string | undefined => {
+  if (!ctx.compact) return desc.help;
+  const r = rangeText(desc);
+  return [desc.help, r ? `Use ${r}${dial ? ' degrees' : ''}.` : ''].filter(Boolean).join(' ') || undefined;
+};
 
 const wide = (d: Desc) => d.kind === 'object' || d.kind === 'list' || d.kind === 'tuple' || d.kind === 'tagged';
 const decimals = (step: number) => (String(step).split('.')[1]?.length ?? 0);
@@ -43,12 +60,13 @@ function NumberRow({ path, desc, ctx, dial }: { path: string; desc: Desc; ctx: S
   const num = typeof value === 'number' ? value : 0;
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <Label2 id={id} label={labelFor(path, desc)} help={desc.help} />
+      <Label2 id={id} label={labelFor(path, desc)} help={helpWith(desc, ctx, dial)} />
       <div className="flex items-center gap-1.5">
         <Button type="button" variant="outline" size="icon" className="size-8 shrink-0 max-sm:size-11" aria-label={`Decrease ${labelFor(path, desc)}`} disabled={ctx.disabled} onClick={() => set(round(num - step, step))}><Minus aria-hidden="true" /></Button>
-        <Input id={id} inputMode="decimal" value={text} disabled={ctx.disabled} aria-invalid={problem ? true : undefined} aria-describedby={`${id}-range${problem ? ` ${id}-err` : ''}`}
-          onChange={(e) => { setText(e.target.value); set(e.target.value.trim() === '' ? NaN : Number(e.target.value)); }} className="w-20 text-center tabular-nums max-sm:h-11 max-sm:text-base" />
+        <Input id={id} inputMode="decimal" value={text} disabled={ctx.disabled} aria-invalid={problem ? true : undefined} aria-describedby={`${ctx.compact ? '' : `${id}-range`}${problem ? ` ${id}-err` : ''}`.trim() || undefined}
+          onChange={(e) => { setText(e.target.value); set(e.target.value.trim() === '' ? NaN : Number(e.target.value)); }} className={cn('text-center tabular-nums max-sm:h-11 max-sm:text-base', ctx.compact ? 'w-16' : 'w-20')} />
         <Button type="button" variant="outline" size="icon" className="size-8 shrink-0 max-sm:size-11" aria-label={`Increase ${labelFor(path, desc)}`} disabled={ctx.disabled} onClick={() => set(round(num + step, step))}><Plus aria-hidden="true" /></Button>
+        {ctx.compact && unitOf(path) && <span className="text-[12px] text-muted-foreground" aria-hidden="true">{unitOf(path)}</span>}
         {dial && (
           <svg viewBox="-12 -12 24 24" className="size-8 shrink-0 text-muted-foreground" role="img" aria-label={`${text || 0} degrees`}>
             <circle r="10" fill="none" stroke="currentColor" strokeOpacity="0.4" />
@@ -56,7 +74,7 @@ function NumberRow({ path, desc, ctx, dial }: { path: string; desc: Desc; ctx: S
           </svg>
         )}
       </div>
-      <p id={`${id}-range`} className="text-[12px] text-muted-foreground">{rangeText(desc)}{dial ? ' degrees' : ''}</p>
+      {!ctx.compact && <p id={`${id}-range`} className="text-[12px] text-muted-foreground">{rangeText(desc)}{dial ? ' degrees' : ''}</p>}
       <Err id={`${id}-err`} msg={problem} />
     </div>
   );
@@ -127,7 +145,7 @@ function Tuple({ path, desc, ctx }: { path: string; desc: Desc; ctx: SettingsCtx
   const id = `s-${path}`;
   return (
     <fieldset className="flex min-w-0 flex-col gap-1.5" aria-describedby={ctx.errors[path] ? `${id}-err` : undefined}>
-      <legend className="mb-1 flex items-center gap-1 text-[13px] font-medium">{labelFor(path, desc)}{desc.help && <Hint about={labelFor(path, desc)}>{desc.help}</Hint>}</legend>
+      <legend className="mb-1 flex items-center gap-1 text-[13px] font-medium">{labelFor(path, desc)}{(desc.help || ctx.compact) && <Hint about={labelFor(path, desc)}>{ctx.compact ? [desc.help, items[0] ? `Each ${rangeText(items[0])}.` : ''].filter(Boolean).join(' ') : desc.help}</Hint>}</legend>
       <div className="grid grid-cols-4 gap-2">
         {items.map((d, i) => (
           <div key={i} className="flex flex-col gap-1">
@@ -137,7 +155,7 @@ function Tuple({ path, desc, ctx }: { path: string; desc: Desc; ctx: SettingsCtx
           </div>
         ))}
       </div>
-      <p className="text-[12px] text-muted-foreground">{items[0] ? rangeText(items[0]) : ''}</p>
+      {!ctx.compact && <p className="text-[12px] text-muted-foreground">{items[0] ? rangeText(items[0]) : ''}</p>}
       <Err id={`${id}-err`} msg={ctx.errors[path]} />
     </fieldset>
   );
@@ -223,7 +241,7 @@ export function Node({ path, desc, ctx }: { path: string; desc: Desc; ctx: Setti
   if (path.startsWith('fonts.') && desc.kind === 'tagged') return <FontControl path={path} desc={desc} ctx={ctx} />;
   switch (desc.kind) {
     case 'number':
-      if (path.startsWith('dials.')) return <Slider path={path} desc={desc} ctx={ctx} />;
+      if (path.startsWith('dials.') && !ctx.exact) return <Slider path={path} desc={desc} ctx={ctx} />;
       return <NumberRow path={path} desc={desc} ctx={ctx} dial={path.startsWith('devices.angles.')} />;
     case 'enum': return <EnumRow path={path} desc={desc} ctx={ctx} />;
     case 'bool': return <SwitchField label={labelFor(path, desc)} hint={desc.help} checked={readSetting(ctx.look, desc, path) === true} disabled={ctx.disabled} onCheckedChange={(v) => ctx.onChange(path, v)} />;
