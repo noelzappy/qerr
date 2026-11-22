@@ -4,7 +4,7 @@ import type { ActiveBrief } from '@/hooks/use-active-look';
 import { POST_LIMITS, POST_LISTS, type PostKindInfo, type PostLimits } from '../design-model';
 import type { PostKinds } from './use-post-kinds';
 
-const CANON = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag', 'cta', 'info', 'gallery', 'chart'];
+const CANON = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'avatar', 'image', 'meta', 'tag', 'cta', 'info', 'gallery', 'chart'];
 
 // With a look in force: only the kinds it draws, the fields its designs use, its designs as the "Look" choices (the variant a post
 // names is the design's index) and the look's name as the direction. Without one, the answer is returned as it is.

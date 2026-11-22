@@ -18,6 +18,13 @@ import { cn } from '@/lib/utils';
 import { CHECKER } from './RoleSwitch';
 import { ACCEPT_BY_ROLE, fileProblem, isHttpUrl, KIND_OPTIONS, LICENCE_CHOICES, needsRights, ROLE_ACCEPT_HINT, ROLE_NOUN, type Licence, type PictureKind, type PictureRole } from './util';
 
+// What a screen is, in the words of the item page (the server's framing, read from the file at upload).
+const SCREEN_KIND = {
+  phone: 'Phone screen with the phone already drawn round it: shown as it is.',
+  'phone-bare': 'Phone screenshot: a look\'s phone design draws the phone round it.',
+  desktop: 'Desktop screenshot: for designs that show a desktop screen, not a phone.',
+} as const;
+
 interface Form { kind: PictureKind; role: PictureRole; title: string; body: string; sourceUrl: string; licence: Licence; licenceNotes: string; peoplePresent: boolean; consentRecorded: boolean; tintable: boolean; tags: string[] }
 
 const toForm = (i: VaultItem): Form => ({
@@ -211,6 +218,7 @@ function PictureEditor({ item, backTo, onItem }: { item: VaultItem; backTo: stri
             {item.width && item.height && !replacing && <span className="text-[12.5px] text-muted-foreground">{item.width} x {item.height} px</span>}
             {item.fileName && !replacing && <span className="min-w-0 text-[12.5px] text-muted-foreground [overflow-wrap:anywhere]">{item.fileName}</span>}
           </div>
+          {item.kind === 'screen' && item.framing && !replacing && <p className="text-[12.5px] text-muted-foreground">{SCREEN_KIND[item.framing]}</p>}
           {item.status === 'confirmed' && <p className="text-[12.5px] text-muted-foreground">Replacing the picture makes it unconfirmed again.</p>}
           {replaceError && <Notice tone="bad">{replaceError}</Notice>}
         </div>

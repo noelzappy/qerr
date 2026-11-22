@@ -87,7 +87,7 @@ test('every plate composition passes every check from sample, stress and minimal
   const pack = loadBrand({ file: path.join(ROOT, 'brands', 'saltandember', 'brand.json') });
   const b = { ...pack, looks: [asCopy(shippedLooks().plate)], style: { ...pack.style, direction: 'plate' } };
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-plate-'));
-  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(tmp, 'design.lock') });
+  const browser = await Browser.launch({ chromePath: chrome });
   let drawn = 0;
   try {
     const seen = {};

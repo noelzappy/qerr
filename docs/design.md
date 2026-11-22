@@ -63,8 +63,11 @@ markup**. This matters because the texts may be written by a program from web re
   `/Applications/Chromium.app`; on Linux the usual `/usr/bin` names, then `/snap/bin/chromium`. Set `CHROME_PATH` to use another build; the container image sets it to its Chromium
   wrapper (see [deploy/README.md](../deploy/README.md)). Without Chrome the render fails with a message that says how to
   fix it.
-- **One Chrome at a time.** The render job renders one post at a time, and a lock file (`out/design.lock`) stops a second
-  render from starting another Chrome while one runs. A post uses one Chrome for all its images.
+- **One Chrome at a time.** The render job renders one post at a time, and one lock file for the whole machine
+  (`vesk-chrome.lock` in the system's temporary folder, or the absolute path `VESK_CHROME_LOCK` names; `chromeLockFile` in
+  `lib/design/chrome.mjs`) makes every render wait while another Chrome runs, whichever checkout, worktree, test or script started it
+  (up to `VESK_CHROME_LOCK_WAIT_MS`, 30 minutes by default, then it stops with the reason). The file is created atomically and holds the
+  pid of the process using Chrome; a lock left by a process that is gone is taken over. A post uses one Chrome for all its images.
 - **How Chrome is driven.** Through the DevTools protocol over a pipe, using only Node's standard library. The page is
   built as a self-contained string, laid out at the exact size (no browser window is involved), measured by a small script
   inside the page, and screenshotted. It needs no file or network access (see "Untrusted text").
@@ -129,8 +132,9 @@ templates, `photo` and `page-cover`) follows one system:
   about 400 CSS px). Screens scale their chrome to their own width instead (below).
 - **Screens.** A phone is a **pre-framed capture**: a transparent PNG or WebP with a realistic phone (band, bezel, camera,
   status bar) already drawn around the screen by whatever capture tool you use. The tool shows it as it is with the phone
-  drop shadow (`shadows.phone`, scaled by the phone's width over `phone.refWidth`). It never draws a phone: a phone image
-  that is not transparent around the phone is refused. A desktop screenshot is shown in a window frame: a white window
+  drop shadow (`shadows.phone`, scaled by the phone's width over `phone.refWidth`). These templates never draw a phone: a phone
+  image that is not transparent around the phone is refused. (A look written as data may: its `device` element draws a phone or
+  a tablet round a bare screenshot; see "Looks as data".) A desktop screenshot is shown in a window frame: a white window
   (`radius.device`), the layered device shadow (`shadows.window`), a 1 px ring in the line colour, a tint title bar with
   three dots and an optional title pill (the `window` sizes), all scaled by the window's width over `window.refWidth`.
 - **Touches.** **The phone glow**: a phone floats on a soft blurred glow of the brand's gradient (`gradient`, `glow`: the
@@ -668,8 +672,8 @@ the editor, to be fixed under Advanced: JSON.
   deployment use the vault.
 - **Screenshots** can show real names and amounts: use test or demo data (an invented organisation, fake phone numbers),
   or blur anything real first.
-- **The demo pictures** are in `packages/engine/design/assets/demo/`: `object-jar.jpg`, `scene-market.jpg`, `screen-desk.png` and
-  `screen-phone.png` (a pre-framed phone capture),
+- **The demo pictures** are in `packages/engine/design/assets/demo/`: `object-jar.jpg`, `scene-market.jpg`, `screen-desk.png`,
+  `screen-phone.png` (a pre-framed phone capture) and `screen-app.png` (a bare phone screenshot of a made-up app, for a look's `device`),
   synthetic drawings made by `brands/demo/make-assets.mjs` (no photograph, no real person, place or amount). They are committed
   so the example batches render on a fresh install; use them as `design/assets/demo/<file>`.
 - **Size.** Give photos at least 1500 px on the long side. The engine measures how much each image is enlarged and warns
@@ -683,7 +687,9 @@ the editor, to be fixed under Advanced: JSON.
 2. **Record where every photo came from**: for a vault photo, its source and licence in the vault; for a file in the
    repository, a line in `packages/engine/design/assets/photos/CREDITS.md` (file, source page, author, licence, what is in
    it). That file is committed (it lists licences and holds no pictures); the photos themselves are not.
-3. **Avoid tight portraits of identifiable people.** Crowds, hands, backs and wide market scenes are safer than faces.
+3. **Avoid tight portraits of identifiable people.** Crowds, hands, backs and wide market scenes are safer than faces. The one
+   exception is a look's portrait picture (`avatar`) of the person a quote is by: it may show that person's face only when the vault
+   item records their consent (approval is blocked until it does, and the AI is never offered such a picture without it).
 4. **Never imply that the people pictured are customers.** Do not write "our members" or a testimonial over a stock
    photograph of strangers, and do not use a photo of a real person next to a quote or a number that is not theirs.
 5. **Check what else is in the frame**: brand names, readable signs, children. Crop with `focal` or choose another.
@@ -739,6 +745,7 @@ the post and the image is kept.
 | **Pixel size** | The captured image and the saved file are read back | A mismatch fails the image. |
 | **Fonts and images load** | Inter and IBM Plex Mono must load; every image must decode | A missing or unreadable image fails with its path. A missing font warns. |
 | **Framed phones** | A `screen` phone's file header must have transparency, and in the page its four corners must be see-through | Fails with "... is not a pre-framed phone capture ... Use a pre-framed phone capture"; nothing is written. |
+| **A look's device** | A look's `device` reads its screenshot's four corners in the page: see-through corners are a pre-framed capture, shown whole without the drawn frame; any other picture is a bare screenshot, held to the model's proportions (a phone 1.6 to 2.4 times as tall as it is wide, a tablet 1.15 to 1.6) | Outside them the image **fails** with the screenshot's size and what the device takes (never its file name). Inside them it is cropped to the screen: a note says by how much, a warning when more than 6% is cut away. |
 | **Brand text** | The brand lint, run before every render | Warnings only, see below. |
 
 The measured contrast uses the picture without the text's soft shadow, so it is a little stricter than what a viewer sees.
@@ -920,6 +927,7 @@ that is empty, over its limit or on two lines where one is required is refused, 
 | `cta` | 24 | one line, the words of a button (a look's `button` element), for example "Book a seat" |
 | `info` | 1 to 4 rows | `{ "key", "value" }`: `key` one of When, Where, Date, Time, Place, Book on, Tickets, Price, Entry, Who, Host, Call, Online, Starts, Ends, Open (`INFO_KEYS`, never free text), each once; `value` one line of up to 40, no marks |
 | `gallery` | 2 to 5 pictures | `{ "image", "caption"? }`: each picture once, read and checked like `image`; `caption` one line of up to 24 (a name, a product) |
+| `avatar` | one picture | `{ "image", "focal"? }`: the one portrait picture of the person a quote is by (or an event's speaker), read and checked like `image` (its enlargement too), cropped by the look's `avatar` element round `focal` (as for `image`). Nothing else may be in it; a refused key, path or focal point is never echoed. In the web app it may carry `vaultItemId` and is held to the vault's rules like any picture: a picture that shows identifiable people blocks approval until their consent is recorded |
 | `image`, `focal`, `zoom` | as elsewhere | `.jpg .jpeg .png .webp .gif`; zoom 1 to 3 |
 | `chart` | 2 to 12 points, or one value and its total | `{ "kind"?, "series": [{ "label"?, "value" }], "unit"?, "highlight"?, "total"? }` (`lib/design/chart.mjs`): `kind` one of bar, hbar (bars across), line, area, spark (a sparkline), donut, progress; `value` a finite number from -1,000,000,000 to 1,000,000,000 with at most two decimals; `label` one line of plain words of up to 14 (no mark, bracket or control character); `unit` number, currency or percent (written the brand's way, `numbers` in the brand file); `highlight` the index of a point, or last, max, min, none; a donut or progress bar takes one point and `total` (100 when the unit is percent), the value at most the total and never below zero. Refused without repeating what it was given |
 | `graphics` | up to 6 | `[{ ref, image, tintable? }]`: the brand graphics and cut-outs the look's `graphic` pieces name, by vault id (`ref`, a lowercase UUID), each a `.png` or `.webp` file (a path relative to the repository that stays inside it) read when the page is made and refused unless it has transparency. A piece whose `ref` is not listed is left out with a warning. The web app fills this from the vault for the composition that will draw the post (`designGraphicNeeds` in `lib/design-render.mjs`; `lookCompositionGraphics` in `lib/design/look.mjs` for one design of a look), with copies of the vault files in the run's own folder; it refuses a design that sets `graphics` itself (and holds any graphic file a design names to `design/assets/`) |
@@ -936,6 +944,8 @@ text rectangle reaches past the pill, is not read against the page round it. A l
 laid over a full picture never covers it.
 `cta`, `info` and `gallery` are drawn only by a look written as data, in its `statement`, `photo`, `event` and `offer` compositions (`cta` also in
 `list`, `gallery` also in `quote`: the round pictures of the people quoted), within each composition's own counts (`fields.info.min`/`max`, `fields.gallery.min`/`max`, `fields.cta.max`).
+`avatar` is drawn only by a look's `quote` and `event` compositions that declare it (`fields.avatar`); a post gives an `avatar` or a `gallery`,
+and where a design draws both conditions, the avatar wins (the shipped ledger testimonial shows the row only when there is no avatar).
 
 **Charts.** A `chart` is drawn only by a look written as data, in any kind but `quote`, by a composition with a `chart` element; the
 composition declares it (`fields.chart`, with `min` and `max` points from 2 to 12) and the element lists the kinds it draws. A post's own
@@ -1240,6 +1250,8 @@ stored. At most 21 compositions, at most 3 of a kind.
 | `icon-badge` | One of the engine's own icons (`lib/design/icons.mjs`) drawn large: bare, or on a round or rounded badge in a fill colour (a shield on a trust page, a tick, a small sticker beside a big figure) |
 | `chart` | The post's `chart`: bars, bars across, a line, an area, a sparkline, a donut or a progress bar, in the brand's colour roles with one highlight colour |
 | `ribbon` | A straight band across one corner of the page at 45 degrees, in a colour role, with an optional thin stripe of a second role on its corner side; no words |
+| `avatar` | The post's `avatar`: one portrait picture of the person quoted, round, rounded or square, cropped round its focal point, with an optional ring in a colour role; beside the name in a row, or above it |
+| `device` | The post's picture, a bare app screenshot, on a phone (camera island or notch, side buttons) or a tablet the engine draws round it in a light, dark or brand-colour finish, with a small lean and a soft shadow; a capture that already has its phone drawn is shown as it is |
 
 A `text` with `source: "swipe"` writes "Swipe" and the engine's arrow icon, only on a carousel page that has a page after it (its place in the carousel); on a
 single post, a post placed in a batch and the last page it is empty. A pill and the punctuation right after it (`[[an app]],`) are kept on one line, the mark snug against the pill (the pill drops its outer margin on that side and the page pulls the mark in by its own side bearing, so its ink starts 0.02 em after the pill's edge in any face), and a pill's
@@ -1371,6 +1383,19 @@ outside the margin.
 | `paper-texture` | `strength` (0.05 to 0.6), `grain` (`fine`, `coarse`): the page's own grain (`--k-grain`) multiplied over the ground; `data-deco`, so the emptiness check does not count it, and the contrast check measures the finished pixels |
 | `icon-badge` | `icon` (one of the engine's icons, never a path), `size` (the icon, 24 to 400 px), `shape` (circle, rounded, none), `badge` (the badge's side, 40 to 600 px, larger than the icon; about twice it when left out); `fill` (needed for a badge, refused on a bare icon) and `ink`, a pair from the ink table; `ring` and a soft `shadow` (`soft` or `lift`; a badge's only, refused on a bare icon), `rot`. It may flow in a box (a row beside a figure). Decoration (`data-deco`): no words of the post reach it |
 | `chart` | `kinds` (1 to 7 of bar, hbar, line, area, spark, donut, progress, each once; the first is the default), `colours` (`mark`, `highlight`, `track`, `grid`: palette roles; one highlight colour for the highlighted point, a donut's share and a progress bar's fill), `axis` (none, baseline, grid: light lines at round values), `values` and `labels` (on or off), `radius` (0 to 40, the ends of bars and progress bars; a donut's ends are round above 0), `stroke` (1 to 16, a line's width; refused on a design with no line), `thickness` (2 to 200, a bar's, a ring's or a progress bar's), `trim` (line kinds only, see the checks), `marks` (a line's dots: none, end, minmax, all; refused with no line), `textSize` (14 to 60, the labels; the look's label size when left out), `valueSize` (14 to 200), `valueFont` (label, display, text, mono), `upper`; `ink` (labels and values; else labels in the body colour and values in the ink, both checked against the ground). Its place needs a width and a height. The marks are SVG paths the kit (`c.chartSvg`) builds from numbers and palette roles only (`data-deco`); the labels and values are the post's words, escaped, set as runs with roles in cells. A chart the post does not bring draws nothing; one of a kind the design does not draw is refused |
+| `avatar` | `size` (48 to 400 px, its width and height), `shape` (`circle`, `rounded`: corners of 22% of its side, `square`), `treat` (the look's when left out); `ring` (`{ w: 0 to 16, colour: a role }`: the ring in the brand colour), a soft `shadow` (`soft` or `lift`). It flows in a box (a row beside the name and label, or a column above them) or takes a place of its own (a pixel place may give no width or height but its size). It shows the field `avatar`, which the composition must declare (`fields.avatar: {}`, quote and event only) and shows once; it counts as a picture for the text-over-picture check. The picture is drawn through the kit (`avatarPhoto`): an `img[data-user]` read from the checked `data:` URI, its focal point only as a checked percentage position; no avatar, nothing drawn |
+| `device` | `model` (`phone`, `tablet`), `finish` (`dark`, `light`: silver, `brand`: the palette's `primary`), `cutout` (`island`, `notch`, `none`; a phone's only), `buttons` (side buttons, on by default), `tilt` (whole degrees, -6 to 6, scaled by the look's tilt dial like every angle; a non-zero lean counts towards the three turned elements), `align` (left, center, right: where it sits across a place wider than it); a soft `shadow` (`soft` or `lift`, a fixed drop shadow that follows the body). Its place needs a width and a height; the body is the largest that fits at the model's proportions (a phone 2.04 times as tall as it is wide, a tablet 1.4), never under 160 px wide. Every line of it (body, bezel, screen radius, camera, buttons) is whole pixels worked out from fixed shares of its width in `primitives/device.mjs`; the finishes are fixed materials in `kit.css`. The screenshot fills the screen with `object-fit: cover` round the post's `focal` (and `zoom`), clipped by the screen's own corner radius. It shows `image` and counts as a picture. See "A device round a bare screenshot" below |
+
+**A device round a bare screenshot.** The `device` element draws the phone (or tablet) itself, so a plain screenshot of the app is enough: the
+demo pack has a synthetic one, `design/assets/demo/screen-app.png` (drawn without Chrome by `testlib/screens.mjs`, bars for words, no real app).
+The page decides what the picture is from its pixels, not its name or header (runtime `ready()`): a picture whose four corners are see-through
+already has its device drawn round it, so the drawn body, camera and buttons are hidden (`data-framed`) and it is shown whole with
+`object-fit: contain`, never framed twice; any other picture (a JPEG, or a PNG with an alpha channel and opaque corners) is a bare screenshot
+in the drawn screen. A bare screenshot far from the model's proportions (a landscape or desktop screenshot, a scrolling capture) is refused;
+one near them is cropped to the screen with a note, or a warning above 6%, naming sizes only. The web app calls a plain portrait screenshot
+1.6 to 2.4 times as tall as it is wide a bare phone screenshot (`phone-bare`, from the width and height kept at upload) and lets it go in a
+design that draws a device; a desktop screenshot or a photo there is refused before any render (`designScreenNeeds` in `lib/design-render.mjs`
+says which pictures a design draws on a device). The classic layouts and templates still take only pre-framed phone captures.
 
 A primitive module may also export `bindings(el)`, `sizes(el, look)`, `inks(el)`, `inkPairs(el)`, `ownFill(el)`, `picture`, `fonts(el, look)`
 and `rules(el, bad)`: the static checks (`look-static.mjs`), the validator and the font embedding read these, so a new primitive is checked like
@@ -1483,16 +1508,16 @@ badge (`icon-badge`), a mark of fine rings round a brand-colour disc (keylines a
 | `figure/2` Step | figure | white page, centred: the step number on a brand-colour tile, a two-tone headline and sub, the page number top right; the body pages of a how-it-works carousel |
 | `list/0` Features | list | white page, two-tone headline; each item on a ruled row with a tick on a round badge; optional button |
 | `list/1` How it works | list | deep page with a glow; label chip and white headline; the items on ruled rows numbered on accent badges |
-| `quote/0` Testimonial | quote | white page, a large opening mark, the quotation in medium weight; at the foot two or three round pictures (the `gallery`, overlapping) beside the name and the label |
-| `photo/0` Phone | photo | deep page with a glow; the picture as a phone screen on the right (a pre-framed phone capture, about 660 x 1354, shown whole at its proportions) and the words on the left |
+| `quote/0` Testimonial | quote | white page, a large opening mark, the quotation in medium weight; at the foot the portrait picture of the person quoted (the `avatar`, round, in a 6 px ring of the brand colour) or, with no avatar, two or three round pictures (the `gallery`, overlapping), beside the name and the label |
+| `photo/0` Phone | photo | deep page with a glow; the picture, a bare app screenshot, on a dark phone the engine draws on the right (`device`: a camera island, side buttons, a soft lift; a capture with its phone already drawn is shown as it is) and the words on the left |
 | `photo/1` Photo card | photo | white page; the picture in a large rounded window with the tag on a white pill, then the headline, sub and button |
 | `event/0` Live session | event | white page; label chip, two-tone headline; the date, time and place of the meta line on ruled rows with a calendar, a clock and a pin; optional button |
 | `offer/0` Gradient offer | offer | deep page with a glow and the same mark of rings above; at the foot the headline, the tag fitted very large under it (such as "€0 fees"), the sub and an accent button |
 
 Its test copy is `testlib/ledger-copy.mjs` (euros only); the Pennyhive pack's `batches/example-ledger.json` shows it off, with a five-page
-how-it-works carousel (cover, three steps, closing page). What it cannot do yet: the phone is the picture as given (a pre-framed capture; a bare
-screenshot is shown as a flat screen, cropped to the phone's proportions), the figure has no chart or sparkline, and the emphasised phrase of a
-headline on a deep page stays white (the accent-as-type colour is made for light pages).
+how-it-works carousel (cover, three steps, closing page). What it cannot do yet: the figure has no chart or sparkline, and the emphasised phrase of a
+headline on a deep page stays white (the accent-as-type colour is made for light pages). The soft look's `quote/0` Speech card also takes an `avatar`:
+its pebbles then trail from the card to the portrait, and the source's pill sits beside it.
 
 Where swiss differs from the prototype: the offer has the tag block top right in four columns and three rows with the headline at the foot (the
 three-type-level rule: headline and tag are both fitted type), where the prototype puts the tag block bottom left; headlines are set in balanced lines
@@ -1512,6 +1537,7 @@ second photo too).
 | `postKinds(brand)` | same | `{ [kind]: { required, fields: { field: { max, budget? } or { min, max, chars } or {} }, variants: [{ variant, name, describe }] } }` for the brand's direction, a code direction or its own look, the same shape |
 | `lookOfBrand(brand)` | same | the entry of `brand.looks` the direction names, or null |
 | `lookBrief(look)` | same, and `@vesk/engine/design/look` | the kinds, variants, fields and budgets of a raw look |
+| `postCompositionDevice(look, spec)`, `compositionDevice(comp)`, `designScreenNeeds(design)` | `directions/index`, `look`, `lib/design-render.mjs` | the device (`phone`, `tablet` or none) the composition that will draw a post draws round its picture; a variant of `lookBrief` and `postKinds` says `device` too |
 | `validateBrand(raw)` | `design/brand.mjs` | validates `brand.looks` (at most `MAX_LOOKS` = 20, each through `validateLook`, problems prefixed `brand.json: looks[i]`, ids unique, origin `copy:...`) and accepts `style.direction` naming a shipped direction or the id of one of the brand's looks |
 | `validateDesign(d, where, { look })` | `design/spec.mjs` | a `post` design held to the kinds, variants and budgets of a data look (`postProblems(d, where, { brief })`); without `look` the direction is looked up among the engine's |
 | `validateLook`, `validateLooks`, `lookCatalogue`, `normaliseLook`, `lookHash`, `MAX_LOOKS` | `design/look.mjs` | as above |

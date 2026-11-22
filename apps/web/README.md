@@ -161,10 +161,14 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
   `gallery`: `{ min, max, chars }`), the fixed `infoKeys`, the `icons` a headline may name and the `chart` limits (`{ min, max, chars, kinds,
   units }`). The post editor then shows only what the look's designs draw: a Pill button and an icon grid on the headline (`[[words]]`,
   `{{name}}`), the Button words (`cta`), Info rows (a fixed label, added by tapping it, and a short line each), Round pictures (2 to 5 from the Pictures page, each
-  with an optional name) and a Chart: what it is drawn as (the kinds the chosen design draws, or the design's choice), whether its numbers
+  with an optional name), a Portrait picture (`avatar`: one picture of the person a quote is by, from the same picker, with its position) and a Chart: what it is drawn as (the kinds the chosen design draws, or the design's choice), whether its numbers
   are a number, money or a percentage, which point stands out, a small table of points (a label and a number each; add, move, remove) and,
-  for a donut or progress bar, what the one value is out of (`editor/ChartEditor.tsx`, `editor/chart-model.ts`). A gallery picture is
-  a design node like the post's own picture: the same path rule, vault copy and rights checks (`services/design-images.ts`). The
+  for a donut or progress bar, what the one value is out of (`editor/ChartEditor.tsx`, `editor/chart-model.ts`). A gallery picture and the portrait are
+  design nodes like the post's own picture: the same path rule, vault copy and rights checks, a face blocking approval until its consent
+  is recorded (`services/design-images.ts`). A screen in Pictures is a framed phone capture, a bare phone screenshot (`phone-bare`: a plain
+  one 1.6 to 2.4 times as tall as it is wide, read from its size at upload; the item page says so) or a desktop screenshot; a look's design
+  that draws a phone round its picture (`device`) takes the first two and refuses a desktop screenshot or a photo before any render
+  (`designScreenNeeds`), while a classic phone layout still takes only a framed capture. The
   `POST /api/settings/brand/direction-samples` route and its service were removed with the tab.
   With a look, the post editor's Design offers **Single image** or **Carousel**: a carousel is a cover, body pages and a closing page, each a
   post page of its own kind (moved, added before the closing page, removed; 2 to 10), drawn as one image per page and sent in that order. It
@@ -448,6 +452,8 @@ that names the variable, never its value.
 | `S3_PREFIX` | The public prefix, default `public/`. Vault files (`vault/`) and renders (`renders/`) stay private; only what is about to be sent is copied under this prefix. The bucket is publicly readable, so private objects are protected only by an unguessable key: `vault/<random>/<id>/<sha>-<name>` and `renders/<random>/<batchId>/<postKey>/<sha>-<name>`, where `<random>` is 32 random bytes in base64url (43 characters) drawn per object and stored in the database. Old keys without it still work. |
 | `S3_PATH_STYLE` | `false` for virtual-hosted style addressing; default is path style |
 | `CHROME_PATH` | Path to the Chrome or Chromium executable, read by the design engine. Unset, it looks for Chrome, then Chromium, in the usual places. Without either, rendering fails with a message that says so. |
+| `VESK_CHROME_LOCK` | Optional. The absolute path of the machine-wide lock that keeps one Chrome running at a time; default `vesk-chrome.lock` in the system's temporary folder. Every checkout on the machine must use the same one. |
+| `VESK_CHROME_LOCK_WAIT_MS` | Optional. How long a render waits for another one's Chrome before it stops with the reason; default 1800000 (30 minutes). |
 
 Buffer keys and AI and search provider keys are not environment variables: an admin enters them in Settings (Buffer
 accounts; AI and search), and they are stored encrypted with `APP_ENCRYPTION_KEY` (AES-256-GCM, a fresh nonce per value,

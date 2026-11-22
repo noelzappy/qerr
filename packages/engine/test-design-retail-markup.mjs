@@ -189,7 +189,7 @@ const chrome = findChrome();
 const skip = chrome ? false : 'Google Chrome was not found';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-retail-'));
 let browser;
-test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(tmp, 'design.lock') }); });
+test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome }); });
 test.after(() => { browser?.close(); fs.rmSync(tmp, { recursive: true, force: true }); });
 
 test('retail fixture: the geometry of every addressed element of the sample copy, in three sets of brand colours, is the recorded one (within 1 px)', { skip }, async () => {

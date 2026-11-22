@@ -5,7 +5,7 @@ export const NORMAL = {
   'soft/statement/1': { label: 'Myths vs facts', headline: 'Roasting is guesswork. *We measure every batch.*', sub: 'Time, temperature and weight are logged on every roast, so any batch can be repeated.' },
   'soft/figure/0': { label: 'In numbers', big: '12', unit: 'kg per batch', sub: 'Our roaster holds twelve kilos and we never fill it past that, so every crack gets heard.' },
   'soft/list/0': { label: 'Process', headline: 'How we roast, in four steps', items: ['Sort and weigh the green beans', 'Roast twelve kilos, never more', 'Cool fast, then rest for three days', 'Cup every batch before it ships'] },
-  'soft/quote/0': { label: 'Our view', quote: 'A good roast does not shout. It lets the bean speak, and it never hides a flaw behind the colour of the crust.', by: 'Emberwell house notes' },
+  'soft/quote/0': { label: 'Our view', quote: 'A good roast does not shout. It lets the bean speak, and it never hides a flaw behind the colour of the crust.', by: 'Emberwell house notes', avatar: { image: 'design/assets/demo/object-jar.jpg' } },
   'soft/photo/0': { label: 'Winter menu', headline: 'Winter filter coffee is back on the bar', sub: 'A washed Ethiopian lot, roasted light and brewed slowly.', tag: 'New' },
   'soft/photo/1': { label: 'From the roaster', headline: 'Straight from the *drum*, into your hands', sub: 'Roasted on Monday, in your cup by Friday.', tag: 'Fresh' },
   'soft/event/0': { label: 'Event', headline: 'Cupping evening: six roasts, one table', meta: '12 Dec · 6pm · The roastery', sub: 'Twelve seats, so book early.' },

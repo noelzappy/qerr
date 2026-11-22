@@ -7,7 +7,7 @@ import { brandBrief, checkTimezone, layoutBriefs, makeCtx, parseChannels, parseP
 import { reporter } from './progress.mjs';
 import { checkPost, kindOfDesign, maxPagesFor } from './postcheck.mjs';
 import { loadPrompt } from './prompts.mjs';
-import { directionBrief, directionOf, seriesBrief } from './direction.mjs';
+import { directionBrief, directionOf, lookDrawsDevice, seriesBrief } from './direction.mjs';
 import { planSeries, seriesMark, seriesProblems } from '@vesk/engine/design/series';
 import { MEDIA_KINDS, forPrompt, forPromptMedia, rank, usableItems, usableMedia } from './vault.mjs';
 
@@ -73,7 +73,9 @@ export async function draftBatch(rt, input = {}) {
   const offered = usableItems(ctx.items, opts);
   if (!offered.length) throw new AIError(`The vault has no usable items to draft from: none of its ${ctx.items.length} item(s) is confirmed, current and (for pictures) cleared for use`, { code: 'config' });
   const ranked = rank(offered, opts);
-  const media = usableMedia(ranked).filter((i) => !direction || i.kind === 'photo');
+  // a brand with a look takes photos and, when one of its designs draws a phone round a screenshot, the phone screens (never a desktop one)
+  const devices = direction ? lookDrawsDevice(direction, brand) : false;
+  const media = usableMedia(ranked).filter((i) => !direction || i.kind === 'photo' || (devices && i.kind === 'screen' && i.framing !== 'desktop'));
   const pictures = [...media.filter((i) => i.kind === 'screen'), ...media.filter((i) => i.kind !== 'screen')].slice(0, MAX_PROMPT_MEDIA);
   const facts = ranked.filter((i) => !MEDIA_KINDS.includes(i.kind)).slice(0, MAX_PROMPT_ITEMS);
   // The brand's named series (the app's list, Settings, Looks, Series): their slots in this period, numbered, at most one per post. A series the

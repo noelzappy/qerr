@@ -293,7 +293,7 @@ export async function renderRun(run, { root = ROOT, only, styles = STYLE_NAMES, 
       for (const [file, text] of Object.entries(pagecoverMarkup(brand))) fs.writeFileSync(path.join(out, file.replace(/\.png$/, '.html')), text);
       const chrome = findChrome();
       if (!chrome) throw new Error('Google Chrome not found (set CHROME_PATH)');
-      const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(root, 'out', 'design.lock') });
+      const browser = await Browser.launch({ chromePath: chrome });
       try {
         for (const kind of PAGECOVER_KINDS) {
           const id = `pagecover-${kind}`, file = `${id}.png`;

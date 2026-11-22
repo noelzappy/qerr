@@ -143,7 +143,7 @@ test('rows take their number and rule colours from the look; the ribbon is two c
 const chrome = findChrome();
 test('a carousel\'s first page with Swipe and the corner ribbon pass every check', { skip: chrome ? false : 'Google Chrome was not found' }, async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-studio-'));
-  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(tmp, 'design.lock') });
+  const browser = await Browser.launch({ chromePath: chrome });
   try {
     for (const [kind, variant] of [['list', 0], ['offer', 0]]) {
       const spec = { template: 'post', kind, variant, name: 'studio-check', ...NORMAL[`studio/${kind}/${variant}`] };

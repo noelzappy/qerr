@@ -3,6 +3,7 @@ import type { VaultItem } from '@prisma/client';
 import { audit } from '../audit.js';
 import type { Deps } from '../deps.js';
 import { DEFAULT_STALE_FIGURE_DAYS, rightsProblems, sourceProblems, staleInfo } from './vault-rules.js';
+import { framingOfItem } from './screen-framing.js';
 
 export const VAULT_KINDS = ['fact', 'figure', 'news', 'event', 'product_note', 'story', 'photo', 'screen'] as const;
 export const LICENCES = ['own', 'licensed', 'rights_to_confirm'] as const;
@@ -20,6 +21,8 @@ export function publicVaultItem(item: VaultItem, now: Date, days: number) {
   return {
     ...rest,
     hasFile: !!fileKey,
+    // a screen: a framed phone capture, a bare phone screenshot (a look's phone design draws the phone round it) or a desktop one; null when unknown
+    framing: framingOfItem(item),
     stale: s.stale,
     staleReason: s.staleReason,
     problems: { rights: rightsProblems(item), source: sourceProblems(item, { now, staleFigureDays: days }) },

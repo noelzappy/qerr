@@ -1345,7 +1345,7 @@
       "calm": {
         "maxShare": 0.7
       },
-      "describe": "A white page: a large opening quotation mark in the brand colour, the quotation in calm medium type, and at the foot round pictures from the row of pictures beside the name and the label. Use for a quotation of up to about 150 characters.",
+      "describe": "A white page: a large opening quotation mark in the brand colour, the quotation in calm medium type, and at the foot the portrait of the person quoted in a ring of the brand colour (or a row of round pictures) beside the name and the label. Quotations up to about 150 characters.",
       "ground": "paper",
       "fit": "margins",
       "fields": {
@@ -1359,6 +1359,7 @@
         "by": {
           "max": 40
         },
+        "avatar": {},
         "gallery": {
           "min": 2,
           "max": 3
@@ -1455,6 +1456,18 @@
           "z": 2,
           "children": [
             {
+              "type": "avatar",
+              "size": 125,
+              "shape": "circle",
+              "ring": {
+                "w": 6,
+                "colour": "field"
+              },
+              "when": {
+                "present": "avatar"
+              }
+            },
+            {
               "type": "photo-row",
               "size": 112,
               "gap": 0,
@@ -1466,7 +1479,8 @@
               },
               "w": 283,
               "when": {
-                "present": "gallery"
+                "present": "gallery",
+                "absent": "avatar"
               }
             },
             {
@@ -1505,7 +1519,7 @@
     {
       "kind": "photo",
       "name": "Phone",
-      "describe": "A deep page with a glow of the brand colour: the picture as a phone screen on the right (a pre-framed phone capture, about 660 by 1354), the label chip, a white headline, a sub line and an optional button on the left. Headline up to 44 characters.",
+      "describe": "A deep page with a glow of the brand colour: a bare phone screenshot on a dark phone the engine draws (a capture with its phone already drawn is shown as it is) on the right; the label chip, a white headline, a sub line and an optional button on the left. Headline up to 44 characters.",
       "ground": "dark",
       "fit": "margins",
       "fields": {
@@ -1557,16 +1571,21 @@
           }
         },
         {
-          "type": "photo",
+          "type": "device",
+          "model": "phone",
+          "finish": "dark",
+          "cutout": "island",
+          "buttons": true,
+          "align": "right",
+          "shadow": "lift",
           "place": {
             "px": {
               "x": 580,
-              "y": 300,
+              "y": 290,
               "w": 430,
-              "h": 882
+              "h": 900
             }
           },
-          "shape": "rect",
           "z": 1
         },
         {

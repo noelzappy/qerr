@@ -1,5 +1,5 @@
 // Drives headless Google Chrome or Chromium over the DevTools protocol through a pipe (--remote-debugging-pipe): Node built-ins only.
-// One Chrome at a time: the machine has 8 GB of RAM, so a lock file stops a second design run from starting another.
+// One Chrome at a time: the machine has 8 GB of RAM, so one machine-wide lock file (chromeLockFile) makes a second design run wait.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -16,22 +16,58 @@ export function findChrome({ env = process.env, platform = process.platform, exi
 }
 export const NO_CHROME = 'Neither Google Chrome nor Chromium was found. Install one, or set CHROME_PATH to its executable (on macOS, /Applications/Google Chrome.app/Contents/MacOS/Google Chrome or /Applications/Chromium.app/Contents/MacOS/Chromium).';
 
-export function acquireLock(file) {
+// One Chrome at a time on the whole machine (AGENTS.md rule 10): every render, from any checkout of the repository, takes the same lock
+// file, os.tmpdir()/vesk-chrome.lock, or the file VESK_CHROME_LOCK names (an absolute path). The lock holds the pid of the process using Chrome.
+export function chromeLockFile(env = process.env) {
+  const f = env.VESK_CHROME_LOCK;
+  return typeof f === 'string' && f && path.isAbsolute(f) ? f : path.join(os.tmpdir(), 'vesk-chrome.lock');
+}
+// How long a render waits for the machine's Chrome before giving up: VESK_CHROME_LOCK_WAIT_MS, else 30 minutes.
+export function chromeLockWait(env = process.env) {
+  const n = Number(env.VESK_CHROME_LOCK_WAIT_MS);
+  return env.VESK_CHROME_LOCK_WAIT_MS !== undefined && Number.isFinite(n) && n >= 0 ? n : 30 * 60 * 1000;
+}
+const held = new Map();
+const alive = (pid) => { if (!Number.isInteger(pid) || pid <= 0) return false; try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
+// Takes the lock, waiting while another live process holds it. The file is created atomically (wx), so two processes never both take it; a
+// lock left by a process that is gone (or an unreadable one) is stale and taken over. A process may take it more than once (its own browsers
+// in turn); it is removed when the last of them is released. -> release()
+export async function acquireLock(file, { waitMs = chromeLockWait(), pollMs = 250 } = {}) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  if (fs.existsSync(file)) {
-    const pid = Number(fs.readFileSync(file, 'utf8'));
-    let alive = false;
-    try { process.kill(pid, 0); alive = pid !== process.pid; } catch { alive = false; }
-    if (alive) throw new Error(`another design run is already using Chrome (process ${pid}); wait for it to finish (one Chrome at a time)`);
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    const mine = held.get(file);
+    if (mine) { held.set(file, mine + 1); break; }
+    try {
+      fs.writeFileSync(file, String(process.pid), { flag: 'wx' });
+      held.set(file, 1);
+      break;
+    } catch (e) {
+      if (e.code !== 'EEXIST') throw e;
+    }
+    let pid = NaN;
+    try { pid = Number(fs.readFileSync(file, 'utf8').trim()); } catch { continue; }
+    if (pid === process.pid) { held.set(file, 1); break; }
+    if (!alive(pid)) { try { if (Number(fs.readFileSync(file, 'utf8').trim()) === pid) fs.unlinkSync(file); } catch { /* taken or gone */ } continue; }
+    if (Date.now() >= deadline) throw new Error(`another design run is already using Chrome (process ${pid}); waited ${Math.round(waitMs / 1000)} s for it to finish (one Chrome at a time on this machine)`);
+    await new Promise((r) => setTimeout(r, pollMs));
   }
-  fs.writeFileSync(file, String(process.pid));
-  return () => { try { if (fs.readFileSync(file, 'utf8') === String(process.pid)) fs.unlinkSync(file); } catch { /* gone already */ } };
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    const n = (held.get(file) ?? 1) - 1;
+    if (n > 0) { held.set(file, n); return; }
+    held.delete(file);
+    try { if (fs.readFileSync(file, 'utf8').trim() === String(process.pid)) fs.unlinkSync(file); } catch { /* gone already */ }
+  };
 }
 
 export class Browser {
-  static async launch({ chromePath = findChrome(), lockFile } = {}) {
+  // The machine-wide lock (chromeLockFile) is always taken, waiting up to waitMs (chromeLockWait); no caller names a lock file of its own.
+  static async launch({ chromePath = findChrome(), waitMs } = {}) {
     if (!chromePath) throw new Error(NO_CHROME);
-    const release = lockFile ? acquireLock(lockFile) : () => {};
+    const release = await acquireLock(chromeLockFile(), waitMs === undefined ? {} : { waitMs });
     const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'ss-chrome-'));
     const child = spawn(chromePath, [
       '--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1',

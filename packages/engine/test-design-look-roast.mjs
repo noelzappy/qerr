@@ -82,7 +82,7 @@ test('every roast composition passes every check from sample, stress and minimal
   const pack = loadBrand({ file: path.join(ROOT, 'brands', 'kettleworks', 'brand.json') });
   const b = { ...pack, looks: [asCopy(shippedLooks().roast)], style: { ...pack.style, direction: 'roast' } };
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-roast-'));
-  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(tmp, 'design.lock') });
+  const browser = await Browser.launch({ chromePath: chrome });
   let drawn = 0;
   try {
     const seen = {};

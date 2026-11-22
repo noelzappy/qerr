@@ -48,7 +48,7 @@ test('a pill and the mark after it are one unbreakable run, the pill without its
 const chrome = findChrome();
 test('with Chrome: the ink of the full stop starts within 0.04 em of the pill, on its line, in every look', { skip: chrome ? false : 'Google Chrome was not found' }, async () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-pill-'));
-  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(tmp, 'design.lock') });
+  const browser = await Browser.launch({ chromePath: chrome });
   try {
     for (const c of CASES) {
       const brand = brandFor(c[0]);

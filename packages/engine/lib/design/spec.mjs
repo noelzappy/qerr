@@ -396,6 +396,8 @@ export function forSize(spec, size) {
   return {
     ...spec,
     focalCss: focalToCss(pick(spec.focal, size, undefined)),
+    // a post's portrait picture is cropped round its own focal point
+    ...(spec.avatar && typeof spec.avatar === 'object' && !Array.isArray(spec.avatar) ? { avatarFocalCss: focalToCss(spec.avatar.focal) } : {}),
     textAtResolved: pick(spec.textAt, size, undefined),
     linesResolved: perSize(spec.lines) ? spec.lines[size] ?? 'auto' : spec.lines ?? 'auto',
   };

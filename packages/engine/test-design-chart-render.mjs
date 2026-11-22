@@ -22,7 +22,7 @@ const chrome = findChrome();
 const skip = chrome ? false : 'Google Chrome was not found';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-chart-'));
 let browser;
-test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(tmp, 'design.lock') }); });
+test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome }); });
 test.after(() => { browser?.close(); fs.rmSync(tmp, { recursive: true, force: true }); });
 
 const asCopy = (l) => ({ ...structuredClone(l), origin: `copy:shipped:${l.id}` });

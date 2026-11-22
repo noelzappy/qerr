@@ -17,10 +17,11 @@ import { screenFraming } from './screen-framing.js';
 type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
 
-// The design, each carousel page and each picture of a post's row of round pictures (`gallery`: { image, vaultItemId?, caption? }), as the
-// objects that may hold an `image`. A gallery picture is checked, copied and rights-checked exactly like the post's own picture, on a post
-// and on each post page of a carousel alike.
-const galleryOf = (o: Json): Json[] => (o.template === 'post' && Array.isArray(o.gallery) ? o.gallery.filter(isObj) : []);
+// The design, each carousel page, each picture of a post's row of round pictures (`gallery`: { image, vaultItemId?, caption? }) and a post's one
+// portrait picture (`avatar`: { image, vaultItemId?, focal? }), as the objects that may hold an `image`. A gallery picture and the avatar are
+// checked, copied and rights-checked (consent for a face included) exactly like the post's own picture, on a post and on each post page of a
+// carousel alike.
+const galleryOf = (o: Json): Json[] => (o.template === 'post' ? [...(Array.isArray(o.gallery) ? o.gallery.filter(isObj) : []), ...(isObj(o.avatar) ? [o.avatar] : [])] : []);
 const pagesOf = (o: Json): Json[] => (Array.isArray(o.pages) ? o.pages.filter(isObj) : []);
 export function designNodes(design: unknown): Json[] {
   if (!isObj(design)) return [];
@@ -36,6 +37,7 @@ export function withoutVaultIds(design: unknown): unknown {
     if (!isObj(p)) return p;
     const out = strip(p) as Json;
     if (out.template === 'post' && Array.isArray(out.gallery)) out.gallery = out.gallery.map(strip);
+    if (out.template === 'post' && isObj(out.avatar)) out.avatar = strip(out.avatar);
     return out;
   };
   const copy = stripNode(design) as Json;
@@ -47,13 +49,14 @@ export function withoutVaultIds(design: unknown): unknown {
 // "design page 2 gallery picture 1".
 function nodeName(design: unknown, node: Json): string {
   if (node === design || !isObj(design)) return 'design';
+  if (node === design.avatar) return 'design avatar';
   const g = galleryOf(design).indexOf(node);
   if (g >= 0) return `design gallery picture ${g + 1}`;
   const pages = pagesOf(design);
   const p = pages.indexOf(node);
   if (p >= 0) return `design page ${p + 1}`;
   const at = pages.findIndex((page) => galleryOf(page).includes(node));
-  return at >= 0 ? `design page ${at + 1} gallery picture ${galleryOf(pages[at]).indexOf(node) + 1}` : 'design';
+  return at >= 0 ? (node === pages[at]!.avatar ? `design page ${at + 1} avatar` : `design page ${at + 1} gallery picture ${galleryOf(pages[at]!).indexOf(node) + 1}`) : 'design';
 }
 
 const insideAssets = (file: string): boolean => {
@@ -65,22 +68,40 @@ const insideAssets = (file: string): boolean => {
 // A screen picture must be the kind its layout shows: a phone layout (the product template, a brand layout with a phone screen block)
 // takes only a pre-framed phone capture, a desktop screen only a plain screenshot. The kind is read from the stored file, as the
 // engine tests it. Said before any render, in plain words.
+// A post drawn by the brand's look: the composition that will draw it may draw a phone (or a tablet) round its picture (designScreenNeeds); then
+// the picture is a screen, a bare phone screenshot or a framed capture, never a desktop screenshot and never a photo. A portrait picture
+// (avatar) and the pictures of a row are photos.
 async function screenProblems(deps: Pick<Deps, 'prisma' | 'storage'>, design: unknown): Promise<string[]> {
   const engine = await pipelineEngine();
   const layouts = engine.loadLayouts({ root: engine.root });
+  const devices = engine.designScreenNeeds(withoutVaultIds(design), { root: engine.root });
+  const pages = isObj(design) ? pagesOf(design) : [];
+  const deviceOf = (node: Json): string | null => devices.find((d) => (d.page === null ? node === design : node === pages[d.page]))?.device ?? null;
   const out: string[] = [];
   for (const { node, item } of await photosOfDesign(deps, design)) {
-    if (!item || item.kind !== 'screen') continue;
+    if (!item) continue;
+    const where = nodeName(design, node);
+    if (node !== design && !pages.includes(node)) {
+      if (item.kind === 'screen') out.push(`${where}: "${item.title}" is a screen; a ${where.endsWith('avatar') ? 'portrait picture' : 'picture in a row'} is a photo. Pick a photo`);
+      continue;
+    }
+    const device = deviceOf(node);
+    if (device) {
+      const kind = item.kind === 'screen' ? await screenFraming(deps, item) : null;
+      if (item.kind !== 'screen') out.push(`${where}: this design draws a ${device} round a screenshot of the app, and "${item.title}" is a photo. Pick a screen from Pictures, or another design`);
+      else if (kind === 'desktop') out.push(`${where}: "${item.title}" is a desktop screenshot, but this design draws a ${device} round a ${device} screenshot. Pick a ${device} screenshot (with or without the ${device} drawn round it)`);
+      continue;
+    }
+    if (item.kind !== 'screen') continue;
     const need = engine.screenDeviceOf(node, layouts);
     if (!need) continue;
-    const framing = await screenFraming(deps, item);
-    if (!framing || framing === need) continue;
-    const where = nodeName(design, node);
+    const kind = await screenFraming(deps, item);
+    if (!kind || kind === need) continue;
     out.push(need === 'phone'
-      ? `${where}: "${item.title}" is a desktop screenshot, but this layout shows a phone and needs a phone screen (a capture with the phone already drawn around it). Pick a phone screen, or a layout made for a desktop screenshot`
-      : `${where}: "${item.title}" is a phone screen, but this layout shows a desktop screenshot. Pick a desktop screenshot, or a layout that shows a phone`);
+      ? `${where}: "${item.title}" is ${kind === 'phone-bare' ? 'a phone screenshot without the phone drawn round it' : 'a desktop screenshot'}, but this layout shows a phone and needs a phone screen (a capture with the phone already drawn around it). Pick a phone screen, or a layout made for a desktop screenshot`
+      : kind === 'phone-bare' ? '' : `${where}: "${item.title}" is a phone screen, but this layout shows a desktop screenshot. Pick a desktop screenshot, or a layout that shows a phone`);
   }
-  return out;
+  return out.filter(Boolean);
 }
 
 // Every problem with a design block a person typed: the engine's validators plus our rule about where pictures may come from.

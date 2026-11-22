@@ -101,7 +101,7 @@ const chrome = findChrome();
 const skip = chrome ? false : 'Google Chrome was not found';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-guide-'));
 let browser;
-test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(tmp, 'design.lock') }); });
+test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome }); });
 test.after(() => { browser?.close(); fs.rmSync(tmp, { recursive: true, force: true }); });
 const brand = () => { const b = loadBrand({ file: path.join(ROOT, 'brands', 'outabout', 'brand.json') }); return b; };
 

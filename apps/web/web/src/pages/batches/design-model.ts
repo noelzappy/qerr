@@ -75,7 +75,7 @@ export function movePage(d: DesignBlock, i: number, by: -1 | 1): DesignBlock {
 // answer is used when it is there.
 export const POST_KINDS = ['statement', 'figure', 'list', 'quote', 'photo', 'event', 'offer'] as const;
 export type PostKind = (typeof POST_KINDS)[number];
-export type PostFieldName = 'label' | 'headline' | 'sub' | 'big' | 'unit' | 'items' | 'quote' | 'by' | 'image' | 'meta' | 'tag' | 'cta' | 'info' | 'gallery' | 'chart';
+export type PostFieldName = 'label' | 'headline' | 'sub' | 'big' | 'unit' | 'items' | 'quote' | 'by' | 'image' | 'meta' | 'tag' | 'cta' | 'info' | 'gallery' | 'chart' | 'avatar';
 export interface PostKindFields { fields: PostFieldName[]; required: PostFieldName[] }
 
 export const POST_KIND_FIELDS: Record<PostKind, PostKindFields> = {
@@ -111,7 +111,8 @@ export interface PostKindInfo {
   variants: Array<{ variant: number; name: string; describe: string; budgets?: Record<string, { required: boolean; max?: number; min?: number; kinds?: string[] }> }>;
 }
 
-const CANON: PostFieldName[] = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag', 'cta', 'info', 'gallery', 'chart'];
+// (avatar: one portrait picture of the person quoted, { image, vaultItemId?, focal? }, drawn by a look written as data only)
+const CANON: PostFieldName[] = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'avatar', 'image', 'meta', 'tag', 'cta', 'info', 'gallery', 'chart'];
 // The keys a post may carry besides its fields; the app's vaultItemId is stripped by the server before the engine sees it.
 const POST_FRAME = ['name', 'networkSizes', 'sizes'];
 const POST_EXTRA = ['focal', 'zoom', 'vaultItemId'];

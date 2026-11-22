@@ -1,5 +1,6 @@
-// Choices first for the pieces that hold words in pills, icons, info rows, buttons, round pictures and charts: a row of chips each for the decision a
-// person makes (pills or not and their shape, icons on or off, the button's shape and icon, how the info rows sit, how big the pictures are),
+// Choices first for the pieces that hold words in pills, icons, info rows, buttons, round pictures, charts, a portrait picture and a device: a row of
+// chips each for the decision a person makes (pills or not and their shape, icons on or off, the button's shape and icon, how the info rows sit, how
+// big the pictures are, the portrait's shape, size and ring, the device, its finish, camera and lean),
 // with every exact value still behind the group's "Fine-tune". The chips write catalogue values only; the model says why one is refused.
 import { useState, type ReactNode } from 'react';
 import type { Json } from '../design-model';
@@ -12,9 +13,12 @@ const PILL_WORDS: Record<string, string> = { pill: 'Round', soft: 'Soft', outlin
 // the few icons offered as chips on a button; the rest are under Fine-tune
 const BUTTON_ICONS: Array<[string, string]> = [['none', 'None'], ['arrow-right', '→'], ['arrow-up-right', '↗'], ['check', '✓'], ['calendar', 'Date'], ['ticket', 'Ticket']];
 const ROW_SIZES: Array<[number, string]> = [[140, 'Small'], [200, 'Medium'], [280, 'Large']];
+const AVATAR_SIZES: Array<[number, string]> = [[96, 'Small'], [128, 'Medium'], [180, 'Large']];
+// the device's lean: straight, or a little either way (the exact degrees, up to 6, under Fine-tune)
+const LEANS: Array<[number, string]> = [[-4, 'Lean left'], [0, 'Straight'], [4, 'Lean right']];
 
 // Whether this element has choices of its own here.
-export const hasPartChoices = (el: Json): boolean => (el.type === 'text' && el.field === 'headline' && (el.part === undefined || el.part === 'all')) || ['button', 'info-rows', 'photo-row', 'chart'].includes(String(el.type));
+export const hasPartChoices = (el: Json): boolean => (el.type === 'text' && el.field === 'headline' && (el.part === undefined || el.part === 'all')) || ['button', 'info-rows', 'photo-row', 'chart', 'avatar', 'device'].includes(String(el.type));
 
 export function PartChoices({ ctx }: { ctx: Ctx }) {
   const el = ctx.el, type = String(el.type);
@@ -78,6 +82,37 @@ export function PartChoices({ ctx }: { ctx: Ctx }) {
           {line && <ToggleChip on={el.trim === true} disabled={ctx.disabled} onClick={() => set('trim', el.trim === true ? undefined : true)}>Start the axis near the data</ToggleChip>}
         </div>
         <p className="text-[12.5px] text-muted-foreground">Bars always start at zero. Colours, dots, the line width and the type sizes are under Fine-tune; the labels are checked for fit and contrast like any words.</p>
+      </>
+    );
+  } else if (type === 'avatar') {
+    const size = typeof el.size === 'number' ? el.size : 120, named = AVATAR_SIZES.find(([n]) => n === size);
+    const ring = isObj(el.ring) ? el.ring : null;
+    body = (
+      <>
+        {row('Shape', 'How the portrait is cropped.', <Chips label="Portrait shape" value={String(el.shape ?? 'circle')} disabled={ctx.disabled} onChange={(v) => set('shape', v)}
+          options={[{ value: 'circle', label: 'Round' }, { value: 'rounded', label: 'Rounded' }, { value: 'square', label: 'Square' }]} />)}
+        {row('Size', 'Its width and height; the exact pixels under Fine-tune.', <Chips label="Portrait size" value={named ? String(named[0]) : null} custom disabled={ctx.disabled} onChange={(v) => setError(ctx.set('size', Number(v)))}
+          options={AVATAR_SIZES.map(([n, l]) => ({ value: String(n), label: l, title: `${n} px` }))} />)}
+        <div className="flex flex-wrap gap-1.5"><ToggleChip on={!!ring} disabled={ctx.disabled} onClick={() => set('ring', ring ? undefined : { w: 6, colour: 'field' })}>Ring in the brand colour</ToggleChip></div>
+      </>
+    );
+  } else if (type === 'device') {
+    const tablet = el.model === 'tablet', tilt = typeof el.tilt === 'number' ? el.tilt : 0, lean = LEANS.find(([n]) => n === tilt);
+    body = (
+      <>
+        {row('Device', 'A phone or a tablet drawn round the post\'s picture, a bare screenshot of the app. A capture with the phone already drawn is shown as it is.',
+          <Chips label="Device" value={tablet ? 'tablet' : 'phone'} disabled={ctx.disabled} onChange={(v) => setError((v === 'tablet' ? ctx.set('cutout', undefined) : '') || ctx.set('model', v === 'phone' ? undefined : v))}
+            options={[{ value: 'phone', label: 'Phone' }, { value: 'tablet', label: 'Tablet' }]} />)}
+        {row('Finish', 'The colour of the body.', <Chips label="Device finish" value={String(el.finish ?? 'dark')} disabled={ctx.disabled} onChange={(v) => set('finish', v)}
+          options={[{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Silver' }, { value: 'brand', label: 'Brand colour' }]} />)}
+        {!tablet && row('Camera', 'An island in the screen, a notch at its top, or none.', <Chips label="Device camera" value={String(el.cutout ?? 'island')} disabled={ctx.disabled} onChange={(v) => set('cutout', v)}
+          options={[{ value: 'island', label: 'Island' }, { value: 'notch', label: 'Notch' }, { value: 'none', label: 'None' }]} />)}
+        {row('Lean', 'Turns the device a little (the look\'s tilt dial scales it).', <Chips label="Device lean" value={lean ? String(lean[0]) : null} custom disabled={ctx.disabled} onChange={(v) => set('tilt', Number(v) || undefined)}
+          options={LEANS.map(([n, l]) => ({ value: String(n), label: l, title: `${n} degrees` }))} />)}
+        <div className="flex flex-wrap gap-1.5">
+          <ToggleChip on={el.buttons !== false} disabled={ctx.disabled} onClick={() => set('buttons', el.buttons === false ? undefined : false)}>Side buttons</ToggleChip>
+          <ToggleChip on={el.shadow === 'soft' || el.shadow === 'lift'} disabled={ctx.disabled} onClick={() => set('shadow', el.shadow ? undefined : 'soft')}>Soft shadow</ToggleChip>
+        </div>
       </>
     );
   }

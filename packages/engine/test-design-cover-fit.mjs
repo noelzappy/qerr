@@ -97,7 +97,7 @@ test('real render: every cover in every style, upper case and wide tracking incl
     'flat-upper': withBrand({ ...STYLES.flat, type: { ...STYLES.flat.type, display: { case: 'upper' } } }),
     'all-upper': withBrand({ type: { display: { case: 'upper', tracking: 0.3, weight: 900 }, body: { case: 'upper', tracking: 0.3 }, label: { case: 'upper', tracking: 0.3 } }, surface: 'outline' }),
   };
-  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });
+  const browser = await Browser.launch({ chromePath: chrome });
   try {
     for (const [name, brand] of Object.entries(looks)) {
       for (const kind of KINDS) {
@@ -126,7 +126,7 @@ test('real render: a long brand tagline and website wrap where the cover allows,
     website: 'acme-savings-and-family-goals.example',
     descriptor: 'Group savings, goals, shared records and reminders for every member of the family in one place. A fictional brand.',
   });
-  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });
+  const browser = await Browser.launch({ chromePath: chrome });
   try {
     // Facebook: too long for one line at any allowed size, so it is balanced over two at the layout's size
     for (const kind of ['facebook', 'linkedin']) {

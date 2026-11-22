@@ -30,6 +30,9 @@ export interface VaultItem {
   tintable: boolean;
   width: number | null;
   height: number | null;
+  // Screens: a capture with the phone already drawn round it ('phone'), a bare phone screenshot ('phone-bare': a look's phone design draws
+  // the phone round it) or a desktop screenshot; null when not known yet. Older servers leave it out.
+  framing?: 'phone' | 'phone-bare' | 'desktop' | null;
   // Only on list answers asked for with withFileUrls: a signed address, null when signing failed.
   fileUrl?: string | null;
   stale: boolean;

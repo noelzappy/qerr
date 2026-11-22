@@ -373,7 +373,7 @@ test('real render: a styled brand (black and neon, outlined, grid, condensed cap
   const dir = path.join(ROOT, 'out', 'test-style-render');
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
-  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });
+  const browser = await Browser.launch({ chromePath: chrome });
   try {
     const neon = {
       ...RAW,
@@ -419,7 +419,7 @@ test('real render: a treated poster photo lends the page the colour it is drawn 
     { t: 'overlay', photo: { treatment: 'overlay' }, drawn: [145, 165, 207], low: true, scene: 'band' },
     { t: 'overlay', photo: { treatment: 'overlay', strength: 0.3 }, drawn: [184, 195, 216], scene: 'band' },
   ];
-  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });
+  const browser = await Browser.launch({ chromePath: chrome });
   try {
     for (const [n, { t, photo, drawn, low, scene }] of runs.entries()) {
       fs.writeFileSync(path.join(dir, 'brand.json'), JSON.stringify({ ...RAW, style: { photo } }));
@@ -468,7 +468,7 @@ test('real render: the poster logo is measured, so a wordmark on a surface it wa
     body: `<div class="cv poster" style="--bg:var(--g-deep)">${spec.pale ? '<div class="abs" style="left:0;top:0;width:1080px;height:220px;background:var(--g-warm)"></div>' : ''}${bar(ctx, true, { right: '' })}<div class="abs" id="txt" style="left:80px;top:400px;width:920px;text-align:left"><div class="ps-h" data-role="headline" style="font-size:${hs(104)}">Save together.</div></div></div>`,
     bodyClass: 'acc-colour dark', bodyAttrs: 'data-editorial="1"',
   });
-  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });
+  const browser = await Browser.launch({ chromePath: chrome });
   try {
     const run = (pale) => renderImage(browser, brand, { spec: { template: 'test-logo-surface', pale }, sizeName: 'feed', outFile: path.join(dir, `${pale ? 'pale' : 'ground'}.png`) }, { tmpDir: path.join(dir, 'tmp') });
     const pale = await run(true);
@@ -497,7 +497,7 @@ test('real render: text on the light panel of a dark editorial page, and the log
     { template: 'ledger', headline: 'The week, *on one page.*', sub: 'Every deposit in a row.', ground: 'dark', ...LEDGER },
     { template: 'photo-story', layout: 'print', headline: 'Market day, *together.*', image: scene, ground: 'dark' },
   ];
-  const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });
+  const browser = await Browser.launch({ chromePath: chrome });
   try {
     let i = 0;
     const run = (b, d, sizeName = 'feed') => renderImage(browser, b, { spec: normaliseDesign(d), sizeName, outFile: path.join(dir, `${i++}.png`) }, { tmpDir: path.join(dir, 'tmp') });

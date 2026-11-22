@@ -792,7 +792,7 @@
     {
       "kind": "quote",
       "name": "Speech card",
-      "describe": "A big rounded white card holding the quotation, a round colour badge with an opening quotation mark on its corner and two pebbles trailing from it like a speech bubble, the source on a pill beside them and the label at the foot. Use for a quotation of up to about 160 characters.",
+      "describe": "A big white card holding the quotation, a colour badge with an opening quotation mark on its corner and pebbles trailing from it like a speech bubble, to the portrait of the person quoted when there is one; the source on a pill, the label at the foot. Quotations up to 160 characters.",
       "ground": "tint",
       "fit": "margins",
       "fields": {
@@ -805,7 +805,8 @@
         },
         "by": {
           "max": 40
-        }
+        },
+        "avatar": {}
       },
       "elements": [
         {
@@ -918,7 +919,10 @@
           },
           "fill": "paper",
           "radius": "full",
-          "z": 1
+          "z": 1,
+          "when": {
+            "absent": "avatar"
+          }
         },
         {
           "type": "box",
@@ -932,7 +936,47 @@
           },
           "fill": "paper",
           "radius": "full",
-          "z": 1
+          "z": 1,
+          "when": {
+            "absent": "avatar"
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 214,
+              "y": 1066,
+              "w": 34,
+              "h": 34
+            }
+          },
+          "fill": "paper",
+          "radius": "full",
+          "z": 1,
+          "when": {
+            "present": "avatar"
+          }
+        },
+        {
+          "type": "avatar",
+          "size": 136,
+          "shape": "circle",
+          "ring": {
+            "w": 8,
+            "colour": "paper"
+          },
+          "shadow": "soft",
+          "place": {
+            "px": {
+              "x": 72,
+              "y": 1104
+            }
+          },
+          "z": 2,
+          "when": {
+            "present": "avatar"
+          }
         },
         {
           "type": "sticker",
@@ -963,7 +1007,41 @@
             }
           },
           "when": {
-            "present": "by"
+            "present": "by",
+            "absent": "avatar"
+          },
+          "z": 2
+        },
+        {
+          "type": "sticker",
+          "shape": "pill",
+          "w": "hug",
+          "minW": 160,
+          "maxW": 640,
+          "h": 76,
+          "fit": {
+            "cap": 30,
+            "floor": 24,
+            "maxLines": 1,
+            "h": 44
+          },
+          "field": "by",
+          "fill": "tint-deep",
+          "ink": "ink",
+          "pad": [
+            0,
+            30,
+            0,
+            30
+          ],
+          "place": {
+            "px": {
+              "x": 240,
+              "y": 1134
+            }
+          },
+          "when": {
+            "present": "avatar"
           },
           "z": 2
         },

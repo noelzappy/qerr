@@ -31,7 +31,7 @@ type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
 
 interface EngineBrandMod { loadBrand(o: { root: string; file: string }): Json & { style: Json } }
-interface EngineChrome { Browser: { launch(o: { chromePath?: string | null; lockFile: string }): Promise<{ close(): void }> }; findChrome(): string | null; NO_CHROME: string }
+interface EngineChrome { Browser: { launch(o: { chromePath?: string | null }): Promise<{ close(): void }> }; findChrome(): string | null; NO_CHROME: string }
 interface EngineRenderMod {
   renderImage(browser: unknown, brand: Json, job: { spec: Json; sizeName: string; outFile: string }, o: { tmpDir: string; quality?: number }): Promise<{ warnings: string[]; notes: string[]; post?: { variant: number; fellBackFrom?: string | null }; els?: Array<{ el: string; x0: number; y0: number; x1: number; y1: number }> }>;
   DesignError: new (...a: never[]) => Error;
@@ -136,7 +136,7 @@ async function drawJobs(deps: Deps, look: Json, jobs: DrawJob[], opts: { brandId
     const chromePath = chrome.findChrome();
     if (!chromePath) return jobs.map((_, n) => early[n] ?? refused('Chrome is not installed on this server, so pictures cannot be drawn'));
     renderStats.runs++;
-    try { browser = await chrome.Browser.launch({ chromePath, lockFile: path.join(engine.root, 'out', 'design.lock') }); } catch (e) {
+    try { browser = await chrome.Browser.launch({ chromePath }); } catch (e) {
       const msg = String((e as Error)?.message ?? e);
       return jobs.map((_, n) => early[n] ?? { ok: false, busy: BUSY.test(msg), warnings: [], rects: [], error: BUSY.test(msg) ? 'Another picture is being drawn right now. Try again in a moment' : 'Chrome could not be started on this server' });
     }

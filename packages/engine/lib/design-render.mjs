@@ -11,7 +11,7 @@ import { detectConverter } from './design/convert.mjs';
 import { lintText, textFieldsOf } from './design/lint.mjs';
 import { DesignError, renderImage, renderPdf } from './design/render.mjs';
 import { normaliseDesign, outputFiles, pdfFile } from './design/spec.mjs';
-import { postCompositionGraphics } from './design/directions/index.mjs';
+import { postCompositionDevice, postCompositionGraphics } from './design/directions/index.mjs';
 import { usesPostTemplate } from './design/post-spec.mjs';
 import { loadLayouts, normalisePostDesign, postDesignProblems, usesLayouts } from './design/layout.mjs';
 
@@ -47,6 +47,25 @@ export function designGraphicNeeds(design, { root = ROOT } = {}) {
     if (!s || s.template !== 'post') continue;
     const c = postCompositionGraphics(look, s);
     if (c?.refs.length) out.push({ page, ...c });
+  }
+  return out;
+}
+
+// The device each picture of a design block is drawn on with the brand's own look: for a post, and each post page of a carousel, the composition the
+// renderer will choose and the device it draws round its picture. -> [{ page: null | index from 0, kind, variant, name, device: 'phone' | 'tablet' }],
+// only the pictures drawn on a device. The app uses it to say, before any render, that a desktop screenshot cannot go on a phone. No Chrome.
+export function designScreenNeeds(design, { root = ROOT } = {}) {
+  if (!usesPostTemplate(design)) return [];
+  const look = loadLook({ root });
+  if (!look) return [];
+  let spec;
+  try { spec = normaliseDesign(design); } catch { return []; }
+  const pictures = spec.template === 'carousel' && Array.isArray(spec.pages) ? spec.pages.map((p, i) => [i, p]) : [[null, spec]];
+  const out = [];
+  for (const [page, s] of pictures) {
+    if (!s || s.template !== 'post' || typeof s.image !== 'string') continue;
+    const c = postCompositionDevice(look, s);
+    if (c?.device) out.push({ page, ...c });
   }
   return out;
 }
@@ -103,7 +122,7 @@ export async function renderDesignBlock({ root = ROOT, design, postId, outDir, s
   const tmpDir = path.join(root, 'out', 'design-tmp');
   let browser;
   try {
-    browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(root, 'out', 'design.lock') });
+    browser = await Browser.launch({ chromePath: chrome });
   } catch (e) {
     return fail(e.message, { warnings });
   }

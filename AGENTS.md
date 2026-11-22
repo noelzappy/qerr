@@ -48,7 +48,9 @@ These apply to anyone who changes or runs this repository or a Vesk deployment.
     passes the engine's `validateBrand`; never bypass it. A photo needs a licence that allows commercial use and a record
     of where it came from (a vault photo's source and licence, or a line in
     `packages/engine/design/assets/photos/CREDITS.md`); do not use tight portraits of identifiable people or imply that
-    pictured people are customers. Brand names are written as the brand's spelling rules say; no emoji. Never weaken a
+    pictured people are customers. The one exception (approved by the owner on 22 Nov 2026) is a look's portrait picture
+    (`avatar`) of the person a quote is by: it may show that person's face only when the vault item records their consent,
+    which approval enforces; it is still read, enlarged and checked like every picture. Brand names are written as the brand's spelling rules say; no emoji. Never weaken a
     design check (contrast, enlargement, text fit, pixel size) to make an image pass: change the words, the picture or the
     crop. A chart (a post's `chart`, the look's `chart` element) is drawn only from the post's validated numbers; its labels and
     values are text held to their cells and measured for contrast on the pixels behind them, every mark stays inside the chart's

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { POST_LIMITS, postFieldsFor, seenLength, setVariant, switchKind, withField, type PostKindInfo, type PostLimits } from '../design-model';
 import { HeadlineField } from './HeadlineField';
 import { FocalPicker, ZoomField } from './ImageOptions';
+import { AvatarEditor } from './AvatarEditor';
 import { KindChooser } from './KindChooser';
 import { budgetsFor } from './look-brief';
 import { ChoiceRow } from './ChoiceRow';
@@ -105,6 +106,8 @@ export function PostFields({ design, onChange, direction, kinds, limits, offered
         return short('cta');
       case 'info':
         return <InfoEditor key={f} value={d.info} keys={lim.infoKeys} min={lim.info.min} max={lim.info.max} maxChars={lim.info.chars} disabled={disabled} onChange={(v) => set('info', v)} />;
+      case 'avatar':
+        return <AvatarEditor key={f} value={d.avatar} disabled={disabled} onChange={(v) => set('avatar', v)} />;
       case 'gallery':
         return <GalleryEditor key={f} value={d.gallery} min={lim.gallery.min} max={lim.gallery.max} maxChars={lim.gallery.chars} disabled={disabled} onChange={(v) => set('gallery', v)} />;
       case 'chart':

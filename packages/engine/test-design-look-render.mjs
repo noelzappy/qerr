@@ -51,9 +51,12 @@ const ALLOWED_CLASSES = new Set([
   'k-grad', 'k-overlay', 'k-graphic', 'k-tinted',                                                          // gradient(), overlay(), graphic() and a recoloured graphic
   'k-em-b', 'k-ic', 'k-icb', 'k-tape', 'k-paper', 'k-paper-c', 'k-badge-i',                               // EMPH bold, an icon (iconSvg: an icon badge, a row's tile, an icon on a headline's badge), tape(), paper(), badge()
   'k-chart', 'k-chart-s',                                                                                  // chartSvg(): the chart's box and its marks
+  'k-avatar',                                                                                              // avatarPhoto(): the portrait picture of a quotation
+  'k-dev', 'k-dev-phone', 'k-dev-tablet', 'k-dev-body', 'k-dev-light', 'k-dev-dark', 'k-dev-brand',       // device(): the model, the body and its finish (DEVICE_FINISH)
+  'k-dev-screen', 'k-dev-cut', 'k-dev-island', 'k-dev-notch', 'k-dev-btn',                                 // device(): the screen, the camera and the side buttons
 ]);
 // The classes with no rule in kit.css: the page and picture classes live in other sheets (cv, ph, post), the rest are hooks the runtime or the checks read.
-const NO_RULE = new Set(['cv', 'k-multiply', 'k-grain', 'k-em-n', 'k-shape-circle', 'k-shape-pill', 'k-shape-tile', 'k-numeral-n', 'k-numeral-u', 'logo-inv', 'ly-logo']);
+const NO_RULE = new Set(['cv', 'k-multiply', 'k-grain', 'k-em-n', 'k-shape-circle', 'k-shape-pill', 'k-shape-tile', 'k-numeral-n', 'k-numeral-u', 'logo-inv', 'ly-logo', 'k-avatar', 'k-dev-phone', 'k-dev-tablet', 'k-dev-notch']);
 
 // ---- the grammar of every inline style: a fixed set of properties, each with a value of a fixed shape ----
 // Copied from test-design-retail-markup.mjs (GRAMMAR) and extended with what the data path adds: the stretch alignments, a hard text shadow, the echo
@@ -84,7 +87,10 @@ const GRAMMAR = {
 const STOP = `${VAR} \\d{1,3}%`, GRAD_AT = '(?:center|top|bottom|left|right|left top|right top|left bottom|right bottom)';
 GRAMMAR.background = `(?:${VAR}|linear-gradient\\(\\d{1,3}deg,${STOP}(?:,${STOP}){1,2}\\)|radial-gradient\\((?:circle|ellipse) at ${GRAD_AT},${STOP}(?:,${STOP}){1,2}\\))`;
 GRAMMAR.transform = `(?:rotate\\(${NUM}deg\\)(?: skewX\\(${NUM}deg\\)| scaleX\\(-1\\))?|scaleX\\(-1\\))`;
-GRAMMAR.filter = `drop-shadow\\(${PXV} 0 0 ${VAR}\\)`;
+// (and a device's two fixed soft shadows, DEVICE_SOFT in kit.mjs)
+GRAMMAR.filter = `(?:drop-shadow\\(${PXV} 0 0 ${VAR}\\)|drop-shadow\\(0 (?:18px 26px|36px 48px) rgba\\(0,0,0,\\.(?:28|36)\\)\\))`;
+// (a square portrait picture has no rounding; a phone's notch rounds its two lower corners)
+GRAMMAR['border-radius'] = `(?:0|${PXV}|50%|999px|${PXV} ${PXV} 0 0|0 0 ${PXV} ${PXV})`;
 GRAMMAR.fill = `(?:${VAR}|none)`;
 const RULES = Object.fromEntries(Object.entries(GRAMMAR).map(([k, v]) => [k, new RegExp(`^${v}$`)]));
 const FONT_TOKEN = /^(?:'[A-Za-z0-9 ]{1,40}'|[A-Za-z-]{1,20})$/;
@@ -301,6 +307,13 @@ function bindingLook() {
       T('big', { style: 'label', format: 'roman' }, G(4, 3, 7, 1)),
       T('headline', { style: 'display', ladder: { by: 'headline', steps: [[30, 36], [70, 30]], maxLines: 3 }, emphasis: 'bold', icons: { colour: 'on-field', badge: 'field' } }, G(1, 12, 8, 1)),
     ] });
+  c.push({ kind: 'figure', name: 'Device', describe: 'A figure beside a phone the engine draws round the picture (a bare screenshot), leaning a little.', ground: 'paper',
+    fields: { image: {}, label: { max: 28 }, big: { required: true, max: 8 } },
+    elements: [
+      T('label', { style: 'label' }, G(1, 5, 2, 1)),
+      T('big', { style: 'numeral', size: 220 }, G(1, 5, 4, 2)),
+      { type: 'device', model: 'phone', finish: 'brand', cutout: 'notch', buttons: false, tilt: -3, align: 'right', shadow: 'soft', place: { px: { x: 560, y: 120, w: 440, h: 1000 } }, when: { present: 'image' } },
+    ] });
   // ---- list ----
   c.push({ kind: 'list', name: 'Tiles', describe: 'A fitted headline in block mode, numbered rows on tiles with alternating fills and turns.', ground: 'field',
     fields: { label: { max: 28 }, headline: { required: true, max: 44 }, items: { required: true, max: 5 } },
@@ -331,8 +344,9 @@ function bindingLook() {
       { type: 'text', word: 'Myth', style: 'label', ink: 'white', place: G(1, 6, 8, 1) },
     ] });
   c.push({ kind: 'quote', name: 'Ladder quote', describe: 'A quote that steps down its size, a by line and a label.', ground: 'soft',
-    fields: { label: { max: 28 }, quote: { required: true, max: 160 }, by: { max: 40 } },
+    fields: { label: { max: 28 }, quote: { required: true, max: 160 }, by: { max: 40 }, avatar: {} },
     elements: [
+      { type: 'avatar', size: 100, shape: 'rounded', ring: { w: 4, colour: 'field' }, shadow: 'soft', place: { px: { x: 860, y: 40 } }, when: { present: 'avatar' } },
       T('quote', { style: 'display', ladder: { by: 'quote', steps: [[60, 96], [110, 80], [160, 64]], maxLines: 6, maxH: 800 }, emphasis: 'italic' }, G(1, 12, 2, 5)),
       T('by', { style: 'label', split: { sep: '|', pick: 1 }, align: 'right' }, G(1, 12, 7, 1)),
       T('label', { style: 'label', split: { sep: '·', pick: 2 }, upper: true, nowrap: true }, G(1, 12, 8, 1)),
@@ -443,10 +457,10 @@ function bindingLook() {
 const BINDING = bindingLook();
 test('the purpose-built look is valid and uses every binding the schema allows', () => {
   assert.deepEqual(validateLook(BINDING, 'look', { shipped: false }), []);
-  assert.equal(BINDING.compositions.length, 18);
+  assert.equal(BINDING.compositions.length, 19);
   const perKind = {};
   for (const cp of BINDING.compositions) perKind[cp.kind] = (perKind[cp.kind] ?? 0) + 1;
-  assert.deepEqual(perKind, { statement: 3, figure: 2, list: 2, quote: 2, photo: 3, event: 3, offer: 3 });
+  assert.deepEqual(perKind, { statement: 3, figure: 3, list: 2, quote: 2, photo: 3, event: 3, offer: 3 });
   // a walk of the compositions: what the look uses
   const els = [], texts = [];
   const walk = (list) => { for (const e of list) { els.push(e); if (e.type === 'text') texts.push(e); walk([...(e.children ?? []), ...(e.sticker ? [e.sticker] : [])]); } };
@@ -506,8 +520,8 @@ test('the purpose-built look draws every binding (benign words show up where eac
 test('the purpose-built look, drawn from hostile text in every field, item and the brand name, passes every body check', () => {
   const { drawn, n } = drawAll(BINDING, { shipped: false }, 'binding');
   // the look's own accepts rule (statement 1: the part before the emphasis) never declines a copy here, so every composition is drawn
-  assert.equal(drawn.size, 18, [...drawn].join(', '));
-  assert.ok(n >= 18 * 20, `${n} bodies were read`);
+  assert.equal(drawn.size, 19, [...drawn].join(', '));
+  assert.ok(n >= 19 * 20, `${n} bodies were read`);
 });
 
 test('the purpose-built look draws every class family and every element the data path can write', () => {

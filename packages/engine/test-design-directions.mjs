@@ -323,7 +323,7 @@ const chrome = findChrome();
 const skip = chrome ? false : 'Google Chrome was not found';
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vesk-dir-'));
 let browser;
-test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(tmp, 'design.lock') }); });
+test.before(async () => { if (chrome) browser = await Browser.launch({ chromePath: chrome }); });
 test.after(() => { browser?.close(); fs.rmSync(tmp, { recursive: true, force: true }); });
 const render = (direction, design, o = {}) => renderImage(browser, brandWith(direction, o.brand), { spec: normaliseDesign(design), sizeName: 'feed', outFile: path.join(tmp, `${direction}-${design.kind}.png`) }, { tmpDir: tmp });
 

@@ -200,7 +200,7 @@ const colour_ = (name) => { if (!COLOUR_NAMES.includes(name)) throw new Error(`d
 // the builders that refuse the old free-string options (extra, cls, attrs)
 const FREE = ['extra', 'cls', 'attrs'];
 const BUILDERS = ['type', 'label', 'body', 'display', 'fitLines', 'group', 'rule', 'block', 'flowBlock', 'folioMark', 'verticalLabel', 'sticker', 'glyph', 'wordmarkPattern', 'numeral', 'seal', 'frame', 'keyline',
-  'photo', 'print', 'box', 'band', 'run', 'shape', 'echoStack', 'fitBlock', 'fitFill', 'fitNumeral', 'scrim', 'gradient', 'overlay', 'graphic', 'tape', 'paper', 'badge', 'chartSvg'];
+  'photo', 'print', 'box', 'band', 'run', 'shape', 'echoStack', 'fitBlock', 'fitFill', 'fitNumeral', 'scrim', 'gradient', 'overlay', 'graphic', 'tape', 'paper', 'badge', 'chartSvg', 'device', 'avatarPhoto'];
 
 // ---- gradients: two or three palette colours, a whole-degree angle or one of nine points; written from these tables only ----
 const GRADIENT_AT = Object.freeze({ center: 'center', top: 'top', bottom: 'bottom', left: 'left', right: 'right', 'left top': 'left top', 'right top': 'right top', 'left bottom': 'left bottom', 'right bottom': 'right bottom' });
@@ -230,6 +230,13 @@ export function gradientCss(g) {
   throw new Error('design kit: a gradient is linear or radial');
 }
 const OVERLAY_MODES = Object.freeze(['flat', 'bottom', 'top']);
+// a device's finish: a class of kit.css (fixed device materials, and the brand's primary colour)
+const DEVICE_FINISH = Object.freeze({ light: 'k-dev-light', dark: 'k-dev-dark', brand: 'k-dev-brand' });
+// a device's soft shadow: a fixed drop shadow (it follows the outline of the drawn body, or of a pre-framed capture's own phone)
+const DEVICE_SOFT = Object.freeze({ soft: 'drop-shadow(0 18px 26px rgba(0,0,0,.28))', lift: 'drop-shadow(0 36px 48px rgba(0,0,0,.36))' });
+const softDevice = (v) => { if (!Object.hasOwn(DEVICE_SOFT, v)) throw new Error('design kit: a device shadow is soft or lift'); return DEVICE_SOFT[v]; };
+// the corner of a portrait picture by its shape (rounded: a share of its side, worked out where it is drawn)
+const AVATAR_SHAPES = Object.freeze({ circle: '50%', rounded: null, square: '0' });
 
 // ---- the context ----
 // args: { spec, brand, tokens, direction, kind, variant, comp, size, image, imageSize, counter, folio, date }
@@ -252,7 +259,7 @@ export function makeContext(args) {
       return { lefts: [...lefts, ...(tokens.extraLines ?? [])], rights, centre: W / 2 };
     },
     // ---- the words (the only way spec text reaches the page)
-    has: (f) => (f === 'items' || f === 'info' || f === 'gallery' ? Array.isArray(spec[f]) && spec[f].length > 0 : f === 'chart' ? chartOf(spec.chart) !== null : typeof spec[f] === 'string' && spec[f] !== ''),
+    has: (f) => (f === 'items' || f === 'info' || f === 'gallery' ? Array.isArray(spec[f]) && spec[f].length > 0 : f === 'chart' ? chartOf(spec.chart) !== null : f === 'avatar' ? c.hasAvatar : typeof spec[f] === 'string' && spec[f] !== ''),
     chars: (f) => (typeof spec[f] === 'string' ? [...visible(spec[f])].length : 0),
     wordCount: (f) => (typeof spec[f] === 'string' ? visible(spec[f]).trim().split(/\s+/).filter(Boolean).length : 0),
     // plain escaped text (no emphasis, one line)
@@ -305,6 +312,8 @@ export function makeContext(args) {
     // an icon of the engine's own set (icons.mjs) as Markup; o: { colour (a palette role), cls: 'btn' }
     icon: (name, o = {}) => new Markup(iconSvg(name, o)),
     hasImage: typeof spec.image === 'string' && spec.image !== '' && typeof args.image === 'function',
+    // the post's portrait picture (avatar: { image, focal? }), drawn by c.avatarPhoto
+    hasAvatar: !!spec.avatar && typeof spec.avatar === 'object' && typeof spec.avatar.image === 'string' && spec.avatar.image !== '' && typeof args.image === 'function',
     // the picture's own size (width, height) in pixels, or null
     imageDims: () => (c.hasImage ? args.imageSize?.(spec.image) ?? null : null),
     // notes a look's pieces leave for the person (a graphic that is not there), added to the render's warnings
@@ -573,6 +582,57 @@ export function makeContext(args) {
     }).join('');
     const css = o.flow ? [`width:${px(w)}px`, `height:${px(h)}px`, 'flex:none', flexCss({ alignSelf: o.alignSelf }), nudgeCss(o.nudge)].filter(Boolean).join(';') : [place({ x: o.x, y: o.y, right: o.right, bottom: o.bottom, w, h }), o.z !== undefined ? `z-index:${P(o.z, 'z')}` : ''].filter(Boolean).join(';');
     return `<div class="${o.flow ? 'k-flow' : 'abs'} k-chart" data-el data-chart data-fill data-grid="skip" style="${css}">${svg}${words}</div>`;
+  };
+  // The post's portrait picture (spec.avatar), in the flow of its parent: a square of d px cropped to cover round its focal point (spec.avatarFocalCss,
+  // checked against the position pattern again here), round (circle), with rounded corners (rounded: a fixed share of its side) or square, read as
+  // every picture is (img[data-user]: its enlargement is checked). o: d, shape, treat, tint, ring { w, colour }, soft, nudge, alignSelf.
+  c.avatarPhoto = (o) => {
+    if (!c.hasAvatar) return '';
+    const shape = o.shape ?? 'circle';
+    if (!Object.hasOwn(AVATAR_SHAPES, shape)) throw new Error('design kit: an avatar is a circle, rounded or square');
+    const treat = Array.isArray(o.treat) ? o.treat : [];
+    for (const t of treat) if (!['grey', 'multiply', 'grain', 'punch'].includes(t)) throw new Error('design kit: avatar treatment');
+    const d = P(o.d, 'd');
+    if (d < 40 || d > 600) throw new Error('design kit: an avatar is 40 to 600 px across');
+    const radius = shape === 'rounded' ? `${px(Math.round(d * 0.22))}px` : AVATAR_SHAPES[shape];
+    const fo = POSITION.test(spec.avatarFocalCss ?? '') ? spec.avatarFocalCss : '50% 50%', shadows = [];
+    if (o.ring) shadows.push(`0 0 0 ${P(o.ring.w, 'ring')}px ${colour(o.ring.colour)}`);
+    if (o.soft !== undefined) shadows.push(softCss(o.soft));
+    const p = spec.avatar.image, extra = [nudgeCss(o.nudge), flexCss({ alignSelf: o.alignSelf })].filter(Boolean).join(';');
+    return `<div class="k-flow ph k-photo k-avatar${treat.map((t) => ` k-${t}`).join('')}" data-el style="width:${d}px;height:${d}px;border-radius:${radius};flex:none${shadows.length ? `;box-shadow:${shadows.join(',')}` : ''}${extra ? `;${extra}` : ''}"><img data-user data-name="${esc(p)}" data-fit="cover" src="${args.image(p)}" alt="" style="object-position:${fo}">${treat.includes('multiply') ? `<i class="k-mul" style="background:${colour(o.tint ?? 'primary')}"></i>` : ''}${treat.includes('grain') ? '<i class="k-gr"></i>' : ''}</div>`;
+  };
+  // A device round the post's picture (primitives/device.mjs works out the geometry): the body of g.w x g.h px at (x, y), its finish a class of
+  // kit.css (light, dark, brand: the palette's primary), the screen inside its bezel with its own corner radius clipping the screenshot (cover
+  // round the focal point, then the zoom), the camera island or notch and the side buttons, every one of them whole pixels checked here. The
+  // whole turns by tilt degrees (within 9) and lifts on a soft shadow (a fixed preset). The screenshot is a user image marked data-device: the
+  // runtime reads its corners, and a capture with the device already drawn into it (see-through corners) is shown whole and the drawn frame
+  // is hidden (data-framed), so it is never framed twice.
+  c.device = (o) => {
+    if (!c.hasImage) return '';
+    const g = o.geometry;
+    if (!g || typeof g !== 'object' || !g.screen) throw new Error('design kit: a device needs its geometry');
+    if (!Object.hasOwn(DEVICE_FINISH, o.finish ?? 'dark')) throw new Error('design kit: a device finish is light, dark or brand');
+    if (!['phone', 'tablet'].includes(o.model ?? 'phone')) throw new Error('design kit: a device is a phone or a tablet');
+    const tilt = o.tilt ?? 0;
+    if (!Number.isFinite(tilt) || Math.abs(tilt) > 9) throw new Error('design kit: a device turns at most 9 degrees');
+    const whole = (v, what, lo, hi) => { const q = n(v, what); if (!Number.isInteger(q) || q < lo || q > hi) throw new Error(`design kit: a device's ${what} must be whole pixels from ${lo} to ${hi}`); return q; };
+    const bw = whole(g.w, 'width', 160, 1400), bh = whole(g.h, 'height', 160, 2000), s = g.screen;
+    const sc = { x: whole(s.x, 'bezel', 0, 200), y: whole(s.y, 'bezel', 0, 200), w: whole(s.w, 'screen width', 40, 1400), h: whole(s.h, 'screen height', 40, 2000), r: whole(s.radius, 'screen radius', 0, 400) };
+    const r = whole(g.radius, 'radius', 0, 400);
+    const fo = POSITION.test(spec.focalCss ?? '') ? spec.focalCss : '50% 50%';
+    const zoom = Number.isFinite(Number(spec.zoom)) ? Math.min(3, Math.max(1, Number(spec.zoom))) : 1;
+    const tr = zoom > 1 ? `;transform:scale(${px(zoom)});transform-origin:${fo}` : '';
+    const btns = (Array.isArray(g.buttons) ? g.buttons : []).slice(0, 6).map((b) => `<i class="abs k-dev-btn" aria-hidden="true" data-deco style="left:${whole(b.x, 'button x', -20, 1420)}px;top:${whole(b.y, 'button y', 0, 2000)}px;width:${whole(b.w, 'button width', 1, 20)}px;height:${whole(b.h, 'button height', 4, 400)}px"></i>`).join('');
+    let cut = '';
+    if (g.cut) {
+      if (!['island', 'notch'].includes(g.cut.kind)) throw new Error('design kit: a device camera is an island or a notch');
+      cut = `<i class="abs k-dev-cut k-dev-${g.cut.kind}" aria-hidden="true" data-deco style="left:${whole(g.cut.x, 'camera x', 0, 1400)}px;top:${whole(g.cut.y, 'camera y', 0, 400)}px;width:${whole(g.cut.w, 'camera width', 8, 800)}px;height:${whole(g.cut.h, 'camera height', 4, 200)}px${g.cut.kind === 'notch' ? `;border-radius:0 0 ${whole(Math.round(g.cut.h * 0.6), 'camera corner', 2, 120)}px ${whole(Math.round(g.cut.h * 0.6), 'camera corner', 2, 120)}px` : ''}"></i>`;
+    }
+    const css = [place({ x: o.x, y: o.y, w: bw, h: bh }), tilt ? `transform:rotate(${px(tilt)}deg)` : '', o.soft !== undefined ? `filter:${softDevice(o.soft)}` : '', o.z !== undefined ? `z-index:${P(o.z, 'z')}` : ''].filter(Boolean).join(';');
+    return `<div class="abs k-dev k-dev-${o.model ?? 'phone'}" data-el data-grid="skip"${tilt ? ` data-tilt="${px(tilt)}"` : ''} style="${css}">${btns}`
+      + `<div class="abs k-dev-body ${DEVICE_FINISH[o.finish ?? 'dark']}" data-el data-fill style="inset:0;border-radius:${r}px">`
+      + `<div class="abs k-photo k-dev-screen" data-el style="left:${sc.x}px;top:${sc.y}px;width:${sc.w}px;height:${sc.h}px;border-radius:${sc.r}px"><img data-user data-device data-name="${esc(spec.image)}" data-fit="cover" src="${args.image(spec.image)}" alt="" style="object-position:${fo}${tr}"></div>`
+      + `${cut}</div></div>`;
   };
   // A framed print: the picture inset in a paper border with a keyline, and a caption strip beneath. The outer box is (x, y, w, h);
   // border px of paper; caption: Markup placed under the picture inside the border (kept to the label size).

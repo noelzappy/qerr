@@ -89,7 +89,7 @@ const chrome = findChrome();
 if (!chrome) { console.error(NO_CHROME); process.exit(1); }
 fs.mkdirSync(outRoot, { recursive: true });
 const tmpDir = path.join(ROOT, 'out', 'design-tmp');
-const browser = await Browser.launch({ chromePath: chrome, lockFile: path.join(ROOT, 'out', 'design.lock') });
+const browser = await Browser.launch({ chromePath: chrome });
 const cells = new Map();
 let failed = 0;
 try {

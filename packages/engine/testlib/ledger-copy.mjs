@@ -1,12 +1,13 @@
 // The ledger look's test copy (sample = normal pages, stress = the longest copy that holds, minimal = the least a post of each kind needs).
 // Fictional: a savings app that works in euros. No real organisation, person or amount; the figures are round and illustrative.
-// PICTURES: what each composition that draws a picture is given (the engine's synthetic demo pictures; the phone page takes the pre-framed
-// phone capture).
+// PICTURES: what each composition that draws a picture is given (the engine's synthetic demo pictures; the phone page takes a bare phone
+// screenshot, and the engine draws the phone round it). The quotation's portrait picture (avatar) is a synthetic demo picture too.
 export const PICTURES = {
-  'ledger/photo/0': { image: 'design/assets/demo/screen-phone.png' },
+  'ledger/photo/0': { image: 'design/assets/demo/screen-app.png' },
   'ledger/photo/1': { image: 'design/assets/demo/object-jar.jpg' },
 };
 const GALLERY = [{ image: 'design/assets/demo/object-jar.jpg' }, { image: 'design/assets/demo/scene-market.jpg' }];
+const AVATAR = { image: 'design/assets/demo/object-jar.jpg', focal: '50% 60%' };
 export const NORMAL = {
   'ledger/statement/0': { label: 'How it works', headline: 'Save together, see every euro.', sub: 'One shared pot for your group, with every payment on record.', cta: 'Start a pot' },
   'ledger/statement/1': { label: 'Your money, protected', headline: 'Every payment, *on record for all.*', sub: 'Each member sees the same balance and every payment, the moment it is made.' },
@@ -15,7 +16,7 @@ export const NORMAL = {
   'ledger/figure/2': { big: '1', headline: 'Name your group and *its goal.*', sub: 'A holiday, a laptop, a rainy-day fund: say what you are saving for.' },
   'ledger/list/0': { headline: 'Everything your group *needs to save.*', items: ['One shared pot', 'Every payment on record', 'Reminders on pay day'], cta: 'See how it works' },
   'ledger/list/1': { label: 'How it works', headline: 'Start a group in three steps', items: ['Name the group and its goal', 'Invite the members', 'Agree the amount and the day'] },
-  'ledger/quote/0': { label: 'Group organiser', quote: 'We stopped arguing about who paid. *Now everyone just looks.*', by: 'Ama, saves with five friends', gallery: GALLERY },
+  'ledger/quote/0': { label: 'Group organiser', quote: 'We stopped arguing about who paid. *Now everyone just looks.*', by: 'Ama, saves with five friends', avatar: AVATAR },
   'ledger/photo/0': { label: 'New in the app', headline: 'See the pot fill, *week by week.*', sub: 'Every payment, the moment it lands.', cta: 'Get the app' },
   'ledger/photo/1': { headline: 'Small amounts, *saved together.*', sub: 'One place for the group’s savings, open to every member.', tag: 'Weekly', cta: 'Start saving' },
   'ledger/event/0': { label: 'Live session', headline: 'Ask us anything about *group saving*', meta: '12 Dec · 6pm · Online', cta: 'Save a seat' },

@@ -48,6 +48,8 @@ import * as photoRow from './directions/primitives/photo-row.mjs';
 import * as tapedPhoto from './directions/primitives/taped-photo.mjs';
 import * as paperTexture from './directions/primitives/paper-texture.mjs';
 import * as iconBadge from './directions/primitives/icon-badge.mjs';
+import * as avatar from './directions/primitives/avatar.mjs';
+import * as device from './directions/primitives/device.mjs';
 import * as ribbon from './directions/primitives/ribbon.mjs';
 import * as chart from './directions/primitives/chart.mjs';
 // the shapes of a headline's pills (kit.mjs PILL_SHAPES)
@@ -62,8 +64,9 @@ export const PRIMITIVES = Object.freeze({ 'fitted-stack': fittedStack, numeral, 
   // a picture taped on at an angle, a paper texture, one of the engine's icons drawn large, bare or on a badge (a sticker, a trust mark),
   // and a ribbon across a corner of the page
   'taped-photo': tapedPhoto, 'paper-texture': paperTexture, 'icon-badge': iconBadge, ribbon,
-  // a chart drawn from the post's numbers (bars, a line, a sparkline, a donut, a progress bar)
-  chart });
+  // a chart drawn from the post's numbers (bars, a line, a sparkline, a donut, a progress bar), one portrait picture of the person quoted (the
+  // post's avatar), and a phone or tablet drawn round a bare screenshot
+  chart, avatar, device });
 
 export const LOOK_SCHEMA = 1;
 export const KINDS = [...POST_KINDS];
@@ -84,20 +87,23 @@ export const FORBIDDEN_KEYS = Object.freeze(['render', '__proto__', 'constructor
 // Which fields a composition of a kind may use (a superset of the compositions of the shipped directions); the required ones come
 // from POST_REQUIRED and must be declared required.
 // cta (a button's words), info (an info block's rows) and gallery (a row of round pictures) are the optional parts a post may add; they come last.
-// A figure may carry a tag (a small change pill such as "+12%"), a quote a gallery (the round picture of the person quoted).
+// A figure may carry a tag (a small change pill such as "+12%"), a quote a gallery (round pictures of the people quoted) or an avatar (one portrait
+// picture of the person quoted); an event may carry an avatar too (the speaker).
 // Any kind but a quote may carry a chart (chart.mjs: a bar or line chart, a sparkline, a donut or a progress bar drawn from its numbers).
 export const KIND_FIELDS = Object.freeze({
   statement: ['label', 'headline', 'sub', 'cta', 'info', 'gallery', 'chart'],
   figure: ['label', 'headline', 'big', 'unit', 'sub', 'image', 'tag', 'chart'],
   list: ['label', 'headline', 'sub', 'items', 'cta', 'chart'],
-  quote: ['label', 'quote', 'by', 'gallery'],
+  quote: ['label', 'quote', 'by', 'gallery', 'avatar'],
   photo: ['label', 'image', 'headline', 'sub', 'tag', 'cta', 'info', 'gallery', 'chart'],
-  event: ['label', 'image', 'headline', 'meta', 'sub', 'tag', 'cta', 'info', 'gallery', 'chart'],
+  event: ['label', 'image', 'headline', 'meta', 'sub', 'tag', 'cta', 'info', 'gallery', 'avatar', 'chart'],
   offer: ['label', 'image', 'headline', 'tag', 'sub', 'unit', 'cta', 'info', 'gallery', 'chart'],
 });
 // the counted lists of a post (POST_LISTS) and its picture
 export const LIST_FIELDS = ['items', 'info', 'gallery'];
-export const FIELD_NAMES = [...TEXT_FIELDS, ...LIST_FIELDS, 'image', 'chart'];
+// the fields that are a picture: the post's own and the portrait picture of a quotation
+export const PICTURE_FIELDS = ['image', 'avatar'];
+export const FIELD_NAMES = [...TEXT_FIELDS, ...LIST_FIELDS, ...PICTURE_FIELDS, 'chart'];
 
 // ---- the common properties of elements ----
 export const COMMON = Object.freeze({

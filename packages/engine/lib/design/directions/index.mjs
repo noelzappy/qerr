@@ -15,7 +15,7 @@ import { displayTarget } from '../checks.mjs';
 import { fontFacesFor } from '../font-library.mjs';
 import { grainUri, makeContext, numberElements, rootCss } from './kit.mjs';
 import fs from 'node:fs';
-import { canonicalJson, compositionGraphicRefs, lookBrief, normaliseLook, validateLook } from '../look.mjs';
+import { canonicalJson, compositionDevice, compositionGraphicRefs, lookBrief, normaliseLook, validateLook } from '../look.mjs';
 import { POST_FIELDS, POST_ITEMS, POST_KINDS, POST_LISTS, POST_REQUIRED, seenText } from '../post-spec.mjs';
 import { accentPlan, paletteCss } from './colour.mjs';
 import { fontAlias } from '../font-library.mjs';
@@ -150,13 +150,13 @@ function adapt(look) {
     const index = (byKind[cp.kind] ??= []).length, tokensProbe = null;
     const groundOf = (spec) => {
       if (typeof cp.ground === 'string') return cp.ground;
-      const has = (f) => (Object.hasOwn(POST_LISTS, f) ? Array.isArray(spec[f]) && spec[f].length > 0 : f === 'image' ? typeof spec.image === 'string' && spec.image !== '' : typeof spec[f] === 'string' && spec[f] !== '');
+      const has = (f) => (Object.hasOwn(POST_LISTS, f) ? Array.isArray(spec[f]) && spec[f].length > 0 : f === 'image' ? typeof spec.image === 'string' && spec.image !== '' : f === 'avatar' ? !!spec.avatar && typeof spec.avatar === 'object' && typeof spec.avatar.image === 'string' && spec.avatar.image !== '' : typeof spec[f] === 'string' && spec[f] !== '');
       for (const g of cp.ground) if (!g.when || ((g.when.present === undefined || has(g.when.present)) && (g.when.absent === undefined || !has(g.when.absent)))) return g.ground;
       return cp.ground[cp.ground.length - 1].ground;
     };
     const seen = (v) => [...seenText(v)].length;
     byKind[cp.kind].push({
-      id: `${look.id}/${cp.kind}/${index}`, name: cp.name, describe: cp.describe, fields: Object.keys(cp.fields), words: Object.fromEntries(Object.entries(cp.fields).filter(([f, v]) => f !== 'items' && f !== 'image' && v.max).map(([f, v]) => [f, v.max])),
+      id: `${look.id}/${cp.kind}/${index}`, name: cp.name, describe: cp.describe, fields: Object.keys(cp.fields), words: Object.fromEntries(Object.entries(cp.fields).filter(([f, v]) => f !== 'items' && f !== 'image' && f !== 'avatar' && v.max).map(([f, v]) => [f, v.max])),
       ground: typeof cp.ground === 'string' ? cp.ground : cp.ground[cp.ground.length - 1].ground, groundOf, calm: cp.calm ? { maxShare: cp.calm.maxShare } : undefined, fitSpec: cp.fit,
       dark: groundDark(cp), bodyOnField: bodyOnField(cp),
       accepts: cp.accepts.length ? (spec) => cp.accepts.every((r) => {
@@ -209,6 +209,18 @@ export function postCompositionGraphics(look, spec, { shipped = false } = {}) {
   return { kind: spec.kind, variant: used, name: comp.name, refs: compositionGraphicRefs(comp.data) };
 }
 const isObjSpec = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+// The device the composition that will draw `spec` (a post) draws round its picture, chosen as renderPostWithLook chooses it: { kind, variant, name,
+// device: 'phone' | 'tablet' | null }, or null when the look is invalid or has no composition that takes the post. No page is built.
+export function postCompositionDevice(look, spec, { shipped = false } = {}) {
+  const r = resolveLook(look, { shipped });
+  if (r.problems.length || !isObjSpec(spec)) return null;
+  const list = r.comps[spec.kind] ?? [];
+  if (!list.length) return null;
+  let used;
+  try { ({ used } = pickVariant(spec, list, r.look.id)); } catch (e) { if (e instanceof DesignError) return null; throw e; }
+  const comp = list[used];
+  return { kind: spec.kind, variant: used, name: comp.name, device: compositionDevice(comp.data) };
+}
 
 const num4 = (v) => +Number(v).toFixed(4);
 // the look's custom properties on the page's root: numbers and fixed words only
@@ -240,7 +252,7 @@ function draw({ spec, ctx, comp, tokens, direction, used, fellBackFrom, code, lo
   const classes = typeof out === 'object' && out.classes ? String(out.classes) : '';
   if (!/^[a-z0-9 _-]*$/.test(classes)) throw new Error(`${comp.id}: classes may only use lowercase letters, digits, space, - and _`);
   const warnings = [...new Set(c.lookNotes ?? [])];
-  for (const f of ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'meta', 'tag', 'image', 'cta', 'info', 'gallery', 'chart']) if (spec[f] !== undefined && !comp.fields.includes(f)) warnings.push(`${f} is not used by the ${comp.name} composition (${comp.id}); it is left out of the image`);
+  for (const f of ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'meta', 'tag', 'image', 'cta', 'info', 'gallery', 'chart', 'avatar']) if (spec[f] !== undefined && !comp.fields.includes(f)) warnings.push(`${f} is not used by the ${comp.name} composition (${comp.id}); it is left out of the image`);
   for (const [f, max] of Object.entries(comp.words)) {
     if (f === 'items') continue;
     if (spec[f] !== undefined && c.chars(f) > max) warnings.push(`the ${f} is ${c.chars(f)} characters; the ${comp.name} composition is designed for up to ${max}, so it may be set smaller than intended`);
@@ -320,7 +332,7 @@ export function postKinds(brand) {
       if (!entry?.variants.length) continue;
       const vs = entry.variants, names = new Set([...(POST_REQUIRED[kind] ?? []), ...vs.flatMap((v) => Object.keys(v.fields))]), fields = {};
       for (const f of names) {
-        if (f === 'image') { fields[f] = {}; continue; }
+        if (f === 'image' || f === 'avatar') { fields[f] = {}; continue; }
         const have = vs.filter((v) => v.fields[f]);
         if (f === 'items') { fields[f] = { min: Math.min(...have.map((v) => v.fields.items.min ?? POST_ITEMS.min)), max: Math.max(...have.map((v) => v.fields.items.max ?? POST_ITEMS.max)), chars: POST_ITEMS.chars }; continue; }
         // a chart: the kinds any composition of the kind draws, its point counts and its label length
@@ -330,7 +342,7 @@ export function postKinds(brand) {
         if (!hard) continue;
         fields[f] = { max: hard, ...(have.length ? { budget: Math.min(hard, ...have.map((v) => v.fields[f].max ?? hard)) } : {}) };
       }
-      out[kind] = { required: POST_REQUIRED[kind] ?? [], fields, variants: vs.map((v) => ({ variant: v.index, name: v.name, describe: v.describe })) };
+      out[kind] = { required: POST_REQUIRED[kind] ?? [], fields, variants: vs.map((v) => ({ variant: v.index, name: v.name, describe: v.describe, ...(v.device ? { device: v.device } : {}) })) };
     }
     return out;
   }
