@@ -416,6 +416,9 @@ model BrandProfile {
   // The style layer's own uploads: { display?: { key, family }, label?: { key, family }, artwork?: { key, type } } (woff2 fonts
   // for headlines and labels, and a PNG, JPEG or WebP picture for the decoration)
   assets         Json     @default("{}")
+  // The brand's active look, as a reference: 'shipped:<id>' (the engine's own) or 'own:<slug>' (a BrandLook of this brand);
+  // null means classic layouts. A pointer, not a flag on each look.
+  activeLookRef  String?
   updatedById    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now()) @updatedAt
@@ -472,4 +475,61 @@ model BrandLayout {
 
   @@index([position])
   @@map("brand_layouts")
+}
+
+// A brand's own look (Settings, Looks): a look as data (packages/engine/lib/design/look.mjs) without its compositions, which are
+// BrandLookComposition rows. Always a copy of a shipped look or of another own look (never started blank). brandId is the owner:
+// 'brand' today (BrandProfile.id); a plain indexed column, not a relation, because the profile row does not exist until Settings,
+// Brand is first saved. Every query filters on it (services/looks.ts, the LookScope).
+model BrandLook {
+  id           String   @id @default(uuid())
+  brandId      String   @default("brand")
+  // The look's id in a brand file (definition.id): lowercase letters, digits and -; never contains ':'
+  slug         String
+  name         String
+  // The look without compositions, as the engine reads it
+  definition   Json
+  // What it was copied from: 'shipped:<id>' or 'own:<slug>'
+  origin       String
+  // The engine's look schema number it was written for
+  engineSchema Int
+  // 'draft' | 'ready'; only a ready look may be made the active one
+  status       String   @default("draft")
+  // The last gate record { engineVersion, definitionHash, at, passed, checks }, null when stale
+  gate         Json?
+  position     Int      @default(0)
+  createdById  String?
+  updatedById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  compositions BrandLookComposition[]
+
+  @@unique([brandId, slug])
+  @@index([brandId, position])
+  @@map("brand_looks")
+}
+
+// One composition of a BrandLook. Its id in the engine is derived (<kind>/<index>); the row's uuid is only for the panel.
+// `definition` is what is drawn; `draft` holds unpublished edits and never affects drawing; `gate` is the gate record of the
+// current definition.
+model BrandLookComposition {
+  id         String    @id @default(uuid())
+  lookId     String
+  look       BrandLook @relation(fields: [lookId], references: [id], onDelete: Cascade)
+  // Denormalised owner, so a row can be checked against the caller's brand without a join
+  brandId    String    @default("brand")
+  kind       String
+  position   Int       @default(0)
+  name       String
+  definition Json
+  draft      Json?
+  enabled    Boolean   @default(true)
+  gate       Json?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+
+  @@unique([lookId, kind, position])
+  @@index([brandId])
+  @@map("brand_look_compositions")
 }
