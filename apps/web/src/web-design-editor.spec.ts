@@ -518,6 +518,12 @@ describe('fields, budgets, conditions and accepts', () => {
     expect(M.setCalm(comp(), 0.9).error).toBeTruthy();
     expect(M.setCalm({ ...comp(), calm: { maxShare: 0.6 } }, undefined).comp.calm).toBeUndefined();
     expect(M.setGround(comp(), 'dark').comp.ground).toBe('dark');
+    // more sizes of type: three is the rule (no setting), four or five with a ratio
+    expect(M.setLevels(comp(), 4).comp.levels).toEqual({ max: 4 });
+    expect(M.setLevels(comp(), 5, 1.4).comp.levels).toEqual({ max: 5, ratio: 1.4 });
+    expect(M.setLevels({ ...comp(), levels: { max: 4 } }, 3).comp.levels).toBeUndefined();
+    expect(M.setLevels(comp(), 6).error).toBeTruthy();
+    expect(M.setLevels(comp(), 4, 1.1).error).toBeTruthy();
   });
   it('checks a size ladder', () => {
     expect(M.checkLadder([[30, 96], [70, 80]], 70, [24, 300])).toBe('');

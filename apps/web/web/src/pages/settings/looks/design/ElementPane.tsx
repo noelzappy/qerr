@@ -37,7 +37,7 @@ const POSITION = ['place', 'rot', 'origin', 'originPct', 'bleed', 'z', 'altRot']
 const COLOUR = ['fill', 'ink', 'colour', 'tint', 'altFill', 'edgeFill', 'lower', 'keylineColour', 'labelInk', 'captionInk'];
 const STYLE = ['emphasis', 'emphasisOwnLine', 'align', 'upper', 'weight', 'font', 'family', 'valign', 'track', 'lead', 'nowrap', 'dropWhenTight', 'numberStyle', 'textStyle', 'gapEm', 'baselineAt',
   'shape', 'shadow', 'textShadow', 'ring', 'border', 'radius', 'pad', 'treat', 'keyline', 'rule', 'firstAccent', 'need', 'fade', 'fadeFrom', 'altItalic', 'outline', 'numberTile',
-  'pills', 'icons', 'icon', 'valueStyle'];
+  'pills', 'icons', 'icon', 'valueStyle', 'swash'];
 
 export function ownerOf(name: string, desc: Desc & { group?: string }): GroupId {
   if (desc.group === 'flow' || POSITION.includes(name)) return 'position';

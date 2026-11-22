@@ -307,6 +307,8 @@ export function explainProblems(problems, sizeName, lengths = {}) {
 //              allows more (levels: { max 4 or 5, ratio }, set on the page as data-levels and data-ratio) is held to a hierarchy instead:
 //              at most max sizes, each at least ratio times the next smaller one, and the headline (or the big numeral) the largest;
 //   GRID       every text block's edge sits on the margin or a column line (within 2 px), unless it is marked data-grid="skip".
+//   SWASH      a decorative swash (runtime placeSwashes) touches no word but the ones it is drawn against (with overlap: none of another
+//              text, the words of its own headline allowed), and stays on the page;
 //   EDGE       no line of text has its ink within 10 px of the edge of a filled block or rule (or crossing it), nor sits that close to
 //              the edge of the block it is inside (a descender touching a rule, a headline under a block, a price on its block's foot).
 export const POST_LIMITS = Object.freeze({ emptyShare: 0.45, scale: 2.6, levels: 3, tol: 2, edge: 10 });
@@ -344,6 +346,22 @@ export function hierarchyProblems(texts, designed, { max, ratio }) {
   }
   return out;
 }
+// The swash check: every small box along each swash's stroke against the ink box of every word on the page. A word it is drawn against is
+// always allowed; with overlap, so are the other words of its own headline; any other word it touches (by more than 1 px each way) refuses
+// the page, and so does a stroke that leaves the page. m: postMetrics().swash ({ W, H, swashes: [{ host, over, word, dots, box }], words }).
+export function swashProblems(m) {
+  if (!m || !Array.isArray(m.swashes)) return [];
+  const out = [], words = Array.isArray(m.words) ? m.words : [];
+  const hit = (a, b) => Math.min(a[2], b.x1) - Math.max(a[0], b.x0) > 1 && Math.min(a[3], b.y1) - Math.max(a[1], b.y0) > 1;
+  for (const s of m.swashes) {
+    const dots = Array.isArray(s.dots) ? s.dots : [];
+    const b = s.box ?? {};
+    if (b.x0 < 0 || b.y0 < 0 || b.x1 > (m.W ?? 1080) || b.y1 > (m.H ?? 1350)) { out.push({ kind: 'swash', edge: true, word: s.word }); continue; }
+    const other = words.find((w) => !w.target && !(s.over && w.host === s.host) && dots.some((d) => hit(d, w)));
+    if (other) out.push({ kind: 'swash', word: s.word, text: other.text, own: other.host === s.host });
+  }
+  return out;
+}
 export function inkGap(i, f) {
   const inside = i.x0 >= f.x0 - 12 && i.x1 <= f.x1 + 12 && i.y0 >= f.y0 && i.y1 <= f.y1;
   if (inside) return -Math.min(i.y0 - f.y0, f.y1 - i.y1);
@@ -375,6 +393,7 @@ export function findPostProblems(m, { grid } = {}) {
       if (Math.abs(g) < L.edge) { problems.push({ kind: 'edge', role: i.role, text: i.text, gap: Math.round(Math.abs(g)), inside: g < 0, crossing: g === 0 }); break; }
     }
   }
+  problems.push(...swashProblems(m.swash));
   if (grid) {
     const near = (x, xs) => xs.reduce((best, v) => (Math.abs(v - x) < Math.abs(best - x) ? v : best), xs[0]);
     for (const b of m.blocks ?? []) {
@@ -395,6 +414,7 @@ export function explainPostProblems(problems, post = {}) {
     if (p.kind === 'levels') return `the page sets type in ${p.count} sizes (${p.sizes.join(', ')}); at most ${p.limit ?? POST_LIMITS.levels} levels are allowed`;
     if (p.kind === 'steps') return `two sizes of type are too close: ${p.lower} px and ${p.upper} px are only ${p.ratio.toFixed(2)} times apart (this design needs each size at least ${p.need} times the next smaller one): set them further apart or as one size`;
     if (p.kind === 'dominant') return `the headline (${p.headline} px) is not the largest type: "${p.text}" is set at ${p.other} px; the headline must stay the largest`;
+    if (p.kind === 'swash') return p.edge ? `the swash against "${p.word}" runs off the page: choose another word or swash, or move the headline in` : `the swash against "${p.word}" runs into ${p.own ? 'another word of the headline' : 'other text'} ("${p.text}"): choose another word or swash, give the words more room${p.own ? ', or let the swash cross the headline (overlap)' : ''}`;
     if (p.kind === 'edge') return `the ${p.role || 'text'} "${p.text}" ${p.crossing ? 'runs into' : `is only ${p.gap} px ${p.inside ? 'inside' : 'from'}`} the edge of a block or rule (it needs ${POST_LIMITS.edge} px clear): move the text or the block, or shorten the words`;
     return `the ${p.role} "${p.text}" starts at x ${p.x}, which is not on the margin or a column line (nearest ${p.nearest})`;
   });

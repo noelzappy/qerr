@@ -461,7 +461,136 @@ window.__ds = {
     const calm = document.querySelector('[data-calm]'), lv = document.querySelector('[data-levels]');
     // a rectangle for every element a builder marked (kit numberElements): { el: "2.0", x0, y0, x1, y1 } in document order, keyed by its index path
     const els = [...document.querySelectorAll('[data-el]')].map((el) => { const b = el.getBoundingClientRect(); return { el: el.getAttribute('data-el'), x0: b.left, y0: b.top, x1: b.right, y1: b.bottom }; });
-    return { W, H, hs, texts, empty, blocks, inks, shapes, calm: calm ? parseFloat(calm.getAttribute('data-calm')) : null, levels: lv ? { max: parseInt(lv.getAttribute('data-levels'), 10), ratio: parseFloat(lv.getAttribute('data-ratio')) } : null, els };
+    return { W, H, hs, texts, empty, blocks, inks, shapes, calm: calm ? parseFloat(calm.getAttribute('data-calm')) : null, swash: this.swashMetrics(), levels: lv ? { max: parseInt(lv.getAttribute('data-levels'), 10), ratio: parseFloat(lv.getAttribute('data-ratio')) } : null, els };
+  },
+  // ---- decorative swashes (kit swashAttrs, look-desc.mjs swashDesc): a fixed flourish drawn against one word of a headline ----
+  // Each shape is a chain of cubic curves whose control points are written against the measured word: x = x0 + a * width + b * size,
+  // y = baseline + c * size. The stroke is drawn as a filled, tapered outline (an SVG path of numbers only) in a palette colour, in a span
+  // placed just before the headline so the letters paint over it. Nothing of the post or the look reaches the path but these numbers.
+  SWASH: {
+    underline: [[0, -0.06, 0.2], [[0.28, 0, 0.3], [0.66, 0, 0.16], [1, 0.12, 0.1]]],
+    swoosh: [[0, -0.04, 0.26], [[0.35, 0, 0.52], [0.9, 0, 0.44], [1, 0.42, -0.3]]],
+    tail: [[1, -0.03, 0], [[1, 0.42, 0.04], [1, 0.5, 0.46], [1, 0.05, 0.5]], [[0.6, 0, 0.53], [0.25, 0, 0.36], [0, -0.12, 0.42]]],
+    loop: [[0, 0.04, 0], [[0, -0.04, 0.22], [0, -0.12, 0.44], [0, -0.22, 0.46]], [[0, -0.32, 0.48], [0, -0.44, 0.4], [0, -0.42, 0.3]], [[0, -0.4, 0.2], [0, -0.3, 0.16], [0, -0.2, 0.2]],
+      [[0, -0.05, 0.26], [0.2, 0, 0.47], [0.5, 0, 0.45]], [[0.75, 0, 0.43], [0.95, 0, 0.36], [1, 0.1, 0.3]]],
+  },
+  SWASH_WEIGHT: { fine: 0.035, medium: 0.055, bold: 0.08 },
+  // The words of an element, each { node, start, end, phrase } in reading order (trailing and leading punctuation left out).
+  swashWordsOf(host) {
+    const out = [], w = document.createTreeWalker(host, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+      const el = n.parentElement; if (!el || el.closest('[data-deco]')) continue;
+      const cs = getComputedStyle(el); if (cs.visibility === 'hidden' || cs.display === 'none') continue;
+      const re = /\S+/g, t = n.nodeValue;
+      for (let m = re.exec(t); m; m = re.exec(t)) {
+        const s0 = m.index, s1 = m.index + m[0].length, phrase = !!el.closest('em[data-role="accent"]');
+        let a = s0, b = s1;
+        while (a < b && /[\p{P}]/u.test(t[a])) a++;
+        while (b > a && /[\p{P}]/u.test(t[b - 1])) b--;
+        // punctuation is never a word a swash is drawn against, but it is ink the swash must keep clear of
+        if (a > s0) out.push({ node: n, start: s0, end: Math.min(a, s1), phrase, punct: true });
+        if (b > a) out.push({ node: n, start: a, end: b, phrase });
+        if (b < s1 && b >= a) out.push({ node: n, start: Math.max(b, a), end: s1, phrase, punct: true });
+      }
+    }
+    return out;
+  },
+  swashRect(wd) { const g = document.createRange(); g.setStart(wd.node, wd.start); g.setEnd(wd.node, wd.end); const r = [...g.getClientRects()].filter((b) => b.width > 0.5); return r.length ? r[r.length - 1] : null; },
+  // The ink box of a word: across its text rectangle, from its tallest letter to its lowest (measured with the word's own font).
+  swashInk(wd, ctx) {
+    const r = this.swashRect(wd); if (!r) return null;
+    const el = wd.node.parentElement, cs = getComputedStyle(el);
+    ctx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    let s = wd.node.nodeValue.slice(wd.start, wd.end); if (cs.textTransform === 'uppercase') s = s.toUpperCase();
+    const mt = ctx.measureText(s), base = r.top + (mt.fontBoundingBoxAscent ?? (r.bottom - r.top) * 0.8);
+    return { x0: r.left, x1: r.right, y0: base - mt.actualBoundingBoxAscent, y1: base + mt.actualBoundingBoxDescent, base, size: parseFloat(cs.fontSize), text: s.slice(0, 30) };
+  },
+  // Draws the swash of every [data-swash] element (again after each change of size): -> [{ word, ok }]
+  placeSwashes() {
+    for (const old of document.querySelectorAll('.k-swash')) old.remove();
+    const ctx = document.createElement('canvas').getContext('2d'), out = [];
+    this.swashes = [];
+    for (const host of document.querySelectorAll('[data-swash]')) {
+      const shape = host.getAttribute('data-swash'), ink = host.getAttribute('data-swash-ink') || 'accent', pick = host.getAttribute('data-swash-word') || 'last';
+      const spec = Object.prototype.hasOwnProperty.call(this.SWASH, shape) ? this.SWASH[shape] : null, k = this.SWASH_WEIGHT[host.getAttribute('data-swash-weight')] || 0.055;
+      if (!spec || !/^[a-z][a-z-]{0,23}$/.test(ink)) continue;
+      const words = this.swashWordsOf(host).filter((x) => !x.punct);
+      if (!words.length) continue;
+      let target = words[words.length - 1];
+      if (pick === 'first') target = words[0];
+      else if (pick === 'phrase') { const ph = words.filter((x) => x.phrase); if (ph.length) target = ph[ph.length - 1]; }
+      else if (/^\d{1,2}$/.test(pick)) target = words[Math.min(words.length, parseInt(pick, 10)) - 1];
+      // the emphasised phrase: every word of it on the line of its last word
+      let group = [target];
+      if (pick === 'phrase' && target.phrase) {
+        const last = this.swashInk(target, ctx);
+        group = words.filter((x) => x.phrase).filter((x) => { const b = this.swashInk(x, ctx); return b && last && Math.abs(b.base - last.base) < 2; });
+      }
+      // the punctuation that closes the last word ("slowly.") belongs to it: the swash is drawn from the end of it
+      const end = group[group.length - 1], close = this.swashWordsOf(host).find((x) => x.punct && x.node === end.node && x.start === end.end);
+      const named = group.map((x) => this.swashInk(x, ctx)).filter(Boolean);
+      if (close) group = [...group, close];
+      const boxes = group.map((x) => this.swashInk(x, ctx)).filter(Boolean);
+      if (!boxes.length || !named.length) continue;
+      const box = { x0: Math.min(...boxes.map((b) => b.x0)), x1: Math.max(...boxes.map((b) => b.x1)), base: boxes[boxes.length - 1].base, size: boxes[boxes.length - 1].size };
+      const W = box.x1 - box.x0, F = box.size;
+      const at = (p) => [box.x0 + p[0] * W + p[1] * F, box.base + p[2] * F];
+      // the centre line: each cubic sampled evenly
+      const centre = []; let from = at(spec[0]);
+      for (let i = 1; i < spec.length; i++) {
+        const c1 = at(spec[i][0]), c2 = at(spec[i][1]), to = at(spec[i][2]);
+        for (let j = i === 1 ? 0 : 1; j <= 24; j++) {
+          const t = j / 24, u = 1 - t;
+          centre.push([u * u * u * from[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * to[0], u * u * u * from[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * to[1]]);
+        }
+        from = to;
+      }
+      // a tapered outline: thin at both ends, full in the middle
+      const n = centre.length, half = (k * F) / 2, left = [], right = [], dots = [];
+      for (let i = 0; i < n; i++) {
+        const a = centre[Math.max(0, i - 1)], b = centre[Math.min(n - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
+        const hw = half * (0.18 + 0.82 * Math.pow(Math.sin((Math.PI * i) / (n - 1)), 0.6));
+        left.push([centre[i][0] - (dy / len) * hw, centre[i][1] + (dx / len) * hw]);
+        right.push([centre[i][0] + (dy / len) * hw, centre[i][1] - (dx / len) * hw]);
+        dots.push([centre[i][0] - hw, centre[i][1] - hw, centre[i][0] + hw, centre[i][1] + hw]);
+      }
+      const poly = [...left, ...right.reverse()];
+      const xs = poly.map((p) => p[0]), ys = poly.map((p) => p[1]);
+      const bx0 = Math.floor(Math.min(...xs)) - 2, by0 = Math.floor(Math.min(...ys)) - 2, bx1 = Math.ceil(Math.max(...xs)) + 2, by1 = Math.ceil(Math.max(...ys)) + 2;
+      const span = document.createElement('span');
+      span.className = 'k-swash'; span.setAttribute('aria-hidden', 'true'); span.setAttribute('data-deco', '');
+      span.style.left = '0px'; span.style.top = '0px'; span.style.width = (bx1 - bx0) + 'px'; span.style.height = (by1 - by0) + 'px'; span.style.color = 'var(--c-' + ink + ')';
+      host.parentNode.insertBefore(span, host);
+      const o = span.getBoundingClientRect();
+      span.style.left = (bx0 - o.left) + 'px'; span.style.top = (by0 - o.top) + 'px';
+      const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'), path = document.createElementNS(NS, 'path');
+      svg.setAttribute('width', String(bx1 - bx0)); svg.setAttribute('height', String(by1 - by0)); svg.setAttribute('viewBox', '0 0 ' + (bx1 - bx0) + ' ' + (by1 - by0));
+      path.setAttribute('d', 'M' + poly.map((p) => (p[0] - bx0).toFixed(1) + ' ' + (p[1] - by0).toFixed(1)).join('L') + 'Z');
+      path.setAttribute('fill', 'currentColor');
+      svg.appendChild(path); span.appendChild(svg);
+      const hostIndex = [...document.querySelectorAll('[data-swash]')].indexOf(host);
+      this.swashes.push({ host: hostIndex, over: host.hasAttribute('data-swash-over'), word: named.map((b) => b.text).join(' ').slice(0, 30), words: group, dots, box: { x0: bx0, y0: by0, x1: bx1, y1: by1 } });
+      out.push({ word: named.map((b) => b.text).join(' ').slice(0, 30), ok: true });
+    }
+    return out;
+  },
+  // What the swash check (checks.mjs, kind swash) reads: each swash's stroke as small boxes along it, and the ink box of every word on the page
+  // ({ own: in the swash's own headline, target: one of the words it is drawn against }).
+  swashMetrics() {
+    if (!this.swashes || !this.swashes.length) return null;
+    const ctx = document.createElement('canvas').getContext('2d'), hosts = [...document.querySelectorAll('[data-swash]')], words = [];
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) {
+      const el = n.parentElement; if (!el || el.closest('script,style,[data-deco]')) continue;
+      const block = el.closest('[data-role]'); if (!block) continue;
+      const host = el.closest('[data-swash]');
+      for (const wd of this.swashWordsOf(el).filter((x) => x.node === n)) {
+        const b = this.swashInk(wd, ctx); if (!b) continue;
+        const sw = this.swashes.find((x) => x.words.some((t) => t.node === wd.node && t.start === wd.start));
+        words.push({ x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1, text: b.text, host: host ? hosts.indexOf(host) : -1, target: !!sw });
+      }
+    }
+    return { W: innerWidth, H: innerHeight, swashes: this.swashes.map((s) => ({ host: s.host, over: s.over, word: s.word, dots: s.dots, box: s.box })), words };
   },
   hide(on) { document.documentElement.classList.toggle('measure', !!on); },
   measure() {

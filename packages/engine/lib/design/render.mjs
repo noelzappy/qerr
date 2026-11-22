@@ -196,6 +196,8 @@ export async function renderImage(browser, brand, job, { tmpDir, converter, qual
 
     // 1b. A post's design checks: emptiness, scale, levels of type and the grid (checks.mjs findPostProblems).
     if (isPost) {
+      // a headline's decorative swash is drawn against the word at its final size, then checked with the rest (checks.mjs swashProblems)
+      await page.evaluate('window.__ds.placeSwashes()');
       const pm = await page.evaluate('window.__ds.postMetrics()');
       postEls = pm.els;
       const bad = findPostProblems(pm, { grid: out.post.grid });

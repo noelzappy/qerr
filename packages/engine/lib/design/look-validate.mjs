@@ -237,6 +237,12 @@ function typeRules(el, path, ctx, errs) {
       if (!INLINE.fields.includes(el.field) || (el.part !== undefined && el.part !== 'all')) bad(`draws the marks of a whole headline; show the headline (part all) to use ${k}`, k);
       else if (el.tiltBar === true || el.vertical !== undefined) bad('cannot go with tiltBar or vertical', k);
     }
+    // a swash is drawn against a word of a headline (or a quote) set in display type, read straight: not on a label, a part or a turned line
+    if (el.swash !== undefined) {
+      if (!['headline', 'quote'].includes(el.field) || (el.part !== undefined && el.part !== 'all')) bad('is drawn against a word of the whole headline or quote', 'swash');
+      else if (style !== 'display') bad('is drawn on display type (style display)', 'swash');
+      else if (el.tiltBar === true || el.vertical !== undefined || el.rot !== undefined) bad('cannot go with a turned line (rot, vertical or tiltBar)', 'swash');
+    }
     if (isObj(el.pills)) {
       const shape = el.pills.shape ?? 'pill';
       if (shape === 'outline' && el.pills.fill !== undefined) bad('an outline pill has no fill; leave fill out or choose another shape', 'pills.fill');
@@ -550,6 +556,15 @@ function compositionProblems(c, i, ctx, errs) {
     let inSticker = false;
     for (let a = n.parent; a; a = a.parent) if (a.type === 'sticker') inSticker = true;
     if (!inSticker) push(errs, ctx, `${n.path}.follow`, 'is drawn for text inside a sticker (a date numeral on a tile); put it there');
+  }
+  // at most one swash, never inside a turned box or a shape (the page draws it straight, against the measured word)
+  const swashed = st.nodes.filter((x) => x.el.swash !== undefined && (x.type === 'text' || x.type === 'fitted-stack'));
+  if (swashed.length > 1) push(errs, ctx, `${swashed[1].path}.swash`, 'a composition has at most one swash');
+  for (const n of swashed) {
+    for (let a = n.parent; a; a = a.parent) {
+      if (a.type === 'sticker' || a.type === 'band' || a.type === 'seam') { push(errs, ctx, `${n.path}.swash`, `is drawn on a headline on the page, not inside a ${a.type}`); break; }
+      if (a.el.rot !== undefined && a.el.rot !== 0) { push(errs, ctx, `${n.path}.swash`, 'is drawn straight; the box it is in is turned'); break; }
+    }
   }
   const droppers = st.nodes.filter((x) => x.type === 'text' && x.el.dropWhenTight === true);
   if (droppers.length > 1) push(errs, ctx, `${droppers[1].path}.dropWhenTight`, 'at most one element of a composition may leave itself out when tight');

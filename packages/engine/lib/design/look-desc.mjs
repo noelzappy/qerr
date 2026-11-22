@@ -85,6 +85,22 @@ export const tuple = (items, label, help) => d({ kind: 'tuple', items }, label, 
 export const obj = (props, label, help, required = []) => d({ kind: 'object', props, ...(required.length ? { required } : {}) }, label, help);
 export const oneOf = (forms, label, help, def) => d({ kind: 'oneOf', forms }, label, help, def);
 
+// ---- decorative swashes: a fixed flourish drawn against one word of the headline ----
+// The shapes are the engine's own (runtime.mjs placeSwashes draws them from these names and the measured word); a look picks one, the word
+// (the first, the last, the emphasised phrase or the nth word), a palette role, a stroke weight, and whether it may cross the headline's other
+// words. It never crosses other text: the page checks that on the drawn swash (checks.mjs findPostProblems, kind swash).
+export const SWASH_SHAPES = ['underline', 'swoosh', 'tail', 'loop'];
+export const SWASH_WORDS = ['first', 'last', 'phrase'];
+export const SWASH_WEIGHTS = ['fine', 'medium', 'bold'];
+export const SWASH_MAX_WORD = 12;
+export const swashDesc = () => obj({
+  shape: en(SWASH_SHAPES, 'Swash', 'An underline swoosh under the word, a swoosh that flicks up past its end, a tail from its last letter curling back under it, or a loop from its first letter running under it.'),
+  word: oneOf([{ is: 'string', desc: en(SWASH_WORDS, 'Word', 'The first word, the last word, or the emphasised phrase (its last line).') }, { is: 'number', desc: int(1, SWASH_MAX_WORD, 'Word number', 'The nth word (1 is the first); a shorter headline uses its last word.') }], 'Word', 'Which word of the headline the swash is drawn against.', 'last'),
+  colour: role('Colour', 'The swash colour (a role of the brand\'s colours).', 'accent'),
+  weight: en(SWASH_WEIGHTS, 'Weight', 'How thick the stroke is, as a share of the letters\' size.', 'medium'),
+  overlap: bool('May cross the headline', 'Lets the swash cross the headline\'s other words on purpose. It never crosses any other text.', false),
+}, 'Swash', 'A decorative flourish drawn against one word of the headline, in a brand colour.', ['shape']);
+
 // ---- gradients, overlays over a picture, brand graphics and cut-outs (each a separate, bounded capability) ----
 // A gradient: two or three brand colour roles (never a hex), linear at a whole-degree angle or radial from one of nine points.
 export const GRADIENT_KINDS = ['linear', 'radial'];

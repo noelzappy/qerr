@@ -169,3 +169,7 @@
 /* the icon of a round badge, centred, sized by the badge (font-size) */
 .k-badge-i{display:flex;align-items:center;justify-content:center;line-height:1}
 .k-badge-i .k-ic{width:1em;height:1em;margin:0;vertical-align:0}
+
+/* a decorative swash (runtime.mjs placeSwashes): a tapered flourish under the headline's letters, in a palette colour set on the span */
+.post .k-swash{position:absolute;display:block;pointer-events:none}
+.post .k-swash svg{display:block;overflow:visible}
