@@ -4,7 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { pipelineEngine } from './engine/pipeline.js';
-import { oneAtATime, renderPost } from './services/render.js';
+import { renderPost } from './services/render.js';
+import { withRenderSlot } from './services/render-limit.js';
 import { addImage, seedBatch } from './testing-batches.js';
 import { createTestApp, type TestApp } from './testing.js';
 
@@ -95,7 +96,7 @@ describe('render job without Chrome', () => {
 describe('one render at a time', () => {
   it('runs queued jobs one after another, even when one of them fails', async () => {
     const order: string[] = [];
-    const job = (name: string, ms: number, fail = false) => oneAtATime(async () => {
+    const job = (name: string, ms: number, fail = false) => withRenderSlot(async () => {
       order.push(`${name}:start`);
       await new Promise((r) => setTimeout(r, ms));
       order.push(`${name}:end`);

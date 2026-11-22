@@ -3,7 +3,7 @@
 // The design engine reads pictures from disk relative to the repository root, so a vault photo, and each brand graphic the active
 // look's chosen composition places (design-images.ts attachGraphics), is copied from the bucket into out/app-render/<run>/
 // (git-ignored) and only the temporary copy of the spec points at it. The folder is removed
-// afterwards. One Chrome at a time: the queue runs one job at a time and a process-level lock covers direct calls.
+// afterwards. At most RENDER_CONCURRENCY renders at once (services/render-limit.ts): the job runner takes that many jobs and each takes a slot.
 import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -14,6 +14,7 @@ import { pipelineEngine } from '../engine/pipeline.js';
 import { describeError, logger } from '../log.js';
 import { privateKey } from '../storage/types.js';
 import { trackRun, type RunHandle } from './activity.js';
+import { withRenderSlot } from './render-limit.js';
 import { syncBrand } from './brand-settings.js';
 import { attachGraphics, copyVaultFile, designProblems, photosOfDesign, withoutVaultIds } from './design-images.js';
 import { DEFAULT_BRAND_ID } from './looks.js';
@@ -21,20 +22,13 @@ import { asMedia, assertInside, MEDIA_TYPES, POST_KEY_RE, type MediaEntry } from
 
 export const DESIGN_WARNING_PREFIX = 'Design check: ';
 
-let chain: Promise<unknown> = Promise.resolve();
-// Runs jobs one after another, whatever calls them and whether the one before succeeded.
-export function oneAtATime<T>(fn: () => Promise<T>): Promise<T> {
-  const run = chain.then(fn, fn);
-  chain = run.catch(() => undefined);
-  return run;
-}
 
 export function renderPost(deps: Deps, payload: { postId: string; activityId?: string }): Promise<void> {
   const meta = async () => {
     const post = await deps.prisma.post.findUnique({ where: { id: payload.postId }, select: { title: true, batchId: true } });
     return { title: `Render: ${post?.title ?? 'a post'}`, batchId: post?.batchId ?? null, postId: post ? payload.postId : null };
   };
-  return trackRun(deps, 'render-post', payload, meta, (handle) => oneAtATime(() => renderNow(deps, payload.postId, handle)));
+  return trackRun(deps, 'render-post', payload, meta, (handle) => withRenderSlot(() => renderNow(deps, payload.postId, handle)));
 }
 
 async function fail(deps: Deps, post: Post, message: string, handle: RunHandle): Promise<void> {

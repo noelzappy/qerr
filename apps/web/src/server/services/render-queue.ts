@@ -9,16 +9,17 @@
 //   resolves with { status: 'superseded' } and its function never runs. A job already running is never cancelled.
 // - A job whose deadline (epoch ms) has passed when its turn comes is dropped: { status: 'expired' }, never run.
 // - A job that throws rejects its own promise; the queue goes on with the next.
-// - Jobs run through the existing lock (oneAtATime in render.ts), so they never overlap with code that still calls it directly.
-//   Only ONE queued job is handed to the lock at a time, so a post that arrives while a gate job waits goes first.
+// - Jobs run through the render limit (withRenderSlot in render-limit.ts), shared with the render-post job and the editors' previews.
+//   Only as many queued jobs as RENDER_CONCURRENCY are handed to it at a time, so a post that arrives while a gate job waits goes first.
+// - A job submitted while RENDER_QUEUE_MAX jobs already wait is not queued: { status: 'busy' } at once, never run.
 //
-// Not wired in yet: renderPost (services/render.ts) is class `post`; the previews in routes/layouts.ts, routes/brand.ts and
-// routes/design-preview.ts pass `lock: oneAtATime` and would pass a `preview` submit instead; the look gate is class `gate`.
-import { oneAtATime } from './render.js';
+// Not wired in yet: renderPost (services/render.ts) is class `post`; the previews in routes/layouts.ts and routes/design-preview.ts
+// pass `lock: withPreviewSlot` and would pass a `preview` submit instead; the look gate is class `gate`.
+import { renderConcurrency, renderQueueMax, withRenderSlot } from './render-limit.js';
 
 export type RenderClass = 'post' | 'preview' | 'gate';
 export interface RenderTicket { brandId: string; class: RenderClass; supersedeKey?: string; deadline?: number }
-export type RenderResult<T> = { status: 'done'; value: T } | { status: 'superseded' } | { status: 'expired' };
+export type RenderResult<T> = { status: 'done'; value: T } | { status: 'superseded' } | { status: 'expired' } | { status: 'busy' };
 
 const RANK: Record<RenderClass, number> = { post: 0, preview: 1, gate: 2 };
 
@@ -30,11 +31,13 @@ interface Entry {
   seq: number;
 }
 
-export function createRenderQueue(opts: { run?: <T>(fn: () => Promise<T>) => Promise<T>; now?: () => number } = {}) {
-  const run = opts.run ?? oneAtATime;
+export function createRenderQueue(opts: { run?: <T>(fn: () => Promise<T>) => Promise<T>; now?: () => number; concurrency?: () => number; queueMax?: () => number } = {}) {
+  const run = opts.run ?? withRenderSlot;
   const now = opts.now ?? Date.now;
+  const concurrency = opts.concurrency ?? renderConcurrency;
+  const queueMax = opts.queueMax ?? renderQueueMax;
   const waiting: Entry[] = [];
-  let pumping = false;
+  let active = 0;
   let seq = 0;
 
   const next = (): Entry | undefined => {
@@ -45,16 +48,14 @@ export function createRenderQueue(opts: { run?: <T>(fn: () => Promise<T>) => Pro
     return best < 0 ? undefined : waiting.splice(best, 1)[0];
   };
 
-  async function pump(): Promise<void> {
-    if (pumping) return;
-    pumping = true;
-    try {
-      for (let e = next(); e; e = next()) {
-        if (e.ticket.deadline !== undefined && now() > e.ticket.deadline) { e.settle({ status: 'expired' }); continue; }
-        try { e.settle({ status: 'done', value: await run(e.job) }); } catch (err) { e.fail(err); }
-      }
-    } finally {
-      pumping = false;
+  // Hands out jobs while fewer than `concurrency` of them are running; each finished job hands out the next.
+  function pump(): void {
+    while (active < Math.max(1, concurrency())) {
+      const e = next();
+      if (!e) return;
+      if (e.ticket.deadline !== undefined && now() > e.ticket.deadline) { e.settle({ status: 'expired' }); continue; }
+      active++;
+      run(e.job).then((value) => e.settle({ status: 'done', value }), (err) => e.fail(err)).finally(() => { active--; pump(); });
     }
   }
 
@@ -64,9 +65,10 @@ export function createRenderQueue(opts: { run?: <T>(fn: () => Promise<T>) => Pro
         const i = waiting.findIndex((w) => w.ticket.brandId === ticket.brandId && w.ticket.supersedeKey === ticket.supersedeKey);
         if (i >= 0) waiting.splice(i, 1)[0]!.settle({ status: 'superseded' });
       }
+      if (waiting.length >= queueMax()) { resolve({ status: 'busy' }); return; }
       waiting.push({ ticket, job, settle: resolve as (r: RenderResult<unknown>) => void, fail: reject, seq: seq++ });
       // Started on the next tick, so jobs submitted together are ordered by class, not by arrival.
-      queueMicrotask(() => { void pump(); });
+      queueMicrotask(pump);
     });
   }
 

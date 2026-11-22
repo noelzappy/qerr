@@ -63,11 +63,14 @@ markup**. This matters because the texts may be written by a program from web re
   `/Applications/Chromium.app`; on Linux the usual `/usr/bin` names, then `/snap/bin/chromium`. Set `CHROME_PATH` to use another build; the container image sets it to its Chromium
   wrapper (see [deploy/README.md](../deploy/README.md)). Without Chrome the render fails with a message that says how to
   fix it.
-- **One Chrome at a time.** The render job renders one post at a time, and one lock file for the whole machine
-  (`qerr-chrome.lock` in the system's temporary folder, or the absolute path `QERR_CHROME_LOCK` names; `chromeLockFile` in
-  `lib/design/chrome.mjs`) makes every render wait while another Chrome runs, whichever checkout, worktree, test or script started it
-  (up to `QERR_CHROME_LOCK_WAIT_MS`, 30 minutes by default, then it stops with the reason). The file is created atomically and holds the
-  pid of the process using Chrome; a lock left by a process that is gone is taken over. A post uses one Chrome for all its images.
+- **One Chrome at a time, unless the deployment allows more.** By default the render job renders one post at a time, and one lock file
+  for the whole machine (`qerr-chrome.lock` in the system's temporary folder, or the absolute path `QERR_CHROME_LOCK` names;
+  `chromeLockFile` in `lib/design/chrome.mjs`) makes every render wait while another Chrome runs, whichever checkout, worktree, test or
+  script started it (up to `QERR_CHROME_LOCK_WAIT_MS`, 30 minutes by default, then it stops with the reason). The file is created
+  atomically and holds the pid of the process using Chrome; a lock left by a process that is gone is taken over. A server may set
+  `RENDER_CONCURRENCY` (1 to 16, `renderConcurrency`): there are then that many slot files (`chromeLockFiles`: the first, then
+  `<file>.2` and on), a render takes a free one and waits only when every slot is taken, and the web app runs at most that many renders
+  at once (its render-post jobs, previews and Looks pictures together). A post uses one Chrome for all its images.
 - **How Chrome is driven.** Through the DevTools protocol over a pipe, using only Node's standard library. The page is
   built as a self-contained string, laid out at the exact size (no browser window is involved), measured by a small script
   inside the page, and screenshotted. It needs no file or network access (see "Untrusted text").

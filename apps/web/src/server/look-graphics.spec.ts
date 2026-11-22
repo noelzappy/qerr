@@ -11,7 +11,8 @@ import { currentSettings, resetBrandState, syncBrand } from './services/brand-se
 import { previewDesign } from './services/design-preview.js';
 import { clearSampleCache, connectLookRenderer } from './services/look-render.js';
 import { setLookRenderer } from './services/looks.js';
-import { oneAtATime, renderPost } from './services/render.js';
+import { renderPost } from './services/render.js';
+import { withRenderSlot } from './services/render-limit.js';
 import { jpegBytes, seedBatch } from './testing-batches.js';
 import { createTestApp, type TestApp } from './testing.js';
 
@@ -127,7 +128,7 @@ describe('the post preview', () => {
     await activeLookWithGraphic(api);
     await graphicItem();
     const calls: Parameters<typeof recordingRender>[0] = [];
-    const r = await previewDesign(t.deps, STATEMENT, { lock: oneAtATime, render: recordingRender(calls) });
+    const r = await previewDesign(t.deps, STATEMENT, { lock: withRenderSlot, render: recordingRender(calls) });
     expect(r.ok, r.error).toBe(true);
     const graphics = calls[0]!.design.graphics as Array<{ ref: string; image: string; tintable: boolean }>;
     expect(graphics).toHaveLength(1);
@@ -136,10 +137,10 @@ describe('the post preview', () => {
     expect(calls[0]!.files[graphics[0]!.image]).toBe(MARK.toString('hex'));
     expect(leftovers('design-preview')).toEqual([]);
     // another design of the look places none: nothing is handed over
-    await previewDesign(t.deps, OTHER_DESIGN, { lock: oneAtATime, render: recordingRender(calls) });
+    await previewDesign(t.deps, OTHER_DESIGN, { lock: withRenderSlot, render: recordingRender(calls) });
     expect(calls[1]!.design.graphics).toBeUndefined();
     // a carousel: only the page drawn with that design gets it
-    await previewDesign(t.deps, { template: 'carousel', pages: [OTHER_DESIGN, STATEMENT] }, { lock: oneAtATime, render: recordingRender(calls) });
+    await previewDesign(t.deps, { template: 'carousel', pages: [OTHER_DESIGN, STATEMENT] }, { lock: withRenderSlot, render: recordingRender(calls) });
     const pages = calls[2]!.design.pages as Array<Record<string, unknown>>;
     expect(pages[0]!.graphics).toBeUndefined();
     expect((pages[1]!.graphics as Array<{ ref: string }>).map((g) => g.ref)).toEqual([GRAPHIC_ID]);
@@ -150,7 +151,7 @@ describe('the post preview', () => {
     await activeLookWithGraphic(api);
     await graphicItem({ role: 'cutout', tintable: true });
     const calls: Parameters<typeof recordingRender>[0] = [];
-    expect((await previewDesign(t.deps, STATEMENT, { lock: oneAtATime, render: recordingRender(calls) })).ok).toBe(true);
+    expect((await previewDesign(t.deps, STATEMENT, { lock: withRenderSlot, render: recordingRender(calls) })).ok).toBe(true);
     expect(calls[0]!.design.graphics).toEqual([expect.objectContaining({ ref: GRAPHIC_ID, tintable: false })]);
   });
 
@@ -170,7 +171,7 @@ describe('the post preview', () => {
     const api = await admin();
     await activeLookWithGraphic(api);
     const calls: Parameters<typeof recordingRender>[0] = [];
-    const preview = () => previewDesign(t.deps, STATEMENT, { lock: oneAtATime, render: recordingRender(calls) });
+    const preview = () => previewDesign(t.deps, STATEMENT, { lock: withRenderSlot, render: recordingRender(calls) });
 
     const missing = await preview();
     expect(missing.ok).toBe(false);
@@ -193,7 +194,7 @@ describe('the post preview', () => {
     expect((await preview()).error).toContain('places a brand graphic that is not in Pictures');
 
     // a carousel names the page
-    const page = await previewDesign(t.deps, { template: 'carousel', pages: [OTHER_DESIGN, STATEMENT] }, { lock: oneAtATime, render: recordingRender(calls) });
+    const page = await previewDesign(t.deps, { template: 'carousel', pages: [OTHER_DESIGN, STATEMENT] }, { lock: withRenderSlot, render: recordingRender(calls) });
     expect(page.error).toMatch(/^Page 2: The design "Stack" places a brand graphic/);
 
     expect(calls).toEqual([]);

@@ -10,7 +10,7 @@ import { HttpError, readJson } from '../http.js';
 import { requireRole, requireUser } from '../middleware.js';
 import { syncBrand } from '../services/brand-settings.js';
 import { PREVIEW_SIZES, previewDesign } from '../services/design-preview.js';
-import { oneAtATime } from '../services/render.js';
+import { withPreviewSlot } from '../services/render-limit.js';
 
 const body = z.strictObject({
   design: z.record(z.string(), z.unknown()),
@@ -25,7 +25,7 @@ export function designPreviewRoutes(deps: Deps): Hono<AppEnv> {
     const { design, size } = await readJson(c, body);
     const brand = await syncBrand(deps);
     if (brand.logosMissing) throw new HttpError(409, 'Add your logo and its mark in Settings, Brand before a preview can be made');
-    return c.json(await previewDesign(deps, design, { size, lock: oneAtATime }));
+    return c.json(await previewDesign(deps, design, { size, lock: withPreviewSlot }));
   });
 
   return app;

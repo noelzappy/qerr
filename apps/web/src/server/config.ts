@@ -33,6 +33,10 @@ const schema = z.object({
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   LOCAL_STORAGE_DIR: z.string().default('.data/storage'),
   CHROME_PATH: optional,
+  // Images drawn at the same time, each in its own Chrome (about 300 to 500 MB of memory each). Raise it on a server with the memory.
+  RENDER_CONCURRENCY: z.coerce.number({ message: 'RENDER_CONCURRENCY must be a whole number from 1 to 16' }).int('RENDER_CONCURRENCY must be a whole number from 1 to 16').min(1, 'RENDER_CONCURRENCY must be a whole number from 1 to 16').max(16, 'RENDER_CONCURRENCY must be a whole number from 1 to 16').default(1),
+  // Previews that may wait for a free render; one more is refused at once with "busy, try again" (503).
+  RENDER_QUEUE_MAX: z.coerce.number({ message: 'RENDER_QUEUE_MAX must be a whole number from 0 to 10000' }).int('RENDER_QUEUE_MAX must be a whole number from 0 to 10000').min(0, 'RENDER_QUEUE_MAX must be a whole number from 0 to 10000').max(10000, 'RENDER_QUEUE_MAX must be a whole number from 0 to 10000').default(50),
 });
 
 export interface AppConfig {
@@ -57,6 +61,9 @@ export interface AppConfig {
   storageDriver: 'local' | 's3';
   localStorageDir: string;
   chromePath?: string;
+  // RENDER_CONCURRENCY and RENDER_QUEUE_MAX (services/render-limit.ts).
+  renderConcurrency: number;
+  renderQueueMax: number;
   // The S3_* variables, passed to the engine's loadS3Config. Kept apart so secrets never sit in named fields.
   s3Env: Record<string, string>;
 }
@@ -105,6 +112,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     storageDriver: e.STORAGE_DRIVER,
     localStorageDir: e.LOCAL_STORAGE_DIR,
     chromePath: e.CHROME_PATH,
+    renderConcurrency: e.RENDER_CONCURRENCY,
+    renderQueueMax: e.RENDER_QUEUE_MAX,
     s3Env,
   };
 }

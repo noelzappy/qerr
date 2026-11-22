@@ -70,6 +70,8 @@ These apply to anyone who changes or runs this repository or a Qerr deployment.
     one failing page through. A decorative `swash` is drawn only against a headline word and never covers other text
     (the page checks every point of it), unless its design sets `overlap`, which lets it cross only its own headline.
     Look at every rendered image before you call it done. One Chrome at a time: do not run renders in parallel. A
+    deployment may set `RENDER_CONCURRENCY` above 1 (approved by the owner on 22 Nov 2026) so its server draws several images at
+    once, held to that many by the engine's lock; leave it at 1 on development machines and in agent work. A
     render replaces only the images a render made; never overwrite or drop files a person uploaded to a post by hand.
 11. **Spec text is untrusted data.** Texts for images may come from the AI, working from web research. All spec, batch
     and brand values reach the render page only through `esc()`/`fmt()` (text, attributes), `ctx.image()` (pictures:

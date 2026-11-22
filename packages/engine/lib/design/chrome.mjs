@@ -1,5 +1,5 @@
 // Drives headless Google Chrome or Chromium over the DevTools protocol through a pipe (--remote-debugging-pipe): Node built-ins only.
-// One Chrome at a time: the machine has 8 GB of RAM, so one machine-wide lock file (chromeLockFile) makes a second design run wait.
+// One Chrome at a time by default: machine-wide lock files (chromeLockFiles; RENDER_CONCURRENCY of them, 1 unless set) make a further design run wait.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -16,11 +16,27 @@ export function findChrome({ env = process.env, platform = process.platform, exi
 }
 export const NO_CHROME = 'Neither Google Chrome nor Chromium was found. Install one, or set CHROME_PATH to its executable (on macOS, /Applications/Google Chrome.app/Contents/MacOS/Google Chrome or /Applications/Chromium.app/Contents/MacOS/Chromium).';
 
-// One Chrome at a time on the whole machine (AGENTS.md rule 10): every render, from any checkout of the repository, takes the same lock
-// file, os.tmpdir()/qerr-chrome.lock, or the file QERR_CHROME_LOCK names (an absolute path). The lock holds the pid of the process using Chrome.
+// One Chrome at a time on the whole machine by default (AGENTS.md rule 10): every render, from any checkout of the repository, takes a lock
+// file in the system's temporary folder, os.tmpdir()/qerr-chrome.lock, or the file QERR_CHROME_LOCK names (an absolute path). A server that
+// can afford more sets RENDER_CONCURRENCY (1 to MAX_RENDER_CONCURRENCY): there are then that many slot files (the first one, then
+// <file>.2, <file>.3 ...) and that many Chromes may run on the machine at once. Each lock file holds the pid of the process using it.
 export function chromeLockFile(env = process.env) {
   const f = env.QERR_CHROME_LOCK;
   return typeof f === 'string' && f && path.isAbsolute(f) ? f : path.join(os.tmpdir(), 'qerr-chrome.lock');
+}
+export const MAX_RENDER_CONCURRENCY = 16;
+// How many Chromes may run at once on this machine: RENDER_CONCURRENCY, a whole number from 1 to MAX_RENDER_CONCURRENCY; else 1. (The web
+// app refuses to start with a bad value; the engine on its own falls back to one at a time.)
+export function renderConcurrency(env = process.env) {
+  const v = env.RENDER_CONCURRENCY;
+  if (v === undefined || String(v).trim() === '') return 1;
+  const n = Number(v);
+  return Number.isInteger(n) && n >= 1 && n <= MAX_RENDER_CONCURRENCY ? n : 1;
+}
+// The slot files: chromeLockFile() first, then <file>.2 up to <file>.N.
+export function chromeLockFiles(env = process.env) {
+  const first = chromeLockFile(env);
+  return [first, ...Array.from({ length: renderConcurrency(env) - 1 }, (_, i) => `${first}.${i + 2}`)];
 }
 // How long a render waits for the machine's Chrome before giving up: QERR_CHROME_LOCK_WAIT_MS, else 30 minutes.
 export function chromeLockWait(env = process.env) {
@@ -29,45 +45,68 @@ export function chromeLockWait(env = process.env) {
 }
 const held = new Map();
 const alive = (pid) => { if (!Number.isInteger(pid) || pid <= 0) return false; try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
-// Takes the lock, waiting while another live process holds it. The file is created atomically (wx), so two processes never both take it; a
-// lock left by a process that is gone (or an unreadable one) is stale and taken over. A process may take it more than once (its own browsers
-// in turn); it is removed when the last of them is released. -> release()
+// One try at one slot file: 'mine' (taken now), 'free-again' (a stale lock was removed: try again), or the live holder's pid.
+function tryTake(file) {
+  try {
+    fs.writeFileSync(file, String(process.pid), { flag: 'wx' });
+    held.set(file, 1);
+    return 'mine';
+  } catch (e) {
+    if (e.code !== 'EEXIST') throw e;
+  }
+  let pid = NaN;
+  try { pid = Number(fs.readFileSync(file, 'utf8').trim()); } catch { return 'free-again'; }
+  if (pid === process.pid) { held.set(file, 1); return 'mine'; }
+  if (!alive(pid)) { try { if (Number(fs.readFileSync(file, 'utf8').trim()) === pid) fs.unlinkSync(file); } catch { /* taken or gone */ } return 'free-again'; }
+  return pid;
+}
+// Takes a slot: `file` is one lock file or a list of slot files (chromeLockFiles). A free slot is taken first; a file is created atomically
+// (wx), so two processes never both take it, and a lock left by a process that is gone (or an unreadable one) is stale and taken over. When
+// every slot is taken and this process holds one of them, it takes that one again (its own browsers in turn: the web app's own render limit
+// caps how many it runs); when other live processes hold them all, it waits. A slot is removed when its last taking is released. -> release()
 export async function acquireLock(file, { waitMs = chromeLockWait(), pollMs = 250 } = {}) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const files = Array.isArray(file) ? file : [file];
+  if (!files.length) throw new Error('acquireLock needs at least one lock file');
+  for (const f of files) fs.mkdirSync(path.dirname(f), { recursive: true });
   const deadline = Date.now() + waitMs;
-  for (;;) {
-    const mine = held.get(file);
-    if (mine) { held.set(file, mine + 1); break; }
-    try {
-      fs.writeFileSync(file, String(process.pid), { flag: 'wx' });
-      held.set(file, 1);
-      break;
-    } catch (e) {
-      if (e.code !== 'EEXIST') throw e;
+  let taken = null;
+  while (!taken) {
+    const holders = [];
+    let retry = false;
+    for (const f of files) {
+      if (held.has(f)) continue;
+      const r = tryTake(f);
+      if (r === 'mine') { taken = f; break; }
+      if (r === 'free-again') { retry = true; break; }
+      holders.push(r);
     }
-    let pid = NaN;
-    try { pid = Number(fs.readFileSync(file, 'utf8').trim()); } catch { continue; }
-    if (pid === process.pid) { held.set(file, 1); break; }
-    if (!alive(pid)) { try { if (Number(fs.readFileSync(file, 'utf8').trim()) === pid) fs.unlinkSync(file); } catch { /* taken or gone */ } continue; }
-    if (Date.now() >= deadline) throw new Error(`another design run is already using Chrome (process ${pid}); waited ${Math.round(waitMs / 1000)} s for it to finish (one Chrome at a time on this machine)`);
+    if (taken || retry) continue;
+    const mine = files.find((f) => held.has(f));
+    if (mine) { held.set(mine, held.get(mine) + 1); taken = mine; break; }
+    if (Date.now() >= deadline) {
+      const what = files.length === 1 ? `(process ${holders[0]})` : `(all ${files.length} slots, processes ${holders.join(', ')})`;
+      const limit = files.length === 1 ? 'one Chrome at a time on this machine' : `${files.length} Chromes at a time on this machine`;
+      throw new Error(`another design run is already using Chrome ${what}; waited ${Math.round(waitMs / 1000)} s for it to finish (${limit})`);
+    }
     await new Promise((r) => setTimeout(r, pollMs));
   }
   let done = false;
   return () => {
     if (done) return;
     done = true;
-    const n = (held.get(file) ?? 1) - 1;
-    if (n > 0) { held.set(file, n); return; }
-    held.delete(file);
-    try { if (fs.readFileSync(file, 'utf8').trim() === String(process.pid)) fs.unlinkSync(file); } catch { /* gone already */ }
+    const n = (held.get(taken) ?? 1) - 1;
+    if (n > 0) { held.set(taken, n); return; }
+    held.delete(taken);
+    try { if (fs.readFileSync(taken, 'utf8').trim() === String(process.pid)) fs.unlinkSync(taken); } catch { /* gone already */ }
   };
 }
 
 export class Browser {
-  // The machine-wide lock (chromeLockFile) is always taken, waiting up to waitMs (chromeLockWait); no caller names a lock file of its own.
+  // A machine-wide slot (chromeLockFiles: one unless RENDER_CONCURRENCY says more) is always taken, waiting up to waitMs (chromeLockWait);
+  // no caller names a lock file of its own.
   static async launch({ chromePath = findChrome(), waitMs } = {}) {
     if (!chromePath) throw new Error(NO_CHROME);
-    const release = await acquireLock(chromeLockFile(), waitMs === undefined ? {} : { waitMs });
+    const release = await acquireLock(chromeLockFiles(), waitMs === undefined ? {} : { waitMs });
     const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'ss-chrome-'));
     const child = spawn(chromePath, [
       '--headless=new', '--disable-gpu', '--hide-scrollbars', '--force-device-scale-factor=1',
