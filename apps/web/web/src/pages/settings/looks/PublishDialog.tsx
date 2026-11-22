@@ -18,7 +18,7 @@ function designOf(name: string, comps: Composition[]): Composition | undefined {
 }
 const label = (name: string) => { const [k, ...r] = name.split('/'); return r.length ? `${kindName(k!)}: ${r.join('/')}` : name; };
 
-export function PublishDialog({ look, onClose, onPublished }: { look: OwnDetail; onClose: () => void; onPublished: (l: OwnDetail) => void }) {
+export function PublishDialog({ look, inUse = false, onClose, onPublished }: { look: OwnDetail; inUse?: boolean; onClose: () => void; onPublished: (l: OwnDetail) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [rows, setRows] = useState<GateCheck[] | null>(null);
@@ -42,7 +42,7 @@ export function PublishDialog({ look, onClose, onPublished }: { look: OwnDetail;
         {!done && <BusyButton loading={busy} onClick={() => void publish()}>Publish</BusyButton>}
       </>}>
       <div className="flex flex-col gap-3 text-[13.5px]">
-        {!rows && !error && <p>Every design that is switched on is checked, then the look is marked Ready. It is not used for new images until you choose Use this look.</p>}
+        {!rows && !error && <p>Every design that is switched on is checked, then the look is marked Ready. {inUse ? 'This look is in use, so new images already use what you saved; publishing records that its designs pass the checks.' : 'It is not used for new images until you choose Use this look.'}</p>}
         {done && <Notice tone="good">The look is Ready.</Notice>}
         {error && <Notice tone="bad">{error}</Notice>}
         {rows && rows.length > 0 && (

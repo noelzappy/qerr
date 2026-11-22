@@ -139,7 +139,7 @@ export function LookPage({ initial, list, activeRef, onActive }: { initial: OwnD
       {tab === 'designs' && <DesignsTab look={look} list={list} onLook={(l) => apply(l, dirty)} />}
       {tab === 'check' && <CheckTab look={look} catalogue={cat} onReload={() => void reload()} />}
 
-      {publishing && <PublishDialog look={look} onClose={() => setPublishing(false)} onPublished={(l) => apply(l, dirty)} />}
+      {publishing && <PublishDialog look={look} inUse={inUse} onClose={() => setPublishing(false)} onPublished={(l) => apply(l, dirty)} />}
       <ConfirmAction open={using} title={`Use ${look.name}?`} confirmLabel="Use this look" message={USE_MESSAGE}
         onConfirm={async () => { await lookApi.use(look.ref); onActive(look.ref); setUsing(false); toast.success(`${look.name} is now in use.`); afterLookChange(); appInfo.reload(); }}
         onCancel={() => setUsing(false)} />
