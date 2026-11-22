@@ -11,14 +11,18 @@ Vesk is a web app (`apps/web`). Home, Create, Facts, Pictures, Publish, Activity
 - **Home** shows the week, what waits for approval, the setup steps and what goes out next.
 - **Create** holds the batches. A batch is drafted by the AI or imported from a batch file; each post is written, reviewed,
   edited, given its image again if needed and approved one by one, in a four-step flow: Write, Review, Send drafts to Buffer,
-  Go live.
-- **Facts** and **Pictures** hold what the AI may write from and the photos and screens posts may use.
+  Go live. The post editor asks for two things only, the **Kind of post** (statement, figure, list, quote, photo, event,
+  offer, or one of the brand's named series) and the **Design** (cards with a picture of each of the look's designs, or
+  Automatic). Headline words are styled by selecting them and pressing Colour, Pill, Plain or Icon, and a picture's focus
+  is set by clicking or dragging on the picture itself.
+- **Facts** and **Pictures** hold what the AI may write from and the photos and screens posts may use. The AI can describe
+  uploaded pictures ("Describe with AI", "Describe all with AI"); a person confirms each picture before the AI may use it.
 - **Activity** lists what the app does in the background: AI drafts, images, sends to Buffer.
 - **Publish** shows every planned post on a calendar or a list, per channel, and sends approved posts to Buffer.
 - **Settings** covers:
   - Brand and look: identity, logos (or a simple logo drawn from the name), colours with a live preview and contrast
     checks, post types, voice, visual direction, and the import of an existing brand pack.
-  - Looks: how every kind of post is drawn (the shipped looks, such as Clean, Soft, Bloom, Retail and Swiss, or the brand's own
+  - Looks: how every kind of post is drawn (the eleven shipped looks listed under "Looks" below, or the brand's own
     copies, each design edited in a visual design editor), with two more tabs: Series, the brand's
     named recurring formats ("Tip of the week": a kind of post, the look's designs, a numbered mark, how often), which AI drafts
     plan into each batch, and Inspiration, pictures the AI describes as style briefs that guide every draft. With a look, a post
@@ -34,7 +38,11 @@ Under it are two libraries with no dependencies, which the app imports:
 - **The engine** (`packages/engine`, `@vesk/engine`). It renders finished, on-brand post images with headless Google
   Chrome or Chromium (post pages drawn by a look, poster pages with one strong picture, editorial pages with ledger and
   passbook cards, real product screens in framed phones and desktop windows, photo posts, and carousels with a PDF; see
-  [docs/design.md](docs/design.md)), and it
+  [docs/design.md](docs/design.md)). A look can also draw bar, line, area, donut and progress charts and sparklines from a post's
+  numbers, a phone or tablet round a bare screenshot, a quote with one portrait, decorative letter swashes, up to five sizes
+  of type on a page, words that cross a shape's edge on purpose, pattern backgrounds and, where the brand turns them on,
+  emoji. Every image is checked before it is kept (contrast on the real pixels, enlargement, text that fits, pixel size).
+  The engine also
   turns each approved post into one Buffer post per channel (Instagram, LinkedIn, Facebook and X) through Buffer's GraphQL
   API, with the duplicate guard, the media checks and the rate limits. The channels can belong to one Buffer account or
   to several.
@@ -42,9 +50,9 @@ Under it are two libraries with no dependencies, which the app imports:
   design references. It uses any Anthropic or OpenAI-compatible model. See [docs/ai.md](docs/ai.md).
 
 The repository ships a fictional demo brand, Acme Savings (`brands/demo`), so a fresh install has a brand to show and
-render with until an admin sets the real one, a second fictional finance brand for testing, Pennyhive
-(`brands/pennyhive`), chosen with `BRAND_DIR=brands/pennyhive`, and a fictional polls and community brand, Tallyho
-(`brands/tallyho`), that shows off the loud look.
+render with until an admin sets the real one, and six more invented brands, one per kind of business, to try the looks
+with: Pennyhive (a savings-club app), Tallyho (a community app), Northbeam (a design studio), Kettleworks Coffee (a
+café), Salt & Ember (a grill restaurant) and Outabout (a city what's-on guide). See "Brand packs" below.
 
 Licence: MIT, see [LICENSE](LICENSE).
 
@@ -92,6 +100,25 @@ engine ships several, and a brand may copy one and change it. A newly saved bran
 engine also has three directions written as code (`editorial`, `swiss`, `retail`) that a pack, or a brand saved with an
 older choice, can name in `style.direction` instead. With neither, the **classic layouts** draw the post: the fixed
 templates and the brand's own layouts, and a `post` design is refused with a message. See "Design directions and the post template" and "Looks as data" in [docs/design.md](docs/design.md).
+
+### Looks
+
+The engine ships eleven looks, 121 designs in all. A brand picks one in the guided setup or in Settings, Looks, and may
+copy it and change any design in the visual design editor.
+
+| Look | Designs | What it looks like |
+| --- | --- | --- |
+| Clean (the default) | 9 | Plain and confident: the brand's own font, two-tone headlines, the logo top left and the web address top right, pictures that melt into the page. |
+| Soft | 10 | Calm and rounded: one sans in medium weights, pale tints of the brand colour, rounded panels, pills and circles. |
+| Bloom | 10 | Warm and organic: cream paper, arch and oval windows, big circles and a soft serif with italic emphasis. |
+| Retail | 9 | A high-street campaign: heavy type, colour as a field, pictures breaking out of frames, stickers and hard shadows. |
+| Swiss | 9 | An international-style poster: a grid you can feel, big grotesque type, one accent and nothing decorative. |
+| Ledger | 12 | A neobank: deep grounds with a soft glow, big confident figures, change pills, white cards, phone screens and charts. |
+| Loud | 13 | A community app: heavy condensed capitals on saturated colour, words in pills, round stickers, photos taped on at an angle. |
+| Studio | 17 | A product studio's feed: a tight bold grotesk on red, black or cream, one coloured final word, numbered rows on thin rules. |
+| Roast | 12 | A neighbourhood café: cream and espresso grounds, a friendly soft serif, menu boards with dotted leaders, a stamp card. |
+| Plate | 10 | A restaurant after dark: near-black grounds, full-bleed food pictures, a fine serif with italics, menus with dotted leaders. |
+| Guide | 10 | A city what's-on guide: a bright field, huge condensed capitals, a row of round pictures, event posters on full photos. |
 
 ## Quick start
 
@@ -254,7 +281,7 @@ only. Its `brand.json` names no direction: choose the Loud look in Settings, Bra
 (`packages/engine/design/assets/photos/`, recorded in its `CREDITS.md`): those files are git-ignored, so on a fresh clone the
 picture posts are refused until the photos are put there. `test-brand-tallyho.mjs` keeps the pack and its batch valid.
 
-**The Northbeam pack** (`brands/northbeam`) is a third fictional brand, made to show off the shipped studio look: Northbeam,
+**The Northbeam pack** (`brands/northbeam`) is a fourth fictional brand, made to show off the shipped studio look: Northbeam,
 a product and design studio (website `northbeam.example`, time zone `Europe/London`, money in pounds). A red primary, a
 near-black dark ground, a cream light ground and a yellow accent, set in Inter with JetBrains Mono, with contrast targets
 (display 3.5, accent 3.5) under which the red is the field as it is and the red final word reads on both the dark page and
@@ -267,7 +294,21 @@ every kind, a carousel of three pages), has invented, illustrative figures and p
 committed, so put them there before rendering it);
 `test-brand-northbeam.mjs` keeps the pack valid and the batch within the studio look.
 
-**The Outabout pack** (`brands/outabout`) is a third fictional brand, made to show off the shipped guide look: Outabout,
+**The Kettleworks pack** (`brands/kettleworks`) is a fictional café, made to show off the shipped roast look: Kettleworks
+Coffee, a neighbourhood roaster in the invented town of Brookmere (website `kettleworks.example`, time zone `Europe/Dublin`,
+prices in euros). Espresso brown, cream and one bright accent, Fraunces for headlines over Hanken Grotesk, and
+`style.direction` set to `roast` with its own copy of the look. `brands/kettleworks/make-assets.mjs` draws its logos and three
+synthetic pictures (a latte from above, beans, a mug) in the engine's Chrome; they are committed with the pack. Its example
+batch, `brands/kettleworks/batches/example-posts.json` (twelve posts over every kind), uses credited photos in
+`packages/engine/design/assets/photos/` (not committed). `test-brand-kettleworks.mjs` keeps the pack and its batch valid.
+
+**The Salt & Ember pack** (`brands/saltandember`) is a fictional grill restaurant, made to show off the shipped plate look:
+Salt & Ember, in the invented city of Cindervale (website `saltandember.example`, time zone `Europe/Dublin`, prices in
+euros), with `style.direction` set to `plate` and its own copy of the look. Its `make-assets.mjs` draws its logos and
+synthetic pictures the same way. Its example batch, `brands/saltandember/batches/example-posts.json` (ten posts), uses credited
+photos that are not committed. `test-brand-saltandember.mjs` keeps the pack and its batch valid.
+
+**The Outabout pack** (`brands/outabout`) is a fictional brand, made to show off the shipped guide look: Outabout,
 a what's-on guide for Tallowmere, an invented city (website `outabout.example`, time zone `Europe/London`, prices in
 pounds). A bright orange field, near-black ink and a cream paper, Archivo for text, and `style.direction` set to `guide`
 with its own copy of the shipped guide look in `looks`. Its `vault.json` holds invented plans and round, illustrative
@@ -287,8 +328,9 @@ pack and its batch valid.
    folder.
 3. Replace the two logos with your own transparent PNGs. Set `logos.fullSize` to the full logo's pixel size,
    `logos.wordmarkFrom` to the x where its wordmark starts, and `logos.markGap` to the gap between mark and wordmark (they
-   are used to set the wordmark in white on dark grounds). Fonts: the engine ships Inter and IBM Plex Mono in
-   `packages/engine/design/fonts/`; another woff2 font may live in your pack, named by its repository path.
+   are used to set the wordmark in white on dark grounds). Fonts: the engine ships Inter, Hanken Grotesk, Archivo, Anton,
+   Fraunces, Source Serif 4, IBM Plex Mono, JetBrains Mono and an emoji font in `packages/engine/design/fonts/` (all under
+   the OFL); another woff2 font may live in your pack, named by its repository path.
 4. Set `timezone` to the brand's IANA time zone (the AI drafts in it, the app shows it; batches name their own). Set
    `money.local` to one sentence on the brand's currency and `money.foreign` to a pattern of the currencies pictures must
    not show and texts are warned about, or remove `money` to allow every currency.
@@ -461,7 +503,14 @@ The engine tests, in `packages/engine/`:
 - `test-brand-northbeam.mjs`: the Northbeam pack loads, its colours carry the studio look, its spelling rules hold, and
   its example batch passes the post checks of the studio look.
 - `test-brand-outabout.mjs`: the Outabout pack loads in its copy of the guide look, its spelling rules hold, and its example
-  batch covers every composition of the look within its budgets.
+  batch covers every composition of the look within its budgets. `test-brand-kettleworks.mjs` and
+  `test-brand-saltandember.mjs` do the same for the café and the restaurant in their copies of the roast and plate looks.
+- `test-design-look-<name>.mjs` (one per shipped look): every composition of that look through every check.
+  `test-design-look-capabilities.mjs`: gradients, colour over a full picture, brand graphics and cut-outs.
+  `test-design-look-pictures.mjs`: the portrait quote and the device round a bare screenshot. `test-design-look-nopicture.mjs`: each design whose picture is optional, drawn without one.
+- `test-design-chart.mjs`, `test-design-chart-render.mjs`: chart and sparkline validation with hostile values, the brand's
+  number format, and with Chrome the 3:1 rule for chart marks and every mark inside the chart's box.
+- `test-design-chrome-lock.mjs`: the machine-wide lock that keeps one Chrome running at a time (`VESK_CHROME_LOCK`).
 
 The AI tests are in `packages/ai/test-ai.mjs` (fake fetch, no network), the export tests in
 `scripts/test-export-public.mjs`, and the web app's specs in `apps/web/src/**/*.spec.ts`.
@@ -475,14 +524,15 @@ An npm workspaces monorepo.
 | `apps/web/` (`@vesk/web`) | The web app: a Hono server, Postgres through Prisma, pg-boss jobs, and a React client built into `dist/web` (see [apps/web/README.md](apps/web/README.md)). The only workspace with dependencies. |
 | `packages/engine/` (`@vesk/engine`) | The engine: `lib/` (batch validation, the Buffer client, the push loop, storage, the design renderer) and `design/` (brand CSS, templates, fonts and the asset folders, including the committed demo pictures in `design/assets/demo/`), and its tests. No dependencies. The app imports its modules as `@vesk/engine/<module>`, for example `@vesk/engine/batch`. |
 | `packages/ai/` (`@vesk/ai`) | Drafting, research, rewriting and design-reference analysis (`src/`, with the versioned prompts) and its tests. No third-party dependencies; it uses the engine's validators. |
-| `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default, `brands/pennyhive` (the fictional Pennyhive, with its own example batch) a second test brand, `brands/tallyho` (the fictional Tallyho) the loud look's brand, `brands/northbeam` (the fictional Northbeam) the studio look's, `brands/kettleworks` (the fictional Kettleworks Coffee) the roast look's and `brands/saltandember` (the fictional Salt & Ember) the plate look's and `brands/outabout` (the fictional Outabout, a what's-on guide) the guide look's. |
+| `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default, `brands/pennyhive` (the fictional Pennyhive, with its own example batch) a second test brand, `brands/tallyho` (the fictional Tallyho) the loud look's brand, `brands/northbeam` (the fictional Northbeam) the studio look's, `brands/kettleworks` (the fictional Kettleworks Coffee) the roast look's, `brands/saltandember` (the fictional Salt & Ember) the plate look's and `brands/outabout` (the fictional Outabout, a what's-on guide) the guide look's. |
 | `batches/` | Two example batch files for the demo brand, to import in the app (Create, New batch, the "Import a batch file" tab, marked Advanced) or to start from. |
 | `deploy/`, `Dockerfile` | The container image and the Docker Compose set-up, with `deploy/check.sh` to try it end to end. |
 | `docs/` | The documentation (below). |
 | `scripts/` | `export-public.mjs`: a public copy of the repository without private brand packs (`npm run export-public`). |
 
-At run time the app writes `state/brand/` (the saved brand as a pack) and `out/` (the render lock and temporary renders)
-at the repository root, and `apps/web/.data/` with the local storage driver. None of them is in git.
+At run time the app writes `state/brand/` (the saved brand as a pack) and `out/` (temporary renders) at the repository
+root, and `apps/web/.data/` with the local storage driver. None of them is in git. The lock that keeps one Chrome running
+at a time is machine-wide, `vesk-chrome.lock` in the system's temporary folder (`VESK_CHROME_LOCK` moves it).
 
 ## Documentation
 
