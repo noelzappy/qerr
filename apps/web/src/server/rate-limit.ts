@@ -92,6 +92,10 @@ export interface Limits {
   resetIp: RateLimiter;
   resetConfirmIp: RateLimiter;
   inviteIp: RateLimiter;
+  // AI suggestions (brand from a website, picture descriptions): every request per person, since each one costs money.
+  suggestUser: RateLimiter;
+  // Concurrent AI suggestion requests per person (3).
+  suggestInflight: InFlight;
   // Concurrent sign-in requests per email and per address (2 each).
   signinInflight: InFlight;
   clear(): void;
@@ -106,6 +110,8 @@ export function createLimits(now: () => Date = () => new Date()): Limits {
     resetIp: new RateLimiter(20, WINDOW_MS, now),
     resetConfirmIp: new RateLimiter(10, WINDOW_MS, now),
     inviteIp: new RateLimiter(20, WINDOW_MS, now),
+    suggestUser: new RateLimiter(60, WINDOW_MS, now),
+    suggestInflight: new InFlight(3),
     signinInflight: new InFlight(2),
   };
   return { ...l, clear: () => Object.values(l).forEach((r) => r.clear()) };

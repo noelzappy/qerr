@@ -425,6 +425,7 @@ When `RATE_LIMIT` is on, each of these answers 429 with `Retry-After` once a buc
 | Password reset request | every request, per email; per address | 5; 20 |
 | Password reset confirm | failures per address (token guessing) | 10 |
 | Invite lookup and accept | failures per address (token guessing) | 20 |
+| AI suggestions (`/api/suggest/*` POSTs) | every request, per person; at most 3 at once per person | 60 |
 
 The per-email buckets mean someone who knows an address can lock that person out of sign-in for 15 minutes; an admin
 can still make a reset link. Buckets are in memory and clear on restart. Test apps default to `RATE_LIMIT=off`; pass
@@ -545,10 +546,33 @@ Editing rules are the ones of `PATCH /api/posts/:id` (a removed post is refused;
 changed in Vesk only, as with a manual edit). `GET /api/posts/:id` carries `rewrite: { available, reason }` so the post page can say why the
 action cannot start without exposing provider details. The run is titled "Rewrite: <post>" (kind "Rewrite a post" in Activity).
 
+## AI suggestions
+
+Suggestions a person reviews; nothing is saved by these routes (`src/server/routes/suggest.ts`):
+
+- `GET /api/suggest` (admin, editor): `{ available, reason }`, whether suggestions can run now and, if not, why in words for the page.
+- `POST /api/suggest/brand-from-site` (admin) takes `{ website }` (as typed, up to 300 characters; a bare host gets `https://`) and
+  answers `{ descriptor?, tagline?, voice?, visualDirection?, colours?: { primary?, accent? }, source: { url } }`. The home page is read
+  on the server by the AI library's safe page reader (public http(s) only, no private, loopback or link-local address, every redirect
+  checked again, the connection pinned to the checked address, 1 MB and 15 seconds); the library's `brand-site` prompt treats the page
+  as data, and the answer is checked by the library's schema and again by strict shapes here (lengths 200, 120, 900, 900; colours
+  `#RRGGBB` found on the page). `422` when the address is not public or the page cannot be read, with the reason.
+- `POST /api/suggest/picture-description` (admin, editor) takes `{ vaultItemId }` (a photo or screen with a file) as JSON, or a picture
+  as multipart (`file`, optional `title` and `role`), for the upload page before the item exists. It answers
+  `{ title?, description, tags?, peopleVisible }`. The type is read from the bytes; over 5 MB is `413` (the upload page scales pictures
+  down first). `peopleVisible` is a hint shown to the person and never sets "People can be recognised" or consent.
+
+Both use the provider ticked for drafting, answer `409` with the reason before anything is fetched or sent when there is none, no
+budget is set or the budget is used up, save one `ai_calls` row per call with the person who asked (a page read is a `fetch` row),
+write `ai.suggest_brand_from_site` or `ai.describe_picture` to the audit log (no page text, no picture), and answer `502` when the
+AI's answer could not be used after one retry. In the web app, Brand and look, Voice and spelling has "Suggest from website"
+(`components/suggest/BrandSiteSuggest.tsx`), and the upload page has "Describe with AI" on each picture and "Describe all with AI"
+(`components/suggest/PictureSuggest.tsx`); a used suggestion fills the editable field and is marked as the AI's.
+
 ## AI
 
 The app never imports `@vesk/ai` directly. `src/server/ai.ts` is the seam: if the `@vesk/ai` workspace package is installed
-it is loaded and its `createAI({ providers, search, budget, log })` must return `{ draftBatch, research, rewrite }`
+it is loaded and its `createAI({ providers, search, budget, log })` must return `{ draftBatch, research, rewrite, analyseReference, suggestBrandFromSite, describePicture }`
 (the input and result types are in `ai.ts`). The library is an ordinary dependency of the app. Providers (Anthropic or OpenAI-compatible), the search provider and the
 monthly budget are set by an admin under AI and search (a provider's prices per million tokens too, which the budget needs to see its cost); their keys are encrypted at rest and only the last four
 characters are ever shown.

@@ -1,5 +1,6 @@
 // One error type for everything the AI layer can refuse or fail at. `code` is stable and meant for callers.
-// Codes: config, budget, timeout, network, http, invalid_output, truncated, unsafe_url, rejected, no_valid_posts.
+// Codes: config, budget, timeout, network, http, invalid_output, truncated, unsafe_url, rejected, no_valid_posts, site (a
+// website named by a person could not be read).
 export class AIError extends Error {
   constructor(message, { code = 'error', status, details, notes } = {}) {
     super(message);

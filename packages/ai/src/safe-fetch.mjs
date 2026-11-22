@@ -165,8 +165,9 @@ export const fromFetch = (fetchFn) => async (u, { headers, signal }) => {
 
 const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]/g;
 
-// fetchPage(url) -> { url, finalUrl, title, text, truncated }
-export async function fetchPage(url, { transport, lookup, timeoutMs = 15000, maxBytes = 1_000_000, maxChars = 8000, maxRedirects = 4, userAgent = 'vesk-research/1.0' } = {}) {
+// fetchPage(url) -> { url, finalUrl, title, text, truncated }, plus `html` (the raw page, capped at maxBytes) with keepHtml, for
+// callers that read the page's head (meta tags, theme colour). The raw page is as untrusted as the text.
+export async function fetchPage(url, { transport, lookup, timeoutMs = 15000, maxBytes = 1_000_000, maxChars = 8000, maxRedirects = 4, userAgent = 'vesk-research/1.0', keepHtml = false } = {}) {
   const send = transport ?? nodeTransport({ lookup });
   let current = url;
   for (let hop = 0; hop <= maxRedirects; hop++) {
@@ -203,7 +204,7 @@ export async function fetchPage(url, { transport, lookup, timeoutMs = 15000, max
       }
       const isHtml = /html|xml/.test(type);
       const { title, text } = isHtml ? htmlToText(raw) : { title: '', text: raw.replace(CONTROL, '').trim() };
-      return { url, finalUrl: u.href, title, text: text.slice(0, maxChars), truncated: capped || text.length > maxChars };
+      return { url, finalUrl: u.href, title, text: text.slice(0, maxChars), truncated: capped || text.length > maxChars, ...(keepHtml ? { html: isHtml ? raw : '' } : {}) };
     } finally {
       clearTimeout(timer);
     }
