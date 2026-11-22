@@ -244,6 +244,7 @@ export function kindsSummary(kinds: Record<string, number>): string {
 }
 
 export const originText = (origin: string, nameOf: (ref: string) => string | null): string => {
+  if (origin === 'starter') return 'Started blank';
   const ref = origin.replace(/^copy:/, '');
   const n = nameOf(ref);
   return n ? `Based on ${n}` : '';

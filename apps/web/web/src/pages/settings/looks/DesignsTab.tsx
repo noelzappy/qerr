@@ -1,6 +1,7 @@
 // The Designs tab of a look: one group per kind of post, each design a compact row (name, what it is for, the fields it uses with
-// their budgets, a status dot, On/Off, reorder, Edit (opens the design editor page) and a menu). "Add a design" copies one from a look we ship or one of the brand's
-// own. A look in use is edited like any other (the page says what that changes); the server refuses what the rules refuse and its reason is shown.
+// their budgets, a status dot, On/Off, reorder, Edit (opens the design editor page) and a menu). "Add a design" adds a blank one (the engine's plain
+// design of the kind) or copies one from a look we ship or one of the brand's own; a new design is checked first and stays switched off when its
+// checks do not pass. While another look is in use, a design's menu also offers "Add to my look". A look in use is edited like any other (the page says what that changes); the server refuses what the rules refuse and its reason is shown.
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -11,10 +12,17 @@ import { BusyButton, ConfirmAction, ErrorBlock, FormPanel, LoadingBlock, MoreMen
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { addOptions, budgetsText, DESIGN_STATUS, designIndex, designStatus, groupByKind, kindName, kindOrder, movedPosition, type AddOption } from './look-model';
-import type { Composition, LookCatalogue, LooksAnswer, OwnDetail } from './look-types';
+import type { AddedDesign, Composition, LookCatalogue, LooksAnswer, OwnDetail } from './look-types';
 import { lookApi } from './looks-api';
+import { addDesignHref } from './AddDesignPage';
 
-interface Props { look: OwnDetail; list: LooksAnswer; onLook: (l: OwnDetail) => void }
+interface Props { look: OwnDetail; list: LooksAnswer; onLook: (l: OwnDetail) => void; canAddToActive?: boolean }
+
+// What to say once a design is added: switched off, with the reason, when its checks did not pass.
+function sayAdded(name: string, added: AddedDesign) {
+  if (added.passed) toast.success(`Added ${name}.`);
+  else toast.warning(`Added ${name}, switched off: ${added.message ?? 'its checks did not pass'}. Open it to fix it.`);
+}
 
 function AddDesign({ kind, look, list, onClose, onLook }: { kind: string; look: OwnDetail; list: LooksAnswer; onClose: () => void; onLook: (l: OwnDetail) => void }) {
   const [busy, setBusy] = useState('');
@@ -33,7 +41,13 @@ function AddDesign({ kind, look, list, onClose, onLook }: { kind: string; look: 
   async function add(o: AddOption) {
     const key = `${o.source}:${o.index}`;
     setBusy(key); setError('');
-    try { onLook(await lookApi.addDesign(look.slug, o.source, o.kind, o.index)); toast.success(`Added ${o.name}.`); onClose(); }
+    try { const r = await lookApi.addDesign(look.slug, o.source, o.kind, o.index); onLook(r.look); sayAdded(o.name, r.added); onClose(); }
+    catch (e) { setError(errorMessage(e)); }
+    finally { setBusy(''); }
+  }
+  async function addBlank() {
+    setBusy('blank'); setError('');
+    try { const r = await lookApi.addBlankDesign(look.slug, kind); onLook(r.look); sayAdded(`a blank ${kindName(kind).toLowerCase()} design`, r.added); onClose(); }
     catch (e) { setError(errorMessage(e)); }
     finally { setBusy(''); }
   }
@@ -44,6 +58,15 @@ function AddDesign({ kind, look, list, onClose, onLook }: { kind: string; look: 
       <div className="flex flex-col gap-3">
         {full && <p className="text-[13px] text-muted-foreground" role="status">This look already has {list.limits.perKind} {kindName(kind).toLowerCase()} designs, the most it can have. Remove one to add another.</p>}
         {error && <p className="text-[13px] font-medium text-destructive" role="alert">{error}</p>}
+        <section aria-label="Start blank">
+          <h3 className="mb-1 text-[13px] font-semibold">Start blank</h3>
+          <ul className="rounded-md border">
+            <li className="flex items-center gap-3 px-3 py-2">
+              <div className="min-w-0 flex-1"><div className="truncate text-[13.5px] font-medium">Plain {kindName(kind).toLowerCase()}</div><div className="text-[12.5px] text-muted-foreground">A simple design in this look&apos;s fonts and colours, to build on in the editor.</div></div>
+              <BusyButton size="sm" variant="outline" loading={busy === 'blank'} disabled={full || !!busy} onClick={() => void addBlank()}>Add</BusyButton>
+            </li>
+          </ul>
+        </section>
         {sources.error ? <ErrorBlock message={sources.error} onRetry={() => void sources.reload()} />
           : sources.loading && !sources.data ? <LoadingBlock label="Loading designs" />
           : options.length === 0 ? <p className="text-[13px] text-muted-foreground">No other look has a {kindName(kind).toLowerCase()} design.</p>
@@ -65,7 +88,7 @@ function AddDesign({ kind, look, list, onClose, onLook }: { kind: string; look: 
   );
 }
 
-function Row({ c, index, designs, look, catalogue, onLook, onEdit }: { c: Composition; index: number; designs: Composition[]; look: OwnDetail; catalogue: LookCatalogue; onLook: (l: OwnDetail) => void; onEdit: () => void }) {
+function Row({ c, index, designs, look, catalogue, onLook, onEdit, onAddToActive }: { c: Composition; index: number; designs: Composition[]; look: OwnDetail; catalogue: LookCatalogue; onLook: (l: OwnDetail) => void; onEdit: () => void; onAddToActive?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState(false);
   const st = designStatus(c);
@@ -93,7 +116,8 @@ function Row({ c, index, designs, look, catalogue, onLook, onEdit }: { c: Compos
         </label>
         <Button type="button" size="sm" variant="outline" onClick={onEdit}>Edit</Button>
         <MoreMenu items={[
-          { label: 'Duplicate within this look', onSelect: () => void run(() => lookApi.addDesign(look.slug, look.ref, c.kind, index), `Duplicated ${c.name}.`) },
+          { label: 'Duplicate within this look', onSelect: () => void run(async () => { const r = await lookApi.addDesign(look.slug, look.ref, c.kind, index); if (!r.added.passed) toast.warning(`The copy is switched off: ${r.added.message ?? 'its checks did not pass'}`); return r.look; }, `Duplicated ${c.name}.`) },
+          ...(onAddToActive ? [{ label: 'Add to my look', onSelect: onAddToActive }] : []),
           { label: 'Remove', tone: 'danger', onSelect: () => setRemoving(true) },
         ]} />
       </div>
@@ -104,7 +128,7 @@ function Row({ c, index, designs, look, catalogue, onLook, onEdit }: { c: Compos
   );
 }
 
-export function DesignsTab({ look, list, onLook }: Props) {
+export function DesignsTab({ look, list, onLook, canAddToActive = false }: Props) {
   const [adding, setAdding] = useState<string | null>(null);
   const navigate = useNavigate();
   const cat = list.catalogue;
@@ -125,7 +149,8 @@ export function DesignsTab({ look, list, onLook }: Props) {
             {full && <p className="-mt-1 text-[12.5px] text-muted-foreground">Up to {list.limits.perKind} designs for each kind.</p>}
             {designs.length === 0 ? <p className="text-[13px] text-muted-foreground">No designs: posts of this kind cannot be made with this look.</p> : (
               <ul className="divide-y rounded-lg border">
-                {designs.map((c) => <Row key={c.id} c={c} index={designIndex(look.compositions, c)} designs={designs} look={look} catalogue={cat} onLook={onLook} onEdit={() => navigate(`/settings/looks/${look.slug}/designs/${c.id}`)} />)}
+                {designs.map((c) => <Row key={c.id} c={c} index={designIndex(look.compositions, c)} designs={designs} look={look} catalogue={cat} onLook={onLook} onEdit={() => navigate(`/settings/looks/${look.slug}/designs/${c.id}`)}
+                  onAddToActive={canAddToActive ? () => navigate(addDesignHref(look.ref, c.kind, designIndex(look.compositions, c))) : undefined} />)}
               </ul>
             )}
           </section>
