@@ -5,7 +5,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { pipelineEngine, type RenderResult } from './engine/pipeline.js';
 import { previewDesign } from './services/design-preview.js';
-import { oneAtATime } from './services/render.js';
+import { withRenderSlot } from './services/render-limit.js';
 import { jpegBytes, seedBatch } from './testing-batches.js';
 import { createTestApp, type TestApp } from './testing.js';
 
@@ -92,7 +92,7 @@ describe('previewDesign', () => {
     };
     const calls: Array<Record<string, unknown>> = [];
     const edited = { ...DESIGN, headline: 'A different headline' };
-    const r = await previewDesign(t.deps, edited, { lock: oneAtATime, render: fakeRender(calls) });
+    const r = await previewDesign(t.deps, edited, { lock: withRenderSlot, render: fakeRender(calls) });
     expect(r.ok).toBe(true);
     expect(r.size).toBe('feed');
     expect(r.image).toMatch(/^data:image\/jpeg;base64,/);
@@ -111,13 +111,13 @@ describe('previewDesign', () => {
 
   it('draws the size asked for when the design makes it, else its first size', async () => {
     const calls: Array<Record<string, unknown>> = [];
-    await previewDesign(t.deps, { template: 'photo', headline: 'Hello', image: DESIGN.image, sizes: ['wide', 'story'] }, { size: 'story', lock: oneAtATime, render: fakeRender(calls) });
-    await previewDesign(t.deps, { template: 'photo', headline: 'Hello', image: DESIGN.image, sizes: ['wide', 'story'] }, { size: 'square', lock: oneAtATime, render: fakeRender(calls) });
+    await previewDesign(t.deps, { template: 'photo', headline: 'Hello', image: DESIGN.image, sizes: ['wide', 'story'] }, { size: 'story', lock: withRenderSlot, render: fakeRender(calls) });
+    await previewDesign(t.deps, { template: 'photo', headline: 'Hello', image: DESIGN.image, sizes: ['wide', 'story'] }, { size: 'square', lock: withRenderSlot, render: fakeRender(calls) });
     expect(calls.map((c) => c.only)).toEqual([['story'], ['wide']]);
   });
 
   it('reports a design that cannot be drawn as an answer, not an error', async () => {
-    const r = await previewDesign(t.deps, DESIGN, { lock: oneAtATime, render: fakeRender([], { ok: false, files: [], error: 'headline does not fit' }) });
+    const r = await previewDesign(t.deps, DESIGN, { lock: withRenderSlot, render: fakeRender([], { ok: false, files: [], error: 'headline does not fit' }) });
     expect(r).toMatchObject({ ok: false, error: 'headline does not fit' });
     expect(r.image).toBeUndefined();
   });
@@ -129,7 +129,7 @@ describe('previewDesign', () => {
     const photo = await t.prisma.vaultItem.create({ data: { kind: 'photo', title: 'Team', body: '', status: 'confirmed', fileKey: key, fileName: 'team.jpg', contentType: 'image/jpeg', size: 80, licence: 'own', createdById: user.id } });
     const calls: Array<Record<string, unknown>> = [];
     const r = await previewDesign(t.deps, { ...DESIGN, image: `design/assets/photos/vault-${photo.id}.jpg`, vaultItemId: photo.id }, {
-      lock: oneAtATime,
+      lock: withRenderSlot,
       render: async (o) => {
         const used = (o.design as Record<string, unknown>).image as string;
         calls.push({ used, exists: fs.existsSync(path.join(root, used)), hasVaultId: 'vaultItemId' in (o.design as object) });
@@ -143,7 +143,7 @@ describe('previewDesign', () => {
   });
 
   it('says so when the vault photo is gone', async () => {
-    const r = await previewDesign(t.deps, { ...DESIGN, image: 'design/assets/photos/vault-33333333-3333-4333-8333-333333333333.jpg', vaultItemId: '33333333-3333-4333-8333-333333333333' }, { lock: oneAtATime, render: fakeRender([]) });
+    const r = await previewDesign(t.deps, { ...DESIGN, image: 'design/assets/photos/vault-33333333-3333-4333-8333-333333333333.jpg', vaultItemId: '33333333-3333-4333-8333-333333333333' }, { lock: withRenderSlot, render: fakeRender([]) });
     expect(r.ok).toBe(false);
     expect(r.error).toContain('no longer in Facts');
   });

@@ -15,7 +15,7 @@ services:
     expose:
       - "3000"             # reached only through Dokploy's proxy; no host port is published
     shm_size: "512m"       # Chromium needs shared memory when rendering
-    mem_limit: 1536m       # suggested: Node and Chromium (one render at a time); raise it if renders get killed
+    mem_limit: 1536m       # suggested for one render at a time; add about 500m for each extra render RENDER_CONCURRENCY allows
     environment:
       PORT: "3000"
       DATABASE_URL: postgresql://social:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/social
@@ -32,6 +32,9 @@ services:
       S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
       S3_PREFIX: ${S3_PREFIX:-public/}
       CHROME_PATH: /usr/local/bin/chromium-container
+      # How many images are drawn at once (1 to 16, one Chrome each), and how many previews may wait before the app answers "busy".
+      RENDER_CONCURRENCY: ${RENDER_CONCURRENCY:-1}
+      RENDER_QUEUE_MAX: ${RENDER_QUEUE_MAX:-50}
       # The brand pack under brands/ (brand.json, logos, the first vault, optional prompts and map).
       BRAND_DIR: ${BRAND_DIR:-}
       ZEPTOMAIL_API_KEY: ${ZEPTOMAIL_API_KEY:-}

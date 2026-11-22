@@ -24,7 +24,7 @@ import { badRequest, conflict, HttpError, notFound, readJson } from '../http.js'
 import { requireRole, requireUser } from '../middleware.js';
 import { syncBrand } from '../services/brand-settings.js';
 import { CAROUSEL_PLACES, freeSlug, layoutEngine, layoutProblems, MAX_LAYOUTS, previewLayout } from '../services/layouts.js';
-import { oneAtATime } from '../services/render.js';
+import { withPreviewSlot } from '../services/render-limit.js';
 
 type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -91,7 +91,7 @@ export function layoutRoutes(deps: Deps): Hono<AppEnv> {
     const definition = await checked(body.definition);
     const brand = await syncBrand(deps);
     if (brand.logosMissing) throw new HttpError(409, 'Add your logo and its mark in Settings, Brand before a preview can be made');
-    return c.json(await previewLayout(deps, definition, { size: body.size, sample: body.sample, empty: body.empty, artefact: body.artefact, page: body.page, lock: oneAtATime }));
+    return c.json(await previewLayout(deps, definition, { size: body.size, sample: body.sample, empty: body.empty, artefact: body.artefact, page: body.page, lock: withPreviewSlot }));
   });
 
   app.post('/', async (c) => {

@@ -28,7 +28,8 @@ const SETTINGS: Record<JobName, QueueSetting> = {
   'analyse-reference': { policy: 'short', retryLimit: 0, expireInSeconds: 600, localConcurrency: 1 },
 };
 
-export function createBossJobs(options: { databaseUrl: string; schema?: string }): Jobs {
+// renderConcurrency: how many render-post jobs this process takes at once (RENDER_CONCURRENCY); the others wait in the database.
+export function createBossJobs(options: { databaseUrl: string; schema?: string; renderConcurrency?: number }): Jobs {
   const boss = new PgBoss({ connectionString: options.databaseUrl, schema: options.schema ?? 'pgboss' });
   let started = false;
   let startPromise: Promise<void> | null = null;
@@ -59,7 +60,8 @@ export function createBossJobs(options: { databaseUrl: string; schema?: string }
       await ensureStarted();
       for (const name of JOB_NAMES) {
         const s = SETTINGS[name];
-        await boss.work<JobPayloads[typeof name]>(name, { localConcurrency: s.localConcurrency, batchSize: 1 }, async (jobs) => {
+        const localConcurrency = name === 'render-post' ? Math.max(1, options.renderConcurrency ?? s.localConcurrency) : s.localConcurrency;
+        await boss.work<JobPayloads[typeof name]>(name, { localConcurrency, batchSize: 1 }, async (jobs) => {
           for (const job of jobs) {
             try {
               await handlerFor(name)(deps, job.data as never);

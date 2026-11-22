@@ -27,6 +27,7 @@ import {
   type DesignSample, type DesignSamplesRequest, type LookBrief, type LookRenderer, type PreviewRequest, type PreviewSample,
 } from './looks.js';
 import { submit } from './render-queue.js';
+import { BUSY_MESSAGE } from './render-limit.js';
 
 type Json = Record<string, unknown>;
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -103,6 +104,8 @@ export interface Drawn { ok: boolean; image?: string; warnings: string[]; error?
 interface DrawJob { kind: string; index: number; scenario: CopyScenario; anyVariant?: boolean }
 
 const BUSY = /another design run is already using chrome/i;
+// Why a queued picture was not drawn: the queue was full (RENDER_QUEUE_MAX), or its turn came too late.
+const waitError = (status: 'expired' | 'busy'): string => (status === 'busy' ? BUSY_MESSAGE : 'The picture waited too long for its turn. Try again');
 
 // Draws each job with ONE Chrome. `stop()` (checked before each picture) ends the run early: the rest are `skipped`.
 async function drawJobs(deps: Deps, look: Json, jobs: DrawJob[], opts: { brandId: string; withRects: boolean; stop?: () => boolean; brand?: BrandForLook }): Promise<Array<Drawn | null>> {
@@ -297,8 +300,8 @@ export function createLookRenderer(deps: Deps): LookRenderer {
         const run = await submit({ brandId: req.scope.brandId, class: 'preview', supersedeKey: `samples:${who(req.userId)}:${lookId(req.look)}`, deadline: Date.now() + PREVIEW_WAIT_MS },
           () => drawJobs(deps, req.look, todo.map((kind) => ({ kind, index: 0, scenario: 'sample' as const, anyVariant: true })), { brandId: req.scope.brandId, withRects: false, brand: bl }));
         if (run.status === 'superseded') return { samples: [], superseded: true };
-        if (run.status === 'expired') {
-          for (const k of todo) samples.set(k, { kind: k, ok: false, error: 'The picture waited too long for its turn. Try again', warnings: [] });
+        if (run.status !== 'done') {
+          for (const k of todo) samples.set(k, { kind: k, ok: false, error: waitError(run.status), warnings: [] });
         } else {
           todo.forEach((k, n) => {
             const d = run.value[n] ?? { ok: false, warnings: [], rects: [], error: 'Not drawn' };
@@ -330,7 +333,7 @@ export function createLookRenderer(deps: Deps): LookRenderer {
           () => drawJobs(deps, req.look, todo.map((index) => ({ kind: req.kind, index, scenario: 'sample' as const })), { brandId: req.scope.brandId, withRects: false, brand: bl }));
         if (run.status === 'superseded') return { designs: [], superseded: true };
         todo.forEach((i, n) => {
-          if (run.status === 'expired') { got.set(i, { index: i, ok: false, error: 'The picture waited too long for its turn. Try again' }); return; }
+          if (run.status !== 'done') { got.set(i, { index: i, ok: false, error: waitError(run.status) }); return; }
           const d = run.value[n] ?? { ok: false, warnings: [], rects: [], error: 'Not drawn' };
           if (!d.busy && !/unexpected error|could not be started|not installed/.test(d.error ?? '')) cachePut(keyOf(i), d);
           got.set(i, { index: i, ok: d.ok, ...(d.image ? { image: d.image } : {}), ...(d.error ? { error: d.error } : {}) });
@@ -343,7 +346,7 @@ export function createLookRenderer(deps: Deps): LookRenderer {
       const run = await submit({ brandId: req.scope.brandId, class: 'preview', supersedeKey: `design:${who(req.userId)}:${lookId(req.look)}`, deadline: Date.now() + PREVIEW_WAIT_MS },
         () => drawJobs(deps, req.look, [{ kind: req.kind, index: req.index, scenario: req.scenario }], { brandId: req.scope.brandId, withRects: req.withRects }));
       if (run.status === 'superseded') return { superseded: true };
-      if (run.status === 'expired') return { error: 'The picture waited too long for its turn. Try again' };
+      if (run.status !== 'done') return { error: waitError(run.status) };
       const d = run.value[0];
       if (!d) return { error: 'Not drawn' };
       return d.ok ? { image: d.image, rects: d.rects, warnings: d.warnings } : { error: d.error ?? 'The design could not be drawn', warnings: d.warnings };
@@ -357,7 +360,8 @@ export function createLookRenderer(deps: Deps): LookRenderer {
       const run = await submit({ brandId: req.scope.brandId, class: 'gate', supersedeKey: `gate:${who(req.userId)}:${lookId(req.look)}`, deadline: startedAt + GATE_WAIT_MS },
         () => { const t0 = Date.now(); return drawJobs(deps, req.look, jobs, { brandId: req.scope.brandId, withRects: false, stop: () => Date.now() - t0 > GATE_RUN_MS }); });
       if (run.status === 'superseded') return unfinished('A newer check of this look replaced this one');
-      if (run.status === 'expired') return unfinished('The checks waited too long for their turn. Run them again');
+      if (run.status === 'busy') return unfinished('The server is busy drawing other pictures. Run the checks again in a moment');
+      if (run.status !== 'done') return unfinished('The checks waited too long for their turn. Run them again');
       return req.targets.map((_, i) => scenarios.map((s, j): GateCheck => {
         const d = run.value[i * scenarios.length + j];
         if (!d) return { name: `render:${s}`, passed: false, message: 'Ran out of time before this was drawn. Run the checks again' };

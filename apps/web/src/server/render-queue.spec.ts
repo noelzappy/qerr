@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRenderQueue, submit } from './services/render-queue.js';
-import { oneAtATime } from './services/render.js';
+import { setRenderLimits, withRenderSlot } from './services/render-limit.js';
 
 // A job that runs until the test lets it finish, and notes when it started.
 function job(log: string[], name: string) {
@@ -100,12 +100,54 @@ describe('the render queue', () => {
     expect(q.pending()).toBe(0);
   });
 
-  it('shares the lock of the existing renderer: a queued job never overlaps one that calls oneAtATime directly', async () => {
+  it('shares the render limit of the rest of the app: a queued job never overlaps one that takes a slot directly', async () => {
     let active = 0, peak = 0;
     const work = async () => { active++; peak = Math.max(peak, active); await tick(); active--; };
     await Promise.all([
-      oneAtATime(work), submit({ brandId: 'b', class: 'preview' }, work), oneAtATime(work), submit({ brandId: 'b', class: 'post' }, work),
+      withRenderSlot(work), submit({ brandId: 'b', class: 'preview' }, work), withRenderSlot(work), submit({ brandId: 'b', class: 'post' }, work),
     ]);
     expect(peak).toBe(1);
+  });
+
+  it('with RENDER_CONCURRENCY at 2, runs two jobs at once with the rest of the app, never three', async () => {
+    setRenderLimits({ concurrency: 2, queueMax: 50 });
+    try {
+      let active = 0, peak = 0;
+      const work = async () => { active++; peak = Math.max(peak, active); await tick(); await tick(); active--; };
+      await Promise.all([
+        withRenderSlot(work), submit({ brandId: 'b', class: 'preview' }, work), withRenderSlot(work), submit({ brandId: 'b', class: 'post' }, work),
+        submit({ brandId: 'b', class: 'gate' }, work), withRenderSlot(work),
+      ]);
+      expect(peak).toBe(2);
+    } finally {
+      setRenderLimits({ concurrency: 1, queueMax: 50 });
+    }
+  });
+
+  it('hands as many waiting jobs to the limit as its concurrency allows, in class order', async () => {
+    const q = createRenderQueue({ run: (fn) => fn(), concurrency: () => 2 }), log: string[] = [];
+    const g = job(log, 'gate'), p = job(log, 'preview'), b = job(log, 'post');
+    const results = [q.submit({ brandId: 'b', class: 'gate' }, g.run), q.submit({ brandId: 'b', class: 'preview' }, p.run), q.submit({ brandId: 'b', class: 'post' }, b.run)];
+    await tick();
+    expect(log).toEqual(['post', 'preview']);
+    b.release();
+    await tick();
+    expect(log).toEqual(['post', 'preview', 'gate']);
+    p.release(); g.release();
+    expect((await Promise.all(results)).map((r) => r.status)).toEqual(['done', 'done', 'done']);
+  });
+
+  it('answers busy at once, without running it, when RENDER_QUEUE_MAX jobs already wait', async () => {
+    const q = createRenderQueue({ run: (fn) => fn(), concurrency: () => 1, queueMax: () => 2 }), log: string[] = [];
+    const a = job(log, 'a'), b = job(log, 'b'), c = job(log, 'c'), d = job(log, 'd');
+    const ra = q.submit({ brandId: 'b', class: 'preview' }, a.run);
+    await tick();
+    const rb = q.submit({ brandId: 'b', class: 'preview' }, b.run);
+    const rc = q.submit({ brandId: 'b', class: 'preview' }, c.run);
+    const rd = q.submit({ brandId: 'b', class: 'preview' }, d.run);
+    expect(await rd).toEqual({ status: 'busy' });
+    for (const j of [a, b, c]) { j.release(); await tick(); }
+    expect((await Promise.all([ra, rb, rc])).map((r) => r.status)).toEqual(['done', 'done', 'done']);
+    expect(log).toEqual(['a', 'b', 'c']);
   });
 });

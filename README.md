@@ -188,6 +188,8 @@ with a message that names the variable, never its value. The main ones:
 | `BOOTSTRAP_ADMIN_EMAIL` | On the first start with no users, the app logs one admin invite for this address. |
 | `STORAGE_DRIVER` and `S3_*` | `local` (a folder, for development and tests) or `s3` with `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_BASE_URL` and `S3_PREFIX` (default `public/`). |
 | `CHROME_PATH` | The Chrome or Chromium binary the engine renders with. |
+| `RENDER_CONCURRENCY` | How many images are drawn at the same time, 1 to 16, default 1. Each render runs its own Chrome (about 300 to 500 MB of memory), so raise it only on a server with the memory. Renders beyond it wait their turn: post renders in the database's job queue, previews in memory. |
+| `RENDER_QUEUE_MAX` | How many previews may wait for a free render, 0 to 10000, default 50. One more is answered at once with "busy, try again" (HTTP 503), so a burst of traffic cannot pile up on the server. Post renders are never refused. |
 | `BRAND_DIR` | The brand pack shown until a brand is saved in Settings, and the source of the first vault. Default `brands/demo`. |
 | `APP_NAME` | The app's name in titles, emails and the sign-in page. Default `Vesk`. |
 | `ZEPTOMAIL_API_KEY`, `MAIL_FROM` or `SMTP_*` | Invite and reset emails. Without them the admin page shows the link to copy. |
@@ -510,7 +512,7 @@ The engine tests, in `packages/engine/`:
   `test-design-look-pictures.mjs`: the portrait quote and the device round a bare screenshot. `test-design-look-nopicture.mjs`: each design whose picture is optional, drawn without one.
 - `test-design-chart.mjs`, `test-design-chart-render.mjs`: chart and sparkline validation with hostile values, the brand's
   number format, and with Chrome the 3:1 rule for chart marks and every mark inside the chart's box.
-- `test-design-chrome-lock.mjs`: the machine-wide lock that keeps one Chrome running at a time (`VESK_CHROME_LOCK`).
+- `test-design-chrome-lock.mjs`: the machine-wide lock that keeps Chromes to `RENDER_CONCURRENCY` (one by default; `VESK_CHROME_LOCK`).
 
 The AI tests are in `packages/ai/test-ai.mjs` (fake fetch, no network), the export tests in
 `scripts/test-export-public.mjs`, and the web app's specs in `apps/web/src/**/*.spec.ts`.
@@ -531,8 +533,9 @@ An npm workspaces monorepo.
 | `scripts/` | `export-public.mjs`: a public copy of the repository without private brand packs (`npm run export-public`). |
 
 At run time the app writes `state/brand/` (the saved brand as a pack) and `out/` (temporary renders) at the repository
-root, and `apps/web/.data/` with the local storage driver. None of them is in git. The lock that keeps one Chrome running
-at a time is machine-wide, `vesk-chrome.lock` in the system's temporary folder (`VESK_CHROME_LOCK` moves it).
+root, and `apps/web/.data/` with the local storage driver. None of them is in git. The lock that keeps Chromes to
+`RENDER_CONCURRENCY` (one by default) is machine-wide, `vesk-chrome.lock` in the system's temporary folder, with one more file
+per further slot (`VESK_CHROME_LOCK` moves it).
 
 ## Documentation
 
