@@ -18,6 +18,8 @@ import { renderPostWithLook } from './lib/design/directions/index.mjs';
 import { ART_LIMITS, artGeometry, pathProblems, pathPoints } from './lib/design/directions/art-geom.mjs';
 import { findChrome } from './lib/design/chrome.mjs';
 import { renderDesignBlock } from './lib/design-render.mjs';
+import { validateBatch } from './lib/batch.mjs';
+import { probePicture } from './lib/design/picture-probe.mjs';
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const PACK = 'brands/kettleworks';
@@ -159,4 +161,28 @@ test('Chrome: an own design the look now refuses is not drawn; the post is drawn
   assert.equal(r.ownDesign.used, false);
   assert.match(r.ownDesign.reasons.join(' '), /page colour \(tint\)/);
   assert.ok(r.notes.some((n) => /the post's own design was not used/.test(n)));
+});
+
+// ---- a batch file carries a post's own design, held to the brand's look ----
+test('a batch: a post\'s own design is held to the brand\'s look when the batch is validated, and refused for a brand without a look', () => {
+  const batch = (composition) => ({ name: 'own', timezone: 'UTC', defaultTime: '09:00', mediaRoot: 'media/own', posts: [{ id: 'p1', date: '2027-06-02', title: 'T', caption: 'Words', design: post({ composition }) }] });
+  assert.deepEqual(validateBatch(batch(withArt()), { root: ROOT }).errors, []);
+  const bad = withArt(); bad.elements[0].shapes[0].colour = 'accent-type';
+  assert.match(validateBatch(batch(bad), { root: ROOT }).errors.join(' '), /post p1: design: composition: elements\[0\]\.shapes\[0\]\.colour/);
+  const before = process.env.BRAND_DIR;
+  process.env.BRAND_DIR = 'brands/demo';
+  try { assert.match(validateBatch(batch(withArt()), { root: ROOT }).errors.join(' '), /drawn with the brand's look/); } finally { process.env.BRAND_DIR = before; }
+});
+
+// ---- the picture the AI designer looks at ----
+test('Chrome: a picture probe gives a small thumbnail and the colour of its plain background; a busy picture has none the page could take', { skip }, async () => {
+  const jar = await probePicture({ root: ROOT, file: 'packages/engine/design/assets/demo/object-jar.jpg', size: 256 });
+  assert.equal(jar.thumb.mediaType, 'image/jpeg');
+  assert.ok(Buffer.from(jar.thumb.data, 'base64').length > 1000);
+  assert.ok(Math.max(jar.w, jar.h) > 256, 'the picture keeps its own size; the thumbnail is small');
+  assert.ok(Array.isArray(jar.edge.rgb) && jar.edge.rgb.length === 3);
+  const market = await probePicture({ root: ROOT, file: 'packages/engine/design/assets/demo/scene-market.jpg' });
+  assert.equal(market.edge.picture, false);
+  await assert.rejects(probePicture({ root: ROOT, file: '../outside.jpg' }));
+  await assert.rejects(probePicture({ root: ROOT, file: 'packages/engine/design/assets/demo/object-jar.jpg', size: 5000 }));
 });

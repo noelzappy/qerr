@@ -327,6 +327,7 @@ function checkOne(d, template, where, errors, opts = {}) {
 }
 
 // A post's own design (its `composition`) is held to the brand's look as one of the look's compositions would be (look.mjs postCompositionProblems).
+// opts.ownLook: the brand's look for this only (a batch's validation, which does not hold the post's words to the look's budgets).
 const ownDesignOf = (look) => (look ? (comp, kind) => postCompositionProblems(comp, look, kind) : undefined);
 
 // Validates one design spec (the template plus its options). Returns a list of problems, empty when fine.
@@ -354,7 +355,7 @@ export function validateDesign(d, where = 'design', opts = {}) {
     }
   }
   if (d.template === 'carousel' && isPostCarousel(d)) {
-    errors.push(...postCarouselProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null, emoji: opts.emoji === true, ownDesign: ownDesignOf(opts.look) }));
+    errors.push(...postCarouselProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null, emoji: opts.emoji === true, ownDesign: ownDesignOf(opts.look ?? opts.ownLook) }));
     return errors;
   }
   if (d.template === 'carousel') {
@@ -370,7 +371,7 @@ export function validateDesign(d, where = 'design', opts = {}) {
     return errors;
   }
   if (d.template === 'post') {
-    errors.push(...postProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null, emoji: opts.emoji === true, ownDesign: ownDesignOf(opts.look) }));
+    errors.push(...postProblems(d, where, { direction: opts.direction, brief: opts.look ? lookBrief(opts.look) : undefined, focalOk: (f) => focalToCss(f) !== null, emoji: opts.emoji === true, ownDesign: ownDesignOf(opts.look ?? opts.ownLook) }));
     return errors;
   }
   checkOne(d, d.template, where, errors, opts);
