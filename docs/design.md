@@ -49,6 +49,10 @@ markup**. This matters because the texts may be written by a program from web re
   (and logged as a warning if a template ever tries one), and DNS is switched off. The fonts, logos and brand CSS are embedded
   too.
 - **The brand file is checked as well**: colours must be `#rrggbb`, every shadow layer finite numbers in range with an alpha from 0 to 1 (the phone's drop shadow has no spread), radii, the scale and the window chrome numbers in range, the font families plain letters, weights numbers, unicode-ranges well formed, series ground and accent from the fixed lists, and asset paths must stay inside the repository. The CSS (shadows, radii, window chrome) is built from the checked numbers.
+- **A chart is numbers and escaped words.** A post's `chart` is checked by `chartProblems` (`lib/design/chart.mjs`: fixed kinds, units and
+  highlights, finite values in range with at most two decimals, labels of plain words) and checked again when drawn (`chartOf` in
+  `directions/kit.mjs`: anything it refuses draws no chart). The marks are SVG paths whose every coordinate is a number the kit computed,
+  their colours palette roles; the labels go through `esc()`. Neither a refusal nor a mark ever carries what the post gave.
 - **Never add a template that interpolates a raw value.** Use `esc()`/`fmt()` for text, `ctx.image()` for pictures, and
   numbers or table values for sizes. `packages/engine/test-design-security.mjs` feeds hostile values to every template and fails if any
   shows up as markup.
@@ -858,6 +862,11 @@ wrong one is refused with a list of every problem. A brand saved in Settings, Br
   currencies that pictures must not show and that texts are warned about: the brand lint (`lintText`, so image text in every
   render) and the AI library's caption check warn when a text matches it (`foreignMoneyWarning` in `lib/design/lint.mjs`), and the
   web app's review page does the same for a caption a person wrote. The AI library uses both (see [ai.md](ai.md)).
+- **`numbers`** (optional): how the numbers of a post's `chart` are written. `{ "decimal": "." | ",", "group": "," | "." | " " | "thin" | "none",
+  "currency": one to four letters or currency signs ("€", "kr", "GH₵") or "", "currencyAt": "before" | "after", "currencySpace": bool,
+  "percentSpace": bool }`, every key optional, the decimal mark and the thousands separator different (`numbersProblems` in `lib/design/chart.mjs`).
+  Without it a chart writes `1,234.5` and no currency sign. The fictional packs write euros: `{ "decimal": ".", "group": ",", "currency": "€",
+  "currencyAt": "before" }`. Set in Settings, Brand and look, Identity, Numbers in charts.
 - **`map.json`** (optional, next to `brand.json`): the dot map for `closing` with `map: true`. `{ "grid": { "cols", "rows" },
   "regions": [{ "name", "capital": [col, row], "cells": [col, row, col, row, ...] }], "lit": ["<region name>", ...] }`: a
   grid of 2 to 400 columns and rows, 1 to 100 regions with names up to 80 characters, cells as flat pairs inside the grid,
@@ -912,6 +921,7 @@ that is empty, over its limit or on two lines where one is required is refused, 
 | `info` | 1 to 4 rows | `{ "key", "value" }`: `key` one of When, Where, Date, Time, Place, Book on, Tickets, Price, Entry, Who, Host, Call, Online, Starts, Ends, Open (`INFO_KEYS`, never free text), each once; `value` one line of up to 40, no marks |
 | `gallery` | 2 to 5 pictures | `{ "image", "caption"? }`: each picture once, read and checked like `image`; `caption` one line of up to 24 (a name, a product) |
 | `image`, `focal`, `zoom` | as elsewhere | `.jpg .jpeg .png .webp .gif`; zoom 1 to 3 |
+| `chart` | 2 to 12 points, or one value and its total | `{ "kind"?, "series": [{ "label"?, "value" }], "unit"?, "highlight"?, "total"? }` (`lib/design/chart.mjs`): `kind` one of bar, hbar (bars across), line, area, spark (a sparkline), donut, progress; `value` a finite number from -1,000,000,000 to 1,000,000,000 with at most two decimals; `label` one line of plain words of up to 14 (no mark, bracket or control character); `unit` number, currency or percent (written the brand's way, `numbers` in the brand file); `highlight` the index of a point, or last, max, min, none; a donut or progress bar takes one point and `total` (100 when the unit is percent), the value at most the total and never below zero. Refused without repeating what it was given |
 | `graphics` | up to 6 | `[{ ref, image, tintable? }]`: the brand graphics and cut-outs the look's `graphic` pieces name, by vault id (`ref`, a lowercase UUID), each a `.png` or `.webp` file (a path relative to the repository that stays inside it) read when the page is made and refused unless it has transparency. A piece whose `ref` is not listed is left out with a warning. The web app fills this from the vault for the composition that will draw the post (`designGraphicNeeds` in `lib/design-render.mjs`; `lookCompositionGraphics` in `lib/design/look.mjs` for one design of a look), with copies of the vault files in the run's own folder; it refuses a design that sets `graphics` itself (and holds any graphic file a design names to `design/assets/`) |
 
 **Words in pills and inline icons.** Besides its `*emphasis*`, a headline (and only a headline) may mark up to two runs of one to three words as
@@ -923,6 +933,15 @@ not count towards the length; an icon counts as two characters. A look draws the
 are SVG paths from that fixed table, filled in the colour of the words; no SVG, path or URL ever comes from a post or a look.
 `cta`, `info` and `gallery` are drawn only by a look written as data, in its `statement`, `photo`, `event` and `offer` compositions (`cta` also in
 `list`, `gallery` also in `quote`: the round pictures of the people quoted), within each composition's own counts (`fields.info.min`/`max`, `fields.gallery.min`/`max`, `fields.cta.max`).
+
+**Charts.** A `chart` is drawn only by a look written as data, in any kind but `quote`, by a composition with a `chart` element; the
+composition declares it (`fields.chart`, with `min` and `max` points from 2 to 12) and the element lists the kinds it draws. A post's own
+`kind` is drawn when the design lists it; with no kind, the first kind of the design that fits the data (a series, or one value and its
+total). A post naming a kind or a count the look does not draw is refused before Chrome starts (`postProblems` against `lookBrief`). The
+numbers are written as the brand writes them: `numbers` in the brand file (`decimal` `.` or `,`; `group` `,`, `.`, a space, `thin` or `none`;
+`currency`, one to four letters or currency signs such as € or kr; `currencyAt` before or after; `currencySpace`, `percentSpace`), checked by
+`validateBrand` and set in Settings, Brand and look, Identity, Numbers in charts. All the values of a chart take the same decimal places;
+from a hundred thousand they are written compact (`€251k`, `12M`).
 
 Required per kind: `statement` needs `headline`; `figure` `big`; `list` `headline` and `items`; `quote` `quote`; `photo`
 `image` and `headline`; `event` `headline` and `meta`; `offer` `headline` and `tag`. A field the chosen composition does not
@@ -998,6 +1017,16 @@ with a sentence that says what to change.
 | Scale | The headline (or the big numeral) is at least 2.6 times the largest body text, judged at the size it was designed for, before the fit loop shrank it. |
 | Levels | At most three sizes of type, sizes within 2 px counting as one. A headline fitted line by line counts as one level. |
 | Grid | Every text block's left edge (or right edge, or centre) sits on the margin, a column line or the page centre, within 2 px. A block marked `data-grid="skip"`, and a block inside `data-deco`, is not judged. |
+
+A chart adds one more, with the layout checks (`findLayoutProblems`, kind `chart`): every mark of a chart (its stroke and dots included)
+and every word of it stays inside the chart's box, measured on the page (`charts` in `measure()`); a mark or a word more than a pixel out is
+refused. Its words are ordinary measured text: each label and value is a run in a cell (`data-cell`) as large as the chart's geometry made
+room for, so a value too wide for its bar's slot is refused by the fit check (never drawn over its neighbour), and the contrast check reads
+the pixels under each word with the bars, lines and grid drawn and only the words hidden. A chart's box is a frame, not a coloured block, so
+the "text meets the edge of a block" rule does not read it (`.k-chart` beside the frame and keylines in `SKIP_SHAPE`); its words are held to
+their cells instead. The scale of bars, a donut and a progress bar always starts at zero (a bar's length is its value). A line, an area
+or a sparkline starts at zero too, unless its look sets `trim` on the chart element (an explicit choice of the look, refused on a design that
+draws bars): then the axis may start at the round value just below the lowest point, and never below zero for positive data.
 
 Two rules about fit. A post's headline may shrink to 82% of its designed size (`POST_MIN_SCALE` in `render.mjs`); below that
 the render is refused with "shorten the headline to about N characters", an estimate from how much of it fitted. And a
@@ -1201,6 +1230,7 @@ stored. At most 21 compositions, at most 3 of a kind.
 | `taped-photo` | The post's picture pasted on like a print: an optional paper mount, a line round the picture, strips of tape on two or four corners, turned as a whole |
 | `paper-texture` | A light paper grain over the page or an area (decoration, never a fill the checks count) |
 | `icon-badge` | One of the engine's own icons (`lib/design/icons.mjs`) drawn large: bare, or on a round or rounded badge in a fill colour (a shield on a trust page, a tick, a small sticker beside a big figure) |
+| `chart` | The post's `chart`: bars, bars across, a line, an area, a sparkline, a donut or a progress bar, in the brand's colour roles with one highlight colour |
 
 A headline `text` also takes `pills` (`shape` pill, soft or outline; `fill`, a fill role, none for an outline; `ink`, which must read on the
 fill, or on the page for an outline) and `icons` (`colour`, a role; the words' own colour when left out): how its `[[pill]]` words and `{{icon}}`
@@ -1326,6 +1356,7 @@ outside the margin.
 | `taped-photo` | `mount` (0 to 40 px of paper border; `fill`, its colour, only with a mount), `keyline` (0 to 8 px) and `keylineColour`, `tapeOn` (`diagonal`, `other-diagonal`, `top`, `all`), `tapeColour` (a role; the tape is drawn see-through with torn ends by `kit.css`), `tapeLength` (60 to 260), `tapeWidth` (20 to 80), `treat`; `rot`, `shadow`. Its place needs a width and a height; the picture is read and checked like every picture and counts as one for the text-over-picture check. A post with no picture draws nothing |
 | `paper-texture` | `strength` (0.05 to 0.6), `grain` (`fine`, `coarse`): the page's own grain (`--k-grain`) multiplied over the ground; `data-deco`, so the emptiness check does not count it, and the contrast check measures the finished pixels |
 | `icon-badge` | `icon` (one of the engine's icons, never a path), `size` (the icon, 24 to 400 px), `shape` (circle, rounded, none), `badge` (the badge's side, 40 to 600 px, larger than the icon; about twice it when left out); `fill` (needed for a badge, refused on a bare icon) and `ink`, a pair from the ink table; `ring` and a soft `shadow` (`soft` or `lift`; a badge's only, refused on a bare icon), `rot`. It may flow in a box (a row beside a figure). Decoration (`data-deco`): no words of the post reach it |
+| `chart` | `kinds` (1 to 7 of bar, hbar, line, area, spark, donut, progress, each once; the first is the default), `colours` (`mark`, `highlight`, `track`, `grid`: palette roles; one highlight colour for the highlighted point, a donut's share and a progress bar's fill), `axis` (none, baseline, grid: light lines at round values), `values` and `labels` (on or off), `radius` (0 to 40, the ends of bars and progress bars; a donut's ends are round above 0), `stroke` (1 to 16, a line's width; refused on a design with no line), `thickness` (2 to 200, a bar's, a ring's or a progress bar's), `trim` (line kinds only, see the checks), `marks` (a line's dots: none, end, minmax, all; refused with no line), `textSize` (14 to 60, the labels; the look's label size when left out), `valueSize` (14 to 200), `valueFont` (label, display, text, mono), `upper`; `ink` (labels and values; else labels in the body colour and values in the ink, both checked against the ground). Its place needs a width and a height. The marks are SVG paths the kit (`c.chartSvg`) builds from numbers and palette roles only (`data-deco`); the labels and values are the post's words, escaped, set as runs with roles in cells. A chart the post does not bring draws nothing; one of a kind the design does not draw is refused |
 
 A primitive module may also export `bindings(el)`, `sizes(el, look)`, `inks(el)`, `inkPairs(el)`, `ownFill(el)`, `picture`, `fonts(el, look)`
 and `rules(el, bad)`: the static checks (`look-static.mjs`), the validator and the font embedding read these, so a new primitive is checked like
@@ -1368,7 +1399,10 @@ code compositions in `test-design-look-equivalence.mjs`, with the deviations lis
 highlight bar 0.12 em against 0.13 em); swiss is held to the approved prototype by eye. Soft (one sans in medium weights on pale tints of the brand colour, the logo top
 left and the web address top right, rounded panels and pills, pictures that melt into a page sampled from their own edge, a myth and fact page and a big
 figure over a rounded panel) bloom (a serif with italics, arch, oval and circle windows, keylines and dotted rules) and clean (the classic poster pages as a look: the brand's own
-fonts, two-tone headlines, a picture melting into a page sampled from its edge, myth and fact on rounded cards on the dark page) and ledger (below) exist only as data.
+fonts, two-tone headlines, a picture melting into a page sampled from its edge, myth and fact on rounded cards on the dark page; its Number page draws
+a sparkline of 4 to 12 points under the figure when a post brings a `chart`, in the deep brand colour with the last point marked, on an axis
+the look trims to the data) and ledger (below) exist only as data. `test-design-chart-render.mjs` draws the two chart designs (ledger's Big number with bars,
+an area and a line, clean's sparkline) through every check.
 `test-design-look-retail.mjs`, `test-design-look-swiss.mjs`, `test-design-look-soft.mjs`, `test-design-look-bloom.mjs`, `test-design-look-clean.mjs` and `test-design-look-ledger.mjs` accept no problem at all from the
 validator, and `test-design-look-equivalence.mjs` draws all six from sample, stress and minimal copy in three sets of brand colours through every check.
 The retail price tag (figure/0) sets its figure as large as the stage allows (up to 930 px, centred) with the unit fitted on a full-width accent block
@@ -1402,7 +1436,7 @@ badge (`icon-badge`), a mark of fine rings round a brand-colour disc (keylines a
 |---|---|---|
 | `statement/0` Gradient hero | statement | deep page with a glow and a mark above (two fine rings round a brand-colour disc, an accent dot); label chip, a big white headline at the foot, sub, optional button; also the cover and closing page of a carousel |
 | `statement/1` Trust card | statement | pale page, one white card: a shield on a brand-colour badge, a two-tone headline and sub; the label under the card |
-| `figure/0` Big number | figure | deep page with a glow; the figure fitted across the page, the unit beside a change pill (the tag), the sub under a hairline |
+| `figure/0` Big number | figure | deep page with a glow; the figure fitted across the page, the unit beside a change pill (the tag), the sub under a hairline. With a `chart` (3 to 8 points) the figure sits higher and bars, an area or a line of the months behind it fill the middle: grey-green marks with the highlighted point in the accent, values and labels in the light body colour, a baseline, rounded bar ends; bars start at zero |
 | `figure/1` Balance card | figure | pale page, a white card like an account balance: label, figure, unit and change pill; the sub under it |
 | `figure/2` Step | figure | white page, centred: the step number on a brand-colour tile, a two-tone headline and sub, the page number top right; the body pages of a how-it-works carousel |
 | `list/0` Features | list | white page, two-tone headline; each item on a ruled row with a tick on a round badge; optional button |
