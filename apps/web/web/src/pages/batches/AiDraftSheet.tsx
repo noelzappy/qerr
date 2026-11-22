@@ -1,36 +1,41 @@
-// "Draft with AI": says what to draft (period, how many posts, optional title and networks) and queues the job. Once it
-// is queued the panel shows the run live (the step and how far it is) and, when it is done, a button to open the batch.
+// "Draft with AI": says what to draft (period, how many posts, optional title and networks) and queues the job. The period and
+// the number of posts are one tap each (next month and 10 to start; Custom opens the exact fields). Once it is queued the panel
+// shows the run live (the step and how far it is) and, when it is done, a button to open the batch.
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { RunProgress, RunResult, RunStatusBadge } from '@/components/activity-parts';
 import { Button } from '@/components/ui/button';
-import { BusyButton, CheckField, FieldSet, FormPanel, FormProblem, Notice, TextField } from '@/components/kit';
+import { BusyButton, FormPanel, FormProblem, Notice, TextField } from '@/components/kit';
+import { NetworkToggles } from '@/components/network-toggles';
 import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsaved-guard';
 import { useActivityRun } from '@/hooks/use-activity';
 import { useNow } from '@/hooks/use-now';
 import { isActive } from '@/lib/activity';
 import { errorMessage, fieldErrors } from '../../lib/errors';
-import { networkLabel } from '../../lib/labels';
 import { toast } from 'sonner';
 import { NETWORKS } from './labels';
+import { useAppInfo } from '../../app-info';
+import { ChoiceRow } from './editor/ChoiceRow';
+import { PeriodChips } from './PeriodChips';
+import { periodFor, todayIn } from './periods';
 import { useSession } from '../../session';
 
 type Readiness = { ready: boolean; missing: 'provider' | 'budget' | null };
 
-// The first and last day of next month, as the form's starting point.
-function nextMonth(): { from: string; to: string } {
-  const now = new Date();
-  const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 0));
-  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
-}
+// How many posts, as one tap; Custom opens a number field (1 to 30).
+export const POST_COUNTS = ['5', '10', '15', '20', '30'] as const;
 
 export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [initial] = useState(nextMonth);
-  const [periodStart, setPeriodStart] = useState(initial.from);
-  const [periodEnd, setPeriodEnd] = useState(initial.to);
+  const { brand } = useAppInfo();
+  const today = todayIn(brand.timezone);
+  // Next month: the form's starting point.
+  const [initial] = useState(() => periodFor('month', today));
+  const [period, setPeriod] = useState(initial);
+  const periodStart = period.from;
+  const periodEnd = period.to;
   const [count, setCount] = useState('10');
+  const [customCount, setCustomCount] = useState(false);
   const [title, setTitle] = useState('');
   const [networks, setNetworks] = useState<string[]>([...NETWORKS]);
   const [busy, setBusy] = useState(false);
@@ -129,7 +134,7 @@ export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => 
         </>
       )}
     >
-      <form id="ai-draft-form" className="flex flex-col gap-3" onSubmit={(e) => void submit(e)} noValidate>
+      <form id="ai-draft-form" className="flex flex-col gap-4" onSubmit={(e) => void submit(e)} noValidate>
         {blocked && (
           <Notice
             tone="warn"
@@ -143,17 +148,19 @@ export function AiDraftSheet({ open, onClose }: { open: boolean; onClose: () => 
           </Notice>
         )}
         <FormProblem error={error} />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <TextField label="First day" type="date" value={periodStart} error={fields.periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
-          <TextField label="Last day" type="date" value={periodEnd} error={fields.periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
-          <TextField label="Number of posts" type="number" inputMode="numeric" min={1} max={30} value={count} error={fields.count} onChange={(e) => setCount(e.target.value)} hint="From 1 to 30. Drafting takes a few minutes." />
-          <TextField label="Title" optional value={title} maxLength={200} placeholder="AI draft for the month" onChange={(e) => setTitle(e.target.value)} hint="Left empty, the batch is called AI draft for the month." />
-        </div>
-        <FieldSet legend="Networks" error={fields.channels}>
-          {NETWORKS.map((n) => (
-            <CheckField key={n} label={networkLabel(n)} checked={networks.includes(n)} onCheckedChange={(c) => setNetworks(c ? [...networks, n] : networks.filter((x) => x !== n))} />
-          ))}
-        </FieldSet>
+        <PeriodChips today={today} value={period} onChange={setPeriod} errors={{ from: fields.periodStart, to: fields.periodEnd }} />
+        <ChoiceRow<string>
+          legend="Number of posts" tip="Drafting takes a few minutes."
+          value={customCount ? 'custom' : count}
+          onChange={(v) => { if (v === 'custom') { setCustomCount(true); } else { setCustomCount(false); setCount(String(v)); } }}
+          choices={[...POST_COUNTS.map((n) => ({ value: n, label: n })), { value: 'custom', label: 'Custom' }]}
+        />
+        {customCount && (
+          <TextField label="Exact number of posts" type="number" inputMode="numeric" min={1} max={30} value={count} error={fields.count} onChange={(e) => setCount(e.target.value)} hint="From 1 to 30." className="sm:max-w-[calc(50%-0.375rem)]" />
+        )}
+        {!customCount && fields.count && <p className="text-[12.5px] font-medium text-destructive" role="alert">{fields.count}</p>}
+        <NetworkToggles value={networks} onChange={setNetworks} error={fields.channels} />
+        <TextField label="Title" optional value={title} maxLength={200} placeholder="AI draft for the month" onChange={(e) => setTitle(e.target.value)} hint="Left empty, the batch is called AI draft for the month." />
       </form>
     </FormPanel>
   );

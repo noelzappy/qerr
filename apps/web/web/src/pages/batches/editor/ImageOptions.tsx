@@ -8,6 +8,7 @@ import { Hint, SelectField, TextField } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { ChoiceRow } from './ChoiceRow';
 import { focalXY, imageOptionsSupport } from './image-options-support';
 import type { Json, LayoutBrief } from './types';
 
@@ -19,7 +20,10 @@ const ACCENTS = [
   { value: 'muted', label: 'Softer colour' }, { value: 'colour', label: 'Brand colour' },
   { value: 'weight', label: 'Lighter weight' }, { value: 'none', label: 'Same as the rest' },
 ];
-const YES_NO = [{ value: '', label: 'Leave it to the layout' }, { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }];
+// The small choices are one tap each; '' leaves the setting to the layout (it is then not written).
+const YES_NO = [{ value: '', label: 'Automatic' }, { value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }];
+const BOOL_LABEL: Record<string, string> = { framed: 'Show the screenshot without the window frame', glow: 'Glow behind the phone', fade: 'Fade the phone out at the bottom' };
+const LAYOUT_DECIDES = 'Automatic leaves it to the layout.';
 
 const focalText = (x: number, y: number) => `${Math.round(x)}% ${Math.round(y)}%`;
 const word = (v: unknown) => (typeof v === 'string' ? v : '');
@@ -101,9 +105,21 @@ export function ImageOptions({ design, onChange, brandLayouts, disabled }: { des
     onChange(next);
   }
   const bool = (key: string) => (
-    <SelectField key={key} label={{ framed: 'Show the screenshot without the window frame', glow: 'Glow behind the phone', fade: 'Fade the phone out at the bottom' }[key] ?? key} value={d[key] === true ? 'true' : d[key] === false ? 'false' : ''} options={YES_NO} disabled={disabled}
-      onValueChange={(v) => setField(key, v === 'true' ? true : v === 'false' ? false : undefined)} />
+    <ChoiceRow<string> key={key} legend={BOOL_LABEL[key] ?? key} tip={LAYOUT_DECIDES} value={d[key] === true ? 'true' : d[key] === false ? 'false' : ''} choices={YES_NO} disabled={disabled}
+      onChange={(v) => setField(key, v === 'true' ? true : v === 'false' ? false : undefined)} />
   );
+  // A value the choices do not have (set for each size, say) stays, shown as its own choice, and is changed in Advanced.
+  const odd = (list: { value: string }[], v: unknown) => (v !== undefined && (typeof v !== 'string' || !list.some((o) => o.value === v))
+    ? [{ value: typeof v === 'string' && v ? v : 'other', label: isPerSize(v) ? 'Per size' : typeof v === 'string' ? v : 'Other' }] : []);
+  const choice = (key: string, legend: string, list: Array<{ value: string; label: string }>, auto: string) => {
+    const options = [{ value: '', label: 'Automatic' }, ...list];
+    const extra = odd(options, d[key]);
+    return (
+      <ChoiceRow<string> key={key} legend={legend} tip={`Automatic leaves it to the layout (${auto}).${extra.length ? ' The value now set is changed in Advanced.' : ''}`}
+        value={extra[0]?.value ?? word(d[key])} choices={[...options, ...extra]} disabled={disabled}
+        onChange={(v) => { if (!extra.some((o) => o.value === v)) setField(key, v); }} />
+    );
+  };
   const known = (list: { value: string }[], v: unknown) => (typeof v === 'string' && v && !list.some((o) => o.value === v) ? [{ value: v, label: v }] : []);
 
   return (
@@ -126,19 +142,9 @@ export function ImageOptions({ design, onChange, brandLayouts, disabled }: { des
               <SelectField label="Second half of the headline" hint="The part of the headline in asterisks." value={word(d.accent)} disabled={disabled} onValueChange={(v) => setField('accent', v)}
                 options={[{ value: '', label: 'As the post type says' }, ...ACCENTS, ...known(ACCENTS, d.accent)]} />
             )}
-            {s.photo && (
-              <SelectField label="Where the text sits" value={word(d.textAt)} disabled={disabled} onValueChange={(v) => setField('textAt', v)}
-                hint={isPerSize(d.textAt) ? 'Set for each size separately; change it in Advanced.' : undefined}
-                options={[{ value: '', label: 'Leave it to the layout (top)' }, { value: 'top', label: 'Top' }, { value: 'bottom', label: 'Bottom' }]} />
-            )}
-            {s.photo && (
-              <SelectField label="Dark fade behind the text" value={word(d.scrim)} disabled={disabled} onValueChange={(v) => setField('scrim', v)}
-                options={[{ value: '', label: 'Leave it to the layout (on)' }, { value: 'black', label: 'On' }, { value: 'none', label: 'Off' }]} />
-            )}
-            {s.screen && (
-              <SelectField label="Kind of screen" value={word(d.device)} disabled={disabled} onValueChange={(v) => setField('device', v)}
-                options={[{ value: '', label: 'Leave it to the layout (phone)' }, { value: 'phone', label: 'Phone' }, { value: 'desktop', label: 'Desktop' }]} />
-            )}
+            {s.photo && choice('textAt', 'Where the text sits', [{ value: 'top', label: 'Top' }, { value: 'bottom', label: 'Bottom' }], 'top')}
+            {s.photo && choice('scrim', 'Dark fade behind the text', [{ value: 'black', label: 'On' }, { value: 'none', label: 'Off' }], 'on')}
+            {s.screen && choice('device', 'Kind of screen', [{ value: 'phone', label: 'Phone' }, { value: 'desktop', label: 'Desktop' }], 'phone')}
             {s.screen && !phone && bool('framed')}
             {s.screen && !phone && (
               <TextField label="Window title" optional maxLength={40} value={word(d.title)} disabled={disabled} onChange={(e) => setField('title', e.target.value)} hint="Shown on the window's title bar." />

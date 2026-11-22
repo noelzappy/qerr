@@ -5,7 +5,9 @@ import { Plus, X } from 'lucide-react';
 import { SelectField, TextField } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { ChoiceRow } from './ChoiceRow';
 import { ListEditor } from './ListEditor';
 import type { Json } from './types';
 
@@ -21,15 +23,18 @@ const int = (v: unknown, fallback: number) => (typeof v === 'number' && Number.i
 // A copy of an object without one key, or with it set.
 const without = (o: Json, key: string): Json => { const { [key]: _gone, ...rest } = o; return rest; };
 
-// A small native select, styled like the app's inputs, for places where a labelled field is too heavy (one per cell).
+// A small select with no visible label, for places where a labelled field is too heavy (one per cell). The kit's select, named
+// by `label` for screen readers. Every value here is a non-empty word or number.
 function MiniSelect({ label, value, onChange, options, disabled, className }: {
   label: string; value: string; onChange: (v: string) => void; options: Array<{ value: string; label: string }>; disabled?: boolean; className?: string;
 }) {
   return (
-    <select aria-label={label} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}
-      className={cn('h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-2 py-1 text-base shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30 max-sm:h-11', className)}>
-      {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectTrigger aria-label={label} className={cn('w-full min-w-0 max-sm:h-11', className)}><SelectValue /></SelectTrigger>
+      <SelectContent position="popper">
+        {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -187,11 +192,11 @@ export function PassbookFields({ value, onChange, disabled }: { value: Json; onC
   return (
     <div className="flex min-w-0 flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <SelectField label="Days in the month" disabled={disabled} value={String(days)} onValueChange={(v) => setDays(Number(v))} options={range(PASSBOOK.minDays, PASSBOOK.maxDays).map((d) => ({ value: String(d), label: String(d) }))} />
+        <ChoiceRow<number> legend="Days in the month" disabled={disabled} value={days} onChange={(v) => setDays(Number(v))} choices={range(PASSBOOK.minDays, PASSBOOK.maxDays).map((d) => ({ value: d, label: String(d) }))} />
         <SelectField label="Ticked days" hint="Days 1 to this number get a tick." disabled={disabled} value={String(ticked)} onValueChange={(v) => onChange({ ...value, ticked: Number(v) })} options={range(0, days).map((d) => ({ value: String(d), label: String(d) }))} />
         <SelectField label="Today" hint="The day that gets a heavy box." disabled={disabled} value={today === undefined ? '' : String(today)} onValueChange={(v) => onChange(v === '' ? without(value, 'today') : { ...value, today: Number(v) })}
           options={[{ value: '', label: 'No day marked' }, ...range(1, days).map((d) => ({ value: String(d), label: String(d) }))]} />
-        <SelectField label="Tick colour" disabled={disabled} value={tick} onValueChange={(v) => onChange({ ...value, tick: v })} options={[{ value: 'ink', label: 'Dark ink' }, { value: 'gold', label: 'Gold' }]} />
+        <ChoiceRow<string> legend="Tick colour" disabled={disabled} value={tick} onChange={(v) => onChange({ ...value, tick: v })} choices={[{ value: 'ink', label: 'Dark ink' }, { value: 'gold', label: 'Gold' }]} />
       </div>
       {isObj(value.register) ? (
         <Section title="Member card">
@@ -220,9 +225,9 @@ export function ArtefactEditor({ value, onChange, disabled }: { value: unknown; 
   const type: ArtefactType = obj && (obj.type === 'ledger' || obj.type === 'passbook' || obj.type === 'register') ? obj.type : '';
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <SelectField label="Table or card" hint="Shown under the headline." disabled={disabled} value={type}
-        onValueChange={(v) => onChange(v === '' ? undefined : START[v as Exclude<ArtefactType, ''>]())}
-        options={[{ value: '', label: 'None' }, { value: 'ledger', label: 'Ledger table' }, { value: 'passbook', label: 'Passbook page' }, { value: 'register', label: 'Member card' }]} />
+      <ChoiceRow<ArtefactType> legend="Table or card" tip="Shown under the headline." disabled={disabled} value={type}
+        onChange={(v) => { if (v !== type) onChange(v === '' ? undefined : START[v as Exclude<ArtefactType, ''>]()); }}
+        choices={[{ value: '', label: 'None' }, { value: 'ledger', label: 'Ledger table' }, { value: 'passbook', label: 'Passbook page' }, { value: 'register', label: 'Member card' }]} />
       {obj && type === 'ledger' && <LedgerFields value={obj} onChange={onChange} disabled={disabled} />}
       {obj && type === 'passbook' && <PassbookFields value={obj} onChange={onChange} disabled={disabled} />}
       {obj && type === 'register' && <RegisterFields value={obj} onChange={onChange} disabled={disabled} />}

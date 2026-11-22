@@ -101,7 +101,11 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   their own: Image could not be made, Has warnings, Needs a look, Failed to send, Deleted from Buffer, Removed.
 - **The post page** replaces the old side sheet: a post is added at `/batches/:id/posts/new` and edited at
   `/batches/:id/posts/:postId`, a page with breadcrumbs, the form on the left and a live preview on the right. Network choices
-  and captions are edited there and saved with the post. It has a picture picker and structured editors for figures, lists, carousel
+  and captions are edited there and saved with the post: the networks are a row of icon chips (`web/src/components/network-toggles.tsx`,
+  also used by New batch, Draft with AI and, as a one-channel filter, Publish), and the caption is tabs, "Same for all" plus one tab per
+  network that is on, each with its character counter. Wording typed for a network that is then switched off is kept and saved with the
+  post (never sent), and a note says so. The title follows the headline (else the first words of the caption) until someone types
+  one, marked "From the headline"; a new post starts with its designed image on, marked "Auto", when the brand has a look. It has a picture picker and structured editors for figures, lists, carousel
   pages, tables and cards; a carousel's pages are listed one by one, each made with a built-in page layout or one of the brand's
   own layouts that has the feed size, whose fields the page then shows (`web/src/pages/batches/design-model.ts`); the raw design JSON is under "Advanced". The post card on the batch page is one row: a thumbnail, the title (a link to the
   post page), date, the networks it goes to, two lines of the caption, one status chip (plus a problem chip, whose popover lists
@@ -130,7 +134,10 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   the first words of the text until a title is typed, each marked as filled in (`pages/vault/fact-form.ts`); the three dates
   fold into one "Dates" line. Small choices and the list filters are segmented buttons or chips (`SegmentedField` in the kit),
   tags are chips everywhere (`TagInput`), and the batch page's Show menu gives a count beside each choice.
-- **Dialogs.** New batch and Draft with AI open as centred dialogs (`/batches/new`, `/batches/ai-draft` still open them).
+- **Dialogs.** New batch and Draft with AI open as centred dialogs (`/batches/new`, `/batches/ai-draft` still open them). Both
+  take the period as one tap (Next week, next month, the month after, or Custom with two dates; next month first). New batch
+  names the batch from the dates ("December 2026", "Week of 30 November") until someone types a title, and keeps the time zone,
+  the brand's, under "More". Draft with AI takes the number of posts as one tap too (5, 10, 15, 20, 30, or Custom).
   Draft with AI first asks `GET /api/batches/ai-draft` (`{ ready, missing: 'provider' | 'budget' | null }`) and, when drafting
   cannot run, says what is missing and where to add it instead of queuing a job that would fail; `POST /api/batches/ai-draft`
   refuses with a 409 in the same two cases. The Team
@@ -152,8 +159,8 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
   the look (variant) names of the direction's compositions, and the field limits, all read from the engine's registry; with a look in
   force the editor also reads `GET /api/looks/brief` (see Settings, Looks). The limits also give the counted lists (`items`, `info`,
   `gallery`: `{ min, max, chars }`), the fixed `infoKeys` and the `icons` a headline may name. The post editor then shows only what the
-  look's designs draw: a Pill button and an icon menu on the headline (`[[words]]`, `{{name}}`), the Button words (`cta`), Info rows (a
-  fixed label and a short line each) and Round pictures (2 to 5 from the Pictures page, each with an optional name). A gallery picture is
+  look's designs draw: a Pill button and an icon grid on the headline (`[[words]]`, `{{name}}`), the Button words (`cta`), Info rows (a
+  fixed label, added by tapping it, and a short line each) and Round pictures (2 to 5 from the Pictures page, each with an optional name). A gallery picture is
   a design node like the post's own picture: the same path rule, vault copy and rights checks (`services/design-images.ts`). The
   `POST /api/settings/brand/direction-samples` route and its service were removed with the tab.
   With a look, the post editor's Design offers **Single image** or **Carousel**: a carousel is a cover, body pages and a closing page, each a
@@ -567,7 +574,8 @@ handlers are plain functions (`src/server/jobs/handlers.ts`), so tests call them
 
 ## Rewrite a post with AI
 
-`POST /api/posts/:id/rewrite` (admin and editor; in `src/server/routes/review.ts`) takes `{ instruction }` (1 to 500 characters, trimmed)
+`POST /api/posts/:id/rewrite` (admin and editor; in `src/server/routes/review.ts`) takes `{ instruction }` (1 to 500 characters, trimmed;
+the post page's dialog builds it from quick asks such as Shorter or Fix the facts and optional words of one's own, `pages/batches/rewrite-asks.ts`)
 and queues the `rewrite-post` job with `apply: true`, answering `202 { queued: true, activityId }`. It answers `409` with the reason, and queues
 nothing, when the post is removed, no enabled provider is ticked for "Rewriting posts", the monthly budget is missing or used up, the post has
 no linked facts that still exist, or a rewrite of the post is already queued or running; `404` for an unknown post, `400` for a bad instruction.

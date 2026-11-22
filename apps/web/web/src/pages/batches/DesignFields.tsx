@@ -2,7 +2,8 @@
 // whole design as JSON. Both edit the same object, so a field the form does not show is kept exactly as it was.
 import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import { CheckField, Notice, TextAreaField } from '@/components/kit';
+import { Notice, SwitchField, TextAreaField } from '@/components/kit';
+import { AutoTag } from '@/components/auto-tag';
 import { Button } from '@/components/ui/button';
 import { api } from '../../api';
 import { useAppInfo } from '../../app-info';
@@ -25,11 +26,13 @@ interface Props {
   jsonError: string;
   // where the post goes, so a carousel can say when a network takes fewer images
   networks?: readonly string[];
+  // The designed image was switched on for the person (a new post, and the brand has a look): marked "Auto" until they switch it.
+  autoOn?: boolean;
 }
 
 const pretty = (d: DesignBlock | null) => JSON.stringify(d ?? {}, null, 2);
 
-export function DesignFields({ design, onChange, jsonError, networks }: Props) {
+export function DesignFields({ design, onChange, jsonError, networks, autoOn = false }: Props) {
   const { series } = useAppInfo().brand;
   const own = useLoad(() => api.get<{ layouts: LayoutBrief[] }>('/api/layouts').catch(() => ({ layouts: [] as LayoutBrief[] })), []);
   const brandLayouts = own.data?.layouts ?? [];
@@ -66,9 +69,9 @@ export function DesignFields({ design, onChange, jsonError, networks }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <CheckField
-        label="This post has a designed image"
-        hint="Turn this off for a post that uses only pictures you upload."
+      <SwitchField
+        label={<>This post has a designed image{autoOn && enabled && <AutoTag />}</>}
+        hint={autoOn && enabled ? 'On for a new post because the brand has a look. Turn this off for a post that uses only pictures you upload.' : 'Turn this off for a post that uses only pictures you upload.'}
         checked={enabled}
         // Starts on a layout that needs only a headline, so a brand with no pictures yet can make its first image.
         onCheckedChange={(c) => { onChange(c ? (directed ? { template: 'post', kind: 'statement' } : { template: 'text' }) : null, ''); }}
