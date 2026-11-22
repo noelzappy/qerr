@@ -1,5 +1,5 @@
 // "Design health": the guard rails of a design, worked out in the browser from the design's JSON while it is edited. They mirror the
-// engine's static checks (packages/engine/lib/design/look-static.mjs): at most three type levels, a headline at least 2.6 times the body,
+// engine's static checks (packages/engine/lib/design/look-static.mjs): at most three type levels (or the design's own levels, up to five), a headline at least 2.6 times the body,
 // at most three turned pieces, every required field shown exactly once, and text over a picture with a block or a fade under it. The server
 // remains the authority (it also checks the drawn image); where it speaks, its sentences replace these in the page.
 import { angleDegrees, bindingsOf, isTurned, listTree, requiredFields, sketchRect, type Rect } from './design-model';
@@ -100,7 +100,8 @@ export function designHealth(comp: Json, look: Json, cat: LookCatalogue): Health
   }
   for (const f of declared) if (!nodes.some((n) => bindingsOf(n.el, look).some((b) => b.field === f))) problems.push(`${fieldName(f)} is in the design but no element shows it`);
 
-  const maxLevelsAllowed = limits.typeLevels ?? 3;
+  // a design may allow up to five sizes (levels.max), held to a hierarchy the server measures on the drawn image
+  const maxLevelsAllowed = isObj(comp.levels) && isNum(comp.levels.max) ? comp.levels.max : limits.typeLevels ?? 3;
   items.push({
     id: 'levels', label: 'Type sizes',
     status: maxLevels > maxLevelsAllowed ? 'bad' : 'ok',

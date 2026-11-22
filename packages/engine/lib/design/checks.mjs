@@ -303,13 +303,47 @@ export function explainProblems(problems, sizeName, lengths = {}) {
 //   EMPTINESS  the largest rectangle that no text, picture or deliberate filled device covers is at most 45% of the page, or the
 //              composition's own declared calm area (calm: { maxShare }, set on the page as data-calm);
 //   SCALE      the headline (or the big numeral) is at least 2.6 times the size of the body text, when both exist;
-//   LEVELS     the page uses at most three sizes of type (within 2 px); a headline fitted line by line counts as one;
+//   LEVELS     the page uses at most three sizes of type (within 2 px); a headline fitted line by line counts as one; a design that
+//              allows more (levels: { max 4 or 5, ratio }, set on the page as data-levels and data-ratio) is held to a hierarchy instead:
+//              at most max sizes, each at least ratio times the next smaller one, and the headline (or the big numeral) the largest;
 //   GRID       every text block's edge sits on the margin or a column line (within 2 px), unless it is marked data-grid="skip".
 //   EDGE       no line of text has its ink within 10 px of the edge of a filled block or rule (or crossing it), nor sits that close to
 //              the edge of the block it is inside (a descender touching a rule, a headline under a block, a price on its block's foot).
 export const POST_LIMITS = Object.freeze({ emptyShare: 0.45, scale: 2.6, levels: 3, tol: 2, edge: 10 });
 // How far the ink box i is from the filled shape f: a negative number is the room above or below the text inside f (its sides may stand
 // 12 px out or close, for a letter's side bearing and a headline pulled onto the margin), else the distance outside it (0 when they cross).
+// A design's own levels when it allows more than three ({ max 4 or 5, ratio 1.2 to 2 } read from the page), else null (the rule of three).
+export const LEVELS_RANGE = Object.freeze({ max: 5, ratioMin: 1.2, ratioMax: 2 });
+export function levelsAllowed(v) {
+  if (!v || typeof v !== 'object') return null;
+  const max = v.max, ratio = v.ratio;
+  if (!Number.isInteger(max) || max <= POST_LIMITS.levels || max > LEVELS_RANGE.max) return null;
+  if (typeof ratio !== 'number' || !Number.isFinite(ratio) || ratio < LEVELS_RANGE.ratioMin || ratio > LEVELS_RANGE.ratioMax) return null;
+  return { max, ratio };
+}
+// The hierarchy of a page that sets more than three sizes of type. Each text is one size: as designed, or, for a text fitted line by line, the
+// smallest line of its fitted block (a fitted block is one level however its lines differ). Sizes within 2 px are one level. Problems: more
+// levels than allowed; two neighbouring levels less than `ratio` apart (the smaller one's largest size against the larger one's smallest); a
+// text other than the headline (or the big numeral) as large as it, or larger.
+export function hierarchyProblems(texts, designed, { max, ratio }) {
+  const tol = POST_LIMITS.tol, out = [], fitMin = new Map();
+  for (const t of texts) if (t.fit) fitMin.set(t.fitEl ?? -1, Math.min(fitMin.get(t.fitEl ?? -1) ?? Infinity, t.size));
+  const entries = texts.map((t) => ({ size: t.fit ? fitMin.get(t.fitEl ?? -1) : designed(t), head: t.role === 'headline' || t.role === 'stat' || (t.role === 'accent' && t.inHead), text: t.text })).filter((e) => Number.isFinite(e.size) && e.size > 0);
+  const sizes = [...new Set(entries.map((e) => Math.round(e.size * 10) / 10))].sort((a, b) => a - b);
+  const groups = []; for (const z of sizes) if (!groups.length || z - groups[groups.length - 1][groups[groups.length - 1].length - 1] > tol) groups.push([z]); else groups[groups.length - 1].push(z);
+  const mean = (g) => Math.round(g.reduce((a, b) => a + b, 0) / g.length);
+  if (groups.length > max) out.push({ kind: 'levels', count: groups.length, limit: max, sizes: groups.map(mean) });
+  for (let i = 1; i < groups.length; i++) {
+    const lo = Math.max(...groups[i - 1]), hi = Math.min(...groups[i]), r = hi / lo;
+    if (r < ratio - 0.005) { out.push({ kind: 'steps', lower: Math.round(lo), upper: Math.round(hi), ratio: r, need: ratio }); break; }
+  }
+  const heads = entries.filter((e) => e.head), others = entries.filter((e) => !e.head);
+  if (heads.length && others.length) {
+    const h = Math.min(...heads.map((e) => e.size)), top = others.reduce((a, e) => (e.size > a.size ? e : a), others[0]);
+    if (top.size > h - tol) out.push({ kind: 'dominant', headline: Math.round(h), other: Math.round(top.size), text: top.text });
+  }
+  return out;
+}
 export function inkGap(i, f) {
   const inside = i.x0 >= f.x0 - 12 && i.x1 <= f.x1 + 12 && i.y0 >= f.y0 && i.y1 <= f.y1;
   if (inside) return -Math.min(i.y0 - f.y0, f.y1 - i.y1);
@@ -327,10 +361,13 @@ export function findPostProblems(m, { grid } = {}) {
     const h = Math.min(...head.map(designed)), b = Math.max(...body.map(designed));
     if (h / b < L.scale - 0.005) problems.push({ kind: 'scale', ratio: h / b, headline: Math.round(h), body: Math.round(b) });
   }
-  const sizes = [...new Set(m.texts.filter((t) => !t.fit).map((t) => Math.round(designed(t))))].sort((a, b) => a - b);
-  const levels = []; for (const z of sizes) if (!levels.length || z - levels[levels.length - 1][levels[levels.length - 1].length - 1] > L.tol) levels.push([z]); else levels[levels.length - 1].push(z);
-  const count = levels.length + (m.texts.some((t) => t.fit) ? 1 : 0);
-  if (count > L.levels) problems.push({ kind: 'levels', count, sizes: [...levels.map((g) => Math.round(g.reduce((a, b) => a + b, 0) / g.length)), ...(m.texts.some((t) => t.fit) ? ['fitted headline'] : [])] });
+  const lv = levelsAllowed(m.levels);
+  if (!lv) {
+    const sizes = [...new Set(m.texts.filter((t) => !t.fit).map((t) => Math.round(designed(t))))].sort((a, b) => a - b);
+    const levels = []; for (const z of sizes) if (!levels.length || z - levels[levels.length - 1][levels[levels.length - 1].length - 1] > L.tol) levels.push([z]); else levels[levels.length - 1].push(z);
+    const count = levels.length + (m.texts.some((t) => t.fit) ? 1 : 0);
+    if (count > L.levels) problems.push({ kind: 'levels', count, limit: L.levels, sizes: [...levels.map((g) => Math.round(g.reduce((a, b) => a + b, 0) / g.length)), ...(m.texts.some((t) => t.fit) ? ['fitted headline'] : [])] });
+  } else problems.push(...hierarchyProblems(m.texts, designed, lv));
   for (const i of m.inks ?? []) {
     for (const f of m.shapes ?? []) {
       if ((f.frame ?? '') !== (i.frame ?? '')) continue;
@@ -355,7 +392,9 @@ export function explainPostProblems(problems, post = {}) {
   const lines = problems.map((p) => {
     if (p.kind === 'empty') return `an empty area covers ${Math.round(p.share * 100)}% of the page (at most ${Math.round(p.limit * 100)}% is allowed here), at x ${Math.round(p.rect.x0)}-${Math.round(p.rect.x1)}, y ${Math.round(p.rect.y0)}-${Math.round(p.rect.y1)}: use longer words, a picture or another variant`;
     if (p.kind === 'scale') return `the headline is ${p.headline} px against ${p.body} px of body text, ${p.ratio.toFixed(2)} times (it needs at least ${POST_LIMITS.scale}): shorten the sub line or use another variant`;
-    if (p.kind === 'levels') return `the page sets type in ${p.count} sizes (${p.sizes.join(', ')}); at most ${POST_LIMITS.levels} levels are allowed`;
+    if (p.kind === 'levels') return `the page sets type in ${p.count} sizes (${p.sizes.join(', ')}); at most ${p.limit ?? POST_LIMITS.levels} levels are allowed`;
+    if (p.kind === 'steps') return `two sizes of type are too close: ${p.lower} px and ${p.upper} px are only ${p.ratio.toFixed(2)} times apart (this design needs each size at least ${p.need} times the next smaller one): set them further apart or as one size`;
+    if (p.kind === 'dominant') return `the headline (${p.headline} px) is not the largest type: "${p.text}" is set at ${p.other} px; the headline must stay the largest`;
     if (p.kind === 'edge') return `the ${p.role || 'text'} "${p.text}" ${p.crossing ? 'runs into' : `is only ${p.gap} px ${p.inside ? 'inside' : 'from'}`} the edge of a block or rule (it needs ${POST_LIMITS.edge} px clear): move the text or the block, or shorten the words`;
     return `the ${p.role} "${p.text}" starts at x ${p.x}, which is not on the margin or a column line (nearest ${p.nearest})`;
   });

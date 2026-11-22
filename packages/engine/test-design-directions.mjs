@@ -305,6 +305,36 @@ test('check: levels (at most three sizes of type, within 2 px; a fitted headline
   assert.equal(findPostProblems(metrics({ texts: [T('headline', 200, { fit: true }), T('sub', 34), T('label', 20), T('meta', 26)] })).length, 1);
 });
 
+test('check: a design that allows four or five sizes is held to a hierarchy (each step clearly apart, the headline the largest)', () => {
+  const four = { max: 4, ratio: 1.25 };
+  // a price badge, a label, a headline and a sub: four sizes, each well apart, the headline on top
+  const page = [T('headline', 128), T('label', 76, { text: '€49' }), T('sub', 34), T('label', 24)];
+  assert.deepEqual(findPostProblems(metrics({ texts: page })).map((p) => p.kind), ['levels'], 'without the setting four sizes are refused');
+  assert.deepEqual(findPostProblems(metrics({ texts: page, levels: four })), [], 'with it they pass');
+  // a random scatter still fails: two sizes too close together
+  const scatter = findPostProblems(metrics({ texts: [T('headline', 128), T('label', 40), T('sub', 34), T('label', 24)], levels: four }));
+  assert.deepEqual(scatter.map((p) => p.kind), ['steps']);
+  assert.match(explainPostProblems(scatter), /34 px and 40 px are only 1\.18 times apart \(this design needs each size at least 1\.25 times/);
+  // five sizes where four are allowed
+  const five = findPostProblems(metrics({ texts: [T('headline', 200), T('label', 120), T('sub', 60), T('label', 40), T('label', 24)], levels: four }));
+  assert.deepEqual(five.map((p) => p.kind), ['levels']);
+  assert.match(explainPostProblems(five), /sets type in 5 sizes \(24, 40, 60, 120, 200\); at most 4 levels are allowed/);
+  assert.deepEqual(findPostProblems(metrics({ texts: [T('headline', 200), T('label', 120), T('sub', 60), T('label', 40), T('label', 24)], levels: { max: 5, ratio: 1.25 } })), []);
+  // the headline must stay the largest: a badge as big as the headline fails, and so does one bigger
+  const rival = findPostProblems(metrics({ texts: [T('headline', 120), T('label', 160, { text: 'SALE' }), T('sub', 34), T('label', 24)], levels: four }));
+  assert.ok(rival.some((p) => p.kind === 'dominant'));
+  assert.match(explainPostProblems(rival), /the headline \(120 px\) is not the largest type: "SALE" is set at 160 px/);
+  assert.ok(findPostProblems(metrics({ texts: [T('headline', 120), T('label', 119), T('sub', 34)], levels: four })).some((p) => p.kind === 'dominant'), 'within 2 px is as large');
+  // a fitted headline is one level at its smallest line; it is judged against the next size like any other
+  assert.deepEqual(findPostProblems(metrics({ texts: [T('headline', 180, { fit: true, fitEl: 0 }), T('headline', 140, { fit: true, fitEl: 0 }), T('label', 90), T('sub', 34), T('label', 24)], levels: four })), []);
+  assert.deepEqual(findPostProblems(metrics({ texts: [T('headline', 180, { fit: true, fitEl: 0 }), T('headline', 100, { fit: true, fitEl: 0 }), T('label', 90), T('sub', 34), T('label', 24)], levels: four })).map((p) => p.kind), ['steps'], 'its smallest line (100) is too close to the badge (90)');
+  // the ratio is the design's own
+  assert.deepEqual(findPostProblems(metrics({ texts: page, levels: { max: 4, ratio: 1.5 } })).map((p) => p.kind), ['steps'], '34 to 24 is 1.42, under 1.5');
+  // values the page could not have been given fall back to the rule of three (never a looser rule)
+  for (const lv of [{ max: 9, ratio: 1.25 }, { max: 4, ratio: 0.5 }, { max: 4, ratio: NaN }, { max: 4.5, ratio: 1.3 }, { max: 3, ratio: 1.3 }, 'x', null])
+    assert.deepEqual(findPostProblems(metrics({ texts: page, levels: lv })).map((p) => p.kind), ['levels'], JSON.stringify(lv));
+});
+
 test('check: grid (every text block sits on the margin or a column line, within 2 px, unless skipped)', () => {
   const blk = (x0, o = {}) => ({ role: 'sub', mode: 'left', x0, x1: x0 + 200, text: 'hello', ...o });
   assert.deepEqual(findPostProblems(metrics({ blocks: [blk(64), blk(145.9), blk(225.33 - 2)] }), { grid: GRID }), []);

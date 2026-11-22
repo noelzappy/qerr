@@ -996,8 +996,19 @@ with a sentence that says what to change.
 |---|---|
 | Emptiness | The largest rectangle that no text, picture or deliberate filled device covers is at most 45% of the page. A composition may declare a calm area (`calm: { maxShare }`, above 0.45 and up to 0.8) and is then held to that. |
 | Scale | The headline (or the big numeral) is at least 2.6 times the largest body text, judged at the size it was designed for, before the fit loop shrank it. |
-| Levels | At most three sizes of type, sizes within 2 px counting as one. A headline fitted line by line counts as one level. |
+| Levels | At most three sizes of type, sizes within 2 px counting as one. A headline fitted line by line counts as one level. A design written as data may allow four or five (its `levels`, below); the page is then held to a hierarchy instead. |
 | Grid | Every text block's left edge (or right edge, or centre) sits on the margin, a column line or the page centre, within 2 px. A block marked `data-grid="skip"`, and a block inside `data-deco`, is not judged. |
+
+**More sizes of type, in a hierarchy (`levels`, approved by the owner on 22 Nov 2026).** A composition of a look may declare
+`levels: { max, ratio? }`: `max` 4 or 5 sizes of type (3, the rule above, when left out), `ratio` 1.2 to 2 (1.25 when left out). It is the
+author's choice for that one design, never a default, and it is checked on the sizes the page really sets (`hierarchyProblems` in
+`lib/design/checks.mjs`, from `data-levels` and `data-ratio` on the page): at most `max` levels (sizes within 2 px are one; a block fitted
+line by line is one level at its smallest line); each level at least `ratio` times the next smaller one (the smaller level's largest size
+against the larger level's smallest), so a price badge, a label, a headline and a sub line can sit on one page but a scatter of near sizes
+is refused; and the headline (or the big numeral) above every other text by more than 2 px. Scale, fit, contrast, enlargement and the grid
+are checked exactly as on any page. `validateLook` holds the same rules on the sizes it knows (a ladder's first step, a fixed size) and
+refuses `levels` outside those bounds, a `ratio` with three levels, and any other key. The design editor offers Three, Four or Five under
+"More", the ratio under Fine-tune.
 
 Two rules about fit. A post's headline may shrink to 82% of its designed size (`POST_MIN_SCALE` in `render.mjs`); below that
 the render is refused with "shorten the headline to about N characters", an estimate from how much of it fitted. And a
@@ -1168,7 +1179,7 @@ row, the folio, the brand-name pattern), `photo`, `logo` and `dials` (tilt 0 to 
 colour, no CSS font name, no asset path, no URL, no brand id**: colours are palette roles, families come from `design/fonts/library.json`.
 `origin` is `"shipped"` (only the engine's own looks, `validateLook(look, where, { shipped: true })`) or `copy:shipped:<id>` / `copy:own:<slug>`.
 
-**A composition** is `{ kind, name, describe, ground, fields, accepts?, calm?, fit?, elements }`. `kind` is one of the seven post kinds;
+**A composition** is `{ kind, name, describe, ground, fields, accepts?, calm?, levels?, fit?, elements }` (`levels`: see "More sizes of type"). `kind` is one of the seven post kinds;
 `fields` names the post fields it draws, each with `required` and `max` (never above what a post allows, and the kind's own required fields
 must be required); `accepts` holds rules on the words it can draw (`{ field, part: all|pre|phrase, maxChars }` or `{ field: "items", min, max }`),
 and when they fail the next variant of the kind is used. Its id is derived, `<kind>/<index>` among the look's compositions of that kind, never
@@ -1249,7 +1260,7 @@ need two properties are listed here.
 characters): unknown keys at every level, wrong types, out-of-range numbers, values outside a fixed list, a family not in the font
 library or a weight or width the family lacks, fields a kind does not have, and the static design checks: each required field shown in
 every branch of the conditions (the same way of showing a field twice is refused), at most three type levels (sizes within 2 px are one; a
-fitted headline counts as one), ink and fill pairs from a table, at most three turned elements, text turned at most 8 degrees outside a
+fitted headline counts as one; up to five where the composition's `levels` allows, each step at least its ratio and the headline the largest), ink and fill pairs from a table, at most three turned elements, text turned at most 8 degrees outside a
 sticker, text over a picture only with a filled box under it or a dark fade between, and an element running to a page edge only where it
 touches that edge (a numeral aside). The render-time checks (fit, contrast, enlargement, pixel size, the four post checks) still run on
 the pictures.

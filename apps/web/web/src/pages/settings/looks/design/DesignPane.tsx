@@ -8,13 +8,13 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import {
-  acceptText, acceptsOf, addField, checkAccept, declaredFields, fieldLabel, removeField, requiredFields, setAccepts, setBudget, setCalm, setGround, setTop, shownFields,
+  acceptText, acceptsOf, addField, checkAccept, declaredFields, fieldLabel, removeField, requiredFields, setAccepts, setBudget, setCalm, setGround, setLevels, setTop, shownFields,
   GROUND_WORDS, type Accept, type DesignProblem, type Edit, type Json,
 } from '../design-model';
 import { NumberInput, RolePicker } from '../design-controls';
 import { useSwatches } from '../design-colours';
 import type { LookCatalogue } from '../look-types';
-import { Disclosure, InlineNumber } from './ui';
+import { Chips, Disclosure, InlineNumber } from './ui';
 
 const isObj = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -30,14 +30,17 @@ export function DesignSettings({ comp, look, cat, readOnly, apply, problems }: D
   const required = new Set(requiredFields(comp, cat));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const err = (k: string, m: string) => { setErrors((e) => (e[k] === m || (!e[k] && !m) ? e : { ...e, [k]: m })); return m; };
-  const mine = problems.filter((x) => x.path === null && !/^(fields|accepts|ground|calm|fit|name|describe)/.test(x.prop ?? ''));
-  const moreProblem = problems.some((x) => x.path === null && /^(accepts|calm|fit)/.test(x.prop ?? ''));
+  const mine = problems.filter((x) => x.path === null && !/^(fields|accepts|ground|calm|levels|fit|name|describe)/.test(x.prop ?? ''));
+  const moreProblem = problems.some((x) => x.path === null && /^(accepts|calm|levels|fit)/.test(x.prop ?? ''));
   const grounds = ((look.colour as Json | undefined)?.grounds as string[] | undefined) ?? Object.keys(GROUND_WORDS);
   const groundNow = typeof comp.ground === 'string' ? comp.ground : null;
   const free = (cat.kinds[kind]?.fields ?? []).filter((f) => !declared.includes(f));
   const accepts = acceptsOf(comp);
   const [draft, setDraft] = useState<{ field: string; part: string; n: string; min: string; max: string } | null>(null);
   const calm = isObj(comp.calm) ? (comp.calm.maxShare as number | undefined) : undefined;
+  const levels = isObj(comp.levels) && typeof comp.levels.max === 'number' ? comp.levels.max : 3;
+  const ratio = isObj(comp.levels) && typeof comp.levels.ratio === 'number' ? comp.levels.ratio : undefined;
+  const [tuneLevels, setTuneLevels] = useState(false);
   const fit = comp.fit;
   const fitNow = typeof fit === 'string' ? fit : isObj(fit) ? 'pixels' : 'margins';
   const emphasis = (f: string) => !!cat.fields[f]?.emphasis;
@@ -55,6 +58,7 @@ export function DesignSettings({ comp, look, cat, readOnly, apply, problems }: D
   const moreSummary = [
     accepts.length ? `${accepts.length} word ${accepts.length === 1 ? 'rule' : 'rules'}` : 'no word rules',
     calm !== undefined ? `empty space ${Math.round((1 - calm) * 100)}%+` : 'full page',
+    `${levels} type sizes`,
     fitNow === 'pixels' ? 'text room in pixels' : `text inside the ${fitNow === 'frame' ? 'frame' : 'margins'}`,
   ].join(' · ');
 
@@ -172,6 +176,17 @@ export function DesignSettings({ comp, look, cat, readOnly, apply, problems }: D
           <SwitchField label="Keep part of the page empty" hint="A deliberately empty area, as a share of the page (0.45 to 0.8). Leave it off if the design should be full." checked={calm !== undefined} disabled={readOnly} onCheckedChange={(v) => err('calm', apply((c) => setCalm(c, v ? 0.6 : undefined)))} />
           {calm !== undefined && <NumberInput label="Most of the page it may fill" value={calm} desc={{ kind: 'number', min: 0.45, max: 0.8, step: 0.01 }} disabled={readOnly} onChange={(v) => (v === undefined ? 'Enter a number' : err('calm', apply((c) => setCalm(c, v), 'calm')))} />}
           {errors.calm && <p className="text-[12.5px] font-medium text-destructive" role="alert">{errors.calm}</p>}
+        </div>
+
+        <div className="flex flex-col gap-1.5 border-t pt-2.5">
+          <div className="flex items-center gap-1 text-[13px] font-medium">Type sizes<Hint about="Type sizes">How many sizes of type the page may set. Three keeps a page calm. Four or five lets a design carry, say, a price badge, a label, a headline and a sub line; each size must then stand clearly apart from the next, and the headline stays the largest. The drawn image is checked.</Hint></div>
+          <Chips label="Type sizes" value={String(levels)} disabled={readOnly} onChange={(v) => err('levels', apply((c) => setLevels(c, Number(v), Number(v) > 3 ? ratio : undefined), 'levels'))}
+            options={[{ value: '3', label: 'Three' }, { value: '4', label: 'Four' }, { value: '5', label: 'Five' }]} />
+          {levels > 3 && (
+            <button type="button" className="self-start text-[12.5px] text-muted-foreground underline-offset-2 hover:underline" aria-expanded={tuneLevels} onClick={() => setTuneLevels((v) => !v)}>Fine-tune</button>
+          )}
+          {levels > 3 && tuneLevels && <NumberInput label="Each size at least this many times the next" value={ratio ?? 1.25} desc={{ kind: 'number', min: 1.2, max: 2, step: 0.05 }} disabled={readOnly} onChange={(v) => (v === undefined ? 'Enter a number' : err('levels', apply((c) => setLevels(c, levels, v), 'levels')))} />}
+          {errors.levels && <p className="text-[12.5px] font-medium text-destructive" role="alert">{errors.levels}</p>}
         </div>
 
         <div className="border-t pt-2.5">

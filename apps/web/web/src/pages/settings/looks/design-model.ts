@@ -1266,6 +1266,13 @@ export function setCalm(comp: Json, share: number | undefined): Edit {
   if (!isNum(share) || share < 0.45 || share > 0.8) return { comp, error: 'Use 0.45 to 0.8' };
   return { comp: mutate(comp, (c) => { c.calm = { maxShare: share }; }) };
 }
+// How many sizes of type the design may set: 3 (the rule, no levels), or 4 or 5 with a hierarchy (each size at least `ratio` times the next).
+export function setLevels(comp: Json, max: number | undefined, ratio?: number): Edit {
+  if (max === undefined || max === 3) return { comp: mutate(comp, (c) => { delete c.levels; }) };
+  if (!Number.isInteger(max) || max < 3 || max > 5) return { comp, error: 'Use 3 to 5 sizes' };
+  if (ratio !== undefined && (!isNum(ratio) || ratio < 1.2 || ratio > 2)) return { comp, error: 'Use a ratio from 1.2 to 2' };
+  return { comp: mutate(comp, (c) => { c.levels = { max, ...(ratio !== undefined ? { ratio } : {}) }; }) };
+}
 export const joinProp = joinPath;
 
 // ================================================================== ladders

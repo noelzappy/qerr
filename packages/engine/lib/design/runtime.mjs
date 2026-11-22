@@ -385,7 +385,7 @@ window.__ds = {
   postMetrics(o) {
     const W = innerWidth, H = innerHeight, box = (b) => ({ x0: b.left, y0: b.top, x1: b.right, y1: b.bottom });
     const hs = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hs')) || 1;
-    const texts = [], walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const texts = [], walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT), fitEls = [...document.querySelectorAll('[data-fitlines]')];
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       if (!n.nodeValue.trim()) continue;
       const el = n.parentElement; if (!el || el.closest('script,style,[data-deco]')) continue;
@@ -393,7 +393,7 @@ window.__ds = {
       const g = document.createRange(); g.selectNodeContents(n);
       const rects = [...g.getClientRects()].filter((b) => b.width > 1 && b.height > 1).map(box); if (!rects.length) continue;
       const r = el.closest('[data-role]');
-      texts.push({ size: parseFloat(cs.fontSize), rects, fit: !!el.closest('[data-fitlines]'), role: r ? r.dataset.role : '', inHead: !!(r && r.parentElement && r.parentElement.closest('[data-role="headline"],[data-role="stat"]')), scaled: !!(r && r.closest('[data-scaled]')), text: n.nodeValue.trim().slice(0, 30) });
+      texts.push({ size: parseFloat(cs.fontSize), rects, fit: !!el.closest('[data-fitlines]'), fitEl: fitEls.indexOf(el.closest('[data-fitlines]')), role: r ? r.dataset.role : '', inHead: !!(r && r.parentElement && r.parentElement.closest('[data-role="headline"],[data-role="stat"]')), scaled: !!(r && r.closest('[data-scaled]')), text: n.nodeValue.trim().slice(0, 30) });
     }
     // covered cells on a 20 px grid: text (a little grown), pictures and filled devices
     const cell = 20, cols = Math.ceil(W / cell), rows = Math.ceil(H / cell), cov = new Uint8Array(cols * rows);
@@ -458,10 +458,10 @@ window.__ds = {
     const seen = (el, b) => { const bg = getComputedStyle(el).backgroundColor; if (/^rgba\(.*, 0\)$/.test(bg) || bg === 'transparent') return true; return bg !== pageBg || pics.some((p) => Math.min(p.x1, b.right) > Math.max(p.x0, b.left) && Math.min(p.y1, b.bottom) > Math.max(p.y0, b.top)); };
     const shapes = [...document.querySelectorAll('[data-fill]')].filter((el) => !el.matches(SKIP_SHAPE) && !turned(el) && getComputedStyle(el).clipPath === 'none' && seen(el, el.getBoundingClientRect())).map((el) => ({ ...box(el.getBoundingClientRect()), frame: tiltKey(el) })).filter((b) => b.x1 - b.x0 > 0.5 && b.y1 - b.y0 > 0.5 && !(b.x1 - b.x0 >= W * 0.97 && b.y1 - b.y0 >= H * 0.97));
     for (const [e, t] of tilts) e.style.transform = t;
-    const calm = document.querySelector('[data-calm]');
+    const calm = document.querySelector('[data-calm]'), lv = document.querySelector('[data-levels]');
     // a rectangle for every element a builder marked (kit numberElements): { el: "2.0", x0, y0, x1, y1 } in document order, keyed by its index path
     const els = [...document.querySelectorAll('[data-el]')].map((el) => { const b = el.getBoundingClientRect(); return { el: el.getAttribute('data-el'), x0: b.left, y0: b.top, x1: b.right, y1: b.bottom }; });
-    return { W, H, hs, texts, empty, blocks, inks, shapes, calm: calm ? parseFloat(calm.getAttribute('data-calm')) : null, els };
+    return { W, H, hs, texts, empty, blocks, inks, shapes, calm: calm ? parseFloat(calm.getAttribute('data-calm')) : null, levels: lv ? { max: parseInt(lv.getAttribute('data-levels'), 10), ratio: parseFloat(lv.getAttribute('data-ratio')) } : null, els };
   },
   hide(on) { document.documentElement.classList.toggle('measure', !!on); },
   measure() {

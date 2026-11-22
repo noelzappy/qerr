@@ -8,6 +8,10 @@ export const LIMITS = Object.freeze({
   compositions: 21, perKind: 3, nodes: 40, depth: 4, description: 300, name: 40, id: 40, definitionBytes: 256 * 1024,
   looksPerBrand: 20, rotated: 3, textRotation: 8, typeLevels: 3, optionalFieldsInConditions: 6, groundCases: 4, ladderSteps: 6, accepts: 6,
 });
+// More type sizes on one page (a composition's `levels`): an explicit, opt-in property of a design. Three levels by default, at most five;
+// with more than three, each level must be at least `ratio` times the next smaller one (1.2 to 2, 1.25 when left out) and the headline the
+// largest. The page measures this on the sizes it really sets (checks.mjs findPostProblems), and the validator on the sizes it knows.
+export const LEVELS = Object.freeze({ min: 3, max: 5, ratioMin: 1.2, ratioMax: 2, ratio: 1.25 });
 export const TEXT_FIELDS = Object.keys(POST_FIELDS);
 export const SHORT_FIELDS = ['label', 'big', 'unit', 'by', 'meta', 'tag'];
 export const FONT_ROLES = ['display', 'text', 'label', 'mono'];

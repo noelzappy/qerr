@@ -1,10 +1,11 @@
 // Looks as data: the STATIC design checks (no Chrome). They run on a composition that is already well formed (look-validate.mjs) and
 // judge what can be judged from the data alone: each required field is shown, once per way of showing it, whichever optional
-// fields are filled; at most three type levels; ink and fill pairs from a table; at most three turned elements and gentle text
+// fields are filled; at most three type levels (up to five, in a clear hierarchy, where a design's levels allow); ink and fill pairs from a table; at most three turned elements and gentle text
 // angles; text over a picture has a filled box or a dark fade under it; an element runs to a page edge only where it touches it.
 // The render-time checks (fit, contrast, enlargement, pixel size, the four post checks) still run on the pictures later; these catch
 // a look that could never pass them before anything is drawn.
 import { ANGLE_NAMES, LIMITS, PAGE, POST_REQUIRED, PRIMITIVES } from './look-elements.mjs';
+import { LEVELS } from './look-desc.mjs';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const list = (xs) => xs.join(', ');
@@ -192,9 +193,13 @@ const TEXT_TYPES = ['text', 'fitted-stack', 'numeral', 'mantra-rows', 'rows', 'm
 
 // The type sizes a node sets (px) and whether it is a fitted headline.
 function sizesOf(node, look) {
-  const el = node.el, out = { sizes: [], fitted: false };
+  const el = node.el, out = { sizes: [], fitted: false, heads: [] };
   const add = (s) => { if (Number.isFinite(s)) out.sizes.push(s); };
-  if (node.type === 'text') add(el.ladder ? el.ladder.steps[0][1] : el.size ?? styleSize(styleOf(el), look));
+  if (node.type === 'text') {
+    const z = el.ladder ? el.ladder.steps[0][1] : el.size ?? styleSize(styleOf(el), look);
+    add(z);
+    if (['headline', 'quote', 'big'].includes(el.field) && Number.isFinite(z)) out.heads.push(z);
+  }
   else if (['fitted-stack', 'mantra-rows'].includes(node.type)) out.fitted = true;
   else if (node.type === 'numeral') { out.fitted = true; if (el.unit) add(styleSize(el.unit.style ?? 'label', look)); }
   else if (node.type === 'sticker' && el.field !== undefined) add(el.ladder ? el.ladder.steps[0][1] : el.fit?.cap ?? el.textSize ?? Math.round((el.size ?? el.h ?? 100) / 5));
@@ -205,11 +210,29 @@ function sizesOf(node, look) {
   else if (typeof PRIMITIVES[node.type]?.sizes === 'function') for (const s of PRIMITIVES[node.type].sizes(el, look)) add(s);
   return out;
 }
-const levelCount = (sizes) => {
+const levelGroups = (sizes) => {
   const s = [...sizes].sort((a, b) => a - b), groups = [];
   for (const z of s) { const g = groups[groups.length - 1]; if (!g || z - g[g.length - 1] > 2) groups.push([z]); else g.push(z); }
-  return groups.length;
+  return groups;
 };
+const levelCount = (sizes) => levelGroups(sizes).length;
+// The levels a composition allows: { max, ratio } (three and no ratio rule unless the design says more).
+export const levelsOf = (comp) => (isObj(comp?.levels) && Number.isInteger(comp.levels.max) ? { max: comp.levels.max, ratio: comp.levels.ratio ?? LEVELS.ratio } : { max: LIMITS.typeLevels, ratio: null });
+// The hierarchy of known sizes when a design allows more than three: each level at least `ratio` times the next smaller one, and the
+// headline's size above every other text. sizes: every known size; heads: the headline's (and the quote's). -> a problem sentence or null.
+export function hierarchyProblem(sizes, heads, ratio) {
+  const groups = levelGroups(sizes);
+  for (let i = 1; i < groups.length; i++) {
+    const lo = Math.max(...groups[i - 1]), hi = Math.min(...groups[i]), r = hi / lo;
+    if (r < ratio - 0.005) return `sets type at ${Math.round(lo)} px and ${Math.round(hi)} px, only ${r.toFixed(2)} times apart; with more than ${LEVELS.min} sizes each must be at least ${ratio} times the next smaller one`;
+  }
+  if (heads.length) {
+    const h = Math.min(...heads), other = sizes.filter((z) => !heads.includes(z));
+    const top = other.length ? Math.max(...other) : null;
+    if (top !== null && top > h - 2) return `sets a text at ${Math.round(top)} px, as large as the headline (${Math.round(h)} px) or larger; the headline must stay the largest`;
+  }
+  return null;
+}
 
 const hasFill = (n) => (n.el.fill !== undefined && ['box', 'band'].includes(n.type)) || hasGradient(n);
 // a box filled with a gradient: every one of its colours is a fill its text must read on
@@ -258,7 +281,8 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
   if (Array.isArray(comp.ground)) comp.ground.forEach((c) => c.when && whens.push(c.when));
   const conditioned = [...new Set(whens.flatMap((w) => [w.present, w.absent]).filter((f) => f && optional.includes(f)))];
   const dupSeen = new Set(), missSeen = new Set(), bad = [];
-  let maxLevels = 0, maxLevelCombo = '';
+  let maxLevels = 0, maxLevelCombo = '', hierarchy = null;
+  const allowed = levelsOf(comp);
   if (conditioned.length > LIMITS.optionalFieldsInConditions) whole(`conditions on ${conditioned.length} optional fields; the most is ${LIMITS.optionalFieldsInConditions}`);
   else {
     for (let mask = 0; mask < 1 << conditioned.length; mask++) {
@@ -270,12 +294,15 @@ export function compositionStaticChecks(comp, nodes, ctx, path, errs, push) {
       for (const n of active) for (const b of bindingsOf(n, look)) { if (seen.has(b.sig) && !dupSeen.has(b.sig)) { dupSeen.add(b.sig); at(n, `shows ${b.field} in the same way as ${seen.get(b.sig)}; show each field once (or in a different part or format)${combo}`); } seen.set(b.sig, n.path); }
       for (const f of required) if (![...seen.keys()].some((s) => s.startsWith(`${f}|`)) && !missSeen.has(f)) { missSeen.add(f); bad.push(f); whole(`nothing shows the required field ${f}${combo}`); }
       // type levels
-      const sizes = [], st = { fitted: false };
-      for (const n of active) { const s = sizesOf(n, look); sizes.push(...s.sizes); st.fitted ||= s.fitted; }
+      const sizes = [], heads = [], st = { fitted: false };
+      for (const n of active) { const s = sizesOf(n, look); sizes.push(...s.sizes); heads.push(...s.heads); st.fitted ||= s.fitted; }
       const lv = levelCount(sizes) + (st.fitted ? 1 : 0);
       if (lv > maxLevels) { maxLevels = lv; maxLevelCombo = combo; }
+      // more than three sizes: still a hierarchy (each size clearly apart from the next, the headline the largest)
+      if (allowed.ratio !== null && !hierarchy) { const h = hierarchyProblem(sizes, heads, allowed.ratio); if (h) hierarchy = `${h}${combo}`; }
     }
-    if (maxLevels > LIMITS.typeLevels) whole(`sets type in ${maxLevels} sizes${maxLevelCombo}; at most ${LIMITS.typeLevels} levels are allowed (a fitted headline counts as one)`);
+    if (maxLevels > allowed.max) whole(`sets type in ${maxLevels} sizes${maxLevelCombo}; at most ${allowed.max} levels are allowed (a fitted headline counts as one${allowed.max === LIMITS.typeLevels ? '; a design may allow up to 5 with levels' : ''})`);
+    if (hierarchy) whole(hierarchy);
   }
   for (const f of declared) if (!nodes.some((n) => bindingsOf(n, look).some((b) => b.field === f))) whole(`declares ${f} but no element shows it`);
 

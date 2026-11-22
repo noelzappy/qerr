@@ -9,7 +9,7 @@ import {
   LIMITS, LOOK_SCHEMA, ORIGIN, PAGE, PLACE_FORMS, PLACE_MODIFIERS, POST_FIELDS, POST_ITEMS, POST_REQUIRED, REQUIRED_OWN, SECTIONS, SECTION_NAMES, SIZE_RANGE, TEXT_FIELDS, TOP_ONLY, VALIGNS, descriptorOf, keysOf,
 } from './look-elements.mjs';
 import { FILL_ROLES, compositionStaticChecks, gridOf, styleOf } from './look-static.mjs';
-import { VAULT_REF } from './look-desc.mjs';
+import { LEVELS, VAULT_REF } from './look-desc.mjs';
 import { INLINE, POST_LISTS } from './post-spec.mjs';
 import { PRIMITIVES } from './look-elements.mjs';
 
@@ -466,7 +466,7 @@ function acceptsProblems(a, i, comp, path, ctx, errs) {
   if (!(Number.isInteger(a.maxChars) && a.maxChars >= 1 && a.maxChars <= POST_FIELDS[a.field].max)) push(errs, ctx, `${path}.maxChars`, `must be a whole number of characters from 1 to ${POST_FIELDS[a.field].max}`);
 }
 
-const COMP_KEYS = ['kind', 'name', 'describe', 'ground', 'fields', 'accepts', 'calm', 'fit', 'elements'];
+const COMP_KEYS = ['kind', 'name', 'describe', 'ground', 'fields', 'accepts', 'calm', 'levels', 'fit', 'elements'];
 
 function compositionProblems(c, i, ctx, errs) {
   const path = `compositions[${i}]`;
@@ -516,6 +516,18 @@ function compositionProblems(c, i, ctx, errs) {
   if (c.calm !== undefined) {
     if (!isObj(c.calm)) push(errs, ctx, `${path}.calm`, 'must be { "maxShare": 0.6 }');
     else { unknownKeys(c.calm, ['maxShare'], `${path}.calm`, ctx, errs); check({ kind: 'number', min: 0.45, max: 0.8 }, c.calm.maxShare, `${path}.calm.maxShare`, cctx, errs); }
+  }
+  // more type sizes on one page: an explicit property of the design, 3 to 5 levels, each step at least `ratio` times the next
+  if (c.levels !== undefined) {
+    if (!isObj(c.levels)) push(errs, ctx, `${path}.levels`, `must be { "max": 4, "ratio": 1.25 } (${LEVELS.min} to ${LEVELS.max} sizes of type)`);
+    else {
+      unknownKeys(c.levels, ['max', 'ratio'], `${path}.levels`, ctx, errs);
+      check({ kind: 'number', min: LEVELS.min, max: LEVELS.max, int: true }, c.levels.max, `${path}.levels.max`, cctx, errs);
+      if (c.levels.ratio !== undefined) {
+        check({ kind: 'number', min: LEVELS.ratioMin, max: LEVELS.ratioMax }, c.levels.ratio, `${path}.levels.ratio`, cctx, errs);
+        if (c.levels.max === LEVELS.min) push(errs, ctx, `${path}.levels.ratio`, `is used only with more than ${LEVELS.min} sizes of type`);
+      }
+    }
   }
   if (c.fit !== undefined) {
     if (typeof c.fit === 'string') { if (!['margins', 'frame'].includes(c.fit)) push(errs, ctx, `${path}.fit`, 'must be margins, frame or { "pad", "top", "bottom" }'); }

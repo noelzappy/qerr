@@ -552,6 +552,28 @@ test('static: at most three type levels (a fitted headline counts as one)', () =
   refused(host({ type: 'text', field: 'sub', style: 'body', place: AT(56, 900, 600, 100) }, EXAMPLES['fitted-stack']), 'a fitted headline as a fourth level', /sets type in 4 sizes/);
 });
 
+test('static: a design may allow four or five sizes of type, in a clear hierarchy (levels)', () => {
+  const badge = { type: 'sticker', field: 'tag', size: 200, textSize: 60, place: AT(700, 300, 200, 200) };
+  const sub = { type: 'text', field: 'sub', style: 'item', size: 36, place: AT(56, 900, 600, 100) };
+  const four = (levels, ...els) => { const l = host(sub, badge, ...els); if (levels !== undefined) l.compositions[0].levels = levels; return l; };
+  refused(four(undefined), 'four sizes without levels', /sets type in 4 sizes.*a design may allow up to 5 with levels/);
+  ok(four({ max: 4 }), 'four sizes, levels 4: 100, 60, 36 and 24 are each at least 1.25 apart');
+  ok(four({ max: 4, ratio: 1.5 }), '100/60 1.67, 60/36 1.67, 36/24 1.5');
+  refused(four({ max: 4, ratio: 1.7 }), 'a stricter ratio', /only 1\.67 times apart; with more than 3 sizes each must be at least 1\.7/);
+  refused(four({ max: 4 }, { type: 'text', field: 'label', style: 'label', size: 30, place: AT(56, 1100, 600, 60) }), 'five sizes where four are allowed', /sets type in 5 sizes/);
+  // a scatter: a size too close to the next
+  refused((() => { const l = four({ max: 5 }); l.compositions[0].elements.find((e) => e.type === 'sticker').textSize = 42; return l; })(), 'a size too close to the next', /36 px and 42 px, only 1\.17 times apart/);
+  // the headline must stay the largest
+  refused((() => { const l = four({ max: 4 }); l.compositions[0].elements.find((e) => e.type === 'sticker').textSize = 140; return l; })(), 'a badge larger than the headline', /as large as the headline \(100 px\) or larger/);
+  // the setting itself: whole numbers 3 to 5, a ratio 1.2 to 2 only with more than three, nothing else
+  for (const [v, re] of [[{ max: 6 }, /levels\.max/], [{ max: 2 }, /levels\.max/], [{ max: 4.5 }, /levels\.max/], [{ max: 4, ratio: 1.1 }, /levels\.ratio/], [{ max: 4, ratio: 3 }, /levels\.ratio/],
+    [{ max: 3, ratio: 1.3 }, /used only with more than 3/], [{ max: 4, extra: 1 }, /extra/], [{}, /levels\.max/], ['4', /levels/], [{ max: NaN }, /levels\.max/], [{ max: Infinity }, /levels\.max/], [{ max: 4, ratio: 'red;background:url(x)' }, /levels\.ratio/]]) {
+    const p = refused(four(v), `levels ${JSON.stringify(v)}`, re);
+    assert.ok(p.every((m) => !m.includes('background:url') && m.length <= 200), 'no echo of the payload');
+  }
+  assert.deepEqual(lookCatalogue().composition.properties.levels.props.max, { kind: 'number', min: 3, max: 5, step: 1, int: true });
+});
+
 test('static: ink and fill pairs come from a table', () => {
   ok(RETAIL);
   refused(withComp('Frame pop', (c) => { c.elements[2].ink = 'paper'; }), 'paper ink on a paper box', /ink paper does not read on fill paper/);
