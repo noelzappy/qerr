@@ -109,7 +109,7 @@ The short version, on a host with Docker and a proxy:
    a copy of `APP_ENCRYPTION_KEY` outside the server: without it the stored keys cannot be read.
 2. Set them with `APP_URL`, `BOOTSTRAP_ADMIN_EMAIL`, `STORAGE_DRIVER=s3` and the `S3_*` values in the platform's
    environment, then deploy.
-3. Open the invite link the app logs once (`bootstrap.admin_invite`), set a password, and follow the setup steps on Home.
+3. Open the invite link the app logs once (`bootstrap.admin_invite`), set a password, and follow the guided setup.
 
 ### On your machine: local development
 
@@ -131,17 +131,19 @@ export BOOTSTRAP_ADMIN_EMAIL=you@example.com
 npm run build && npm run migrate && npm start      # or `npm run dev` with `npm run dev:web` for Vite
 ```
 
-Open the invite link the server logs on its first start, choose a name and a password, and sign in. Then follow the
-setup steps on Home; each opens the page where it is done:
+Open the invite link the server logs on its first start, choose a name and a password, and sign in. As the first admin
+you land on the guided setup (`/setup`), one screen per step; the logo, channels and AI steps can be left for later:
 
-1. Set up the brand (Settings, Brand and look). Saving it starts the brand on the Clean look (Settings, Looks).
-2. Upload the logos, or draw a simple pair from the name (Settings, Brand and look, Logos).
-3. Connect the channels (Settings, Channels): add a Buffer account and run Check on it, then choose the account and
-   channel for each network.
-4. Add an AI provider and a monthly budget (Settings, AI and search).
-5. Add the team's facts to Facts.
-6. Invite the team (Settings, Team).
-7. Draft the first batch with AI, or import one (the two files in `batches/` are examples for the demo brand).
+1. Your brand: the name and the website (the AI offers the rest from the website once it is set up). Saving it starts the
+   brand on the Clean look.
+2. Your logo: upload it or draw a simple pair from the name, and pick the colours read from it.
+3. Your look: one of the shipped looks.
+4. Channels: add a Buffer account and run Check on it, then choose the account and channel for each network.
+5. AI: a provider and a monthly budget, and optionally a web search key.
+6. The first batch: draft it with AI, or start empty.
+
+Home's setup steps lead back into it, and add the team's facts and invite the team. Everything stays editable in Settings
+(Brand and look, Looks, Channels, AI and search). The two files in `batches/` are example batches for the demo brand.
 
 The details, every command and the test set-up are in [apps/web/README.md](apps/web/README.md).
 

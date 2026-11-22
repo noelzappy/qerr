@@ -51,14 +51,19 @@ database is reachable. On the first start with no users, the server logs one lin
 invite link for `BOOTSTRAP_ADMIN_EMAIL`. Open it, choose a name and a password, then sign in. Restarting does not make a
 second invite.
 
-Then, as an admin, follow the setup steps on Home. Each one opens the page where it is done:
+Then, as an admin, go through the guided setup. After the first sign-in an admin whose brand was never saved lands on it
+(`/setup/<step>`); Home's setup steps open the matching step, and Settings stays the place to change things later:
 
-1. Set up the brand, and upload the logos or draw a simple pair from the name (Settings, Brand and look).
-2. Connect your channels: add a Buffer account and run Check on it, then choose the account and channel for each network (Settings, Channels).
-3. Add an AI provider and a monthly budget (Settings, AI and search).
-4. Add the team's facts to Facts.
-5. Invite the team (Settings, Team).
-6. Draft the first batch with AI, or import one from `batches/`.
+1. Your brand: the name and the website, with the tagline, the description and the voice offered from the website when the AI
+   is set up; the time zone and the language come from the browser.
+2. Your logo: upload it (the small mark is cut from its left when it has one) or draw a simple pair from the name, then pick
+   the colours from the ones read from the logo.
+3. Your look: one of the shipped looks (Clean is chosen first).
+4. Channels: add a Buffer account and run Check on it, then choose the account and channel for each network.
+5. AI: the provider (the model and its prices follow the choice), a monthly budget and an optional search key.
+6. The first batch: draft it with AI, or start empty. Facts and the team are added from Home's steps.
+
+Brand, logo, channels and AI can also be done in Settings (Brand and look, Channels, AI and search), as before.
 
 With `STORAGE_DRIVER=local` the files are written under `LOCAL_STORAGE_DIR` (default `apps/web/.data/storage`, git-ignored).
 Private files are opened through signed, expiring app URLs; the public prefix is served unsigned at `/_local-public/`,
@@ -74,6 +79,18 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   pictures. The router is `createBrowserRouter` with one catch-all route.
 - **Unsaved changes.** Editors use `useUnsavedGuard` and `confirmDiscard` from `web/src/hooks/use-unsaved-guard.tsx`: leaving
   or closing with edits that are not saved asks first; a save that succeeds does not.
+- **The guided setup** (`web/src/pages/setup/`, routes `/setup/brand|logo|look|channels|ai|batch`; `/setup` opens the step to
+  pick up at). One screen per step with a progress line, Back, and "Skip for later" on the logo, channels and AI steps;
+  "Finish later" leaves it. Each step saves through the route Settings already uses (`PUT /api/settings/brand`, the logo
+  uploads, `PUT /api/settings/looks/active`, `/api/buffer-accounts`, `/api/routing`, `/api/settings/ai/*`). `GET /api/setup`
+  (admins) says where each step stands, read from what is saved, plus `progress` (`done`, `skipped`, `left`, `finished`);
+  `PUT /api/setup/progress` takes `{ step, state: 'done'|'skipped' }`, `{ left: true }` or `{ finished: true }`. An admin with
+  no saved brand who has neither left nor finished the setup is sent to it from Home. The first save of the brand keeps none of
+  the example brand's words (tagline, description, voice, spellings, currency, post types). The brand step keeps its typing in
+  the tab's sessionStorage across a reload. Its "Fill in from your website" button calls `POST /api/suggest/brand-from-site`
+  (`{ website, name }` in, `{ descriptor?, tagline?, voice?, colours? }` out) only while the AI is ready, hides itself when the
+  route answers 404, 405 or 501, fills only empty fields (or earlier suggestions) and marks what it filled. The logo step reads
+  the logo's main colours in the browser with a canvas (`logo-colours.ts`).
 - **Home.** The setup checklist is one card. `GET /api/overview/home` returns each step as `{ key, title, detail, to, done }`
   and, on the AI step, `missing` (`'provider'`, `'budget'` or `null`); the merged "Connect your channels" step (seven steps in all) carries `missing` too (`'account'`, `'routes'` or `null`).
 - **A batch** is Writing, In review, Scheduled or Done. Its page is a four-step flow: Write, Review, Send drafts to Buffer,
