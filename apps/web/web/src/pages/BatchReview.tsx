@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useMatch, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import { useDocumentTitle, useLoad } from '../hooks';
-import { detailMessages, draftSummary } from '../lib/ai-draft-note';
+import { detailMessages, draftSummary, pictureNote } from '../lib/ai-draft-note';
 import { errorMessage } from '../lib/errors';
 import type { ChannelsOverview } from '../lib/overview';
 import { useSession } from '../session';
@@ -310,6 +310,7 @@ export function AiDraftCard({ notes }: { notes: AiDraftNotes }) {
   const s = draftSummary(notes);
   const suggestions = notes.imageSuggestions ?? [];
   const messages = detailMessages(notes);
+  const pictures = pictureNote(notes);
   const technical = [
     ...(notes.plan ? [`Plan: ${notes.plan}`] : []),
     ...((notes.promptVersion || notes.model) ? [[notes.promptVersion ? `Prompt ${notes.promptVersion}` : '', notes.model ? `model ${notes.model}` : ''].filter(Boolean).join(', ')] : []),
@@ -332,6 +333,7 @@ export function AiDraftCard({ notes }: { notes: AiDraftNotes }) {
         )}
       >
         Check every post and its sources before approving. <span className="text-muted-foreground">{s.headline}</span>
+        {pictures && <p className="mt-1">{pictures}</p>}
         {open && hasDetails && (
           <div id="ai-draft-details" className="mt-2 flex flex-col gap-2 text-[13px] [overflow-wrap:anywhere]">
             {(s.followUp || s.why.length > 0) && (

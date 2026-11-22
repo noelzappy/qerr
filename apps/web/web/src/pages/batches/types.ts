@@ -36,6 +36,7 @@ export interface AiDraftNotes {
   imageSuggestions?: Array<{ postId: string; suggestion: string }>;
   imageReasons?: Array<{ postId: string; reason: string }>;
   messages?: string[];
+  pictures?: { posts?: number; of?: number; usablePhotos?: number };
 }
 
 export interface PostSummary {
