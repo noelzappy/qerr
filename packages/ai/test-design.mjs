@@ -6,6 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { ROOT } from '@qerr/engine/core';
 import { createAI, designCatalogue } from './src/index.mjs';
+import { wordsProblems } from './src/design.mjs';
 import { loadPrompt } from './src/prompts.mjs';
 
 const KEY = 'sk-ant-TESTKEY-DESIGN-1234567890';
@@ -82,6 +83,20 @@ test('a design the engine refuses gets one repair round with the reasons; a repa
   assert.match(repair, /The engine refused this design/);
   assert.match(repair, /never a hex colour/);
   assert.equal(ai.calls[1].body.messages[1].role, 'assistant');
+});
+
+test('the words stand alone: a design that shows only the emphasised phrase, or drops the sub, is sent back with the reason', async () => {
+  const phraseOnly = statement();
+  const walk = (list) => { for (const e of list) { if (e.type === 'text' && e.field === 'headline') e.part = 'phrase'; walk(e.children ?? []); } };
+  walk(phraseOnly.elements);
+  assert.match(wordsProblems(phraseOnly, POST).join(' '), /headline must be shown whole .*only a part/);
+  const noSub = statement(); noSub.elements = noSub.elements.filter((e) => !JSON.stringify(e).includes('"field":"sub"'));
+  assert.match(wordsProblems(noSub, POST).join(' '), /sub must be shown whole .*not shown at all/);
+  assert.deepEqual(wordsProblems(statement(), POST), []);
+  const ai = fake(answer({ why: 'x', composition: phraseOnly }), answer({ why: 'fixed', composition: statement() }));
+  const out = await make(ai).designBatch({ posts: [{ id: 'p1', design: POST }] });
+  assert.equal(out.results[0].tries, 2);
+  assert.match(userText(ai.calls[1], 2), /headline must be shown whole/);
 });
 
 test('a design that still fails after the repair is dropped: the post keeps the look\'s design, and the reasons say why', async () => {

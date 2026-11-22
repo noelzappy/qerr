@@ -83,6 +83,7 @@ export function designCatalogue() {
   for (const [k, v] of Object.entries(PLACE_FORMS)) lines.push(`- {"${k}": ${brief(v)}}`);
   lines.push(`- a grid place may add: ${Object.entries(PLACE_MODIFIERS).map(([k, v]) => `${k}: ${brief(v)}`).join('; ')}`);
   lines.push('', `ART LAYER: {"type":"art","place":...,"z":0,"shapes":[...]} draws decorative shapes; at most ${ART_LIMITS.shapes} shapes and ${ART_LIMITS.points} path points in a composition. Positions are thousandths of the art's box (0..1000; -1000..2000 runs past it, clipped); radii and corners thousandths of its shorter side; widths and gaps in px. Every shape takes colour (a fill role) or, for circle/ellipse/rect, gradient {kind linear|radial, stops [2-3 fill roles], angle?, at?}; opacity 0.05..1; rot -180..180; blend normal|multiply|screen|overlay|soft-light.`);
+  lines.push('  Example: {"type":"art","place":{"inset":"page"},"z":0,"shapes":[{"shape":"circle","cx":880,"cy":140,"r":300,"colour":"soft"},{"shape":"ring","cx":880,"cy":140,"r":360,"stroke":4,"colour":"accent","opacity":0.5}]}. Every shape names its kind in "shape" (never "type").');
   for (const [name, form] of Object.entries(ELEMENTS.art.own.shapes.of.forms)) lines.push(`- ${name}: ${Object.entries(form.props).filter(([k]) => !['shape', 'colour', 'opacity', 'rot', 'blend', 'gradient'].includes(k)).map(([k, v]) => `${k}${(form.required ?? []).includes(k) ? '' : '?'}: ${brief(v)}`).join('; ')}`);
   return lines.join('\n');
 }
@@ -128,6 +129,32 @@ function summary(c) {
   const at = (e) => (e?.place ? JSON.stringify(e.place).slice(0, 80) : 'in a box');
   const photo = flat.find((e) => e?.type === 'photo');
   return { name: c?.name, ground: c?.ground, fromPicture: c?.fromPicture ?? null, picture: photo ? `${photo.shape ?? 'rect'} at ${at(photo)}` : 'none', art: flat.filter((e) => e?.type === 'art').reduce((n, e) => n + (e.shapes?.length ?? 0), 0), elements: flat.map((e) => e?.type).filter(Boolean).join(',').slice(0, 160) };
+}
+
+// The words stand alone: every main text the post has (its headline, quotation or figure, and its sub line) is shown whole on the page (a text of
+// the field with part all, or its three parts, a fitted headline, a numeral); a design that shows only the emphasised phrase, or drops the sub,
+// is sent back. (The engine draws any part a design asks for; this is the designer's own rule for the AI's designs.)
+const MAIN_FIELDS = ['headline', 'quote', 'big', 'sub'];
+export function wordsProblems(comp, design) {
+  const shown = new Map();
+  const walk = (list) => {
+    for (const e of Array.isArray(list) ? list : []) {
+      if (!e || typeof e !== 'object') continue;
+      const when = e.when && typeof e.when === 'object' ? e.when : null;
+      const f = e.type === 'fitted-stack' || e.type === 'mantra-rows' ? (e.field ?? 'headline') : e.type === 'numeral' ? (e.field ?? 'big') : e.type === 'text' ? e.field : undefined;
+      if (typeof f === 'string' && !(when && when.absent === f)) { const parts = shown.get(f) ?? new Set(); parts.add(e.type === 'text' ? (e.part ?? 'all') : 'all'); shown.set(f, parts); }
+      walk(e.children); if (e.sticker) walk([e.sticker]);
+    }
+  };
+  walk(comp?.elements);
+  const out = [];
+  for (const f of MAIN_FIELDS) {
+    if (typeof design?.[f] !== 'string' || !design[f].trim()) continue;
+    const p = shown.get(f);
+    const whole = p && (p.has('all') || ['pre', 'phrase', 'post'].every((x) => p.has(x)));
+    if (!whole) out.push(`the post's ${f} must be shown whole on the page (a "${f}" text with part "all", or a fitted ${f === 'big' ? 'numeral' : 'headline'}); ${p ? 'only a part of it is shown' : 'it is not shown at all'}, so the words do not stand alone`);
+  }
+  return out;
 }
 
 const cleanReason = (s) => String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 300);
@@ -184,6 +211,8 @@ async function composeOne(rt, { id, design, picture, look, catalogue, settings, 
   const judge = async (c) => {
     const bad = postCompositionProblems(c, look, design.kind);
     if (bad.length) return { stage: 'validation', problems: bad.slice(0, 16) };
+    const words = wordsProblems(c, design);
+    if (words.length) return { stage: 'validation', problems: words };
     const failed = typeof check === 'function' ? (await check(id, c)) ?? [] : [];
     return failed.length ? { stage: 'check', problems: failed.slice(0, 8).map(cleanReason) } : null;
   };
