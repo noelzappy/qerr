@@ -1,7 +1,7 @@
 // What the post editor does to a design (the form in PageFields.tsx and PagesEditor.tsx draws them), as plain functions: the layout
 // a post or a carousel page is made with (a built-in layout, or one of the brand's own as "layout:<id>"), and a carousel's pages.
 // The engine checks the result again when the post is saved (packages/engine/lib/design/layout.mjs postDesignProblems).
-import { LAYOUT_CATALOGUE } from './editor/catalogue';
+import { LAYOUT_CATALOGUE, postKindName } from './editor/catalogue';
 import type { Json as DesignBlock, LayoutBrief } from './editor/types';
 
 export type { LayoutBrief };
@@ -68,3 +68,96 @@ export function movePage(d: DesignBlock, i: number, by: -1 | 1): DesignBlock {
   [pages[i], pages[j]] = [pages[j]!, pages[i]!];
   return { ...d, pages };
 }
+
+// ---- the `post` design: a kind of post and only the fields that kind uses ----
+// The fallback for what GET /api/posts/post-kinds answers (the engine's post-spec.mjs and the kind's compositions); the server's
+// answer is used when it is there.
+export const POST_KINDS = ['statement', 'figure', 'list', 'quote', 'photo', 'event', 'offer'] as const;
+export type PostKind = (typeof POST_KINDS)[number];
+export type PostFieldName = 'label' | 'headline' | 'sub' | 'big' | 'unit' | 'items' | 'quote' | 'by' | 'image' | 'meta' | 'tag';
+export interface PostKindFields { fields: PostFieldName[]; required: PostFieldName[] }
+
+export const POST_KIND_FIELDS: Record<PostKind, PostKindFields> = {
+  statement: { fields: ['label', 'headline', 'sub'], required: ['headline'] },
+  figure: { fields: ['label', 'sub', 'big', 'unit'], required: ['big'] },
+  list: { fields: ['label', 'headline', 'items'], required: ['headline', 'items'] },
+  quote: { fields: ['label', 'quote', 'by'], required: ['quote'] },
+  photo: { fields: ['label', 'headline', 'sub', 'image'], required: ['image', 'headline'] },
+  event: { fields: ['label', 'headline', 'sub', 'meta'], required: ['headline', 'meta'] },
+  offer: { fields: ['label', 'headline', 'sub', 'image', 'tag'], required: ['headline', 'tag'] },
+};
+// The most characters a field takes, counting what is seen (the engine's POST_FIELDS and POST_ITEMS).
+export interface PostLimits { label: number; headline: number; sub: number; big: number; unit: number; quote: number; by: number; meta: number; tag: number; items: { min: number; max: number; chars: number } }
+export const POST_LIMITS: PostLimits = {
+  label: 28, headline: 70, sub: 140, big: 8, unit: 24, quote: 160, by: 40, meta: 40, tag: 16, items: { min: 2, max: 5, chars: 44 },
+};
+// What the server says about each kind (GET /api/posts/post-kinds).
+export interface PostKindInfo { kind: string; fields: string[]; required: string[]; variants: Array<{ variant: number; name: string; describe: string }> }
+
+const CANON: PostFieldName[] = ['label', 'headline', 'sub', 'big', 'unit', 'items', 'quote', 'by', 'image', 'meta', 'tag'];
+// The keys a post may carry besides its fields; the app's vaultItemId is stripped by the server before the engine sees it.
+const POST_FRAME = ['name', 'networkSizes', 'sizes'];
+const POST_EXTRA = ['focal', 'zoom', 'vaultItemId'];
+
+export const isPostDesign = (d: DesignBlock | null | undefined): boolean => !!d && d.template === 'post';
+
+// A new post design: only its kind. The words are the person's to write.
+export const newPostDesign = (kind: string): DesignBlock => ({ template: 'post', kind });
+
+// The fields and the required ones of a kind: the server's data when given, else the static table.
+export function postFieldsFor(kind: string, kinds?: PostKindInfo[] | null): { fields: string[]; required: string[] } {
+  const known = kinds?.find((k) => k.kind === kind);
+  if (known) return { fields: CANON.filter((f) => known.fields.includes(f)), required: known.required };
+  const own = (POST_KIND_FIELDS as Record<string, PostKindFields | undefined>)[kind];
+  return own ? { fields: [...own.fields].sort((a, b) => CANON.indexOf(a) - CANON.indexOf(b)), required: [...own.required] } : { fields: [], required: [] };
+}
+
+// The characters a person sees in a text: the asterisks of an emphasis and the line breaks do not count (as the engine counts).
+export const seenLength = (v: string): number => [...v.replace(/\*/g, '').replace(/\\n|\n/g, '')].length;
+
+// A post set to another kind: it keeps only what the new kind uses, plus its frame (template, kind, name, network sizes). The
+// variant goes, since the new kind's looks differ. A picture's position and zoom and the app's vault id go with the picture.
+export function switchKind(d: DesignBlock, kind: string, kinds?: PostKindInfo[] | null): DesignBlock {
+  const { fields } = postFieldsFor(kind, kinds);
+  const keep = new Set<string>([...fields, ...(fields.includes('image') ? POST_EXTRA : [])]);
+  const next: DesignBlock = { template: 'post', kind };
+  for (const [k, v] of Object.entries(d)) {
+    if (k === 'template' || k === 'kind' || k === 'variant') continue;
+    if (keep.has(k) || POST_FRAME.includes(k)) next[k] = v;
+  }
+  return next;
+}
+
+// A post's look set (a number), or left to the post (undefined).
+export const setVariant = (d: DesignBlock, n: number | undefined): DesignBlock => withField(d, 'variant', n);
+
+const KEEP_PICTURE = ['image', 'vaultItemId', 'focal', 'zoom'];
+const asText = (v: unknown) => (typeof v === 'string' && v.trim() ? v : undefined);
+
+// An old-layout design as a post, where the mapping is obvious: { kind, design }. Nothing is cut to a limit (the server states them),
+// empty texts are dropped, and only keys a post may carry are copied. Anything else (a carousel, a brand layout) is null.
+export function convertToPost(d: DesignBlock): { kind: PostKind; design: DesignBlock } | null {
+  if (!d || Array.isArray(d.pages) || typeof d.template !== 'string') return null;
+  const t = d.template;
+  const put = (kind: PostKind, pairs: Array<[string, unknown]>, picture = false) => {
+    const design: DesignBlock = { template: 'post', kind };
+    for (const [k, v] of pairs) { const w = asText(v); if (w !== undefined) design[k] = w; }
+    if (picture) for (const k of KEEP_PICTURE) if (d[k] !== undefined && d[k] !== '') design[k] = d[k];
+    const name = asText(d.name);
+    if (name) design.name = name;
+    if (isObj(d.networkSizes)) design.networkSizes = d.networkSizes;
+    if (Array.isArray(d.sizes) && d.sizes.length === 1 && d.sizes[0] === 'feed') design.sizes = ['feed'];
+    return { kind, design };
+  };
+  if (['photo', 'cover', 'photo-story', 'object'].includes(t)) {
+    const pairs: Array<[string, unknown]> = [['label', d.label], ['headline', d.headline], ['sub', d.sub]];
+    return asText(d.image) ? put('photo', pairs, true) : put('statement', pairs.filter(([k]) => k !== 'image'));
+  }
+  if (['text', 'screen', 'product', 'ledger', 'passbook'].includes(t)) return put('statement', [['label', d.label], ['headline', d.headline], ['sub', d.sub]]);
+  if (t === 'closing') return put('statement', [['label', d.label], ['headline', asText(d.headline) ?? d.line], ['sub', d.sub]]);
+  if (t === 'number' || t === 'stats') return put('figure', [['label', d.label], ['big', d.big], ['sub', d.line]]);
+  if (t === 'myth-fact') return put('statement', [['label', d.label], ['headline', d.factLead], ['sub', d.fact]]);
+  return null;
+}
+
+export { postKindName };

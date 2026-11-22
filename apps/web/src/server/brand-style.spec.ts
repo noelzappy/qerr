@@ -5,7 +5,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { pipelineEngine } from './engine/pipeline.js';
 import {
-  brandSettingsSchema, contrast, contrastChecks, currentSettings, explicitRoles, expandBrand, paletteChanges, resetBrandState, settingsFromBrand, splitPackBrand, type BrandSettings,
+  applyProposal, brandSettingsSchema, contrast, contrastChecks, currentSettings, engineStyle, explicitRoles, expandBrand, paletteChanges, resetBrandState, settingsFromBrand, splitPackBrand, type BrandSettings,
 } from './services/brand-settings.js';
 import { createTestApp, type TestApp } from './testing.js';
 
@@ -19,6 +19,7 @@ afterAll(() => { resetBrandState(); return t.close(); });
 beforeEach(async () => { await t.reset(); resetBrandState(); });
 
 const engine = await import('@vesk/engine/design/brand' as string) as { validateBrand(b: unknown): string[] };
+const tokens = await import('@vesk/engine/design/tokens' as string) as { DIRECTIONS: string[] };
 const DEMO = (f: string) => fs.readFileSync(path.join(root, 'brands', 'demo', f));
 const INTER = () => fs.readFileSync(path.join(root, 'packages', 'engine', 'design', 'fonts', 'inter-v20-latin.woff2'));
 const activeBrand = () => JSON.parse(fs.readFileSync(path.join(root, process.env.BRAND_DIR!, 'brand.json'), 'utf8'));
@@ -96,6 +97,59 @@ describe('the style settings', () => {
     expect(split.advanced.style).toBeUndefined();
     expect(split.settings.style).toMatchObject({ surface: 'flat', decoration: { kind: 'lines', on: 'all' }, type: { label: { case: 'as-typed', font: 'mono' } } });
     expect(settingsFromBrand(pack).style.surface).toBe('flat');
+  });
+});
+
+describe('the design direction', () => {
+  const STYLE_BEFORE = { type: { display: { case: 'as-typed' }, body: { case: 'as-typed' }, label: { case: 'upper' }, scale: 1, accent: 'series' }, surface: 'shadow', decoration: { kind: 'auto', on: 'dark', fit: 'cover', opacity: 1 }, photo: { treatment: 'none', strength: 0.5, colour: 'primary', shadows: 'dark', highlights: 'light' }, logo: 'auto', footer: 'website' };
+
+  it('is none by default, and a brand without one writes exactly the style block it wrote before', () => {
+    expect(S().style.direction).toBeNull();
+    expect(brandSettingsSchema.parse({ ...BEFORE, style: { direction: null } }).style.direction).toBeNull();
+    expect('direction' in engineStyle(S().style)).toBe(false);
+    expect(JSON.stringify(engineStyle(S().style))).toBe(JSON.stringify(STYLE_BEFORE));
+    expect(JSON.stringify(expandBrand(S()).style)).toBe(JSON.stringify(STYLE_BEFORE));
+  });
+
+  it('is written into the style block when chosen, and the engine accepts every one of its directions', () => {
+    for (const direction of tokens.DIRECTIONS) {
+      const b = expandBrand(S({ style: { direction } }));
+      expect((b.style as { direction: string }).direction).toBe(direction);
+      expect(engine.validateBrand(b)).toEqual([]);
+    }
+  });
+
+  it('is saved, comes back through GET, reaches the pack folder in use and is refused when it is not in the list', async () => {
+    const api = await admin();
+    expect((await api.get('/api/settings/brand')).body.settings.style.direction).toBeNull();
+    const put = await api.put('/api/settings/brand', S({ style: { direction: 'swiss' } }));
+    expect(put.status).toBe(200);
+    expect(put.body.settings.style.direction).toBe('swiss');
+    expect((await api.get('/api/settings/brand')).body.settings.style.direction).toBe('swiss');
+    expect(activeBrand().style.direction).toBe('swiss');
+    expect(engine.validateBrand(activeBrand())).toEqual([]);
+    // back to none: the key leaves the brand file
+    expect((await api.put('/api/settings/brand', S({ style: { direction: null } }))).status).toBe(200);
+    expect('direction' in activeBrand().style).toBe(false);
+    for (const bad of ['cubist', '', 'Swiss', 7, ['swiss']]) {
+      expect((await api.put('/api/settings/brand', { ...BEFORE, style: { direction: bad } })).status, String(bad)).toBe(400);
+      expect((await api.post('/api/settings/brand/preview', { ...BEFORE, style: { direction: bad } })).status, String(bad)).toBe(400);
+    }
+  });
+
+  it('is kept when a reference proposal is applied and when a brand pack is read back into the form', () => {
+    const proposal = { colours: {}, display: { case: 'as-typed' }, label: { case: 'upper' }, accent: 'none', surface: 'flat', decoration: { kind: 'none' }, photo: { treatment: 'none' } };
+    const next = applyProposal(S({ style: { direction: 'retail' } }), proposal as never);
+    expect(next.style.direction).toBe('retail');
+    expect(next.style.surface).toBe('flat');
+    const pack = JSON.parse(DEMO('brand.json').toString('utf8'));
+    pack.style = { ...pack.style, direction: 'editorial' };
+    expect(splitPackBrand(pack).settings.style.direction).toBe('editorial');
+    expect(settingsFromBrand(pack).style.direction).toBe('editorial');
+    expect(splitPackBrand(pack).advanced.style).toBeUndefined();
+    // a direction the engine does not know is read as none, not as an error
+    pack.style.direction = 'cubist';
+    expect(settingsFromBrand(pack).style.direction).toBeNull();
   });
 });
 

@@ -7,8 +7,9 @@ import { toast } from 'sonner';
 import { api } from '../../api';
 import { useDocumentTitle, useLoad } from '../../hooks';
 import { FailureText } from '@/components/failure-text';
-import { errorMessage, fieldErrors, tidyBlocker } from '../../lib/errors';
+import { blockerKind, errorMessage, fieldErrors, tidyBlocker } from '../../lib/errors';
 import { networkLabel } from '../../lib/labels';
+import { splitNotes } from '../../lib/post-notes';
 import { BusyButton, CheckField, EmptyBlock, FieldSet, FormProblem, Hint, LoadingBlock, MoreMenu, Notice, PageHeader, TextField, ToneBadge } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -50,9 +51,9 @@ export function PostPage() {
 }
 
 // A section of the form: a title (with an optional info icon), separated from the one before by a hairline and space.
-function Section({ title, hint, children, className }: { title: string; hint?: ReactNode; children: ReactNode; className?: string }) {
+function Section({ title, hint, children, className, id }: { title: string; hint?: ReactNode; children: ReactNode; className?: string; id?: string }) {
   return (
-    <section aria-label={title} className={cn('border-t pt-6 first:border-t-0 first:pt-0', className)}>
+    <section id={id} aria-label={title} className={cn('border-t pt-6 first:border-t-0 first:pt-0', className)}>
       <h2 className="mb-3 flex items-center gap-1 text-[14px] font-semibold">{title}{hint && <Hint about={title}>{hint}</Hint>}</h2>
       <div className="flex flex-col gap-3">{children}</div>
     </section>
@@ -180,7 +181,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
 
   // Where the post stands, read the way the card reads it.
   const blockers = post?.status === 'removed' ? [] : (detail?.blockers ?? []).map(tidyBlocker);
-  const warnings = detail?.warnings ?? [];
+  const { notes: aiNotes, warnings } = splitNotes(detail?.warnings ?? [], post?.warnings ?? []);
   const sources = detail?.sources ?? [];
   const flow = postFlow({
     status: post?.status ?? 'draft',
@@ -237,6 +238,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
               {blockers.map((b) => (
                 <li key={b} className="[overflow-wrap:anywhere]">
                   {b}
+                  {blockerKind(b) === 'post-type' && <div><a className="text-primary underline-offset-4 hover:underline" href="#post-design">Go to Design</a></div>}
                   {sourceFor(b).map((s) => <div key={s.id}><Link className="text-primary underline-offset-4 hover:underline" to={`/vault/${s.id}`}>Open "{s.title ?? 'the fact'}" in Facts</Link></div>)}
                 </li>
               ))}
@@ -274,7 +276,7 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
             <CaptionFields caption={caption} onCaption={setCaption} caps={caps} onCaps={setCaps} on={on} error={fields.caption} />
           </Section>
 
-          <Section title="Design">
+          <Section title="Design" id="post-design" className="scroll-mt-28">
             <DesignFields design={design} jsonError={jsonError} onChange={(d, err) => { setDesign(d); setJsonError(err); }} />
             {fields.design && <p className="text-[13px] font-medium text-destructive" role="alert">{fields.design}</p>}
           </Section>
@@ -292,6 +294,12 @@ function PostEditor({ batch, detail, setDetail, reload, deliveries }: { batch: B
                   ))}
                 </ul>
               ) : <p className="text-[13px] text-muted-foreground">No sources linked. Every claim should link to a fact.</p>}
+              {aiNotes.length > 0 && (
+                <div>
+                  <h3 className="mb-1 text-[13px] font-semibold">Notes from the AI</h3>
+                  <ul className="list-disc space-y-1 pl-[18px] text-[13px] text-muted-foreground">{aiNotes.map((n, i) => <li key={i} className="[overflow-wrap:anywhere]">{n}</li>)}</ul>
+                </div>
+              )}
               {imageReason && <p className="text-[13px] text-muted-foreground [overflow-wrap:anywhere]">Why this picture: {imageReason}</p>}
             </Section>
           )}

@@ -19,9 +19,11 @@ import type { BrandLayout, BrandProfile, DesignReference } from '@prisma/client'
 import { z } from 'zod';
 import { readBrandInfo, setBrandInfo } from '../brand.js';
 import type { Deps } from '../deps.js';
+import { badRequest } from '../http.js';
 import { engineImport } from '../engine/root.js';
 import { logger, describeError } from '../log.js';
 import { MAX_LAYOUTS, layoutsForBrand, mergeLayouts } from './layouts.js';
+import { brandScope, looksFor, packWithLook } from './looks.js';
 
 interface EngineCore { ROOT: string; DEFAULT_BRAND_DIR: string; brandDir(opts?: { root?: string; env?: Record<string, string | undefined> }): string }
 interface EngineBrand {
@@ -32,6 +34,7 @@ interface EngineTokens {
   GROUND_NAMES: string[]; ACCENT_STYLES: string[]; SERIES_KEY: RegExp; groundName(g: unknown): string | null; isDarkColour(hex: string): boolean;
   TYPE_CASES: string[]; ACCENT_DEVICES: string[]; SURFACES: string[]; DECORATIONS: string[]; DECORATION_ON: string[]; ARTWORK_FITS: string[];
   PHOTO_TREATMENTS: string[]; STYLE_COLOURS: string[]; LOGO_PLACES: string[]; FOOTERS: string[];
+  DIRECTIONS: string[]; POST_KINDS: string[];
 }
 
 const core = await engineImport<EngineCore>('core');
@@ -49,6 +52,8 @@ const line = (max: number) => z.string().trim().max(max).refine((s) => !/[\r\n]/
 const validZone = (tz: string) => { try { new Intl.DateTimeFormat('en', { timeZone: tz }); return true; } catch { return false; } };
 const validPattern = (p: string) => { try { new RegExp(p, 'i'); return true; } catch { return false; } };
 
+// The design directions a brand can be drawn in (the engine's own list).
+export const DIRECTIONS: readonly string[] = tokens.DIRECTIONS;
 export const CORNERS = ['square', 'soft', 'round'] as const;
 export const HEADLINE_WEIGHTS = [300, 400, 500, 600, 700] as const;
 
@@ -103,6 +108,8 @@ export const styleSettingsSchema = z.object({
   }).strict().prefault({}),
   logo: list(tokens.LOGO_PLACES, 'the logo').default('auto'),
   footer: list(tokens.FOOTERS, 'the footer').default('website'),
+  // The design direction `post` designs are drawn in (brand.json style.direction); none until one is chosen.
+  direction: list(tokens.DIRECTIONS, 'the design direction').nullable().default(null),
 }).strict().prefault({});
 export type StyleSettings = z.infer<typeof styleSettingsSchema>;
 
@@ -259,6 +266,8 @@ export function engineStyle(st: StyleSettings): Json {
     photo: { ...st.photo },
     logo: st.logo,
     footer: st.footer,
+    // Written only when one is chosen, so a brand without one keeps its brand.json exactly as before.
+    ...(st.direction ? { direction: st.direction } : {}),
   };
 }
 
@@ -272,6 +281,7 @@ export function styleSettingsFrom(style: unknown): StyleSettings {
     type: { display: role(t.display), body: role(t.body), label: role(t.label), scale: t.scale, accent: t.accent },
     surface: s.surface, decoration: { kind: d.kind === 'artwork' ? 'none' : d.kind, on: d.on, fit: d.fit, opacity: d.opacity, alpha: d.alpha ?? null },
     photo: s.photo, logo: s.logo, footer: s.footer,
+    direction: typeof s.direction === 'string' && tokens.DIRECTIONS.includes(s.direction) ? s.direction : null,
   });
   return parsed.success ? parsed.data : styleSettingsSchema.parse({});
 }
@@ -649,7 +659,8 @@ function writePack(brand: Json, files: Array<{ name: string; body: Buffer }>, fi
   h.update(JSON.stringify(brand));
   const hash = h.digest('hex').slice(0, 16);
   const final = path.join(root, hash);
-  if (!fs.existsSync(path.join(final, 'brand.json'))) {
+  const reused = fs.existsSync(path.join(final, 'brand.json'));
+  if (!reused) {
     const tmp = path.join(root, `.tmp-${randomBytes(6).toString('hex')}`);
     fs.mkdirSync(tmp, { recursive: true });
     for (const f of files) { fs.mkdirSync(path.dirname(path.join(tmp, f.name)), { recursive: true }); fs.writeFileSync(path.join(tmp, f.name), f.body); }
@@ -658,22 +669,31 @@ function writePack(brand: Json, files: Array<{ name: string; body: Buffer }>, fi
     fs.writeFileSync(path.join(tmp, 'brand.json'), text);
     fill(tmp);
     try { fs.renameSync(tmp, final); } catch { fs.rmSync(tmp, { recursive: true, force: true }); }
+  } else {
+    // A reused folder counts as new again, so it is not removed while it is still in use.
+    try { const now = new Date(); fs.utimesSync(final, now, now); } catch { /* removed meanwhile; the next write makes it again */ }
   }
-  // Old folders are removed after an hour, so a render that started on one never loses it.
+  // Old folders are removed after an hour, so a render that started on one never loses it. The folder in force stays.
   for (const d of fs.readdirSync(root)) {
     const p = path.join(root, d);
-    if (d === hash) continue;
+    if (d === hash || d === path.basename(state.dir)) continue;
     try { if (Date.now() - fs.statSync(p).mtimeMs > 3600_000) fs.rmSync(p, { recursive: true, force: true }); } catch { /* another process removed it */ }
   }
   return rel(final);
 }
 
 
-async function materialise(deps: Deps, snap: BrandSnapshot): Promise<BrandState> {
+class BrandNotValid extends Error {
+  constructor(readonly problems: string[], what: string) { super(`${what}: ${problems.join('; ')}`); }
+}
+
+// `draft` makes the pack for settings that are not saved (see draftBrandDir): the saved profile's uploads with these settings, or,
+// when nothing is saved, the configured pack with the draft's design direction.
+async function materialise(deps: Deps, snap: BrandSnapshot, draft?: { settings: BrandSettings }): Promise<BrandState> {
   const key = snapshotKey(snap);
   const refs = briefs(snap.references);
   const layouts = await layoutsForBrand(deps, snap.layouts);
-  if (!snap.profile && !refs.length && !layouts.length) return { dir: CONFIGURED_BRAND_DIR, logosMissing: false, source: 'pack', key };
+  if (!draft && !snap.profile && !refs.length && !layouts.length) return { dir: CONFIGURED_BRAND_DIR, logosMissing: false, source: 'pack', key };
   const files: Array<{ name: string; body: Buffer }> = [];
   let brand: Json;
   let logosMissing = false;
@@ -682,13 +702,14 @@ async function materialise(deps: Deps, snap: BrandSnapshot): Promise<BrandState>
     // The configured pack with the briefs and layouts added: its logos stay where they are, its map and prompts are copied.
     const from = path.join(core.ROOT, CONFIGURED_BRAND_DIR);
     brand = JSON.parse(fs.readFileSync(path.join(from, 'brand.json'), 'utf8')) as Json;
+    if (draft?.settings.style.direction) brand.style = { ...(isObj(brand.style) ? brand.style : {}), direction: draft.settings.style.direction };
     fill = (dir) => {
       if (fs.existsSync(path.join(from, 'map.json'))) fs.copyFileSync(path.join(from, 'map.json'), path.join(dir, 'map.json'));
       if (fs.existsSync(path.join(from, 'prompts'))) fs.cpSync(path.join(from, 'prompts'), path.join(dir, 'prompts'), { recursive: true });
     };
   } else {
     const p = snap.profile;
-    const made = brandAndFiles(p);
+    const made = brandAndFiles(p, draft?.settings);
     brand = made.brand;
     const logos = brand.logos as Json;
     if (p.logoFullKey && p.logoMarkKey) {
@@ -707,10 +728,25 @@ async function materialise(deps: Deps, snap: BrandSnapshot): Promise<BrandState>
   if (refs.length) brand.references = refs;
   // The layouts of Settings, Layouts, ahead of any the pack already had (checked again by validateBrand just below).
   if (layouts.length) brand.layouts = mergeLayouts(layouts, brand.layouts);
+  // The active look (Settings, Looks), written as `looks` with style.direction naming it, once the engine reads looks (looks.ts).
+  if (snap.profile?.activeLookRef) brand = packWithLook(brand, await looksFor(deps).lookForPack(brandScope()), brandProblems);
   const problems = brandProblems(brand);
-  if (problems.length) throw new Error(`The saved brand is not valid: ${problems.join('; ')}`);
+  if (problems.length) throw new BrandNotValid(problems, draft ? 'The brand is not valid' : 'The saved brand is not valid');
   const dir = writePack(brand, files, fill);
   return { dir, logosMissing, source: snap.profile ? 'database' : 'pack', key };
+}
+
+// A pack folder for settings that are not saved, written the way a saved brand is (same hash-named folders, reused when the same,
+// removed after an hour). BRAND_DIR is not touched: whoever renders with it points BRAND_DIR at `dir` for the time it draws.
+// `logosMissing` is true when a saved brand has no logos yet (nothing can be drawn).
+export async function draftBrandDir(deps: Deps, settings: BrandSettings): Promise<{ dir: string; logosMissing: boolean }> {
+  try {
+    const made = await materialise(deps, await loadSnapshot(deps), { settings });
+    return { dir: made.dir, logosMissing: made.logosMissing };
+  } catch (e) {
+    if (e instanceof BrandNotValid) throw badRequest('The brand is not valid', e.problems);
+    throw e;
+  }
 }
 
 let syncing: Promise<BrandState> | null = null;

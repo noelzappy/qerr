@@ -5,7 +5,7 @@ import { TextAreaField } from '@/components/kit';
 import { Button } from '@/components/ui/button';
 import { toggleHighlight } from './highlight';
 
-export function HeadlineField({ value, onChange, label = 'Headline', required, error, disabled, maxLength }: {
+export function HeadlineField({ value, onChange, label = 'Headline', required, error, disabled, maxLength, hint }: {
   value: string;
   onChange: (next: string) => void;
   label?: string;
@@ -13,6 +13,8 @@ export function HeadlineField({ value, onChange, label = 'Headline', required, e
   error?: string;
   disabled?: boolean;
   maxLength?: number;
+  // Replaces the default hint.
+  hint?: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [note, setNote] = useState('');
@@ -41,7 +43,7 @@ export function HeadlineField({ value, onChange, label = 'Headline', required, e
         disabled={disabled}
         required={required}
         error={error}
-        hint="Select words and press Highlight to make them stand out. You can also type *asterisks* around them."
+        hint={hint ?? "Select words and press Highlight to make them stand out. You can also type *asterisks* around them."}
         onChange={(e) => { setNote(''); onChange(e.target.value); }}
       />
       <Button type="button" variant="outline" size="sm" disabled={disabled} aria-label="Highlight the selected words" onClick={highlight}

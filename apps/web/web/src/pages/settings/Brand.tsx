@@ -1,6 +1,7 @@
 // Settings, Brand and look: everything that makes the posts look and sound like the organisation, with no file to edit.
 // One page, one form, split into sections that each have an address (/settings/brand/<section>):
 //   Identity            name, website, tagline, what the brand does, time zone, language, currency
+//   Design direction    one of three whole looks (editorial, swiss, retail) for posts made as a kind of post, with real samples
 //   Logos               the full logo and the mark (PNG), or a simple pair drawn from the name; where the name starts
 //   Colours             four colours to start from, then each colour set one by one; corners; the readability checks
 //   Type                headlines, body and labels: font (built in, Google Fonts or a .woff2), case, spacing, weight
@@ -22,11 +23,13 @@ import { BusyButton, ConfirmAction, ErrorBlock, FormProblem, Notice } from '@/co
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import type { BrandSettings, BrandView, FontRole } from './brand-types';
+import { DIRECTIONS, type BrandSettings, type BrandView, type Direction, type FontRole } from './brand-types';
 import { measureLogo, simpleLogos } from './logo-tools';
 import { SettingsPage } from './section';
 import { SECTIONS, isSection, sectionFromHash, sectionOfPath, sectionPath, type BrandCtx, type SectionId } from './brand/model';
 import { PreviewBar, PreviewRail, useLook } from './brand/preview';
+import { DirectionSection } from './brand/sections-direction';
+import { useDirectionSamples } from './brand/direction-samples';
 import { IdentitySection, LogosSection } from './brand/sections-identity';
 import { ColoursSection, PostTypesSection, SurfacesSection, TypeSection } from './brand/sections-look';
 import { AdvancedSection, VoiceSection } from './brand/sections-words';
@@ -63,6 +66,10 @@ export function BrandSettingsPage() {
   // Moving between the sections of this page keeps the one form state, so only leaving the page asks.
   useUnsavedGuard(dirty, { allow: (from, to) => from.pathname.startsWith('/settings/brand') && to.pathname.startsWith('/settings/brand') });
   const section: SectionId = isSection(sectionParam) ? sectionParam : 'identity';
+  // Real samples: all three while choosing, only the chosen one for the preview column. Held here so they survive section changes.
+  const chosenDirection = (s?.style.direction ?? null) as Direction | null;
+  const wanted: Direction[] = section === 'direction' ? [...DIRECTIONS] : chosenDirection ? [chosenDirection] : [];
+  const directions = useDirectionSamples(s, wanted, wanted.length > 0 && !!s);
   useEffect(() => {
     document.getElementById('main')?.scrollTo?.({ top: 0 });
     window.scrollTo?.({ top: 0 });
@@ -200,10 +207,11 @@ export function BrandSettingsPage() {
     uploadLogo: (w, f, n) => void uploadLogo(w, f, n), drawSimple: () => void drawSimple(),
     uploadFont: (f, fam, role) => void uploadFont(f, fam, role), pickGoogleFont: (r, fam) => void pickGoogleFont(r, fam),
     askRemoveFont: setRemovingFont, uploadArtwork: (f) => void uploadArtwork(f), askRemoveArtwork: () => setRemovingArtwork(true),
+    directions,
   };
   const showLook = SECTIONS.find((x) => x.id === section)!.look;
   const attention = new Set<SectionId>(Object.keys(fields).map(sectionOfPath));
-  const sketch = { s, look, fallbackChecks: view.checks, logo: logoUrl(view.logos.mark), artwork: ctx.artworkUrl, font: view.font?.family ?? null };
+  const sketch = { s, look, fallbackChecks: view.checks, logo: logoUrl(view.logos.mark), artwork: ctx.artworkUrl, font: view.font?.family ?? null, dir: chosenDirection ? directions.states[chosenDirection] : undefined };
 
   return (
     <UploadStatusProvider value={status}>
@@ -241,6 +249,7 @@ export function BrandSettingsPage() {
                 : (
                   <form id="brand-form" onSubmit={(e) => void save(e)} noValidate>
                     {section === 'identity' && <IdentitySection ctx={ctx} />}
+                    {section === 'direction' && <DirectionSection ctx={ctx} />}
                     {section === 'logos' && <LogosSection ctx={ctx} />}
                     {section === 'colours' && <ColoursSection ctx={ctx} />}
                     {section === 'type' && <TypeSection ctx={ctx} />}

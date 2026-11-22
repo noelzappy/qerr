@@ -23,3 +23,19 @@ export const LAYOUT_CATALOGUE: Array<{ value: string; group: (typeof LAYOUT_GROU
 export function layoutName(value: string): string {
   return LAYOUT_CATALOGUE.find((l) => l.value === value)?.name ?? value;
 }
+
+// The seven kinds of a `post` design (the engine's POST_KINDS) as a person meets them: a plain name and what it is for.
+export const POST_KIND_CATALOGUE: Array<{ value: string; name: string; purpose: string }> = [
+  { value: 'statement', name: 'Statement', purpose: 'One strong line' },
+  { value: 'figure', name: 'Number', purpose: 'A figure and what it counts' },
+  { value: 'list', name: 'List', purpose: 'Steps or reasons' },
+  { value: 'quote', name: 'Quote', purpose: "Someone's words" },
+  { value: 'photo', name: 'Picture', purpose: 'A picture that carries the post' },
+  { value: 'event', name: 'Event', purpose: 'A date and a place' },
+  { value: 'offer', name: 'Offer', purpose: "A price or what's new" },
+];
+
+// The plain name of a post kind; any other value is returned as it is.
+export function postKindName(kind: string): string {
+  return POST_KIND_CATALOGUE.find((k) => k.value === kind)?.name ?? kind;
+}

@@ -3,11 +3,16 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { CheckField, Notice, TextAreaField } from '@/components/kit';
+import { Button } from '@/components/ui/button';
 import { api } from '../../api';
 import { useAppInfo } from '../../app-info';
 import { useLoad } from '../../hooks';
+import { convertToPost, isPostDesign } from './design-model';
+import { postKindName } from './editor/catalogue';
 import { PageFields } from './editor/PageFields';
 import { PagesEditor } from './editor/PagesEditor';
+import { PostFields } from './editor/PostFields';
+import { usePostKinds } from './editor/use-post-kinds';
 import type { Json, LayoutBrief } from './editor/types';
 import type { DesignBlock } from './types';
 
@@ -23,12 +28,17 @@ export function DesignFields({ design, onChange, jsonError }: Props) {
   const { series } = useAppInfo().brand;
   const own = useLoad(() => api.get<{ layouts: LayoutBrief[] }>('/api/layouts').catch(() => ({ layouts: [] as LayoutBrief[] })), []);
   const brandLayouts = own.data?.layouts ?? [];
+  const postKinds = usePostKinds();
+  // A direction is known and set: new designs are posts, and an old-layout design may be converted.
+  const directed = !postKinds.loading && postKinds.direction !== null;
   const [rawText, setRawText] = useState(() => pretty(design));
   const [advanced, setAdvanced] = useState(false);
   const enabled = design !== null;
   const d: Json = design ?? {};
   const isCarousel = d.template === 'carousel' || Array.isArray(d.pages);
+  const isPost = isPostDesign(design);
   const locked = !!jsonError;
+  const conversion = directed && enabled && !isPost && !isCarousel ? convertToPost(d) : null;
 
   // Keep the JSON box in step with the form while the form is the one being used.
   useEffect(() => { if (!jsonError) setRawText(pretty(design)); }, [design, jsonError]);
@@ -54,13 +64,31 @@ export function DesignFields({ design, onChange, jsonError }: Props) {
         label="This post has a designed image"
         hint="Turn this off for a post that uses only pictures you upload."
         checked={enabled}
-        onCheckedChange={(c) => { onChange(c ? { template: 'cover' } : null, ''); }}
+        onCheckedChange={(c) => { onChange(c ? (directed ? { template: 'post', kind: 'statement' } : { template: 'cover' }) : null, ''); }}
       />
       {enabled && (
         <>
           {locked && <Notice tone="warn">The advanced JSON below is not valid yet, so the fields above are paused. Fix it to carry on.</Notice>}
-          <PageFields design={d} onChange={form} brandLayouts={brandLayouts} series={series} disabled={locked} frameOnly={isCarousel} />
-          {isCarousel && <PagesEditor pages={d.pages} onChange={(pages) => form({ ...d, pages })} brandLayouts={brandLayouts} series={series} disabled={locked} />}
+          {isPost ? (
+            <PostFields design={d} onChange={form} direction={postKinds.loading ? undefined : postKinds.direction} kinds={postKinds.kinds} limits={postKinds.limits} disabled={locked} />
+          ) : (
+            <>
+              {directed && !isCarousel && (
+                <Notice
+                  tone="info"
+                  actions={conversion && (
+                    <Button type="button" variant="outline" size="sm" className="max-sm:min-h-11" disabled={locked} onClick={() => onChange(conversion.design, '')}>
+                      Convert to a {postKindName(conversion.kind).toLowerCase()} post
+                    </Button>
+                  )}
+                >
+                  This post uses a classic layout.
+                </Notice>
+              )}
+              <PageFields design={d} onChange={form} brandLayouts={brandLayouts} series={series} disabled={locked} frameOnly={isCarousel} />
+              {isCarousel && <PagesEditor pages={d.pages} onChange={(pages) => form({ ...d, pages })} brandLayouts={brandLayouts} series={series} disabled={locked} />}
+            </>
+          )}
           <div>
             <button
               type="button"

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addPage, chooseLayout, chosenOf, MAX_PAGES, movePage, ownLayoutOf, PAGE_TEMPLATES, pageLayouts, pagesOf, removePage, withField, withPage, type LayoutBrief,
 } from '../web/src/pages/batches/design-model';
-import { LAYOUT_CATALOGUE } from '../web/src/pages/batches/editor/catalogue';
+import { LAYOUT_CATALOGUE, POST_KIND_CATALOGUE, postKindName } from '../web/src/pages/batches/editor/catalogue';
 import type { Layout } from '../web/src/pages/settings/layout-types';
 import { engineImport } from './server/engine/root.js';
 
@@ -78,5 +78,15 @@ describe('the post editor\'s carousel pages', () => {
     expect(movePage(d, 0, -1)).toBe(d);
     for (let i = 0; i < 20; i++) d = addPage(d);
     expect(pagesOf(d)).toHaveLength(MAX_PAGES);
+  });
+});
+
+describe('the post kinds a person chooses from', () => {
+  it('has plain names and purposes for the engine\'s seven kinds', async () => {
+    const e = await engineImport<{ POST_KINDS: string[] }>('design/post-spec');
+    expect(POST_KIND_CATALOGUE.map((k) => k.value)).toEqual(e.POST_KINDS);
+    expect(POST_KIND_CATALOGUE.map((k) => k.name)).toEqual(['Statement', 'Number', 'List', 'Quote', 'Picture', 'Event', 'Offer']);
+    expect(postKindName('figure')).toBe('Number');
+    expect(postKindName('other')).toBe('other');
   });
 });

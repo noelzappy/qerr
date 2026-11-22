@@ -24,7 +24,7 @@ const focalText = (x: number, y: number) => `${Math.round(x)}% ${Math.round(y)}%
 const word = (v: unknown) => (typeof v === 'string' ? v : '');
 const isPerSize = (v: unknown) => !!v && typeof v === 'object' && !Array.isArray(v) && !('x' in (v as Json));
 
-function FocalPicker({ value, onChange, disabled }: { value: unknown; onChange: (v: string | undefined) => void; disabled?: boolean }) {
+export function FocalPicker({ value, onChange, disabled }: { value: unknown; onChange: (v: string | undefined) => void; disabled?: boolean }) {
   const id = useId();
   const xy = focalXY(value);
   const set = value !== undefined;
@@ -68,7 +68,7 @@ function FocalPicker({ value, onChange, disabled }: { value: unknown; onChange: 
   );
 }
 
-function ZoomField({ value, onChange, disabled }: { value: unknown; onChange: (v: number | undefined) => void; disabled?: boolean }) {
+export function ZoomField({ value, onChange, disabled }: { value: unknown; onChange: (v: number | undefined) => void; disabled?: boolean }) {
   const id = useId();
   const n = typeof value === 'number' && Number.isFinite(value) ? value : 1;
   return (

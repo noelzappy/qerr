@@ -5,8 +5,10 @@ import { Check, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { api } from '../../../api';
 import { Hint } from '@/components/kit';
 import { Button } from '@/components/ui/button';
-import { validHex, type BrandLook, type BrandSettings, type ContrastCheck, type PaletteChange } from '../brand-types';
+import { cn } from '@/lib/utils';
+import { DIRECTION_LABEL, validHex, type Direction, type BrandLook, type BrandSettings, type ContrastCheck, type PaletteChange } from '../brand-types';
 import { StyleSketch } from '../StyleSketch';
+import type { DirectionState } from './direction-samples';
 
 // Waits for typing to stop, then asks the server what these settings would give.
 export function useLook(s: BrandSettings | null, initial: BrandLook | null): BrandLook | null {
@@ -76,10 +78,23 @@ export function Readability({ checks }: { checks: ContrastCheck[] }) {
   );
 }
 
-interface SketchProps { s: BrandSettings; look: BrandLook | null; fallbackChecks: ContrastCheck[]; logo: string | null; artwork: string | null; font: string | null }
+interface SketchProps { s: BrandSettings; look: BrandLook | null; fallbackChecks: ContrastCheck[]; logo: string | null; artwork: string | null; font: string | null; dir?: DirectionState }
+
+// The sketch of the brand, or, when a design direction is chosen and its real samples are ready, those samples.
+function Samples({ s, look, logo, artwork, font, dir, className }: SketchProps & { className?: string }) {
+  const ready = s.style.direction && dir?.status === 'ready' && !dir.logosMissing ? dir.samples.filter((x) => x.ok && x.image).slice(0, 4) : [];
+  if (!s.style.direction || ready.length === 0) return <StyleSketch s={s} palette={look?.palette ?? null} logo={logo} artwork={artwork} font={font} compact className={className} />;
+  const name = DIRECTION_LABEL[s.style.direction as Direction];
+  return (
+    <div className={cn('grid grid-cols-2 gap-2', className)}>
+      {ready.map((x) => <img key={x.id} src={x.image} alt={`${name} sample: ${x.name}`} loading="lazy" className="aspect-[4/5] w-full rounded-sm border object-cover" />)}
+    </div>
+  );
+}
 
 // Wide screens: the four sample pages stay beside the form while it is scrolled.
-export function PreviewRail({ s, look, fallbackChecks, logo, artwork, font }: SketchProps) {
+export function PreviewRail(p: SketchProps) {
+  const { look, fallbackChecks } = p;
   const checks = look?.checks ?? fallbackChecks;
   return (
     <aside aria-label="Preview of your posts" className="hidden xl:sticky xl:top-0 xl:block xl:self-start">
@@ -88,7 +103,7 @@ export function PreviewRail({ s, look, fallbackChecks, logo, artwork, font }: Sk
           <h2 className="text-[13px] font-semibold">Preview</h2>
           <Hint about="Preview">A sketch of your posts. The real images are made by Vesk.</Hint>
         </div>
-        <StyleSketch s={s} palette={look?.palette ?? null} logo={logo} artwork={artwork} font={font} compact />
+        <Samples {...p} />
         <p className="text-[12.5px] text-muted-foreground" role="status">{readabilityText(checks)}</p>
       </div>
     </aside>
@@ -96,7 +111,8 @@ export function PreviewRail({ s, look, fallbackChecks, logo, artwork, font }: Sk
 }
 
 // Narrower screens: a bar that stays at the top while the form is scrolled and opens to the four sample pages.
-export function PreviewBar({ s, look, fallbackChecks, logo, artwork, font }: SketchProps) {
+export function PreviewBar(p: SketchProps) {
+  const { look, fallbackChecks } = p;
   const [open, setOpen] = useState(false);
   const checks = look?.checks ?? fallbackChecks;
   return (
@@ -112,7 +128,7 @@ export function PreviewBar({ s, look, fallbackChecks, logo, artwork, font }: Ske
       </div>
       {open && (
         <div id="brand-preview-samples" className="max-h-[60vh] overflow-y-auto border-t p-3">
-          <StyleSketch s={s} palette={look?.palette ?? null} logo={logo} artwork={artwork} font={font} compact className="sm:grid-cols-4" />
+          <Samples {...p} className="sm:grid-cols-4" />
         </div>
       )}
     </div>

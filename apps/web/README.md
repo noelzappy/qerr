@@ -106,6 +106,21 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
 An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, `src/server/routes/brand.ts`):
 
 - **Identity:** name, website, tagline, what the brand does, time zone, language, and an optional single currency.
+- **Design direction:** a brand can choose one of the engine's design directions (`editorial`, `swiss` or `retail`, saved as
+  `style.direction` and kept in the settings' style block; "None: classic layouts" leaves it unset and changes nothing). A
+  direction decides how posts made as a *kind of post* (the engine's `post` template) are composed: typeface, layout, picture
+  treatment and emphasis. The section shows each direction as a card with real sample images. Nothing is saved while people look:
+  `POST /api/settings/brand/direction-samples` takes `{ settings, direction }` (the form's current, unsaved settings), writes a
+  temporary pack for them, and draws four sample `post` designs (statement, figure, photo or a second statement, list) with the
+  brand's own name and tagline and neutral sample text for the figure and the list (never a claim about the brand). The photo
+  sample is a rights-cleared photo from Pictures, or the engine's synthetic demo picture when the demo pack is in use. It answers
+  `{ direction, logosMissing, cached, samples: [{ id, kind, variant, name, ok, image (JPEG data URL), error, warnings }] }`, renders
+  one image at a time under the same lock as every other render, and keeps the answer for five minutes per (settings, direction)
+  so flipping between directions is instant. With the logos missing it draws nothing and says so. The engine does not say which
+  style controls a direction overrides, so none are disabled; Type and Surfaces and photos carry one line saying the direction
+  decides layout and typeface for kind-of-post designs. `GET /api/posts/post-kinds` (admin and editor) tells the post editor the
+  brand's direction, each kind's fields and required fields, the look (variant) names of the direction's compositions, and the
+  field limits, all read from the engine's registry.
 - **Logos:** the full logo and the mark, as PNGs. The page measures where the wordmark starts. "Draw a simple logo from the
   name" makes a plain pair in the browser.
 - **Colours:** four colours (primary, accent, dark, light), the headline weight and the corners. While people pick
@@ -121,7 +136,7 @@ An admin sets the brand in **Settings, Brand and look** (`/api/settings/brand`, 
 - **Post types** (the engine's `series`): each with its page colour and headline style.
 - **Voice and visual direction:** in the team's own words, with names to spell exactly.
 
-The page has eight sections, each with its own address: `/settings/brand/<identity|logos|colours|type|surfaces|post-types|voice|advanced>` (`/settings/brand#logos`, used by the setup checklist, still opens Logos). Uploads (logos, fonts, artwork) and Advanced save the moment they are done; everything else is one form that waits for Save, and asks before it is left with changes. "Other currencies to flag" is a list of words; a stored pattern that the list cannot show is edited under Advanced.
+The page has nine sections, each with its own address: `/settings/brand/<identity|direction|logos|colours|type|surfaces|post-types|voice|advanced>` (`/settings/brand#logos`, used by the setup checklist, still opens Logos). Uploads (logos, fonts, artwork) and Advanced save the moment they are done; everything else is one form that waits for Save, and asks before it is left with changes. "Other currencies to flag" is a list of words; a stored pattern that the list cannot show is edited under Advanced.
 - **Advanced:** a `brand.json` fragment merged over the rest, a dot map, and "Import a brand pack", which moves a pack's
   `brand.json`, logos and map in at once and keeps its exact colours and rules.
 
@@ -204,6 +219,47 @@ as `layouts` on every sync (one that no longer passes is left out and logged), w
 | `POST /api/settings/layouts/:id/duplicate` | a copy under a free id, switched off |
 | `DELETE /api/settings/layouts/:id` | refused while a post's design, or a page of a carousel, names it |
 | `GET /api/layouts` | any signed-in person: the layouts of the brand in force and the fields each takes, for the post editor (a post, or a carousel page, made with one; the editor lists a carousel's pages one by one, and a page may use a layout with a feed size) |
+
+**Settings, Looks** (`/api/settings/looks`, `src/server/routes/looks.ts`, `src/server/services/looks.ts`, admins only) holds the
+brand's looks: whole ways of composing a post, as data the engine's look module checks (`packages/engine/lib/design/look.mjs`;
+`validateLook`, `lookBrief`, `lookHash`). Classic layouts above stay as they are; a brand with an active look ignores them.
+A look is named by a reference everywhere: `shipped:<id>` (the engine's own looks: global, read only, never rows; loaded by one
+adapter, `shippedLooks()`, which uses the engine's export when it has one and the sample looks in
+`packages/engine/testlib/looks` until then) or `own:<slug>` (a slug is lowercase letters, digits and `-`, never contains `:`, and
+never equals a shipped id). Tables `brand_looks` (the look without compositions, `origin`, `engineSchema`, `status` draft or ready,
+`gate`) and `brand_look_compositions` (`definition` is what is drawn, `draft` holds unpublished edits and never affects drawing,
+`enabled`, `gate`); the active look is a pointer, `brand_profiles.activeLookRef` (`shipped:<id>`, `own:<slug>` or null for classic
+layouts), so it can only be set once the brand is saved in Settings, Brand. There is no blank look: a brand starts from
+`POST /duplicate` (a deep copy of a shipped look or one of its own, a draft). **The scope rule:** every service function takes
+`{ brandId }` first (from `brandScope(c)`, the one place that decides it; a constant today) and every query filters on it, a row
+is found by (brandId, slug) or uuid and brandId, and no route reads a brandId from a request; `brandId` is a plain indexed
+column (not a foreign key, because the profile row exists only once Settings, Brand is saved). Limits per brand: 20 looks,
+21 compositions per look (3 per kind), a look up to 256 KB. A look the installed engine refuses is left out of drawing and logged
+once (`look.skipped`) and the list marks it `needsAttention`. A look that is the active one cannot be changed (settings,
+publishing a composition, switching on or off, reordering, adding, removing) or deleted: edit a copy, or switch away first; drafts stay open.
+
+| Route | Does |
+|---|---|
+| `GET /api/settings/looks` | `{ activeRef, shipped, own, catalogue, limits }` |
+| `GET /api/settings/looks/:ref` | one look in full; an own look with its drafts and gate records |
+| `POST /api/settings/looks/duplicate` | `{ source, name?, slug? }` |
+| `POST /api/settings/looks/validate` | `{ problems }` for a whole look, nothing stored |
+| `PUT /api/settings/looks/active` | `{ ref }`: a shipped look or an own look that is ready; `null` for classic layouts; writes the brand pack |
+| `PUT /api/settings/looks/:slug/settings` | `{ definition }`: the look without compositions, checked with the compositions it has; resets the gate |
+| `POST /api/settings/looks/:slug/compositions` | `{ source, kind, index }`: copy one composition from a shipped or an own look |
+| `PUT` / `DELETE /api/settings/looks/:slug/compositions/:id/draft` | save (the whole look must validate with it) or discard a draft |
+| `POST /api/settings/looks/:slug/compositions/:id/publish` | the draft becomes the composition, once the gate passes (today the gate is validation only: `runGate`) |
+| `PATCH` / `DELETE /api/settings/looks/:slug/compositions/:id` | `{ enabled?, position? }` (position among its kind); remove (never the last of its kind) |
+| `POST /api/settings/looks/:slug/publish` | the look is `ready`: it validates and every enabled composition has a passing gate record for its current definition |
+| `DELETE /api/settings/looks/:slug` | refused while active |
+| `GET /api/looks/brief` | any signed-in person: `{ look }`, the active look's kinds, variants, fields and budgets (`lookBrief`), or `{ look: null }` |
+
+**Not available yet.** Drawing a look needs the interpreter, a later step: `POST /api/settings/looks/preview` and
+`POST /api/settings/looks/:slug/gate` answer 501 (`Previews of looks are not available yet`, behind `lookRenderer()`), and the gate
+only validates. The brand pack gets `looks` and `style.direction` for the active look only once the engine's `validateBrand`
+reads looks (`engineReadsLooks`, `packWithLook`); until then the choice is stored and `look.engine_unsupported` is logged once.
+`src/server/services/render-queue.ts` is the queue interface over the render lock (posts, then previews, then gate jobs; a newer
+job with the same key replaces a waiting one; expired previews are dropped); nothing calls it yet.
 
 A design reference's analysis may suggest a layout (`analysis.composition`); it is checked by the same validator before it
 is stored, and "Use this layout" on the reference previews it with the brand before an admin adds it.

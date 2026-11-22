@@ -10,7 +10,7 @@ import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, type BrandSettings } from
 import { Section } from '../section';
 import { ColourRoles, LookFields, TypeFields } from '../style-fields';
 import { ColourField } from './fields';
-import type { BrandCtx } from './model';
+import { DIRECTION_HINT, type BrandCtx } from './model';
 import { Changes, Readability } from './preview';
 
 export function ColoursSection({ ctx }: { ctx: BrandCtx }) {
@@ -46,6 +46,7 @@ export function TypeSection({ ctx }: { ctx: BrandCtx }) {
   const { s, view } = ctx;
   return (
     <Section id="type" title="Type" description="How headlines, body text and labels are set. Leave a value empty to keep the brand's own.">
+      {s.style.direction && <Notice tone="info">{DIRECTION_HINT}</Notice>}
       <p className="text-[13px] text-muted-foreground">Fonts you choose here are saved straight away, not with the Save bar.</p>
       <TypeFields
         style={s.style} headlineWeight={s.headlineWeight} fonts={view.fontSources} version={view.updatedAt ?? ''} busy={ctx.busy}
@@ -60,6 +61,7 @@ export function SurfacesSection({ ctx }: { ctx: BrandCtx }) {
   const { s, set } = ctx;
   return (
     <Section id="surfaces" title="Surfaces and photos" description="How cards and panels stand off the page, the texture behind pages, what happens to photos, and where the logo goes.">
+      {s.style.direction && <Notice tone="info">{DIRECTION_HINT}</Notice>}
       <LookFields style={s.style} onChange={(style) => set('style', style)} artwork={ctx.artworkUrl} busy={ctx.busy === 'artwork'} onArtwork={ctx.uploadArtwork} onRemoveArtwork={ctx.askRemoveArtwork} />
     </Section>
   );

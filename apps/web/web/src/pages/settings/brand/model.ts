@@ -1,8 +1,10 @@
 // The sections of Brand and look, their addresses, and what a section needs from the page.
+import type { DirectionStates } from './direction-samples';
 import type { BrandLook, BrandSettings, BrandView, FontRole } from '../brand-types';
 
 export const SECTIONS = [
   { id: 'identity', title: 'Identity', look: false },
+  { id: 'direction', title: 'Design direction', look: true },
   { id: 'logos', title: 'Logos', look: true },
   { id: 'colours', title: 'Colours', look: true },
   { id: 'type', title: 'Type', look: true },
@@ -31,6 +33,7 @@ export function sectionOfPath(path: string): SectionId {
   if (head === 'logo') return 'logos';
   if (head === 'style') {
     const second = path.split('.')[1];
+    if (second === 'direction') return 'direction';
     return second === 'type' ? 'type' : 'surfaces';
   }
   if (head === 'series') return 'post-types';
@@ -58,4 +61,9 @@ export interface BrandCtx {
   uploadArtwork: (file: File) => void;
   askRemoveArtwork: () => void;
   applyView: (next: BrandView) => void;
+  // Sample pictures of the design directions, kept by the page so they survive moving between sections.
+  directions: { states: DirectionStates; retry: () => void };
 }
+
+// Shown at the top of Type and of Surfaces and photos while a design direction is chosen.
+export const DIRECTION_HINT = 'Your design direction decides the layout and typeface of posts made as a kind of post; these settings still apply to posts made with the classic layouts.';
