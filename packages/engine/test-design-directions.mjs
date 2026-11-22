@@ -127,7 +127,7 @@ test('the variant a post gets when it names none is stable, depends on its words
 
 test('the font library lists real files, and a page embeds only the files it uses', () => {
   assert.deepEqual(libraryProblems(), []);
-  assert.deepEqual(fontLibrary().map((f) => f.family).sort(), ['Archivo', 'Fraunces', 'Hanken Grotesk', 'Inter', 'JetBrains Mono', 'Source Serif 4']);
+  assert.deepEqual(fontLibrary().map((f) => f.family).sort(), ['Anton', 'Archivo', 'Fraunces', 'Hanken Grotesk', 'Inter', 'JetBrains Mono', 'Source Serif 4']);
   assert.ok(inRange('U+0000-00FF, U+0131', 0x41) && inRange('U+0000-00FF, U+0131', 0x131) && !inRange('U+0000-00FF, U+0131', 0x141) && inRange('U+00??', 0xAB));
   const only = (needs, text) => fontFacesFor(needs, text).files.map((f) => f.file);
   assert.deepEqual(only([{ family: 'Fraunces', style: 'normal', weights: [300] }], 'Coffee'), ['fraunces-v38-normal-latin.woff2']);

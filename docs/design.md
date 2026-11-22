@@ -1011,7 +1011,7 @@ a custom value from 3 to 7, with a note under 4.5); the web app does not have it
 
 The engine ships the families the directions use, under the SIL Open Font License 1.1, with the licence text (`OFL.txt`) in each
 folder under `packages/engine/design/fonts/`: Fraunces (variable, weights 300 to 600, normal and italic), Source Serif 4
-(400, 600, and 400 italic), Hanken Grotesk (400 to 800), JetBrains Mono (400 to 500) and Archivo (variable weight and width).
+(400, 600, and 400 italic), Hanken Grotesk (400 to 800), JetBrains Mono (400 to 500), Archivo (variable weight and width) and Anton (a heavy condensed display face, one weight, 400).
 Inter and IBM Plex Mono were already there. Files are woff2, `latin` and `latin-ext` subsets only. `fonts/library.json` lists
 each file, and `fonts/README.md` gives each family's source URL, the fetch date, the axes and the file sizes; `libraryProblems()`
 (`lib/design/font-library.mjs`) checks that every listed file exists and is a woff2. A page embeds only what it uses: the faces

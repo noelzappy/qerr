@@ -1,6 +1,6 @@
 # Fonts
 
-Web fonts used by the design engine, all under the SIL Open Font License 1.1 (an `OFL.txt` sits in each folder, copied from https://github.com/google/fonts, `ofl/<family>/OFL.txt`). Files are woff2, `latin` and `latin-ext` subsets only, fetched from fonts.gstatic.com through the Google Fonts CSS2 API on 2026-11-21. `library.json` lists every file with its style, weight, stretch, subset, unicode-range and size.
+Web fonts used by the design engine, all under the SIL Open Font License 1.1 (an `OFL.txt` sits in each folder, copied from https://github.com/google/fonts, `ofl/<family>/OFL.txt`). Files are woff2, `latin` and `latin-ext` subsets only, fetched from fonts.gstatic.com through the Google Fonts CSS2 API on 2026-11-21 (Anton on 2026-11-22). `library.json` lists every file with its style, weight, stretch, subset, unicode-range and size.
 
 Already present before this addition and untouched: Inter (`inter-v20-*.woff2`, with `OFL.txt` in this folder) and IBM Plex Mono (`ibm-plex-mono-v23-*.woff2`, weights 400 and 500).
 
@@ -70,3 +70,18 @@ The version in each file name is the gstatic path version (`/s/<family>/vN/`) at
 | archivo/archivo-v25-normal-latin-ext.woff2 | normal | 100 900 | 62% 125% | latin-ext | 85856 |
 | archivo/archivo-v25-normal-latin.woff2 | normal | 100 900 | 62% 125% | latin | 90096 |
 
+
+## Anton
+
+A heavy condensed display face with a single weight (400 is its only, and already black, weight), for loud all-caps headlines.
+
+- Source: https://fonts.googleapis.com/css2?family=Anton&display=swap
+- Fetched: 2026-11-22
+- Licence: OFL-1.1 (anton/OFL.txt, from https://github.com/google/fonts, `ofl/anton/OFL.txt`)
+- Axes: none (static, weight 400)
+- Metrics (from the font's hhea and OS/2 tables, units per em 2048): ascent 1.176, descent 0.329, cap height 0.859
+
+| File | Style | Weight | Stretch | Subset | Bytes |
+|---|---|---|---|---|---|
+| anton/anton-v27-normal-latin-ext.woff2 | normal | 400 | - | latin-ext | 31356 |
+| anton/anton-v27-normal-latin.woff2 | normal | 400 | - | latin | 18612 |
