@@ -1,8 +1,8 @@
 // Home: a greeting, three numbers that say how the month is going, the setup steps until they are done (admins), what goes
 // out next, and the latest background work.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, ChevronRight, CircleAlert } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api';
 import { useDocumentTitle, useLoad } from '../hooks';
 import { useSession } from '../session';
@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import type { ChannelsOverview, HomeOverview, SetupStep } from '../lib/overview';
 import { ErrorBlock } from '@/components/kit';
+import { resumeStep, setupLinkForHomeStep, shouldLandOnSetup, stepPath, type SetupStatus } from './setup/flow';
 
 function greeting(hour: number) {
   if (hour < 12) return 'Good morning';
@@ -52,7 +53,7 @@ function FirstSteps({ steps }: { steps: SetupStep[] }) {
           <ChevronRight className={cn('size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} aria-hidden="true" />
           <span className="min-w-0 truncate"><span className="font-medium">Setup: {doneCount} of {steps.length} done</span><span className="text-muted-foreground"> · next: {stepTitle(next)}</span></span>
         </button>
-        <Button asChild size="sm" variant="outline"><Link to={next.to}>{stepTitle(next)}</Link></Button>
+        <Button asChild size="sm" variant="outline"><Link to={setupLinkForHomeStep(next.key, next.to)}>{stepTitle(next)}</Link></Button>
       </div>
       {open && (
         <ol id="setup-list" className="divide-y border-t">
@@ -67,7 +68,7 @@ function FirstSteps({ steps }: { steps: SetupStep[] }) {
                 <div className="min-w-0 flex-1">
                   <div className={cn('text-[13px]', state === 'next' ? 'font-semibold' : 'font-medium', state === 'done' && 'text-muted-foreground')}>
                     <span className="sr-only">{state === 'done' ? 'Done: ' : state === 'next' ? 'Next: ' : 'Later: '}</span>
-                    <Link to={s.to} className="hover:underline">{stepTitle(s)}</Link>
+                    <Link to={setupLinkForHomeStep(s.key, s.to)} className="hover:underline">{stepTitle(s)}</Link>
                   </div>
                   {state === 'next' && <p className="text-[12.5px] text-muted-foreground">{stepDetail(s)}</p>}
                 </div>
@@ -118,9 +119,21 @@ function RecentActivity() {
   );
 }
 
+// After the first sign-in, an admin whose brand was never saved goes to the guided setup (unless they left it for later).
+function useSetupLanding(role: string | undefined) {
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (role !== 'admin') return;
+    let live = true;
+    api.get<SetupStatus>('/api/setup').then((s) => { if (live && shouldLandOnSetup(role, s)) navigate(stepPath(resumeStep(s)), { replace: true }); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [role, navigate]);
+}
+
 export function Home() {
   useDocumentTitle('Home');
   const { me } = useSession();
+  useSetupLanding(me?.role);
   const home = useLoad(() => api.get<HomeOverview>('/api/overview/home'), []);
   const now = new Date();
   const text = greeting(now.getHours());
