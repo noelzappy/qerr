@@ -152,8 +152,10 @@ duplicate-protection hash" below.
 
 ## Caption limits and warnings
 
-Warnings appear on the post in review. Most never block a send, so read them; a caption over the limit and an Instagram
-post without media block approval. Lengths count characters (code points), not bytes.
+Warnings appear on the post in review. Most never block a send, so read them; a caption over the limit, an Instagram
+post without media, and more images than a network takes in one post (Instagram 10 items, X 4 images: `MEDIA_LIMITS` in
+`packages/engine/lib/networks.mjs`) block approval. A carousel over a limit says so: remove pages or leave that network out.
+LinkedIn and Facebook limits through Buffer are not known, so none is enforced for them. Lengths count characters (code points), not bytes.
 
 | Network | Characters | Other |
 | --- | --- | --- |
@@ -171,10 +173,10 @@ All warnings:
 - caption longer than the network limit (blocks approval)
 - Instagram post with no media (blocks approval)
 - more than 30 hashtags on Instagram (a hashtag is `#` at the start or after whitespace, then letters, digits or `_`)
-- Instagram post with more than 10 items
+- Instagram post with more than 10 items (blocks approval)
 - Instagram type `carousel` (Buffer rejects it; use `post` with several images)
 - Instagram reel with no video
-- X post with more than 4 images, or with a `firstComment` (it is not sent)
+- X post with more than 4 images (blocks approval), or with a `firstComment` (it is not sent)
 - LinkedIn post that mixes video and images
 - several items including a video, on a network other than Instagram
 - a file that changed after its public copy was made (it must be copied again before it is sent)

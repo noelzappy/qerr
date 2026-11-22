@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT, sha256, sha256File, validTimeZone, zonedToUtcIso } from './core.mjs';
-import { CLASSIC_NETWORKS, LIMITS, NETWORKS } from './networks.mjs';
+import { CLASSIC_NETWORKS, LIMITS, MEDIA_LIMITS, NETWORKS } from './networks.mjs';
 import { captionLimitFor } from './accounts.mjs';
 import { validateBatchDesigns } from './design/batch.mjs';
 import { loadSeries } from './design/brand.mjs';
@@ -136,11 +136,11 @@ function warningsFor(item) {
   const images = media.length - videos;
   if (network === 'instagram') {
     if (!media.length) w.push('Instagram needs media and this post has none');
-    if (media.length > 10) w.push(`${media.length} items, Instagram allows 10 in one post`);
+    if (media.length > MEDIA_LIMITS.instagram) w.push(`${media.length} items, Instagram allows ${MEDIA_LIMITS.instagram} in one post; remove pages from the carousel or leave Instagram out`);
     if (type === 'carousel') w.push('Buffer rejects type "carousel" for Instagram; use "post" with several images');
     if (type === 'reel' && !videos) w.push('reel without a video');
   }
-  if (network === 'x' && images > 4) w.push(`${images} images, X allows 4`);
+  if (network === 'x' && images > MEDIA_LIMITS.x) w.push(`${images} images, X allows ${MEDIA_LIMITS.x}; remove pages from the carousel or leave X out`);
   if (network === 'x' && item.firstComment) w.push('firstComment is not sent to X (no X metadata is known); put it in the caption or drop it');
   if (network === 'linkedin' && videos && images) w.push('LinkedIn does not take video mixed with images');
   if (media.length > 1 && videos && network !== 'instagram') w.push('several items including a video; most networks take one video alone');
