@@ -8,6 +8,7 @@ import { addPosts, createBatch, deleteBatch, importEngineBatch, importInput, pat
 import { audit } from '../audit.js';
 import { draftBriefSchema, draftTitle } from '../services/ai-jobs.js';
 import { enqueueTracked } from '../services/activity.js';
+import { aiReadiness } from '../services/ai-config.js';
 import { batchView, countPosts, postSummary } from '../services/post-view.js';
 
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -54,11 +55,15 @@ export function batchesRoutes(deps: Deps): Hono<AppEnv> {
 
   // Asks the AI to draft a batch in the background. The batch appears in the list, marked as an AI draft, when it is ready;
   // if the drafting fails, the reason is in the audit log (ai.draft_batch.failed).
+  // Whether drafting can run, so the dialog can say what is missing before anyone fills it in.
+  app.get('/ai-draft', async (c) => c.json(await aiReadiness(deps, 'draft')));
+
   app.post('/ai-draft', async (c) => {
     const actor = c.get('user');
     const brief = await readJson(c, draftBriefSchema);
-    const ready = await deps.prisma.aiProvider.count({ where: { enabled: true, tasks: { has: 'draft' } } });
-    if (!ready) throw new HttpError(409, 'No AI provider is set up for drafting. Ask an admin to add one in Settings, AI');
+    const { missing } = await aiReadiness(deps, 'draft');
+    if (missing === 'provider') throw new HttpError(409, 'No AI provider is set up for drafting. Ask an admin to add one in Settings, AI and search');
+    if (missing === 'budget') throw new HttpError(409, 'No monthly AI budget is set, so the AI cannot run. Ask an admin to set one in Settings, AI and search');
     const { jobId, activityId } = await enqueueTracked(deps, 'draft-batch', { actorId: actor.id, brief }, { singletonKey: `draft-batch:${actor.id}` }, { title: draftTitle(deps, brief), actorId: actor.id });
     await audit(deps, actor, 'ai.draft_requested', 'batch', null, { queued: jobId !== null, count: brief.count ?? 10 });
     return c.json({ queued: jobId !== null, alreadyQueued: jobId === null, activityId }, 202);

@@ -92,7 +92,10 @@ The pages are in `web/src/pages`, the shared pieces in `web/src/components` and 
   logos is a 409. Nothing is stored, and the drawing runs under the render lock, one at a time.
 - **Facts and Pictures.** A fact has its own page, `/vault/:id` (`/vault/new` adds one). A picture has `/library/:id`; uploading
   is the page `/library/upload` (`/library?upload=1` redirects there). List filters live in the URL.
-- **Dialogs.** New batch and Draft with AI open as centred dialogs (`/batches/new`, `/batches/ai-draft` still open them). The Team
+- **Dialogs.** New batch and Draft with AI open as centred dialogs (`/batches/new`, `/batches/ai-draft` still open them).
+  Draft with AI first asks `GET /api/batches/ai-draft` (`{ ready, missing: 'provider' | 'budget' | null }`) and, when drafting
+  cannot run, says what is missing and where to add it instead of queuing a job that would fail; `POST /api/batches/ai-draft`
+  refuses with a 409 in the same two cases. The Team
   and AI provider forms are dialogs too. Settings, Channels is one page with two sections: the Buffer accounts (compact rows, their forms are dialogs; `/settings/accounts`, `/admin/accounts` and `/admin/routing` redirect there, `#accounts` scrolls to the accounts) and a table with a row per network (where it posts).
 - **Conventions.** Field help is behind an info icon (kit `Hint`, `hintMode`); pages use `PageHeader` with `crumbs`; small forms
   use `FormPanel variant="dialog"`; secondary and destructive actions sit in `MoreMenu`; on a desktop only the content area and the

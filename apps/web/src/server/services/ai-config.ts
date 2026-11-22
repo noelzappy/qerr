@@ -35,6 +35,17 @@ export async function unpricedCallsThisMonth(deps: Pick<Deps, 'prisma' | 'now'>)
   return deps.prisma.aiCall.count({ where: { at: { gte: start, lt: end }, kind: 'llm', ok: true, costUsd: null } });
 }
 
+// Whether a task can run at all: an enabled provider ticked for it, and a monthly budget above zero. Says which is missing
+// first, so a page can tell people what to add before they ask for work that would only fail in the background.
+export async function aiReadiness(deps: Pick<Deps, 'prisma'>, task: 'draft' | 'rewrite' | 'research'): Promise<{ ready: boolean; missing: 'provider' | 'budget' | null }> {
+  const [providers, budget] = await Promise.all([
+    deps.prisma.aiProvider.count({ where: { enabled: true, tasks: { has: task } } }),
+    getSetting<unknown>(deps, SETTING_BUDGET, null),
+  ]);
+  const missing = providers === 0 ? 'provider' : !(typeof budget === 'number' && budget > 0) ? 'budget' : null;
+  return { ready: missing === null, missing };
+}
+
 export type AiConfig = CreateAiOptions & { providers: NonNullable<CreateAiOptions['providers']>; budget: { monthlyLimitUsd: number; spentUsd: number }; flush(): Promise<void> };
 
 export interface AiRunContext { runId?: string; actorId?: string | null }
