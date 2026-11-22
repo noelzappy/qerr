@@ -56,6 +56,8 @@ export function libraryProblems() {
 // Embedded only on a page whose words hold an emoji (a brand that turns them on, emoji.mjs), and then only the slices those emoji need, under
 // the alias EMOJI_ALIAS, which the page puts in every font stack right after the role's own font. Nothing is loaded from the network.
 export const EMOJI_ALIAS = 'VF Emoji';
+// one face for every weight the words are set in (an emoji has no weights of its own; this keeps the browser from faking bold)
+const EMOJI_WEIGHTS = '100 900';
 let emojiCache = null;
 export function emojiLibrary() {
   if (!emojiCache) emojiCache = JSON.parse(fs.readFileSync(path.join(DIR, 'emoji.json'), 'utf8'));
@@ -81,7 +83,7 @@ export function emojiFacesFor(text = '') {
   if (!clusters.length) return { css: '', files: [] };
   const lib = emojiLibrary(), cps = new Set(clusters.flatMap((c) => [...c].map((ch) => ch.codePointAt(0))));
   const picked = lib.files.filter((x) => [...cps].some((cp) => inRange(x.range, cp)));
-  const css = picked.map((x) => `@font-face{font-family:"${EMOJI_ALIAS}";src:url("${dataUri(lib, x.file)}") format("woff2");font-weight:100 900;font-style:normal;unicode-range:${x.range}}`).join('');
+  const css = picked.map((x) => `@font-face{font-family:"${EMOJI_ALIAS}";src:url("${dataUri(lib, x.file)}") format("woff2");font-weight:${EMOJI_WEIGHTS};font-style:normal;unicode-range:${x.range}}`).join('');
   return { css, files: picked.map((x) => ({ family: lib.family, file: x.file, style: 'normal', weight: '400', subset: 'emoji', bytes: x.bytes })) };
 }
 
