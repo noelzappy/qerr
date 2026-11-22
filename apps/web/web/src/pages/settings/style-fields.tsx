@@ -76,12 +76,23 @@ export function ColourRoles({ roles, palette, onChange }: { roles: BrandRoles; p
 
 // ---- type ----
 
-function TypeRoleFields({ title, hint, role, onChange, font, weight, fontFile }: { title: string; hint: string; role: TypeRole; onChange: (r: TypeRole) => void; font?: ReactNode; weight?: ReactNode; fontFile?: ReactNode }) {
+// `part` (see TypeFields): 'look' draws only the role's font and font file, 'classic' only its case, spacing and weight.
+function TypeRoleFields({ title, hint, role, onChange, font, weight, fontFile, part }: { title: string; hint: string; role: TypeRole; onChange: (r: TypeRole) => void; font?: ReactNode; weight?: ReactNode; fontFile?: ReactNode; part?: TypePart }) {
+  if (part === 'look') {
+    if (!font && !fontFile) return null;
+    return (
+      <fieldset className="mt-5 flex min-w-0 flex-col gap-3 first:mt-0">
+        <legend className="mb-2 flex items-center gap-1 text-[13.5px] font-semibold">{title}<Hint about={title}>{hint}</Hint></legend>
+        {font && <div className="grid gap-3 sm:grid-cols-2">{font}</div>}
+        {fontFile}
+      </fieldset>
+    );
+  }
   return (
     <fieldset className="mt-5 flex min-w-0 flex-col gap-3 first:mt-0">
       <legend className="mb-2 flex items-center gap-1 text-[13.5px] font-semibold">{title}<Hint about={title}>{hint}</Hint></legend>
       <div className="grid gap-3 sm:grid-cols-2">
-        {font}
+        {part !== 'classic' && font}
         <SelectField label="Case" value={role.case} onValueChange={(v) => onChange({ ...role, case: v as TypeRole['case'] })} options={optionsOf(TYPE_CASES)} />
         <NumberField
           label="Letter spacing" hint="Tighter or wider letters. 0 is normal; try 0.02 for a little more air. Leave empty to use the brand's."
@@ -89,13 +100,16 @@ function TypeRoleFields({ title, hint, role, onChange, font, weight, fontFile }:
         />
         {weight ?? <SelectField label="Weight" hint="How heavy the letters are." value={role.weight === null ? DEFAULT : String(role.weight)} onValueChange={(v) => onChange({ ...role, weight: v === DEFAULT ? null : Number(v) })} options={[{ value: DEFAULT, label: "The brand's own" }, ...WEIGHTS.map(weightOption)]} />}
       </div>
-      {fontFile}
+      {part !== 'classic' && fontFile}
     </fieldset>
   );
 }
 
-export function TypeFields({ style, headlineWeight, onChange, fonts, version, busy, onUpload, onGoogle, onRemove }: {
-  style: StyleSettings; headlineWeight: number;
+// `part`: 'look' is what a look reads too (each role's font and font file), 'classic' what only the classic layouts draw (case, letter
+// spacing, weight, headline size, the second half of a headline); both by default. See LOOK_READS in brand/model.ts.
+export type TypePart = 'look' | 'classic';
+export function TypeFields({ style, headlineWeight, onChange, fonts, version, busy, onUpload, onGoogle, onRemove, part }: {
+  style: StyleSettings; headlineWeight: number; part?: TypePart;
   // `headline` is given when the brand's headline weight changes with the type settings, in one step.
   onChange: (t: StyleSettings['type'], headline?: number) => void; fonts: Record<FontRole, FontSource | null>; version: string;
   busy: string; onUpload: (role: FontRole, f: File, family: string) => void; onGoogle: (role: FontRole, family: string) => void; onRemove: (role: FontRole) => void;
@@ -121,44 +135,54 @@ export function TypeFields({ style, headlineWeight, onChange, fonts, version, bu
     <div className="flex flex-col">
       <TypeRoleFields
         title="Headlines" hint="Headlines and big figures. Built in, they use the body font or the label font."
-        role={t.display} onChange={(r) => onChange({ ...t, display: { ...t.display, ...r } })} weight={headlineWeightField}
+        part={part} role={t.display} onChange={(r) => onChange({ ...t, display: { ...t.display, ...r } })} weight={headlineWeightField}
         fontFile={t.display.font === 'own' ? font('display') : undefined}
         font={<SelectField label="Font" value={t.display.font} onValueChange={(v) => onChange({ ...t, display: { ...t.display, font: v as typeof t.display.font } })} options={optionsOf(DISPLAY_FONTS)} />}
       />
-      <TypeRoleFields title="Body" hint="Sub lines, lists and captions, and headlines unless they have a font of their own. Built in, this is Inter." role={t.body} onChange={(r) => onChange({ ...t, body: r })} fontFile={font('body')} />
+      <TypeRoleFields title="Body" hint="Sub lines, lists and captions, and headlines unless they have a font of their own. Built in, this is Inter." part={part} role={t.body} onChange={(r) => onChange({ ...t, body: r })} fontFile={font('body')} />
       <TypeRoleFields
         title="Labels" hint="Top labels, footers, the small label above a headline and the website. Figures in tables keep the monospaced font."
-        role={t.label} onChange={(r) => onChange({ ...t, label: { ...t.label, ...r } })}
+        part={part} role={t.label} onChange={(r) => onChange({ ...t, label: { ...t.label, ...r } })}
         fontFile={t.label.font === 'own' ? font('label') : undefined}
         font={<SelectField label="Font" value={t.label.font} onValueChange={(v) => onChange({ ...t, label: { ...t.label, font: v as typeof t.label.font } })} options={optionsOf(LABEL_FONTS)} />}
       />
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+      {part !== 'look' && <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <NumberField
           label="Headline size" hint="Makes every headline bigger or smaller. 1 is normal; 1.1 is a tenth bigger. Long headlines are still shrunk to fit."
           min={0.8} max={1.25} value={t.scale} onChange={(v) => onChange({ ...t, scale: v ?? 1 })}
         />
         <SelectField label="Second half of a headline" hint="The phrase in a headline that stands out. Use one style for every page, or let each post type decide." value={t.accent} onValueChange={(v) => onChange({ ...t, accent: v as typeof t.accent })} options={optionsOf(ACCENT_DEVICES, 'accent')} />
-      </div>
+      </div>}
     </div>
   );
 }
 
 // ---- surfaces, decoration, photos, logo ----
 
-// `part`: 'logo' is only the logo row (a look reads it too), 'surfaces' everything else; both by default.
+// `part`: 'look' is what a look reads too (the photo treatment and the logo's place), 'classic' what only the classic layouts draw
+// (cards and panels, decoration and artwork, what goes beside the logo); both by default. See LOOK_READS in brand/model.ts.
 export function LookFields({ style, onChange, artwork, busy, onArtwork, onRemoveArtwork, part }: {
   style: StyleSettings; onChange: (s: StyleSettings) => void; artwork: string | null; busy: boolean; onArtwork: (f: File) => void; onRemoveArtwork: () => void;
-  part?: 'logo' | 'surfaces';
+  part?: 'look' | 'classic';
 }) {
   const d = style.decoration, p = style.photo;
   const set = <K extends keyof StyleSettings>(k: K, v: StyleSettings[K]) => onChange({ ...style, [k]: v });
-  const logo = (
+  const logoField = <SelectField label="Logo" hint="Moves the logo on posters, editorial pages and photo posts, with what shares its edge; a page whose picture takes that edge keeps its logo where it is and follows the side. A layout's own logo block stays where the layout puts it." value={style.logo} onValueChange={(v) => set('logo', v as StyleSettings['logo'])} options={[{ value: 'auto', label: 'As each page is laid out' }, ...optionsOf(LOGO_PLACES.filter((x) => x !== 'auto'))]} />;
+  const footerField = <SelectField label="Beside the logo" value={style.footer} onValueChange={(v) => set('footer', v as StyleSettings['footer'])} options={optionsOf(FOOTERS, 'footer')} />;
+  const photos = (
     <div className="grid gap-3 md:grid-cols-2">
-      <SelectField label="Logo" hint="Moves the logo on posters, editorial pages and photo posts, with what shares its edge; a page whose picture takes that edge keeps its logo where it is and follows the side. A layout's own logo block stays where the layout puts it." value={style.logo} onValueChange={(v) => set('logo', v as StyleSettings['logo'])} options={[{ value: 'auto', label: 'As each page is laid out' }, ...optionsOf(LOGO_PLACES.filter((x) => x !== 'auto'))]} />
-      <SelectField label="Beside the logo" value={style.footer} onValueChange={(v) => set('footer', v as StyleSettings['footer'])} options={optionsOf(FOOTERS, 'footer')} />
+      <SelectField label="Photos" hint="Applied to photographs, never to phone or desktop screens. Text over photos is still checked." value={p.treatment} onValueChange={(v) => set('photo', { ...p, treatment: v as typeof p.treatment })} options={optionsOf(PHOTO_TREATMENTS, 'photo')} />
+      {(p.treatment === 'tint' || p.treatment === 'overlay') && <>
+        <SelectField label="Colour" value={p.colour} onValueChange={(v) => set('photo', { ...p, colour: v })} options={optionsOf(STYLE_COLOURS)} />
+        <NumberField label="Strength" hint="From 0 (none) to 1 (full)." min={0} max={1} value={p.strength} onChange={(v) => set('photo', { ...p, strength: v ?? 0.5 })} />
+      </>}
+      {p.treatment === 'duotone' && <>
+        <SelectField label="Shadows in" value={p.shadows} onValueChange={(v) => set('photo', { ...p, shadows: v })} options={optionsOf(STYLE_COLOURS)} />
+        <SelectField label="Highlights in" value={p.highlights} onValueChange={(v) => set('photo', { ...p, highlights: v })} options={optionsOf(STYLE_COLOURS)} />
+      </>}
     </div>
   );
-  if (part === 'logo') return logo;
+  if (part === 'look') return <div className="flex flex-col gap-4">{photos}<div className="grid gap-3 md:grid-cols-2">{logoField}</div></div>;
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-3 md:grid-cols-2">
@@ -188,18 +212,8 @@ export function LookFields({ style, onChange, artwork, busy, onArtwork, onRemove
           {!artwork && <p className="text-[13px] text-muted-foreground">Until a picture is uploaded the pages stay plain.</p>}
         </div>
       )}
-      <div className="grid gap-3 md:grid-cols-2">
-        <SelectField label="Photos" hint="Applied to photographs, never to phone or desktop screens. Text over photos is still checked." value={p.treatment} onValueChange={(v) => set('photo', { ...p, treatment: v as typeof p.treatment })} options={optionsOf(PHOTO_TREATMENTS, 'photo')} />
-        {(p.treatment === 'tint' || p.treatment === 'overlay') && <>
-          <SelectField label="Colour" value={p.colour} onValueChange={(v) => set('photo', { ...p, colour: v })} options={optionsOf(STYLE_COLOURS)} />
-          <NumberField label="Strength" hint="From 0 (none) to 1 (full)." min={0} max={1} value={p.strength} onChange={(v) => set('photo', { ...p, strength: v ?? 0.5 })} />
-        </>}
-        {p.treatment === 'duotone' && <>
-          <SelectField label="Shadows in" value={p.shadows} onValueChange={(v) => set('photo', { ...p, shadows: v })} options={optionsOf(STYLE_COLOURS)} />
-          <SelectField label="Highlights in" value={p.highlights} onValueChange={(v) => set('photo', { ...p, highlights: v })} options={optionsOf(STYLE_COLOURS)} />
-        </>}
-      </div>
-      {part !== 'surfaces' && logo}
+      {part !== 'classic' && photos}
+      <div className="grid gap-3 md:grid-cols-2">{part !== 'classic' && logoField}{footerField}</div>
     </div>
   );
 }

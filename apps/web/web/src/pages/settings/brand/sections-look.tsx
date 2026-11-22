@@ -10,10 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { ACCENT_LABEL, ACCENTS, GROUND_LABEL, GROUNDS, type BrandSettings } from '../brand-types';
 import { Section } from '../section';
-import { ColourRoles, LookFields, TypeFields } from '../style-fields';
+import { ColourRoles, LookFields, TypeFields, type TypePart } from '../style-fields';
 import { ColourField } from './fields';
 import { useActiveLook } from '@/hooks/use-active-look';
-import { LOOK_HINT, lookInForce, sectionHasProblem, type BrandCtx } from './model';
+import { LOOK_HINT, classicProblem, lookInForce, type BrandCtx } from './model';
 import { Changes, Readability } from './preview';
 import { ContrastDisplay } from './contrast-display';
 
@@ -47,28 +47,30 @@ export function ColoursSection({ ctx }: { ctx: BrandCtx }) {
   );
 }
 
-// While a look draws the posts, a section whose settings only the classic layouts use shows one line pointing to Settings, Looks,
-// with the settings themselves one click away (they still apply to classic layouts). With classic layouts in use, they show as usual.
-function ClassicOnly({ id, inForce, problem, children }: { id: string; inForce: boolean; problem: boolean; children: ReactNode }) {
+// While a look draws the posts: one line pointing to Settings, Looks, then the settings the look reads too (`look`), then the settings
+// only the classic layouts draw (`classic`), folded one click away; they open by themselves when the server names a problem among
+// them. With classic layouts in use, `all` shows as usual.
+function ClassicSplit({ id, inForce, problem, look, classic, all }: { id: string; inForce: boolean; problem: boolean; look: ReactNode; classic: ReactNode; all: ReactNode }) {
   const [shown, setShown] = useState(false);
-  if (!inForce) return <>{children}</>;
+  if (!inForce) return <>{all}</>;
   const open = shown || problem;
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[13px] text-muted-foreground">
-          <span>Your look sets this.</span>
-          <Hint about="Your look">{LOOK_HINT}</Hint>
-          <Link to="/settings/looks" className="rounded-sm font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">Settings, Looks</Link>
-        </p>
+      <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[13px] text-muted-foreground">
+        <span>A look is in use.</span>
+        <Hint about="the look in use">{LOOK_HINT}</Hint>
+        <Link to="/settings/looks" className="rounded-sm font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">Settings, Looks</Link>
+      </p>
+      {look}
+      <div>
         <button
           type="button" aria-expanded={open} aria-controls={`${id}-classic`} onClick={() => setShown(!shown)}
-          className="inline-flex min-h-8 items-center gap-1 rounded-md px-1 text-[13px] font-medium outline-none hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-11"
+          className="-ml-1 inline-flex min-h-8 items-center gap-1 rounded-md px-1 text-[13px] font-medium outline-none hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:min-h-11"
         >
-          Settings for classic layouts <ChevronDown className={`size-3.5 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+          Settings for classic layouts only <ChevronDown className={`size-3.5 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
         </button>
       </div>
-      <div id={`${id}-classic`} hidden={!open} className="flex flex-col gap-3">{open && children}</div>
+      <div id={`${id}-classic`} hidden={!open} className="flex flex-col gap-3">{open && classic}</div>
     </>
   );
 }
@@ -76,16 +78,20 @@ function ClassicOnly({ id, inForce, problem, children }: { id: string; inForce: 
 export function TypeSection({ ctx }: { ctx: BrandCtx }) {
   const { s, view } = ctx;
   const inForce = lookInForce(s.style.direction, useActiveLook().active);
+  const fields = (part?: TypePart) => (
+    <TypeFields
+      part={part} style={s.style} headlineWeight={s.headlineWeight} fonts={view.fontSources} version={view.updatedAt ?? ''} busy={ctx.busy}
+      onChange={(type, headline) => ctx.update((cur) => ({ ...cur, style: { ...cur.style, type }, ...(headline !== undefined ? { headlineWeight: headline } : {}) }))}
+      onUpload={(role, f, fam) => ctx.uploadFont(f, fam, role)} onGoogle={(role, fam) => ctx.pickGoogleFont(role, fam)} onRemove={(role) => ctx.askRemoveFont(role)}
+    />
+  );
+  const saved = <p className="text-[13px] text-muted-foreground">Fonts you choose here are saved straight away, not with the Save bar.</p>;
   return (
     <Section id="type" title="Type" description="How headlines, body text and labels are set. Leave a value empty to keep the brand's own.">
-      <ClassicOnly id="type" inForce={inForce} problem={sectionHasProblem(ctx.fields, 'type')}>
-        <p className="text-[13px] text-muted-foreground">Fonts you choose here are saved straight away, not with the Save bar.</p>
-        <TypeFields
-          style={s.style} headlineWeight={s.headlineWeight} fonts={view.fontSources} version={view.updatedAt ?? ''} busy={ctx.busy}
-          onChange={(type, headline) => ctx.update((cur) => ({ ...cur, style: { ...cur.style, type }, ...(headline !== undefined ? { headlineWeight: headline } : {}) }))}
-          onUpload={(role, f, fam) => ctx.uploadFont(f, fam, role)} onGoogle={(role, fam) => ctx.pickGoogleFont(role, fam)} onRemove={(role) => ctx.askRemoveFont(role)}
-        />
-      </ClassicOnly>
+      <ClassicSplit
+        id="type" inForce={inForce} problem={classicProblem(ctx.fields, 'type')}
+        look={<>{saved}{fields('look')}</>} classic={fields('classic')} all={<>{saved}{fields()}</>}
+      />
     </Section>
   );
 }
@@ -93,13 +99,12 @@ export function TypeSection({ ctx }: { ctx: BrandCtx }) {
 export function SurfacesSection({ ctx }: { ctx: BrandCtx }) {
   const { s, set } = ctx;
   const inForce = lookInForce(s.style.direction, useActiveLook().active);
+  const fields = (part?: 'look' | 'classic') => (
+    <LookFields part={part} style={s.style} onChange={(style) => set('style', style)} artwork={ctx.artworkUrl} busy={ctx.busy === 'artwork'} onArtwork={ctx.uploadArtwork} onRemoveArtwork={ctx.askRemoveArtwork} />
+  );
   return (
     <Section id="surfaces" title="Surfaces and photos" description="How cards and panels stand off the page, the texture behind pages, what happens to photos, and where the logo goes.">
-      <ClassicOnly id="surfaces" inForce={inForce} problem={sectionHasProblem(ctx.fields, 'surfaces')}>
-        <LookFields part={inForce ? 'surfaces' : undefined} style={s.style} onChange={(style) => set('style', style)} artwork={ctx.artworkUrl} busy={ctx.busy === 'artwork'} onArtwork={ctx.uploadArtwork} onRemoveArtwork={ctx.askRemoveArtwork} />
-      </ClassicOnly>
-      {/* A look places the logo where the brand says too, so the logo row stays in view. */}
-      {inForce && <LookFields part="logo" style={s.style} onChange={(style) => set('style', style)} artwork={ctx.artworkUrl} busy={false} onArtwork={ctx.uploadArtwork} onRemoveArtwork={ctx.askRemoveArtwork} />}
+      <ClassicSplit id="surfaces" inForce={inForce} problem={classicProblem(ctx.fields, 'surfaces')} look={fields('look')} classic={fields('classic')} all={fields()} />
     </Section>
   );
 }
