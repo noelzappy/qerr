@@ -311,8 +311,19 @@ never equals a shipped id). Tables `brand_looks` (the look without compositions,
 `gate`) and `brand_look_compositions` (`definition` is what is drawn, `draft` holds unpublished edits and never affects drawing,
 `enabled`, `gate`); the active look is a pointer, `brand_profiles.activeLookRef` (`shipped:<id>`, `own:<slug>` or null for classic
 layouts), so it can only be set once the brand is saved in Settings, Brand. A newly saved brand starts on the shipped Clean look
-(`shipped:clean`); brands saved before keep their choice. There is no blank look: a brand starts from
-`POST /duplicate` (a deep copy of a shipped look or one of its own, a draft). **The scope rule:** every service function takes
+(`shipped:clean`); brands saved before keep their choice. A brand's own look starts from `POST /duplicate` (a deep copy of a
+shipped look or one of its own, a draft) or blank, from `POST /blank` (the engine's starter, `packages/engine/lib/design/look-starter.mjs`:
+neutral settings in the brand's own fonts and colours and one plain design of every kind; its origin is `starter` and it is never a shipped
+look). **A new design is checked before it is drawn:** a design added to a look (from another look, a blank one, or "Add to my look") is
+stored with its gate record (validation, then with a renderer sample, stress and minimal copy) and switched on only when that passed; on a
+look's page one that did not pass is kept switched off with the reason, and "Add to my look" refuses it and stores nothing. **Add to my
+look** puts a design of any look into the look IN USE (`POST /add-design`): it is drawn in that look's fonts, colours and type (a design names
+the look's font and colour roles, never a family or a colour, so its typefaces do not travel with it); when the kind already has three, the
+person picks one to replace (it keeps its place, so posts that name its number get the new design); a shipped look in use is read only, so
+with the person's agreement (`copy`) the brand's own copy, "<name> (yours)", is made first, and only when the person also says so (`use`) is
+the copy published (its checks run) and made the look in use; an own look that was ready is published again so it stays ready. Posts already
+drawn keep their images. The audit log has each step (`look.duplicate`, `look.composition.add` or `look.composition.replace` with `toActive`,
+`look.publish`, `look.activate`; `look.create_blank`, `look.composition.add_blank`). **The scope rule:** every service function takes
 `{ brandId }` first (from `brandScope(c)`, the one place that decides it; a constant today) and every query filters on it, a row
 is found by (brandId, slug) or uuid and brandId, and no route reads a brandId from a request; `brandId` is a plain indexed
 column (not a foreign key, because the profile row exists only once Settings, Brand is saved). Limits per brand: 20 looks,
@@ -331,6 +342,9 @@ try changes without touching posts.
 | `GET /api/settings/looks` | `{ activeRef, shipped, own, catalogue, limits, fonts }` (`fonts`: the font library's families with their lowest and highest weight and whether they have an italic and a width axis, for the typeface pickers) |
 | `GET /api/settings/looks/:ref` | one look in full; an own look with its drafts and gate records |
 | `POST /api/settings/looks/duplicate` | `{ source, name?, slug? }` |
+| `POST /api/settings/looks/blank` | `{ name, slug? }`: a look started blank from the engine's starter, a draft of the brand's own; the slug is derived from the name when not given (`-2`, `-3`... when taken; the panel's page addresses `new`, `add-design`, `inspiration` and `series` are never one) |
+| `POST /api/settings/looks/add-design/plan` | `{ source, kind, index, replace? }`, nothing stored: `{ source, target, designs, full, perKind, candidate, candidateIndex, replace, typefaces }`: the design (`index` among all of the source look's designs of the kind), the look in use (`null` with none; `shipped` and `copyName` when a copy is needed), its designs of the kind, whether the kind is full, and `candidate`, the look in use with the design in it (after the last of its kind, or in place of the `replace`th), to send whole to `/preview-design` with `index: candidateIndex` (null while the kind is full and nothing is chosen to replace); `typefaces.travel` is false |
+| `POST /api/settings/looks/add-design` | `{ source, kind, index, replace?, copy?, use? }`: adds the design to the look in use as planned above. 409 with no look in use, a design of the look itself, a full kind without `replace`, or a shipped look in use without `copy`; 400 with the reasons when the design does not fit the look or its checks fail (nothing stored, no copy). Answers `{ look, activeRef, copied, used, published, publishProblems? }` and writes the brand pack |
 | `POST /api/settings/looks/validate` | `{ problems }` for a whole look, nothing stored (the Settings tab's Fine-tune asks it before writing a grouped value) |
 | `POST /api/settings/looks/preview` | `{ ref }` or `{ look }` (a whole look as the panel holds it, validated first) and optionally `kinds`: `{ hash, samples: [{ kind, ok, image, error, warnings }] }`, one picture per kind (the first design of the kind, sample copy), drawn by `lookRenderer()` (`services/look-render.ts`, connected at start with `setLookRenderer`; 501 when none is connected, as in tests that do not connect one); `superseded: true` with no samples when a newer request from the same person for the same look replaced this one while it waited |
 | `POST /api/settings/looks/preview-design` | one design on its own, for the design editor: `{ ref }` or `{ look }`, `kind`, `index` (among all the look's compositions of the kind, enabled or not), optionally `draft` (an own look's unsaved composition swapped in), `scenario` (`sample`, `stress` = the longest copy it accepts, `minimal` = only what it needs) and `withRects`: `{ hash, image, rects: [{ el, x, y, w, h, rot }], warnings, problems }`. `el` is the element's address in the composition (digits and dots: `2`, `2.0`; a seam's sticker is the child after its children). An unfinished draft is not drawn: `problems` come back with status 200 so the editor keeps its sketch. Drawn by `lookRenderer().previewComposition` (optional on the renderer, so a renderer that only draws samples answers 501 here too); `rects` come from the page's own `postMetrics().els`; a refusal of the engine's page checks comes back as `problems` with status 200, never a 500 |
@@ -338,7 +352,8 @@ try changes without touching posts.
 | `GET /api/settings/looks/fonts/:family/:file` | a shipped font file (woff2) for the typeface cards: only a `family` and `file` the engine's `design/fonts/library.json` lists are served (a lookup in a map built from it; nothing from the request reaches the file system), `cache-control: private, max-age=31536000, immutable`; admins only; the page's CSP already has `font-src 'self'`. `GET /api/settings/looks` lists each family's `files` (`file`, `style`, `weight`, `range`) |
 | `PUT /api/settings/looks/active` | `{ ref }`: a shipped look or an own look that is ready; `null` for classic layouts; writes the brand pack |
 | `PUT /api/settings/looks/:slug/settings` | `{ definition }`: the look without compositions, checked with the compositions it has; resets the gate |
-| `POST /api/settings/looks/:slug/compositions` | `{ source, kind, index }`: copy one composition from a shipped or an own look |
+| `POST /api/settings/looks/:slug/compositions` | `{ source, kind, index }`: copy one composition from a shipped or an own look; `{ look, added: { id, enabled, passed, message? } }` (switched off when its checks did not pass) |
+| `POST /api/settings/looks/:slug/compositions/blank` | `{ kind }`: add the starter's plain design of the kind ("Add a blank design"), checked like any new design; the same answer |
 | `POST /api/settings/looks/:slug/compositions/:id/validate` | `{ definition }`: `{ problems: [{ path, message }] }` for a draft swapped into its look, nothing stored (the design editor's check as it is edited; paths read `compositions[n].elements[i].children[j].size`) |
 | `PUT` / `DELETE /api/settings/looks/:slug/compositions/:id/draft` | save (the whole look must validate with it) or discard a draft |
 | `POST /api/settings/looks/:slug/compositions/:id/publish` | the draft becomes the composition, once the gate passes (validation and the render checks above; `runGate` replaces them in tests) |
@@ -696,7 +711,9 @@ look or the look cannot draw it, and Edit and Delete; Add and Edit open a side p
 which day), the mark with a live "Reads: Tip #15", and Fine-tune for where the mark goes and the first number. Without a look in use the
 tab points to Looks. Looks shows "In use" (the active look, or
 Classic layouts; "Back to classic layouts" is in its menu), "Looks we ship" (**Use this look**, with a confirm saying new images use it and
-posts already made keep theirs, and **Customise**, which duplicates into the brand and opens the copy) and "Your looks" (status Draft,
+posts already made keep theirs, and **Customise**, which duplicates into the brand and opens the copy; while a look is in use each sample picture
+has a small **+** and its enlarged view **Add to my look**) and "Your looks" (**New look**: a dialog with the name, its derived address and the
+start, **Blank** or **From a look**; the new look opens on its page; status Draft,
 Ready or Needs attention with the first problem, origin, last changed; Open, Use when Ready, and a menu with Duplicate and Delete, whose
 refusal while active shows the server's reason). `/settings/looks/:slug` is a wide page, crumbs `Settings / Looks / <name>`, with the name
 editable in the header, a status chip, Save (with "You have changes that are not saved" and the unsaved guard), **Publish** (a dialog listing the
@@ -705,8 +722,14 @@ edited: the page says that saved changes reach posts drawn from then on while im
 the edits have not been checked, and **Duplicate** still offers a copy to try changes on.
 Tabs: **Settings** (drawn from `lookCatalogue().sections`, so a setting the engine adds appears without UI work: Dials, Typefaces, Type,
 Page, Colour, Devices, Pictures, Logo; numbers show their range and an inline error, never clamped; server problems are mapped to the control
-by path), **Designs** (per kind: reorder, On/Off, status, Edit, which opens the design editor, Duplicate within this look, Remove, "Add a design" from
-any shipped or own look, at most three per kind) and **Check** (the stored gate records; "Run the checks" draws every design with sample, stress and minimal copy and shows what each check said). `/settings/looks/:slug/designs/:id` is the design editor (see "The design editor" above).
+by path), **Designs** (per kind: reorder, On/Off, status, Edit, which opens the design editor, Duplicate within this look, Remove, **Add to my look** while
+another look is in use, "Add a design": a blank one ("Start blank") or one from any shipped or own look, at most three per kind) and **Check** (the stored gate records; "Run the checks" draws every design with sample, stress and minimal copy and shows what each check said). `/settings/looks/:slug/designs/:id` is the design editor (see "The design editor" above).
+`/settings/looks/add-design?source=<ref>&kind=<kind>&index=<n>` is **Add a design** (crumbs `Settings / Looks / Add a design`), reached from
+any "Add to my look" (also in the enlarged sample pictures of a look's own page while another look is in use): the design as its own look draws
+it beside the same design in the look in use (both through `/preview-design`), a plain line saying it takes that look's fonts, colours and type,
+a choice of the design to replace when the kind is full, and for a shipped look in use the sentence "Clean is a shipped look, so we'll make your
+own copy, 'Clean (yours)', add the design to it and use it from now on" with **Make the copy and use it** and **Make the copy only**; a refusal
+shows the checks' reasons.
 **Classic layouts** is in the menu only while no look is active (the page itself shows a one-line notice with a link to Looks otherwise).
 Sample pictures: `useLookSamples` asks `POST /api/settings/looks/preview` (debounced, stale requests cancelled, cached by the hash the server
 returns); while it answers 501 (no renderer connected) the strips show quiet placeholders named by kind and one line. The post editor reads `GET /api/looks/brief` when a look is active: kinds without an enabled design are not offered, the "Design"

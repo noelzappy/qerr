@@ -5,8 +5,10 @@ import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import {
   addOptions, blankFor, budgetsText, checkValue, collectControls, controlFor, descAt, designFields, designIndex, designStatus, getAt, groupByKind, groupSections, kindsSummary, kindOrder,
-  lookForPreview, lookStatus, mapProblems, movedPosition, outline, rangeText, setAt, settingsOf, settingsProblems, valueLabel, writeSetting, labelFor,
+  lookForPreview, lookStatus, mapProblems, movedPosition, outline, rangeText, setAt, settingsOf, settingsProblems, valueLabel, writeSetting, labelFor, originText,
 } from '../web/src/pages/settings/looks/look-model';
+import { slugOfName } from '../web/src/pages/settings/looks/NewLookDialog';
+import { addDesignHref } from '../web/src/pages/settings/looks/AddDesignPage';
 import type { Composition, Desc, Json, LookCatalogue } from '../web/src/pages/settings/looks/look-types';
 
 const engine = await import('@qerr/engine/design/look' as string) as { lookCatalogue(): LookCatalogue; validateLook(l: unknown, w?: string, o?: { shipped?: boolean }): string[]; lookBrief(l: unknown): { kinds: Record<string, { variants: unknown[] }> } };
@@ -204,5 +206,26 @@ describe('status and designs in plain words', () => {
     const look = lookForPreview(settingsOf(sample('retail')), all, kindOrder(cat));
     expect((look.compositions as Json[]).map((c) => c.name)).toEqual(['Mantra', 'Blocks', 'Frame pop']);
     expect(engine.validateLook(look, 'look', { shipped: true })).toEqual([]);
+  });
+});
+
+describe('new looks and adding designs', () => {
+  it('says where a look came from, a look started blank included', () => {
+    const names: Record<string, string> = { 'shipped:clean': 'Clean' };
+    expect(originText('shipped:clean', (r) => names[r] ?? null)).toBe('Based on Clean');
+    expect(originText('copy:shipped:clean', (r) => names[r] ?? null)).toBe('Based on Clean');
+    expect(originText('starter', () => null)).toBe('Started blank');
+    expect(originText('own:gone', () => null)).toBe('');
+  });
+
+  it('derives a look\'s address from its name the way the server does', () => {
+    expect(slugOfName('Spring campaign')).toBe('spring-campaign');
+    expect(slugOfName('  Clean (yours)! ')).toBe('clean-yours');
+    expect(slugOfName('***')).toBe('');
+    expect(slugOfName('a'.repeat(50))).toHaveLength(34);
+  });
+
+  it('addresses the Add a design page for one design, with its words escaped', () => {
+    expect(addDesignHref('shipped:soft', 'photo', 1)).toBe('/settings/looks/add-design?source=shipped%3Asoft&kind=photo&index=1');
   });
 });

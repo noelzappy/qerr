@@ -1,15 +1,18 @@
 // A strip of the seven kinds of post as small pictures of a look. While the pictures are being drawn the placeholders pulse, each
 // with a small spinner, and a line under the strip says so; while previews are not available it shows quiet placeholders named by
-// kind (no error styling); when pictures arrive they replace them, and a click enlarges one.
+// kind (no error styling); when pictures arrive they replace them, and a click enlarges one. With `addHref`, each picture and its enlarged
+// view offer "Add to my look" (that design added to the look in use, on the Add a design page).
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Loader2, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { kindName } from './look-model';
 import type { PreviewSample } from './look-types';
 import type { SampleState } from './use-look-samples';
 
-export function SampleStrip({ state, kinds, lookName, compact = false, className }: { state: SampleState; kinds: string[]; lookName: string; compact?: boolean; className?: string }) {
+export function SampleStrip({ state, kinds, lookName, compact = false, className, addHref }: { state: SampleState; kinds: string[]; lookName: string; compact?: boolean; className?: string; addHref?: (kind: string) => string | null }) {
   const [open, setOpen] = useState<PreviewSample | null>(null);
   const bySample = new Map(state.samples.map((s) => [s.kind, s]));
   const loading = state.status === 'loading';
@@ -20,11 +23,19 @@ export function SampleStrip({ state, kinds, lookName, compact = false, className
           const s = bySample.get(kind);
           const name = kindName(kind);
           return (
-            <li key={kind} className="min-w-0">
+            <li key={kind} className="group/sample relative min-w-0">
               {s?.ok && s.image ? (
-                <button type="button" onClick={() => setOpen(s)} aria-label={`Enlarge: ${lookName}, ${name}`} className="block aspect-[4/5] w-full overflow-hidden rounded-sm border outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
-                  <img src={s.image} alt={`${lookName}: a ${name} post`} loading="lazy" className="size-full object-cover" />
-                </button>
+                <>
+                  <button type="button" onClick={() => setOpen(s)} aria-label={`Enlarge: ${lookName}, ${name}`} className="block aspect-[4/5] w-full overflow-hidden rounded-sm border outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+                    <img src={s.image} alt={`${lookName}: a ${name} post`} loading="lazy" className="size-full object-cover" />
+                  </button>
+                  {addHref?.(kind) && (
+                    <Link to={addHref(kind)!} aria-label={`Add ${lookName}'s ${name.toLowerCase()} design to my look`} title="Add to my look"
+                      className="absolute top-0.5 right-0.5 flex size-5 items-center justify-center rounded-sm border bg-background/95 text-foreground opacity-0 shadow-sm outline-none group-hover/sample:opacity-100 focus-visible:opacity-100 focus-visible:ring-[3px] focus-visible:ring-ring/50 max-sm:hidden">
+                      <Plus className="size-3" aria-hidden="true" />
+                    </Link>
+                  )}
+                </>
               ) : (
                 <div data-loading={loading && !s ? '' : undefined} className={cn('relative flex aspect-[4/5] w-full items-end justify-center overflow-hidden rounded-sm bg-muted/50 p-0.5 text-center text-[10px] leading-tight text-muted-foreground', s && !s.ok && 'ring-1 ring-inset ring-border', loading && !s && 'animate-pulse bg-muted')} title={s && !s.ok ? s.error : undefined}>
                   {loading && !s && <Loader2 className="absolute inset-0 m-auto size-3.5 animate-spin text-muted-foreground/70" aria-hidden="true" />}
@@ -48,6 +59,7 @@ export function SampleStrip({ state, kinds, lookName, compact = false, className
               </DialogHeader>
               {open.image && <img src={open.image} alt={`${lookName}: a ${kindName(open.kind)} post`} className="w-full rounded-sm border" />}
               {open.warnings.length > 0 && <ul className="list-disc space-y-1 pl-[18px] text-[13px] text-muted-foreground">{open.warnings.map((w, i) => <li key={i} className="[overflow-wrap:anywhere]">{w}</li>)}</ul>}
+              {addHref?.(open.kind) && <div className="flex justify-end"><Button asChild><Link to={addHref(open.kind)!}><Plus aria-hidden="true" /> Add to my look</Link></Button></div>}
             </>
           )}
         </DialogContent>

@@ -23,6 +23,7 @@ import { afterLookChange, lookApi } from './looks-api';
 import { SettingsTab } from './settings/SettingsTab';
 import { LookSamples } from './settings/LookSamples';
 import { USE_MESSAGE } from './LooksPage';
+import { addDesignHref } from './AddDesignPage';
 import { useLookSamples } from './use-look-samples';
 
 const TABS = [{ id: 'settings', label: 'Settings' }, { id: 'designs', label: 'Designs' }, { id: 'check', label: 'Check' }] as const;
@@ -60,6 +61,12 @@ export function LookPage({ initial, list, activeRef, onActive }: { initial: OwnD
   const compDefs = useMemo(() => look.compositions.map((c) => c.definition), [look.compositions]);
   const target = useMemo(() => (invalid ? null : { look: lookForPreview(draft, look.compositions, order) }), [invalid, draft, look.compositions]);
   const samples = useLookSamples(target);
+  // "Add to my look" from this look's samples (each the first enabled design of its kind), while another look is in use
+  const addHref = activeRef && !inUse ? (kind: string) => {
+    const designs = look.compositions.filter((c) => c.kind === kind).sort((a, b) => a.position - b.position);
+    const i = designs.findIndex((c) => c.enabled);
+    return i >= 0 ? addDesignHref(look.ref, kind, i) : null;
+  } : undefined;
 
   const apply = (next: OwnDetail, keepDraft = false) => { setLook(next); if (!keepDraft) setDraft(settingsOf(next.definition)); };
   const status = lookStatus(look);
@@ -113,7 +120,7 @@ export function LookPage({ initial, list, activeRef, onActive }: { initial: OwnD
       )}
       {status === 'attention' && look.problems?.[0] && <Notice tone="warn">{look.problems[0]}</Notice>}
 
-      {tab !== 'settings' && <SampleStrip state={samples} kinds={order} lookName={look.name} compact className="max-w-xl" />}
+      {tab !== 'settings' && <SampleStrip state={samples} kinds={order} lookName={look.name} compact className="max-w-xl" addHref={addHref} />}
 
       <nav aria-label="Parts of the look" className="-mb-2">
         <ul className="flex gap-1 border-b">
@@ -130,7 +137,7 @@ export function LookPage({ initial, list, activeRef, onActive }: { initial: OwnD
 
       {tab === 'settings' && (
         <div className="grid gap-x-10 gap-y-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:items-start">
-          <LookSamples state={samples} kinds={order} lookName={look.name} className="md:sticky md:top-4" />
+          <LookSamples state={samples} kinds={order} lookName={look.name} className="md:sticky md:top-4" addHref={addHref} />
           <div className="max-w-2xl">
             <SettingsTab ctx={{ look: draft, catalogue: cat, fonts: list.fonts, errors, disabled: false, onChange: change }} comps={compDefs}
               originRef={look.origin.startsWith('copy:') ? look.origin : null} saved={settingsOf(look.definition)} onLook={setDraft} />
@@ -138,7 +145,7 @@ export function LookPage({ initial, list, activeRef, onActive }: { initial: OwnD
           </div>
         </div>
       )}
-      {tab === 'designs' && <DesignsTab look={look} list={list} onLook={(l) => apply(l, dirty)} />}
+      {tab === 'designs' && <DesignsTab look={look} list={list} onLook={(l) => apply(l, dirty)} canAddToActive={!!activeRef && !inUse} />}
       {tab === 'check' && <CheckTab look={look} catalogue={cat} onReload={() => void reload()} />}
 
       {publishing && <PublishDialog look={look} inUse={inUse} onClose={() => setPublishing(false)} onPublished={(l) => apply(l, dirty)} />}

@@ -69,3 +69,16 @@ export const isOwn = (l: LookDetail | OwnSummary | ShippedSummary): l is OwnDeta
 export interface PreviewSample { kind: string; ok: boolean; image?: string; error?: string; warnings: string[] }
 export interface PreviewAnswer { hash: string; samples: PreviewSample[]; superseded?: boolean }
 export interface Problem { path: string; message: string }
+
+// A design just added to a look: switched on only when its checks passed (`message` says what failed otherwise).
+export interface AddedDesign { id: string; enabled: boolean; passed: boolean; message?: string }
+// What "Add to my look" would do (POST /api/settings/looks/add-design/plan): the design, the look in use (null: none), the copy a shipped look
+// in use needs, its designs of the kind (to replace one when the kind is full) and the look to draw the design in (`candidate`).
+export interface AddDesignPlan {
+  source: { ref: string; lookName: string; name: string; kind: string; index: number };
+  target: { ref: string; name: string; shipped: boolean; copyName?: string; status?: string } | null;
+  designs: Array<{ index: number; name: string; enabled: boolean }>;
+  full: boolean; perKind: number; candidate: Json | null; candidateIndex: number | null; replace: number | null;
+  typefaces: { travel: boolean; note: string };
+}
+export interface AddDesignResult { look: OwnDetail; activeRef: string | null; copied: boolean; used: boolean; published: boolean; publishProblems?: Problem[] }

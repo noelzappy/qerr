@@ -1,14 +1,17 @@
 // The look's sample pictures, larger than the strip on the other tabs, in a few columns beside the choices. While previews are not
-// available they are quiet placeholders named by kind; a click enlarges one. Collapsible on phones, where they come first.
+// available they are quiet placeholders named by kind; a click enlarges one (with "Add to my look" when `addHref` names a page for it).
+// Collapsible on phones, where they come first.
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronDown, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { kindName } from '../look-model';
 import type { PreviewSample } from '../look-types';
 import type { SampleState } from '../use-look-samples';
 
-export function LookSamples({ state, kinds, lookName, className }: { state: SampleState; kinds: string[]; lookName: string; className?: string }) {
+export function LookSamples({ state, kinds, lookName, className, addHref }: { state: SampleState; kinds: string[]; lookName: string; className?: string; addHref?: (kind: string) => string | null }) {
   const [open, setOpen] = useState<PreviewSample | null>(null);
   const [shown, setShown] = useState(true);
   const bySample = new Map(state.samples.map((s) => [s.kind, s]));
@@ -50,6 +53,7 @@ export function LookSamples({ state, kinds, lookName, className }: { state: Samp
               </DialogHeader>
               {open.image && <img src={open.image} alt={`${lookName}: a ${kindName(open.kind)} post`} className="w-full rounded-sm border" />}
               {open.warnings.length > 0 && <ul className="list-disc space-y-1 pl-[18px] text-[13px] text-muted-foreground">{open.warnings.map((w, i) => <li key={i} className="[overflow-wrap:anywhere]">{w}</li>)}</ul>}
+              {addHref?.(open.kind) && <div className="flex justify-end"><Button asChild><Link to={addHref(open.kind)!}><Plus aria-hidden="true" /> Add to my look</Link></Button></div>}
             </>
           )}
         </DialogContent>

@@ -7,6 +7,7 @@ import { SettingsShell } from './shell/SettingsShell';
 import { Home } from './pages/Home';
 import { Publish } from './pages/Publish';
 import { BrandSettingsPage } from './pages/settings/Brand';
+import { AddDesignPage } from './pages/settings/looks/AddDesignPage';
 import { DesignRoute, LookRoute } from './pages/settings/looks/LookRoutes';
 import { LooksPage } from './pages/settings/looks/LooksPage';
 import { LayoutsPage } from './pages/settings/Layouts';
@@ -76,6 +77,7 @@ export function App() {
               <Route path="/settings/looks" element={<LooksPage />} />
               <Route path="/settings/looks/inspiration" element={<LooksPage tab="inspiration" />} />
               <Route path="/settings/looks/series" element={<LooksPage tab="series" />} />
+              <Route path="/settings/looks/add-design" element={<AddDesignPage />} />
               <Route path="/settings/looks/:slug" element={<LookRoute />} />
               <Route path="/settings/looks/:slug/designs/:id" element={<DesignRoute />} />
               <Route path="/settings/layouts" element={<LayoutsPage />} />

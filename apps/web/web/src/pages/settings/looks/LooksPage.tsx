@@ -1,9 +1,11 @@
 // Settings, Looks: the gallery. "In use" (the brand's look, or Classic layouts), "Looks we ship" (use one, or customise a copy) and
-// "Your looks" (copies the brand made, with their status). A second tab, Series, holds the brand's named recurring series (drawn by the
+// "Your looks" (copies the brand made and looks started blank, with their status; "New look" starts one from a look or blank). A sample of a
+// shipped look offers "Add to my look" (that design added to the look in use). A second tab, Series, holds the brand's named recurring series (drawn by the
 // look in use); a third, Inspiration, the design references. A look decides how
 // every kind of post is drawn; changing the look in use changes new images only (posts already made keep theirs until remade).
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppInfo } from '../../../app-info';
 import { useDocumentTitle, useLoad } from '../../../hooks';
@@ -20,6 +22,8 @@ import { kindOrder, kindsSummary, LOOK_STATUS, lookStatus, originText, whenText 
 import type { LooksAnswer, OwnSummary, ShippedSummary } from './look-types';
 import { afterLookChange, lookApi } from './looks-api';
 import { useLookSamples } from './use-look-samples';
+import { addDesignHref } from './AddDesignPage';
+import { NewLookDialog } from './NewLookDialog';
 
 const PURPOSE = 'A look decides how every kind of post is drawn: typeface, layout, picture treatment and emphasis.';
 export const USE_MESSAGE = 'New images use this look. Posts already made keep their images until you make them again.';
@@ -53,8 +57,10 @@ function Name({ l }: { l: Summary }) {
   return <h3 className="min-w-0 truncate text-[14px] font-semibold">{l.name}</h3>;
 }
 
-function ShippedCard({ l, kinds, active, onUse, onCustomise, busy }: { l: ShippedSummary; kinds: string[]; active: boolean; onUse: () => void; onCustomise: () => void; busy: boolean }) {
+function ShippedCard({ l, kinds, active, canAdd, onUse, onCustomise, busy }: { l: ShippedSummary; kinds: string[]; active: boolean; canAdd: boolean; onUse: () => void; onCustomise: () => void; busy: boolean }) {
   const samples = useLookSamples({ ref: l.ref });
+  // each sample is the look's first design of its kind
+  const addHref = canAdd ? (kind: string) => (l.kinds[kind] ? addDesignHref(l.ref, kind, 0) : null) : undefined;
   return (
     <li className="flex min-w-0 flex-col gap-2.5 rounded-lg border bg-card p-3">
       <div>
@@ -62,7 +68,7 @@ function ShippedCard({ l, kinds, active, onUse, onCustomise, busy }: { l: Shippe
         <p className="line-clamp-2 text-[13px] text-muted-foreground" title={l.description}>{l.description}</p>
         <p className="mt-0.5 text-[12.5px] text-muted-foreground">{kindsSummary(l.kinds)}</p>
       </div>
-      <SampleStrip state={samples} kinds={kinds} lookName={l.name} compact />
+      <SampleStrip state={samples} kinds={kinds} lookName={l.name} compact addHref={addHref} />
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
         {!active && <Button size="sm" onClick={onUse}>Use this look</Button>}
         <BusyButton size="sm" variant="outline" loading={busy} onClick={onCustomise}>Customise</BusyButton>
@@ -102,6 +108,7 @@ export function LooksPage({ tab = 'looks' }: { tab?: Tab }) {
   const [classic, setClassic] = useState(false);
   const [deleting, setDeleting] = useState<OwnSummary | null>(null);
   const [copying, setCopying] = useState('');
+  const [creating, setCreating] = useState(false);
   const d = data.data;
   const kinds = kindOrder(d?.catalogue ?? null);
 
@@ -126,14 +133,17 @@ export function LooksPage({ tab = 'looks' }: { tab?: Tab }) {
             <section id="shipped" aria-labelledby="shipped-title" className="flex scroll-mt-6 flex-col gap-2.5">
               <h2 id="shipped-title" className="text-sm font-semibold">Looks we ship</h2>
               <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {d.shipped.map((l) => <ShippedCard key={l.ref} l={l} kinds={kinds} active={d.activeRef === l.ref} busy={copying === l.ref} onUse={() => setUsing(l)} onCustomise={() => void customise(l.ref)} />)}
+                {d.shipped.map((l) => <ShippedCard key={l.ref} l={l} kinds={kinds} active={d.activeRef === l.ref} canAdd={!!d.activeRef && d.activeRef !== l.ref} busy={copying === l.ref} onUse={() => setUsing(l)} onCustomise={() => void customise(l.ref)} />)}
               </ul>
             </section>
 
             <section aria-labelledby="own-title" className="flex flex-col gap-2.5">
-              <h2 id="own-title" className="text-sm font-semibold">Your looks</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="own-title" className="text-sm font-semibold">Your looks</h2>
+                <Button type="button" size="sm" variant="outline" disabled={d.own.length >= d.limits.looks} onClick={() => setCreating(true)}><Plus aria-hidden="true" /> New look</Button>
+              </div>
               {d.own.length >= d.limits.looks - 2 && <p className="text-[12.5px] text-muted-foreground" role="status">You have {d.own.length} of {d.limits.looks} looks.</p>}
-              {d.own.length === 0 ? <EmptyBlock title="No looks of your own yet">Customise a look we ship to make it your own.</EmptyBlock> : (
+              {d.own.length === 0 ? <EmptyBlock title="No looks of your own yet" action={<Button type="button" size="sm" onClick={() => setCreating(true)}><Plus aria-hidden="true" /> New look</Button>}>Customise a look we ship, or start a new one from a look or blank.</EmptyBlock> : (
                 <ul className="divide-y rounded-lg border">
                   {d.own.map((l) => {
                     const st = lookStatus(l);
@@ -184,6 +194,7 @@ export function LooksPage({ tab = 'looks' }: { tab?: Tab }) {
         onConfirm={async () => { if (!deleting) return; await lookApi.remove(deleting.slug); setDeleting(null); toast.success('The look is deleted.'); changed(); }}
         onCancel={() => setDeleting(null)}
       />
+      {creating && d && <NewLookDialog data={d} onClose={() => setCreating(false)} />}
       {tab === 'looks' && d && d.shipped.length === 0 && <Notice tone="warn">This version of the app has no looks to show yet.</Notice>}
     </SettingsPage>
   );
