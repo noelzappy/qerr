@@ -64,9 +64,9 @@ markup**. This matters because the texts may be written by a program from web re
   wrapper (see [deploy/README.md](../deploy/README.md)). Without Chrome the render fails with a message that says how to
   fix it.
 - **One Chrome at a time.** The render job renders one post at a time, and one lock file for the whole machine
-  (`vesk-chrome.lock` in the system's temporary folder, or the absolute path `VESK_CHROME_LOCK` names; `chromeLockFile` in
+  (`qerr-chrome.lock` in the system's temporary folder, or the absolute path `QERR_CHROME_LOCK` names; `chromeLockFile` in
   `lib/design/chrome.mjs`) makes every render wait while another Chrome runs, whichever checkout, worktree, test or script started it
-  (up to `VESK_CHROME_LOCK_WAIT_MS`, 30 minutes by default, then it stops with the reason). The file is created atomically and holds the
+  (up to `QERR_CHROME_LOCK_WAIT_MS`, 30 minutes by default, then it stops with the reason). The file is created atomically and holds the
   pid of the process using Chrome; a lock left by a process that is gone is taken over. A post uses one Chrome for all its images.
 - **How Chrome is driven.** Through the DevTools protocol over a pipe, using only Node's standard library. The page is
   built as a self-contained string, laid out at the exact size (no browser window is involved), measured by a small script
@@ -1603,12 +1603,12 @@ second photo too).
 
 | Name | Where | What |
 |---|---|---|
-| `shippedLooks()` | `@vesk/engine/design/directions/index` | the frozen shipped looks, raw data `{ retail, swiss, soft, bloom, clean, loud, ledger, studio, roast, plate, guide }` |
+| `shippedLooks()` | `@qerr/engine/design/directions/index` | the frozen shipped looks, raw data `{ retail, swiss, soft, bloom, clean, loud, ledger, studio, roast, plate, guide }` |
 | `resolveLook(raw, { shipped })` | same | `{ problems }` or `{ problems: [], look (normalised), comps }`, memoised by content, deep frozen |
 | `renderPostWithLook(look, spec, ctx, { shipped })` | same | draws a post with a look written as data; any failure of the kit on a valid look is a `DesignError` |
 | `postKinds(brand)` | same | `{ [kind]: { required, fields: { field: { max, budget? } or { min, max, chars } or {} }, variants: [{ variant, name, describe }] } }` for the brand's direction, a code direction or its own look, the same shape |
 | `lookOfBrand(brand)` | same | the entry of `brand.looks` the direction names, or null |
-| `lookBrief(look)` | same, and `@vesk/engine/design/look` | the kinds, variants, fields and budgets of a raw look |
+| `lookBrief(look)` | same, and `@qerr/engine/design/look` | the kinds, variants, fields and budgets of a raw look |
 | `postCompositionDevice(look, spec)`, `compositionDevice(comp)`, `designScreenNeeds(design)` | `directions/index`, `look`, `lib/design-render.mjs` | the device (`phone`, `tablet` or none) the composition that will draw a post draws round its picture; a variant of `lookBrief` and `postKinds` says `device` too |
 | `validateBrand(raw)` | `design/brand.mjs` | validates `brand.looks` (at most `MAX_LOOKS` = 20, each through `validateLook`, problems prefixed `brand.json: looks[i]`, ids unique, origin `copy:...`) and accepts `style.direction` naming a shipped direction or the id of one of the brand's looks |
 | `validateDesign(d, where, { look })` | `design/spec.mjs` | a `post` design held to the kinds, variants and budgets of a data look (`postProblems(d, where, { brief })`); without `look` the direction is looked up among the engine's |

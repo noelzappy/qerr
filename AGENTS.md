@@ -1,6 +1,6 @@
 # Rules for people and AI agents
 
-These apply to anyone who changes or runs this repository or a Vesk deployment.
+These apply to anyone who changes or runs this repository or a Qerr deployment.
 
 1. **Never print or commit a key or secret.** That means every Buffer API key, every AI and search provider key, the S3
    secret access key, `APP_ENCRYPTION_KEY`, `BETTER_AUTH_SECRET`, the mail keys and `SEED_SECRETS_B64`. Buffer and AI keys
@@ -20,7 +20,7 @@ These apply to anyone who changes or runs this repository or a Vesk deployment.
    seen what Buffer holds. Never delete deliveries, edit the database or change the duplicate-protection hash to make a
    post send again. Nothing that may already have reached Buffer is ever retried automatically.
 5. **Run the tests before committing:** `npm test` (the engine and AI tests with `node --test`, the script tests, then the
-   web app's vitest, which needs Postgres) and `npm run typecheck --workspace @vesk/web`. A change in behaviour needs a
+   web app's vitest, which needs Postgres) and `npm run typecheck --workspace @qerr/web`. A change in behaviour needs a
    test that fails without it. Do not skip, delete or loosen a test to get green.
 6. **No AI attribution in commits or pull requests.** No `Co-Authored-By`, no `Generated with ...`, no mention of an AI
    tool. A commit message ends with the last line of its body.
@@ -33,11 +33,11 @@ These apply to anyone who changes or runs this repository or a Vesk deployment.
    place, organisation or amount in them: `packages/engine/design/assets/demo/` (drawn by `brands/demo/make-assets.mjs`)
    and the pictures a fictional brand pack's own `make-assets.mjs` draws inside that pack's folder (such as
    `brands/kettleworks/pictures/`). Never commit a photograph into a pack.
-8. **Do not claim what you have not seen.** Vesk has never run against the real Buffer API or a real S3 bucket. Do not
+8. **Do not claim what you have not seen.** Qerr has never run against the real Buffer API or a real S3 bucket. Do not
    write that something works with Buffer or Hetzner, or mark a point confirmed in `docs/buffer-api-notes.md`, unless a
    real run showed it.
 9. **Keep the engine (`packages/engine`) and the AI library (`packages/ai`) dependency-free** (Node 20+, standard
-   library only; the AI library may depend on `@vesk/engine` and nothing else). Only `apps/web` has dependencies. Keep
+   library only; the AI library may depend on `@qerr/engine` and nothing else). Only `apps/web` has dependencies. Keep
    `README.md`, `apps/web/README.md` and the `docs/` folder consistent with the code when you change a page, a route, an
    environment variable, a batch field or a design option.
 10. **Design rules.** Images are made by the engine's renderer (`packages/engine/lib/design-render.mjs`, run by the web

@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: An idea for Vesk
+about: An idea for Qerr
 labels: enhancement
 ---
 

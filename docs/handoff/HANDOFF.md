@@ -6,8 +6,8 @@ interface rules and glossary; `DIRECTIONS.md` is the art-direction brief for the
 
 ## Product context
 
-- The project is being renamed **Qerr** (domain qerr.cc) and will be hosted as a **multi-customer SaaS**. The rename has
-  not been done yet: code, packages (`@vesk/*`) and the UI still say Vesk.
+- The project has been renamed **Qerr** (domain qerr.cc) and will be hosted as a **multi-customer SaaS**. Code, packages
+  (`@qerr/*`), the UI and the docs say Qerr.
 - **People without code access must be able to build their own look entirely from the web panel.**
 - The owner sees the product as an AI-automated design and social tool ("an AI automated Canva alternative"): a brand
   sets up its look once, then the system writes posts, picks pictures, lays them out and checks them.
@@ -58,7 +58,7 @@ Three agents were stopped mid-work when the session moved. Their partial changes
 
 ## What to do next, in order
 
-1. Bring the checkpoint to a working state: `npm run typecheck --workspace @vesk/web`, then the engine look tests
+1. Bring the checkpoint to a working state: `npm run typecheck --workspace @qerr/web`, then the engine look tests
    (`node --test packages/engine/test-design-look*.mjs`), fix what the stopped agents left half done.
 2. Finish Soft (to the SusuPaa standard) and Bloom; render sheets with
    `node packages/engine/scripts/direction-sheet.mjs --look <file>` and look at every image.
@@ -70,10 +70,10 @@ Three agents were stopped mid-work when the session moved. Their partial changes
    Book on) and buttons; named recurring series; rows of round pictures; carousels.
 6. Rebuild one representative post per reference account as a look and compare side by side.
 7. Qerr rename: packages `@qerr/*`, app identity (logo, favicon, colours, Schibsted Grotesk wordmark), docs, deploy,
-   identifiers. The logo pack is on the owner's machine, not in the repo; ask for it. Renaming the GitHub repository
+   identifiers (done; the owner's logo export is in `docs/brand/qerr-logo/`). Renaming the GitHub repository
    and the local folder needs the owner.
 8. Full test pass at the end (the owner asked to skip tests until features work): `npm test` with a `TEST_DB_NAME`,
-   and `npm run typecheck --workspace @vesk/web`. Known stale tests: specs that pin the AI draft prompt, the retail
+   and `npm run typecheck --workspace @qerr/web`. Known stale tests: specs that pin the AI draft prompt, the retail
    and swiss look data, old design-editor labels. Update them to the new behaviour; do not skip or loosen them.
 9. Only then merge `feat/design-directions` into `main`, with the owner's go-ahead.
 

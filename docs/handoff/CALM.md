@@ -1,4 +1,4 @@
-# Vesk "calm interface" rules (round 3)
+# Qerr "calm interface" rules (round 3)
 
 The owner's verdict on the current UI: too busy, a strain on the eyes, too much descriptive text on screen,
 whole workflows cramped into side drawers. Wanted: compact, polished, quiet; dedicated pages with breadcrumbs for

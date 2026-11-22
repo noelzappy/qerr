@@ -1,6 +1,6 @@
 # Looks as data — the agreed design (binding for every agent on this work)
 
-Product: Qerr (formerly Vesk; the rename happens in a separate pass — keep using the names you find in the code).
+Product: Qerr (formerly Vesk; the code, packages and UI now use Qerr).
 Owner's decisions: (1) panel users with no code access must build their own look entirely from the web panel;
 (2) shipped looks (retail, swiss, later more) are authored in the SAME data format so they can be duplicated and
 edited; (3) the product will be hosted as a multi-customer SaaS, so looks must be tenancy-ready; (4) security model

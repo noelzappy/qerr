@@ -1,4 +1,4 @@
-# Vesk design directions — milestone 1 brief (shared by every agent on this work)
+# Qerr design directions — milestone 1 brief (shared by every agent on this work)
 
 ## Why
 The owner looked at posts made for seven different businesses and said, correctly, that they all look the same:

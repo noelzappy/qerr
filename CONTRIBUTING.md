@@ -13,7 +13,7 @@ You need:
 - Postgres 16 for the web app's tests. The quickest way is a throwaway container:
 
   ```sh
-  docker run -d --name vesk-test-pg -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:55440:5432 postgres:16
+  docker run -d --name qerr-test-pg -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:55440:5432 postgres:16
   ```
 
 Then, from the repository root:
@@ -40,7 +40,7 @@ To run the web app locally, see [apps/web/README.md](apps/web/README.md).
   AGENTS.md, rules 1 and 7).
 - Brand-specific things (names, colours, logos, prompts, facts) belong in the brand (Settings in the web app, or a brand pack under `brands/`), never in the
   engine, the AI library or the web app. Use the demo pack, `brands/demo`, in examples and tests.
-- Before you open a pull request, run `npm test` and `npm run typecheck --workspace @vesk/web`.
+- Before you open a pull request, run `npm test` and `npm run typecheck --workspace @qerr/web`.
 
 ## Pull requests
 

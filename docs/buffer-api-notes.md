@@ -1,6 +1,6 @@
 # Buffer API notes
 
-What Vesk relies on in Buffer's API, where it came from, and how much of it is confirmed. The code is in
+What Qerr relies on in Buffer's API, where it came from, and how much of it is confirmed. The code is in
 `packages/engine/lib/` (the client, the push loop and `deletePost`) and in the web app's account check
 (`checkAccount` in `apps/web/src/server/services/buffer-accounts.ts`).
 
@@ -9,13 +9,13 @@ What Vesk relies on in Buffer's API, where it came from, and how much of it is c
 Everything below was taken from Buffer's public developer documentation (<https://developers.buffer.com>) on
 2026-11-20, when the code was written, because no API key existed. **Only the three points marked confirmed under "What
 is not confirmed" have been checked against a live Buffer account** (a read-only check on 22 Nov 2026); no post, draft or
-other mutation has been sent. The tests use a fake Buffer that was built from the same documentation, so they prove Vesk is consistent
+other mutation has been sent. The tests use a fake Buffer that was built from the same documentation, so they prove Qerr is consistent
 with its own assumptions, not with Buffer.
 
 The way to turn assumptions into facts is the first run against real Buffer: Check on the account in Settings, then
 one draft to one channel, looked at in Buffer (see "The first run against real Buffer" in the [README](../README.md)).
 
-## What Vesk uses
+## What Qerr uses
 
 | Item | Value in the code | Source file |
 | --- | --- | --- |
@@ -65,7 +65,7 @@ as an uncertain answer and recorded as `unknown`.
 
 ### Enums relied on
 
-| Enum | Values Vesk uses |
+| Enum | Values Qerr uses |
 | --- | --- |
 | `ShareMode` | `customScheduled` |
 | `SchedulingType` | `automatic` |
@@ -75,7 +75,7 @@ as an uncertain answer and recorded as `unknown`.
 
 ### Media
 
-Buffer takes media by public URL only. There is no upload endpoint in the API, so Vesk sends the file's URL and
+Buffer takes media by public URL only. There is no upload endpoint in the API, so Qerr sends the file's URL and
 Buffer fetches it. Just before a send, the app copies each file the batch is about to send to the bucket's public prefix
 (`<S3_PREFIX><batch>/<hash>-<file>`) and gives Buffer that URL. Before sending, it checks each URL itself with a HEAD
 request. If the host answers HEAD differently from GET, that check can fail while Buffer could still fetch the file; the
@@ -86,13 +86,13 @@ post is refused in that case.
 - 150 requests per 15 minutes
 - 600 requests per day
 
-Vesk keeps itself under 140 requests in any 15 minutes and honours `Retry-After` on a 429 (60 seconds if the header
+Qerr keeps itself under 140 requests in any 15 minutes and honours `Retry-After` on a 429 (60 seconds if the header
 is missing, three tries). It does not count the daily limit. A month of three channels is about 21 to 40 requests.
 
-**Buffer's limits are per account, not per app.** With several accounts Vesk therefore keeps a separate client per
+**Buffer's limits are per account, not per app.** With several accounts Qerr therefore keeps a separate client per
 account: each has its own 140-in-15-minutes window and its own `Retry-After` wait, so one account being slow does not
 eat another's budget. Requests are still sent one at a time, so a wait on one account pauses the run. Whether the limits
-apply per key, per account or per organisation is not confirmed; Vesk assumes per account (that is, per key).
+apply per key, per account or per organisation is not confirmed; Qerr assumes per account (that is, per key).
 
 ### Several accounts, and X
 
@@ -124,24 +124,24 @@ mutation was sent, so everything else stays unconfirmed.
    Instagram type.
 8. That `PostTypeFacebook` contains `post`. Facebook reels or stories may have other values.
 9. The `posts` query: the `input` shape, the `sort` field, the `filter.status` values (especially `draft`), and
-   pagination. Vesk reads only the first page.
+   pagination. Qerr reads only the first page.
 10. That Buffer can fetch your media host (no hotlink or bot blocking, large videos allowed, redirects followed).
-11. Instagram and video requirements (formats, sizes, lengths) are not checked by Vesk. Buffer or the network may
-    refuse a file Vesk accepts.
+11. Instagram and video requirements (formats, sizes, lengths) are not checked by Qerr. Buffer or the network may
+    refuse a file Qerr accepts.
 12. The real behaviour of rate limiting: the header names, and whether a `Retry-After` is sent.
-13. Alt text for images: Vesk does not send any, and does not know whether Buffer takes one.
+13. Alt text for images: Qerr does not send any, and does not know whether Buffer takes one.
 14. That Buffer's `createPost` accepts X channels with exactly the fields sent for LinkedIn, and that no X-specific
     metadata is needed (for example for threads or replies).
 15. Confirmed 22 Nov 2026: an X channel's `service` is `twitter`, which the account check already maps to X.
 16. That the rate limits are per account, and that two keys of one person count as two accounts. Whether running several
     free Buffer accounts for one company is allowed is a question about Buffer's terms, not the API.
 17. That an expired key shows as a `401` or `403` and not as another error, and the real lifetime of a key.
-18. That Hetzner Object Storage accepts the SigV4 requests Vesk signs and serves the uploaded files publicly under
+18. That Hetzner Object Storage accepts the SigV4 requests Qerr signs and serves the uploaded files publicly under
     the bucket policy (the signer matches AWS's published examples; nothing has been sent to Hetzner), and that Buffer
     can fetch from that host.
 19. Several images in one post (a carousel): that Buffer keeps the `assets` in the order sent, takes up to 10 on Instagram and
-    up to 4 on X (the limits Vesk enforces, `MEDIA_LIMITS` in `packages/engine/lib/networks.mjs`), and what it takes on LinkedIn
-    and Facebook (Vesk sets no limit there). Vesk sends a carousel's pages as one post's `assets`, in page order, as drafts first.
+    up to 4 on X (the limits Qerr enforces, `MEDIA_LIMITS` in `packages/engine/lib/networks.mjs`), and what it takes on LinkedIn
+    and Facebook (Qerr sets no limit there). Qerr sends a carousel's pages as one post's `assets`, in page order, as drafts first.
 20. The `deletePost(input: { id })` mutation in `packages/engine/lib/buffer-delete.mjs` and its `DeletePostSuccess` and `VoidMutationError`
     result types. They are assumptions from Buffer's other mutation names; nothing has run against Buffer.
 
@@ -162,7 +162,7 @@ message, which usually names the field it did not accept.
 
 ## Channels
 
-- Instagram, LinkedIn, Facebook and X are wired into Vesk.
+- Instagram, LinkedIn, Facebook and X are wired into Qerr.
 - TikTok is supported by Buffer but not wired in. Adding a network means adding it to `packages/engine/lib/networks.mjs`, the metadata
   rules in `packages/engine/lib/batch.mjs`, the channel matching in `apps/web/src/server/engine/buffer.ts` and the web app's
   pages, with tests.

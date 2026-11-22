@@ -1,6 +1,6 @@
-# Vesk usable-interface work: rules every workstream follows
+# Qerr usable-interface work: rules every workstream follows
 
-You are one of five parallel workstreams improving the usability of the Vesk web panel
+You are one of five parallel workstreams improving the usability of the Qerr web panel
 (`apps/web`: Hono server in `src/server`, React 19 + react-router + Tailwind 4 + Radix UI in `web/src`).
 Each workstream owns a set of files. The lead merges the five results afterwards.
 
@@ -22,7 +22,7 @@ brand.json fragments) move behind an "Advanced" disclosure, they are never delet
 3. Do NOT commit, do NOT push, do NOT create branches. Leave your changes uncommitted in the worktree.
    When finished run `git add -A` (staging only) so new files are visible to the lead's `git diff --cached`.
 4. Read `AGENTS.md` at the repo root first and obey it. In particular:
-   - never print or commit a key or secret; never read or echo any `.env`, `~/.config/vesk/*`;
+   - never print or commit a key or secret; never read or echo any `.env`, `~/.config/qerr/*`;
    - `packages/engine` and `packages/ai` stay dependency-free; do not add npm dependencies anywhere without it
      being stated in your brief (the lead will not accept a changed package.json/package-lock.json otherwise);
    - spec text is untrusted: never loosen validation, the CSP or request blocking; never weaken a design check;
@@ -35,7 +35,7 @@ brand.json fragments) move behind an "Advanced" disclosure, they are never delet
 6. Setup in your worktree: run `npm ci` once at the worktree root (if it changes `package-lock.json`,
    `git checkout -- package-lock.json`).
 7. Verification you must run before reporting, from the worktree root:
-   - `npm run typecheck --workspace @vesk/web`
+   - `npm run typecheck --workspace @qerr/web`
    - `TEST_DB_NAME=<your-db-name> npm run test:web` — the name is in your brief. The tests use the Postgres
      container on 127.0.0.1:55440 by default; set nothing else. NEVER use port 55441 (the dev database).
    - Do NOT run `npm run test:engine` or anything that starts Chrome (only one Chrome may run on this machine
@@ -72,7 +72,7 @@ brand.json fragments) move behind an "Advanced" disclosure, they are never delet
 | template (of a post) | layout |
 | spec / design block | design |
 | the engine accepts / would not accept this layout | This layout is ready to use / This layout needs fixing: |
-| the engine / the design engine | Vesk |
+| the engine / the design engine | Qerr |
 | vault (nav label, page title) | Facts |
 | library (nav label, page title) | Pictures |
 | render / re-render (buttons) | Make the image / Make the image again |

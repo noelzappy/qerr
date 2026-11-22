@@ -1,11 +1,11 @@
-# Vesk web app
+# Qerr web app
 
 The web app for a team that runs a brand's social media. A small team keeps a vault of confirmed facts and photos (Facts and Pictures in the app), imports or drafts a
 month of posts, reviews and approves each one, renders its images with the design engine, and sends the approved posts
 to Buffer as drafts, then live. It is a Hono server, Postgres through Prisma, pg-boss jobs and a React web app built into
-`dist/web` and served by the same server. The engine (`packages/engine`, `@vesk/engine`) is its library: batch
+`dist/web` and served by the same server. The engine (`packages/engine`, `@qerr/engine`) is its library: batch
 validation, the duplicate guard and push loop, the Buffer client, the design renderer and storage. The server loads its
-modules by subpath (`engineImport('batch')` is `@vesk/engine/batch`, see `src/server/engine/`) and the AI library through
+modules by subpath (`engineImport('batch')` is `@qerr/engine/batch`, see `src/server/engine/`) and the AI library through
 `src/server/ai.ts`.
 
 The brand is set by an admin in Settings, Brand and look, and kept in the database: no file to edit. Until it is saved
@@ -23,16 +23,16 @@ never used a real bucket; only the account check's two read-only queries have ru
 - Postgres 16. The app and pg-boss share one database (pg-boss keeps its tables in the `pgboss` schema).
 - Google Chrome or Chromium, for rendering post images. Set `CHROME_PATH` if neither is in the usual place. JPG conversion uses `sips`
   (macOS) or `ffmpeg`.
-- The npm workspaces at the repository root: the server imports `@vesk/engine` and `@vesk/ai` from `packages/`, so install from the root.
+- The npm workspaces at the repository root: the server imports `@qerr/engine` and `@qerr/ai` from `packages/`, so install from the root.
 
 ## Install and local run
 
 ```bash
 npm install   # from the repository root: installs every workspace
 cd apps/web
-createdb vesk                                   # or any empty Postgres database
+createdb qerr                                   # or any empty Postgres database
 
-export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/vesk
+export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/qerr
 export APP_URL=http://localhost:3000
 export BETTER_AUTH_SECRET=$(openssl rand -hex 24)
 export APP_ENCRYPTION_KEY=$(openssl rand -base64 32)   # keep it: stored Buffer keys cannot be read without it
@@ -413,7 +413,7 @@ The public routes:
 | `GET /api/app` | no | `{ appName, brand: { name, website, timezone, series: [{ key, name }], logo } }`. Public on purpose: the sign-in page needs it, and it holds nothing that is not on the brand's own posts. `logo` is `/brand/logo-mark.png?v=<version>`, or `null` while the saved brand has no logos. |
 | `GET /brand/logo-mark.png` | no | The brand's logo mark, for the app's frame; 404 when there is none. |
 
-`appName` is `APP_NAME`, or `Vesk`. A vault that has already been seeded is never replaced.
+`appName` is `APP_NAME`, or `Qerr`. A vault that has already been seeded is never replaced.
 
 ## Commands
 
@@ -433,14 +433,14 @@ Tests need Postgres and run one file at a time against a real database (no mocke
 injectable `fetchImpl`, storage through the local or memory driver). Start a throwaway Postgres 16 and run them:
 
 ```bash
-docker run -d --name vesk-test-pg -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:55440:5432 postgres:16
-npm test                            # database vesk_test on 127.0.0.1:55440, created and migrated on first use
-TEST_DB_NAME=vesk_other npm test   # another database, so two runs do not clash
+docker run -d --name qerr-test-pg -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:55440:5432 postgres:16
+npm test                            # database qerr_test on 127.0.0.1:55440, created and migrated on first use
+TEST_DB_NAME=qerr_other npm test   # another database, so two runs do not clash
 ```
 
-The tests refuse to start when `@vesk/engine` or `@vesk/ai` resolves to another checkout of the repository (a git worktree
+The tests refuse to start when `@qerr/engine` or `@qerr/ai` resolves to another checkout of the repository (a git worktree
 without its own install finds the main checkout's packages by walking up the folders, and would test this app against
-another engine). Run `npm install` in the checkout, or link `node_modules/@vesk/engine` and `node_modules/@vesk/ai` to its
+another engine). Run `npm install` in the checkout, or link `node_modules/@qerr/engine` and `node_modules/@qerr/ai` to its
 own `packages/engine` and `packages/ai`.
 
 Set `TEST_DB_NAME` for another database name and `TEST_DATABASE_ADMIN_URL` for another server (default
@@ -464,7 +464,7 @@ that names the variable, never its value.
 | `APP_ENCRYPTION_KEY_VERSION`, `APP_ENCRYPTION_KEY_OLD` | Key rotation: the current key's version (default 1) and older keys as `version:base64,version:base64` |
 | `BOOTSTRAP_ADMIN_EMAIL` | On first start with no users, makes an admin invite and logs its link once |
 | `BRAND_DIR` | The brand pack, a folder under `brands/` relative to the repository root, for example `brands/acme`. Default `brands/demo`. It must stay inside the repository; a blank value counts as unset. Read by the engine, the AI library and the app. The app uses it only until a brand is saved in Settings; after that it points `BRAND_DIR` at the folder it writes under `state/brand/`. |
-| `APP_NAME` | The name in page titles, emails and the sign-in page. Default: `Vesk`. |
+| `APP_NAME` | The name in page titles, emails and the sign-in page. Default: `Qerr`. |
 | `SEED_VAULT`, `SEED_SECRETS_B64` | `SEED_VAULT=0` turns off the automatic vault seed; `SEED_SECRETS_B64` is the one-time secrets seed, removed after the first start (see Seeding a new deployment) |
 | `TRUSTED_ORIGINS` | Extra origins allowed to make changes, comma separated (for the Vite dev server) |
 | `TRUSTED_PROXY_HOPS` | How many proxies in front of the app append to `X-Forwarded-For`, default 1 (Traefik on Dokploy). The client address is the Nth entry from the end; everything before it is caller-written and ignored. With no header the socket address is used. |
@@ -476,8 +476,8 @@ that names the variable, never its value.
 | `S3_PREFIX` | The public prefix, default `public/`. Vault files (`vault/`) and renders (`renders/`) stay private; only what is about to be sent is copied under this prefix. The bucket is publicly readable, so private objects are protected only by an unguessable key: `vault/<random>/<id>/<sha>-<name>` and `renders/<random>/<batchId>/<postKey>/<sha>-<name>`, where `<random>` is 32 random bytes in base64url (43 characters) drawn per object and stored in the database. Old keys without it still work. |
 | `S3_PATH_STYLE` | `false` for virtual-hosted style addressing; default is path style |
 | `CHROME_PATH` | Path to the Chrome or Chromium executable, read by the design engine. Unset, it looks for Chrome, then Chromium, in the usual places. Without either, rendering fails with a message that says so. |
-| `VESK_CHROME_LOCK` | Optional. The absolute path of the machine-wide lock that keeps one Chrome running at a time; default `vesk-chrome.lock` in the system's temporary folder. Every checkout on the machine must use the same one. |
-| `VESK_CHROME_LOCK_WAIT_MS` | Optional. How long a render waits for another one's Chrome before it stops with the reason; default 1800000 (30 minutes). |
+| `QERR_CHROME_LOCK` | Optional. The absolute path of the machine-wide lock that keeps one Chrome running at a time; default `qerr-chrome.lock` in the system's temporary folder. Every checkout on the machine must use the same one. |
+| `QERR_CHROME_LOCK_WAIT_MS` | Optional. How long a render waits for another one's Chrome before it stops with the reason; default 1800000 (30 minutes). |
 
 Buffer keys and AI and search provider keys are not environment variables: an admin enters them in Settings (Buffer
 accounts; AI and search), and they are stored encrypted with `APP_ENCRYPTION_KEY` (AES-256-GCM, a fresh nonce per value,
@@ -487,7 +487,7 @@ put in a job payload. A new deployment can be seeded with them once (see "Seedin
 ### Client address and rate limits
 
 The client address is worked out in one place (`clientIp` in `src/server/middleware.ts`). A middleware that runs first
-removes any `x-vesk-client-ip` header the caller sent and sets it from the trusted address; Better Auth reads that header
+removes any `x-qerr-client-ip` header the caller sent and sets it from the trusted address; Better Auth reads that header
 only, so a spoofed or rotating `X-Forwarded-For` cannot get past its limiter or ours.
 
 When `RATE_LIMIT` is on, each of these answers 429 with `Retry-After` once a bucket is full (15-minute window):
@@ -617,7 +617,7 @@ and queues the `rewrite-post` job with `apply: true`, answering `202 { queued: t
 nothing, when the post is removed, no enabled provider is ticked for "Rewriting posts", the monthly budget is missing or used up, the post has
 no linked facts that still exist, or a rewrite of the post is already queued or running; `404` for an unknown post, `400` for a bad instruction.
 Editing rules are the ones of `PATCH /api/posts/:id` (a removed post is refused; there is no other guard, so a post already in Buffer is
-changed in Vesk only, as with a manual edit). `GET /api/posts/:id` carries `rewrite: { available, reason }` so the post page can say why the
+changed in Qerr only, as with a manual edit). `GET /api/posts/:id` carries `rewrite: { available, reason }` so the post page can say why the
 action cannot start without exposing provider details. The run is titled "Rewrite: <post>" (kind "Rewrite a post" in Activity).
 
 ## AI suggestions
@@ -645,7 +645,7 @@ AI's answer could not be used after one retry. In the web app, Brand and look, V
 
 ## AI
 
-The app never imports `@vesk/ai` directly. `src/server/ai.ts` is the seam: if the `@vesk/ai` workspace package is installed
+The app never imports `@qerr/ai` directly. `src/server/ai.ts` is the seam: if the `@qerr/ai` workspace package is installed
 it is loaded and its `createAI({ providers, search, budget, log })` must return `{ draftBatch, research, rewrite, analyseReference, suggestBrandFromSite, describePicture }`
 (the input and result types are in `ai.ts`). The library is an ordinary dependency of the app. Providers (Anthropic or OpenAI-compatible), the search provider and the
 monthly budget are set by an admin under AI and search (a provider's prices per million tokens too, which the budget needs to see its cost); their keys are encrypted at rest and only the last four

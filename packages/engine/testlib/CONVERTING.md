@@ -34,7 +34,7 @@ test that quietly stops covering a case fails too.
 the harness before and after and look at the pictures (below), then record the fixture again and commit it with the change:
 
 ```sh
-VESK_RECORD_MARKUP=1 npm test --workspace @vesk/engine
+QERR_RECORD_MARKUP=1 npm test --workspace @qerr/engine
 git diff --stat packages/engine/testlib/builtin-markup.json   # only the cases you meant to change
 ```
 

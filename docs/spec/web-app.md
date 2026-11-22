@@ -1,7 +1,7 @@
-# Vesk: web app spec
+# Qerr: web app spec
 
 Status: the original design, written on 20 November 2026 before the app was built. The app in `apps/web` follows it;
-where it differs, the code and `apps/web/README.md` are right. It was written when Vesk was a command-line tool; that
+where it differs, the code and `apps/web/README.md` are right. It was written when Qerr was a command-line tool; that
 tool has since been removed, and its library code (`packages/engine`) is the engine the app uses.
 
 ## 1. What it is
@@ -25,7 +25,7 @@ approved.
 | AI | Provider-agnostic: Anthropic today, any OpenAI-compatible API later. Chosen per task in settings. |
 | Buffer | Several Buffer accounts, each with its own key and channels. Keys entered in the app and stored encrypted with a key from the environment. |
 | Approval | A batch is reviewed post by post. Posts can be edited, approved or removed; only approved posts are scheduled. |
-| Look | The app has its own look (Vesk's light and dark themes, the layout of a modern publishing dashboard). The posts look like the brand: its typeface (the demo uses Inter, with IBM Plex Mono for labels and figures), its logo colours as accents, mostly neutral grounds, real photography first. |
+| Look | The app has its own look (Qerr's light and dark themes, the layout of a modern publishing dashboard). The posts look like the brand: its typeface (the demo uses Inter, with IBM Plex Mono for labels and figures), its logo colours as accents, mostly neutral grounds, real photography first. |
 
 ## 3. Parts
 
@@ -161,5 +161,5 @@ Each step is usable on its own and is reviewed before the next.
 2. **Search provider:** which one (Brave, Tavily or Exa), and its key.
 3. **Photo rights:** every photo a brand takes from its own website or elsewhere needs a known source and a licence
    that allows social posts before it goes in the vault.
-4. **Domain:** the address the app will live at (for example `vesk.example.com`), behind the platform's proxy.
+4. **Domain:** the address the app will live at (for example `qerr.example.com`), behind the platform's proxy.
 5. **Email sending** for invites and password resets: ZeptoMail, SMTP or none (links shown to copy).

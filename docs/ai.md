@@ -1,10 +1,10 @@
-# The AI library (`packages/ai/`, `@vesk/ai`)
+# The AI library (`packages/ai/`, `@qerr/ai`)
 
-No third-party dependencies, Node 20+, `fetch` only. It depends on the engine workspace (`@vesk/engine`) for the batch and design validators. It is the only way the Vesk web app talks to a model or a search
+No third-party dependencies, Node 20+, `fetch` only. It depends on the engine workspace (`@qerr/engine`) for the batch and design validators. It is the only way the Qerr web app talks to a model or a search
 provider. Its interface:
 
 ```js
-import { createAI } from '@vesk/ai';
+import { createAI } from '@qerr/ai';
 const ai = createAI({ providers, search, budget, log, prices });            // config from the app's settings, keys already decrypted
 await ai.draftBatch({ vault, series, period, count, channels, brand, timezone }); // -> { batch, notes }
 await ai.research({ topics, vault, since });                                       // -> { items, checks, notes }
@@ -345,9 +345,9 @@ the same version line. The pack's file is used when it exists, the library's oth
   person's name, a product behaviour) are controlled by the prompt and a human reviewer only.
 - Prices and the 180-day figure age are caller settings and a default; neither was checked against any real policy.
 
-## How the Vesk web app uses it
+## How the Qerr web app uses it
 
-`apps/web` depends on `@vesk/ai` and loads it through one seam, `loadAI()` in `src/server/ai.ts` (which tests replace). The `draft-batch` job (queued by `POST /api/batches/ai-draft`, or the Draft with AI button on the batch list)
+`apps/web` depends on `@qerr/ai` and loads it through one seam, `loadAI()` in `src/server/ai.ts` (which tests replace). The `draft-batch` job (queued by `POST /api/batches/ai-draft`, or the Draft with AI button on the batch list)
 sends the usable vault items (confirmed, current, rights settled; `vaultListForAi`), calls `draftBatch`, and imports the answer through the same path as a batch file: a batch
 in `draft` state owned by the person who asked, each post linked to its vault sources and carrying the AI's warnings,
 the drafter's `notes` kept on the batch (shown with an "AI draft" badge), and a render queued for every design block.

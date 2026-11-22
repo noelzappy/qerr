@@ -190,7 +190,7 @@ LinkedIn and Facebook limits through Buffer are not known, so none is enforced f
 | x | 280 | Buffer's free X tier. A paid X tier allows more: raise the account's X caption limit in Settings, Channels, under Buffer accounts. Up to 4 images. |
 
 The limit used for a post is the one of the account its network is routed to. X counts a link as 23 characters and
-some characters (for example many CJK ones) as two; Vesk counts plain characters, so near the limit check the count in
+some characters (for example many CJK ones) as two; Qerr counts plain characters, so near the limit check the count in
 Buffer.
 
 All warnings:

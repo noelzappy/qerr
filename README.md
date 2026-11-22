@@ -1,12 +1,12 @@
-# Vesk
+# Qerr
 
-Vesk is an open-source social media desk for an organisation that posts every month. A small team keeps a vault of
-confirmed facts and photos; the AI drafts a month of posts from it in the brand's voice; Vesk renders every image in the
+Qerr is an open-source social media desk for an organisation that posts every month. A small team keeps a vault of
+confirmed facts and photos; the AI drafts a month of posts from it in the brand's voice; Qerr renders every image in the
 brand's look; people review and approve each post; and the approved posts go to [Buffer](https://buffer.com), drafts
 first. It works for any organisation without writing code: the brand, its logos, colours, voice and visual direction are
 set in the admin panel, and the team can upload design references whose style the AI learns from.
 
-Vesk is a web app (`apps/web`). Home, Create, Facts, Pictures, Publish, Activity and Settings, in light and dark:
+Qerr is a web app (`apps/web`). Home, Create, Facts, Pictures, Publish, Activity and Settings, in light and dark:
 
 - **Home** shows the week, what waits for approval, the setup steps and what goes out next.
 - **Create** holds the batches. A batch is drafted by the AI or imported from a batch file; each post is written, reviewed,
@@ -35,7 +35,7 @@ Vesk is a web app (`apps/web`). Home, Create, Facts, Pictures, Publish, Activity
 
 Under it are two libraries with no dependencies, which the app imports:
 
-- **The engine** (`packages/engine`, `@vesk/engine`). It renders finished, on-brand post images with headless Google
+- **The engine** (`packages/engine`, `@qerr/engine`). It renders finished, on-brand post images with headless Google
   Chrome or Chromium (post pages drawn by a look, poster pages with one strong picture, editorial pages with ledger and
   passbook cards, real product screens in framed phones and desktop windows, photo posts, and carousels with a PDF; see
   [docs/design.md](docs/design.md)). A look can also draw bar, line, area, donut and progress charts and sparklines from a post's
@@ -46,7 +46,7 @@ Under it are two libraries with no dependencies, which the app imports:
   turns each approved post into one Buffer post per channel (Instagram, LinkedIn, Facebook and X) through Buffer's GraphQL
   API, with the duplicate guard, the media checks and the rate limits. The channels can belong to one Buffer account or
   to several.
-- **The AI library** (`packages/ai`, `@vesk/ai`). It drafts, researches and rewrites from the vault only, and describes
+- **The AI library** (`packages/ai`, `@qerr/ai`). It drafts, researches and rewrites from the vault only, and describes
   design references. It uses any Anthropic or OpenAI-compatible model. See [docs/ai.md](docs/ai.md).
 
 The repository ships a fictional demo brand, Acme Savings (`brands/demo`), so a fresh install has a brand to show and
@@ -58,7 +58,7 @@ Licence: MIT, see [LICENSE](LICENSE).
 
 ## Status: no post sent through the real Buffer API yet
 
-Vesk has been tested against a fake Buffer and fake or local storage. Against the real Buffer API it has run once, a
+Qerr has been tested against a fake Buffer and fake or local storage. Against the real Buffer API it has run once, a
 read-only check on 22 Nov 2026: the account check's two queries (organisations, then channels), which confirmed the
 endpoint, the bearer authentication, those two queries and that Buffer calls X `twitter`. No post, draft or other
 mutation has been sent. Everything else it knows about Buffer (the mutations, field names, enum values) comes from
@@ -90,7 +90,7 @@ It is not:
   to Instagram, LinkedIn, Facebook or X directly.
 - A media host for anyone else. Buffer takes media by public URL only, so the app copies the files of each post it sends
   to the public prefix of a bucket you own. It does not create or configure the bucket.
-- A WhatsApp tool (WhatsApp is not a Buffer channel), and not wired to TikTok (Buffer supports it; Vesk knows Instagram,
+- A WhatsApp tool (WhatsApp is not a Buffer channel), and not wired to TikTok (Buffer supports it; Qerr knows Instagram,
   LinkedIn, Facebook and X).
 
 There are two ways to draw a post. With a **look** (Settings, Looks), a post uses the `post` template: it says what it is
@@ -145,11 +145,11 @@ From the repository root:
 
 ```sh
 npm install                                        # every workspace
-docker run -d --name vesk-pg -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:5432:5432 postgres:16
-docker exec vesk-pg createdb -U postgres vesk      # or any empty database (wait a few seconds after the first line)
+docker run -d --name qerr-pg -e POSTGRES_PASSWORD=postgres -p 127.0.0.1:5432:5432 postgres:16
+docker exec qerr-pg createdb -U postgres qerr      # or any empty database (wait a few seconds after the first line)
 
 cd apps/web
-export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/vesk
+export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/qerr
 export APP_URL=http://localhost:3000
 export BETTER_AUTH_SECRET=$(openssl rand -hex 24)
 export APP_ENCRYPTION_KEY=$(openssl rand -base64 32)   # keep it: stored keys cannot be read without it
@@ -189,7 +189,7 @@ with a message that names the variable, never its value. The main ones:
 | `STORAGE_DRIVER` and `S3_*` | `local` (a folder, for development and tests) or `s3` with `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_PUBLIC_BASE_URL` and `S3_PREFIX` (default `public/`). |
 | `CHROME_PATH` | The Chrome or Chromium binary the engine renders with. |
 | `BRAND_DIR` | The brand pack shown until a brand is saved in Settings, and the source of the first vault. Default `brands/demo`. |
-| `APP_NAME` | The app's name in titles, emails and the sign-in page. Default `Vesk`. |
+| `APP_NAME` | The app's name in titles, emails and the sign-in page. Default `Qerr`. |
 | `ZEPTOMAIL_API_KEY`, `MAIL_FROM` or `SMTP_*` | Invite and reset emails. Without them the admin page shows the link to copy. |
 
 The full list (rate limits, proxies, seeding, mail) is in [apps/web/README.md](apps/web/README.md).
@@ -444,11 +444,11 @@ and result types, every enum value, `saveToDraft`, video thumbnail offsets, the 
 the order and number of images Buffer keeps in a carousel, whether Buffer fetches media from the bucket, and the real
 rate-limit behaviour. Also not verified against anything real: that Hetzner Object Storage accepts the signed requests
 and serves the copied files publicly under the bucket policy you set; whether Buffer's `createPost` takes X posts with
-the fields Vesk sends; whether one person may run several
+the fields Qerr sends; whether one person may run several
 free Buffer accounts (a question about Buffer's terms, see [docs/spec/web-app.md](docs/spec/web-app.md)); and whether
-Buffer's rate limits are per key, per account or per organisation (Vesk treats them as per account).
+Buffer's rate limits are per key, per account or per organisation (Qerr treats them as per account).
 
-Also open: X counts a link as 23 characters and some characters as two, and Vesk counts plain characters; no alt text
+Also open: X counts a link as 23 characters and some characters as two, and Qerr counts plain characters; no alt text
 for images, no Instagram stories, no per-network times, and a status refresh reads only the first page of Buffer's
 results.
 
@@ -460,7 +460,7 @@ npm run test:engine      # node --test in packages/engine (every test*.mjs file,
 npm run test:ai          # node --test in packages/ai
 npm run test:scripts     # node --test for scripts/ (the public export)
 npm run test:web         # vitest in apps/web; needs Postgres, see apps/web/README.md
-npm run typecheck --workspace @vesk/web
+npm run typecheck --workspace @qerr/web
 ```
 
 `npm test` needs no keys and no network: Buffer, the AI providers and the bucket are faked. The render tests need Google
@@ -510,7 +510,7 @@ The engine tests, in `packages/engine/`:
   `test-design-look-pictures.mjs`: the portrait quote and the device round a bare screenshot. `test-design-look-nopicture.mjs`: each design whose picture is optional, drawn without one.
 - `test-design-chart.mjs`, `test-design-chart-render.mjs`: chart and sparkline validation with hostile values, the brand's
   number format, and with Chrome the 3:1 rule for chart marks and every mark inside the chart's box.
-- `test-design-chrome-lock.mjs`: the machine-wide lock that keeps one Chrome running at a time (`VESK_CHROME_LOCK`).
+- `test-design-chrome-lock.mjs`: the machine-wide lock that keeps one Chrome running at a time (`QERR_CHROME_LOCK`).
 
 The AI tests are in `packages/ai/test-ai.mjs` (fake fetch, no network), the export tests in
 `scripts/test-export-public.mjs`, and the web app's specs in `apps/web/src/**/*.spec.ts`.
@@ -521,9 +521,9 @@ An npm workspaces monorepo.
 
 | Path | What it is |
 | --- | --- |
-| `apps/web/` (`@vesk/web`) | The web app: a Hono server, Postgres through Prisma, pg-boss jobs, and a React client built into `dist/web` (see [apps/web/README.md](apps/web/README.md)). The only workspace with dependencies. |
-| `packages/engine/` (`@vesk/engine`) | The engine: `lib/` (batch validation, the Buffer client, the push loop, storage, the design renderer) and `design/` (brand CSS, templates, fonts and the asset folders, including the committed demo pictures in `design/assets/demo/`), and its tests. No dependencies. The app imports its modules as `@vesk/engine/<module>`, for example `@vesk/engine/batch`. |
-| `packages/ai/` (`@vesk/ai`) | Drafting, research, rewriting and design-reference analysis (`src/`, with the versioned prompts) and its tests. No third-party dependencies; it uses the engine's validators. |
+| `apps/web/` (`@qerr/web`) | The web app: a Hono server, Postgres through Prisma, pg-boss jobs, and a React client built into `dist/web` (see [apps/web/README.md](apps/web/README.md)). The only workspace with dependencies. |
+| `packages/engine/` (`@qerr/engine`) | The engine: `lib/` (batch validation, the Buffer client, the push loop, storage, the design renderer) and `design/` (brand CSS, templates, fonts and the asset folders, including the committed demo pictures in `design/assets/demo/`), and its tests. No dependencies. The app imports its modules as `@qerr/engine/<module>`, for example `@qerr/engine/batch`. |
+| `packages/ai/` (`@qerr/ai`) | Drafting, research, rewriting and design-reference analysis (`src/`, with the versioned prompts) and its tests. No third-party dependencies; it uses the engine's validators. |
 | `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default, `brands/pennyhive` (the fictional Pennyhive, with its own example batch) a second test brand, `brands/tallyho` (the fictional Tallyho) the loud look's brand, `brands/northbeam` (the fictional Northbeam) the studio look's, `brands/kettleworks` (the fictional Kettleworks Coffee) the roast look's, `brands/saltandember` (the fictional Salt & Ember) the plate look's and `brands/outabout` (the fictional Outabout, a what's-on guide) the guide look's. |
 | `batches/` | Two example batch files for the demo brand, to import in the app (Create, New batch, the "Import a batch file" tab, marked Advanced) or to start from. |
 | `deploy/`, `Dockerfile` | The container image and the Docker Compose set-up, with `deploy/check.sh` to try it end to end. |
@@ -532,7 +532,7 @@ An npm workspaces monorepo.
 
 At run time the app writes `state/brand/` (the saved brand as a pack) and `out/` (temporary renders) at the repository
 root, and `apps/web/.data/` with the local storage driver. None of them is in git. The lock that keeps one Chrome running
-at a time is machine-wide, `vesk-chrome.lock` in the system's temporary folder (`VESK_CHROME_LOCK` moves it).
+at a time is machine-wide, `qerr-chrome.lock` in the system's temporary folder (`QERR_CHROME_LOCK` moves it).
 
 ## Documentation
 
@@ -543,7 +543,7 @@ at a time is machine-wide, `vesk-chrome.lock` in the system's temporary folder (
   pictures and screenshots, the automatic checks, the photo rules.
 - [docs/batch-format.md](docs/batch-format.md): every field of a batch, including the `design` block.
 - [docs/ai.md](docs/ai.md): the AI library: its interface, configuration, checks, safety rules, prompts and cost logging.
-- [docs/buffer-api-notes.md](docs/buffer-api-notes.md): what Vesk relies on in Buffer's API, and what is unconfirmed.
+- [docs/buffer-api-notes.md](docs/buffer-api-notes.md): what Qerr relies on in Buffer's API, and what is unconfirmed.
 - [docs/spec/web-app.md](docs/spec/web-app.md): the original design of the web app.
 - [packages/engine/design/README.md](packages/engine/design/README.md): the templates, the fonts and the asset folders.
 - [AGENTS.md](AGENTS.md): rules for anyone, person or AI agent, who changes or runs this repository.

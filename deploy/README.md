@@ -1,4 +1,4 @@
-# Deploying Vesk with Docker Compose
+# Deploying Qerr with Docker Compose
 
 The stack is two containers from `deploy/docker-compose.yml`: `app` (built from the `Dockerfile` at the repository
 root on Node 22: the npm workspaces `apps/web`, `packages/engine` and `packages/ai`, the brand packs in `brands/`, and
@@ -32,9 +32,9 @@ openssl rand -base64 32   # run once for BETTER_AUTH_SECRET, once for APP_ENCRYP
 | `POSTGRES_PASSWORD` | yes | Password of the `social` database user. Used by both containers. |
 | `BETTER_AUTH_SECRET` | yes | Session secret, 32+ random bytes. |
 | `APP_ENCRYPTION_KEY` | yes | 32 random bytes, base64. Encrypts the stored Buffer and AI keys. **Keep a copy outside the server: without it the stored keys cannot be read, and changing it breaks them.** |
-| `APP_URL` | yes | The public address, for example `https://vesk.example.com`. Used for invite and reset links and the origin check. The compose file refuses to start without it. |
+| `APP_URL` | yes | The public address, for example `https://qerr.example.com`. Used for invite and reset links and the origin check. The compose file refuses to start without it. |
 | `BRAND_DIR` | no | Rarely needed: the brand is set in Settings (see "Your own brand"). The starting brand pack: a folder under `brands/`, relative to the repository root, for example `brands/acme`. Empty means the demo pack, `brands/demo`. It must stay inside the repository, and the pack must be in the image (the `Dockerfile` copies `brands/`). |
-| `APP_NAME` | no | The name in page titles, emails and the sign-in page. Default: `Vesk`. |
+| `APP_NAME` | no | The name in page titles, emails and the sign-in page. Default: `Qerr`. |
 | `BOOTSTRAP_ADMIN_EMAIL` | first deploy | Email of the first admin (see section 4). Set it in the platform only; it is not in the repository. |
 | `SEED_SECRETS_B64` | first deploy only | One-time secrets seed (section 4a). Remove it after the first start. `SEED_VAULT=0` turns off the automatic vault seed. |
 | `ZEPTOMAIL_API_KEY`, `MAIL_FROM`, `MAIL_FROM_NAME` | for email | Invites and password resets go through ZeptoMail's HTTP API. `MAIL_FROM` is the sender address, for example `noreply@example.com`; `MAIL_FROM_NAME` defaults to the brand's name. If unset, the admin page shows the invite link to copy instead. |
@@ -58,8 +58,8 @@ private repository or fork: anything in `brands/` is in the image.
 
 ## 3. Domain and HTTPS
 
-Point DNS for your address (for example `vesk.example.com`) at the server. In the compose service's **Domains** tab add:
-host `vesk.example.com`, service `app`, container port `3000`, HTTPS on, certificate Let's Encrypt. No port is
+Point DNS for your address (for example `qerr.example.com`) at the server. In the compose service's **Domains** tab add:
+host `qerr.example.com`, service `app`, container port `3000`, HTTPS on, certificate Let's Encrypt. No port is
 published on the host; only the platform's proxy reaches the app. The `app` service is also attached to the external
 `dokploy-network` so the proxy can reach it; if your Dokploy version wires compose domains differently, keep the
 service name and port and adjust the network accordingly. Then **Deploy**.
@@ -144,7 +144,7 @@ through a rendered page would not be contained by the browser sandbox, only by t
 ## Checking the set-up
 
 `deploy/check.sh` (needs Docker) lints the compose file with throwaway values, builds the real image, starts the stack
-under the project name `vesk-local` (containers `vesk-local-app-1` and `vesk-local-postgres-1`,
+under the project name `qerr-local` (containers `qerr-local-app-1` and `qerr-local-postgres-1`,
 no host ports) and checks that the app runs as non-root, Chromium starts, the engine renders a `text` page, `/healthz`
 answers 200, the login page loads and the bootstrap admin invite (for `admin@example.com`) is logged once. It passes in
 nothing from any `.env` file, and it removes the containers, the volume and the network it made when it ends. With
