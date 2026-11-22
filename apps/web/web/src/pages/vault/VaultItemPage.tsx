@@ -1,7 +1,7 @@
 // One fact, figure, news item, event, product note, story, photo or screen as a page: create, edit, confirm, delete, the
 // picture upload for photos and screens, and the list of what still blocks it. /vault/new and /vault/:id render it, so a link
 // to an item still works. Cancel and the first crumb go back to the list the person came from, with its filters.
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { CircleCheck } from 'lucide-react';
 import { toast } from 'sonner';
@@ -10,13 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BusyButton, CheckField, ConfirmAction, EmptyBlock, Hint, MoreMenu, Notice, PageHeader, SelectField, TagField, TextAreaField, TextField, ToneBadge, type MoreMenuItem } from '@/components/kit';
+import { BusyButton, ConfirmAction, EmptyBlock, Hint, MoreMenu, Notice, PageHeader, ToneBadge, type MoreMenuItem } from '@/components/kit';
 import { useDocumentTitle, useLoad } from '@/hooks';
 import { confirmDiscard, useUnsavedGuard, withoutGuard } from '@/hooks/use-unsaved-guard';
 import { errorMessage, fieldErrors, formProblem } from '@/lib/errors';
-import { dateInputValue, formatDateTime } from '@/lib/format';
-import { KIND_LABEL, LICENCE_LABEL, VAULT_KINDS, type VaultKind } from '@/lib/labels';
+import { formatDateTime } from '@/lib/format';
 import { isFileKind, type VaultItem } from '../vault-types';
+import { startDraft, todayInput, type FactForm } from './fact-form';
+import { FactFields } from './FactFields';
 
 const MAX_FILE = 15 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -29,19 +30,7 @@ function ItemSkeleton() {
   );
 }
 
-interface Form {
-  kind: VaultKind; title: string; body: string; sourceUrl: string; sourceNotes: string;
-  recordedAt: string; validFrom: string; validUntil: string; tags: string[];
-  licence: '' | 'own' | 'licensed' | 'rights_to_confirm'; licenceNotes: string; peoplePresent: boolean; consentRecorded: boolean;
-}
-
-const toForm = (i: VaultItem | null): Form => ({
-  kind: i?.kind ?? 'fact', title: i?.title ?? '', body: i?.body ?? '', sourceUrl: i?.sourceUrl ?? '', sourceNotes: i?.sourceNotes ?? '',
-  recordedAt: dateInputValue(i?.recordedAt), validFrom: dateInputValue(i?.validFrom), validUntil: dateInputValue(i?.validUntil), tags: i?.tags ?? [],
-  licence: i?.licence ?? '', licenceNotes: i?.licenceNotes ?? '', peoplePresent: i?.peoplePresent ?? false, consentRecorded: i?.consentRecorded ?? false,
-});
-
-function toPayload(f: Form) {
+function toPayload(f: FactForm) {
   return {
     kind: f.kind, title: f.title.trim(), body: f.body,
     sourceUrl: f.sourceUrl.trim() || null, sourceNotes: f.sourceNotes.trim() || null,
@@ -50,7 +39,7 @@ function toPayload(f: Form) {
   };
 }
 
-function validate(f: Form, file: File | null): Record<string, string> {
+function validate(f: FactForm, file: File | null): Record<string, string> {
   const e: Record<string, string> = {};
   if (!f.title.trim()) e.title = 'Give the item a title';
   else if (f.title.trim().length > 200) e.title = 'Keep the title to 200 characters or fewer';
@@ -62,19 +51,6 @@ function validate(f: Form, file: File | null): Record<string, string> {
     else if (file.size === 0) e.file = 'The file is empty';
   }
   return e;
-}
-
-const KIND_OPTIONS = VAULT_KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }));
-const LICENCE_OPTIONS = [{ value: '', label: 'Not recorded yet' }, ...Object.entries(LICENCE_LABEL).map(([value, label]) => ({ value, label }))];
-
-// A titled part of the page: space above, no box.
-function Section({ title, hint, children }: { title: string; hint?: ReactNode; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-3" aria-label={title}>
-      <h2 className="flex items-center gap-1 text-[13.5px] font-semibold">{title}{hint && <Hint about={title}>{hint}</Hint>}</h2>
-      {children}
-    </section>
-  );
 }
 
 export function VaultItemPage() {
@@ -90,7 +66,12 @@ export function VaultItemPage() {
   const loading = !isNew && !item && !state.error;
   useDocumentTitle(item ? item.title : isNew ? 'New fact' : 'Fact');
 
-  const [form, setForm] = useState<Form>(() => toForm(item));
+  // A new fact's "Recorded on" starts as today; the fields mark what the page filled in.
+  const [today] = useState(todayInput);
+  const [draft, setDraft] = useState(() => startDraft(item, today));
+  const form = draft.form;
+  // Bumped when the form starts again from the stored item, so the fields' own state (the open Dates) starts again too.
+  const [resetKey, setResetKey] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [fileKey, setFileKey] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -104,7 +85,8 @@ export function VaultItemPage() {
   const [seen, setSeen] = useState(item);
   if (seen !== item) {
     setSeen(item);
-    setForm(toForm(item));
+    setDraft(startDraft(item, today));
+    setResetKey((k) => k + 1);
     setFile(null);
     setFileKey((k) => k + 1);
     setFields({});
@@ -112,12 +94,11 @@ export function VaultItemPage() {
     setActionError('');
   }
 
-  const initial = useMemo(() => toForm(item), [item]);
+  const initial = useMemo(() => startDraft(item, today).form, [item, today]);
   const dirty = !!file || JSON.stringify(form) !== JSON.stringify(initial);
   useUnsavedGuard(dirty);
   const goBack = () => confirmDiscard(dirty, () => navigate(backTo));
 
-  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
   const fileKind = isFileKind(form.kind);
 
   async function submit(e?: FormEvent) {
@@ -153,7 +134,7 @@ export function VaultItemPage() {
       else await state.reload();
     } catch (err) {
       setFields(fieldErrors(err));
-      setError(formProblem(err, Object.keys(toForm(null))));
+      setError(formProblem(err, Object.keys(initial)));
     } finally {
       setBusy(false);
     }
@@ -241,48 +222,13 @@ export function VaultItemPage() {
             </Notice>
           )}
 
-          <Section title="The fact">
-            <div className="grid gap-3 md:grid-cols-[12rem_minmax(0,1fr)]">
-              <SelectField label="Kind" value={form.kind} onValueChange={(v) => set('kind', v as VaultKind)} options={KIND_OPTIONS} error={fields.kind} />
-              <TextField label="Title" value={form.title} onChange={(e) => set('title', e.target.value)} error={fields.title} required maxLength={200} autoFocus={!item} />
-            </div>
-            <TextAreaField label={fileKind ? 'Description' : 'Text'} rows={fileKind ? 3 : 7} value={form.body} onChange={(e) => set('body', e.target.value)} error={fields.body} optional={fileKind}
-              hint={form.kind === 'figure' ? 'State the figure and what it measures, for example "12 million mobile money accounts in the country".' : fileKind ? 'What the picture shows, in a sentence or two. The AI reads this when choosing pictures.' : 'The fact or story, in plain words. Posts are written from this text.'} />
-          </Section>
-
-          <Section title="Source and date" hint="Figures carry the date they were true. Once the valid-until date passes, or the figure is older than the stale limit, it is flagged as stale.">
-            <TextField label="Source link" type="url" inputMode="url" value={form.sourceUrl} onChange={(e) => set('sourceUrl', e.target.value)} error={fields.sourceUrl} optional placeholder="https://example.com/report" hint="Where this came from." />
-            <TextAreaField label="Source notes" rows={2} value={form.sourceNotes} onChange={(e) => set('sourceNotes', e.target.value)} error={fields.sourceNotes} optional hint="Who said it, which document, or how you checked it." />
-            <div className="grid gap-3 md:grid-cols-3">
-              <TextField label="Recorded on" type="date" value={form.recordedAt} onChange={(e) => set('recordedAt', e.target.value)} error={fields.recordedAt} optional />
-              <TextField label="Valid from" type="date" value={form.validFrom} onChange={(e) => set('validFrom', e.target.value)} error={fields.validFrom} optional />
-              <TextField label="Valid until" type="date" value={form.validUntil} onChange={(e) => set('validUntil', e.target.value)} error={fields.validUntil} optional />
-            </div>
-          </Section>
-
-          {fileKind && (
-            <Section title="Picture">
-              <FileSection item={item} file={file} fileKey={fileKey} error={fields.file}
-                onFile={(f) => { setFile(f); setFields((x) => ({ ...x, file: '' })); }} onClear={() => { setFile(null); setFileKey((k) => k + 1); }} />
-              <div className="grid gap-3 md:grid-cols-2">
-                <SelectField label="Licence or permission" value={form.licence} onValueChange={(v) => set('licence', v as Form['licence'])} options={LICENCE_OPTIONS} error={fields.licence} />
-                <TextField label="Licence notes" value={form.licenceNotes} onChange={(e) => set('licenceNotes', e.target.value)} error={fields.licenceNotes} optional hint="The photographer or stock site to credit, and the licence reference." />
-              </div>
-              <p className="text-[12.5px] text-muted-foreground">A picture marked rights still to confirm can go in a draft, but its post cannot be approved until this is settled.</p>
-              <CheckField label="People can be recognised in this picture" checked={form.peoplePresent} onCheckedChange={(v) => set('peoplePresent', v)} />
-              {form.peoplePresent && (
-                <CheckField label="Their consent is recorded" hintMode="inline" hint="Tick only when you hold written or recorded permission to use their image." checked={form.consentRecorded} onCheckedChange={(v) => set('consentRecorded', v)} />
-              )}
-            </Section>
-          )}
-
-          <Section title="Tags">
-            <TagField tags={form.tags} onChange={(t) => set('tags', t)} error={fields.tags} label="Add a tag" />
-          </Section>
+          <FactFields key={resetKey} draft={draft} onDraft={setDraft} fields={fields} today={today} autoRecordedAt={isNew ? today : null} autoFocusText={!item}
+            picture={fileKind ? <FileSection item={item} file={file} fileKey={fileKey} error={fields.file}
+              onFile={(f) => { setFile(f); setFields((x) => ({ ...x, file: '' })); }} onClear={() => { setFile(null); setFileKey((k) => k + 1); }} /> : undefined} />
 
           {!item && <Notice tone="info">Saved as unconfirmed. Check it against its source, then confirm it from the menu. Photos and screens also need a licence, and consent if people can be recognised, before posts using them can be approved.</Notice>}
           {error && <Notice tone="bad">{error}</Notice>}
-          {item && dirty && <div><Button type="button" variant="ghost" className="max-sm:min-h-11" disabled={busy} onClick={() => { setForm(initial); setFile(null); setFileKey((k) => k + 1); setFields({}); setError(''); }}>Undo changes</Button></div>}
+          {item && dirty && <div><Button type="button" variant="ghost" className="max-sm:min-h-11" disabled={busy} onClick={() => { setDraft(startDraft(item, today)); setResetKey((k) => k + 1); setFile(null); setFileKey((k) => k + 1); setFields({}); setError(''); }}>Undo changes</Button></div>}
         </form>
       </div>
 
