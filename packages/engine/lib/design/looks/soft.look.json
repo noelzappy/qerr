@@ -522,15 +522,18 @@
           "type": "box",
           "place": {
             "px": {
-              "x": 640,
-              "y": 1140,
-              "w": 560,
-              "h": 560
+              "x": 520,
+              "y": 790,
+              "w": 700,
+              "h": 700
             }
           },
           "fill": "tint-deep",
           "radius": "full",
-          "z": 0
+          "z": 0,
+          "when": {
+            "absent": "sub"
+          }
         },
         {
           "type": "box",
@@ -539,7 +542,7 @@
               "x": 72,
               "y": 176,
               "w": 936,
-              "h": 940
+              "h": 630
             }
           },
           "flow": "column",
@@ -574,13 +577,13 @@
               "type": "fitted-stack",
               "field": "big",
               "mode": "lines",
-              "cap": 520,
+              "cap": 600,
               "floor": 150,
               "maxLines": 1,
               "trail": true,
               "lead": 0.9,
               "w": 936,
-              "h": 470
+              "h": 560
             },
             {
               "type": "text",
@@ -592,6 +595,50 @@
               "before": -4,
               "w": 936,
               "when": {
+                "present": "unit",
+                "absent": "sub"
+              }
+            }
+          ],
+          "justify": "between"
+        },
+        {
+          "type": "box",
+          "place": {
+            "px": {
+              "x": 72,
+              "y": 880,
+              "w": 936,
+              "h": 398
+            }
+          },
+          "fill": "paper",
+          "ink": "ink",
+          "radius": 56,
+          "pad": [
+            52,
+            56,
+            52,
+            56
+          ],
+          "flow": "column",
+          "justify": "center",
+          "align": "start",
+          "gap": 20,
+          "z": 2,
+          "when": {
+            "present": "sub"
+          },
+          "children": [
+            {
+              "type": "text",
+              "field": "unit",
+              "style": "display",
+              "size": 72,
+              "emphasis": "none",
+              "ink": "accent-type",
+              "w": 824,
+              "when": {
                 "present": "unit"
               }
             },
@@ -600,11 +647,7 @@
               "field": "sub",
               "style": "body",
               "ink": "ink",
-              "when": {
-                "present": "sub"
-              },
-              "w": 700,
-              "before": 8
+              "w": 760
             }
           ]
         }
@@ -858,7 +901,7 @@
           "place": {
             "px": {
               "x": 146,
-              "y": 282
+              "y": 236
             }
           },
           "z": 3
@@ -1411,10 +1454,41 @@
             {
               "type": "text",
               "field": "meta",
+              "split": {
+                "sep": "·",
+                "pick": 0
+              },
               "style": "body",
               "size": 32,
               "weight": 600,
-              "lead": 1.4
+              "lead": 1.3
+            },
+            {
+              "type": "text",
+              "field": "meta",
+              "split": {
+                "sep": "·",
+                "pick": 1
+              },
+              "style": "body",
+              "size": 32,
+              "weight": 600,
+              "lead": 1.3,
+              "before": 18
+            },
+            {
+              "type": "text",
+              "field": "meta",
+              "split": {
+                "sep": "·",
+                "pick": 2
+              },
+              "style": "body",
+              "size": 32,
+              "weight": 500,
+              "lead": 1.3,
+              "ink": "body",
+              "before": 18
             }
           ]
         },
