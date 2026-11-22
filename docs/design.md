@@ -1144,7 +1144,7 @@ a time, and writes only under the repository; `out/` is ignored by git. Look at 
 A design direction (editorial, swiss, retail) is engine code today. A **look** is the same thing written as data, so that it can be
 shown in the panel, copied, edited and checked without a developer: the tables, the validator, the catalogue the panel draws its controls
 from, the brief the AI and the post editor read, and the renderer that draws a look (`directions/interpret.mjs`, the primitives). The
-engine's own retail, swiss, soft, bloom, clean, loud, ledger and studio looks are shipped in this format (`lib/design/looks/*.look.json`), and the classic layouts (`layout.mjs`,
+engine's own retail, swiss, soft, bloom, clean, loud, ledger, studio, roast and plate looks are shipped in this format (`lib/design/looks/*.look.json`), and the classic layouts (`layout.mjs`,
 Settings, Layouts) are untouched. All of it is pure (no Chrome) and lives in `packages/engine/lib/design/`:
 
 | File | What it holds |
@@ -1183,7 +1183,7 @@ stored. At most 21 compositions, at most 3 of a kind.
 | `fitted-stack` | A headline sized by the page to fill its box: `lines`, `fill` or `block` |
 | `numeral` | A figure or date as large as the width allows, with an optional unit |
 | `mantra-rows` | The first part of the headline repeated as outline rows, the emphasis once, solid |
-| `rows` | One row per list item (or event part): number, tile, alternating fills and turns, rules. One per composition |
+| `rows` | One row per list item (or event part): number, tile, alternating fills and turns, rules, a dotted leader to a price. One per composition |
 | `photo` | The post's picture: rect, circle, arch, rounded, card or print, with treatments |
 | `seam` | The page cut by a slanted edge (picture or colour above, a colour role below); items flow in the colour below and one sticker may sit on the edge |
 | `band` | A turned full-width band (wider than the page, so its ends never show) |
@@ -1315,7 +1315,7 @@ outside the margin.
 | `fitted-stack` | `field`, `mode` (lines, fill, block), `cap`, `floor`, `maxLines`, `gapEm`, `lead`, `valign`, `emphasis`, `emphasisOwnLine`, `trail`, `stretch`, `padBelowEm`, `sizes`, `align` |
 | `numeral` | `field`, `format`, `cap`, `min` or `sizes`, `family`, `weight`, `baselineAt`, `unit` |
 | `mantra-rows` | `field`, `rmin`, `rmax`, `cap`, `floor`, `outline` |
-| `rows` | `each`, `number`, `numberStyle`, `numberSize`, `numberTile`, `numberSpan`, `textStyle`, `textSize`, `textTrack`, `altFill`, `altRot`, `rule`, `ruleEnd`, `sizeByCount`, `firstAccent`, `gap`, `rowMinH`, `valign`, `keys`, `icons` (one to five icon names: each row's tile shows an icon instead of a number, in turn; needs `numberTile` and numbering `none`), `numberInk` (the numbers' colour, checked against the page), `ruleColour` (`rule-dark` on a dark page, `rule-field` on the field) |
+| `rows` | `each`, `number`, `numberStyle`, `numberSize`, `numberTile`, `numberSpan`, `textStyle`, `textSize`, `textTrack`, `altFill`, `altRot`, `rule`, `ruleEnd`, `sizeByCount`, `firstAccent`, `gap`, `rowMinH`, `valign`, `keys`, `icons` (one to five icon names: each row's tile shows an icon instead of a number, in turn; needs `numberTile` and numbering `none`), `numberInk` (the numbers' colour, checked against the page), `ruleColour` (`rule-dark` on a dark page, `rule-field` on the field), `leader` (none, dotted, solid: each list item is split at its last `·`, the words before it on the left and the rest, a price or the hours, at the right end of the row on one line, joined by a line in the rows' ink that sits on the words' baseline and keeps 14 px clear of them; an item without a `·` is drawn whole; list rows only) |
 | `seam` | `leftY`, `rightY`, `edge`, `upper`, `lower`, `edgeFill`, `gap`; children flow in the colour below, optional `sticker` slot |
 | `band` | `y`, `h`, `gap`, `rot`, `origin`, `fill`, `ink`, `pad`, `shadow`; children flow in it |
 | `meta-row` | `tone`; the cells come from `devices.metaRow` |
@@ -1367,8 +1367,8 @@ paper, `on-field` to the ink, `body-dark` and `muted-dark` to the light greys), 
 
 ### The shipped looks and the engine's hooks
 
-`shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss, soft, bloom, clean, loud, ledger, studio }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each: two
-statements, a figure, a list, a quote, two photos, an event and an offer; loud has thirteen, ledger twelve, see below, studio seventeen), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
+`shippedLooks()` (`directions/index.mjs`) returns `{ retail, swiss, soft, bloom, clean, loud, ledger, studio, roast, plate }`: the full looks of `lib/design/looks/*.look.json` (nine compositions each: two
+statements, a figure, a list, a quote, two photos, an event and an offer; loud has thirteen, ledger twelve, see below, studio seventeen, roast twelve and plate ten), read once, validated with `{ shipped: true }`, deep frozen. Retail and swiss are the
 data counterpart of the code directions of the same name: retail is held to the code (the same budgets, names and grounds; geometry within 3 px of the
 code compositions in `test-design-look-equivalence.mjs`, with the deviations listed there: the roles of the unit and the date tile, and the wrapping
 highlight bar 0.12 em against 0.13 em); swiss is held to the approved prototype by eye. Soft (one sans in medium weights on pale tints of the brand colour, the logo top
@@ -1378,12 +1378,23 @@ fonts, two-tone headlines, a picture melting into a page sampled from its edge, 
 black or cream page, one accent (`one-accent`: the brand's primary is the field and the coloured final word), numbered rows on thin rules, report covers with a
 short red line and a red second line, a job post with a light title and a drawn phone outline, a speaker card with a picture on a colour block and a two-colour
 footer of the meta line and When / Where rows, an application page with a corner ribbon and the date on a yellow pill, yellow highlight pills, the web address
-and "Swipe" at the foot; three statements, two figures, three lists, two quotes, three photos, two events, two offers) and ledger (below) exist only as data. The fictional
+and "Swipe" at the foot; three statements, two figures, three lists, two quotes, three photos, two events, two offers) and ledger (below) exist only as data, and so do The fictional
 Northbeam pack (`brands/northbeam`) is made to show studio off. Where it falls short of its reference: no cut-out person on the red field and no photo of a
 speaker cut to a shape, the round picture row overlaps the demo pictures, and a brand whose primary does not read on its dark ground gets the light page
 instead of the black one (the one-accent rule).
-`test-design-look-retail.mjs`, `test-design-look-swiss.mjs`, `test-design-look-soft.mjs`, `test-design-look-bloom.mjs`, `test-design-look-clean.mjs`, `test-design-look-ledger.mjs` and `test-design-look-studio.mjs` accept no problem at all from the
-validator, and `test-design-look-equivalence.mjs` draws all six from sample, stress and minimal copy in three sets of brand colours through every check.
+roast and plate. **Roast** (a neighbourhood café; twelve compositions: two statements, a figure, two lists, a quote, two photos, two events and two offers)
+sets a friendly Fraunces (opsz 72, 600, italic emphasis) over Hanken Grotesk on cream, espresso and brown grounds with the brand's accent as round
+badges and pills: menu boards whose items run to their price along a dotted leader (write an item as "Flat white · €3"), a drink of the week in a rounded
+frame with a tilted round price badge, opening hours on info rows in a brown card, a tasting night with the date in a round badge, a stamp card of nine
+round stamps and a badge carrying the tag, and a regular's quote. **Plate** (a grill restaurant after dark; ten compositions: two statements, a figure, a
+list, a quote, two photos, two events and an offer) sets a fine Fraunces (opsz 144, 300) over small capitals in Inter on near-black (one pale page each
+for a statement and an event): full-bleed pictures under the dark laid over them by measured overlays, thin keylines, a menu with dotted price leaders, a
+huge figure between hairlines ("12 hour smoke"), a chef's quote, a reservation with When / Where / Book on rows and a button, a supper club with the
+date on a dark tile and tonight's special with a round price badge. Their fictional brands are `brands/kettleworks` (Kettleworks Coffee) and
+`brands/saltandember` (Salt & Ember); each pack carries its look as a copy (`looks`, `style.direction`), its drawn pictures (`make-assets.mjs`) and an
+example batch whose pictures are credited photos in `design/assets/photos/` (not committed).
+`test-design-look-retail.mjs`, `test-design-look-swiss.mjs`, `test-design-look-soft.mjs`, `test-design-look-bloom.mjs`, `test-design-look-clean.mjs`, `test-design-look-ledger.mjs`, `test-design-look-studio.mjs`, `test-design-look-roast.mjs` and `test-design-look-plate.mjs` accept no problem at all from the
+validator, and `test-design-look-equivalence.mjs` draws every shipped look from sample, stress and minimal copy in three sets of brand colours through every check.
 The retail price tag (figure/0) sets its figure as large as the stage allows (up to 930 px, centred) with the unit fitted on a full-width accent block
 under it, in the code composition and the look alike. A folio is written only from the post's real place (its position in its batch, or a carousel
 page's); without one a page has no folio, never a number made up from the words or the date. The partial `testlib/looks/*.sample.json` stay as test fixtures.
@@ -1443,7 +1454,7 @@ second photo too).
 
 | Name | Where | What |
 |---|---|---|
-| `shippedLooks()` | `@vesk/engine/design/directions/index` | the frozen shipped looks, raw data `{ retail, swiss, soft, bloom, clean, loud, ledger, studio }` |
+| `shippedLooks()` | `@vesk/engine/design/directions/index` | the frozen shipped looks, raw data `{ retail, swiss, soft, bloom, clean, loud, ledger, studio, roast, plate }` |
 | `resolveLook(raw, { shipped })` | same | `{ problems }` or `{ problems: [], look (normalised), comps }`, memoised by content, deep frozen |
 | `renderPostWithLook(look, spec, ctx, { shipped })` | same | draws a post with a look written as data; any failure of the kit on a valid look is a `DesignError` |
 | `postKinds(brand)` | same | `{ [kind]: { required, fields: { field: { max, budget? } or { min, max, chars } or {} }, variants: [{ variant, name, describe }] } }` for the brand's direction, a code direction or its own look, the same shape |
@@ -1459,7 +1470,7 @@ second photo too).
 **Drawing a look as a sheet:** `node packages/engine/scripts/direction-sheet.mjs --look packages/engine/lib/design/looks/retail.look.json,packages/engine/lib/design/looks/swiss.look.json
 [--copy sample|stress|minimal] [--brand out/brand-a] [--content file.json] [--out out/lk/x]` draws every composition of the looks, one column per look;
 with `--copy` each composition is drawn from the test copy written for it (`testlib/retail-copy.mjs`, `testlib/swiss-copy.mjs`; for soft and bloom pass
-`--copy-lib testlib/soft-copy.mjs,testlib/bloom-copy.mjs,testlib/clean-copy.mjs,testlib/loud-copy.mjs,testlib/ledger-copy.mjs,testlib/studio-copy.mjs`), without it from the
+`--copy-lib testlib/soft-copy.mjs,testlib/bloom-copy.mjs,testlib/clean-copy.mjs,testlib/loud-copy.mjs,testlib/ledger-copy.mjs,testlib/studio-copy.mjs,testlib/roast-copy.mjs,testlib/plate-copy.mjs`), without it from the
 content file (the shipped looks are drawn as a brand's own copy). Tests: `test-design-look-render.mjs` (hostile text through every binding, the
 style grammar, class and attribute sets, validation first, no Chrome), `test-design-look-equivalence.mjs` (Chrome: the data version of
-all nine retail compositions against the code oracle within 3 px, and all 18 shipped compositions through every check, from three copies in three sets of colours), `test-design-look-hooks.mjs` (the engine hooks, no Chrome).
+all nine retail compositions against the code oracle within 3 px, and every shipped composition through every check, from three copies in three sets of colours), `test-design-look-hooks.mjs` (the engine hooks, no Chrome).

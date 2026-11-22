@@ -2,6 +2,10 @@
 import { oneOf, VALIGNS, RULE_STYLES, RULE_WEIGHTS, ROW_EACH, ROW_KEYS, ROW_NUMBERS, STYLES, angle, bool, en, int, list, num, obj, role, tuple } from '../../look-desc.mjs';
 import { ICON_NAMES } from '../../icons.mjs';
 
+// A list item split at its last "·" (kit itemParts): its words, a line that takes the rest of the row, then what follows the "·" on one line at the
+// right end, in the ink of the rows (the rule colour when they set none). The line is a filled device, so it keeps LEADER_GAP px clear of the words on each side (the edge check) and sits just above the baseline.
+export const LEADERS = ['none', 'dotted', 'solid'];
+const LEADER_GAP = 14;
 export const SPEC = {
   label: 'Rows', group: 'Layout', help: 'One row for each item of a list (or each part of the event line): an optional number, then the words. One per composition.',
   placement: 'required', flow: true, container: null, text: true,
@@ -26,15 +30,17 @@ export const SPEC = {
     icons: list(en(ICON_NAMES, 'Icon', 'One of the engine\'s own icons.'), 5, 'Icons', 'Icons on the rows\' tiles instead of numbers, in turn (one icon: the same on every row). Needs a number tile and no numbering.', { min: 1 }),
     numberInk: role('Number colour', 'The colour of the numbers not on a tile (muted when left out); it must read on the page.'),
     ruleColour: role('Rule colour', 'The colour of the rules between rows (the ink at 55% when left out; rule-dark on a dark page, rule-field on the field).', 'rule'),
+    leader: en(LEADERS, 'Price leader', 'Splits each list item at its last "·": the words before it on the left, the words after it (a price, the hours) at the right end of the row, joined by a dotted or solid line (list rows only).', 'none'),
   },
   common: ['place', 'z', 'when', 'ink', 'fill', 'pad', 'grow', 'minH', 'w', 'before'],
   required: ['each'],
 };
 
-// For the static checks (look-validate.mjs): icons stand on a tile, in place of the numbers.
+// For the static checks (look-validate.mjs): icons stand on a tile, in place of the numbers; a leader splits list items.
 export function rules(el, bad) {
   if (el.icons !== undefined && (el.number ?? 'none') !== 'none') bad('puts icons where the numbers go; set numbering to none', 'icons');
   if (el.icons !== undefined && el.numberTile === undefined) bad('needs a number tile to stand on', 'icons');
+  if (el.leader !== undefined && el.leader !== 'none' && el.each !== 'items') bad('splits list items, so it needs each: items', 'leader');
 }
 // For the static checks (look-static.mjs): the number colour must read on what the rows stand on.
 export const inks = (el) => (el.numberInk !== undefined ? [el.numberInk] : []);
@@ -47,7 +53,9 @@ const clean = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !=
 // The rows are boxes in a column (env.box places the whole), each a row of a number cell and a text cell. Row text is Markup from c.items() / c.parts().
 export function render(c, p, env) {
   const look = env.look, T = look.type;
-  const cells = p.each === 'items' ? c.items() : c.parts('meta');
+  const leader = p.each === 'items' && p.leader !== undefined && p.leader !== 'none';
+  const parts = leader ? c.itemParts() : null;
+  const cells = parts ? parts.map((x) => x[0]) : p.each === 'items' ? c.items() : c.parts('meta');
   if (!cells.length) return '';
   const w = env.box.w ?? env.innerW;
   const padT = Array.isArray(p.pad) ? p.pad[0] : typeof p.pad === 'number' ? p.pad : 0, padB = Array.isArray(p.pad) ? p.pad[2] : typeof p.pad === 'number' ? p.pad : 0;
@@ -56,7 +64,8 @@ export function render(c, p, env) {
   const baseSize = p.textSize ?? (tx === 'item' ? T.item.size : tx === 'body' ? T.body.size : T.label.size);
   const stepped = (p.sizeByCount ?? []).filter(([n]) => cells.length >= n).sort((a, b) => b[0] - a[0])[0];
   const textSize = stepped ? stepped[1] : baseSize;
-  const textRun = (html, i) => c.run(clean({ html, role: p.each === 'items' ? 'item' : 'meta', family: tx === 'label' ? T.label.role : 'text', size: textSize, lead: tx === 'item' ? T.item.lead : tx === 'label' ? 1 : T.body.lead, weight: tx === 'item' ? T.item.weight : tx === 'label' ? T.label.weight : T.body.weight, ...(tx === 'label' ? { upper: T.label.upper, track: p.textTrack ?? T.label.track } : {}), colour: env.ink ?? 'ink', variant: 'fill' }));
+  // plain: a run that takes only its own width (the words before a price leader, and the price), not the rest of the row
+  const textRun = (html, i, plain) => c.run(clean({ html, nowrap: plain === 'price' || undefined, role: p.each === 'items' ? 'item' : 'meta', family: tx === 'label' ? T.label.role : 'text', size: textSize, lead: tx === 'item' ? T.item.lead : tx === 'label' ? 1 : T.body.lead, weight: tx === 'item' ? T.item.weight : tx === 'label' ? T.label.weight : T.body.weight, ...(tx === 'label' ? { upper: T.label.upper, track: p.textTrack ?? T.label.track } : {}), colour: env.ink ?? 'ink', variant: plain ? undefined : 'fill' }));
   const rows = cells.map((cell, i) => {
     const turn = p.altRot ? env.angle(p.altRot[i % 2]) : 0;
     const label = p.keys?.[i] ? c.run({ text: p.keys[i], role: 'label', family: T.label.role, size: T.label.size, lead: 1.2, weight: T.label.weight, track: T.label.track, upper: T.label.upper, colour: 'muted', nowrap: true }) : '';
@@ -76,8 +85,17 @@ export function render(c, p, env) {
       if (p.numberSpan) num = c.box({ flow: true, w: c.span(0, p.numberSpan - 1), flexNone: true }, num);
     }
     const fill = p.altFill ? p.altFill[i % 2] : p.fill;
+    let tail = '';
+    if (parts?.[i]?.[1]) {
+      const dot = Math.max(3, Math.round(textSize / 12)), line = Math.max(2, Math.round(textSize / 20));
+      const rule = c.flowBlock({ w: 'fill', h: p.leader === 'dotted' ? dot : line, colour: env.ink ?? (p.leader === 'dotted' ? 'rule' : 'rule-soft'), dotted: p.leader === 'dotted' || undefined });
+      // the line sits on the words' baseline: a box as tall as one line of the words, the line at its foot raised by the space under the baseline
+      const lead = tx === 'item' ? T.item.lead : tx === 'label' ? 1 : T.body.lead, lineH = Math.round(textSize * lead);
+      tail = c.box({ flow: true, grow: 1, h: lineH, flex: 'column', justify: 'end', pad: [0, LEADER_GAP, Math.round(textSize * ((lead - 1) / 2 + 0.2)), LEADER_GAP] }, rule)
+        + c.box({ flow: true, flexNone: true }, textRun(parts[i][1], i, 'price'));
+    }
     return c.box(clean({ flow: true, w, grow: p.grow ? 1 : undefined, minH: p.rowMinH || undefined, flex: 'row', align: p.valign === 'top' ? undefined : 'center', gap: p.gap, pad: [padT, padR, padB, padL], fill, ink: env.ink, radius: p.rowRadius, }),
-      (labelCell || '') + num + textRun(cell, i));
+      (labelCell || '') + num + textRun(cell, i, tail ? 'words' : undefined) + tail);
   });
   const ruleW = p.rule === 'none' ? 0 : (typeof p.rule === 'string' ? env.look.devices.rule[p.rule] : 0);
   const withRules = ruleW ? [...rows.map((r) => c.flowBlock({ w: 'fill', h: ruleW, colour: p.ruleColour ?? 'rule', dotted: p.ruleStyle === 'dotted' || undefined }) + r), ...(p.ruleEnd ? [c.flowBlock({ w: 'fill', h: ruleW, colour: p.ruleColour ?? 'rule', dotted: p.ruleStyle === 'dotted' || undefined })] : [])] : rows;

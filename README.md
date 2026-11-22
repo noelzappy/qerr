@@ -288,7 +288,7 @@ committed, so put them there before rendering it);
 
 A pack can hold private facts (`vault.json`) and the brand's own artwork. Keep a real brand's pack in a private repository
 or fork, not in a public one; `npm run export-public` makes a public copy of the repository that leaves out every pack
-but the fictional ones, `brands/demo`, `brands/pennyhive`, `brands/tallyho` and `brands/northbeam` (`PUBLIC_PACKS` in `scripts/export-public.mjs`).
+but the fictional ones, `brands/demo`, `brands/pennyhive`, `brands/tallyho`, `brands/northbeam`, `brands/kettleworks` and `brands/saltandember` (`PUBLIC_PACKS` in `scripts/export-public.mjs`).
 
 ## How it works
 
@@ -457,7 +457,7 @@ An npm workspaces monorepo.
 | `apps/web/` (`@vesk/web`) | The web app: a Hono server, Postgres through Prisma, pg-boss jobs, and a React client built into `dist/web` (see [apps/web/README.md](apps/web/README.md)). The only workspace with dependencies. |
 | `packages/engine/` (`@vesk/engine`) | The engine: `lib/` (batch validation, the Buffer client, the push loop, storage, the design renderer) and `design/` (brand CSS, templates, fonts and the asset folders, including the committed demo pictures in `design/assets/demo/`), and its tests. No dependencies. The app imports its modules as `@vesk/engine/<module>`, for example `@vesk/engine/batch`. |
 | `packages/ai/` (`@vesk/ai`) | Drafting, research, rewriting and design-reference analysis (`src/`, with the versioned prompts) and its tests. No third-party dependencies; it uses the engine's validators. |
-| `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default, `brands/pennyhive` (the fictional Pennyhive, with its own example batch) a second test brand, `brands/tallyho` (the fictional Tallyho) the loud look's brand, `brands/northbeam` (the fictional Northbeam) the studio look's. |
+| `brands/` | Brand packs, one folder each; `brands/demo` (the fictional Acme Savings) is the default, `brands/pennyhive` (the fictional Pennyhive, with its own example batch) a second test brand, `brands/tallyho` (the fictional Tallyho) the loud look's brand, `brands/northbeam` (the fictional Northbeam) the studio look's, `brands/kettleworks` (the fictional Kettleworks Coffee) the roast look's and `brands/saltandember` (the fictional Salt & Ember) the plate look's. |
 | `batches/` | Two example batch files for the demo brand, to import in the app (Create, New batch, the "Import a batch file" tab, marked Advanced) or to start from. |
 | `deploy/`, `Dockerfile` | The container image and the Docker Compose set-up, with `deploy/check.sh` to try it end to end. |
 | `docs/` | The documentation (below). |

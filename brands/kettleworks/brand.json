@@ -1,0 +1,2244 @@
+{
+  "name": "Kettleworks Coffee",
+  "website": "kettleworks.example",
+  "tagline": "Roasted round the corner, poured with care.",
+  "descriptor": "A neighbourhood coffee roaster and café in the invented town of Brookmere: small-batch beans, a short menu and a stamp card. A fictional brand for testing.",
+  "timezone": "Europe/Dublin",
+  "money": {
+    "local": "Kettleworks Coffee prices in euros (€) only",
+    "foreign": "US\\$|\\$|£|\\b(?:dollars?|pounds? sterling|rupees?|yen|nairas?)\\b"
+  },
+  "voice": "Friendly, warm and plain, like the person behind the counter. Short sentences. Talk about the coffee, the people and the neighbourhood; no hype, no urgency, and every price is a round, illustrative one.",
+  "language": "British English",
+  "visualDirection": "Warm and homely: cream paper and espresso browns, one bright tangerine accent used sparingly, friendly serif headlines, round shapes like cups and stamps, and menu-board lists.",
+  "grounds": {
+    "light": "#F6EEDF",
+    "soft": "#EFE3CE",
+    "cool": "#E9DCC6",
+    "warm": "#F3E2C6",
+    "dark": "#2A1A12",
+    "deep": "#3A2418"
+  },
+  "text": {
+    "ink": "#241610",
+    "body": "#4A3529",
+    "muted": "#6B5444",
+    "mutedInv": "#CBB59E",
+    "invBody": "#EADBC6",
+    "hair": {
+      "color": "#241610",
+      "alpha": 0.12
+    }
+  },
+  "accents": {
+    "gold": "#F26A3D",
+    "goldDeep": "#A8401A",
+    "primary": "#6A3B22"
+  },
+  "gradient": {
+    "sage": "#8A6A52",
+    "teal": "#6A3B22",
+    "mint": "#E9C9A6",
+    "gold": "#F26A3D",
+    "amber": "#D9822B"
+  },
+  "surfaces": {
+    "panel": "#EFE3CE",
+    "card": "#FFFFFF",
+    "line": {
+      "color": "#241610",
+      "alpha": 0.08
+    }
+  },
+  "scale": 2,
+  "radius": {
+    "card": 8,
+    "device": 12,
+    "button": 4
+  },
+  "shadows": {
+    "card": [
+      {
+        "x": 0,
+        "y": 13,
+        "blur": 27,
+        "spread": -5,
+        "color": "#241610",
+        "alpha": 0.18
+      },
+      {
+        "x": 0,
+        "y": 8,
+        "blur": 16,
+        "spread": -8,
+        "color": "#241610",
+        "alpha": 0.22
+      }
+    ],
+    "window": [
+      {
+        "x": 0,
+        "y": 13,
+        "blur": 27,
+        "spread": -5,
+        "color": "#241610",
+        "alpha": 0.18
+      },
+      {
+        "x": 0,
+        "y": 8,
+        "blur": 16,
+        "spread": -8,
+        "color": "#241610",
+        "alpha": 0.22
+      }
+    ],
+    "phone": [
+      {
+        "x": 0,
+        "y": 24,
+        "blur": 32,
+        "spread": 0,
+        "color": "#241610",
+        "alpha": 0.22
+      }
+    ]
+  },
+  "window": {
+    "refWidth": 560,
+    "bar": 32,
+    "dot": 8,
+    "dotGap": 6,
+    "padX": 12,
+    "titleGap": 12,
+    "titleSize": 10,
+    "titlePadX": 8,
+    "titlePadY": 2,
+    "tilt": {
+      "perspective": 1600,
+      "rotateY": -8,
+      "rotateX": 4
+    }
+  },
+  "phone": {
+    "refWidth": 300,
+    "fade": 56
+  },
+  "glow": {
+    "opacity": 0.6,
+    "blur": 64,
+    "inset": 40
+  },
+  "dots": {
+    "size": 1,
+    "spacing": 24,
+    "alpha": 0.08
+  },
+  "figure": {
+    "strong": 0.42,
+    "soft": 0.16,
+    "grid": 0.2
+  },
+  "font": {
+    "family": "Hanken Grotesk",
+    "mono": "JetBrains Mono",
+    "headlineWeight": 500,
+    "accentWeight": 400,
+    "tracking": -0.02,
+    "leading": 1.18,
+    "files": [
+      {
+        "role": "sans",
+        "weight": "400 800",
+        "file": "design/fonts/hanken-grotesk/hanken-grotesk-v12-normal-latin.woff2",
+        "range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+      },
+      {
+        "role": "sans",
+        "weight": "400 800",
+        "file": "design/fonts/hanken-grotesk/hanken-grotesk-v12-normal-latin-ext.woff2",
+        "range": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF"
+      },
+      {
+        "role": "mono",
+        "weight": "400 500",
+        "file": "design/fonts/jetbrains-mono/jetbrains-mono-v24-normal-latin.woff2",
+        "range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+      },
+      {
+        "role": "mono",
+        "weight": "400 500",
+        "file": "design/fonts/jetbrains-mono/jetbrains-mono-v24-normal-latin-ext.woff2",
+        "range": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF"
+      },
+      {
+        "role": "display",
+        "weight": "300 600",
+        "file": "design/fonts/fraunces/fraunces-v38-normal-latin-ext.woff2",
+        "range": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF"
+      },
+      {
+        "role": "display",
+        "weight": "300 600",
+        "file": "design/fonts/fraunces/fraunces-v38-normal-latin.woff2",
+        "range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD"
+      }
+    ],
+    "display": "Fraunces"
+  },
+  "poster": {
+    "headlineWeight": 650,
+    "tracking": -0.035,
+    "leading": 1.06,
+    "slabs": {
+      "myth": "#3A2418",
+      "fact": "#EFE3CE"
+    },
+    "slabRadius": 28,
+    "texture": {
+      "alpha": 0.045,
+      "spacing": 9,
+      "angle": 135
+    }
+  },
+  "logos": {
+    "full": "brands/kettleworks/logos/logo-full.png",
+    "mark": "brands/kettleworks/logos/logo-mark.png",
+    "fullSize": [
+      1461,
+      338
+    ],
+    "wordmarkFrom": 360,
+    "markGap": 22
+  },
+  "style": {
+    "direction": "roast"
+  },
+  "series": {
+    "drink-of-the-week": {
+      "name": "Drink of the week",
+      "ground": "warm",
+      "accent": "colour"
+    },
+    "on-the-menu": {
+      "name": "On the menu",
+      "ground": "dark",
+      "accent": "colour"
+    },
+    "regulars": {
+      "name": "Regulars",
+      "ground": "light",
+      "accent": "muted"
+    },
+    "roastery-notes": {
+      "name": "Roastery notes",
+      "ground": "soft",
+      "accent": "muted"
+    }
+  },
+  "spelling": [
+    {
+      "wrong": "Kettle[ -]works",
+      "flags": "i",
+      "right": "Kettleworks"
+    },
+    {
+      "wrong": "KettleWorks|KETTLEWORKS|\\bkettleworks\\b(?!\\.example)",
+      "flags": "",
+      "right": "Kettleworks"
+    }
+  ],
+  "lint": {
+    "headlineMaxChars": {
+      "feed": 60,
+      "wide": 48,
+      "story": 60,
+      "square": 50
+    },
+    "subMaxChars": {
+      "feed": 110,
+      "wide": 90,
+      "story": 110,
+      "square": 90
+    }
+  },
+  "contrast": {
+    "headline": 7,
+    "accent": 4.5,
+    "sub": 7,
+    "label": 4.5,
+    "art": 4.5,
+    "artbody": 7
+  },
+  "photo": {
+    "scrimStart": 0.5,
+    "scrimCap": 0.65,
+    "scrimStep": 0.05,
+    "footerFadeCap": 0.5,
+    "minContrast": {
+      "headline": 3,
+      "sub": 4.5,
+      "eyebrow": 4.5,
+      "url": 3
+    },
+    "maxUpscale": 1.3
+  },
+  "looks": [
+    {
+      "schema": 1,
+      "id": "roast",
+      "name": "Roast",
+      "description": "A neighbourhood café: warm cream and espresso grounds with one bright accent, a friendly soft serif, menu boards with dotted leaders to the prices, round badges, a stamp card and opening hours on labelled rows.",
+      "origin": "copy:shipped:roast",
+      "canvas": {
+        "feed": {
+          "margin": {
+            "top": 80,
+            "right": 80,
+            "bottom": 80,
+            "left": 80
+          },
+          "grid": {
+            "cols": 6,
+            "gutter": 24,
+            "rows": 0,
+            "head": 0
+          },
+          "extraLines": [
+            106,
+            136
+          ]
+        }
+      },
+      "fonts": {
+        "display": {
+          "source": "library",
+          "family": "Fraunces",
+          "weights": [
+            500,
+            600
+          ],
+          "italic": true,
+          "opsz": 72
+        },
+        "text": {
+          "source": "library",
+          "family": "Hanken Grotesk",
+          "weights": [
+            400,
+            600
+          ]
+        },
+        "label": {
+          "source": "library",
+          "family": "Hanken Grotesk",
+          "weights": [
+            700
+          ]
+        },
+        "mono": {
+          "source": "library",
+          "family": "Hanken Grotesk",
+          "weights": [
+            600
+          ]
+        }
+      },
+      "type": {
+        "display": {
+          "lead": 1,
+          "track": -0.02,
+          "weight": 600,
+          "case": "as-typed",
+          "ladder": [
+            1,
+            0.9,
+            0.82
+          ],
+          "trim": "none",
+          "optical": false
+        },
+        "body": {
+          "size": 32,
+          "lead": 1.4,
+          "weight": 400,
+          "strength": 1
+        },
+        "item": {
+          "size": 40,
+          "lead": 1.15,
+          "weight": 600
+        },
+        "label": {
+          "size": 24,
+          "track": 0.12,
+          "weight": 700,
+          "upper": true,
+          "role": "label"
+        },
+        "numeral": {
+          "track": -0.03,
+          "figures": "lining"
+        }
+      },
+      "colour": {
+        "logic": "tonal",
+        "field": "primary",
+        "sticker": "accent",
+        "accentAsType": "when-contrast",
+        "grounds": [
+          "paper",
+          "dark",
+          "field",
+          "soft"
+        ]
+      },
+      "devices": {
+        "rule": {
+          "hair": 2,
+          "heavy": 4
+        },
+        "frame": {
+          "t": 0,
+          "pad": 0
+        },
+        "highlight": {
+          "pad": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "tilt": 0
+        },
+        "shadow": {
+          "x": 0,
+          "y": 0,
+          "colour": "ink"
+        },
+        "angles": {
+          "sticker": -8,
+          "bar": 0,
+          "block": 0,
+          "band": 0,
+          "card": 0,
+          "price": 6
+        },
+        "folio": "no",
+        "wordmark": {
+          "opacity": 0.03,
+          "sep": "dot"
+        }
+      },
+      "photo": {
+        "treat": [],
+        "tint": "primary"
+      },
+      "logo": {
+        "default": "off",
+        "height": 44
+      },
+      "dials": {
+        "tilt": 1,
+        "density": 0,
+        "weightShift": 0
+      },
+      "compositions": [
+        {
+          "kind": "statement",
+          "name": "Big cup",
+          "ground": "paper",
+          "fit": "margins",
+          "describe": "A big soft serif headline on cream with the emphasis in italic, two warm circles like a cup seen from above at the foot, the label on an accent pill and the sub line beside them. Use for a statement of up to 64 characters.",
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "headline": {
+              "required": true,
+              "max": 64
+            },
+            "sub": {
+              "max": 100
+            }
+          },
+          "elements": [
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 560,
+                  "y": 860,
+                  "w": 700,
+                  "h": 700
+                }
+              },
+              "fill": "light-tint",
+              "radius": "full",
+              "z": 0
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 680,
+                  "y": 980,
+                  "w": 460,
+                  "h": 460
+                }
+              },
+              "fill": "tint-deep",
+              "radius": "full",
+              "z": 0
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 80
+                }
+              },
+              "fill": "gold",
+              "ink": "on-accent",
+              "radius": "full",
+              "pad": [
+                12,
+                26,
+                12,
+                26
+              ],
+              "when": {
+                "present": "label"
+              },
+              "z": 5,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "nowrap": true
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 190,
+                  "w": 920,
+                  "h": 620
+                }
+              },
+              "flow": "column",
+              "justify": "center",
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "emphasis": "italic",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        20,
+                        150
+                      ],
+                      [
+                        34,
+                        128
+                      ],
+                      [
+                        48,
+                        112
+                      ],
+                      [
+                        64,
+                        100
+                      ]
+                    ],
+                    "maxLines": 5,
+                    "maxH": 580
+                  },
+                  "w": 920
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "bottom": 80,
+                  "w": 420
+                }
+              },
+              "flow": "column",
+              "z": 2,
+              "when": {
+                "present": "sub"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "w": 420
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "statement",
+          "name": "Espresso board",
+          "ground": "dark",
+          "fit": "margins",
+          "calm": {
+            "maxShare": 0.55
+          },
+          "describe": "The headline centred in cream on the espresso page inside a thin rounded frame, one to three words on an accent pill, the label above, the sub line and a pill button below. Use for an announcement of up to 56 characters.",
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "headline": {
+              "required": true,
+              "max": 56
+            },
+            "sub": {
+              "max": 110
+            },
+            "cta": {
+              "max": 24
+            }
+          },
+          "elements": [
+            {
+              "type": "keyline",
+              "place": {
+                "px": {
+                  "x": 40,
+                  "y": 40,
+                  "w": 1000,
+                  "h": 1270
+                }
+              },
+              "weight": 2,
+              "colour": "rule-dark",
+              "radius": 40
+            },
+            {
+              "type": "box",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "right": 80,
+                  "top": 120,
+                  "bottom": 120
+                }
+              },
+              "flow": "column",
+              "justify": "center",
+              "align": "center",
+              "gap": 48,
+              "ink": "white",
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "ink": "accent-dark",
+                  "align": "center",
+                  "nowrap": true,
+                  "when": {
+                    "present": "label"
+                  }
+                },
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "align": "center",
+                  "pills": {
+                    "shape": "pill",
+                    "fill": "gold",
+                    "ink": "on-accent"
+                  },
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        18,
+                        140
+                      ],
+                      [
+                        32,
+                        120
+                      ],
+                      [
+                        44,
+                        106
+                      ],
+                      [
+                        56,
+                        96
+                      ]
+                    ],
+                    "maxLines": 5,
+                    "maxH": 600
+                  },
+                  "w": 920
+                },
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "ink": "body-dark",
+                  "align": "center",
+                  "w": 720,
+                  "when": {
+                    "present": "sub"
+                  }
+                },
+                {
+                  "type": "button",
+                  "field": "cta",
+                  "shape": "pill",
+                  "size": 24,
+                  "icon": "arrow-right",
+                  "fill": "gold",
+                  "ink": "on-accent",
+                  "when": {
+                    "present": "cta"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "figure",
+          "name": "Saucer",
+          "ground": "paper",
+          "fit": "margins",
+          "describe": "The figure in cream inside a big brown circle like a saucer seen from above, its unit under it, a tilted accent badge with the label on its rim and the sub line centred below. Use for a single number, time or price of up to 6 characters.",
+          "accepts": [
+            {
+              "field": "big",
+              "part": "all",
+              "maxChars": 6
+            }
+          ],
+          "fields": {
+            "label": {
+              "max": 20
+            },
+            "big": {
+              "required": true,
+              "max": 6
+            },
+            "unit": {
+              "max": 24
+            },
+            "sub": {
+              "max": 110
+            }
+          },
+          "elements": [
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 140,
+                  "y": 110,
+                  "w": 800,
+                  "h": 800
+                }
+              },
+              "fill": "field",
+              "ink": "on-field",
+              "radius": "full",
+              "flow": "column",
+              "justify": "center",
+              "align": "center",
+              "gap": 10,
+              "pad": [
+                70,
+                0,
+                0,
+                0
+              ],
+              "z": 1,
+              "children": [
+                {
+                  "type": "fitted-stack",
+                  "field": "big",
+                  "mode": "lines",
+                  "cap": 320,
+                  "floor": 120,
+                  "maxLines": 1,
+                  "align": "center",
+                  "trail": true,
+                  "lead": 0.9,
+                  "w": 560,
+                  "h": 340
+                },
+                {
+                  "type": "text",
+                  "field": "unit",
+                  "style": "label",
+                  "align": "center",
+                  "nowrap": true,
+                  "when": {
+                    "present": "unit"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "sticker",
+              "shape": "circle",
+              "size": 230,
+              "place": {
+                "px": {
+                  "x": 770,
+                  "y": 80
+                }
+              },
+              "rot": "sticker",
+              "fill": "gold",
+              "ink": "on-accent",
+              "field": "label",
+              "fit": {
+                "cap": 32,
+                "floor": 20,
+                "w": 170,
+                "h": 110,
+                "maxLines": 3
+              },
+              "ring": {
+                "w": 10,
+                "colour": "paper"
+              },
+              "when": {
+                "present": "label"
+              },
+              "z": 4
+            },
+            {
+              "type": "box",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "right": 80,
+                  "bottom": 80
+                }
+              },
+              "flow": "column",
+              "align": "center",
+              "z": 2,
+              "when": {
+                "present": "sub"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "align": "center",
+                  "w": 760
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "list",
+          "name": "Menu board",
+          "ground": "dark",
+          "fit": "margins",
+          "calm": {
+            "maxShare": 0.55
+          },
+          "describe": "A menu board on the espresso page: the label in the accent, a cream serif headline, then each item in capitals with a dotted leader to its price at the right (write each item as \"Flat white · €3\"). Use for two to five items with prices or times.",
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "headline": {
+              "required": true,
+              "max": 40
+            },
+            "items": {
+              "required": true,
+              "min": 2,
+              "max": 5
+            },
+            "sub": {
+              "max": 90
+            }
+          },
+          "elements": [
+            {
+              "type": "box",
+              "place": {
+                "inset": "margins"
+              },
+              "flow": "column",
+              "justify": "between",
+              "align": "stretch",
+              "ink": "white",
+              "z": 2,
+              "children": [
+                {
+                  "type": "box",
+                  "flow": "column",
+                  "align": "start",
+                  "gap": 26,
+                  "children": [
+                    {
+                      "type": "text",
+                      "field": "label",
+                      "style": "label",
+                      "ink": "accent-dark",
+                      "nowrap": true,
+                      "when": {
+                        "present": "label"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "field": "headline",
+                      "style": "display",
+                      "emphasis": "italic",
+                      "ladder": {
+                        "by": "headline",
+                        "steps": [
+                          [
+                            18,
+                            132
+                          ],
+                          [
+                            30,
+                            112
+                          ],
+                          [
+                            40,
+                            100
+                          ]
+                        ],
+                        "maxLines": 3,
+                        "maxH": 330
+                      },
+                      "w": 920
+                    }
+                  ]
+                },
+                {
+                  "type": "rows",
+                  "each": "items",
+                  "number": "none",
+                  "textStyle": "label",
+                  "textSize": 34,
+                  "textTrack": 0.06,
+                  "leader": "dotted",
+                  "rule": "none",
+                  "rowMinH": 100,
+                  "grow": 1,
+                  "ink": "white",
+                  "sizeByCount": [
+                    [
+                      5,
+                      30
+                    ]
+                  ]
+                },
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "ink": "body-dark",
+                  "w": 760,
+                  "when": {
+                    "present": "sub"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "list",
+          "name": "Price card",
+          "ground": "paper",
+          "fit": "margins",
+          "describe": "The label in the accent and a big serif headline on cream, then a warm rounded card at the foot with the items and a dotted leader to each price on hairlines (write each item as \"Oat latte · €4\"). Use for two to five items with prices.",
+          "fields": {
+            "label": {
+              "max": 24
+            },
+            "headline": {
+              "required": true,
+              "max": 40
+            },
+            "items": {
+              "required": true,
+              "min": 2,
+              "max": 5
+            }
+          },
+          "elements": [
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 860,
+                  "y": 80,
+                  "w": 140,
+                  "h": 140
+                }
+              },
+              "fill": "tint-deep",
+              "radius": "full",
+              "z": 1
+            },
+            {
+              "type": "box",
+              "place": {
+                "inset": "margins"
+              },
+              "flow": "column",
+              "justify": "between",
+              "align": "stretch",
+              "z": 2,
+              "children": [
+                {
+                  "type": "box",
+                  "flow": "column",
+                  "align": "start",
+                  "gap": 24,
+                  "children": [
+                    {
+                      "type": "text",
+                      "field": "label",
+                      "style": "label",
+                      "ink": "accent-type",
+                      "nowrap": true,
+                      "when": {
+                        "present": "label"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "field": "headline",
+                      "style": "display",
+                      "emphasis": "italic",
+                      "ladder": {
+                        "by": "headline",
+                        "steps": [
+                          [
+                            18,
+                            132
+                          ],
+                          [
+                            30,
+                            112
+                          ],
+                          [
+                            40,
+                            100
+                          ]
+                        ],
+                        "maxLines": 3,
+                        "maxH": 330
+                      },
+                      "w": 760
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "fill": "light-tint",
+                  "radius": 48,
+                  "pad": [
+                    40,
+                    56,
+                    40,
+                    56
+                  ],
+                  "flow": "column",
+                  "justify": "center",
+                  "align": "stretch",
+                  "before": 60,
+                  "grow": 1,
+                  "minH": 400,
+                  "children": [
+                    {
+                      "type": "rows",
+                      "each": "items",
+                      "number": "none",
+                      "textStyle": "item",
+                      "textSize": 44,
+                      "leader": "dotted",
+                      "rule": "hair",
+                      "rowMinH": 124,
+                      "grow": 1,
+                      "ink": "ink",
+                      "sizeByCount": [
+                        [
+                          4,
+                          40
+                        ],
+                        [
+                          5,
+                          36
+                        ]
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "quote",
+          "name": "Regular",
+          "ground": "soft",
+          "fit": "margins",
+          "calm": {
+            "maxShare": 0.66
+          },
+          "describe": "A regular's words in a big soft serif on a warm page under a large accent opening quotation mark, the label on an accent pill above and the name at the foot after a short accent bar. Use for a quotation of up to about 150 characters.",
+          "fields": {
+            "label": {
+              "max": 24
+            },
+            "quote": {
+              "required": true,
+              "max": 150
+            },
+            "by": {
+              "max": 40
+            }
+          },
+          "elements": [
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 80
+                }
+              },
+              "fill": "gold",
+              "ink": "on-accent",
+              "radius": "full",
+              "pad": [
+                12,
+                26,
+                12,
+                26
+              ],
+              "when": {
+                "present": "label"
+              },
+              "z": 5,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "nowrap": true
+                }
+              ]
+            },
+            {
+              "type": "glyph",
+              "glyph": "“",
+              "size": 440,
+              "colour": "gold",
+              "place": {
+                "px": {
+                  "x": 50,
+                  "y": 110
+                }
+              },
+              "z": 1
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 420,
+                  "w": 920,
+                  "h": 700
+                }
+              },
+              "flow": "column",
+              "justify": "center",
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "quote",
+                  "style": "display",
+                  "emphasis": "italic",
+                  "weight": 500,
+                  "ladder": {
+                    "by": "quote",
+                    "steps": [
+                      [
+                        40,
+                        108
+                      ],
+                      [
+                        80,
+                        90
+                      ],
+                      [
+                        120,
+                        78
+                      ],
+                      [
+                        150,
+                        72
+                      ]
+                    ],
+                    "maxLines": 8,
+                    "maxH": 680
+                  },
+                  "w": 920
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "bottom": 80
+                }
+              },
+              "flow": "column",
+              "align": "start",
+              "gap": 22,
+              "when": {
+                "present": "by"
+              },
+              "z": 2,
+              "children": [
+                {
+                  "type": "block",
+                  "w": 64,
+                  "h": 6,
+                  "colour": "gold"
+                },
+                {
+                  "type": "text",
+                  "field": "by",
+                  "style": "label",
+                  "ink": "ink",
+                  "nowrap": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "photo",
+          "name": "Drink of the week",
+          "ground": "paper",
+          "fit": "margins",
+          "describe": "The picture large in a rounded frame with a big round tilted accent badge carrying the tag (a price or a name) on its corner, the label on a cream pill over the picture, and the serif headline under it, as large as it fits. Use for a featured drink or dish with a headline of up to 48 characters.",
+          "fields": {
+            "label": {
+              "max": 24
+            },
+            "image": {
+              "required": true
+            },
+            "headline": {
+              "required": true,
+              "max": 48
+            },
+            "tag": {
+              "max": 12
+            }
+          },
+          "elements": [
+            {
+              "type": "photo",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 80,
+                  "w": 920,
+                  "h": 820
+                }
+              },
+              "shape": "rounded",
+              "radius": 48,
+              "z": 1
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 110,
+                  "y": 110
+                }
+              },
+              "fill": "paper",
+              "ink": "ink",
+              "radius": "full",
+              "pad": [
+                12,
+                26,
+                12,
+                26
+              ],
+              "when": {
+                "present": "label"
+              },
+              "z": 5,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "nowrap": true
+                }
+              ]
+            },
+            {
+              "type": "sticker",
+              "shape": "circle",
+              "size": 260,
+              "place": {
+                "px": {
+                  "x": 760,
+                  "y": 700
+                }
+              },
+              "rot": "sticker",
+              "fill": "gold",
+              "ink": "on-accent",
+              "field": "tag",
+              "fit": {
+                "cap": 110,
+                "floor": 30,
+                "w": 190,
+                "h": 130,
+                "maxLines": 2
+              },
+              "ring": {
+                "w": 10,
+                "colour": "paper"
+              },
+              "when": {
+                "present": "tag"
+              },
+              "z": 4
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 960,
+                  "w": 660,
+                  "h": 310
+                }
+              },
+              "flow": "column",
+              "justify": "end",
+              "z": 2,
+              "children": [
+                {
+                  "type": "fitted-stack",
+                  "field": "headline",
+                  "mode": "lines",
+                  "cap": 110,
+                  "floor": 60,
+                  "maxLines": 3,
+                  "emphasis": "italic",
+                  "w": 660,
+                  "h": 310
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "photo",
+          "name": "Full pour",
+          "ground": "dark",
+          "fit": "margins",
+          "describe": "The picture over the whole page with espresso laid over its foot so the words read, the label on an accent pill at the top, a cream serif headline and the sub line at the foot. Use for a strong picture with a headline of up to 56 characters.",
+          "fields": {
+            "label": {
+              "max": 28
+            },
+            "image": {
+              "required": true
+            },
+            "headline": {
+              "required": true,
+              "max": 56
+            },
+            "sub": {
+              "max": 110
+            }
+          },
+          "elements": [
+            {
+              "type": "photo",
+              "place": {
+                "inset": "page"
+              },
+              "shape": "rect",
+              "z": 0
+            },
+            {
+              "type": "overlay",
+              "colour": "dark",
+              "from": "bottom",
+              "need": 4.5,
+              "floor": 0.5,
+              "cap": 0.92,
+              "fade": 360,
+              "place": {
+                "anchor": {
+                  "left": 0,
+                  "right": 0,
+                  "bottom": 0,
+                  "h": 800
+                }
+              },
+              "z": 1
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 80
+                }
+              },
+              "fill": "gold",
+              "ink": "on-accent",
+              "radius": "full",
+              "pad": [
+                12,
+                26,
+                12,
+                26
+              ],
+              "when": {
+                "present": "label"
+              },
+              "z": 5,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "nowrap": true
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "right": 80,
+                  "bottom": 80
+                }
+              },
+              "flow": "column",
+              "gap": 24,
+              "ink": "white",
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "emphasis": "italic",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        20,
+                        124
+                      ],
+                      [
+                        36,
+                        106
+                      ],
+                      [
+                        56,
+                        92
+                      ]
+                    ],
+                    "maxLines": 3,
+                    "maxH": 320
+                  },
+                  "w": 920
+                },
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "ink": "white",
+                  "w": 760,
+                  "when": {
+                    "present": "sub"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "event",
+          "name": "Opening hours",
+          "ground": "paper",
+          "fit": "margins",
+          "calm": {
+            "maxShare": 0.6
+          },
+          "describe": "Hours and where to find the café: the label, the serif headline and the meta line, then a brown rounded card holding the info rows (Open, When, Where ...) in cream, and a pill button at the foot. Use for opening hours, a new address or holiday times.",
+          "fields": {
+            "label": {
+              "max": 24
+            },
+            "headline": {
+              "required": true,
+              "max": 44
+            },
+            "meta": {
+              "required": true,
+              "max": 40
+            },
+            "info": {
+              "min": 1,
+              "max": 4
+            },
+            "cta": {
+              "max": 24
+            }
+          },
+          "elements": [
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 860,
+                  "y": 80,
+                  "w": 140,
+                  "h": 140
+                }
+              },
+              "fill": "gold",
+              "radius": "full",
+              "z": 1
+            },
+            {
+              "type": "box",
+              "place": {
+                "inset": "margins"
+              },
+              "flow": "column",
+              "justify": "between",
+              "align": "stretch",
+              "gap": 40,
+              "z": 2,
+              "children": [
+                {
+                  "type": "box",
+                  "flow": "column",
+                  "align": "start",
+                  "gap": 24,
+                  "children": [
+                    {
+                      "type": "text",
+                      "field": "label",
+                      "style": "label",
+                      "ink": "accent-type",
+                      "nowrap": true,
+                      "when": {
+                        "present": "label"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "field": "headline",
+                      "style": "display",
+                      "emphasis": "italic",
+                      "ladder": {
+                        "by": "headline",
+                        "steps": [
+                          [
+                            18,
+                            128
+                          ],
+                          [
+                            30,
+                            110
+                          ],
+                          [
+                            44,
+                            96
+                          ]
+                        ],
+                        "maxLines": 3,
+                        "maxH": 330
+                      },
+                      "w": 760
+                    },
+                    {
+                      "type": "text",
+                      "field": "meta",
+                      "style": "label",
+                      "ink": "body",
+                      "when": {
+                        "present": "info"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "fill": "field",
+                  "ink": "on-field",
+                  "radius": 48,
+                  "pad": [
+                    56,
+                    56,
+                    56,
+                    56
+                  ],
+                  "flow": "column",
+                  "when": {
+                    "present": "info"
+                  },
+                  "children": [
+                    {
+                      "type": "info-rows",
+                      "layout": "beside",
+                      "labelSpan": 2,
+                      "valueStyle": "item",
+                      "maxLines": 2,
+                      "rule": "hair",
+                      "gap": 32,
+                      "labelInk": "on-field"
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "fill": "field",
+                  "ink": "on-field",
+                  "radius": 48,
+                  "pad": [
+                    56,
+                    56,
+                    56,
+                    56
+                  ],
+                  "flow": "column",
+                  "justify": "end",
+                  "before": 60,
+                  "grow": 1,
+                  "minH": 300,
+                  "when": {
+                    "absent": "info"
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "field": "meta",
+                      "style": "display",
+                      "emphasis": "italic",
+                      "ladder": {
+                        "by": "meta",
+                        "steps": [
+                          [
+                            14,
+                            100
+                          ],
+                          [
+                            26,
+                            84
+                          ],
+                          [
+                            40,
+                            72
+                          ]
+                        ],
+                        "maxLines": 3,
+                        "maxH": 300
+                      },
+                      "w": 808
+                    }
+                  ]
+                },
+                {
+                  "type": "button",
+                  "field": "cta",
+                  "shape": "pill",
+                  "size": 24,
+                  "icon": "pin",
+                  "fill": "gold",
+                  "ink": "on-accent",
+                  "alignSelf": "start",
+                  "when": {
+                    "present": "cta"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "event",
+          "name": "Tasting night",
+          "ground": "field",
+          "fit": "margins",
+          "calm": {
+            "maxShare": 0.6
+          },
+          "describe": "A big round tilted accent date badge with the day and the month on the brown page, the label and a cream serif headline under it, the info rows and a pill button at the foot. Use for an event with a date, up to about 48 characters of headline.",
+          "fields": {
+            "label": {
+              "max": 24
+            },
+            "headline": {
+              "required": true,
+              "max": 48
+            },
+            "meta": {
+              "required": true,
+              "max": 40
+            },
+            "info": {
+              "min": 1,
+              "max": 3
+            },
+            "cta": {
+              "max": 24
+            }
+          },
+          "elements": [
+            {
+              "type": "sticker",
+              "shape": "circle",
+              "size": 340,
+              "place": {
+                "px": {
+                  "x": 660,
+                  "y": 80
+                }
+              },
+              "rot": "sticker",
+              "fill": "gold",
+              "ink": "on-accent",
+              "z": 3,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "meta",
+                  "format": "day",
+                  "style": "display",
+                  "size": 128,
+                  "follow": true,
+                  "weight": 600,
+                  "lead": 1,
+                  "align": "center"
+                },
+                {
+                  "type": "text",
+                  "field": "meta",
+                  "format": "month",
+                  "style": "label",
+                  "size": 24,
+                  "upper": true,
+                  "track": 0.14,
+                  "align": "center",
+                  "before": 4
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 80,
+                  "w": 540,
+                  "h": 340
+                }
+              },
+              "flow": "column",
+              "justify": "end",
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "ink": "on-field",
+                  "nowrap": true,
+                  "when": {
+                    "present": "label"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 460,
+                  "w": 920,
+                  "h": 810
+                }
+              },
+              "flow": "column",
+              "justify": "between",
+              "ink": "on-field",
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "headline",
+                  "style": "display",
+                  "emphasis": "italic",
+                  "ladder": {
+                    "by": "headline",
+                    "steps": [
+                      [
+                        18,
+                        128
+                      ],
+                      [
+                        32,
+                        110
+                      ],
+                      [
+                        48,
+                        96
+                      ]
+                    ],
+                    "maxLines": 3,
+                    "maxH": 340
+                  },
+                  "w": 920
+                },
+                {
+                  "type": "box",
+                  "flow": "column",
+                  "align": "stretch",
+                  "gap": 44,
+                  "children": [
+                    {
+                      "type": "info-rows",
+                      "layout": "beside",
+                      "labelSpan": 2,
+                      "valueStyle": "body",
+                      "maxLines": 1,
+                      "rule": "hair",
+                      "gap": 22,
+                      "labelInk": "on-field",
+                      "when": {
+                        "present": "info"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "field": "cta",
+                      "shape": "pill",
+                      "size": 24,
+                      "icon": "arrow-right",
+                      "fill": "paper",
+                      "ink": "ink",
+                      "alignSelf": "start",
+                      "when": {
+                        "present": "cta"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "offer",
+          "name": "Stamp card",
+          "ground": "paper",
+          "fit": "margins",
+          "describe": "A loyalty card: the label and the serif headline, then a warm rounded card with two rows of round stamps, the first ones filled and the last an accent badge carrying the tag (such as Free), and the sub line under it. Use for a stamp card or a loyalty offer.",
+          "fields": {
+            "label": {
+              "max": 24
+            },
+            "headline": {
+              "required": true,
+              "max": 48
+            },
+            "tag": {
+              "required": true,
+              "max": 8
+            },
+            "sub": {
+              "max": 100
+            }
+          },
+          "elements": [
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 80,
+                  "w": 920,
+                  "h": 420
+                }
+              },
+              "flow": "column",
+              "justify": "end",
+              "align": "start",
+              "gap": 26,
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "label",
+                  "style": "label",
+                  "ink": "accent-type",
+                  "nowrap": true,
+                  "when": {
+                    "present": "label"
+                  }
+                },
+                {
+                  "type": "fitted-stack",
+                  "field": "headline",
+                  "mode": "lines",
+                  "cap": 124,
+                  "floor": 72,
+                  "maxLines": 3,
+                  "emphasis": "italic",
+                  "w": 920,
+                  "h": 300
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 560,
+                  "w": 920,
+                  "h": 460
+                }
+              },
+              "fill": "light-tint",
+              "radius": 48,
+              "pad": [
+                60,
+                46,
+                60,
+                46
+              ],
+              "flow": "column",
+              "justify": "center",
+              "align": "center",
+              "gap": 36,
+              "z": 1,
+              "children": [
+                {
+                  "type": "box",
+                  "flow": "row",
+                  "gap": 32,
+                  "children": [
+                    {
+                      "type": "box",
+                      "w": 136,
+                      "h": 136,
+                      "fill": "field",
+                      "radius": "full"
+                    },
+                    {
+                      "type": "box",
+                      "w": 136,
+                      "h": 136,
+                      "fill": "field",
+                      "radius": "full"
+                    },
+                    {
+                      "type": "box",
+                      "w": 136,
+                      "h": 136,
+                      "fill": "field",
+                      "radius": "full"
+                    },
+                    {
+                      "type": "box",
+                      "w": 136,
+                      "h": 136,
+                      "fill": "field",
+                      "radius": "full"
+                    },
+                    {
+                      "type": "box",
+                      "w": 136,
+                      "h": 136,
+                      "fill": "field",
+                      "radius": "full"
+                    }
+                  ]
+                },
+                {
+                  "type": "box",
+                  "flow": "row",
+                  "gap": 32,
+                  "align": "center",
+                  "children": [
+                    {
+                      "type": "box",
+                      "w": 136,
+                      "h": 136,
+                      "fill": "field",
+                      "radius": "full"
+                    },
+                    {
+                      "type": "box",
+                      "w": 136,
+                      "h": 136,
+                      "radius": "full",
+                      "border": {
+                        "w": 5,
+                        "colour": "field",
+                        "style": "dashed"
+                      }
+                    },
+                    {
+                      "type": "box",
+                      "w": 136,
+                      "h": 136,
+                      "radius": "full",
+                      "border": {
+                        "w": 5,
+                        "colour": "field",
+                        "style": "dashed"
+                      }
+                    },
+                    {
+                      "type": "box",
+                      "w": 136,
+                      "h": 136,
+                      "radius": "full",
+                      "border": {
+                        "w": 5,
+                        "colour": "field",
+                        "style": "dashed"
+                      }
+                    },
+                    {
+                      "type": "sticker",
+                      "shape": "circle",
+                      "size": 136,
+                      "fill": "gold",
+                      "ink": "on-accent",
+                      "field": "tag",
+                      "fit": {
+                        "cap": 32,
+                        "floor": 20,
+                        "w": 108,
+                        "h": 60,
+                        "maxLines": 1
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "box",
+              "place": {
+                "anchor": {
+                  "left": 80,
+                  "bottom": 80,
+                  "w": 760
+                }
+              },
+              "flow": "column",
+              "when": {
+                "present": "sub"
+              },
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "w": 760
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "offer",
+          "name": "Price badge",
+          "ground": "dark",
+          "fit": "margins",
+          "describe": "The picture in a big circle on the espresso page with a tilted accent badge carrying the price on its rim, a cream serif headline above and the sub line at the foot; with no picture a brown circle takes its place. Use for a product with a short price.",
+          "fields": {
+            "headline": {
+              "required": true,
+              "max": 44
+            },
+            "tag": {
+              "required": true,
+              "max": 10
+            },
+            "sub": {
+              "max": 90
+            },
+            "image": {}
+          },
+          "elements": [
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 80,
+                  "w": 920,
+                  "h": 330
+                }
+              },
+              "flow": "column",
+              "align": "start",
+              "ink": "white",
+              "z": 2,
+              "children": [
+                {
+                  "type": "fitted-stack",
+                  "field": "headline",
+                  "mode": "lines",
+                  "cap": 124,
+                  "floor": 70,
+                  "maxLines": 3,
+                  "emphasis": "italic",
+                  "w": 920,
+                  "h": 330
+                }
+              ]
+            },
+            {
+              "type": "photo",
+              "place": {
+                "px": {
+                  "x": 330,
+                  "y": 460,
+                  "w": 670,
+                  "h": 670
+                }
+              },
+              "shape": "circle",
+              "z": 1,
+              "when": {
+                "present": "image"
+              }
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 330,
+                  "y": 460,
+                  "w": 670,
+                  "h": 670
+                }
+              },
+              "fill": "field",
+              "radius": "full",
+              "z": 1,
+              "when": {
+                "absent": "image"
+              }
+            },
+            {
+              "type": "sticker",
+              "shape": "circle",
+              "size": 290,
+              "place": {
+                "px": {
+                  "x": 130,
+                  "y": 700
+                }
+              },
+              "rot": "price",
+              "fill": "gold",
+              "ink": "on-accent",
+              "field": "tag",
+              "fit": {
+                "cap": 112,
+                "floor": 40,
+                "w": 210,
+                "h": 130,
+                "maxLines": 2
+              },
+              "ring": {
+                "w": 10,
+                "colour": "dark"
+              },
+              "z": 4
+            },
+            {
+              "type": "box",
+              "place": {
+                "px": {
+                  "x": 80,
+                  "y": 1170,
+                  "w": 920,
+                  "h": 100
+                }
+              },
+              "flow": "column",
+              "justify": "end",
+              "when": {
+                "present": "sub"
+              },
+              "z": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "field": "sub",
+                  "style": "body",
+                  "ink": "body-dark",
+                  "w": 920
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

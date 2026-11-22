@@ -56,6 +56,16 @@ test('the fictional Pennyhive and Tallyho packs are public like the demo, and a 
   } finally { fs.rmSync(root, { recursive: true, force: true }); fs.rmSync(path.dirname(out), { recursive: true, force: true }); }
 });
 
+test('the fictional Kettleworks and Salt & Ember packs are public too', () => {
+  const root = repo({ ...FILES, 'brands/kettleworks/brand.json': '{"name":"Kettleworks Coffee"}\n', 'brands/saltandember/brand.json': '{"name":"Salt & Ember"}\n' });
+  const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ss-out-')), 'public');
+  try {
+    const r = exportPublic({ root, out, log() {} });
+    assert.deepEqual(r.leftOut, ['globex']);
+    for (const p of ['brands/kettleworks/brand.json', 'brands/saltandember/brand.json']) { assert.ok(fs.existsSync(path.join(out, p)), p); assert.equal(isPrivatePack(p), false); }
+  } finally { fs.rmSync(root, { recursive: true, force: true }); fs.rmSync(path.dirname(out), { recursive: true, force: true }); }
+});
+
 test('a forbidden word or a secret-shaped string outside the private pack is reported with its file and line', () => {
   const root = repo({ ...FILES, 'docs/guide.md': 'Intro\nDeploy to social.GLOBEX.example\n', 'src/config.mjs': `const key = 'sk-ant-api03-${'a'.repeat(40)}';\n` });
   const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'ss-out-')), 'public');

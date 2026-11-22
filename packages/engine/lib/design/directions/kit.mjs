@@ -244,6 +244,12 @@ export function makeContext(args) {
     // the emphasis phrase's plain text, or ''
     emphasis: (f = 'headline') => (typeof spec[f] === 'string' ? /\*([^*]+)\*/.exec(spec[f])?.[1] ?? '' : ''),
     items: () => (Array.isArray(spec.items) ? spec.items.map((t) => new Markup(esc(t))) : []),
+    // each item split at its last "·" into [words, after] (a menu line and its price, a day and its hours), both escaped; after is null when the
+    // item has no "·" or nothing on one side of it (the whole item is then the words)
+    itemParts: () => (Array.isArray(spec.items) ? spec.items.map((t) => {
+      const s = String(t), i = s.lastIndexOf('·'), a = i < 0 ? '' : s.slice(0, i).trim(), b = i < 0 ? '' : s.slice(i + 1).trim();
+      return a && b ? [new Markup(esc(a)), new Markup(esc(b))] : [new Markup(esc(s)), null];
+    }) : []),
     // the rows of an info block as Markup { key, value }: only rows whose key is one of the fixed words and whose value is a text, at most
     // POST_INFO.max of them (the spec was checked; this holds whatever reaches it)
     info: () => (Array.isArray(spec.info) ? spec.info.filter((r) => r && typeof r === 'object' && INFO_KEYS.includes(r.key) && typeof r.value === 'string' && r.value.trim())

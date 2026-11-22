@@ -28,9 +28,11 @@ import { MINIMAL as CLEAN_MINIMAL, NORMAL as CLEAN_NORMAL, STRESS as CLEAN_STRES
 import { MINIMAL as LOUD_MINIMAL, NORMAL as LOUD_NORMAL, STRESS as LOUD_STRESS } from './testlib/loud-copy.mjs';
 import { MINIMAL as LEDGER_MINIMAL, NORMAL as LEDGER_NORMAL, PICTURES as LEDGER_PICTURES, STRESS as LEDGER_STRESS } from './testlib/ledger-copy.mjs';
 import { MINIMAL as STUDIO_MINIMAL, NORMAL as STUDIO_NORMAL, STRESS as STUDIO_STRESS } from './testlib/studio-copy.mjs';
+import { MINIMAL as ROAST_MINIMAL, NORMAL as ROAST_NORMAL, STRESS as ROAST_STRESS } from './testlib/roast-copy.mjs';
+import { MINIMAL as PLATE_MINIMAL, NORMAL as PLATE_NORMAL, STRESS as PLATE_STRESS } from './testlib/plate-copy.mjs';
 
 const asCopy = (l) => ({ ...l, origin: `copy:shipped:${l.id}` });
-const RETAIL = asCopy(shippedLooks().retail), SWISS = asCopy(shippedLooks().swiss), SOFT = asCopy(shippedLooks().soft), BLOOM = asCopy(shippedLooks().bloom), CLEAN = asCopy(shippedLooks().clean), LOUD = asCopy(shippedLooks().loud), LEDGER = asCopy(shippedLooks().ledger), STUDIO = asCopy(shippedLooks().studio);
+const RETAIL = asCopy(shippedLooks().retail), SWISS = asCopy(shippedLooks().swiss), SOFT = asCopy(shippedLooks().soft), BLOOM = asCopy(shippedLooks().bloom), CLEAN = asCopy(shippedLooks().clean), LOUD = asCopy(shippedLooks().loud), LEDGER = asCopy(shippedLooks().ledger), STUDIO = asCopy(shippedLooks().studio), ROAST = asCopy(shippedLooks().roast), PLATE = asCopy(shippedLooks().plate);
 const COLOURS = {
   demo: {},
   dark: paletteBrand({ name: 'Night Kitchen', light: '#EFEAE0', ink: '#10151F', primary: '#1B2A41', gold: '#F2B84B', deep: '#8A5A00' }),
@@ -113,13 +115,14 @@ const COPY = {
   soft: { sample: SOFT_NORMAL, stress: SOFT_STRESS, minimal: SOFT_MINIMAL }, bloom: { sample: BLOOM_NORMAL, stress: BLOOM_STRESS, minimal: BLOOM_MINIMAL },
   clean: { sample: CLEAN_NORMAL, stress: CLEAN_STRESS, minimal: CLEAN_MINIMAL }, loud: { sample: LOUD_NORMAL, stress: LOUD_STRESS, minimal: LOUD_MINIMAL },
   ledger: { sample: LEDGER_NORMAL, stress: LEDGER_STRESS, minimal: LEDGER_MINIMAL }, studio: { sample: STUDIO_NORMAL, stress: STUDIO_STRESS, minimal: STUDIO_MINIMAL },
+  roast: { sample: ROAST_NORMAL, stress: ROAST_STRESS, minimal: ROAST_MINIMAL }, plate: { sample: PLATE_NORMAL, stress: PLATE_STRESS, minimal: PLATE_MINIMAL },
 };
 // the picture a composition is given, where its copy names one (the ledger phone page takes the pre-framed phone capture)
 const PICTURE = { ...LEDGER_PICTURES };
-test('every shipped look passes every check, all 87 compositions from sample, stress and minimal copy, in three sets of brand colours', { skip }, async () => {
-  assert.deepEqual(Object.keys(shippedLooks()).sort(), ['bloom', 'clean', 'ledger', 'loud', 'retail', 'soft', 'studio', 'swiss'], 'a new shipped look is added here with its copy');
+test('every shipped look passes every check, all 109 compositions from sample, stress and minimal copy, in three sets of brand colours', { skip }, async () => {
+  assert.deepEqual(Object.keys(shippedLooks()).sort(), ['bloom', 'clean', 'ledger', 'loud', 'plate', 'retail', 'roast', 'soft', 'studio', 'swiss'], 'a new shipped look is added here with its copy');
   let drawn = 0;
-  for (const look of [RETAIL, SWISS, SOFT, BLOOM, CLEAN, LOUD, LEDGER, STUDIO]) {
+  for (const look of [RETAIL, SWISS, SOFT, BLOOM, CLEAN, LOUD, LEDGER, STUDIO, ROAST, PLATE]) {
     for (const [kind, versions] of Object.entries(Object.groupBy(look.compositions, (c) => c.kind))) {
       for (const [v, comp] of versions.entries()) {
         const id = `${look.id}/${kind}/${v}`;
@@ -135,5 +138,5 @@ test('every shipped look passes every check, all 87 compositions from sample, st
       }
     }
   }
-  assert.equal(drawn, 87 * 3 * 3);
+  assert.equal(drawn, 109 * 3 * 3);
 });
