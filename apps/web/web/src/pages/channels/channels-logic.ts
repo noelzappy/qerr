@@ -15,3 +15,23 @@ export function routeIsDirty(route: { accountId: string; channelId: string } | n
 export function routesBlockedReason(accountCount: number | null): string | null {
   return accountCount === 0 ? 'Connect Buffer first, then choose a channel for each network.' : null;
 }
+
+// ---- the account dialog ----
+
+export interface Organisation { id: string; name: string }
+
+// The organisations an account can be limited to, as choices: every organisation (the empty value), then each one the key check listed by
+// name. A saved id the check did not list stays a choice, so it is never dropped without a person choosing.
+export function organisationChoices(orgs: ReadonlyArray<Organisation>, current: string): Array<{ value: string; label: string }> {
+  const choices = [{ value: '', label: 'Every organisation' }, ...orgs.map((o) => ({ value: o.id, label: o.name.trim() || `Unnamed (${o.id})` }))];
+  const cur = current.trim();
+  return cur && !orgs.some((o) => o.id === cur) ? [...choices, { value: cur, label: `${cur} (not listed by the check)` }] : choices;
+}
+
+// The caption limits in one line, for the closed Fine-tune: the ones set, else the networks' own.
+export function captionLimitSummary(limits: Readonly<Record<string, string>>, labelOf: (n: string) => string, defaults: Readonly<Record<string, number>>): string {
+  const n = (v: number) => v.toLocaleString('en-GB');
+  const set = Object.entries(limits).filter(([, v]) => v.trim() !== '');
+  if (!set.length) return `Caption limits: the networks' own (${Object.entries(defaults).map(([k, v]) => `${labelOf(k)} ${n(v)}`).join(', ')})`;
+  return `Caption limits: ${set.map(([k, v]) => `${labelOf(k)} ${n(Number(v))}`).join(', ')}; the rest the networks' own`;
+}
