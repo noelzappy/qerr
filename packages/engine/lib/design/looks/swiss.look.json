@@ -1,0 +1,994 @@
+{
+  "schema": 1,
+  "id": "swiss",
+  "name": "Swiss",
+  "description": "Modern, systematic, confident: an international-style poster. A grid you can feel, big grotesque type, one accent and nothing decorative.",
+  "origin": "shipped",
+  "canvas": {
+    "feed": {
+      "margin": {
+        "top": 64,
+        "right": 64,
+        "bottom": 64,
+        "left": 64
+      },
+      "grid": {
+        "cols": 12,
+        "gutter": 16,
+        "rows": 8,
+        "head": 72
+      },
+      "extraLines": []
+    }
+  },
+  "fonts": {
+    "display": {
+      "source": "library",
+      "family": "Hanken Grotesk",
+      "weights": [
+        700,
+        800
+      ]
+    },
+    "text": {
+      "source": "library",
+      "family": "Hanken Grotesk",
+      "weights": [
+        400,
+        500
+      ]
+    },
+    "label": {
+      "source": "library",
+      "family": "JetBrains Mono",
+      "weights": [
+        500
+      ]
+    },
+    "mono": {
+      "source": "library",
+      "family": "JetBrains Mono",
+      "weights": [
+        500
+      ]
+    }
+  },
+  "type": {
+    "display": {
+      "lead": 0.92,
+      "track": -0.035,
+      "weight": 800,
+      "case": "as-typed",
+      "ladder": [
+        1,
+        0.9,
+        0.82
+      ],
+      "trim": "cap",
+      "optical": true
+    },
+    "body": {
+      "size": 34,
+      "lead": 1.294,
+      "weight": 400,
+      "strength": 0.8
+    },
+    "item": {
+      "size": 52,
+      "lead": 1.115,
+      "weight": 500
+    },
+    "label": {
+      "size": 20,
+      "track": 0.06,
+      "weight": 500,
+      "upper": true,
+      "role": "mono"
+    },
+    "numeral": {
+      "track": -0.05,
+      "figures": "lining"
+    }
+  },
+  "colour": {
+    "logic": "one-accent",
+    "field": "dark",
+    "sticker": "accent",
+    "accentAsType": "when-contrast",
+    "grounds": [
+      "paper",
+      "dark"
+    ]
+  },
+  "devices": {
+    "rule": {
+      "hair": 1,
+      "heavy": 4
+    },
+    "frame": {
+      "t": 0,
+      "pad": 0
+    },
+    "highlight": {
+      "pad": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "tilt": 0
+    },
+    "shadow": {
+      "x": 0,
+      "y": 0,
+      "colour": "ink"
+    },
+    "angles": {
+      "sticker": 0,
+      "bar": 0,
+      "block": 0,
+      "band": 0,
+      "card": 0,
+      "price": 0
+    },
+    "metaRow": {
+      "cells": [
+        {
+          "source": "label",
+          "col": 1,
+          "span": 6,
+          "align": "left"
+        },
+        {
+          "source": "brand",
+          "col": 7,
+          "span": 4,
+          "align": "left"
+        },
+        {
+          "source": "folio",
+          "col": 11,
+          "span": 2,
+          "align": "right"
+        }
+      ],
+      "ruleTop": 4,
+      "ruleBelow": 1
+    },
+    "folio": "pad2-of-total",
+    "wordmark": {
+      "opacity": 0.03,
+      "sep": "slash"
+    }
+  },
+  "photo": {
+    "treat": [
+      "grey"
+    ],
+    "tint": "primary"
+  },
+  "logo": {
+    "default": "off",
+    "height": 40
+  },
+  "dials": {
+    "tilt": 1,
+    "density": 0,
+    "weightShift": 0
+  },
+  "compositions": [
+    {
+      "kind": "statement",
+      "name": "Poster",
+      "describe": "A big headline set to the grid under the top label row, the sub line at the foot on the left and one square of accent colour at the foot on the right. Use for a short, confident statement: best at 32 characters or fewer, up to 70.",
+      "ground": "paper",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 70
+        },
+        "sub": {
+          "max": 140
+        }
+      },
+      "elements": [
+        {
+          "type": "meta-row",
+          "tone": "ink"
+        },
+        {
+          "type": "fitted-stack",
+          "field": "headline",
+          "mode": "block",
+          "sizes": [
+            168,
+            152,
+            138
+          ],
+          "maxLines": 5,
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 11,
+              "row": 2,
+              "rowSpan": 5,
+              "alignY": "top"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "field": "sub",
+          "style": "body",
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 6,
+              "row": 7,
+              "rowSpan": 2,
+              "alignY": "bottom"
+            }
+          },
+          "when": {
+            "present": "sub"
+          }
+        },
+        {
+          "type": "block",
+          "place": {
+            "grid": {
+              "col": 11,
+              "span": 2,
+              "row": 8,
+              "alignY": "bottom"
+            },
+            "square": true
+          },
+          "colour": "accent"
+        }
+      ]
+    },
+    {
+      "kind": "statement",
+      "name": "Inverse fill",
+      "describe": "A dark page with a headline that fills the width line by line, as large as each line allows, the emphasised words in the accent colour and a short sub line at the foot. Use for a longer statement or a claim with a phrase worth stressing (up to 70 characters).",
+      "ground": "dark",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 70
+        },
+        "sub": {
+          "max": 100
+        }
+      },
+      "elements": [
+        {
+          "type": "meta-row",
+          "tone": "light"
+        },
+        {
+          "type": "fitted-stack",
+          "field": "headline",
+          "mode": "fill",
+          "cap": 220,
+          "floor": 96,
+          "maxLines": 8,
+          "gapEm": 0.24,
+          "emphasis": "accent",
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 12,
+              "row": 2,
+              "rowSpan": 6,
+              "alignY": "top"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "field": "sub",
+          "style": "body",
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 6,
+              "row": 8,
+              "rowSpan": 1,
+              "alignY": "bottom"
+            }
+          },
+          "when": {
+            "present": "sub"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "figure",
+      "name": "Number",
+      "describe": "One huge figure in the accent colour, running off the foot of the page, with its unit beside the top of it and a sub line at the top right. Use for a single number, price or percentage; best with one to three characters, up to eight.",
+      "ground": "paper",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "big": {
+          "required": true,
+          "max": 8
+        },
+        "unit": {
+          "max": 24
+        },
+        "sub": {
+          "max": 140
+        }
+      },
+      "elements": [
+        {
+          "type": "meta-row",
+          "tone": "ink"
+        },
+        {
+          "type": "text",
+          "field": "sub",
+          "style": "body",
+          "place": {
+            "grid": {
+              "col": 7,
+              "span": 6,
+              "row": 2,
+              "rowSpan": 2,
+              "alignY": "top"
+            }
+          },
+          "when": {
+            "present": "sub"
+          }
+        },
+        {
+          "type": "numeral",
+          "field": "big",
+          "sizes": [
+            836,
+            560,
+            430,
+            330,
+            270,
+            232
+          ],
+          "family": "display",
+          "baselineAt": "page",
+          "ink": "accent-type",
+          "unit": {
+            "field": "unit",
+            "style": "label",
+            "at": "top-right"
+          },
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 12,
+              "row": 3,
+              "rowSpan": 6,
+              "alignY": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "kind": "list",
+      "name": "Rows",
+      "describe": "A headline over a ruled list: each point in a row of its own with a two-digit number in mono type, the first number in the accent colour, the rows sharing the rest of the height. Use for steps or points; a headline of about 40 characters and four or five short points.",
+      "ground": "paper",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 40
+        },
+        "items": {
+          "required": true,
+          "min": 4,
+          "max": 5
+        }
+      },
+      "elements": [
+        {
+          "type": "meta-row",
+          "tone": "ink"
+        },
+        {
+          "type": "box",
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 12,
+              "row": 2,
+              "rowSpan": 7
+            }
+          },
+          "flow": "column",
+          "gap": 48,
+          "align": "stretch",
+          "children": [
+            {
+              "type": "fitted-stack",
+              "field": "headline",
+              "mode": "block",
+              "sizes": [
+                144,
+                130,
+                118
+              ],
+              "maxLines": 3
+            },
+            {
+              "type": "rows",
+              "each": "items",
+              "number": "01",
+              "numberStyle": "label",
+              "numberSize": 52,
+              "numberSpan": 2,
+              "textStyle": "item",
+              "rule": "hair",
+              "firstAccent": true,
+              "grow": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "quote",
+      "name": "Statement quote",
+      "describe": "A quotation set large in medium weight across columns 2 to 11, filling the page down to the foot, with a tall accent bar at its left and who said it in small mono type under a hairline on the last row. Use for a customer or founder quotation of up to 160 characters.",
+      "ground": "paper",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "quote": {
+          "required": true,
+          "max": 160
+        },
+        "by": {
+          "max": 40
+        }
+      },
+      "elements": [
+        {
+          "type": "meta-row",
+          "tone": "ink"
+        },
+        {
+          "type": "block",
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 1,
+              "row": 2,
+              "rowSpan": 6
+            },
+            "w": 12
+          },
+          "colour": "accent"
+        },
+        {
+          "type": "text",
+          "field": "quote",
+          "style": "display",
+          "font": "text",
+          "weight": 500,
+          "track": -0.03,
+          "lead": 1.02,
+          "ladder": {
+            "by": "quote",
+            "steps": [
+              [
+                30,
+                176
+              ],
+              [
+                60,
+                148
+              ],
+              [
+                90,
+                124
+              ],
+              [
+                120,
+                106
+              ],
+              [
+                140,
+                92
+              ],
+              [
+                160,
+                80
+              ]
+            ],
+            "maxLines": 8,
+            "maxH": 900
+          },
+          "place": {
+            "grid": {
+              "col": 2,
+              "span": 10,
+              "row": 2,
+              "rowSpan": 6,
+              "alignY": "top"
+            }
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "grid": {
+              "col": 2,
+              "span": 10,
+              "row": 8,
+              "rowSpan": 1,
+              "alignY": "bottom"
+            }
+          },
+          "flow": "column",
+          "gap": 16,
+          "align": "stretch",
+          "when": {
+            "present": "by"
+          },
+          "children": [
+            {
+              "type": "rule",
+              "weight": "hair",
+              "colour": "ink"
+            },
+            {
+              "type": "text",
+              "field": "by",
+              "style": "label",
+              "upper": true,
+              "ink": "muted"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "photo",
+      "name": "Grid photo",
+      "describe": "A grey picture on the right of the grid with an accent bar down its left edge; the sub line beside it on the left and the headline on a paper plate across the lower left, overlapping the picture by one row. Use when the picture is calm and the headline is short (up to 70 characters).",
+      "ground": "paper",
+      "fields": {
+        "image": {
+          "required": true
+        },
+        "headline": {
+          "required": true,
+          "max": 70
+        },
+        "sub": {
+          "max": 140
+        },
+        "label": {
+          "max": 28
+        }
+      },
+      "elements": [
+        {
+          "type": "meta-row",
+          "tone": "ink"
+        },
+        {
+          "type": "photo",
+          "place": {
+            "grid": {
+              "col": 5,
+              "span": 8,
+              "row": 2,
+              "rowSpan": 5
+            }
+          },
+          "treat": [
+            "grey"
+          ]
+        },
+        {
+          "type": "block",
+          "place": {
+            "grid": {
+              "col": 5,
+              "span": 1,
+              "row": 2,
+              "rowSpan": 4
+            },
+            "w": "gutter"
+          },
+          "colour": "accent",
+          "z": 2
+        },
+        {
+          "type": "text",
+          "field": "sub",
+          "style": "body",
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 4,
+              "row": 2,
+              "rowSpan": 4,
+              "alignY": "top"
+            }
+          },
+          "when": {
+            "present": "sub"
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 9,
+              "row": 6,
+              "rowSpan": 3
+            }
+          },
+          "fill": "paper",
+          "pad": [
+            32,
+            0,
+            0,
+            0
+          ],
+          "z": 2,
+          "children": [
+            {
+              "type": "fitted-stack",
+              "field": "headline",
+              "mode": "block",
+              "sizes": [
+                112,
+                101,
+                92
+              ],
+              "maxLines": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "photo",
+      "name": "Bar",
+      "describe": "A full-page grey picture with the label row over a dark fade at the top and a black slab across the foot holding the headline in white, one word of it in the accent colour. Use when the picture should fill the post; a headline of up to 56 characters.",
+      "ground": "dark",
+      "fields": {
+        "image": {
+          "required": true
+        },
+        "headline": {
+          "required": true,
+          "max": 56
+        },
+        "label": {
+          "max": 28
+        }
+      },
+      "elements": [
+        {
+          "type": "photo",
+          "place": {
+            "inset": "page"
+          },
+          "treat": [
+            "grey"
+          ],
+          "z": 0
+        },
+        {
+          "type": "scrim",
+          "place": {
+            "px": {
+              "x": 0,
+              "y": 0,
+              "w": 1080,
+              "h": 152
+            }
+          },
+          "colour": "dark",
+          "z": 1
+        },
+        {
+          "type": "meta-row",
+          "tone": "light",
+          "z": 3
+        },
+        {
+          "type": "box",
+          "place": {
+            "anchor": {
+              "left": 0,
+              "right": 0,
+              "bottom": 0,
+              "h": 409
+            }
+          },
+          "fill": "dark",
+          "ink": "white",
+          "pad": [
+            32,
+            64,
+            64,
+            64
+          ],
+          "z": 2,
+          "children": [
+            {
+              "type": "fitted-stack",
+              "field": "headline",
+              "mode": "block",
+              "sizes": [
+                112,
+                101,
+                92
+              ],
+              "maxLines": 3,
+              "emphasis": "accent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "event",
+      "name": "Date",
+      "describe": "The date as a huge mono figure from the first part of the event line, an accent square beside it, the headline and sub line under it and a ruled three-row table of date, time and place at the foot. Use for an event with a clear date; headline up to 70 characters, event line up to 40.",
+      "ground": "paper",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 70
+        },
+        "meta": {
+          "required": true,
+          "max": 40
+        },
+        "sub": {
+          "max": 140
+        }
+      },
+      "elements": [
+        {
+          "type": "meta-row",
+          "tone": "ink"
+        },
+        {
+          "type": "numeral",
+          "field": "meta",
+          "format": "date-dd.mm",
+          "cap": 260,
+          "min": 200,
+          "family": "mono",
+          "baselineAt": "box",
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 10,
+              "row": 2,
+              "rowSpan": 1
+            },
+            "h": 190
+          }
+        },
+        {
+          "type": "block",
+          "place": {
+            "grid": {
+              "col": 11,
+              "span": 2,
+              "row": 2,
+              "alignY": "top"
+            },
+            "square": true
+          },
+          "colour": "accent"
+        },
+        {
+          "type": "box",
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 11,
+              "row": 4,
+              "rowSpan": 3
+            }
+          },
+          "flow": "column",
+          "gap": 32,
+          "align": "start",
+          "children": [
+            {
+              "type": "fitted-stack",
+              "field": "headline",
+              "mode": "block",
+              "sizes": [
+                104,
+                94,
+                85
+              ],
+              "maxLines": 4
+            },
+            {
+              "type": "text",
+              "field": "sub",
+              "style": "body",
+              "w": 629,
+              "when": {
+                "present": "sub"
+              }
+            }
+          ]
+        },
+        {
+          "type": "box",
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 12,
+              "row": 7,
+              "rowSpan": 2,
+              "alignY": "bottom"
+            }
+          },
+          "flow": "column",
+          "align": "stretch",
+          "children": [
+            {
+              "type": "rows",
+              "each": "meta-parts",
+              "number": "none",
+              "keys": [
+                "Date",
+                "Time",
+                "Place"
+              ],
+              "numberSpan": 4,
+              "textStyle": "label",
+              "textSize": 34,
+              "rule": "hair"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "offer",
+      "name": "Tag",
+      "describe": "A block of accent colour at the top right carrying the price or tag, the sub line at the top left, and the headline across the foot under them. Use for a product, price or offer; headline up to 58 characters and a tag of up to 16.",
+      "ground": "paper",
+      "fields": {
+        "label": {
+          "max": 28
+        },
+        "headline": {
+          "required": true,
+          "max": 58
+        },
+        "tag": {
+          "required": true,
+          "max": 16
+        },
+        "sub": {
+          "max": 140
+        }
+      },
+      "elements": [
+        {
+          "type": "meta-row",
+          "tone": "ink"
+        },
+        {
+          "type": "text",
+          "field": "sub",
+          "style": "body",
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 6,
+              "row": 2,
+              "rowSpan": 3,
+              "alignY": "top"
+            }
+          },
+          "when": {
+            "present": "sub"
+          }
+        },
+        {
+          "type": "box",
+          "place": {
+            "grid": {
+              "col": 9,
+              "span": 4,
+              "row": 2,
+              "rowSpan": 3
+            }
+          },
+          "fill": "accent",
+          "ink": "on-accent",
+          "pad": [
+            16,
+            24,
+            24,
+            16
+          ],
+          "flow": "column",
+          "justify": "end",
+          "children": [
+            {
+              "type": "text",
+              "field": "tag",
+              "style": "display",
+              "ladder": {
+                "by": "tag",
+                "steps": [
+                  [
+                    3,
+                    128
+                  ],
+                  [
+                    5,
+                    96
+                  ],
+                  [
+                    16,
+                    72
+                  ]
+                ],
+                "maxLines": 3,
+                "maxH": 420
+              }
+            }
+          ]
+        },
+        {
+          "type": "fitted-stack",
+          "field": "headline",
+          "mode": "block",
+          "sizes": [
+            152,
+            137,
+            125
+          ],
+          "maxLines": 4,
+          "place": {
+            "grid": {
+              "col": 1,
+              "span": 12,
+              "row": 5,
+              "rowSpan": 4,
+              "alignY": "bottom"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
