@@ -121,6 +121,8 @@ export async function switchDesign(deps: Deps, actor: Actor & { id: string }, po
 }
 
 // ---- the redesign ----
+// Warnings of a trial render that refuse an AI design (see the check below).
+export const DESIGN_FAULT = /low contrast|is not used by the|is left out of the image/;
 export const redesignPayload = z.object({ batchId: z.string().uuid(), actorId: z.string().min(1), postIds: z.array(z.string().uuid()).min(1).max(40).optional(), activityId: z.string().optional() });
 
 export function runRedesign(deps: Deps, rawPayload: unknown): Promise<{ designed: number; of: number }> {
@@ -176,7 +178,10 @@ export async function redesignNow(deps: Deps, payload: { batchId: string; actorI
       if (issues.length) return issues;
       handle.progress({ step: 'Checking a design on the page' });
       const r = await engine.renderDesignBlock({ root: engine.root, design: withoutVaultIds(trial), postId: `trial-${++trials}`, outDir: path.relative(engine.root, path.join(runDir, 'trial')), strictOwn: true });
-      return r.ok ? [] : [r.error ?? 'the design could not be drawn'];
+      if (!r.ok) return [r.error ?? 'the design could not be drawn'];
+      // the page's own warnings that mean the design does not work: words that do not read on what is behind them, or words of the post
+      // it leaves out. A post's own design is held to them (a look's own design only warns), so the AI repairs it or the look's design stays.
+      return [...new Set(r.warnings.filter((w) => DESIGN_FAULT.test(w)).map((w) => w.replace(/^[^:]*\.jpg: /, '')))].slice(0, 6);
     };
     let result;
     try {

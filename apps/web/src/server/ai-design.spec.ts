@@ -221,13 +221,18 @@ describe.skipIf(!chrome)('with Chrome', () => {
     const { batch, posts } = await batchOfTwo(editor, 'draft');
     const over = aiStatement('Covering'); over.elements[0] = { type: 'art', place: { inset: 'page' }, z: 9, shapes: [{ shape: 'rect', x: 0, y: 0, w: 1000, h: 1000, colour: 'accent' }] };
     let verdicts: string[][] = [];
+    // the headline in the ink of a light page on the dark page: the page only warns about it for a look's design; the AI's is refused
+    const unreadable = aiStatement('Unreadable'); unreadable.ground = 'dark';
+    const noInk = (list: any[]) => { for (const e of list) { delete e.ink; noInk(e.children ?? []); } };
+    noInk(unreadable.elements);
     fake.design = async (input) => {
-      verdicts = [await input.check(input.posts[0].id, over), await input.check(input.posts[0].id, aiStatement())];
+      verdicts = [await input.check(input.posts[0].id, over), await input.check(input.posts[0].id, aiStatement()), await input.check(input.posts[0].id, unreadable)];
       return { results: [{ id: input.posts[0].id, composition: aiStatement(), reasons: [], tries: 2 }] };
     };
     await runRedesign(t.deps, { batchId: batch.id, actorId: editor.id, postIds: [posts[0]!.id] });
     expect(verdicts[0]!.join(' ')).toMatch(/art lies over the words/);
     expect(verdicts[1]).toEqual([]);
+    expect(verdicts[2]!.join(' ')).toMatch(/low contrast/);
 
     // a post that carries an own design the page refuses is still made, with the look's design, and says so (the brand's logos first)
     const engine = await pipelineEngine();
