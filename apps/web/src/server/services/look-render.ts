@@ -4,6 +4,7 @@
 //   previewComposition one design of a look, a draft swapped in, with sample, stress or minimal copy, and the rectangle of every
 //                      element that has an address (postMetrics().els); nothing is cached (drafts change at every key)
 //   gate               every given design drawn with sample, stress and minimal copy; one check per scenario
+//   designSamples      every design of one kind (sample copy), for the post editor's Design thumbnails; cached like preview
 //
 // Every Chrome run goes through the render queue (render-queue.ts): class `preview` (a newer request from the same person for the same
 // look replaces one still waiting) or `gate`, and under the engine's single Chrome lock. The brand is the one in force (the pack
@@ -23,7 +24,7 @@ import { loadGraphics, type SpecGraphic } from './design-images.js';
 import { ATTEMPTS, copyFor, SAMPLE_PICTURES, type CopyScenario } from './look-copy.js';
 import {
   lookEngine, setLookRenderer, type CompositionPreview, type CompositionPreviewRequest, type CompositionRect, type GateCheck, type GateRenderRequest,
-  type LookBrief, type LookRenderer, type PreviewRequest, type PreviewSample,
+  type DesignSample, type DesignSamplesRequest, type LookBrief, type LookRenderer, type PreviewRequest, type PreviewSample,
 } from './looks.js';
 import { submit } from './render-queue.js';
 
@@ -307,6 +308,35 @@ export function createLookRenderer(deps: Deps): LookRenderer {
         }
       }
       return { samples: kinds.map((k) => samples.get(k)!).filter(Boolean) };
+    },
+
+    async designSamples(req: DesignSamplesRequest) {
+      const eng = (await lookEngine()) as unknown as EngineLooks & { lookBrief(l: unknown): LookBrief };
+      const hash = eng.lookHash(req.look);
+      const count = eng.lookBrief(req.look).kinds[req.kind]?.variants.length ?? 0;
+      if (!count) return { designs: [] };
+      const bl = await brandFor(deps, req.look);
+      const gk = await graphicsKey(deps, req.look, req.scope.brandId);
+      const keyOf = (i: number) => `${hash}|${bl.key}|${gk}|${req.kind}#${i}`;
+      const got = new Map<number, DesignSample>();
+      const todo: number[] = [];
+      for (let i = 0; i < count; i++) {
+        const hit = cacheGet(keyOf(i));
+        if (hit) got.set(i, { index: i, ok: hit.ok, ...(hit.image ? { image: hit.image } : {}), ...(hit.error ? { error: hit.error } : {}) });
+        else todo.push(i);
+      }
+      if (todo.length) {
+        const run = await submit({ brandId: req.scope.brandId, class: 'preview', supersedeKey: `designs:${who(req.userId)}:${lookId(req.look)}:${req.kind}`, deadline: Date.now() + PREVIEW_WAIT_MS },
+          () => drawJobs(deps, req.look, todo.map((index) => ({ kind: req.kind, index, scenario: 'sample' as const })), { brandId: req.scope.brandId, withRects: false, brand: bl }));
+        if (run.status === 'superseded') return { designs: [], superseded: true };
+        todo.forEach((i, n) => {
+          if (run.status === 'expired') { got.set(i, { index: i, ok: false, error: 'The picture waited too long for its turn. Try again' }); return; }
+          const d = run.value[n] ?? { ok: false, warnings: [], rects: [], error: 'Not drawn' };
+          if (!d.busy && !/unexpected error|could not be started|not installed/.test(d.error ?? '')) cachePut(keyOf(i), d);
+          got.set(i, { index: i, ok: d.ok, ...(d.image ? { image: d.image } : {}), ...(d.error ? { error: d.error } : {}) });
+        });
+      }
+      return { designs: [...got.values()].sort((a, b) => a.index - b.index) };
     },
 
     async previewComposition(req: CompositionPreviewRequest): Promise<CompositionPreview> {

@@ -127,6 +127,30 @@ describe('the real renderer (the engine and Chrome)', () => {
   }, 120_000);
 });
 
+describe('the post editor\'s design pictures from the real renderer, on a server without Chrome', () => {
+  it('names each design of the kind with the reason, starts no Chrome and keeps nothing', async () => {
+    const was = process.env.CHROME_PATH;
+    process.env.CHROME_PATH = '/nonexistent/chrome';
+    try {
+      connectLookRenderer(t.deps);
+      const api = await admin();
+      await saveBrand();
+      await api.put(`${BASE}/active`, { ref: 'shipped:loud' });
+      const editor = t.api(await t.signIn(await t.createUser('editor')));
+      const before = renderStats.runs;
+      const res = await editor.get('/api/looks/designs/statement');
+      expect(res.status).toBe(200);
+      expect(res.body.ref).toBe('shipped:loud');
+      expect(res.body.designs.map((d: { index: number; ok: boolean }) => [d.index, d.ok])).toEqual([[0, false], [1, false], [2, false]]);
+      expect(res.body.designs[0].error).toMatch(/Chrome is not installed/);
+      expect(renderStats.runs).toBe(before);
+      expect(sampleCacheSize()).toBe(0);
+    } finally {
+      if (was === undefined) delete process.env.CHROME_PATH; else process.env.CHROME_PATH = was;
+    }
+  });
+});
+
 describe('what the routes and the gate do with a renderer\'s answers', () => {
   const IMG = 'data:image/jpeg;base64,/9j/4AAQ';
   function standIn(opts: { fail?: (kind: string, index: number) => string | null } = {}) {

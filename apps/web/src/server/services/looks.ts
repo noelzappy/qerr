@@ -186,6 +186,10 @@ export interface CompositionPreview { image?: string; rects?: CompositionRect[];
 // sample, stress and minimal copy; the answer holds the checks of each, in the same order. A target the renderer did not get to is a failed check.
 export interface GateTarget { kind: string; index: number }
 export interface GateRenderRequest { scope: LookScope; look: Json; targets: GateTarget[]; userId?: string }
+// Every design of one kind of the active look, drawn with the sample copy, for the post editor's Design choice (thumbnails). In the order of
+// lookBrief (the variant a post names is the index).
+export interface DesignSamplesRequest { scope: LookScope; look: Json; kind: string; userId?: string }
+export interface DesignSample { index: number; ok: boolean; image?: string; error?: string }
 export interface LookRenderer {
   // One picture per kind the look has a composition for (or the kinds asked for), with the checks' warnings. `superseded` when a newer
   // request replaced this one before it ran (the samples are then empty).
@@ -194,6 +198,8 @@ export interface LookRenderer {
   previewComposition?(req: CompositionPreviewRequest): Promise<CompositionPreview>;
   // The render checks (class `gate` in the render queue). Optional: without it a gate is validation only.
   gate?(req: GateRenderRequest): Promise<GateCheck[][]>;
+  // A picture of each design of a kind (class `preview`, cached like the samples). Optional: without it the post editor names the designs.
+  designSamples?(req: DesignSamplesRequest): Promise<{ designs: DesignSample[]; superseded?: boolean }>;
 }
 // The connected renderer (the app connects the engine's at start; tests connect a stand-in); null answers the preview routes 501.
 let renderer: LookRenderer | null = null;
