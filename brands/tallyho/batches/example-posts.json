@@ -1,31 +1,31 @@
 {
   "name": "tallyho-example-posts",
-  "timezone": "Europe/London",
+  "timezone": "Europe/Dublin",
   "defaultTime": "09:00",
   "mediaRoot": "media/tallyho-example-posts",
   "posts": [
     {
-      "id": "01-ask-first",
+      "id": "01-members-pick",
       "date": "2026-12-07",
-      "title": "Ask before you build",
-      "caption": "Before we wrote a line of code, we asked. Ten minutes and one poll saved a month of work.\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
+      "title": "Members pick the feature",
+      "caption": "We let our members pick the next feature. They chose the boring one, and it was the right call.\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
       "media": [
-        "01-ask-first-feed.jpg"
+        "01-members-pick-feed.jpg"
       ],
       "design": {
         "template": "post",
         "kind": "statement",
         "variant": 0,
         "label": "Startup journey",
-        "headline": "I asked my [[community]] before I built it",
-        "sub": "Ten minutes, one poll, and a month of work I did not waste."
+        "headline": "We let our [[members]] pick the next feature",
+        "sub": "They chose the boring one. It was the right call."
       },
       "networks": {
         "instagram": {
           "type": "post"
         },
         "x": {
-          "caption": "Before we wrote a line of code, we asked. Ten minutes and one poll saved a month of work.\n\nhttps://tallyho.example"
+          "caption": "We let our members pick the next feature. They chose the boring one, and it was the right call.\n\nhttps://tallyho.example"
         }
       }
     },
@@ -33,7 +33,7 @@
       "id": "02-dear-founders",
       "date": "2026-12-08",
       "title": "Dear founders",
-      "caption": "Building something nobody asked for is brave. It is also expensive. Ask first.\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
+      "caption": "A roadmap without a single vote on it is just a wish list. Ask your members.\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
       "media": [
         "02-dear-founders-feed.jpg"
       ],
@@ -42,14 +42,14 @@
         "kind": "statement",
         "variant": 1,
         "label": "Dear Founders,",
-        "headline": "Building something {{heart}} *nobody asked for* is brave. It is also *expensive.*"
+        "headline": "A roadmap {{star}} *without a single vote* is just a *wish list.*"
       },
       "networks": {
         "instagram": {
           "type": "post"
         },
         "x": {
-          "caption": "Building something nobody asked for is brave. It is also expensive. Ask first.\n\nhttps://tallyho.example"
+          "caption": "A roadmap without a single vote on it is just a wish list. Ask your members.\n\nhttps://tallyho.example"
         }
       }
     },
@@ -57,7 +57,7 @@
       "id": "03-truth-metric",
       "date": "2026-12-09",
       "title": "Truth metric",
-      "caption": "80% of members in our test groups said they like answering a quick poll (an illustrative figure for a fictional brand).\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
+      "caption": "80% of crews pick a meetup day within an hour of the poll going up (an illustrative figure for a fictional brand).\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
       "media": [
         "03-truth-metric-feed.jpg"
       ],
@@ -67,7 +67,7 @@
         "variant": 0,
         "label": "Truth metric",
         "big": "80%",
-        "headline": "of members said they *actually like* answering a quick poll.",
+        "headline": "of crews pick a meetup day *within an hour* of the poll going up.",
         "image": "design/assets/photos/peg-figures-puzzle-circle.jpg",
         "focal": "50% 55%"
       },
@@ -76,7 +76,7 @@
           "type": "post"
         },
         "x": {
-          "caption": "80% of members in our test groups said they like answering a quick poll (an illustrative figure for a fictional brand).\n\nhttps://tallyho.example"
+          "caption": "80% of crews pick a meetup day within an hour of the poll going up (an illustrative figure for a fictional brand).\n\nhttps://tallyho.example"
         }
       }
     },
@@ -136,8 +136,8 @@
     {
       "id": "06-dear-founders-quote",
       "date": "2026-12-14",
-      "title": "Ask people first",
-      "caption": "Nobody builds something bad on purpose. They just never asked enough people if it was good.\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
+      "title": "Ask today",
+      "caption": "A quick question asked today saves a long apology next month.\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
       "media": [
         "06-dear-founders-quote-feed.jpg"
       ],
@@ -146,7 +146,7 @@
         "kind": "quote",
         "variant": 1,
         "label": "Dear Founders,",
-        "quote": "Nobody builds something bad on purpose. They just never asked enough people if it was good.",
+        "quote": "A quick question asked today saves a long apology next month.",
         "by": "The Tallyho team"
       },
       "networks": {
@@ -154,24 +154,24 @@
           "type": "post"
         },
         "x": {
-          "caption": "Nobody builds something bad on purpose. They just never asked enough people if it was good.\n\nhttps://tallyho.example"
+          "caption": "A quick question asked today saves a long apology next month.\n\nhttps://tallyho.example"
         }
       }
     },
     {
-      "id": "07-validated-too-late",
+      "id": "07-shipped-before-asking",
       "date": "2026-12-15",
-      "title": "Validated too late",
-      "caption": "You validated the idea a year too late. One poll on day one would have told you.\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
+      "title": "Shipped before asking",
+      "caption": "You shipped it before you asked anyone. One poll on day one would have told you.\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
       "media": [
-        "07-validated-too-late-feed.jpg"
+        "07-shipped-before-asking-feed.jpg"
       ],
       "design": {
         "template": "post",
         "kind": "photo",
         "variant": 0,
         "label": "Your unfair advantage",
-        "headline": "You validated the [[idea]] a year too late",
+        "headline": "You shipped it before you [[asked]] anyone",
         "sub": "One poll on day one would have told you.",
         "image": "design/assets/photos/scout-man-backpack-checking-phone.jpg",
         "focal": "45% 50%"
@@ -181,24 +181,24 @@
           "type": "post"
         },
         "x": {
-          "caption": "You validated the idea a year too late. One poll on day one would have told you.\n\nhttps://tallyho.example"
+          "caption": "You shipped it before you asked anyone. One poll on day one would have told you.\n\nhttps://tallyho.example"
         }
       }
     },
     {
-      "id": "08-community",
+      "id": "08-tie-breaker",
       "date": "2026-12-16",
-      "title": "Everyone is building a community",
-      "caption": "Everyone is building a community. Almost nobody asks it anything.\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
+      "title": "A tie-breaker",
+      "caption": "Every crew needs a tie-breaker that is not the loudest voice in the chat.\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
       "media": [
-        "08-community-feed.jpg"
+        "08-tie-breaker-feed.jpg"
       ],
       "design": {
         "template": "post",
         "kind": "photo",
         "variant": 1,
         "label": "Next-gen",
-        "headline": "Everyone is building a [[community]]",
+        "headline": "Every crew needs a [[tie-breaker]]",
         "image": "design/assets/photos/cubes-circle-one-orange-blue.jpg",
         "focal": "50% 50%",
         "zoom": 1.3
@@ -208,24 +208,24 @@
           "type": "post"
         },
         "x": {
-          "caption": "Everyone is building a community. Almost nobody asks it anything.\n\nhttps://tallyho.example"
+          "caption": "Every crew needs a tie-breaker that is not the loudest voice in the chat.\n\nhttps://tallyho.example"
         }
       }
     },
     {
-      "id": "09-what-members-want",
+      "id": "09-coming-back",
       "date": "2026-12-17",
-      "title": "What members want",
-      "caption": "We asked our members what they really want. Most of them said time.\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
+      "title": "Why members come back",
+      "caption": "We asked members what keeps them coming back. Most of them said the people.\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
       "media": [
-        "09-what-members-want-feed.jpg"
+        "09-coming-back-feed.jpg"
       ],
       "design": {
         "template": "post",
         "kind": "photo",
         "variant": 2,
         "label": "Truth metric",
-        "headline": "We asked our members what they *really* want. Most said {{heart}} *time.*",
+        "headline": "We asked members what keeps them coming back. Most said {{heart}} *the people.*",
         "image": "design/assets/photos/game-pieces-circle-white.jpg",
         "focal": "50% 50%",
         "zoom": 1.2
@@ -235,23 +235,23 @@
           "type": "post"
         },
         "x": {
-          "caption": "We asked our members what they really want. Most of them said time.\n\nhttps://tallyho.example"
+          "caption": "We asked members what keeps them coming back. Most of them said the people.\n\nhttps://tallyho.example"
         }
       }
     },
     {
-      "id": "10-games-night",
+      "id": "10-quiz-night",
       "date": "2026-12-18",
-      "title": "Games night",
-      "caption": "Games night for builders: Friday 8 January, 6pm, at The Loft. Free with a Tallyho account. Save a seat at https://tallyho.example\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
+      "title": "Quiz night",
+      "caption": "Quiz night for builders: Friday 8 January, 6pm, at The Loft. Free with a Tallyho account. Save a seat at https://tallyho.example\n\nhttps://tallyho.example\n\n#Tallyho #Community #Polls",
       "media": [
-        "10-games-night-feed.jpg"
+        "10-quiz-night-feed.jpg"
       ],
       "design": {
         "template": "post",
         "kind": "event",
         "label": "Meetups",
-        "headline": "Games [[night]] for builders",
+        "headline": "Quiz [[night]] for builders",
         "meta": "Fri 8 Jan · 6pm · The Loft",
         "info": [
           {
@@ -273,7 +273,7 @@
           "type": "post"
         },
         "x": {
-          "caption": "Games night for builders: Friday 8 January, 6pm, at The Loft. Free with a Tallyho account. Save a seat at https://tallyho.example\n\nhttps://tallyho.example"
+          "caption": "Quiz night for builders: Friday 8 January, 6pm, at The Loft. Free with a Tallyho account. Save a seat at https://tallyho.example\n\nhttps://tallyho.example"
         }
       }
     },
@@ -290,7 +290,7 @@
         "kind": "offer",
         "label": "Group plan",
         "headline": "Unlimited polls for [[your crew]]",
-        "tag": "£0",
+        "tag": "€0",
         "image": "design/assets/photos/spheres-circle-one-red-lilac.jpg",
         "focal": "60% 55%",
         "zoom": 1.2

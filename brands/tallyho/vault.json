@@ -14,8 +14,8 @@
     },
     {
       "kind": "figure",
-      "title": "Members who like a quick poll",
-      "body": "80% of members in our test groups said they like answering a quick poll (illustrative figure).",
+      "title": "Meetup days picked fast",
+      "body": "80% of crews pick a meetup day within an hour of the poll going up (illustrative figure).",
       "sourceNote": "Invented for the test brand.",
       "status": "confirmed",
       "validFrom": "2026-01-01",
@@ -52,8 +52,8 @@
     },
     {
       "kind": "event",
-      "title": "Games night for builders",
-      "body": "Tallyho holds a games night for community builders at The Loft, an invented venue on Harbour Street, on Friday 8 January at 6pm. Entry is free with an account.",
+      "title": "Quiz night for builders",
+      "body": "Tallyho holds a quiz night for community builders at The Loft, an invented venue on Harbour Street, on Friday 8 January at 6pm. Entry is free with an account.",
       "sourceNote": "Invented for the test brand.",
       "status": "confirmed",
       "validFrom": "2026-12-01",

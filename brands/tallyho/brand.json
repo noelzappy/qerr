@@ -3,10 +3,10 @@
   "website": "tallyho.example",
   "tagline": "Ask your people. Count every voice.",
   "descriptor": "A polls and community app: groups ask quick questions, vote and see the results together. A fictional brand for testing.",
-  "timezone": "Europe/London",
+  "timezone": "Europe/Dublin",
   "money": {
-    "local": "Tallyho shows prices in pounds (£) only",
-    "foreign": "US\\$|\\$|€|\\b(?:dollars?|euros?|rupees?|yen|nairas?)\\b"
+    "local": "Tallyho works in euros (€) only",
+    "foreign": "US\\$|\\$|£|\\b(?:dollars?|pounds? sterling|rupees?|yen|nairas?)\\b"
   },
   "voice": "Loud, warm and direct. Short punchy lines, first person plural, a little cheeky. Speak to founders and community builders, never to investors. No hype numbers: every figure is a round illustrative one and is said to be.",
   "language": "British English",

@@ -228,7 +228,7 @@ with `BRAND_DIR=brands/pennyhive`; `test-brand-pennyhive.mjs` keeps the pack and
 default and the pack every test and example uses.
 
 **The Tallyho pack** (`brands/tallyho`) is a third fictional brand, made to show off the loud look: Tallyho, a polls and
-community app (website `tallyho.example`, time zone `Europe/London`, money in pounds). A saturated blue primary, an orange
+community app (website `tallyho.example`, time zone `Europe/Dublin`, money in euros). A saturated blue primary, an orange
 accent and a deep purple dark ground, Hanken Grotesk, invented facts with round figures in `vault.json`, and logos (a
 speech bubble with a tick and a heavy monoline "tallyho") drawn by `brands/tallyho/make-assets.mjs` with the standard library
 only. Its `brand.json` names no direction: choose the Loud look in Settings, Brand and look. Its example batch,
