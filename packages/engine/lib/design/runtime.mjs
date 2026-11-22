@@ -532,7 +532,8 @@ window.__ds = {
       for (const p of pieces) if (p.r.x1 - p.r.x0 >= 2 && p.r.y1 - p.r.y0 >= 2) (groups[p.tag] = groups[p.tag] || []).push(p.r);
       return Object.values(groups);
     };
-    const roles = [...document.querySelectorAll('[data-role]')].map((el, i) => {
+    const roleEls = [...document.querySelectorAll('[data-role]')];
+    const roles = roleEls.map((el, i) => {
       // An SVG figure and the poster logo's wordmark (a picture with no text in it) are measured on their box.
       const svg = el instanceof SVGElement, cs = getComputedStyle(el), whole = svg || el.dataset.role === 'logo';
       const b = whole ? el.getBoundingClientRect() : null;
@@ -543,7 +544,7 @@ window.__ds = {
         i, role: el.dataset.role, rects, color: svg ? cs.fill : cs.color,
         ...(ovEl ? { parts: partsOf(rects, ovEl.getAttribute('data-ov')) } : {}), ...(olw > 0 ? { outline: { color: cs.webkitTextStrokeColor, w: olw } } : {}),
         overX: svg ? 0 : el.scrollWidth - el.clientWidth, text: (el.getAttribute('aria-label') || el.innerText || el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 50),
-        size: parseFloat(cs.fontSize), weight: parseInt(cs.fontWeight, 10) || 400, optical: parseFloat(el.closest('[data-optical]')?.dataset.optical) || 0, min: +(el.dataset.min || 0), nested: !!(el.parentElement && el.parentElement.closest('[data-role]')),
+        size: parseFloat(cs.fontSize), weight: parseInt(cs.fontWeight, 10) || 400, optical: parseFloat(el.closest('[data-optical]')?.dataset.optical) || 0, min: +(el.dataset.min || 0), nested: !!(el.parentElement && el.parentElement.closest('[data-role]')), within: el.parentElement && el.parentElement.closest('[data-role]') ? roleEls.indexOf(el.parentElement.closest('[data-role]')) : -1,
         onpanel: el.hasAttribute('data-onpanel'), inAvoid: avoidEls.map((a, k) => (a.contains(el) ? k : -1)).filter((k) => k >= 0),
         cell: el.closest('[data-cell]') ? box(el.closest('[data-cell]').getBoundingClientRect()) : null,
         // a numeral or a picture-like block that may leave the page by the edges named (a post's bleed, lib/design/directions/)

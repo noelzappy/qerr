@@ -190,7 +190,10 @@ export function findLayoutProblems(m, S) {
   const bottom = Math.max(S.bottom ?? S.pad, m.header ? S.fbot ?? 0 : 0);
   const lim = { x0: S.pad - 3, x1: m.W - S.pad + 3, y0: m.header ? Math.max(S.top - 6, m.header.y1 + 10) : S.top - 6, y1: m.footer ? m.footer.y0 - 10 : m.H - bottom + 3 };
   const roles = m.roles.filter((r) => r.rects.length);
-  const own = roles.filter((r) => !r.nested);
+  // a text's own words and the words of the texts nested in it (a headline's emphasised phrase): where it reaches and what it runs into is
+  // judged on all of them (the role list's `within` is the index of the text a nested one sits in)
+  const top = (r) => { let t = r; for (let k = 0; k < 8 && t.nested && Number.isInteger(t.within) && m.roles[t.within]; k++) t = m.roles[t.within]; return t; };
+  const own = roles.filter((r) => !r.nested).map((r) => { const kids = roles.filter((k) => k !== r && k.nested && top(k) === r); return kids.length ? { ...r, rects: [...r.rects, ...kids.flatMap((k) => k.rects)] } : r; });
   for (const r of own) {
     if (EXEMPT_EDGE.has(r.role)) continue;
     const u = union(r.rects.map(core));
