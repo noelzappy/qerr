@@ -245,7 +245,7 @@ existing pack moves into the app through Settings, Brand and look, Advanced, "Im
 
 | File | Needed | What it is |
 | --- | --- | --- |
-| `brand.json` | yes | Name, website, tagline, descriptor, colours (grounds, text, accents, gradient, surfaces), shadows, radii, window and phone chrome, fonts, logo paths, series, spelling rules, length guidance, contrast targets and photo thresholds. Optional `timezone`, `money` and `emoji` (true lets post images carry up to three standard emoji per text). Every value is checked on load; a wrong one stops with the full list. See "The brand file" in [docs/design.md](docs/design.md). |
+| `brand.json` | yes | Name, website, tagline, descriptor, colours (grounds, text, accents, gradient, surfaces), shadows, radii, window and phone chrome, fonts, logo paths, series, spelling rules, length guidance, contrast targets and photo thresholds. Optional `timezone`, `country` (ISO 3166-1 alpha-2: the AI's calendar of holidays), `money` and `emoji` (true lets post images carry up to three standard emoji per text). Every value is checked on load; a wrong one stops with the full list. See "The brand file" in [docs/design.md](docs/design.md). |
 | `logos/logo-full.png`, `logos/logo-mark.png` | yes | The full colour logo (the mark, then the wordmark) and the mark alone, transparent PNGs. `brand.json` names them by paths relative to the repository root, for example `brands/demo/logos/logo-full.png`. |
 | `vault.json` | no | The first vault: facts, figures and research topics the app imports once, into an empty database (see [apps/web/README.md](apps/web/README.md)). |
 | `map.json` | no | A dot map for the `closing` template's `map: true`: a grid, regions of cells and the regions to light. |

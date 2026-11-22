@@ -60,7 +60,8 @@ The voice, the visual direction and the references are taste, not facts: the pro
 the hard rules leave room and never to quote them as claims.
 
 `draftBatch` may override `name`, `tagline`, `website` and `descriptor` with its `brand` argument; colours and file paths
-never reach the model. `timezone` defaults to the pack's `timezone`, then `UTC`. When the pack sets `money.foreign` (a
+never reach the model. `timezone` defaults to the pack's `timezone`, then `UTC`. The pack's optional `country` (ISO 3166-1
+alpha-2) goes into the draft request as `country` and picks the calendar of occasions (see "Occasions"). When the pack sets `money.foreign` (a
 pattern of other currencies), a post that uses a vault picture whose title, description or tags match it is rejected,
 with the `money.local` sentence in the reason. Without `money` every currency is allowed. A caption, a network's own caption or
 image text that matches `money.foreign` (words, symbols, any case; web addresses are left out) is not rejected, since a fact the post cites may
@@ -278,6 +279,9 @@ single idea that a photo suits is a `photo` post rather than a `statement`, an `
 a picture-less design is for a post no unused photo fits. Whether a look can draw a picture on a figure or a statement is the look's
 own: the shipped Clean look, for example, draws pictures only in its `photo` and `offer` designs.
 
+`draft-19` adds two sections of its own at the end, `# Occasions` and `# Tools` (see "Occasions" and "Tools while drafting" below);
+nothing else in the prompt changed.
+
 A batch is not one template filled in again and again: `comboProblems` in `postcheck.mjs` refuses a post whose design (its kind and
 named variant; a kind in all its variants when none is named) the batch already uses as often as the limit allows: 2, or a fifth of
 the batch, or the batch shared out over all the look's designs, whichever is most (`ctx.batchCount`). Named series posts are not
@@ -335,8 +339,89 @@ shown in the post's `warnings`.
 5. The batch is validated by the engine's own `validateBatch`; a post it refuses is dropped and reported. If nothing is left the call
    throws `no_valid_posts`.
 
-`notes`: `promptVersion`, `model`, `usage` (calls, tokens, cost or `"unknown"`), `plan`, `requested`, `delivered`, `seriesMix`,
-`rejected` (id and reasons), `repaired`, `direction` and `kindMix` (a direction brand only), `imageSuggestions` (stock-photo briefs; nothing is fetched or embedded) and `messages`.
+`notes`: `promptVersion`, `model`, `usage` (calls, tokens, cost or `"unknown"`, and `toolCalls` when tools ran), `plan`, `requested`, `delivered`, `seriesMix`,
+`rejected` (id and reasons), `repaired`, `direction` and `kindMix` (a direction brand only), `imageSuggestions` (stock-photo briefs; nothing is fetched or embedded),
+`seasonal` (with occasions: `country`, the `occasions` given and `used`, `{ postId, occasion, date }` for each post planned around one),
+`tools` (when a tool ran: `calls`, `searches` `{ tool, query, results }`, `vaultItemsFound`, `foundOnTheWeb`, `dropped`) and `messages`.
+`draftBatch` returns `{ batch, notes, found }`; `found` lists the facts taken from the web (below).
+
+## Occasions (`src/occasions.mjs`)
+
+A draft can be planned around the period: its public holidays, observances, seasons and shopping or money moments.
+`occasionsFor({ country, from, to })` returns the occasions that touch the window (at most 400 days), sorted by date, each
+`{ id, name, date, end?, kind, note, observed?, country }`, `kind` one of `holiday`, `observance`, `season`, `commerce`. No AI, no network.
+`country` is the brand's (brand.json `country`, an ISO 3166-1 alpha-2 code the engine's `validateBrand` checks against
+`packages/engine/lib/countries.mjs`). Covered: GH, NG, KE, ZA, GB, IE, US, CA, IN, AU, DE, FR, NL, ES, IT (`OCCASION_COUNTRIES`). Any other
+country, or none, gets the global occasions only: New Year's Day, Valentine's Day, International Women's Day, Easter Sunday, the start of
+Ramadan, Eid al-Fitr, Eid al-Adha, Black Friday, Cyber Monday, Christmas Eve, Christmas Day, New Year's Eve and the month-end payday (the
+last working day of each month). A country's own entry of the same id replaces a global one (Christmas Day becomes a `holiday`).
+
+How the dates are made, so each can be checked:
+- Fixed dates and weekday rules ("first Friday of December": Ghana's National Farmers' Day; "last Monday before 25 May": Victoria Day;
+  "fourth Thursday of November": US Thanksgiving, with Black Friday the day after and Cyber Monday three days later).
+- Easter by the anonymous Gregorian algorithm (Meeus, *Astronomical Algorithms*, ch. 8), and Good Friday, Easter Monday, Ascension
+  (+39), Whit Monday (+50), Shrove Tuesday (-47), Rose Monday (-48) and the UK and Irish Mothering Sunday (-21) from it.
+- Ramadan, Eid al-Fitr, Eid al-Adha and Nigeria's Eid-el-Maulud from the Umm al-Qura calendar through `Intl` (`islamic-umalqura`), and
+  Hanukkah (25 Kislev, eight nights) from `Intl`'s Hebrew calendar. Each Islamic note says the day depends on the moon and may differ by
+  one locally; on a Node without those calendars the entries are left out.
+- Diwali from a table for 2025 to 2030 (20 Oct 2025, 8 Nov 2026, 29 Oct 2027, 17 Oct 2028, 5 Nov 2029, 26 Oct 2030), as India's central
+  government holiday list and the major panchangs give the Lakshmi Puja day; a test checks each against a computed new moon. No other year.
+- Substitute days: GB bank holidays on a weekend move to the next working day not already a holiday (Christmas and Boxing Day
+  together), South Africa's Sunday holidays to the Monday (Public Holidays Act), US federal holidays to the Friday or Monday (OPM), Canada
+  Day on a Sunday to the Monday, and Australia Day on a weekend to the Monday. The entry keeps its date and gets `observed` and a sentence.
+- Special rules: Ireland's St Brigid's Day bank holiday (the first Monday of February, or 1 February when that is a Friday, since 2023),
+  the Dutch King's Day (26 April when the 27th is a Sunday), the French Fête des mères (last Sunday of May, or the first of June when
+  Pentecost falls on it), the French sales (Code de commerce D310-15-2), Oktoberfest (the first Saturday after 15 September to the first
+  Sunday of October, or 3 October when later), the first Sunday of Advent.
+- Money moments only where certain: the UK Self Assessment deadline (31 January) and tax year end (5 April), Ireland's 31 October paper
+  return deadline, Canada's 30 April filing deadline, Australia's end of financial year (30 June) and 31 October return deadline.
+  Back-to-school is a `season` with a range and a note that dates vary. Meteorological seasons for the temperate countries only.
+
+Sources: each country's government list of public holidays (gov.uk bank holidays, gov.ie public holidays, OPM federal holidays,
+canada.ca statutory holidays, India's central government holiday list, the Australian states' lists, the German, French, Dutch,
+Spanish and Italian national lists, the South African Public Holidays Act, the Kenyan, Nigerian and Ghanaian government
+announcements), read from memory of those sources while writing, not fetched. Left out because they were not certain: Ghana's
+7 January and 1 July and its 21 September holiday name (all changed by recent amendments), Kenya's 26 December and 10 October names,
+Italy's 4 October from 2026, the US tax day (it moves with weekends and DC's Emancipation Day), regional holidays (German states, Spanish
+regions, Scottish and Northern Irish ones except as a note), Holi and the other lunisolar Hindu festivals, and Mother's Day where it is
+not one clear rule (Ghana, Nigeria, Kenya). `test-occasions.mjs` pins the rules to known dates.
+
+A draft takes `occasions: [{ name, date?, end?, observed?, kind, note?, source? }]` (`cleanOccasions`: at most 40, names up to 80
+characters, dates real, ones outside the period dropped). The request carries them as `occasions` and the brand's `country`, and the
+prompt's `# Occasions` section says: plan posts around them where they genuinely fit the brand (a timely angle, a greeting, a themed tip),
+on the day or before it and never after, mark such a post `"occasion": "<name>"`, name an occasion and its date only as given, and never
+claim the brand does something for one unless a cited vault item says so. Occasions are allowed context, not vault facts: in
+`postcheck.mjs` the days of the month and the year of an occasion's dates (and a number in its name) are allowed in a post whose words
+name it (`occasionNumberKeys`: the name, or a distinctive word of it such as "christmas") or that declares it. Every other number still
+needs a cited item. A post marked for an occasion that goes out after it gets a warning. The `occasion` mark stays in the notes, never in
+the engine batch.
+
+`findOccasions({ country, period, known })` ("Look for events this month") runs one web search ("major events and festivities in
+<country> <month year>"), wraps the results as `<source>` data and asks the drafting provider (prompt `occasions.md`) for up to six more,
+each `{ name, date, end?, kind, note, source }` with `kind` never `holiday`. A proposal is dropped when its `sourceUrl` is not a returned
+result, its dates fall outside the period, it repeats a known name, or its name or note carries a number its result does not. The search
+and the AI call go through the budget and the call log like every other.
+
+## Tools while drafting (`src/draft-tools.mjs`)
+
+Each drafting call offers the model tools through `complete({ tools })` in `providers.mjs` (at most `MAX_DRAFT_TOOL_CALLS`, 8, over the
+whole draft; every round trip is a paid, logged call, the budget is checked before each, and each tool call is logged as `kind: "tool"`):
+- Anthropic: the tools go beside the answer tool with `tool_choice: { type: "any" }` (a tool call every turn; the answer tool finishes),
+  the model's `tool_use` blocks are run and sent back as `tool_result` blocks, and once the calls are used up the answer tool is forced.
+- OpenAI-compatible: `tools: [{ type: "function", function: { name, description, parameters } }]` with `tool_choice: "auto"`, the
+  message's `tool_calls` are run and answered with `{ role: "tool", tool_call_id }` messages, then the JSON answer; at the cap
+  `tool_choice: "none"`. A server that answers 400 about tools is asked again without them.
+The JSON-output contract is unchanged: the answer is the same schema, checked the same way.
+
+- `search_facts({ query, kind? })` searches every usable vault item (confirmed, current, rights settled; never pictures, which are all in
+  the request) by title (3), tags (2) and body (1), and returns up to 8 compact items the model may cite. So the request lists only the
+  top 40 facts (those that mention a chosen occasion first) and says how many more there are (`tools.factsNotListed`).
+- `search_web({ query })`, only with a search provider, returns five results as `<source>` blocks marked as data, never instructions.
+  A fact the model wants from one goes in the answer's `found` list (`{ id: "found-…", kind, title, body, sourceUrl }`) and is cited by
+  that id. A find is kept only when its `sourceUrl` is a result this draft returned and every number in it is in that result's text, and
+  it repeats no vault item. A post citing a kept find passes the source check but gets the warning "Uses a fact found on the web: confirm
+  it in Facts first"; a post citing anything else that is not usable is rejected as before. The app saves each find as an unconfirmed
+  vault item (tag `found-while-drafting`) and points the post's sources at it, so approval refuses the post until a person confirms it.
 
 ## Research
 
@@ -384,6 +469,9 @@ the same version line. The pack's file is used when it exists, the library's oth
 
 ## Weak or unverified
 
+- Tool calling (`search_facts`, `search_web`) was run against a real Anthropic model once (a December 2026 draft for the Pennyhive test
+  brand, no search key, so `search_web` was not offered); OpenAI-compatible tool calling and `search_web` and `findOccasions` against a
+  real search provider were run only against fakes in the tests.
 - Not run against real Brave, Tavily, Exa or any OpenAI-compatible server. Brave's `page_age`/`age` and Tavily's
   `include_published_date`, and Exa's `contents.text.maxCharacters`, were not confirmed in the docs read.
 - Page reads through the real transport were run once against `example.com` only; redirect handling and the pinned lookup are covered by tests with fake transports, not by a real redirecting site.
