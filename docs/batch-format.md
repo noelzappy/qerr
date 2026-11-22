@@ -159,7 +159,7 @@ A `post` design says what the post is and gives its words; the brand's look (or 
 | `info` | 1 to 4 rows `{ "key", "value" }`, the key from a fixed list of labels (`When`, `Where`, `Book on`, ...). |
 | `gallery` | 2 to 5 pictures `{ "image", "caption"? }` for a row of round pictures; each picture is checked like `image` (`vaultItemId` included). |
 | `image`, `vaultItemId`, `focal`, `zoom` | The post's picture, as for the other templates. |
-| `graphics` | The files of the brand graphics and cut-outs a look's pieces name, by vault id; see design.md. The app does not fill it yet. |
+| `graphics` | The files of the brand graphics and cut-outs a look's pieces name, by vault id; see design.md. Leave it out: the web app fills it from the vault when the images are made, and refuses a design that sets it. |
 | `sizes`, `name`, `networkSizes` | As below; `sizes` is `["feed"]` only. |
 
 A field the chosen design does not draw is left out of the image with a warning. A carousel of post pages is

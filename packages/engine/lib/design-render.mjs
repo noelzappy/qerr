@@ -10,7 +10,8 @@ import { Browser, NO_CHROME, findChrome } from './design/chrome.mjs';
 import { detectConverter } from './design/convert.mjs';
 import { lintText, textFieldsOf } from './design/lint.mjs';
 import { DesignError, renderImage, renderPdf } from './design/render.mjs';
-import { outputFiles, pdfFile } from './design/spec.mjs';
+import { normaliseDesign, outputFiles, pdfFile } from './design/spec.mjs';
+import { postCompositionGraphics } from './design/directions/index.mjs';
 import { usesPostTemplate } from './design/post-spec.mjs';
 import { loadLayouts, normalisePostDesign, postDesignProblems, usesLayouts } from './design/layout.mjs';
 
@@ -30,7 +31,27 @@ export function designBlockProblems(design, { root = ROOT, layouts } = {}) {
   return errors;
 }
 
-const brandWarnings = (spec, brand) => [...new Set(spec.sizes.flatMap((s) => lintText(textFieldsOf(spec), s, brand)))];
+// The brand graphics each picture of a design block places: for a post, and each post page of a carousel, drawn with the brand's own look
+// (brand.looks named by style.direction), the composition the renderer will choose for it and the vault ids its graphic elements name.
+// -> [{ page: null (the post) | index from 0 (a carousel page), kind, variant, name, refs }], only the pictures that place a graphic.
+// Empty for a code direction, a classic layout, or a design that cannot be drawn (rendering it says why). No Chrome; reads only brand.json.
+export function designGraphicNeeds(design, { root = ROOT } = {}) {
+  if (!usesPostTemplate(design)) return [];
+  const look = loadLook({ root });
+  if (!look) return [];
+  let spec;
+  try { spec = normaliseDesign(design); } catch { return []; }
+  const pictures = spec.template === 'carousel' && Array.isArray(spec.pages) ? spec.pages.map((p, i) => [i, p]) : [[null, spec]];
+  const out = [];
+  for (const [page, s] of pictures) {
+    if (!s || s.template !== 'post') continue;
+    const c = postCompositionGraphics(look, s);
+    if (c?.refs.length) out.push({ page, ...c });
+  }
+  return out;
+}
+
+const brandWarnings =(spec, brand) => [...new Set(spec.sizes.flatMap((s) => lintText(textFieldsOf(spec), s, brand)))];
 
 // -> { ok, files: [{ size, slide, file, abs, w, h }], warnings, notes, pdf?, error? }
 // `only` limits the sizes rendered (a list of size names). `outDir` is resolved against root; `stem` overrides the file name stem.

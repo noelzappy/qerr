@@ -318,8 +318,18 @@ wrote: its colours, fonts and logo), with the look asked for as its direction; a
 neutral sample copy made from the look's own brief (`services/look-copy.ts`: no customer's text; the stress copy is tried at 100%, 85%, 70%, 60% and 50% of each limit and
 the longest that the engine accepts is the one drawn), the picture of a photo, event or offer is a synthetic one the engine ships
 (`design/assets/demo/`). The look and the design are validated by the engine (`resolveLook`, `validateDesign`) before any drawing; nothing here builds markup.
-**What is cached:** sample pictures only, in memory, at most 64, by look hash + brand hash + kind (the brand hash is the pack's files and brand file
-without its looks and direction, so changing the active look does not empty it); a design preview is never cached (a draft changes at every key) and neither is a
+**Brand graphics and cut-outs** a design places (its `graphic` pieces name a vault item by `ref`) are found by the app, never taken from a request: for a
+design of a look, the composition being drawn (`lookCompositionGraphics`, the draft when one is swapped in); for a post (the render job and
+`POST /api/posts/preview-design`), the composition the engine will choose for it, or for each post page of a carousel (`designGraphicNeeds`: the named or
+hashed variant, then the next that accepts the words). Each item must be in the vault, of this brand, not deleted, a picture whose role is `cutout` or
+`graphic`, with a PNG or WebP file (`services/design-images.ts` `graphicProblem`; being confirmed is not needed to draw, as for a post's photo). Its file is
+copied into the run's own folder like a post's vault photo (`copyVaultFile`) and the spec gets `graphics: [{ ref, image, tintable }]` (`tintable` only for a
+graphic marked recolourable); the copy is removed afterwards. A graphic that is missing, deleted, has changed role or has no usable file refuses the drawing
+with a message that names the design and the graphic ("The design "Stack" places the brand graphic "Leaf mark", which was deleted from Pictures ...", a
+carousel's prefixed with its page), before Chrome starts: the render job fails with it, the post preview answers `ok: false` with it, and the design editor
+and the gate show it as the design's problem. A design that sets `graphics` itself is refused like any invalid design.
+**What is cached:** sample pictures only, in memory, at most 64, by look hash + brand hash + the state of the vault graphics the look places + kind (the brand
+hash is the pack's files and brand file without its looks and direction, so changing the active look does not empty it); a design preview is never cached (a draft changes at every key) and neither is a
 refusal caused by a busy or broken Chrome. A gate record is stored on each design and goes stale with the design's definition; it does not know the brand, so a
 changed brand is not rechecked until the checks are run again.
 The brand pack carries the active look (`looks: [<the look>]`, `style.direction` = its id; a shipped look is written as a copy of itself, `copy:shipped:<id>`), so

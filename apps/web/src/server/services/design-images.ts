@@ -6,10 +6,12 @@
 //     private bucket and uses it instead of `image` (which must still look like an image file name, for the validator).
 // A design whose `image` has the file name of exactly one vault photo is treated as using that photo, so its rights are checked.
 // Any other path (absolute, outside design/assets, climbing out with "..") is refused: the renderer would read it from disk.
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { VaultItem } from '@prisma/client';
 import type { Deps } from '../deps.js';
 import { pipelineEngine } from '../engine/pipeline.js';
+import { assertInside, safeFileName } from './post-model.js';
 import { screenFraming } from './screen-framing.js';
 
 type Json = Record<string, unknown>;
@@ -99,6 +101,9 @@ export async function designProblems(design: unknown, deps?: Pick<Deps, 'prisma'
         if (isObj(g) && typeof g.image === 'string' && !insideAssets(g.image)) problems.push(`${where} graphic ${i + 1}: image "${g.image.slice(0, 80)}" must be a file under design/assets/`);
       });
     }
+    // The brand graphics a look places are found in the vault by the app when the images are made (attachGraphics); a design never
+    // names their files, so no path from a request reaches the renderer this way.
+    if ('graphics' in node) problems.push(`${where}: graphics is filled in from the look's brand graphics when the images are made; leave it out`);
   });
   if (deps && !problems.length) problems.push(...(await screenProblems(deps, design)));
   return problems;
@@ -131,4 +136,102 @@ export async function photosOfDesign(deps: Pick<Deps, 'prisma'>, design: unknown
     }
   }
   return out;
+}
+
+// ---- copying vault files next to a run ---------------------------------------------------------------------------------------
+
+const IMAGE_EXT_BY_TYPE: Record<string, string> = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };
+
+// Copies a vault item's file from the private bucket into <runDir>/in/ (the run's own, git-ignored folder) and returns its path relative to
+// the engine root, as a spec names a picture. The name is made from the item's (cleaned); the extension is the item's when the engine knows
+// it, else its content type's. `ext` forces one (a graphic is always a .png or .webp).
+export async function copyVaultFile(deps: Pick<Deps, 'storage'>, item: VaultItem, runDir: string, n: number, ext?: string): Promise<string> {
+  const engine = await pipelineEngine();
+  const own = path.extname(item.fileName ?? '').toLowerCase();
+  const e = ext ?? (own in engine.imageTypes ? own : (IMAGE_EXT_BY_TYPE[item.contentType ?? ''] ?? '.jpg'));
+  const body = await deps.storage.getObject(item.fileKey!);
+  await fs.mkdir(path.join(runDir, 'in'), { recursive: true });
+  const file = assertInside(runDir, path.join(runDir, 'in', `${n}-${safeFileName(path.basename(item.fileName ?? 'picture', own))}${e}`));
+  await fs.writeFile(file, body);
+  return path.relative(engine.root, file).split(path.sep).join('/');
+}
+
+// ---- brand graphics and cut-outs a look places ---------------------------------------------------------------------------------
+//
+// A look's `graphic` elements name a vault item by its id. When a post (or a design of a look) is drawn, the app asks the engine which
+// composition will draw it (designGraphicNeeds, lookCompositionGraphics), loads the items its graphic elements name, checks each one and
+// copies its file next to the run; the spec then carries `graphics: [{ ref, image, tintable }]` with paths the app made. Nothing in a
+// request names these files (designProblems refuses a design that sets graphics).
+
+export const GRAPHIC_ROLES = ['cutout', 'graphic'] as const;
+const GRAPHIC_EXT: Record<string, string> = { 'image/png': '.png', 'image/webp': '.webp' };
+
+// What one picture needs: its composition (the name is for messages) and the vault ids it places. `page`: null for a post, else the
+// carousel page (from 0).
+export interface GraphicNeed { page: number | null; kind: string; variant: number; name: string; refs: string[] }
+export interface SpecGraphic { ref: string; image: string; tintable: boolean }
+
+// Why a vault item cannot be placed by a design, in words that name the design and the graphic; null when it can. A picture is not held
+// to being confirmed to be drawn (as a post's own photo is not); approval checks what goes out.
+export function graphicProblem(design: string, ref: string, item: VaultItem | undefined, brandId: string): string | null {
+  const d = `The design "${design}"`;
+  if (!item || item.brandId !== brandId) return `${d} places a brand graphic that is not in Pictures (id ${ref}). It may have been removed for good: choose another graphic for this design in Settings, Looks`;
+  const g = `"${item.title}"`;
+  if (item.deletedAt) return `${d} places the brand graphic ${g}, which was deleted from Pictures. Restore it, or choose another graphic for this design in Settings, Looks`;
+  if (item.kind !== 'photo' || !(GRAPHIC_ROLES as readonly string[]).includes(item.role)) {
+    return `${d} places ${g}, which is no longer a cut-out or graphic (it is now ${item.kind === 'photo' ? 'a photo' : `a ${item.kind} item`}). Mark it as a cut-out or graphic again in Pictures, or choose another graphic for this design in Settings, Looks`;
+  }
+  if (!item.fileKey) return `${d} places the brand graphic ${g}, which has no file yet. Upload its file in Pictures`;
+  if (!GRAPHIC_EXT[item.contentType ?? '']) return `${d} places the brand graphic ${g}, whose file is not a PNG or WebP picture. Upload a PNG or WebP with a transparent background in Pictures`;
+  return null;
+}
+
+// Loads and checks every item the needs name and copies each usable file once into the run. -> the problems (none when every graphic
+// can be placed; nothing is copied otherwise), and per need the graphics list for its spec.
+export async function loadGraphics(
+  deps: Pick<Deps, 'prisma' | 'storage'>, needs: GraphicNeed[], o: { runDir: string; brandId: string; start?: number },
+): Promise<{ problems: string[]; lists: SpecGraphic[][] }> {
+  const refs = [...new Set(needs.flatMap((n) => n.refs))];
+  if (!refs.length) return { problems: [], lists: needs.map(() => []) };
+  // only this brand's items: another brand's is "not in Pictures", like one that does not exist
+  const items = await deps.prisma.vaultItem.findMany({ where: { id: { in: refs }, brandId: o.brandId } });
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const problems: string[] = [];
+  for (const need of needs) {
+    for (const ref of need.refs) {
+      const why = graphicProblem(need.name, ref, byId.get(ref), o.brandId);
+      if (why) problems.push(need.page === null ? why : `Page ${need.page + 1}: ${why}`);
+    }
+  }
+  if (problems.length) return { problems, lists: [] };
+  const copied = new Map<string, string>();
+  let n = o.start ?? 1000;
+  for (const ref of refs) {
+    const item = byId.get(ref)!;
+    copied.set(ref, await copyVaultFile(deps, item, o.runDir, ++n, GRAPHIC_EXT[item.contentType!]));
+  }
+  return {
+    problems: [],
+    lists: needs.map((need) => need.refs.map((ref) => {
+      const item = byId.get(ref)!;
+      return { ref, image: copied.get(ref)!, tintable: item.role === 'graphic' && item.tintable };
+    })),
+  };
+}
+
+// The graphics the brand's active look places on a post design, for the composition the engine will draw it with (the brand pack in
+// force), copied into the run and set on the spec (on the post, or on each carousel page that places one). `spec` is the run's private
+// copy and is changed in place. -> the problems (nothing is set then).
+export async function attachGraphics(deps: Pick<Deps, 'prisma' | 'storage'>, spec: Json, o: { runDir: string; brandId: string }): Promise<string[]> {
+  const engine = await pipelineEngine();
+  const needs = engine.designGraphicNeeds(withoutVaultIds(spec), { root: engine.root });
+  if (!needs.length) return [];
+  const { problems, lists } = await loadGraphics(deps, needs, o);
+  if (problems.length) return problems;
+  const pages = pagesOf(spec);
+  needs.forEach((need, i) => {
+    const node = need.page === null ? spec : pages[need.page];
+    if (node) node.graphics = lists[i];
+  });
+  return [];
 }

@@ -15,7 +15,7 @@ import { displayTarget } from '../checks.mjs';
 import { fontFacesFor } from '../font-library.mjs';
 import { grainUri, makeContext, numberElements, rootCss } from './kit.mjs';
 import fs from 'node:fs';
-import { canonicalJson, lookBrief, normaliseLook, validateLook } from '../look.mjs';
+import { canonicalJson, compositionGraphicRefs, lookBrief, normaliseLook, validateLook } from '../look.mjs';
 import { POST_FIELDS, POST_ITEMS, POST_KINDS, POST_LISTS, POST_REQUIRED, seenText } from '../post-spec.mjs';
 import { accentPlan, paletteCss } from './colour.mjs';
 import { fontAlias } from '../font-library.mjs';
@@ -193,6 +193,21 @@ export function renderPostWithLook(look, spec, ctx, { shipped = false } = {}) {
   const comp = list[used], tokens = tokensFromLook(r.look, ctx.brand);
   return draw({ spec, ctx, comp, tokens, direction: r.look.id, used, fellBackFrom, code: false, look: r.look });
 }
+
+// The composition of a look written as data that will draw `spec` (a post), chosen as renderPostWithLook chooses it (the named or hashed
+// variant, then the next that accepts the words), with the brand graphics it places: { kind, variant, name, refs }. null when the look is
+// invalid or has no composition that takes the post (drawing it is refused then, with the reason). No page is built.
+export function postCompositionGraphics(look, spec, { shipped = false } = {}) {
+  const r = resolveLook(look, { shipped });
+  if (r.problems.length || !isObjSpec(spec)) return null;
+  const list = r.comps[spec.kind] ?? [];
+  if (!list.length) return null;
+  let used;
+  try { ({ used } = pickVariant(spec, list, r.look.id)); } catch (e) { if (e instanceof DesignError) return null; throw e; }
+  const comp = list[used];
+  return { kind: spec.kind, variant: used, name: comp.name, refs: compositionGraphicRefs(comp.data) };
+}
+const isObjSpec = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
 const num4 = (v) => +Number(v).toFixed(4);
 // the look's custom properties on the page's root: numbers and fixed words only

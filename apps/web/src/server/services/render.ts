@@ -1,7 +1,8 @@
 // The render-post job: turns a post's `design` block into finished images in the private bucket.
 //
-// The design engine reads pictures from disk relative to the repository root, so a vault photo is copied from the bucket
-// into out/app-render/<run>/ (git-ignored) and only the temporary copy of the spec points at it. The folder is removed
+// The design engine reads pictures from disk relative to the repository root, so a vault photo, and each brand graphic the active
+// look's chosen composition places (design-images.ts attachGraphics), is copied from the bucket into out/app-render/<run>/
+// (git-ignored) and only the temporary copy of the spec points at it. The folder is removed
 // afterwards. One Chrome at a time: the queue runs one job at a time and a process-level lock covers direct calls.
 import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
@@ -14,8 +15,9 @@ import { describeError, logger } from '../log.js';
 import { privateKey } from '../storage/types.js';
 import { trackRun, type RunHandle } from './activity.js';
 import { syncBrand } from './brand-settings.js';
-import { designProblems, photosOfDesign, withoutVaultIds } from './design-images.js';
-import { asMedia, assertInside, MEDIA_TYPES, POST_KEY_RE, safeFileName, type MediaEntry } from './post-model.js';
+import { attachGraphics, copyVaultFile, designProblems, photosOfDesign, withoutVaultIds } from './design-images.js';
+import { DEFAULT_BRAND_ID } from './looks.js';
+import { asMedia, assertInside, MEDIA_TYPES, POST_KEY_RE, type MediaEntry } from './post-model.js';
 
 export const DESIGN_WARNING_PREFIX = 'Design check: ';
 
@@ -40,8 +42,6 @@ async function fail(deps: Deps, post: Post, message: string, handle: RunHandle):
   await deps.prisma.post.update({ where: { id: post.id }, data: { renderStatus: 'failed', renderError: message.slice(0, 1000) } });
   await audit(deps, null, 'post.render.failed', 'post', post.id, { postKey: post.postKey, error: message.slice(0, 300) });
 }
-
-const IMAGE_EXT_BY_TYPE: Record<string, string> = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp', 'image/gif': '.gif' };
 
 async function renderNow(deps: Deps, postId: string, handle: RunHandle): Promise<void> {
   const post = await deps.prisma.post.findUnique({ where: { id: postId } });
@@ -72,12 +72,11 @@ async function renderNow(deps: Deps, postId: string, handle: RunHandle): Promise
       if (!photo.item) return await fail(deps, post, `The design uses a vault photo (${photo.vaultItemId}) that is not in the vault`, handle);
       if (!photo.vaultItemId) continue; // matched by file name only: the repository file is what the design names
       if (photo.item.deletedAt || !photo.item.fileKey) return await fail(deps, post, `The vault photo "${photo.item.title}" was deleted or has no file`, handle);
-      const body = await deps.storage.getObject(photo.item.fileKey);
-      const ext = path.extname(photo.item.fileName ?? '').toLowerCase() in engine.imageTypes ? path.extname(photo.item.fileName!).toLowerCase() : (IMAGE_EXT_BY_TYPE[photo.item.contentType ?? ''] ?? '.jpg');
-      const file = assertInside(runDir, path.join(runDir, 'in', `${++n}-${safeFileName(path.basename(photo.item.fileName ?? 'photo', ext))}${ext}`));
-      await fs.writeFile(file, body);
-      photo.node.image = path.relative(engine.root, file).split(path.sep).join('/');
+      photo.node.image = await copyVaultFile(deps, photo.item, runDir, ++n);
     }
+    // The brand graphics and cut-outs the active look's chosen composition places, found in the vault and copied the same way.
+    const graphicIssues = await attachGraphics(deps, spec, { runDir, brandId: DEFAULT_BRAND_ID });
+    if (graphicIssues.length) return await fail(deps, post, graphicIssues.join('; '), handle);
 
     handle.progress({ step: 'Drawing the images' });
     // The folio is the post's number in its batch (removed posts do not count).
