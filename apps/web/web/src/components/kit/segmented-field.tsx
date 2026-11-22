@@ -35,7 +35,7 @@ export function SegmentedField<T extends string = string>({ label, value, onValu
           <label key={o.value} title={o.title}
             className={cn(
               'relative flex min-h-7 min-w-12 cursor-pointer items-center justify-center rounded-[5px] px-2.5 py-0.5 text-center text-[13px] leading-tight font-medium text-muted-foreground transition-colors max-sm:min-h-10',
-              'hover:text-foreground has-[:checked]:bg-background has-[:checked]:text-foreground has-[:checked]:shadow-xs has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
+              'hover:text-foreground has-[:checked]:bg-background has-[:checked]:text-foreground has-[:checked]:shadow-sm has-[:checked]:ring-1 has-[:checked]:ring-foreground/10 has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50',
               'has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50',
               fill && 'flex-1',
             )}>

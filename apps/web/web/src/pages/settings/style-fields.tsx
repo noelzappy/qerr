@@ -211,7 +211,7 @@ export function LookFields({ style, onChange, artwork, busy, onArtwork, onRemove
       <div className="grid gap-3 md:grid-cols-2">
         <SegmentedField label="Cards and panels" value={style.surface} onValueChange={(v) => set('surface', v as StyleSettings['surface'])} options={optionsOf(SURFACES)} />
         <SelectField label="Decoration" value={d.kind} onValueChange={(v) => set('decoration', { ...d, kind: v as typeof d.kind })} options={optionsOf(DECORATIONS, 'decoration')} />
-        <SegmentedField label="Decoration on" value={d.on} onValueChange={(v) => set('decoration', { ...d, on: v as typeof d.on })} options={optionsOf(DECORATION_ON)} disabled={d.kind === 'none'} />
+        <SegmentedField label="Decoration on" value={d.on} onValueChange={(v) => set('decoration', { ...d, on: v as typeof d.on })} options={short(DECORATION_ON, { dark: 'Dark pages only', all: 'Every page' })} disabled={d.kind === 'none'} />
         {['dots', 'grid', 'lines', 'auto'].includes(d.kind) && (
           <NumberField label="Decoration strength" hint="How visible the pattern is: 0.01 is faint, 0.4 is strong. Leave empty to use the brand's." min={0.01} max={0.4} emptyAllowed value={d.alpha} onChange={(v) => set('decoration', { ...d, alpha: v })} />
         )}
